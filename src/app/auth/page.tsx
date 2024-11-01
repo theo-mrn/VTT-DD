@@ -26,10 +26,10 @@ export default function AuthForm() {
         const user = userCredential.user
         // Stocker uniquement l'UID dans Firestore sans email ni date de création
         await setDoc(doc(db, "users", user.uid), {})
-        router.push('/home')  // Rediriger vers la page d'accueil
+        router.push('/Salle')  // Rediriger vers la page d'accueil
       } else if (action === 'login') {
         await signInWithEmailAndPassword(auth, email, password)
-        router.push('/home')  // Rediriger vers la page d'accueil
+        router.push('/Salle')  // Rediriger vers la page d'accueil
       }
     } catch (error: unknown) {
       if (error instanceof Error) {

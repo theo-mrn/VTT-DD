@@ -27,7 +27,7 @@ export default function LandingPage() {
           }
         }
       } else {
-        router.push('/connexion'); 
+        router.push('/auth'); 
       }
     });
   };
