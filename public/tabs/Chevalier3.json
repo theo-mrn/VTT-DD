@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Fidèle monture",
+    "rang1": "Capacité passive: <br>Effet : fidèle monture: FOR+4, DEX+0, CON+4, INT-2, SAG+O, CHA+0, Init 10, DEF 1, PV 15, Contact+5 (Ruade), DM 1d6+4. <br> <br> Le chevalier possède un puissant destrier (voir marge cicontre), c'est un cheval de guerre bien dressé quicomprend les ordres simples. Acheval, il peut ajouter un déplacement de 10 m avant ou après une action normale (par exemple faire 10 m et une action limitée). La monture n'attaque que si elle est elle-même attaquée au contact par une créature.",
+    "type1":"passive",
+
+    "Affichage2": "Cavalier émérite",
+    "rang2": "Capacité passive: Effet: +2 Conatct en selle,DEF destrier = DEF chevalier. <br> <br> Lorsqu'il est en selle, le chevalier gagne un bonus de +2 en attaque au contact, et sa monture obtient une DEF égale à celle du chevalier. Monter ou descendrede cheval est désormais uneaction gratuite.",
+   "type2":"passive",
+
+    "Affichage3": "Monture magique",
+    "rang3": "Action limitée: <br>Effet : invoque ou renvoi la monture <br> <br> Le chevalier obtient une monture magique, qui peut apparaître et disparaître depuis un autre plan à volonté. Il peut l'invoquer à tout moment (c'est une action limitée) et elle apparaît alors pour semettre à son service. Lorsqu'il la laisse au moins une heure dans son plan d'origine, elle guérit l'ensemble de ses PV.",
+   "type3":"limitée",
+
+    "Affichage4": "Charge (L)",
+    "rang4": "Action limitée: <br>Effet : charge sur 40 mètres, 2d20 Contact +1 d6 DM à cheval, <br> <br> le chevalier peut effectuer un déplacement de 40 m en ligne droite, et une attaque de contact placée au moment son choix. Il doit parcourir au moins 10 m avant d'attaquer, mais peut réaliser le reste du déplacement à sa guise. Le joueur lance deux d20 à son test d'attaque et garde le meilleur résultat, tout en ajoutant + 1d6 aux DM. Une créature située sur la trajectoire de la charge doit réussir un test de FOR difficulté 18 ou être contrainte de céder le passage en subissant 1d6 DM. Si elle réussit ce test, la Charge est bloquée et le tour du chevalier se termine.",
+   "type4":"limitée",
+
+    "Affichage5": "Monture fantastique",
+    "rang5": "Capacité passive: <br>Effet : Pégase : Init 15, DEF 16,PV [5* niveau], Contact+8, DM 1d6+4.<br> <br>  Le chevalier obtient une monture volante (pégase, griffon, hippogriffe, drake, etc.). Init 15, DEF 16, PV [5 x niveau], Att +8, DM 1d6+4. Lorsqu'il est en selle, le chevalier peut faire attaquer sa monture une fois par tour (action gratuite), à la même Initiative que lui, avec un score d'attaque égal à son niveau +3. En vol, la monture couvre une distance de 30 m par action de mouvement. Les capacités de la Monture magique s'appliquent également.",
+    "type5":"passive",
+
+    "Voie": "Voie du cavalier"
+}

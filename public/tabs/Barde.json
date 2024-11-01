@@ -1,0 +1,156 @@
+{   
+        "Affichage11":"Charmant",
+    "ContenuCase11": "Capacité passive Effet : +2 par rang test de CHA Le barde obtient un bonus de +2 par rang atteint dans cette voie pour tous ses tests de CHA visant à séduire, baratiner ou mentir.",
+    
+            "Affichage12":"Précision",
+    "ContenuCase12": "Capacité passive Effet: utilise Distance  au contact à la place de Contact. Le barde peut utiliser son score d'attaque à distance pour combattre au contact lorsqu'il emploie une arme à une main légère comme une dague, une épée courte ou une rapière.",
+    
+                "Affichage13":"Chant des héros (L)",
+    "ContenuCase13": "Action limitée Effet: +1 à tous les tests si à portée de voix Durée : [5 mod. CHA] tours  Le barde chante et inspire ses compagnons : tous les alliés à portée de voix obtiennent un bonus de +1 à tous leurs tests pendant [5+ Mod. de CHA] tours.",
+    
+                "Affichage14":"Acrobate",
+    "ContenuCase14": "Effet : +1 par rang aux tests de DEX d'esquive Le barbare obtient un bonus de +1 par Rang dans cette voie à son score d'initiative et à tous les tests de DEX destinés à esquiver (boule de feu, souffle, pièges, etc.).",
+    
+                "Affichage15":"Rumeurs et légendes",
+     "ContenuCase15": "Capacité passive. Effet : +2 INT par rang à force de voyager, le barde a appris toutes sortes de choses, il obtient un bonus de +2 par Rang dans cette voie aux tests d'INT pour se « souvenir » d'une information historique, politique, géographique ou occulte quipourrait lui être utile.",
+     
+     
+     
+     
+     
+
+    
+    
+    
+    
+    
+                    "Affichage21":"Dentelles et rapière",
+    "ContenuCase21": "Capacité passive Effet: +1 DEF par rang contre les attaques contact Le barde ne met pas d'armure, cela ne sied point en société. Sa seule armure est la dentelle, sa seule défense, la rapière. Lorsqu'il ne porte aucune armure et combat avec une rapière ou une épée, le barde obtient un bonus de +1 en DEF contre les attaques au contact par Rang possédé dans cette Voie.",
+    
+                        "Affichage22":"Intelligence du combat",
+    "ContenuCase22": "Capacité passive Effet : + mod. d'INT en Init et en Défense Le barde ajoute son Mod. d'INT en Initiative et en DEF en plus de son Mod. de DEX.",
+    
+                            "Affichage23":"Attaque sonore (L)",
+    "ContenuCase23": "Action limitée, sortilège Effet: [1d6 + mod. CHA] DM sur 10 mètres de face Le barde pousse un cri dont les effets sont dévastateurs ou produit un son avec un instrument à cette même fin). Sur un test d'attaque magique réussi, il inflige [1d6 + Mod. de CHA] DM à toutes les cibles lui faisant face sur une portée de 10 m.",
+    
+        "Affichage24":"Grâce féline",
+    "ContenuCase24": "Action limitée Effet : +2 contact, + 1d6 DM Le barbare se déplace en ligne droite d'au moins 5 mètres (20 mètres au maximum) et effectue une attaque au contact avec un bonus de +2 en attaque et + 1d6 DM.",
+    
+            "Affichage25":"Compréhension des langues (L)",
+    "ContenuCase25": "Action limitée, sortilège. Effet : maîtrise n'importe quelle langue. Durée : [1d6 + mod. CHA] minutes. Ce sort permet au barde de lire, écrire et parler n'importe quelle langue ancienne ou vivante pendant [1d6 + Mod. de CHA] minutes.",
+    
+    
+    
+    
+    
+    
+    
+    
+
+    
+    
+    
+                "Affichage31":"Arme secrète",
+    "ContenuCase31": "Capacité passive Effet : subterfuge, la cible subit -10 contact, distance, magie, defense: Durée : 1 tour Une fois par combat, le barde peut utiliser un subterfuge de séducteur pour surprendre et déstabiliser un adversaire du sexe opposé. Ce peut être un baiser fougueux soudainement délivré au coeurd'une mêlée, un sein qui s'échappe d'un bustier par mégarde, une main qui s'égare par le plus grand des hasards... Il doit réussir un test de CHA de difficulté égale à l'INT de son adversaire. En cas de succès celui-ci subit un malus de -10 en attaque et en DEF pendant 1 tour.",
+    
+                "Affichage32":"Feinte (L)",
+    "ContenuCase32": "Action limitée Effet : au tour suivant +5 Contact, +2d6 DM Le barde effectue une attaque fictive pour déséquilibrer son adversaire et réaliser ensuite une attaque mortelle. Faites un test d'attaque normal à ce tour mais n'infligez aucun dégât. Au tour suivant, si vous attaquez le même adversaire,vous profiterez d'un bonus de +5 en attaque et, si votre feinte était réussie, de +2d6 aux DM.",
+    
+                "Affichage33":"Zone de silence (L)",
+    "ContenuCase33": "Action limitée, sortilège Effet: -2 aux tests Contact sur 5-30 mètres Durée : [1d6 + mod. CHA] tours Le barde crée une zone de silence fixe de 5 mètres de diamètre, jusqu'à une portée de 30 mètres, pendant [1d6+ Mod. de CHA] tours. Tous les sons émis dans cette sphère sont annulés. La zone n'empêche pas le lancement des sorts mais inflige un malus de -2 à tous les tests d'attaque magique.",
+    
+                "Affichage34":"Lanceur de couteau",
+    "ContenuCase34": "Capacité passive Effet : action gratuite : esquive une attaque sur test de Distance. Une fois par tour, le barde peut réaliser une esquive en réussissant un test d'Attaque à Distance contre une Difficulté égale au score obtenu par son adversaire lors de son attaque. En cas de réussite, le barde ne subit aucun DM. Si cette attaque était un critique, il subit tout de même des DM normaux (et annule donc l'effet critique « dégâts doublés »).",
+    
+                "Affichage35":"Débrouillard",
+    "ContenuCase35": "Capacité passive Effet: +5 aux tests de profession, artisanats, ... Le barde obtient un bonus de +5 à tous ses tests de survie en nature et aux tests de profession et d'artisanat (forge, charpentier, etc.).",
+    
+    
+    
+
+    
+    
+    
+                "Affichage41":"Suggestion (L)",
+    "ContenuCase41": "Voie de la seduction Action limitée, sortilège Effet : la cible devient larbin personnel Durée : 24 heures Une fois par jour, le barde peut suggérer une action à une créature en réussissant un test d'attaque magique avec pour difficulté les PV maximum de celle-ci. En cas de réussite la créature fera tout son possible pour satisfaire sa demande pendant 24 heures. Elle évitera les actions suicidaires (ce qui lui donnerait immédiatement un test d'INT difficulté 10 pour échapper au sort).",
+    
+                "Affichage42":"Attaque flamboyante (L)",
+    "ContenuCase42": "Action limitée Effet : + mod. CHA en Contact et DM Le style de combat du barde est flamboyant et surprenant : avec cette Capacité, il effectue une attaque de contact avec un bonus d'attaque et de DM égal à son Mod. de CHA (en plus du Mod. de FOR ou de DEX).",
+    
+                    "Affichage43":"Danse irrésistible (L)",
+    "ContenuCase43": "Action limitée, sortilège Effet : la cible danse et subit -4 Contact, Distance, Magie, Défense. Durée : [1d4 + mod. CHA] tours Le barde joue une gigue endiablée aux effets magiques. S'il réussit un test d'attaque magique contre la créature qu'il cible, celle-ci se met à danser pendant [1d4+ Mod. de CHA] tours et subit un malus de -4 aux tests d'attaque et en DEF.",
+    
+                        "Affichage44":"Esquive acrobatique",
+"ContenuCase44": "Capacité passive. Effet : action gratuite : esquive une attaque sur test de Contact. Une fois par tour, le barde peut réaliser une esquive en réussissant un test d'Attaque à Distance contre une Difficulté égale au score obtenu par son adversaire lors de son attaque. En cas de réussite, le barde ne subit aucun DM. Si cette attaque était un critique, il subit tout de même des DM normaux (et annule donc l'effet critique « dégâts doublés »).",
+
+
+
+
+
+                    "Affichage45":"Déguisement (L)",
+    "ContenuCase45": "Action limitée, sortilège. Effet : prend l'apparence d'une créature Durée : 10 minutes Ce sort permet au barde de prendre l'apparence de n'importe quelle créature de taille à peu près équivalente (avec une marge d'environ 50 cm). S'il veut imiter une personne en particulier, il lui faudra réussir un test de CHA difficulté 15 (20 s'il ne la connaît pas mais l'a seulement vue, 10 s'il la connaît très bien). Le sort a une durée de 10 minutes.",
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+    
+    
+    
+    
+    
+                        "Affichage51":"Charisme héroïque",
+    "ContenuCase51": "Capacité passive Effet : +2 CHA, 2d20 sur test de CHA Le barde augmente sa valeur de CHA de +2. Il peut de plus lancerdeux d20 à chaque fois qu'un test de CHA lui est demandé et conserver le meilleur résultat.",
+    
+                        "Affichage52":"Botte mortelle",
+                    
+    "ContenuCase52": "Capacité passive Effet : +2d6 DM si Contact >=Def+10 de la cible  Lors d'une attaque au contact, s'il obtient un score total d'attaque supérieur ou égal à la DEF de son adversaire +10 points, le barde obtient un bonus de +2d6 aux DM de son attaque.",
+    
+                        "Affichage53":"Musique fascinante (L)",
+    "ContenuCase53": "Action limitée, sortilège Effet : contrôle toutes les cibles dans les 30 mètre dont les PV < ou = [5 + mod. CHA] du barde  Le barde joue de la musique pour fasciner et « contrôler » toutes les créatures de son choix (rats, gobelins, humains, etc.) dans un rayon de 30 m. Seules les créatures dont les PV sont inférieurs ou égaux à [5 + Mod. de CHA] du barde répondent. Les créatures sortent de leur cachette et se dirigent vers le barde, elles le suivent tant qu'il continue à jouer. Quand il utilise cette capacité le barde peut également se déplacer de 10 m par tour.",
+                        "Affichage54":"Liberté d’action",
+    "ContenuCase54": "Capacité passive. Effet : immunisé aux formes de contrôle. Le barde est immunisé à la peur et à tous les sorts ou effets magiques qui asservissent l'esprit ou le corps (possession, charme, paralysie, ralentissement, etc.).",
+                        "Affichage55":"Touche à tout",
+    "ContenuCase55": "Capacité passive. Effet: choisit une capacité de rang 1 à 3. Le barde peut choisir n'importe quelle capacité de Rang 1 à 3 de son choix au sein d'un autre profil de Chroniques.",
+    
+    
+    
+  "Voie1":"Voie de la séduction",
+    "Voie2":"Voie de l’escrime",
+    "Voie3": "Voie du musicien",
+    "Voie4":"Voie du saltimbanque",
+    "Voie5":"Voie du vagabond"
+    
+    
+    
+    
+    
+    
+    
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Attaque mentale (L)",
+    "rang1": "Action limitée, sortilège<br>Effet : [1d6 + mod. CHA] DM <br>rang 3 : [2d6 + mod. CHA] DM <br>rang 5 : [3d6 + mod. CHA] DM <br><br>Le psionique peut faire un test d'attaque magique contre une cible à une portée maximum de 50 mètres. En cas de succès, il inflige [1d6 + Mod. de CHA] DM. Les DM augmentent à [2d6] à partir du rang 3 et à [3d6] à partir du rang 5. Le psionique peut décider d'infliger des DM temporaires avec une attaque mentale, mais il utilise alors des d4 au lieu de d6 pour déterminer les DM.",
+    "type1":"limitée",
+    
+    "Affichage2": "Bouclier psi",
+    "rang2": "Capacité passive <br>Effet : +5 Défense et 1/2 DM contre attaque mentale <br><br>Le psionique apprend à lever des barrières infranchissables autour de son esprit. Il augmente sa Défense de +5 contre toutes les attaques mentales (psi ou magiques) et divise par 2 les DM subis par la capacité Attaque mentale.",
+    "type2":"passive",
+    
+    "Affichage3": "Attaque étourdissante",
+    "rang3": "Capacité passive <br>Effet : étourdit la cible sur attaque mentale d12 <br><br>Le psionique peut choisir d'effectuer son attaque mentale en utilisant un d12 en attaque. En cas de succès, en plus des DM, la cible est Étourdie (pas d'action et -5 en DEF) pendant un tour. Si les créatures de niveau supérieur au psionique sont immunisées à cet effet et celles qui bénéficient d'un bouclier psi peuvent faire un test de CHA difficulté [8 + Mod. de CHA de l'attaquant] pour y résister.",
+    "type3":"passive",
+    
+    "Affichage4": "Attaque psionique (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : attaque mentale sur (3 + mod. CHA) cibles <br><br>Une fois par combat, le psionique peut projeter son esprit vers un nombre de cibles au maximum égal à [3 + Mod. de CHA] à portée d'attaque mentale. Il effectue une attaque mentale contre chacune d'elles.",
+    "type4":"limitée",
+   
+    "Affichage5": "Ego héroïque",
+    "rang5": "Capacité passive <br>Effet : +2 CHA, 2d20 aux tests de CHA <br><br>Le psionique augmente sa valeur de CHA de +2 et le joueur peut désormais lancer deux d20 à chaque fois qu'un test de CHA est demandé au personnage et conserver le meilleur résultat.",
+    "type5":"passive",
+    
+    "Voie": "Voie de l'attaque mentale"
+}

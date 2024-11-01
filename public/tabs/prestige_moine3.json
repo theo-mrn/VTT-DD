@@ -1,0 +1,23 @@
+{
+    "Affichage1":"Indéracinable",
+    "rang1": "<br>Effet : Le personnage ne peut plus être renversé ou projeter contre son gré, il semble peser plusieurs tonnes ! De plus il gagne + 1 en DEF et ce bonus passe à +2 au rang 3 de la voie.",
+    "type1":"passive",
+
+    "Affichage2":"Sens de la pierre",
+    "rang2": "Le personnage sent la présence de toutes les créatures en contact avec la pierre (le sol ou les murs) dans un rayon de 20 mètres. Il peut définir précisément leur position que ce soit dans le noir ou s'il s'agit d'adversaires invisibles. Il ne peut plus être approché par surprise par un adversaire en contact avec le sol.",
+    "type2":"passive",
+
+    "Affichage3":"Poings de pierre",
+    "rang3": "Capacité passive <br>Effet :  Le personnage donne à ses coups le poids et l'impact du roc. Lorsqu'il obtient un résultat de 1 sur le dé de DM d'une attaque à mains nues, ce résultat est remplacé par le score maximum possible du dé utilisé (par exemple 6 pour un d6). Cette capacité crée des effets dévastateurs lorsqu'elle est associée à Griffes du tigre. De plus le personnage double ses DM lorsqu'il frappe des structures de bois ou de pierre (porte, mur, etc.).",
+    "type3":"passive",
+
+    "Affichage4":"Attaque pétrifiante (L)",
+    "rang4": "Action limitée <br>Effet : Sur un test réussi d'attaque au contact à main nue, le moine paralyse sa cible. Elle doit réussir un test de CON difficulté [10 + Mod. de SAG] ou être incapable d'agir pendant 1d6 minutes. Tant qu'elle est paralysée son corps devient extrêmement dur et elle retranche 5 points à tous les DM subits. Si la victime perd plus de 5 PV pendant qu'elle est paralysée, l'effet prend fin. Une créature ne peut être la cible de cette capacité qu'une seule fois parcombat.",
+    "type4":"limitée",
+
+    "Affichage5":"Corps de pierre (L)",
+    "rang5": "Action limitée <br>Effet : Le moine donne à son corps la texture de la pierre pendant [1d6 + Mod. de SAG] tours. Dans cet état, il retranche 5 points à tous les DM subits par des armes. Les créatures qui l'attaquent avec des armes naturelles subissent 1 point DM par attaque et celles qui utilisent des armes manufacturées voient leur arme se briser s'ils obtiennent un résultat de 1 au dé de DM. Les armes magiques ne risquent pas de se briser. Le personnage peut utiliser cette capacité pour mettre fin à tout effet de pétrification qui l'affecte en 1d6 tours.",
+    "type5":"limitée",
+
+    "Voie":"Voie de la pierre"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Sens du commerce",
+    "rang1": "Capacité passive <br>Effet : +2 par rang aux tests de marchandages, d’estimation, recherche d’articles et tout ce qui touche au commerce.",
+    "type1":"passive",
+
+    "Affichage2": "Or des fous (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : Le prêtre crée de la monnaie illusoire, jusqu’à 10 pa par rang avec une durée de 1d6 heures ou jusqu’à 10 po par rang pour une durée de 1d6 minutes.",
+    "type2":"limitée",
+
+    "Affichage3": "Piège (L)",
+    "rang3": "Action limitée, sortilège<br> Effet : Un coffre ou un autre objet (tiroir, bourse, etc.) scellé par ce sort produit une explosion de feu dans un diamètre de 3 mètres<br> s’il est ouvert sans prononcer le mot de commande. Toutes les créatures présentes la zone subissent 6d6 DM de feu, la moitié si elles réussissent un test de DEX difficulté 13.",
+    "type3":"limitée",
+
+    "Affichage4": "Luxe et abondance (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : Ce sort nécessite une pièce ou un bâtiment pour être utilisé, il ne fonctionne pas en rase campagne. <br><br>Il garnit l’endroit de meubles de qualité selon le bon vouloir du prêtre : tapis, lit, bureau, table dressée de vaisselle de luxe et même mets de qualités. Le sort a une durée de 12 heures, il affecte une surface totale maximum de 100 m2 (200 m2 au rang 5) quel que soit le nombre de fois où il est lancé. Les aliments ne sont pas réels et ne nourrissent pas ceux qui les mangent, mais ils sont exquis et donnent l’impression d’être rassasié.",
+    "type4":"limitée",
+
+    "Affichage5": "Touché d’or",
+    "rang5": "Capacité passive <br>Effet : Une fois par jour le personnage peut en le touchant transformer un objet ordinaire en objet de qualité exceptionnelle. <br><br>Un vin ordinaire se transforme en grand cru, une épée rouillée en lame damasquinée, une tunique de lin en robe de soie, etc. La transformation est permanente, mais l’objet dégage une aura d’enchantement et un rituel capable de dissiper la magie lui rend sa valeur initiale. Un seul objet d’un poids inférieur à 10kg peut être affecté. L’objet ainsi transformé gagne sa valeur de 10 à 100 po au choix du MJ.",
+    "type5":"passive",
+
+    "Voie": "Voie du commerce"
+}

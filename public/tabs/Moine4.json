@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Pas du vent",
+    "rang1": "Capacité passive <br>Effet: +1 par rang en Init, + 1 déplacement si non consécutif <br><br>Le moine peut se déplacer avant et après avoir attaqué (mais il couvre toujours une distance normale). De plus, il gagne +1 par rang dans la Voie en Initiative.",
+    "type1":"passive",
+    
+    "Affichage2": "Course du vent",
+    "rang2": "Capacité passive <br>Effet : distance de déplacement x 2 Le moine se déplace à une vitesse surhumaine.<br><br> Il couvre une distance de 40 mètres par action de mouvement (la distance normale est de 20 mètres) et se relever est pour lui une actiongratuite.",
+    "type2":"passive",
+    
+    "Affichage3": "Course des airs",
+    "rang3": "Capacité passive <br>Effet : déplacement anti gravité<br><br> Le moine défie les lois de la pesanteur et peut se déplacer sur des surfaces qui ne devraient pas supporter son poids. Il peut se déplacer surl'eau, la neige, le feuillage des arbres ou courir sur un mur vertical. Il doit commencer et terminer sondéplacement sur une surface normale.",
+    "type3":"passive",
+   
+    "Affichage4": "Lévitation (L)",
+    "rang4": "Action limitée <br>Effet : lévite sur 10 mètres  <br><br>En se concentrant, le moine peut « léviter » à une vitesse de 10 m par tour.",
+    "type4":"limitée",
+   
+    "Affichage5": "Passe-muraille (L)",
+    "rang5": "Action limitée <br>Effet : traverse un mur de [mod. SAG] mètres <br><br>Le moine peut rendre son corps intangible le temps de passer au travers d'un mur d'une épaisseur maximum de [Mod. de SAG] mètres. Il ne peut rester immatériel qu'un court instant et reprend corps dès qu'il émerge du mur. Il est insensible aux attaques tant qu'il est entièrement dans le mur, sauf si le mur est détruit.",
+    "type5":"limitée",
+   
+    "Voie": "Voie du vent"
+}

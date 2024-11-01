@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Ordre du chevalier dragon",
+    "rang1": "Capacité passive <br>Effet : Le chevalier rejoint l’ordre des chevaliers dragons avec le grade d’apprenti. <br><br>Il reçoit des vêtements associés à son ordre (un énorme dragon rouge peint sur son armure et sur son bouclier) et il obtient une garde d’épée prenant la forme d’une gueule de dragon. Aussi longtemps qu’il porte ces vêtements, il gagne un bonus de +5 pour tous les tests de persuasion et d’intimidation. Ce bonus passe à +10 s’il chevauche son drake.",
+    "type1":"passive",
+
+    "Affichage2": "Épée de feu (L)",
+    "rang2": "Action limitée <br>Effet : Le chevalier peut enflammer son épée pour [5 + Mod. de CHA] tours. Elle inflige des lots +1d6 DM de feu.",
+    "type2":"limitée",
+
+    "Affichage3": "Résistance au feu",
+    "rang3": "Capacité passive<br> Effet : Le chevalier est désormais un membre à part entière de l’ordre des chevaliers dragons. <br><br>Il a appris à résister aux flammes les plus féroces et il retranche 5 points à tous les DM de feu subis (RD feu 5). Cette réduction passe à 10 une fois atteint le rang 5.",
+    "type3":"passive",
+
+    "Affichage4": "Monture puissante",
+    "rang4": "Capacité passive <br>Effet : Le drake monté par le chevalier atteint sa pleine maturité, il augmente ses capacités offensives : Init 15, DEF 18, PV 20 + [5 x niveau], Att +12, DM 2d6+7 (FOR et CON +7).",
+    "type4":"passive",
+
+    "Affichage5": "Souffle enflammé",
+    "rang5": "Capacité passive<br> Effet : Le drake du Chevalier est désormais capable de cracher du feu au prix d’une action d’attaque. <br><br>S’il réussit un test d’attaque, il inflige 4d6 DM de feu à sa cible, ainsi que 2d6 DM de feu à toutes les cibles à moins de 3 mètres de sa cible initiale. En cas d’échec, l’ensemble des cibles subit seulement 1d6 DM. Ce crachat inflamme à une portée de 40 m.",
+    "type5":"passive",
+
+    "Voie": "Voie du chevalier dragon"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Héraldique",
+    "rang1": "Capacité passive <br>Effet : Le chevalier obtient un bonus de +5 pour reconnaître un chevalier à ses armoiries et un bonus de +5 à tous les tests d’interactions sociales avec la noblesse.",
+    "type1":"passive",
+
+    "Affichage2": "Désarçonner",
+    "rang2": "Capacité passive <br>Effet : Lors d’une attaque montée à la lance contre un cavalier, si le joueur obtient un résultat de 15 à 20 au test d’attaque, le chevalier peut faire un test de FOR opposé à son adversaire. <br><br>En cas de réussite, il le désarçonne en plus de lui infliger des DM normaux. Si l’attaque est réalisée contre un piéton, il peut choisir de le renverser et il obtient un bonus de +5 à son test de FOR.",
+    "type2":"passive",
+
+    "Affichage3": "Armure de tournoi",
+    "rang3": "Capacité passive<br> Effet : Le chevalier obtient une armure particulière qui ne peut être utilisée qu’en champ clos. <br><br>Elle confère un bonus de +10 en DEF et une réduction des DM de 3 points (RD 3, cumul possible avec encaisser un coup). Lorsqu’il porte cette armure, le chevalier ne peut effectuer qu’une seule action par tour : une action d’attaque ou une action de mouvement ou une action limitée. S’il tombe au sol, il lui faut réussir un test de FOR difficulté 15 pour se relever.",
+    "type3":"passive",
+
+    "Affichage4": "Amour courtois",
+    "rang4": "Capacité passive<br> Effet : Le chevalier obtient un bonus de +5 pour les tests de séduction et d’interaction sociale auprès du sexe faible.<br><br> De plus s’il combat pour une noble dame et porte son gage (un objet qu’elle lui a offert), il obtient un bonus de +2 en attaque et aux DM.",
+    "type4":"passive",
+
+    "Affichage5": "Briser l’armure (L)",
+    "rang5": "Action limitée <br>Effet : Habitué à affronter des chevaliers presque invulnérables dans leurs armures de tournoi, le chevalier a appris à saper progressivement la défense de ses adversaires pour y créer une brèche. <br><br>Cette attaque n’inflige que 1d6 DM mais si elle est réussie, elle réduit la DEF et la RD éventuelle de sa cible de 3 points pour le reste du combat. Si elle est ratée (sauf échec critique), elle réduit malgré tout la DEF de l’adversaire de 1 point.",
+    "type5":"limitée",
+
+    "Voie": "Voie du tournoi"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Agrandissement (L)",
+    "rang1": "Action limitée, sortilège <br>Effet : +2 DM 🗡️, +2 tests de FOR, -2 tests de DEX <br>Durée : [5 + Mod. d'INT] tours.<br><br> Le magicien ou une cible volontaire (au contact) voit sa taille augmenter de 50% pendant [5 + Mod. d'INT] tours. Il gagne +2 aux DM au contact et aux tests de FOR. Pataud, il subit un malus de -2 aux tests de DEX.",
+    "type1":"limitée",
+
+    "Affichage2": "Forme gazeuse (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : Transformation en gaz, insensible aux DM excepté ceux de zone Durée : [1d4 + Mod. d'INT] tours.<br><br> Le magicien prend la consistance d’un gaz. Il se déplace au ras du sol (s’il chute, il se fait ralenti) avec une vitesse de 10 m par tour. Il peut s’introduire par les plus petits interstices et les conduits d’aération. Le magicien est insensible aux capacités physiques mais vulnérable aux sorts de zone DM, à l’exception des sorts de zone occasionnant des DM (comme Boule de feu). Le sort a une durée de [1d4 + Mod. d'INT] tours.",
+        "type2":"limitée",
+
+    "Affichage3": "Hâte (L)",
+    "rang3": "Action limitée, sortilège <br>Effet : +1 action d'attaque ou mouvement <br>Durée : [1d6 + Mod. d'INT] tours. <br><br>Pendant [1d6 + Mod. d'INT] tours, le magicien voit son métabolisme s’accélérer. À partir du tour suivant, il obtient une action supplémentaire par tour : soit une action normale, soit une action de mouvement. En revanche, il ne peut toujours accomplir qu’une seule action limitée par tour.",
+        "type3":"limitée",
+
+    "Affichage4": "Téléportation (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : téléportation sur [INT x 10] mètres. <br><br>Le magicien disparaît et réapparaît à un autre endroit situé à moins de [INT x 10] mètres. Le lieu d’arrivée doit être soit en ligne de vue, soit parfaitement connu du magicien.",
+        "type4":"limitée",
+
+    "Affichage5": "Désintégration (L)",
+    "rang5": "Action limitée, sortilège <br>Effet : [5d6 + Mod. d'INT] DM sur la cible. <br><br>Le magicien projette un rayon mortel dont la portée est de 20 mètres et qui annule la cohésion de la matière, en la laissant derrière lui qu’en amas poussiéreux. Un test d’attaque magique doit être réussi pour que la créature ciblée inflige [5d6 + Mod. d'INT] DM. Si l’objet est plus gros qu’un être humain (par exemple, il s’agit d’un mur ou d’une porte massive), il jette un dé par point de structure. Si les objets magiques sont visés, ils doivent réussir un test d’opposition pour ne pas être détruits. Au contact des êtres vivants, ce sort peut désintégrer un membre du corps (par exemple une pierre dans un bras).",
+    "type5":"limitée",
+
+    "Voie": "Voie de la magie des arcanes"
+}

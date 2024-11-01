@@ -1,0 +1,37 @@
+{
+        "Affichage1":"Grâce elfique",
+        "rang1": "Capacité passive. <br>Effet : +5 Init et tous les tests de DEX. L'elfe gagne un bonus de +5 en Initiative et à tous les tests de DEX.",
+        "type1":"passive",
+
+        "Affichage2":"Enfant de la forêt",
+        "rang2": "Capacité passive: <br>Effet: +1 capacité de rang 1 Druide ou Rôdeur. Rang 4: +1 capacité de rang 2. Le joueur choisit une capacité de rang 1 de n'importe quelle voie de druide ou de rôdeur. Il peut utiliser cette capacité en armure sans pénalité. Au rang 4 de la voie, il pourra choisir une capacité supplémentaire de rang",
+        "type2":"passive",
+
+        "Affichage3":"Archer émérite",
+        "rang3": "Capacité passive. <br>Effet: critique à l'arc sur 19-20 au d20. Lorsqu'il utilise un arc, l'elfe sylvain obtient une réussite critique sur un résultat de 19-20 au d20. Il sait utiliser les arcs quel que soit son profil.",
+        "type3":"passive",
+
+
+        "Affichage4":"Flèche sanglante (L)",
+        "rang4": "Action limitée:<br> Effet : +1d6 DM hémoragique. L'elfe fait une attaque à distance qui provoque une hémorragie. En plus des DM normaux, la flèche produit un effet de saignement qui inflige à la victime + 1d6 DM à chaque tour suivant jusqu'à ce que la cible réussisse un test de CON difficulté [12 + Mod. de DEX] ou qu'elle soit soignée. On ne peut cumuler plusieurs effets de saignement.",
+        "type4":"limitée",
+
+        "Affichage5":"Supériorité elfique",
+        "rang5": "Capacité passive: <br>Effet : +2 DEX, +2 SAG. L'elfe augmente ses valeurs de DEX et SAG de +2.",
+        "Voie":"Voie de l’elfe sylvain"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

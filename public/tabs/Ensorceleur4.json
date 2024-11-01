@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Image décalée (L)",
+    "rang1": "Action limitée, sortilège <br> Effet : lance 1d6 : sur 5-6, pas de DM subits<br>  Durée : [5 + mod. CHA] tours. <br> <br> Pendant [5 + Mod. de CHA] tours, lorsqu’une attaque le touche, l’ensorceleur lance 1d6 : sur 5-6, il ne subit pas les DM.",
+    "type1":"limitée",
+
+    "Affichage2": "Mirage (L)",
+    "rang2": "Action limitée, sortilège <br> Effet : crée une illusion <br> Durée : [5 + mod. CHA] minutes si immobile ou tours si animée. <br> <br> L’ensorceleur crée une illusion visuelle et sonore immobile d’une durée de [5 + Mod. de CHA] minutes (ou tours si l’illusion est animée). Le volume maximum de l’illusion est de 10 m de côté par rang dans la voie (portée 500 m). Divisez ces paramètres par 10 si l’illusion est animée. Interagir avec l’illusion la fait disparaître.",
+    "type2":"limitée",
+
+    "Affichage3": "Imitation (L)",
+    "rang3": "Action limitée, sortilège <br> Effet : prend l’apparence d’une créature visible <br> Durée : [5 + mod. CHA] minutes. <br> <br> L’ensorceleur peut prendre l’apparence d’une créature de taille proche (+ ou - 50 cm) qu’il voit au moment de l’incantation. Durée [5 + Mod. de CHA] minutes. Toucher l’ensorceleur (une attaque ou non) met fin au sort.",
+    "type3":"limitée",
+
+    "Affichage4": "Dédoublement (L)",
+    "rang4": "Action limitée, sortilège <br> Effet : crée un double de la cible <br> Durée : [5 + mod. CHA] tours. <br> <br> Sur une attaque magique réussie (portée 20 m), l’ensorceleur crée un double translucide de la cible pendant [5 + Mod. de CHA] tours. Le double est sous le contrôle de l’ensorceleur. Il possède les PV de la cible et agit en dernier chaque tour. Il disparaît si ses PV tombent à 0. Une créature ne peut être dédoublée qu’une fois par combat.",
+    "type4":"limitée",
+
+    "Affichage5": "Tueur fantasmagorique (L)",
+    "rang5": "Action limitée, sortilège <br> Effet : mort de la cible sur test Magie en opposition si test de SAG [10 + mod. CHA] de la cible raté, sinon renversée.<br> <br>  Ce sort invoque les pires terreurs d’une créature vivante et lui fait croire à sa propre mort. L’ensorceleur doit réussir un test d’attaque magique (portée 20 m) en opposition à un test d’attaque magique de la cible (ou attaque au contact si la créature n’en a pas). La victime fait un test de SAG difficulté [10 + Mod. de CHA] pour résister. En cas d’échec, elle tombe à 0 PV, terrorisée, croyant être au bord de la mort. Si elle réussit, elle est renversée et subit 2d6 DM. Une créature ne peut être la cible de ce sort qu’une fois par jour, et l’ensorceleur ne peut plus l’utiliser sur un personnage d’une créature de niveau supérieur au sien.",
+    "type5":"limitée",
+
+    "Voie": "Voie des illusions"
+}

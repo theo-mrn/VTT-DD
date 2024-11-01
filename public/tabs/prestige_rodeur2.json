@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Sentir la corruption (L)",
+    "rang1": "Action limitée <br>Effet : Le rôdeur se concentre sur une créature à une portée maximum de 30 mètres.<br><br> Il détecte si celle-ci possède des pouvoirs paranormaux (magie, pouvoirs magiques) s’il réussit un test de SAG difficulté 15. Les créatures humanoïdes ont droit à un test d’INT difficulté 15 pour résister à cette divination. Un seul essai par créature est possible.",
+    "type1":"limitée",
+
+    "Affichage2": "Combattre la corruption",
+    "rang2": "Capacité passive<br> Effet : Le rôdeur gagne un bonus de +1 en attaque et aux DM contre les morts-vivants, <br><br>les démons et les animaux corrompus (ceux qui possèdent des pouvoirs paranormaux). Ce bonus passe à +2 au rang 4 de la Voie.",
+    "type2":"passive",
+
+    "Affichage3": "Chasseur de sorcière",
+    "rang3": "Capacité passive<br>Effet : Le rôdeur gagne +2 en DEF contre toutes les attaques magiques et +2 aux DM contre les nécromanciens ou les prêtres d’une religion maléfique (et tous ceux qui pratiquent la magie noire).",
+    "type3":"passive",
+
+    "Affichage4": "Frappe préventive (L)",
+    "rang4": "Action limitée<br> Effet : En plus d’infliger des DM normaux, cette attaque oblige la cible à faire un test d’INT difficulté 15. <br>En cas d’échec, elle ne peut utiliser aucun pouvoir magique ou extraordinaire à son prochain tour.",
+    "type4":"limitée",
+
+    "Affichage5": "Résister à la corruption",
+    "rang5": "Capacité passive <br>Effet : Une fois par combat, le rôdeur résiste totalement à un sort ou un effet magique de son choix.<br> De plus il est immunisé aux effets de corruption : drain, affaiblissement, pourriture, empoisonnement ou maladie provoqués par les morts-vivants, les démons ou les animaux maléfiques ou corrompus.",
+    "type5":"passive",
+
+    "Voie": "Voie du Chasseur de corruption"
+}

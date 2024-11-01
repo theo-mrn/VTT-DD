@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Baies magiques (L)",
+    "rang1": "Action limitée, sortilège: <br>Effet : fait pousser [1d6 + mod. SAG] fruits, rend [1d6 + niveau du druide] PV. <br> <br> Le druide doit se trouver devant un buisson ou un arbre vivant. Son incantation fait pousser [1 d6 + Mod. de SAG] fruits qu'il peut cueillir. Chaque fruit offre l'équivalent d'un repas et rend [1d6+ niveau du druide] PV à celui qui le consomme. Les effets de ces fruits ne fonctionnent qu'une fois par jour et par personnage.",
+   "type1":"limitée",
+
+    "Affichage2": "Forêt vivante (L)",
+    "rang2": "Action limitée, sortilège: Effet: éveil de la forêt sur 1 Km par rang. <br>Durée : 12 heures. <br> <br> La forêt s'éveille dans un rayon d'1 km par rang et devient une alliée du druide pendant les 12 prochaines heures. Dans ce périmètre, les ennemis du druide sont désorientés et gênés par les branches etles racines. Ils divisent leur déplacement par deux et subissent une pénalité de -5 en Initiative et à tous les tests de survie, d'orientation, de perception ou de discrétion. Si deux druides essayent d'influencer la forêt, c'est celui dont le niveau est le plus élevé qui l'emporte.",
+   "type2":"limitée",
+
+    "Affichage3": "Régénération (L)",
+    "rang3": "Action limitée, sortilège: <br>Effet : guérit 3 PV par tour. <br>Durée : [niveau druide + mod. SAG] tours  <br> <br> La cible touchée par le druide guérit 3 PV par tour pendant [niveau du druide + Mod. de SAG] tours. Ce sort ne peut pas affecter une créature plus d'une fois par jour.",
+   "type3":"limitée",
+
+    "Affichage4": "Forme d’arbre (L)",
+    "rang4": "Action limitée, sortilège: <br>Effet : transformation Arbdre animé : Init 7, DEF 13, [rang x 10] PV, Contact 1d6+3 DMdéplacement 10 mètres, RD 10 DM sauf feu et Contact <br>Durée : [5 + mod. SAG] tours.<br> <br>  Une fois par combat, le druide peut se transformer en arbre de petite taille (environ 4 m de hauteur)pendant [5 + Mod. de SAG] tours. Il prend les mêmes caractéristiques que l'arbre animé (voir plus loin), mais conserve ses propres PV. Sous cette forme, il ne peut pas parler mais peut utiliser les sorts des voies du protecteur et des végétaux.",
+    "type4":"limitée",
+
+    "Affichage5": "Sagesse héroïque",
+    "rang5": "Capacité passive: <br>Effet : +2 SAG, 2d20 aux tests de SAG.<br> <br>  Le druide augmente sa valeur de SAG de +2. Il peut désormais lancer deux d20 à chaque fois qu'un test de SAG lui est demandé et conserver le meilleur résultat.",
+   "type5":"passive",
+
+    "Voie": "Voie du protecteur"
+}

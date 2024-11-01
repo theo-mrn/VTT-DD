@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Endurant",
+    "rang1": "Capacité passive <br>Effet: donne la li de son bouclier à un allié Le guerrier accorde le Mod. de DEF de son bouclier à un compagnon de son choix qui se trouve juste à côté de lui (il conserve ce bonus pour lui-même aussi). Il peut changer de compagnon à chaque tour durant sa phase d'initiative. C'est une action gratuite.",
+    "type1":"passive",
+    
+    "Affichage2": "Nature nourricière",
+    "rang2": "Capacité passive <br>Effet : bloque l'attaque adverse sur test de Contact en opposition réussi, au prix d'une action à son tour, le guerrier fait seulement une action d'attaque ou de déplacement. Par la suite, à tout moment avant son prochain tour, le guerrier peut effectuer un test d'attaque au contact en opposition à un test réussi d'attaque au contact ou à distance d'un adversaire. En cas de réussite, l'attaque adverse est bloquée par le bouclier.",
+    "type2":"passive",
+    
+    "Affichage3": "Grand pas",
+    "rang3": "Capacité passive <br>Effet : absorbe les dégats magiques sur test #R en opposition au prix d'une action à son tour, le guerrier fait seulement une action d'attaque ou de déplacement. Par la suite, à tout moment avant son prochain tour, le guerrier peut effectuer un test d'attaque magique (Mod. de SAG) en opposition à un test d'attaque magique qui le visait. En cas de réussite, le sort est absorbé par le bouclier et n'a aucun effet sur le guerrier.",
+    "type3":"passive",
+    
+    "Affichage4": "Increvable (L)",
+    "rang4": "Action limitée <br>Effet : peut porter une armure de plaque +8 DEF, Le guerrier peut porter une Armure de Plaque complète. Celle-ci lui confère une DEF de +8 et le protège des attaques critiques (vous subissez des DM normaux au lieu des DM doublés).",
+    "type4":"limitée",
+    
+    "Affichage5": "Constitution héroïque",
+    "rang5": "Capacité passive <br>Effet : renvoi le sort absorbé par la capacité Le guerrier peut décider de renvoyer un sort qu'il vient d'absorber grâce à sa capacité Absorber un Sort. Au lieu d'être annulé, le sort absorbé le tour précédent est retourné contre son expéditeur : le lanceur du sort subit alors les effets de sa propre attaque !",
+    "type5":"limitée",
+    
+    "Voie": "Voie de la survie"
+}

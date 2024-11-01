@@ -1,0 +1,24 @@
+{
+    "Affichage1": "Argument de taille",
+    "rang1": "Capacité passive<br> Effet : [+ mod. FOR] PV max et aux tests de CHA pour intimidation et persuasion. <br><br>Le barbare ajoute son mod. de FOR à son score de PV maximum ainsi qu'à ses tests de CHA et à ceux de ses alliés au contact pour des actions de négociation, de persuasion ou d'intimidation. Allez savoir pourquoi, sa simple présence donne de la force aux arguments de ses alliés.",
+    "type1":"passive",
+
+    "Affichage2": "Tour de force",
+    "rang2": "Capacité passive <br>Effet : +10 aux tests de FOR, -1d4 PV. <br><br>Le barbare peut temporairement décupler ses ressources physiques pour faire usage d'une force prodigieuse. Il peut ainsi soulever une charge incroyable, briser une épée, tordre des barreaux ou défoncer une porte d'un seul coup de poing. Il obtient un bonus de +10 à son test de FOR, mais cela lui coûte 1d4 PV.",
+    "type2":"passive",
+
+    "Affichage3": "Attaque brutale (L)",
+    "rang3": "Action limitée <br>Effet : -2 Contact, +1d6 DM, -5 DEF, +2d6 DM.<br><br> Le barbare réalise une attaque au contact avec une pénalité de -2 en attaque et inflige +1d6 DM. Au Rang 5 de la voie, il peut choisir une pénalité de -5 pour obtenir +2d6 aux DM.",
+    "type3":"limitée",
+
+    "Affichage4": "Briseur d'os",
+    "rang4": "Capacité passive<br> Effet :2ᵉ critique sur 19 ou 20, inflige à la cible -2 FOR, -2 DEX, -2 CHA. <br><br>Les coups critiques du barbare sont terribles et provoquent des handicaps durables. Lorsqu’il obtient un critique sur 19 ou 20, il inflige à sa cible une pénalité de -2 en FOR, DEX et CHA jusqu’à ce qu’elle soit complètement guérie.",
+    "type4":"passive",
+
+
+    "Affichage5": "Force héroïque",
+    "rang5": "Capacité passive<br> Effet : +2 FOR, 2d20 au test de FOR.<br><br> Le barbare augmente sa valeur de FOR de +2 et il peut désormais lancer deux d20 à chaque fois qu’un test de FOR lui est demandé et garder le meilleur résultat.",
+    "type5":"passive",
+
+    "Voie": "Voie de la brute"
+}

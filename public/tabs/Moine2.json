@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Pacifisme",
+    "rang1": "Capacité passive <br>Effet: +5 DEF tant que n'attaque pas <br><br>Tant que le moine n'a réalisé aucune action offensive dans un combat, il bénéficie d'un bonus en DEF de +5.",
+    "type1":"passive",
+
+    "Affichage2": "Transe de guérison",
+    "rang2": "Capacité passive <br>Effet : récupère [niveau + mod. SAG] PV <br>Durée : 10 minutes <br><br>Une fois après chaque combat, le moine peut méditer pendant 10 minutes et ré- cupérer ainsi [niveau + Mod de SAG] PV.",
+      "type2":"passive",
+
+    "Affichage3": "Maîtrise du ki",
+    "rang3": "Capacité passive <br>Effet : ajoute son mod. SAG à Init et DEF <br><br>Le moine utilise son intuition et son empathie avec le monde pour augmenter son efficacité en combat. Il ajoute son Mod. de SAG à son Initiative et sa DEF.",
+    "type3":"passive",
+
+    "Affichage4": "Projection mentale (L)",
+    "rang4": "Action limitée <br>Effet : projette son esprit hors du corps <br>Durée : [valeur de SAG] tours <br><br>Le moine entre en méditation et projette son esprit hors de son corps. Celui-ci ressemble à un ectoplasme de couleur blanche qui se déplace en volant à la vitesse de 10 m par tour. Il peut passer au traversdes murs, mais pas des êtres vivants, et il reste relié à son corps d'origine par un long filin argenté. La durée maximum de la projection est de [valeur de SAG] tours. Le moine ne perçoit le monde que via sa projection mentale mais ressent si des DM sont infligés à son corps.",
+    "type4":"limitée",
+
+    "Affichage5": "Sagesse héroïque",
+    "rang5": "Capacité passive <br>Effet: +2 SAG, 2d20 aux tests de SAG <br><br>Le moine augmente sa valeur de SAG de +2. Il peut désormais lancer deux d20 à chaque fois qu'un test de SAG lui est demandé et conserver le meilleur résultat.",
+    "type6":"passive",
+
+    "Voie": "Voie de la méditation"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Allonge",
+    "rang1": "Capacité passive <br>Effet : Le guerrier obtient un bonus de +1 en attaque et +2 en Init lorsqu’il utilise une arme à 2 mains.",
+    "type1":"passive",
+
+    "Affichage2": "Gros Monstre, grosse arme",
+    "rang2": "Capacité passive <brEffet : Contre les créatures de taille grande et supérieure, les DM de l’arme à deux mains passent de 2d6 à 2d8 (de 1d10 à 2d6).",
+    "type2":"passive",
+
+    "Affichage3": "Tenir à distance (L)",
+    "rang3": "Action limitée <br>Effet : À ce tour, le guerrier réalise une action d’attaque et il utilise son allonge pour maintenir ses adversaires à distance. <br>Il gagne un bonus de +5 en DEF contre les attaques de contact.",
+    "type3":"passive",
+
+    "Affichage4": "Attaque à outrance",
+    "rang4": "Capacité passive<br> Effet : Le guerrier peut choisir une pénalité en -2 DEF pour gagner un bonus de +1d6 aux DM ou un bonus de -5 en DEF pour gagner un bonus de +2d6 aux DM. <br>Ce bonus n’est pas multiplié en cas de critique.",
+    "type4":"passive",
+
+    "Affichage5": "Critique destructeur",
+    "rang5": "Capacité passive <br>Effet : Lorsqu’il obtient un critique avec une arme à 2 mains, le Guerrier obtient +2d6 aux DM en plus des effets du critique.",
+    "type5":"passive",
+
+    "Voie": "Voie des armes à 2 mains"
+}

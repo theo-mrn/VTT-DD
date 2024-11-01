@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Attaque étourdissante (L)",
+    "rang1": "Action limitée <br>Effet : Le moine réalise une attaque à mains nues contre une cible humanoïde (de grande taille au maximum).  <br> <br>Si l’attaque est réussie, il n’inflige pas de DM mais la victime doit réussir un test de CON de difficulté [10 + Mod. de SAG] ou sombrer dans l’inconscience pour [1d6 + Mod. de SAG] minutes. Si le niveau de la cible est supérieur à celui du moine, la cible est seulement paralysée pour un tour. Dans tous les cas, elle ne peut plus être affectée par cette capacité pour 24 heures si elle y a résisté.",
+    "type1":"limitée",
+
+    "Affichage2": "Pression destructrice",
+    "rang2": "Capacité passive  <br>Effet : Cette capacité s’utilise en combinaison avec Pression mortelle. <br> <br> Le moine ajoute un bonus de +1d6 aux DM de chaque attaque dont il n’inflige pas immédiatement les effets, attendant de les libérer plus tard par une Pression mortelle.",
+    "type2":"passive",
+
+    "Affichage3": "Frappe de l’enclume (L)",
+    "rang3": "Action limitée  <br>Effet : Le moine se concentre pendant 1d4 tours pendant lesquels il ne peut ni attaquer ni se déplacer mais bénéficie d’une réduction des DM de 5 points (RD 5). <br> <br> Au tour suivant, il réalise une attaque limitée, il peut réaliser une attaque dévastatrice : il bénéficie d’un bonus de +10 en attaque et il triple ses DM. S’il cesse sa concentration prématurément, le moine ne profite d’aucun bénéfice.",
+    "type3":"limitée",
+
+    "Affichage4": "Paume mortelle (L)",
+    "rang4": "Action limitée  <br>Effet : Une fois par jour, le moine peut porter une attaque capable de tuer net un adversaire. <br> <br> Pour survivre, la victime doit réussir un test de CON ou de SAG (au choix) dont la difficulté est égale au niveau du moine. En cas d’échec, elle meurt sur le coup…",
+    "type4":"limitée",
+
+    "Affichage5": "Main du tout puissant (L)",
+    "rang5": "Action limitée  <br>Effet : Le poing du moine se matérialise partout à la fois.  <br> <br>Il réalise une attaque qui affecte toutes les créatures dans un rayon de 10 mètres autour de lui et inflige les DM normaux d’attaque à mains nues pour chaque attaque réussie. Cette attaque particulièrement éprouvante coûte 2d6 PV au moine à chaque fois qu’elle est employée.",
+    "type5":"limitée",
+    
+    "Voie": "Voie du contact mortel"
+}

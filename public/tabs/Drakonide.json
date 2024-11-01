@@ -1,0 +1,40 @@
+{
+        "Affichage1":"Souffle",
+        "rang1": "Capacité passive <br>Effet: souffle (élément au choix), 2d6 DM  <br><br>Le joueur choisit un type de souffle pour son personnage parmi feu, froid, électricité ou acide. Ce souffle inflige 2d6 DM par rang dans une zone conique de 10 mètres de long sur 5 mètres de large. Toutes les créatures affectées peuvent diviser les DM par 2 si elles réussissent un test de DEX difficulté 12. Après avoir utilisé son souffle, le drakonide doit attendre 1d4 tours avant de pouvoir l'utiliser à nouveau.",
+        "type1":"passive",
+
+        "Affichage2":"Intimidant",
+        "rang2": "Capacité passive <br>Effet: +5 aux tests d'intimisation  <br><br>Le drakonide reçoit un bonus de +5 à tous les tests d'intimidation.",
+        "type2":"passive",
+
+        "Affichage3":"Ecailles robustes",
+        "rang3": "Capacité passive <br>Effet : +1 DEF <br><br>Le drakonide reçoit un bonus de +1 en DEF.",
+        "type3":"passive",
+        
+
+        "Affichage4":"Fureur drakonide",
+        "rang4": "Capacité passive <br>Effet: +1 (contact/distance/magie) et DM si subit un critique ou en dessous de 1/2 PV max <br><br>Lorsqu'un adversaire lui inflige une réussite critique en attaque ou lorsqu'il passe sous la moitié de son score de PV max, le drakonide obtient un bonus de +1 en attaque et aux DM.",
+        "type4":"passive",
+
+        "Affichage5":"Héritage draconique",
+        "rang5": "Capacité passive <br>Effet : +2 CON, +2 CHA <br><br>Le drakonide augmente ses valeurs de CON et de CHA de +2.",
+        "type5":"passive", 
+        
+        "Voie":"Voie du drakonide"
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

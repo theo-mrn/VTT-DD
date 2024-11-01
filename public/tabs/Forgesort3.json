@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Runes de défense",
+    "rang1": "Capacité passive <br>Effet : +1 🛡️ par rang. <br><br>Le forgesort inscrit des runes de protection sur l’ensemble de son équipement et parfois jusque sur sa peau. Il obtient un bonus de +1 en DEF par rang dans la voie.",
+    "type1":"passive",
+
+    "Affichage2": "Rune d’énergie (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : enchante un bijoux permettant la relance de 🗡️ FOR, DEX ou CON. <br><br>En réalisant un rituel de 5 minutes, le forgesort enchante un bijou pour 24 h. Celui-ci permet de relancer un d20 une fois par combat sur un test d’attaque, de FOR, DEX ou CON. Un seul bijou de ce type peut être porté.",
+    "type2":"limitée",
+
+    "Affichage3": "Rune de protection (L)",
+    "rang3": "Action limitée, sortilège<br>Effet : enchante une armure qui ignore les DM une fois par combat. <br><br>En réalisant un rituel de 5 minutes, le forgesort enchante une armure pour 24 h. Celle-ci permet d’ignorer les DM d’une attaque une fois par combat.",
+        "type3":"limitée",
+
+    "Affichage4": "Rune de puissance (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : enchante une arme qui inflige DM max une fois par combat.<br><br> En réalisant un rituel de 5 minutes, le forgesort enchante une arme pour 24 h. Celle-ci permet d’infliger les DM maximum une fois par combat.",
+        "type4":"limitée",
+
+    "Affichage5": "Rune de pouvoir",
+    "rang5": "Capacité passive <br>Effet : lie un sort à un objet.<br><br>Le forgesort peut lier un sort à un objet par une inscription runique. S’il ne connaît pas lui-même le sort, il doit se faire aider par un personnage qui le lance. Le sort ainsi lié peut être utilisé trois fois par jour. Le processus est le même que pour fabriquer une arme ou une armure magique, il requiert de passer un jour de travail par niveau du sort lié (les sorts de potions à la potion). Après ce délai, en se rendant dans un rang de 10, la potion d’alimentation a été utilisée pour payer.",
+        "type5":"limitée",
+
+    "Voie": "Voie des runes"
+}

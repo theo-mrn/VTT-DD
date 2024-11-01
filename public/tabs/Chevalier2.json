@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Eduqué",
+    "rang1": "Capacité passive: <br>Effet : +rang INT, +rang CHA.<br> <br>  Le chevalier sait lire et écrire, il gagne +1 par rang dans la voie à tous les tests d'INT et de CHA.",
+    "type1":"passive",
+
+    "Affichage2": "Autorité naturelle",
+    "rang2": "Capacité passive: Effet: [1 + mod. CHA] Init et DEF, +5 aux tests de CHA pour intimider. <br> <br> Le chevalier obtient un bonus égal à [1 + Mod. de CHA] en Initiative et en DEF. De plus, il bénéficie d'un bonus de +5 aux tests de CHA réalisés pour donner des ordres ou intimider.",
+   "typ21":"passive",
+
+    "Affichage3": "Ecuyer",
+    "rang3": "Capacité passive: Effet: critique sur 19-20, Ecuyer : Init 14, DEF 14, PV 13,Contact 2 + 3, DM 1d8+1.<br> <br>  Le chevalier dispose d'un écuyer à son service (Initiative 14, Défense 14, PV 13, Att +3, DM 1d8+1). Il est absolument loyal à son maître et lui sert de serviteur, il s'occupe de sa monture et de son équipement, prépare le campement, panse. les blessures, etc. Grâce à l'écuyer, les armes du chevalier sont parfaitement affûtées et infligent des critiques sur 19 ou 20. De plus, le chevalier, sa monture et jusqu'à [1 + Mod. de CHA] alliés récupèrent 2d6 PV supplémentaires chaque nuit s'ils profitent des services de l'écuyer. Tous les frais sont pris en charge par la capacité. Si l'écuyer vient à mourir, le chevalier en prendra un autre à son service au niveau suivant.",
+   "type3":"passive",
+
+    "Affichage4": "Massacrer la piétaille",
+    "rang4": "Capacité passive: Effet: +1d6 DM contre la pietaille. <br> <br> Le chevalier ajoute + 1d6 aux DM contre la piétaille. S'il y a au moins 4 créatures aux statistiques semblables impliquées dans le combat, elles sont assimilées à de la piétaille (même si leur nombre est par la suite réduit à moins de 4 au cours du combat). Les grandes créatures et les cavaliers ne sont jamais considérés comme de la piétaille.",
+   "type4":"passive",
+
+    "Affichage5": "Formation d’élite",
+    "rang5": "Capacité passive: Effet: choisit une capacité de rang 1 à 3 des familles de combattants ou voyageurs. <br> <br> Le chevalier possède les moyens et la culture nécessaire pour obtenir une formation dans n'importe quel domaine qui lui sied. Choisissez une capacité de rang 1 à 3 dans n'importe quel profil issu de la famille (voir page 82, Voies de prestige) des combattants ou des voyageurs.",
+   "type5":"passive",
+
+    "Voie": "Voie de la noblesse"
+}

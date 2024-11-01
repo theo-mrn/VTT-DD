@@ -1,0 +1,22 @@
+{
+    "Affichage1": "Orateur hors pair",
+    "rang1": "Capacité passive <br>Effet : Le barde obtient un bonus de +5 à tous les tests pour discourir, convaincre ou pour conter. <br><br>Il connaît tous les contes et légendes célèbres et, dans le doute, un test d’INT difficulté 10 permet de confirmer sa connaissance d’une légende plus confidentielle.",
+    "type1":"passive",
+
+    "Affichage2": "Créature de rêve (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : Le barde décrit et fait apparaître une étrange créature, de taille Très petite jusqu’à Grande, qu’il invente ou qui ressemble à une créature existante. <br><br>Dans tous les cas, la créature possède des teintes étranges qui floutent sur tout ou presque de l’arc-en-ciel. Lorsque l’[j’invoque, le barde] lui assigne des DM et un rôle précis ainsi qu’une illusion de vie. Si personne n’essaie de contester sa présence par des moyens magiques ou scientifiques, la créature est réelle pour tous et sa mission l’est aussi. PV de la créature = [Mod. CHA] x5 et ses DM selon l'échelle de force : FOR +2, DEX +2, CON +2, INT 0, SAG 0, CHA 0. La taille et la forme de la créature sont à définir librement. Cette illusion est limitée à 20 mètres par action de mouvement.",
+    "type2":"limitée",
+
+    "Affichage3": "Le poids des mots (L)",
+    "rang3": "Action limitée, sortilège<br> Effet : Le barde déforme la réalité et la plie à sa volonté par la force de sa parole. Par exemple, une réalité s’inverse : tout devient son contraire ou improbable. <br><br>Cela dure [Mod. CHA] x tours et touche les personnes ciblées ou présentes à moins de 10 mètres. La personne affectée doit réussir un test de SAG difficulté 15 pour contester cette réalité, sinon elle subit le contrecoup des changements induits.",
+    "type3":"limitée",
+
+    "Affichage4": "Histoire à dormir debout",
+    "rang4": "Capacité passive <br>Effet : Le barde touche une cible et lui raconte des événements fictifs, des souvenirs inventés ou des mensonges auxquels elle croit et se persuade d’avoir réellement vécus.<br><br> Si elle échoue à son test de SAG difficulté 15, elle ne pourra jamais distinguer ce qui est inventé ou réel. En cas de réussite, elle comprend que c’est un mensonge mais subit des pertes de mémoire.",
+    "type4":"passive",
+
+    "Affichage5": "Souhait (L)",
+    "rang5": "Action limitée, sortilège <br>Effet : Le barde modifie la réalité par la force de ses mots et émet un souhait qui est exécuté. <br><br>Une fois par jour, il peut dupliquer les effets d’un sort mineur ou complexe (jusqu’au rang 5). Le barde ne peut pas utiliser cette capacité s’il est sous l’influence d’un autre sort de manipulation de la réalité.",
+    "type5":"limitée",
+    "Voie": "Voie du conteur"
+}

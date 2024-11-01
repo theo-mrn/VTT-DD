@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Conjuration de prédateur (L)",
+    "rang1": "Action limitée, sortilège <br>Effet : prédateur: <br> Niveau 1 à 4: Loup NC 1 (p259) <br> Niveau 5 à 8 : Loup alpha NC 2 (p259) <br> Niveau 9 à 11 : Loup géant NC 3 (p260) <br>Niveau 12 à 14 : Lion NC 4 (p259) <br> Niveau 15 à 17 : Lion, grand mâle NC 5 (p259) <br> Niveau 18 à 20 : Ours polaire NC 6 (p268) <br>Niveau 21 à 22 : Tigre à dents de sabre NC 7 (p259) <br>  Niveau 23 et + : Ours préhistorique NC 8 (p268) <br>Durée : [5 + mod. CHA] tours.<br><br> Une fois par combat, l'invocateur peut conjurer un animal qui combat pour lui pendant [5 + Mod. de CHA] tours. Le type d'animal conjuré dépend du niveau de l'invocateur (voir marge p. 25). L'animal apparait au contact de l'invocateur et peut s'éloigner jusqu'à une distance de 50 mètres.",
+    "type1":"limitée",
+
+    "Affichage2": "Conjuration renforcée",
+    "rang2": "Capacité passive <br>Effet : conjure un animal de niveau [rang + niveau de l'invocateur] L'invocateur ajoute à son niveau le rang atteint dans la Voie pour déterminer le niveau des prédateurs conjurés. <br><br>Exemple : un invocateur de niveau 3 avec 2 rangs dans la Voie conjure un loup alpha NC 2, comme s'il était de niveau 5 (3+2)",
+        "type2":"passive",
+
+    "Affichage3": "Conjuration d'armée (L)",
+    "rang3": "Action limitée, sortilège <br> Effet: armée 1d6 DM par tour à chaque cible, 1d10 DM au rang 4, 2D6 DM au rang 5 <br>Durée : [5 mod. CHA] heures.<br><br>Une fois par jour, l'invocateur peut conjurer une petite armée pour une durée maximum de [5 + Mod. de CHA] heures. Le sort ne peut être utilisé qu'en rase campagne ou dans un espace clos d'au minimum 20 x 20 mètres. Les créatures apparaissent dans une zone carrée de 20 mètres de coté, centrée sur l'invocateur. Elles peuvent ensuite se déplacer en formation, en occupant la même surface (elles n'entrent pas dans des couloirs ou des bâtiments exigus), jusqu'à une portée de 200 mètres. Les créatures attaquent les adversaires que l'invocateur leur désigne (déplacement de 20 mètres par tour, 3 km/h). L'armée inflige automatiquement 1d6 DM par tour (1d10 DM au rang 4 et 2d6 DM au rang 5) à chaque cible dans la zone. Une cible peut choisir de combattre l'armée par une action limitée : cela lui permet de ne subir que la moitié des DM prévus et d'infliger à son tour à l'armée des DM égaux à son niveau plus 1 (NC + 1, pour une créature). Lorsque l'armée a subi un montant total de DM égal au niveau de l'invocateur multiplié par 10, le sort prend fin.",
+        "type3":"illimitée",
+
+    "Affichage4": "Conjuration de prédateur étrange",
+    "rang4": "Capacité passive<br>Effet : améliore la conjuration du prédateur Lorsqu'il convoque un prédateur (rang 1 de cette Voie).<br><br>L'invocateur peut, au choix, ajouter à la créature une mutation protectrice ou une adaptation motrice issue de la Voie des mutations (il n'a pas besoin d'avoir accès à ces capacités). Si l'invocateur opte pour Cuirasse, cela apporte un bonus de +3 en DEF à la créature.",
+        "type4":"passive",
+
+    "Affichage5": "Meute de prédateurs",
+    "rang5": "Capacité passive<br>Effet: 1d4 invocations de catégorie inférieure ou 2d6 invocations de deux catégories inférieures.<br><br> Lorsqu'il utilise le sort de conjuration de prédateur, l'invocateur peut invoquer 1d4 prédateurs d'une catégorie en-dessous de son niveau maximum ou 2d6 prédateurs de deux catégories en-dessous.",
+       "type5":"passive",
+
+    "Voie": "Voie de la conjuration"
+}

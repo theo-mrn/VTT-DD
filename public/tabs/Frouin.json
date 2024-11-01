@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Se planquer",
+    "rang1": "Capacité passive <br>Effet : +5 aux tests de discrétion.<br><br> Grâce à sa petite taille et sa discrétion naturelle, le frouin obtient un bonus de +5 à tous les tests de discrétion.",
+    "type1":"passive",
+
+    "Affichage2": "Petite taille",
+    "rang2": "Capacité passive <br>Effet : +2 🛡️, rang 4 : +3 🛡️. <br><br>Sa petite taille et son habitude d’éviter les coups permet au frouin d’obtenir un bonus de +2 en DEF. Ce bonus passe à +3 au rang 4 de la Voie.",
+     "type2":"passive",
+
+    "Affichage3": "Parano",
+    "rang3": "Capacité passive <br>Effet : +5 Init, +5 aux tests anti-surprise. <br><br>Subit 1/2 DM d’attaque sournoise. Un frouin est toujours sur ses gardes, il obtient un bonus de +5 à tous les tests pour éviter d’être surpris et un bonus de +5 en Init. De plus, il ne reçoit que la moitié des DM des attaques sournoises (ou autres bonus de DM de surprise).",
+     "type3":"passive",
+
+    "Affichage4": "Attaque simultanée",
+    "rang4": "Capacité passive <br>Effet : décale son tour pour attaquer avec un allié, +2 🗡️, +1d6 DM. <br><br>Les frouins sont trop timorés pour attaquer seul, mais ils ont développé des tactiques de combat en groupe efficace. Si le frouin décale son initiative pour attaquer en même temps qu’un allié (au contact ou à distance), il obtient un bonus de +2 en attaque et +1d6 aux DM. Ce bonus peut se cumuler à une attaque sournoise.",
+     "type4":"passive",
+
+    "Affichage5": "Champion de la survie",
+    "rang5": "Capacité passive <br>Effet : +2 CON, +2 DEX ou +2 SAG. <br><br>Le frouin est expert de la survie, il augmente au choix sa valeur de DEX ou de SAG de +2 et sa valeur de CON de +2.",
+    "type5":"passive",
+
+    "Voie": "Voie du frouin"
+}

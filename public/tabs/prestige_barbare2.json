@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Caractère d’ours",
+    "rang1": "Capacité passive <br>Effet : Le personnage gagne un bonus de +5 à tous les tests d’intimidation et, s’il possède la capacité Cri de guerre, il peut ajouter ce bonus à sa FOR <br><br>lors de l’estimation des ennemis affectés par le cri. Désormais, il peut également utiliser la capacité Cri de guerre en utilisant seulement une action de mouvement.",
+    "type1":"passive",
+
+    "Affichage2": "Hibernation",
+    "rang2": "Capacité passive <br>Effet : Le personnage peut dormir sans interruption jusqu’à 2 jours par rang. <br><br>Durant cette période, il n’a besoin ni d’eau, ni de nourriture et ne souffre ni du froid ni de la chaleur. Il récupère normalement de ses blessures. Après avoir dormi plusieurs jours de suite, le barbare est capable de rester ce même nombre de jours sans dormir.",
+    "type2":"passive",
+
+    "Affichage3": "Métamorphose (L)",
+    "rang3": "Action limitée <br>Effet : Une fois par jour, le barbare peut dorénavant prendre la forme de son totem pendant [1d6 + Mod. de CON] minutes. <br><br>Une action limitée lui est nécessaire pour passer de la forme humaine à celle d’ours et réciproquement mais s’il sombre dans l’inconscience, il reprend forme humaine immédiatement. Les caractéristiques du personnage deviennent celles de l’ours brun dont le profil est détaillé en p. 220 et en image ci-contre. Le personnage conserve toutefois ses propres PV et son score d’INT. Sous sa forme d’ours, le personnage a tendance à réagir comme l’animal qu’il est devenu et il ne peut plus utiliser ses capacités de profil.",
+    "type3":"limitée",
+
+    "Affichage4": "Étreinte de l’ours (L)",
+    "rang4": "Action limitée <br>Effet : Une fois par combat, le personnage peut se saisir d’un adversaire au score de FOR inférieur et l’écraser entre ses bras puissants.<br><br> Sur un test d’attaque au contact réussi, le barbare inflige [2d6 + Mod. de FOR] DM à sa cible (plus un test éventuel bonus de rage) et l’immobilise entre ses bras, causant à son adversaire une pénalité de -5 en DEF. À son tour, la victime peut tenter de se libérer avec un test de FOR en opposition, auquel cas, elle ne peut faire aucune action. À chaque fin des tours suivants, tant que l’étreinte est maintenue, le barbare inflige à nouveau des DM sans avoir à refaire son test d’attaque. Cette capacité peut être utilisée sous forme d’ours.",
+    "type4":"limitée",
+
+    "Affichage5": "Métamorphose supérieure (L)",
+    "rang5": "Action limitée <br>Effet : Les plus puissants guerriers-ours peuvent prendre la forme de leur totem jusqu’à 3 fois par jour. <br><br>Ces métamorphoses durent jusqu’à [1d6 + Mod. de CON] heures à chaque fois. De plus, lorsqu’ils combattent sous cette forme, les barbares peuvent utiliser toutes les capacités de la voie de la rage.",
+    "type5":"limitée",
+
+    "Voie": "Voie du béornide"
+}

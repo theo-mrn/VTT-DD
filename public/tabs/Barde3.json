@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Chant des héros (L)",
+    "rang1": "Action limitée Effet: +1 à tous les tests si à portée de voix <br>Durée : [5 mod. CHA] tours <br> <br>  Le barde chante et inspire ses compagnons : tous les alliés à portée de voix obtiennent un bonus de +1 à tous leurs tests pendant [5+ Mod. de CHA] tours.",
+    "type1":"limitée",
+
+    "Affichage2": "Attaque sonore (L)",
+    "rang2": "Action limitée, sortilège Effet: [1d6 + mod. CHA] DM sur 10 mètres de face <br> <br> Le barde pousse un cri dont les effets sont dévastateurs ou produit un son avec un instrument à cette même fin). Sur un test d'attaque magique réussi, il inflige [1d6 + Mod. de CHA] DM à toutes les cibles lui faisant face sur une portée de 10 m.",
+    "type2":"limitée",
+
+    "Affichage3": "Zone de silence (L)",
+    "rang3": "Action limitée, sortilège Effet: -2 aux tests Contact sur 5-30 mètres <br>Durée : [1d6 + mod. CHA] tours <br> <br> Le barde crée une zone de silence fixe de 5 mètres de diamètre, jusqu'à une portée de 30 mètres, pendant [1d6+ Mod. de CHA] tours. Tous les sons émis dans cette sphère sont annulés. La zone n'empêche pas le lancement des sorts mais inflige un malus de -2 à tous les tests d'attaque magique.",
+   "type3":"limitée",
+
+    "Affichage4": "Danse irrésistible (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : la cible danse et subit -4 Contact, Distance, Magie, Défense. <br>Durée : [1d4 + mod. CHA] tours <br> <br> Le barde joue une gigue endiablée aux effets magiques. S'il réussit un test d'attaque magique contre la créature qu'il cible, celle-ci se met à danser pendant [1d4+ Mod. de CHA] tours et subit un malus de -4 aux tests d'attaque et en DEF.",
+    "type4":"limitée",
+
+    "Affichage5": "Musique fascinante (L)",
+    "rang5": "Action limitée, sortilège <br>Effet : contrôle toutes les cibles dans les 30 mètre dont les PV < ou = [5 + mod. CHA] du barde  <br> <br> Le barde joue de la musique pour fasciner et « contrôler » toutes les créatures de son choix (rats, gobelins, humains, etc.) dans un rayon de 30 m. Seules les créatures dont les PV sont inférieurs ou égaux à [5 + Mod. de CHA] du barde répondent. Les créatures sortent de leur cachette et se dirigent vers le barde, elles le suivent tant qu'il continue à jouer. Quand il utilise cette capacité le barde peut également se déplacer de 10 m par tour.",
+   "type5":"limitée",
+
+    "Voie": "Voie du musicien"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Premier cristal",
+    "rang1": "Capacité passive <br>Effet : Le forgesort apprend à créer un cristal de son choix.<br><br> Il peut fabriquer chaque cristal en dépensant 200 pièces d’argent.",
+    "type1":"passive",
+
+    "Affichage2": "Second cristal",
+    "rang2": "Capacité passive <br>Effet : Le forgesort apprend à créer un cristal de son choix. <br><br>Il peut bénéficier des effets de 2 cristaux simultanément, mais pas deux fois le même.",
+    "type2":"passive",
+
+    "Affichage3": "Troisième cristal",
+    "rang3": "Capacité passive <br>Effet : Le forgesort apprend à créer deux nouveaux cristaux de son choix. <br><br>Il peut bénéficier au maximum des effets de 3 cristaux simultanément, mais pas deux fois le même. Changer de cristal correspond à une action limitée.",
+    "type3":"passive",
+
+    "Affichage4": "Quatrième cristal",
+    "rang4": "Capacité passive <br>Effet : Le forgesort apprend à créer deux nouveaux cristaux de son choix. <br><br>Il peut bénéficier au maximum des effets de 4 cristaux simultanément, mais pas deux fois le même.",
+    "type4":"passive",
+
+    "Affichage5": "Cinquième cristal",
+    "rang5": "Capacité passive<br> Effet : Le forgesort apprend à créer deux nouveaux cristaux de son choix. <br><br>Il peut bénéficier au maximum des effets de 5 cristaux simultanément, dont un maximum de deux fois le même.",
+    "type5":"passive",
+
+    "Voie": "Voie des cristaux"
+}

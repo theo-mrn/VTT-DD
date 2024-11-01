@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Rumeurs et légendes",
+    "rang1": "Capacité passive. <br>Effet : +2 INT par rang à force de voyager,<br> <br>  le barde a appris toutes sortes de choses, il obtient un bonus de +2 par Rang dans cette voie aux tests d'INT pour se « souvenir » d'une information historique, politique, géographique ou occulte quipourrait lui être utile.",
+    "type1":"passive",
+
+    "Affichage2": "Compréhension des langues (L)",
+    "rang2": "Action limitée, sortilège. <br>Effet : maîtrise n'importe quelle langue. <br>Durée : [1d6 + mod. CHA] minutes. <br> <br> Ce sort permet au barde de lire, écrire et parler n'importe quelle langue ancienne ou vivante pendant [1d6 + Mod. de CHA] minutes.",
+   "type2":"limitée",
+
+    "Affichage3": "Débrouillard",
+    "rang3": "Capacité passive Effet: +5 aux tests de profession, artisanats, ... <br> <br> Le barde obtient un bonus de +5 à tous ses tests de survie en nature et aux tests de profession et d'artisanat (forge, charpentier, etc.).",
+   "type3":"passive",
+
+    "Affichage4": "Déguisement (L)",
+    "rang4": "Action limitée, sortilège. <br>Effet : prend l'apparence d'une créature <br>Durée : 10 minutes <br> <br> Ce sort permet au barde de prendre l'apparence de n'importe quelle créature de taille à peu près équivalente (avec une marge d'environ 50 cm). S'il veut imiter une personne en particulier, il lui faudra réussir un test de CHA difficulté 1 (20 s'il ne la connaît pas mais l'a seulement vue, 10 s'il la connaît très bien). Le sort a une durée de 10 minutes.",
+   "type4":"limitée",
+
+    "Affichage5": "Touche à tout",
+    "rang5": "Capacité passive. Effet: choisit une capacité de rang 1 à 3.<br> <br>  Le barde peut choisir n'importe quelle capacité de Rang 1 à 3 de son choix au sein d'un autre profil de Chroniques.",
+   "type5":"passive",
+
+    "Voie": "Voie du vagabond"
+}

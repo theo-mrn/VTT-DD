@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Manipulation à distance (L)",
+    "rang1": "Action limitée <br>Effet : déplace un objet<br>portée 10 mètres : DEX = SAG, FOR = CHA, magie[+mod. CHA] DN <br><br>Le psionique peut déplacer ou manipuler un objet à distance à une portée de 20 mètres et le déplacer en l'air de 10 mètres par tour. Le psionique peut manipuler un objet avec l'équivalent d'une DEX égale à sa SAG et d'une FOR égale à son CHA. Il peut attaquer avec une arme manipulée à distance avec son score d'attaque magique et un bonus aux DM égal à son Mod. de CHA. A partir du rang 3, il lui suffit d'une action d'attaque, à partir du rang 5, il lui suffit d'une action de mouvement.",
+    "type1":"limitée",
+    
+    "Affichage2": "Champ de protection",
+    "rang2": "Capacité passive <br>Effet : [+ rang] DEF <br><br>Le psionique déploie autour de lui un champ de force qui repousse efficacement les attaques. Il obtient un bonus en DEF égal au rang atteint dans la Voie. A partir du rang 4, il peut déployer son champ de protection autour d'un allié à moins de 10 mètres de luiau prix d'une action de mouvement à chaque tour.",
+    "type2":"passive",
+    
+    "Affichage3": "Onde de choc (L)",
+    "rang3": "Action limitée, sortilège <br>Effet : [2d6 + mod. CHA] DM sur 10 mètres.<br> Rang 5 : [3d6 + mod. CHA] DM <br><br>Une fois par combat, le psionique peut produire une vague de force à 360 degrés autour de lui dans un rayon maximum de 10 mètres, moins s'il le souhaite. Toutes les créatures dans la zone d'effet subissent [2d6 + Mod. de CHA] DM et doivent réussir un test de FO difficulté [10 + Mod. de CHA] ou être renversées. Les DM passent à 3d6 au rang 5 de la Voie.",
+    "type3":"limitée",
+    
+    "Affichage4": "Combat kinétique",
+    "rang4": "Capacité passive <br>Effet: -3 DM subits, contact, distance[+mod CHA] DM  <br><br>Le psionique a appris à utiliser son don pendant le combat, en freinant l'impact des attaques adverses et en augmen tant celui des siennes. Il bénéficie d'une réduction des DM de 3 points (RD 3) et il ajoute son Mod. De CHA aux DM de ses propres attaques (au contact ou à distance).",
+    "type4":"passive",
+   
+    "Affichage5": "Psychoportation (L)",
+    "rang5": "Action limitée, sortilège <br>Effet : lévitation, 2d20 aux tests de FOR <br>Durée : [5 + mod. CHA] tours <br><br>Le psionique est désormais capable de s'élever lui-même dans les airs et de voler pendant [5 + Mod. de CHA] tours. Sa vitesse maximale est égale à sa vitesse au sol et se maintenir en vol stationnaire estune action gratuite. En outre, grâce à l'application permanente des principes de la télékinésie, le joueur peut désormais lancer deux d20 à chaque fois qu'un test de FOR est demandé au personnage et conserver le meilleur résultat.",
+    "type5":"limitée",
+   
+    "Voie": "Voie de la télékinésie"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Armure du mage (L)",
+    "rang1": "Action limitée, sortilège <br>Effet : +4 🛡️ Durée : Combat. <br><br>Le magicien fait apparaître un nuage magique argenté qui le protège contre les attaques adverses. Il bénéficie d’un bonus de +4 à la DEF pour le reste du combat.",
+    "type1":"limitée",
+
+    "Affichage2": "Chute ralentie (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : Tombe de 6 mètres sans dégât. <br><br>Le magicien affecte une cible à moins de 10 mètres avec ce sort. La cible peut chuter de 6 mètres par rang dans la Voie sans subir de dégâts. Si la chute est supérieure à cette hauteur, elle est réduite d’autant.",
+        "type2":"limitée",
+
+    "Affichage3": "Flou (L)",
+    "rang3": "Action limitée, sortilège <br>Effet : subit 1/2 DM Contact et Distance <br>Durée : [1d4 + Mod. d'INT] tours.<br><br> Pendant [1d4 + Mod. d'INT] tours, le corps du magicien devient flou et les DM des attaques de contact ou à distance qu’il encaisse sont divisés par 2.",
+        "type3":"limitée",
+
+    "Affichage4": "Cercle de protection (L)",
+    "rang4": "Action limitée, sortilègev Effet : Annule le sort adverse<br> Durée : le combat. <br><br>Le magicien peut tracer un cercle sur le sol pouvant contenir 3 personnes. Une fois par tour, lorsqu’un sort prend pour cible un personnage situé dans le cercle (par un test d’attaque magique), le magicien fait un test d’attaque magique en opposition à celui de l’adversaire. Si ce test est réussi, le sort adverse est annulé et n’a aucun effet.",
+        "type4":"limitée",
+
+    "Affichage5": "Arrêt du temps (L)",
+    "rang5": "Action limitée, sortilège <br>Effet : Stoppe le temps <br>Durée : [1d6 + Mod. d'INT] tours. <br><br>Le magicien arrête le temps pendant [1d6 + Mod. d'INT] tours. Seul le magicien peut agir à sa guise pendant cette période, lancer des sorts sur lui-même, se déplacer et déplacer des objets, tant qu’il ne touche pas un être vivant ou n’interagit pas avec lui (en lui lançant un sort par exemple). Dans le cas d’un contact (même magique), le temps reprend instantanément son cours normal.",
+    "type5":"limitée",
+
+    "Voie": "Voie de la magie protectrice"
+}

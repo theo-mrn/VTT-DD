@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Bénédiction (L)",
+    "rang1": "Action limitée, sortilège <br>Effet: +1 Contact, Distance, Magie, +1 tous tests <br>Durée : [3 + mod. SAG] tour <br><br>Le prêtre entonne un chant pour encourager ses compagnons en vue. Lui et ses alliés bénéficient d'un bonus de +1 à tous leurs tests de caractéristique et d'attaque pendant [3 + Mod. de SAG] tours.",
+    "type1":"limitée",
+
+    "Affichage2": "Destruction des morts-vivants (L)",
+    "rang2": "Action limitée, sortilège <br>Effet: 2d6 DM à tous les morts-vivants. <br>Rang 4 : 3d6 DM <br><br>Le prêtre peut faire un test de SAG difficulté 1. S'il réussit, tous les morts-vivants en vue subissent 2d6 points de DM. Ces DM passent à 3d6 au rang 4 de la Voie.",
+     "type2":"limitée",
+
+    "Affichage3": "Sanctuaire (L)",
+    "rang3": "Action limitée, sortilège <br>Effet: protection contre les attaques <br>Durée : [5 + mod. SAG] tours <br><br>Quand le prêtre lance ce sort, tous les adversaires qui veulent l'attaquer doivent d'abord réussir un test de SAG difficulté 15. S'ils échouent, ils ne peuvent pas l'attaquer. Les effets de ce sort durent [5 + Mod de SAG] tours, mais s'il tente la moindre attaque, le sort prend fin immédiatement.",
+      "type3":"limitée",
+
+    "Affichage4": "Intervention divine",
+    "rang4": "Capacité passive <br>Effet: décide de la réussite ou de l'échec Le prêtre fait appel à son dieu pour changer le cours des événements.<br><br> Une fois par combat, il peut décider qu'un test du MJ ou des joueurs est une réussite ou un échec, même après que les dés aient révélé leur résultat.",
+     "type4":"passive",
+
+    "Affichage5": "Sagesse héroïque",
+    "rang5": "Capacité passive <br>Effet: +2 SAG, 2d20 aux tests de SAG <br><br>Le prêtre augmente sa valeur de SAG de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test de SAG lui est demandé et conserver le meilleur résultat.",
+     "type5":"passive",
+
+    "Voie": "Voie de la prière"
+}

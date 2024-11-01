@@ -1,0 +1,121 @@
+{
+                "Affichage11":"Manipulation à distance (L)",
+    "ContenuCase11": "Action limitée Effet : déplace un objet, portée 10 mètres : DEX = SAG, FOR = CHA, magie[+mod. CHA] DN Le psionique peut déplacer ou manipuler un objet à distance à une portée de 20 mètres et le déplacer en l'air de 10 mètres par tour. Le psionique peut manipuler un objet avec l'équivalent d'une DEX égale à sa SAG et d'une FOR égale à son CHA. Il peut attaquer avec une arme manipulée à distance avec son score d'attaque magique et un bonus aux DM égal à son Mod. de CHA. A partir du rang 3, il lui suffit d'une action d'attaque, à partir du rang 5, il lui suffit d'une action de mouvement.",
+               "Affichage12":"Télépathie (L)",
+    "ContenuCase12": "Action limitée, sortilègeEffet : communication télépathique Durée : [5 + mod. SAG] tours  Le psionique est capable de communiquer par télépathie avec une créature en vue, dans une langue que tous les deux partagent pendant [5 + Mod. de SAG] tours. A partir du rang 3, le psionique n'a plus besoin de voir sa cible, mais il doit la connaître et la portée maximum est égale à 10 fois sa valeur de SAG en mètres. A partir du rang 5, le psionique accède à une zone de l'esprit plus profonde que les centres du langage et la communication peut avoir lieu avec une créature dont il ne partage pas la langue, et même avec un animal.",
+                "Affichage13":"Attaque mentale (L)",
+    "ContenuCase13": "Action limitée, sortilège Effet: [1d6 + mod. CHA] DM rang 3 : [2d6 +mod. CHAI DM rang 5 : [3d6 + mod. CHA] DMLe psionique peut faire un testd'attaque magique contre une cible àune portée maximum de 50 mètres. En cas de succès, il inflige [1 d6 + Mod. de CHA] DM. Les DM augmentent à 2d6 à partir du rang 3 et à 3d6 à partir du rang 5. Le psionique peut décider d'infliger des DM temporaires avec une attaque mentale, mais il utilise alors des d4 au lieu de do pour déterminer les DM.",
+               "Affichage14":"Perception extra-sensorielle",
+    "ContenuCase14": "Voie de l'empathie Capacité passive Effet: +1 par rang aux tests de SAG, + 1 par rang en Init Le psionique ne perçoit plus seulement grâce à ses sens, mais aussi avec son esprit. Il obtient un bonus de +1 par rang à tous ses tests de SAG en rapport avec la perception et en Initiative. Ce bonus ne s'applique pas aux tests requis par les autres capacités de cette Voie.",
+               "Affichage15":"Injonction (L)",
+    "ContenuCase15": "Action limitée, sortilège Effet : donne un ordre à la cible Durée : cible immunisée 24h en cas d'échec L'ensorceleur donne un ordre simple (mais pas dangereux pour elle) que la victime doit pouvoir comprendre. Il doit réussir un test d'attaque magique opposé avec la cible (contre attaque au contact si la créature n'en a pas) à une portée de 20 mètres. En cas d'échec, la cible doit exécuter l'ordre pendant son prochain tour.",
+    
+    
+    
+    
+    
+                "Affichage21":"Champ de protection",
+    "ContenuCase21": "Capacité passive Effet : [+ rang] DEF Le psionique déploie autour de lui un champ de force qui repousse efficacement les attaques. Il obtient un bonus en DEF égal au rang atteint dans la Voie. A partir du rang 4, il peut déployer son champ de protection autour d'un allié à moins de 10 mètres de luiau prix d'une action de mouvement à chaque tour.",
+                "Affichage22":"Radar mental",
+    "ContenuCase22": "Capacité passive Effet : +2 par rang aux tests de SAG Le psi ressent naturellement la présence de créatures pensantes autour de lui, qu'elles soient animales ou végétales. Il obtient un bonus de +2 par rang dans tous ses tests de SAG lorsqu'il s'agit de détecter un être vivant (tests de surprise) et il ne subit pas de pénalité pour attaquer au contact un être vivant lorsqu'il est aveuglé ou si la créature est invisible. De plus, à partir du rang 4, en présence d'une forme de vie, il est capable d'évaluer si elle est en bonne santé ou non, sans toutefois obtenir un diagnostic plus précis.",
+                 "Affichage23":"Bouclier psi",
+     "ContenuCase23": "Voie de l'attaque mentale Capacité passive Effet : +5 DEF et 1/2 DM contre attaque mentale  Le psionique apprend à lever des barrières infranchissables autour de son esprit. Il augmente sa DEF de +5 contre toutes les attaques mentales (psi ou magiques) et divise par 2 les DM subis par la capacité Attaque mentale.",
+                "Affichage24":"Défense intuitive",
+    "ContenuCase24": "Capacité passive Effet : [+ mod. SAG] DEF En combat, le psionique est capable d'anticiper les mouvements de ses adversaires. Il bénéficie d'un bonus de DEF égal à son Mod. de SAG.",
+   
+    
+    
+                "Affichage25":"Sommeil (L)",
+    
+    "ContenuCase25": "Action limitée, sortilège Effet: [1d6 + mod. CHA] cibles tombent de somme Réveil sur contact Durée : [5 + mod. CHA] minutes. Cible immunisée 24h en cas d'échec [1 d6 + Mod. de CHA] cibles vivantes dans une zone de 10 m de diamètre (portée 20 m) et dont le score max de PV ne dépasse pas le score d'attaque magique de l'ensorceleur* sombrent dans l'inconscience pendant [5 + Mod. de CHA] minutes. Il est possible de les réveiller en les giflant (action d'attaque).",
+    
+    
+    
+    
+    
+    
+    
+                "Affichage31":"Onde de choc (L)",
+    "ContenuCase31": "Action limitée, sortilège Effet : [2d6 + mod. CHA] DM sur 10 mètres. Rang 5 : [3d6 + mod. CHA] DM Une fois par combat, le psionique peut produire une vague de force à 360 degrés autour de lui dans un rayon maximum de 10 mètres, moins s'il le souhaite. Toutes les créatures dans la zone d'effet subissent [2d6 + Mod. de CHA] DM et doivent réussir un test de FO difficulté [10 + Mod. de CHA] ou être renversées. Les DM passent à 3d6 au rang 5 de la Voie.",
+                "Affichage32":"Suggestion (L)",
+    "ContenuCase32": "Action limitée, sortilège Effet : la cible devient larbin personnel Durée : 24 heures Une fois par jour, le barde peut suggérer une action à une créature en réussissant un test d'attaque magique avec pour difficulté les PV maximum de celle-ci. En cas de réussite la créature fera tout son possible poursatisfaire sa demande pendant 24 heures. Elle évitera les actions suicidaires (ce qui lui donnerait immédiatement un test d'INT difficulté 10 pour échapper au sort).",
+                "Affichage33":"Attaque étourdissante",
+    "ContenuCase33": "Voie de l'attaque mentale Capacité passive Effet: étourdie la cible sur attaque mentale d12  Le psionique peut choisir d'effectuer son attaque mentale en utilisant un d12 en attaque. En cas de succès, en plus des DM, la cible est Etourdie (pas d'action et -5 en DEF) pendant un tour. Les créatures de niveau supérieur au psionique sont immunisées à cet effet et celles qui bénéficient d'un bouclier psi peuvent faire un test de CHA difficulté [8 + Mod. de CHA de l'attaquant] pour y résister.",
+                "Affichage34":"Perception du passé (L)",
+    "ContenuCase34": "Action limitée, sortilège Effet : medium  Le psionique est désormais capable de percevoir les ondes psychiques résiduelles présentes en un lieu. Cela lui permet de déterminer la nature des émotions liées aux événements qui s y sont déroulés (malheur, douleur, joie, haine, amour, etc.). Le psionique est capable de déterminer le laps de temps depuis le déroulement de l'événement en réussissant un test de SAG difficulté 15. Il obtient un bonus de +5 au test si l'événement date de moins de 24 heures ou si l'émotion est particulièrement intense (meurtre, torture, etc.).",
+    
+                "Affichage35":"Confusion (L)",
+    
+    "ContenuCase35": "Action limitée, sortilège Effet : désoriente la cible Durée : [3 + mod. CHA] tours. Cible immunisée 24h en cas d'échec  En réussissant un test d'attaque magique (portée 20 m), l'ensorceleur désoriente sa cible pendant [3 + Mod. de CHA] tours. Chaque tour, lancer 1d6 : 1-3 la victime n'agit pas, 4-6 elle attaque la créature la plus proche (au hasard). Chaque fin de tour, elle fait un test de SAG difficulté [10 + Mod. de CHA] pour mettre fin au sort.",
+    
+    
+    
+    
+    
+                "Affichage41":"Combat kinétique",
+    "ContenuCase41": "Capacité passive Effet: -3 DM subits, contact,distance[+mod CHAR DM  Le psionique a appris à utiliser son don pendant le combat, en freinant l'impact des attaques adverses et en augmen tant celui des siennes. Il bénéficie d'une réduction des DM de 3 points (RD 3) et il ajoute son Mod. De CHA aux DM de ses propres attaques (au contact ou à distance).",
+                "Affichage42":"Lire les pensées (L)",
+    "ContenuCase42": "Action limitée, sortilège Effet: sonde les pensées de la cible Durée : [1d6 + mod. SAG] tours S'il réussit un test d'attaque magique (portée 10 mètres) contre la valeur de SAG d'une créature, le psionique peut savoir à quoi elle est en train de penser pendant [1d6 + Mod. de SAG] tours. Cettecapacité ne permet pas de fouiller dans la mémoire d'un individu pour en tirer des renseignements. Une créature consciente d'être sondée peut faire un test de CHA difficulté [10 + Mod. de SAG du psionique] pour contrôler ses pensées et ne pas révéler ses véritables intentions.",
+                "Affichage43":"Vague psionique (L)",
+    "ContenuCase43": "Voit de l'attaque mentale Action limitée, sortilège Effet : attaque mentale sur [3 + mod. CHA] cibles  Une fois par combat, le psionique peut projeter son esprit vers un nombre de cibles au maximum égal à [3 + Mod. de CHA] à portée d'attaque mentale. Il effectue uneattaque mentale contre chacune d'elle.",
+                "Affichage44":"Vision lointaine (L)",
+    "ContenuCase44": "Voie de l'empathie Action limitée, sortilège Effet: vision d'un lieu visité sur test de SAG  Le psionique a appris à projeter son esprit à de grandes distances. Il peut percevoir avec l'un de ses sens ce qui se passe dans un endroit qu'il a visité depuis peu, quelle que soit la distance réelle. Pour cela, le psionique doit simplement avoir visité l'endroit et réussir un test de SAG difficulté [10 + 1 par jour écoulé depuis la dernière visite].",
+   
+                "Affichage45":"Amitié (L)",
+    "ContenuCase45": "Action limitée, sortilège Effet: la cible devient un allié Durée : renouvelable une fois par jour. Cible immunisée 24h en cas d'échec Si l'ensorceleur réussit un test d'attaque magique (portée 10 m) contre le score max de PV d'une cible humanoïde, celle-ci se comporte comme un ami de longue date tant qu'elle n'est pas attaquée. Elle peut résister au sort avec un test de SAG difficulté [12 + Mod. de CHA], renouvelable une fois par jour.",
+    
+    
+    
+    
+    
+                "Affichage51":"Psychoportation (L)",
+    "ContenuCase51": "Action limitée, sortilège Effet : lévitation, 2d20 aux tests de FOR Durée : [5 + mod. CHA] tours Le psionique est désormais capable de s'élever lui-même dans les airs et de voler pendant [5 + Mod. de CHA] tours. Sa vitesse maximale est égale à sa vitesse au sol et se maintenir en vol stationnaire estune action gratuite. En outre, grâce à l'application permanente des principes de la télékinésie, le joueur peut désormais lancer deux d20 à chaque fois qu'un test de FOR est demandé au personnage et conserver le meilleur résultat.",
+               "Affichage52":"Domination psy (L)",
+   "ContenuCase52": "Action limitée, sortilège Effet : test magie vs DEF[15 + mod. carac + NC créature] Durée : [1d4 + mod. CHA] minutes En réussissant un test d'attaque magique (portée 20 m) contre une DEF égale à [15 + Mod. de Carac. + NC de la créature], le psionique prend contrôle de son esprit pendant [1d4 + Mod. CHA] minutes. Le Mod. de Carac. choisi par la créature est le plus élevé entre INT, SAG ou CHA. Le propre corps du psionique devient inactif. La victime peut tenter de mettre fin au sort avec un test de SAG difficulté [10 + Mod. de CHA du psi] à chaque fois qu'elle subit des DM. Si la créature meurt pendant la domination, le psionique réintègre son corps et subit 1d6 DM. Cette capacité ne permet pas d'affecter les créatures de niveau (NC) supérieur ou égal au personnage.",
+    
+                "Affichage53":"Ego héroïque",
+    
+"ContenuCase53": "Capacité passive Effet: +2 CHA, 2d20 aux tests de CHA Le psionique augmente sa valeur de CHA de +2 et le joueur peut désormais lancer deux d20 à chaque fois qu'un test de CHA est demandé au personnage et conserver le meilleur résultat.",
+            "Affichage54":"Perception héroïque",
+    "ContenuCase54": "Capacité passive Effet : +2 SAG, 2d20 aux tests de SAG Le psionique augmente sa valeur de SAG de +2 et le joueur peut désormais lancer deux d20 à chaque fois qu'un test de SAG est demandé au personnage et conserver le meilleur résultat.",
+   
+    
+                "Affichage55":"Domination (L)",
+    
+    "ContenuCase55": "Action limitée, sortilège Effet : prend le contrôle de la cible Durée : [1d4 + mod. CHA minutes]. Cible immunisée 24h en cas d'échec En réussissant un test d'attaque magique (portée 20 m) en opposition contre un test d'attaque magique de la cible (ou d'attaque au contact si la créature n'en a pas), l'ensorceleur prend contrôle de son esprit pendant [1d4 + Mod. CHA] minutes. Son propre corps devient inactif. La victime peut résister au sort avec un test de SAG difficulté [10 + Mod. de CHA] à chaque fois qu'elle subit des DM. Si la créature meurt pendant la domination, l'ensorceleur réintègre son corps et subit 1d6 DM.",
+    
+    
+    "Voie1":"Voie de la télékinésie",
+    "Voie2":"Voie de la télépathie",
+    "Voie3": "Voie de l’attaque mentale",
+    "Voie4":"Voie de l’empathie",
+    "Voie5":"Voie de l’envoûteur"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

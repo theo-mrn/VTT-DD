@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Protéger un allié",
+    "rang1": "Capacité passive <br>Effet : donne la 🛡️ de son bouclier à un allié.<br><br> Le guerrier accorde le Mod. de DEF de son bouclier à un compagnon de son choix qui se trouve juste à côté de lui (il conserve ce bonus pour lui-même aussi). Il peut changer de compagnon à chaque tour durant sa phase d’initiative. C’est une action gratuite.",
+    "type1":"passive",
+
+    "Affichage2": "Absorber un coup (L)",
+    "rang2": "Action limitée <br>Effet : bloque l’attaque adverse sur test en opposition réussi, au prix d’une action.<br><br> À son tour, le guerrier fait seulement une action d’attaque ou de déplacement. Par la suite, à tout moment avant son prochain tour, le guerrier peut effectuer un test d’attaque au contact en opposition à un test réussi d’attaque au contact ou à distance d’un adversaire. En cas de réussite, l’attaque adverse est bloquée par le bouclier.",
+     "type2":"limitée",
+
+    "Affichage3": "Absorber un sort (L)",
+    "rang3": "Action limitée <br>Effet : absorbe les dégâts magiques sur test 🗡️ en opposition au prix d’une action. <br><br>À son tour, le guerrier fait seulement une action d’attaque ou de déplacement. Par la suite, à tout moment avant son prochain tour, le guerrier peut effectuer un test d’attaque magique (Mod. de SAG) en opposition à un test d’attaque magique qui le visait. En cas de réussite, le sort est absorbé par le bouclier et n’a aucun effet sur le guerrier.",
+     "type3":"limitée",
+
+    "Affichage4": "Armure lourde",
+    "rang4": "Capacité passive <br>Effet : peut porter une armure de plaque +8 🛡️.<br><br> Le guerrier peut porter une Armure de Plaque complète. Celle-ci lui confère une DEF de +8 et le protège des attaques critiques (vous subissez des DM normaux au lieu des DM doublés).",
+     "type4":"passive",
+
+    "Affichage5": "Renvoi de sort (L)",
+    "rang5": "Action limitée <br>Effet : renvoi le sort absorbé par la capacité. <br><br>Le guerrier peut décider de renvoyer un sort qu’il vient d’absorber grâce à sa capacité Absorber un Sort. Au lieu d’être annulé, le sort absorbé lui est renvoyé et retourné contre son expéditeur : le lanceur du sort subit alors les effets de sa propre attaque !",
+    "type5":"limitée",
+
+    "Voie": "Voie du bouclier"
+}

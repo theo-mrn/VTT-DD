@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Réflexes félins",
+    "rang1": "Capacité passive<br>Effet : +1 par rang aux tests de DEX d'esquive. <br><br>Le barbare obtient un bonus de +1 par Rang dans cette voie à son score d'initiative et à tous les tests de DEX destinés à esquiver (boule de feu, souffle, pièges, etc.).",
+    "type1":"passive",
+
+    "Affichage2": "Charge (L)",
+    "rang2": "Action limitée <br>Effet : +2 contact, +1d6 DM. <br><br>Le barbare se déplace en ligne droite d'au moins 5 mètres (20 mètres au maximum) et effectue une attaque au contact avec un bonus de +2 en attaque et +1d6 aux DM.",
+    "type2":"limitée",
+
+    "Affichage3": "Enchaînement",
+    "rang3": "Capacité passive <br>Effet : attaque gratuite sur mort de la cible. <br><br>Chaque fois que le barbare réduit un adversaire à 0 PV avec une attaque de contact, il bénéficie d'une action d'attaque gratuite sur un autre adversaire au contact.",
+    "type3":"passive",
+
+    "Affichage4": "Déchaînement d'acier (L)",
+    "rang4": "Action limitée <br>Effet : contact sur toutes les cibles sur 10 mètres en ligne droite. <br><br>Le barbare parcourt 10 mètres en ligne droite en dépassant autant d'ennemis qu'il le souhaite. Il porte une attaque à chaque adversaire sur son passage. Il ne peut terminer son déplacement en étant encore occupé par un ennemi.",
+    "type4":"limitée",
+
+    "Affichage5": "Attaque tourbillon (L)",
+    "rang5": "Action limitée <br>Effet : contact sur 5 mètres autour du barbare. <br><br>Une fois par combat, le barbare tourne sur lui-même en assénant des attaques à toutes les cibles au contact. Il inflige automatiquement des DM correspondant à l'arme utilisée (plus tous les bonus habituels) à toutes les cibles dans un rayon de 5 m autour de lui.",
+    "type5":"limitée",
+
+    "Voie": "Voie du pourfendeur"
+}

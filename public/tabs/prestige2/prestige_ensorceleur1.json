@@ -1,0 +1,13 @@
+{
+    "Affichage1": "Ascendance draconique",
+    "rang1": "Capacit\u00e9 passive Effet: R\u00e9sistance aux DM de 5 points pour le type d'\u00e9nergie du souffle choisi, augmente \u00e0 10 au rang 4.",
+    "Affichage2": "F\u00e9rocit\u00e9 (L)",
+    "rang2": "Action limit\u00e9e Effet: FOR +4 pendant [1d6 + Mod. de CHA] tours, attaque de griffes [1d6+4] DM. Pas de sort pendant la transformation.",
+    "Affichage3": "Souffle du dragon",
+    "rang3": "Capacit\u00e9 passive Effet: Une fois par combat, souffle inflige DM dans une zone conique de 5 m\u00e8tres, avec test de DEX pour r\u00e9duire de moiti\u00e9.",
+    "Affichage4": "Armure naturelle",
+    "rang4": "Capacit\u00e9 passive Effet: R\u00e9duction de 5 points aux types de DM lorsque les PV sont sous la moiti\u00e9.",
+    "Affichage5": "Ailes de dragon (L)",
+    "rang5": "Action limit\u00e9e, sortil\u00e8ge Effet: Vole \u00e0 30 m\u00e8tres par action pendant [1d6 + Mod. de CHA] minutes.",
+    "Voie": "Voie du sang-dragon"
+}

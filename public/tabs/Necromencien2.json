@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Ténèbres (L)*",
+    "rang1": "Action limitée, sortilège <br>Effet : aveugle tout le monde sur 10 mètres Durée : [5 + Mod. d'INT] tours. <br><br>Le nécromancien invoque une zone fixe de ténèbres magiques, de 10 m de diamètre, pour une durée [5 + Mod. d'INT] tours. Même les créatures capables de voir dans le noir sont aveuglées dans cette zone.",
+    "type1":"limitée",
+
+    "Affichage2": "Pattes d'araignée (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : se déplace sur les murs et plafonds <br>Durée : [5 + Mod. d'INT] tours. <br><br>Le nécromancien peut se déplacer de 10 m par action de mouvement sur les murs et les plafonds pendant [5 + Mod. d'INT] tours. S’il reste immobile, il peut lancer des sorts.",
+      "type2":"limitée",
+
+    "Affichage3": "Strangulation (L)",
+    "rang3": "Action limitée, sortilège <br>Effet : [1d6 + mod. d'INT] DM par tour <br>Durée : [rang] tours. <br><br>En réussissant un test d’attaque magique (portée 20 m), le nécromancien étouffe une créature vivante et lui inflige [1d6 + Mod. d'INT] DM par tour pendant [rang] tours, pourvu qu’il maintienne la concentration par une action limitée. La victime subit un malus égal au nombre de tours d’effet de la Strangulation (-1 au premier tour, -2 au second, etc.) à tous ses tests. Si la victime sort du champ de vision du nécromancien, le sort prend fin.",
+      "type3":"limitée",
+
+    "Affichage4": "Ombre mortelle (L)*",
+    "rang4": "Action limitée, sortilège <br>Effet : Ombre : 1 attaque par tour, att = DM de la cible, DM = 1/2 DM de la cible <br>Durée : [3 + mod. d'INT] tours. <br><br>L’Ombre de la cible du nécromancien attaque son propriétaire pendant [3 + Mod. d'INT] tours (portée 20 m). L’ombre se réduit de moitié. L’Ombre poursuit sa cible : Ombre : 1 attaque par tour, att = att de la cible, DM = DM de la cible divisés par 2.",
+      "type4":"limitée",
+
+    "Affichage5": "Intelligence héroïque",
+    "rang5": "Capacité passive <br>Effet : +2 INT, 2d20 aux tests d'INT. <br><br>Le nécromancien augmente sa valeur d'INT de +2. Il peut désormais lancer deux d20 à chaque fois qu’un test d'INT lui est demandé et conserver le meilleur résultat.",
+    "type5":"passive",
+
+    "Voie": "Voie de la sombre magie"
+}

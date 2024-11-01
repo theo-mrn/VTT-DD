@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Monture loyale",
+    "rang1": "Capacité passive <br>Effet: +1 Contact, Disatnce, Défense à cheval.",
+    "type1":"passive",
+    
+    "Affichage2": "Tir en mouvement",
+    "rang2": "Capacité passive <br>Effet: Distance + mouvement à cheval en une action d'attaque.",
+    "type2":"passive",
+    
+    "Affichage3": "Tir fatal",
+    "rang3": "Capacité passive<br> Effet: Distance critique sur [20 - mod. SAG], +1d6 DM aux critiques, au rang 5, +2d6 DM aux critiques.",
+    "type3":"passive",
+    
+    "Affichage4": "Tirs successifs (L)",
+    "rang4": "Action limitée <br>Effet: Disatnce [2 + mod. SAG] cibles à 10 mètres sur la trajectoire, inflige des DM en contact (épée) ou distance (arc).",
+    "type4":"limitée",
+    
+    "Affichage5": "Perception héroïque",
+    "rang5": "Capacité passive <br>Effet: +2 SAG, 2d20 aux tests de SAG, garde le meilleur résultat.",
+    "type5":"passive",
+    
+    "Voie": "Voie de l'arc et du cheval"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Armure sainte de bronze",
+    "rang1": "Capacité passive <br>Effet : Le moine acquiert son armure sainte. <br><br>Celle-ci se présente sous la forme d’un cube de métal d’environ 50 cm d’arête pour 10 kg, portant son symbole. Sur un simple mot de commande (action limitée), l’armure se déploie et recouvre le corps du moine. Elle lui octroie un bonus de DEF de +4 et ne lui inflige aucune pénalité d’encombrement. Ce bonus ne se cumule pas à la capacité de Peau de Fer.",
+    "type1":"passive",
+
+    "Affichage2": "Projection puissante (L)",
+    "rang2": "Action limitée <br>Effet : Le moine peut doubler les DM infligés par sa capacité de Projection du Ki.<br><br> Après un tel exploit, il lui faut attendre 1d4 tours pour pouvoir à nouveau utiliser Projection du Ki.",
+    "type2":"limitée",
+
+    "Affichage3": "Armure sainte d’argent",
+    "rang3": "Capacité passive <br>Effet : L’armure acquiert la couleur de l’argent et son Mod. de DEF passe à +6.<br> De plus, elle lui octroie une résistance au DM de 2 points (RD 2).",
+    "type3":"passive",
+
+    "Affichage4": "Régénération",
+    "rang4": "Capacité passive <br>Effet : Le moine considère tous les DM subis par des attaques à mains nues (même les attaques à mains nues des autres moines) comme des DM temporaires. <br>C’est-à-dire qu’il les guérit au rythme de 1 point par minute.",
+    "type4":"passive",
+
+    "Affichage5": "Armure sainte d’or",
+    "rang5": "Capacité passive <br>Effet : L’armure acquiert la couleur de l’or et son Mod. de DEF passe à +8. De plus, elle lui octroie une résistance au DM de 5 points (RD 5).",
+    "type5":"passive",
+
+    "Voie": "Voie de l’armure sainte"
+}

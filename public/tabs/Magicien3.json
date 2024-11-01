@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Asphyxie (L)",
+    "rang1": "Action limitée, sortilège <br>Effet : 1d6 DM par tour <br>Durée : [1 + Mod. d'INT] tours. <br><br>Si le magicien réussit son test d’attaque magique (avec une portée de 20 m), la créature ciblée est privée d’air. La victime étouffe progressivement et subit 1d6 DM par tour pendant [1 + Mod. d'INT] tours.",
+    "type1":"limitée",
+
+    "Affichage2": "Protection contre les éléments (L)*",
+    "rang2": "Action limitée, sortilège <br>Effet : [2 x rang] RD dégâts élémentaires <br>Durée : [5 + Mod. d'INT] tours.<br><br> Pendant [5 + Mod. d'INT] tours, le magicien retranche à tous les DM de feu, de froid, d’électricité ou d’acide subis un montant égal à 2 fois son Rang dans cette Voie.",
+        "type2":"limitée",
+
+    "Affichage3": "Arme enflammée (L)",
+    "rang3": "Action limitée, sortilège <br>Effet : Enchantement +1d6 DM de feu sur arme <br>Durée : [5 + Mod. d'INT] tours. <br><br>Le magicien peut enflammer une arme pour [5 + Mod. d'INT] tours. Celle-ci inflige +1d6 DM de feu.",
+        "type3":"limitée",
+
+    "Affichage4": "Respiration aquatique (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : Respire sous l’eau <br>Durée : 10 minutes. <br><br>Le magicien peut respirer sous l’eau pendant 10 minutes. Cette capacité peut être étendue à un compagnon par point de Mod. d'INT.",
+        "type4":"limitée",
+
+    "Affichage5": "Peau de pierre (L)",
+    "rang5": "Action limitée, sortilège <br>Effet : [5 + Mod. d'INT] RD <br>Durée : [5 + Mod. d'INT] tours ou 40 DM absorbés. <br><br>Le magicien obtient une réduction des DM égale à [5 + Mod. d'INT] pendant [5 + Mod. d'INT] tours ou jusqu’à ce que le sort ait absorbé 40 points de dégâts.",
+    "type5":"limitée",
+
+    "Voie": "Voie de la magie élémentaire"
+}

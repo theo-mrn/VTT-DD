@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Terre",
+    "rang1": "Capacité passive <br>Effet : Le druide ne fait qu’un avec la terre.Il ne peut plus être renversé et détecte automatiquement tous les pièges creusés dans le sol (trappes, fosses).<br><br> Il gagne un bonus de +5 à tous les tests pour détecter des pièges ou des passages secrets dissimulés dans les murs de pierre ou au sol.",
+    "type1":"passive",
+
+    "Affichage2": "Eau",
+    "rang2": "Capacité passive<br> Effet : Le druide peut marcher sur l’eau à sa guise (comme s’il s’agissait d’un sol stable).<br><br> Il peut utiliser cette capacité pour en faire profiter autrui au prix d’une action limitée en touchant sa cible. Il peut ainsi affecter un nombre maximum de cibles égal au rang atteint dans la voie pour une durée de [1d6 + Mod. de SAG] minutes.",
+    "type2":"passive",
+
+    "Affichage3": "Air",
+    "rang3": "Capacité passive <br>Effet : Le druide peut respirer dans n’importe quel milieu hostile, sous l’eau comme dans un milieu empoisonné ou dénué d’air. <br><br>Il peut utiliser cette capacité sur autrui au prix d’une action limitée en touchant sa cible. Il peut ainsi affecter un nombre maximum de cibles égal au rang atteint dans la voie pour une durée de [1d6 + Mod. de SAG] minutes.",
+    "type3":"passive",
+
+    "Affichage4": "Feu",
+    "rang4": "Capacité passive <br>Effet : Le druide devient immunisé aux DM de feu et il ne reçoit plus que la moitié des DM de froid.",
+    "type4":"passive",
+    
+    "Affichage5": "Forme élémentaire",
+    "rang5": "Capacité passive<br> Effet : Le druide peut transformer son corps en chacun des différents éléments une fois par jour pendant [5 + Mod. de SAG] minutes. <br><br>Chaque forme élémentaire lui permet de retrancher 5 points à tous les DM subis (RD 5) et lui octroie les capacités suivantes. Feu : le personnage gagne +2d6 DM de feu à toutes ses attaques au contact. Eau : la créature qu’il attaque à la hache ou aux armes naturelles subit 1d6 DM pour chaque attaque réussie. Eau : le personnage guérit toutes ses blessures au rythme de 3 PV par tour et il peut étendre son corps pour passer dans un endroit infranchissable. Terre : le personnage gagne un bonus de +6 en FOR (+3 attaque, DM et test de jet) ou en DEF. Air : le personnage peut voler à une vitesse de 30 mètres par seconde. Ses DM physiques qu’il subit sont infligés à tous ceux qui l’attaquent.",
+    "type5":"passive",
+
+    "Voie": "Voie des éléments"
+}

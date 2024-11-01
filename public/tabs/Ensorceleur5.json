@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Familier",
+    "rang1": "Capacité passive <br> Effet : petit animal : FOR -4, DEX +3, CON 0, 🛡️ [ensorceleur], INT -2, SAG +1, CHA -2, Init [ensorceleur], PV [partagé].<br> <br>  L’ensorceleur choisit un petit animal (corbeau, chat, furet, serpent...). Il peut utiliser les sens de son familier et communiquer via lui à distance illimitée. Il gagne de plus +2 en Initiative lorsque son familier est en vue. Familier : DEF [ensorceleur], Init [ensorceleur], PV partagés, les familiers forment une cible unique pour les attaques de zone. FOR -4, DEX +3, CON 0, INT -2, SAG +1, CHA -2.",
+    "type1":"passive",
+
+    "Affichage2": "Serviteur invisible (L)",
+    "rang2": "Action limitée, sortilège <br> Effet : force invisible, test simple < 10 <br> Durée : [5 + mod. CHA] minutes.<br> <br>  Ce sort crée une force invisible pendant [5 + Mod. de CHA] minutes. Le serviteur peut effectuer à distance des tâches simples ne nécessitant pas de test de réussite et aucun score de caractéristique supérieur à 10 (portée 20 m).",
+    "type2":"limitée",
+
+    "Affichage3": "Mur de force (L)",
+    "rang3": "Action limitée, sortilège <br> Effet : mur de force indestructible <br><br> Durée : [5 + mod. CHA] tours. L’ensorceleur crée un mur de force indestructible (portée 10 m, maximum 5 m de haut et 10 m de long), ou bien un hémisphère de 3 m de rayon centré sur lui-même. Le sort dure pendant [5 + Mod. de CHA] tours.",
+    "type3":"limitée",
+
+    "Affichage4": "Arme dansante (L)",
+    "rang4": "Action limitée, sortilège <br> Effet : [1d8 + mod. CHA] DM <br> Durée : [5 + mod. CHA] tours.<br> <br>  Le sort crée une lame d’énergie lumineuse pendant [5 + Mod. de CHA] tours. Dès le premier tour, l’ensorceleur peut lui ordonner d’attaquer une cible de son choix (action gratuite, portée 20 m). L’attaque magique de la lame = attaque magique de l’ensorceleur, [1d8 + Mod de CHA] DM.",
+    "type4":"limitée",
+
+    "Affichage5": "Charisme héroïque",
+    "rang5": "Capacité passive <br> Effet : +2 CHA, 2d20 aux tests de CHA.<br> <br>  L’ensorceleur augmente sa valeur de CHA de +2. Il peut désormais lancer deux d20 à chaque fois qu’un test de CHA lui est demandé et conserver le meilleur résultat.",
+    "type5":"passive",
+
+    "Voie": "Voie de l’invocation"
+}

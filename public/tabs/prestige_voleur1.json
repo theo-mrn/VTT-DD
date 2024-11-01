@@ -1,0 +1,23 @@
+{
+    "Affichage1": "L’amour du risque",
+    "rang1": "Capacité passive<br> Effet : Lorsqu’il réalise une action dans un lieu dangereux (par exemple au bord d’un précipice ou d’un lac de lave)<br>le voleur gagne un bonus de +3 à tous ses tests au d20 (attaque, Caractéristique, etc.). <br><br>Ce bonus s’applique également aux tests réalisés pour résister à la peur.",
+    "type1":"passive",
+
+    "Affichage2": "Mouche du coche",
+    "rang2": "Capacité passive <br>Effet : Le voleur peut choisir de sacrifier une action de mouvement à ce tour pour gagner +3 en DEF jusqu’au prochain tour. <br><br>S’il sacrifie deux actions de mouvement durant son tour, il gagne +6 en DEF.",
+    "type2":"passive",
+
+    "Affichage3": "Ça passe ou ça casse",
+    "rang3": "Capacité passive <br>Effet : Lorsque le résultat d’un test de Caractéristique peut avoir une issue fatale pour le personnage (chute mortelle, réveil d’un dragon, etc.),le joueur lance un d20 supplémentaire et peut conserver le résultat qu’il préfère.",
+    "type3":"passive",
+
+    "Affichage4": "Poussée d’adrénaline",
+    "rang4": "Capacité passive <br>Effet : En dépensant 1d4 PV, le voleur gagne une action de mouvement supplémentaire à son tour. <br><br>En combinaison avec Mouche du coche, le voleur peut ainsi sacrifier trois actions de mouvement et obtenir un bonus de +10 en DEF !",
+    "type4":"passive",
+
+    "Affichage5": "Attaque kamikaze (L)",
+    "rang5": "Action limitée <br>Effet : Le voleur saute littéralement sur sa cible pour la larder de coups au corps-à-corps.<br><br> Plutôt qu’un test d’attaque, il réalise un test de DEX dont la Difficulté est égale à la moitié de la DEF de la créature. En cas de réussite, il inflige des DM normaux et reçoit un bonus qui dépend de la taille de la créature : moyenne +1d6 DM, grande +2d6, très grande +3d6, gigantesque +4d6 et colossale +5d6. Il ne reçoit aucun bonus aux DM pour les petites créatures. À la suite de cette attaque, il perd 5 points en DEF pour une durée de 1 tour.",
+    "type5":"limitée",
+
+    "Voie": "Voie du casse-cou"
+}

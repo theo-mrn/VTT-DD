@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Familier mécanique",
+    "rang1": "Capacité passive <br>Effet : Le forgesort fabrique un familier mécanique (chouette, chat, etc.).<br> Il peut utiliser les sens de son familier et communiquer avec lui à distance illimitée.<br> Il gagne +2 en INIT lorsque son familier est en vue. <br>Familier mécanique : DEF 15, init [forgesort], PV [2 x niveau], FOR -4, DEX +3, CON -5, INT -2, SAG +0, CHA -2. <br>Le familier mécanique possède une réduction des DM de 2 points par rang dans la Voie (RD = rang x2). <br>Si le familier tombe à 0 PV, il est hors fonction, mais le forgesort peut le réparer au rythme de 1d6 PV par heure.<br> En temps que créature non-vivante, le familier mécanique possède certaines immunités (voir p. 212).",
+    "type1":"passive",
+
+    "Affichage2": "Arbalète automatique",
+    "rang2": "Capacité passive <br>Effet : Le forgesort fabrique une arbalète complexe qu’il est seul à pouvoir utiliser. <br>Elle est dotée d’un chargeur de 10 carreaux et permet de tirer un carreau au prix d’une action de mouvement (il est donc possible de tirer plusieurs carreaux par tour).<br> Elle inflige [2d4+Mod. de DEX] DM à une portée de 50 mètres. <br>Il faut un tour complet pour la recharger.",
+    "type2":"passive",
+
+    "Affichage3": "Serviteur mécanique",
+    "rang3": "Capacité passive <br>Effet : Le serviteur mécanique ressemble à un humanoïde, il obéit aux ordres de son maître sans faillir au mieux de ses possibilités.<br> Il est capable de porter de lourdes charges et de manier certaines armes ordinaires de mêlée (uniquement pour se défendre). <br>Serviteur mécanique : DEF 14, INIT [du PV x niveau], FOR +2, DEX +0, CON +5, INT +0, SAG +0, CHA +0. Le serviteur mécanique possède une réduction des DM de 5 points (RD = 5).<br> S’il est endommagé, le forgesort peut le réparer au rythme de 1d6 PV par heure.",
+    "type3":"passive",
+
+    "Affichage4": "Exosquelette",
+    "rang4": "Capacité passive <br>Effet : Le mécanicien fabrique un exosquelette qui lui permet d’augmenter son Mod. <br>de FOR et sa DEF de +2.<br> De plus cela lui permet de porter un chargeur à bande : l’arbalète automatique n’a plus besoin d’être rechargée, vous pouvez considérer les munitions illimitées.",
+    "type4":"passive",
+
+    "Affichage5": "Exosquelette supérieur",
+    "rang5": "Capacité passive <br>Effet : Le mécanicien améliore son exosquelette, il le dote d’un jet-pack qui lui permet de voler pendant [1d6 + Mod. d’INT] tours et de respirer en autonomie (sous l’eau par exemple) pendant [1d6 + Mod. d’INT] heures. <br><br>Après une telle utilisation, l’exosquelette nécessite dix jours de maintenance pour pouvoir assurer à nouveau la même fonction. Le Mod. de DEF et de FOR passe à +3.",
+    "type5":"passive",
+
+    "Voie": "Voie du mécanicien"
+}

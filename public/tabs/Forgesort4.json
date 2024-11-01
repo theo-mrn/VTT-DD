@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Grosse tête",
+    "rang1": "Capacité passive <br>Effet : test d’INT à la place de FOR. +2 par rang aux tests de bricolage ou science.<br><br> Le forgesort remplace la force brutale par un peu de réflexion. Il peut effectuer un test d’INT au lieu d’un test de FOR (exemple : il utilise un levier pour déplacer une charge élevée). Il obtient un bonus de +2 par rang dans la voie à tous les tests de bricolage ou de science.",
+    "type1":"passive",
+
+    "Affichage2": "Golem",
+    "rang2": "Capacité passive <br>Effet : Golem : <br>Init [forgesort], 🛡️14, INT-4, SAG-3, CHA-4, 🗡️niveau + mod. FOR], FOR 1, FOR 1, DEX-1, CON+10, DM 1d8+1, PV [4 x niveau].<br><br> Le golem est une créature humanoïde fabriquée par le forgesort pour lui servir de serviteur et de garde du corps. Créature non-vivante, Init [forgesort], DEF 14, PV [4 x niveau]. Attaque [niveau + Mod. de FOR], DM 1d8+1. FOR +1, DEX -1, CON +10, INT -4, SAG -3, CHA -4. Le forgesort peut réparer le golem au rythme de [1d6 par rang + Mod. d’INT] PV par heure.",
+    "type2":"passive",
+
+    "Affichage3": "Protecteur",
+    "rang3": "Capacité passive <br>Effet : le golem prend les DM d’un autre <br>Durée : une fois par tour. <br><br>Une fois par tour, s’il est au contact d’un personnage, le golem peut s’interposer et subir les DM d’une attaque à sa place.",
+    "type3":"limitée",
+
+    "Affichage4": "Golem supérieur",
+    "rang4": "Capacité passive <br>Effet : amélioration du golem : <br> Armure : +5 en 🛡️ <br>Félin : +3 mod. de DEX <br>Balliste : portée 20m, 2d6 DM <br> Taille : +10 PV et +1 mod de FOR <br> Vol : des << sauts >> de 40m en action limitée <br> Cerveau amélioré : doué de parole, +2 mod. d’INT, SAG, CHA <br> Puissant : +2 mod FOR <br> Arme à 2 mains : Contact+8 DM.<br><br> Le forgesort peut améliorer son golem en choisissant une option. Le joueur peut choisir une option de plus lorsque son personnage atteint les niveaux 9, 13 et 17. Les options peuvent êtres choisies plusieurs fois et cumulées.",
+        "type4":"passive",
+
+    "Affichage5": "Intelligence héroïque",
+    "rang5": "Capacité passive <br>Effet : +2 INT, 2d20 aux tests d’INT.<br><br> Le forgesort augmente sa valeur d’INT de +2. Il peut désormais lancer deux d20 à chaque fois qu’un test d’INT lui est demandé et garder le meilleur résultat.",
+    "type5":"passive",
+
+    "Voie": "Voie du golem"
+}

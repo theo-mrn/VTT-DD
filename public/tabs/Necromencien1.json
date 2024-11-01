@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Siphon des âmes",
+    "rang1": "Capacité passive <br>Effet : récupère 1d6 PV à la mort d'une créature proche. <br><br>Chaque fois qu’une créature meurt à moins de 20 m du nécromancien, il récupère 1d6 PV.",
+    "type1":"passive",
+
+    "Affichage2": "Masque mortuaire (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : -2 DM physique subit, 1/2 DM de froid subit <br>Durée : [5 + Mod. d'INT] tours. <br><br>Pendant [5 + Mod. d'INT] tours, le nécromancien prend l’apparence de la mort. Il est immunisé aux attaques qui n’affectent que les vivants et à la plupart des pouvoirs des morts-vivants (de plus, ceux-ci le prennent pour l’un des leurs). Il retranche 2 points à tous les DM physiques subits et divise par deux tous les DM de froid.",
+      "type2":"limitée",
+
+    "Affichage3": "Baiser du vampire (L)*",
+    "rang3": "Action limitée, sortilège <br>Effet : -2 DM physique subit, 1/2 DM de froid subit <br>Durée : [5 + Mod. d'INT] tours. <br><br>Ce sort nécessite la réussite d’un test d’attaque magique (portée 50 m). La cible subit [1d8 + Mod. d'INT] DM et le nécromancien récupère autant de PV (sans dépasser son score max de PV).",
+      "type3":"limitée",
+
+    "Affichage4": "Briser les cœurs (L)*",
+    "rang4": "Action limitée, sortilège <br>Effet : 🗡️ [5d6 + mod. d'INT] DM. <br><br>Le nécromancien fait mine de broyer le cœur de sa victime. Il doit réussir une attaque magique (portée 20 m) et inflige [5d6 + Mod. d'INT] DM. La victime divise les DM par deux si elle réussit un test de CON difficulté [10 + Mod. d'INT].",
+      "type4":"limitée",
+
+    "Affichage5": "Mot de mort (L)*",
+    "rang5": "Action limitée, sortilège <br>Effet : tue la cible sur un test de PV. <br><br>Le nécromancien doit réussir un test d’attaque magique contre le score de PV actuel de sa cible (portée 10 m). La victime doit réussir un test de CON difficulté [10 + Mod. d'INT] ou tomber à 0 PV.",
+  "type5":"limitée",
+
+    "Voie": "Voie de la mort"
+}

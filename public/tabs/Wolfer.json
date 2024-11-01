@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Chasseur né",
+    "rang1": "Capacité passive <br>Effet : +rang SAG aux tests de pistage, chasse, détecter un piège ou créature. <br><br>Le wolfer est un chasseur né. Son odorat et sa vision sont très développés. Il obtient un bonus de +1 par rang à ses tests de SAG pour pister, chasser, détecter une créature ou un piège en pleine nature.",
+    "type1":"passive",
+
+    "Affichage2": "Armes naturelles (L)",
+    "rang2": "Action limitée <br>Effet : griffe 🗡️ [1d6 + mod. FOR] DM.<br><br> Par une action limitée, le wolfer peut se faire pousser griffes et crocs. Il peut utiliser ses armes naturelles avec son score d’attaque au contact (action d’attaque) et il inflige [1d6 + Mod. de FOR] DM. Le wolfer subit un malus de -1 en attaque s’il utilise une arme ordinaire sous cette forme.",
+    "type2":"limitée",
+
+    "Affichage3": "Lois de la meute",
+    "rang3": "Capacité passive <br>Effet : +1 🗡️/🛡️ par allié, +5 max. <br><br>Lorsqu’un wolfer combat le même ennemi que d’autres alliés, il bénéficie d’un bonus de +1 en attaque et en DEF par allié. Ce bonus ne peut dépasser +5 quel que soit le nombre d’alliés.",
+     "type3":"passive",
+
+    "Affichage4": "Corps de loup (L)",
+    "rang4": "Action limitée <br>Effet : transformation Male Alpha Init 17, 🛡️15, DM 1d6+3, FOR+3, DEX+1 capacité : Embuscade - Voie du prédateur. <br><br>Une fois par jour, le personnage peut réellement prendre la forme du loup (mâle alpha) pendant une durée maximum de 1 heure par niveau du personnage. Le personnage conserve toutes ses caractéristiques quelles qu’elles soient, ainsi que son score d’attaque au contact habituel. Loup : Init 17, DEF 15, DM 1d6+3, FOR+3, DEX +1. Il peut utiliser la capacité de rang 1 de la voie du prédateur (Embuscade - voir le Bestiaire). Sous cette forme, il peut communiquer avec les autres loups (salves et sur de longues distances par hurlements).",
+     "type4":"limitée",
+
+    "Affichage5": "Garou (L)",
+    "rang5": "Action limitée <br>Effet : transformation Loup-garou DEX+1, Init+2, 🛡️+1, FOR+2, 🛡️+2, DM+2.<br><br> Le personnage se transforme maintenant en forme hybride loup-garou sans aucune restriction de temps. Sous cette forme il a les capacités suivantes : En forme hybride, le personnage obtient un bonus de +1 au Mod. de DEX (+1 Init, +1 DEF) et +2 au Mod. de FOR (+2 Att et DM). À chaque tour, par prix d’une action limitée, il peut attaquer avec une arme de taille grande griffes ou crocs. Sous cette forme, le personnage ne peut parler qu’avec grande difficulté, il subit un malus de -10 à tous les tests de CHA, mais un bonus de +50 pour les tentatives d’intimidation.",
+    "type5":"limitée",
+
+    "Voie": "Voie du wolfer"
+}

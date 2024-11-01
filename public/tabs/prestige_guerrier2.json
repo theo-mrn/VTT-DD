@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Pirouettes",
+    "rang1": "Capacité passive<br> Effet : Les pas de danse rendent le personnage insaisissable<br> il gagne +1 en DEF par rang atteint dans la Voie.<br> Il gagne un bonus de +5 à tous les tests de danse et d’acrobatie.",
+    "type1":"passive",
+
+    "Affichage2": "Lent des lames",
+    "rang2": "Capacité passive <br>Effet : Le personnage peut utiliser son Mod. de DEX au choix en attaque au contact ou aux DM (mais pas les deux) au lieu du Mod. de FOR lorsqu’il utilise une épée ou une lance.",
+    "type2":"passive",
+
+    "Affichage3": "Attaque en mouvement",
+    "rang3": "Capacité passive <br>Effet : À chaque fois qu’il réalise une action limitée, le guerrier peut en plus se déplacer de 10 mètres avant ou après.",
+    "type3":"passive",
+
+    "Affichage4": "Danse des lames (L)",
+    "rang4": "Action limitée <br>Effet : Le personnage entre en transe pour le reste du combat. <br><br>Pendant la Danse des lames, il gagne +2 en attaque et en DEF et peut réaliser une attaque supplémentaire en utilisant un d12 au lieu d’un d20 à chaque tour. Le personnage peut mettre fin à la transe au moment où il le veut, mais ne peut recommencer avant le prochain combat. Toutefois, s’il reçoit les DM d’une attaque critique, la transe est stoppée net.",
+    "type4":"limitée",
+
+    "Affichage5": "Volte face",
+    "rang5": "Capacité passive <br>Effet : À chaque tour où le guerrier attaque une cible différente du tour précédent, il obtient un bonus de +2 en attaque et de +1d6 aux DM.",
+    "type5":"passive",
+
+    "Voie": "Voie du danseur de guerre"
+}

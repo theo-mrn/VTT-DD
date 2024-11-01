@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Attaque en finesse",
+    "rang1": "Capacité passive: <br>Effet : utilise Distance au contact avec une arme légère. [mod FOR ou mod INT] DM au choix. L<br><br>e voleur peut utiliser son score d'Attaque à distance pour une attaque au contact lorsqu'il utilise une arme légère comme une dague ou une Rapière. S'il le souhaite, il peut dans ce cas remplacer le Mod. de FOR aux DM par son Mod. d'INT.",
+    "type1":"passive",
+    
+    "Affichage2": "Esquive fatale",
+    "rang2": "Capacité passive: <br>Effet : transfert une attaque subit sur un adversaire. <br><br>Une fois par combat, le duelliste peut esquiver une attaque qui devait le toucher et s'arranger pour que celle-ci affecte un autre adversaire à son contact. Comparez le test d'attaque à la DEF de la nouvelle cible pour savoir si celle-ci subit des DM.",
+    "type2":"passive",
+    
+    "Affichage3": "Frappe chirurgicale",
+    "rang3": "Capacité passive: <br>Effet : critique sur [20 - mod. INT].<br><br> Par sa science de l'escrime (et de la fourberie), le voleur augmente de manière permanente ses chances de faire des coups critiques. Il retranche désormais son Mod. d'INT au score nécessaire pour obtenir un critique en attaque au contact. Par exemple, Alonzo (INT 14/+2) obtient à présent un critique sur 17 ou plus au d20 lorsqu'il emploie la rapière (19 - Mod. d'INT).",
+    "type3":"passive",
+    
+    "Affichage4": "Ambidextrie",
+    "rang4": "Capacité passive: Effet: Contact gratuite supplémentaire par tour.<br><br> Le voleur peut à présent utiliser une arme dans chaque main sans pénalité. Avec sa main gauche, il peut effectuer une attaque au contact gratuite supplémentaire à chaque tour. Cette deuxième attaque n'empêche pas l'utilisation d'une capacité limitée, mais elle ne peut pas en être l'origine.",
+    "type4":"passive",
+    
+    "Affichage5": "Botte secrète",
+    "rang5": "Capacité passive: Effet: Attaque sournoise sur Contact critique.<br><br> Lorsque le voleur obtient un critique sur une attaque au contact, l'attaque devient automatiquement une Attaque sournoise. Les effets de la capacité d'Attaque sournoise s'appliquent en plus des effets normaux du critique.",
+    "type5":"passive",
+    
+    "Voie": "Voie du spadassin"
+}

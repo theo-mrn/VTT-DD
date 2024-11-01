@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Chasseur émérite",
+    "rang1": "Capacité passive <br>Effet : +3 Init Le guerrier gagne +3 en Initiative.",
+    "type1":"passive",
+    
+    "Affichage2": "Traquenard (L)",
+    "rang2": "Action limitée Effet: désarme son adversaire si opposition Contact. Le guerrier réalise une attaque au contact et sa victime doit faire un test d'attaque opposé. Si le guerrier obtient le plus haut score, l'arme de son adversaire tombe au sol (une action de mouvement doit être employée pour la ramasser). S'il le guerrier réussit son test avec au moins 10 points de plus que son adversaire, il empêche celui-ci de récupérer son arme (en posant le pied dessus, en l'envoyant hors de portée, etc.). Cette capacité est évidemment sans effet sur les armes naturelles (griffes, crocs, épine dorsale, etc.). Les adversaires qui utilisent des armes à 2 mains sont plus difficiles à désarmer, infligeant un malus de -5 au test.",
+    "type2":"limitée",
+    
+    "Affichage3": "Attaque éclair (L)",
+    "rang3": "Action limitée Effet: deux attaques Contact dans le tour, malus -2 Le guerrier peut tenter deux attaques au contact durant ce tour avec un malus de -2.",
+    "type3":"limitée",
+    
+    "Affichage4": "Repli (L)",
+    "rang4": "Action limitée <br>Effet : attaque Contact contre chaque adversaire au contact Le guerrier peut tenter une attaque au contact contre chaque adversaire engagé au contact avec lui.",
+    "type4":"limitée",
+    
+    "Affichage5": "Dextérité héroïque",
+    "rang5": "Capacité passive <br>Effet : d12 remplace d20 Contact, +2d6 DM Le guerrier peut choisir d'utiliser 1d12 en attaque au contact au lieu du d20 habituel (il ajoute normalement son score d'attaque). Si une telle attaque est réussie, il ajoute + 2d6 aux DM. Cette capacité peut être utilisée avec Attaque Double, Attaque Circulaire ou Attaque parfaite par exemple.",
+    "type5":"passive",
+    
+    "Voie": "Voie de l’escarmouche"
+}

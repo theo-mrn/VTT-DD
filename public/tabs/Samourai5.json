@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Technique du sabre",
+    "rang1": "Capacité passive <br>Effet : mod. FOR ou DEX pour Contact [+mod FOR ou +rang] DM. <br><br>Lorsqu'il utilise un sabre, le samouraï peut remplacer son Mod de FOR par son Mod. de DEX en attaque au contact.",
+    "type1":"passive",
+    
+    "Affichage2": "Frappe du vide",
+    "rang2": "Capacité passive <br>Effet: Contact +2, + 1d6 DM sur première attaque <br><br>Sur sa première attaque au contact lors d'un combat, si son sabre était au fourreau, il obtient un bonus de +2 en attaque et + 1d6 aux DM.",
+    "type2":"passive",
+    
+    "Affichage3": "Lames jumelles (L)",
+    "rang3": "Action limitée <br>Effet: double attaque contact -1 si mod. FOR < 2 <br><br>Si le samouraï possède un Mod. de FOR au moins égal à +2, il peut utiliser le katana d'une main et le wakizachi de l'autre sans pénalité.",
+    "type3":"limitée",
+    
+    "Affichage4": "Attaque en rotation (L)",
+    "rang4": "Action limitée <br>Effet: Contact contre tous ennemis au contact <br><br>Le samouraï peut tenter une attaque au contact contre chaque adversaire engagé au contact avec lui.",
+    "type4":"limitée",
+    
+    "Affichage5": "Dextérité héroïque",
+    "rang5": "Capacité passive <br>Effet: Le samouraï augmente sa valeur de DEX de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test de DEX lui est demandé et conserver le meilleur résultat.",
+    "type5":"passive",
+    
+    "Voie": "Voie du sabre"
+}

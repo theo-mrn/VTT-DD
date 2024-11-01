@@ -1,0 +1,39 @@
+{
+        "Affichage1":"Force de la nature",
+        "rang1": "Effet : [+ mod. FOR] PV, +5 aux tests de FOR.<br><br> Le demiorque gagne un bonus de +5 à tous les tests de FOR et ajoute son [Mod. de FOR] à son score total de PV.",
+        "type1":"passive",
+
+        "Affichage2":"Talent pour la violence",
+        "rang2": "Capacité passive: <br>Effet: +1 capacité de rang 1 barbare, guerrier ou homme. <br><br>Le joueur choisit une capacité de rang 1 de n'importe quelle voie de barbare, de guerrier ou de la voie de l'homme. Au rang 4 de la voie, choisissez une capacité supplémentaire de rang 2.",
+        "type2":"passive",
+
+        "Affichage3":"Critique brutal",
+        "rang3": "Capacité passive:<br> Effet: DM x 3 sur critique. <br><br>Les DM du demi- orque sont multipliés par 3 (au lieu de 2) lorsqu'il obtient une réussite critique sur une attaque au contact.",
+        "type3":"passive",
+
+        "Affichage4":"Attaque sanglante (L)",
+        "rang4": "Action limitée:<br>Effet: +1d6 DM à chaque tour. <br><br>Le demiorque réalise une attaque de contact violente qui provoque une hémorragie. En plus des DM normaux, l'attaque produit un saignement qui inflige à la victime + 1d6 DM à chaque tour suivant jusqu'à ce que la cible réussisse un test de CON difficulté [12 + Mod. de FOR] ou qu'elle soit soignée. On ne peut cumuler plusieurs effets de saignement.",
+        "type4":"limitée",
+
+        "Affichage5":"Colosse",
+        "rang5": "Capacité passive: <br>Effet : +2 FOR, +2 CON. <br><br>Le demi-orque augmente ses valeurs de FOR et de CON de +2.",
+        "type5":"passive",
+
+        "Voie":"Voie de l'orque"
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

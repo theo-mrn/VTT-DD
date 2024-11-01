@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Odorat",
+    "rang1": "Capacité passive Effet: +1 Contact avec arme de prédilection Le guerrier choisit une arme de prédilection (par exemple épée longue ou hache à 1 main, arc court, etc.), et gagne +1 en attaque lorsqu'il l'utilise.",
+    "type1":"passive",
+
+    "Affichage2": "Surveillance",
+    "rang2": "Capacité passive <br>Effet : critique sur 19-20 Le guerrier inflige des critiques sur 19-20 (18-20 lorsqu'il emploie une rapière ou une Vivelame).",
+    "type2":"passive",
+
+    "Affichage3": "Combat",
+    "rang3": "Capacité passive Effet: +2 DM avec arme de prédilectior Lorsque le guerrier emploie son arme de prédilection, il gagne un bonus de +2 aux DM.",
+     "type3":"passive",
+    
+    "Affichage4": "Empathie animale (L)",
+    "rang4": "Action limitée <br>Effet : 2d20 2, +1d6 DM Lancez deux d20 en attaque au contact et gardez le meilleur résultat, ajoutez + 1d6 aux DM.",
+    "type4":"limitée",
+    
+    "Affichage5": "Animal fabuleux",
+    "rang5": "Capacité passive Effet: +1 attaque Contact si l'adversaire rate son attaque En plus de ses actions normales, une fois par tour, lorsqu'un adversaire rate une attaque de contact contre le guerrier, le joueur obtient une attaque supplémentaire contre cet adversaire.",
+    "type5":"passive",
+    
+    "Voie": "Voie du compagnon animal"
+}

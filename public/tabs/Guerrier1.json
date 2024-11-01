@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Robustesse",
+    "rang1": "Capacité passive <br>Effet : +3 PV rang 1, <br>+6 PV rang 3,<br> +9 PV rang 5. <br><br>En prenant cette capacité, le guerrier gagne 3 PV supplémentaires au rang 1, puis 3 PV de plus au rang 3 de cette Voie et enfin 3 PV au rang 5.",
+    "type1":"passive",
+
+    "Affichage2": "Armure naturelle",
+    "rang2": "Capacité passive <br>Effet : +2 🛡️, +4 au rang 4. <br><br>Le guerrier a endurci son corps. Il bénéficie d’un bonus de +2 à la DEF. Ce bonus passe à +4 lorsqu’il atteint le rang 4 de la voie.",
+        "type2":"limitée",
+
+    "Affichage3": "Second souffle (L)",
+    "rang3": "Action limitée <br>Effet : [1d10 + niveau + mod. CON] PV récupéré 1 fois par combat.<br><br> Le guerrier peut décider de ne pas attaquer lors du tour de combat pour reprendre son souffle. Il récupère alors [1d10 + niveau + Mod. de CON] PV. Attention : cette capacité ne peut être utilisée qu’une fois par combat.",
+    "type3":"limitée",
+
+    "Affichage4": "Dur à cuire",
+    "rang4": "Capacité passive <br>Effet : +5 CON, ultime tour à la mort. <br><br>Le guerrier reçoit un bonus de +5 à tous ses tests de CON. De plus, lorsqu’il tombe à 0 PV, il peut continuer à agir pendant un ultime tour avant de tomber inconscient.",
+     "type4":"passive",
+
+    "Affichage5": "Constitution héroïque",
+    "rang5": "Capacité passive <br>Effet : +2 CON, 2d20 aux tests de CON. <br><br>Le guerrier augmente sa valeur de CON de +2 et il peut désormais lancer deux d20 à chaque fois qu’un test de CON lui est demandé et conserver le meilleur résultat.",
+    "type5":"passive",
+
+    "Voie": "Voie de la résistance"
+}

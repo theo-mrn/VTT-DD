@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Vêtements sacrés",
+    "rang1": "Capacité passive <br>Effet: +1 DEF par rang si pas d'armure <br><br>La tenue religieuse traditionnelle du prêtre remplace une armure et a été bénie à cet effet: il obtient un bonus en DEF égal à +1 pour chaque Rang dans cette Voie (lorsqu'il ne porte aucune armure).",
+    "type1":"passive",
+
+    "Affichage2": "Protection contre le mal (L)",
+    "rang2": "Action limitée, sortilège <br>Effet: la cible (prêtre ou allié) gagne +2 DEF.<br><br> Le prêtre peut lancer ce sort sur lui ou sur tout allié (portée : contact) pour la durée d'un combat. La cible obtient alors un bonus de +2 en DEF et pour tous les tests de résistance contre les attaques des mort-vivants, des démons, des élémentaires et des créatures conjurées (appelées d'un autre plan par magie).",
+      "type2":"limitée",
+    
+    "Affichage3": "Délivrance (L)",
+    "rang3": "Action limitée, sortilège <br>Effet: annule les pénalités et états anormaux En touchant sa cible,<br><br> le prêtre annule les pénalités infligées par les sorts, les malédictions et les capacités spéciales d'autres personnages ou de créatures (douleur, mutilation, poisons, pétrification, etc.).",
+    "type3":"limitée",
+    
+    "Affichage44": "Marche des plans (L)",
+    "rang44": "Action limitée, sortilège <br>Effet: déplacement 10 Km par tour <br>Durée : [3 + mod. SAG] tours max <br><br>Une fois par jour et pour une durée maximale de [3 + Mod. de SAG] tours, le prétre peut passer dans une dimension entre les plans d'existence où le temps et l'espace sont déformés. Il se déplace dans une sorte de brouillard gris où le paysage défile à toute vitesse. Pour chaque tour de « Marche des Plans », il se déplace en réalité de 10 km. Le lieu de sortie n'est cependant pas très précis et le MJ doit déterminer une position au hasard autour du point visé (à 1d6 km près).",
+    "type4":"limitée",
+    
+    "Affichage5": "Messie",
+    "rang5": "Capacité passive, sortilège <br>Effet : Magie, miracle sur demande <br><br>Une fois par aventure, le prêtre entre directement en contact avec la puissance divine et réalise un miracle. Il s'agit d'un pouvoir extraordinaire que le MJ accorde au joueur et qui permet des actes légendaires comme écarter les eaux, téléporter tout son groupe ou invoquer des nuées mortelles...",
+    "type5":"passive",   
+    
+    "Voie": "Voie de la spiritualité"
+}

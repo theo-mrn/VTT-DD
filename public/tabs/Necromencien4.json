@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Peur (L)",
+    "rang1": "Action limitée, sortilège <br>Effet : fait fuir la cible. <br><br>Le nécromancien effectue un test d’attaque magique contre une cible (portée 20 m). Celle-ci doit réussir un test de FOR ou de SAG (au choix) difficulté [10 + Mod. d'INT] ou fuir pendant [1d4 + rang] tours (le MJ peut garder cette durée secrète). Une créature ne peut subir les effets de ce sort qu’une fois par combat.",
+    "type1":"limitée",
+
+    "Affichage2": "Animation des morts (L)",
+    "rang2": "Action limitée, sortilège Effet : anime 1 zombi (max 1 par rang) Init 🛡️10, 🗡️12, 🛡️4, DM 1d6+1, se déplace à 50%, perd 1 PV par minute. <br><br>Le nécromancien anime le cadavre d’un humanoïde de taille moyenne, décédé il y a moins de 24 heures. Le zombi comprend les ordres « Attaquer », « Défendre », « Garder » et « Pas bouger ». Zombi : Init 8, DEF 10, PV 12, Att 3, DM 1d6+1. Il se déplace à 50% de la vitesse normale. Le zombi se dégrade et perd 1 PV par minute. Le nécromancien ne peut contrôler qu’un zombi par rang. Un zombi détruit tombe en poussière.",
+      "type2":"limitée",
+
+    "Affichage3": "Putréfaction (L)",
+    "rang3": "Action limitée, sortilège <br>Effet : [1d6 + mod. d'INT] DM, -2 tous tests. <br><br>En réussissant un test d’attaque magique (portée 10 m), le nécromancien fait pourrir les chairs de sa victime, infligeant [1d6 + Mod. d'INT] DM. La victime subit un malus de -2 à tous ses tests pour le reste du combat, à moins de réussir un test de CON difficulté [12 + Mod. d'INT].",
+      "type3":"limitée",
+
+    "Affichage4": "Ensevelissement (L)",
+    "rang4": "Action limitée, sortilège<br>Effet : enterre la cible, 2d6 DM par tour. <br><br>Une fois par combat, si le nécromancien réussit un test d’attaque magique (portée 20 m), le sol s’ouvre sous les pieds de la cible et elle est ensevelie, subit 2d6 DM par tour et ne peut effectuer que des actions extérieures. À son tour, elle peut tenter de s’extraire en réussissant un test de FOR ou un test de SAG difficulté [13 + Mod. d'INT]. Si elle continue de s’enfoncer, elle prend encore 2d6 DM au suivant. Chaque personne se trouvant à 6 m du nécromancien gagne un bonus de +2 sur son test.",
+      "type4":"limitée",
+
+    "Affichage5": "Armée des morts (L)",
+    "rang5": "Action limitée, sortilège <br>Effet : 3d6 DM par tour par cible dans la zone. <br><br>Une fois par jour, le nécromancien peut invoquer d’innombrables squelettes émergeant du sol pour attaquer ses ennemis pendant [niveau du nécromancien] tours. Les cibles situées dans un rayon de 20 m autour de lui subissent automatiquement 3d6 DM par tour, à moins qu’elles n’utilisent des armes lourdes pour se dégager, ce qui réduit les DM à 1d6 par attaque. Les squelettes et leurs ossements ne peuvent pas être détruits, ils continuent d’attaquer toutes les cibles dans une zone de 20 m de rayon. Tous les alliés du nécromancien (même ceux des cibles) sont divisés par deux.",
+    "type5":"limitée",
+
+    "Voie": "Voie de l'outre-tombe"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Esquive",
+    "rang1": "Capacité passive <br>Effet: [rang] DEF d'esquive , [+rang] DEX aux tests.<br><br> Le voleur est très vif et bénéficie d'un bonus de +1 par rang dans cette voie à sa DEF et à tous ses tests de DEX destinés à esquiver.",
+    "type1":"passive",
+    
+    "Affichage2": "Chute",
+    "rang2": "Capacité passive: <br>Effet: chutte sur 3 mètres sans dommage. <br><br>Le voleur peut tomber d'une hauteur de 3 m par rang sans se faire mal (rappel : un personnage qui n'a pas cette capacité subit 1d6 points de dégâts tous les 3 m de chute).",
+    "type2":"passive",
+    
+    "Affichage3": "Acrobaties",
+    "rang3": "Capacité passive. <br>Effet : surprend son adversaire sur test de DEX. <br><br>Si le voleur réussit un test de DEX difficulté 15, il peut effectuer une acrobatie pour franchir un obstacle ou, s'il est au combat au contact, pour surprendre son adversaire par une cabriole, ce qui lui permet de l'attaquer dans le dos (et d'utiliser l'attaque sournoise).",
+    "type3":"passive",
+    
+    "Affichage4": "Esquive de la magie",
+    "rang4": "Capacité passive: <br>Effet : 1/2 DM Magie subits ou annulés sur test de DEX vs Magie à chaque fois qu'un sort le prend pour cible (y compris un sort de zone ou l'affectant en plus de la personne visée)<br><br>le voleur peut effectuer un test de DEX en opposition au test d'attaque magique du sort. S'il réussit,il échappe au sort. S'il échoue, tous les effets du sort (puissance, durée, etc.) sont divisés par 2. Au cas où un autre effet diviserait déjà les DM par 2, ils seront au total divisés par 4.",
+    "type4":"passive",
+    
+    "Affichage5": "Dextérité héroïque",
+    "rang5": "Capacité passive: <br>Effet : +2 DEX, 2d20 aux tests de DEX.<br><br> Le voleur augmente sa valeur de DEX de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test de DEX lui est demandé et conserver le meilleur résultat.",
+    "type5":"passive",
+    
+    "Voie": "Voie du déplacement"
+}

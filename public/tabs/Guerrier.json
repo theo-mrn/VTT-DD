@@ -1,0 +1,98 @@
+{
+                    "Affichage11":"Robustesse",
+    "ContenuCase11": "Capacité passive: Effet: +3 PV rang 1, +6 PV rang 3, +9 PV rang 5. En prenant cette capacité, le guerrier gagne 3 PV supplémentaires au rang 1, puis 3 PV de plus au rang 3 de cette Voie et enfin 3 PV au rang 5.",
+                   "Affichage12":"Protéger un allié",
+    "ContenuCase12": "Capacité passive Effet: donne la li de son bouclier à un allié Le guerrier accorde le Mod. de DEF de son bouclier à un compagnon de son choix qui se trouve juste à côté de lui (il conserve ce bonus pour lui-même aussi). Il peut changer de compagnon à chaque tour durant sa phase d'initiative. C'est une action gratuite.",
+  
+                  "Affichage13":"Vivacité",
+  "ContenuCase13": "Capacité passive Effet : +3 Init Le guerrier gagne +3 en Initiative.",
+
+                "Affichage14":"Arme de prédilection",
+    "ContenuCase14": "Capacité passive Effet: +1 Contact avec arme de prédilection Le guerrier choisit une arme de prédilection (par exemple épée longue ou hache à 1 main, arc court, etc.), et gagne +1 en attaque lorsqu'il l'utilise.",
+    
+                    "Affichage15":"Posture de combat",
+"ContenuCase15": "Capacité passive Effet: malus en début de tour convertis en bonus jusqu'au tour suivant Au début de votre tour, choisissez d'appliquer jusqu'à - 1 par rang en attaque, en DEF ou aux DM et obtenez l'équivalent en bonus au choix en attaque, en DEF ou aux DM jusqu'à votre prochain tour.",
+   
+    
+    
+    
+    
+                    "Affichage21":"Armure naturelle",
+
+    "ContenuCase2": "Capacité passive: Effet : +2 DEF , +4 au rang 4. Le guerrier a endurci son corps. Il bénéficie d'un bonus de + 2 à la DEF. Ce bonus passe à +4 lorsqu'il atteint le rang 4 de la voie.",
+
+                "Affichage22":"Absorber un coup (L)",
+    "ContenuCase22": "Action limitée Effet : bloque l'attaque adverse sur test de Contact en opposition réussi, au prix d'une action à son tour, le guerrier fait seulement une action d'attaque ou de déplacement. Par la suite, à tout moment avant son prochain tour, le guerrier peut effectuer un test d'attaque au contact en opposition à un test réussi d'attaque au contact ou à distance d'un adversaire. En cas de réussite, l'attaque adverse est bloquée par le bouclier.",
+    
+                    "Affichage23":"Désarmer (L)",
+"ContenuCase23": "Action limitée Effet: désarme son adversaire si opposition Contact. Le guerrier réalise une attaque au contact et sa victime doit faire un test d'attaque opposé. Si le guerrier obtient le plus haut score, l'arme de son adversaire tombe au sol (une action de mouvement doit être employée pour la ramasser). S'il le guerrier réussit son test avec au moins 10 points de plus que son adversaire, il empêche celui-ci de récupérer son arme (en posant le pied dessus, en l'envoyant hors de portée, etc.). Cette capacité est évidemment sans effet sur les armes naturelles (griffes, crocs, épine dorsale, etc.). Les adversaires qui utilisent des armes à 2 mains sont plus difficiles à désarmer, infligeant un malus de -5 au test.",
+                    "Affichage24":"Science du critique",
+"ContenuCase24": "Capacité passive Effet : critique sur 19-20 Le guerrier inflige des critiques sur 19-20 (18-20 lorsqu'il emploie une rapière ou une Vivelame).",
+                "Affichage25":"Combat en phalange",
+    "ContenuCase25": "Capacité passive Effet: +1 DEF,Contact par allié au contact avec vous Lorsque vous combattez la même créature qu'un allié, vous gagnez +1 en attaque et en DEF par allié au contact avec vous et avec la créature.",
+
+    
+    
+    
+    
+    
+                "Affichage31":"Second souffle (L)",
+    "ContenuCase31": "Action limitée: Effet : [1d10 + niveau + mod. CON] PV récupéré 1 fois par combat. Le guerrier peut décider de ne pas attaquer lors du tour de combat pour reprendre son souffle. Il récupère alors [1d10 + niveau + Mod. de CON] PV. Attention : cette capacité ne peut être utilisée qu'une fois par combat.",
+                    "Affichage32":"Absorber un sort (L)",
+"ContenuCase32": "Action limitée Effet : absorbe les dégats magiques sur test #R en opposition au prix d'une action à son tour, le guerrier fait seulement une action d'attaque ou de déplacement. Par la suite, à tout moment avant son prochain tour, le guerrier peut effectuer un test d'attaque magique (Mod. de SAG) en opposition à un test d'attaque magique qui le visait. En cas de réussite, le sort est absorbé par le bouclier et n'a aucun effet sur le guerrier.",
+                    "Affichage33":"Double attaque (L)",
+"ContenuCase33": "Action limitée Effet: deux attaques Contact dans le tour, malus -2 Le guerrier peut tenter deux attaques au contact durant ce tour avec un malus de -2.",
+                "Affichage34":"Spécialisation",
+   "ContenuCase34": "Capacité passive Effet: +2 DM avec arme de prédilectior Lorsque le guerrier emploie son arme de prédilection, il gagne un bonus de +2 aux DM.",
+                "Affichage35":"Prouesse",
+"ContenuCase35": "Capacité passive Effet : sacrifie - 1d4 PV contre +5 FOR ou +5 DEX Le guerrier réussit souvent des exploits physiques hors-norme. Une fois par tour, vous pouvez sacrifier 1d4 PV pour obtenir +5 sur un test de FOR ou de DEX. Vous pouvez annoncer l'utilisation de cette capacité après avoir pris connaissance du résultat du test de caractéristique.",
+
+    
+    
+    
+    
+    
+    
+                    "Affichage41":"Dur à cuire",
+"ContenuCase41": "Capacité passive Effet : +5 CON, utime tour à la mort Le guerrier reçoit un bonus de +5 à tous ses tests de CON. De plus, lorsqu'il tombe à 0 PV, il peut continuer à agir pendant un ultime tour avant de tomber inconscient.",
+                "Affichage42":"Armure lourde",
+   "ContenuCase42": "Capacité passive Effet : peut porter une armure de plaque +8 DEF, Le guerrier peut porter une Armure de Plaque complète. Celle-ci lui confère une DEF de +8 et le protège des attaques critiques (vous subissez des DM normaux au lieu des DM doublés).",
+                "Affichage43":"Attaque circulaire (L)",
+"ContenuCase43": "Action limitée Effet : attaque Contact contre chaque adversaire au contact Le guerrier peut tenter une attaque au contact contre chaque adversaire engagé au contact avec lui.",
+                "Affichage44":"Attaque parfaite (L)",
+ "ContenuCase44": "Action limitée Effet : 2d20 2, +1d6 DM Lancez deux d20 en attaque au contact et gardez le meilleur résultat, ajoutez + 1d6 aux DM.",
+                "Affichage45":"Dernier rempart (L)",
+    "ContenuCase45": "Action limitée Effet: +1 attaque Contact contre tout attaquant si aucun déplacement Le guerrier effectue uniquement une attaque au contact durant ce tour. En contrepartie, il bénéficie d'une attaque supplémentaire contre tout ennemi qui se déplace à son contact. Un adversaire blessé par cette attaque voit son déplacement stoppé.",
+
+    
+    
+    
+    
+    
+                   "Affichage51":"Constitution héroïque",
+ "ContenuCase51": "Capacité passive Effet: +2 CON, 2d20 aux tests de CON Le guerrier augmente sa valeur de CON de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test de CON lui est demandé et conserver le meilleur résultat.",
+                "Affichage52":"Renvoi de sort (L)",
+    "ContenuCase52": "Action limitée Effet : renvoi le sort absorbé par la capacité Le guerrier peut décider de renvoyer un sort qu'il vient d'absorber grâce à sa capacité Absorber un Sort. Au lieu d'être annulé, le sort absorbé le tour précédent est retourné contre son expéditeur : le lanceur du sort subit alors les effets de sa propre attaque !",
+                    "Affichage53":"Attaque puissante",
+"ContenuCase53": "Capacité passive Effet : d12 remplace d20 Contact, +2d6 DM Le guerrier peut choisir d'utiliser 1d12 en attaque au contact au lieu du d20 habituel (il ajoute normalement son score d'attaque). Si une telle attaque est réussie, il ajoute + 2d6 aux DM. Cette capacité peut être utilisée avec Attaque Double, Attaque Circulaire ou Attaque parfaite par exemple.",
+                    "Affichage54":"Riposte",
+"ContenuCase54": "Capacité passive Effet: +1 attaque Contact si l'adversaire rate son attaque En plus de ses actions normales, une fois par tour, lorsqu'un adversaire rate une attaque de contact contre le guerrier, le joueur obtient une attaque supplémentaire contre cet adversaire.",
+                "Affichage55":"Force héroïque",
+        "ContenuCase55": "Capacité passive Effet : +2 FOR, 2d20 aux tests de FOR Le guerrier augmente sa valeur de Force de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test de FOR lui est demandé et conserver le meilleur résultat.",
+        
+        
+            "Voie1":"Voie de la résistance",
+    "Voie2":"Voie du bouclier",
+    "Voie3": "Voie du combat",
+    "Voie4":"Voie du maître d’armes",
+    "Voie5":"Voie du soldat"
+}
+
+
+
+
+
+
+
+
+

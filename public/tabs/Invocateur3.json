@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Mutation offensive (L)",
+    "rang1": "Action limitée, sortilège <br>Effet : appendice monstrueux, +3 FOR, Contact+3  [1d6 + mod. FOR] DM Durée : [5 + mod. CHA] tours<br><br> L'invocateur échange une partie de son corps avec celle d'une créature monstrueuse d'un autre plan pendant [5 + mod. CHA] tours. Il obtient ainsi un appendice monstrueux de son choix : une gueule d'ours, une branche monstrueuse dotée d'une griffe, etc. Pour pouvoir l'utiliser, il doit se déplacer d'abord. Il ne lui faut en effet qu'un tour de mouvement pour attaquer ensuite avec ce bonus de +3 au Mod. de FOR sur cette attaque. L'attaque inflige [1d6 + Mod. de FOR] DM (2d6 au niveau 10). À partir du rang 4, l'invocateur apprend à mieux maîtriser le membre étranger et il lui suffit d'une action d'attaque pour attaquer.",
+    "type1":"limitée",
+
+    "Affichage2": "Mutation protectrice (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : protection d'outre-monde : <br> Cuirasse : +1 Défense rang <br>Écailles rugueuses : 1/2 DM de feu ou de froid <br> Fourrure violette : 1/2 DM de froid ou de coup d'aiguille <br> Pouvoir : respiration aquatique <br> Sang noir : immunisé au poison ou aux maladies Durée : [5 + mod. CHA] minutes .<br><br>L'invocateur obtient les caractéristiques d'une créature démoniaque, ajoutant à sa défense des éléments surnaturels. Il gagne ainsi un appendice ou des attributs sur son corps : fourrure, écailles, etc. Il est impossible de bénéficier de deux mutations protectrices en même temps. Cuirasse : +1 en DEF par écailles rugueuses : 1/2 DM de feu ou d'acide divisés par 2 Pouvoir : DM de froid ou de feu divisés par 2 Fourrure violette Sang noir : immunisé au poison ou aux maladies.",
+       "type2":"limitée",
+
+    "Affichage3": "Surpuissance physique (L)",
+    "rang3": "Action limitée, sortilège  Effet: mutation surpuissante : <br> Muscles hypertrophiés: +2 au mod. de FOR <br> Silhouette gliforme : +4 au mod. de DEX <br> Silhouette massive: +5 aux tests de CON, -3 DM subits<br> Durée : [5 + mod. CHA] minutes",
+        "type3":"limitée",
+
+    "Affichage4": "Adaptation motrice (L)",
+    "rang4": "Action limitée, sortilège<br> Effet : transformation motrice : <br>Ailes : vol à sa vitesse normale de déplacement <br>Pattes démesurées : déplacement 30 mètres <br> Queue de poisson : nage normale 30 mètres Durée : [5 + mod. CHA] minutes<br><br> L'invocateur obtient une des mutations suivantes pendant [5 + mod. CHA] minutes. Il est impossible de bénéficier de plusieurs mutations motrices en même temps. Ailes : vol à vitesse normale Pattes démesurées : déplacement de 30 mètres Queue de poisson : nage de 30 mètres (ou plus si extension).",
+       "type4":"limitée",
+
+    "Affichage5": "Mutation régénératrice",
+    "rang5": "Capacité passive<br> Effet : 2d20 aux tests de CON, regen 1d6 PV à la fin d'une mutation<br><br> À chaque fois qu'il retrouve sa forme normale après avoir utilisé un sort de la Voie des mutations, l'invocateur récupère 1d6 PV. Désormais, lorsqu'il danse, il lance deux dés à volonté, ainsi que d'autres extraits utiles sur ces deux résultats. Si vous utilisez plus de sorts d'amélioration, vous n'avez plus besoin de points de Mana, les PV sont régénérés seulement s'ils sont prolongés pendant la durée du sort.",
+       "type5":"passive",
+
+    "Voie": "Voie des mutations"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Chef né",
+    "rang1": "Capacité passive <br>Effet : [+rang] aux tests de CHA d'intimidation, immunisé à la peur <br><br>Le Samouraï est immunisé aux effets de peur (magie, pouvoir de dragon, etc.) De plus, il bénéficie d'un bonus de +1 par rang aux tests de CHA pour donner des ordres ou intimider.",
+    "type1":"passive",
+    
+    "Affichage2": "Défi (L)",
+    "rang2": "Action limitée <br>Effet : [+rang] DM aux dégats sur la cible. <br>Durée : jusqu'à la fin du combat.<br><br>Le samouraï défie un ennemi par une action limitée. Il obtient un bonus aux DM égal au rang atteint dans la Voie contre cet adversaire jusqu'à la fin du combat. Le samouraï peut défier un seul adversaire par scène de combat.",
+    "type2":"limitée",
+    
+    "Affichage3": "Honorable",
+    "rang3": "Capacité passive <br>Effet: +5 aux tests de bonne foi ou décision <br><br>Le samouraï a une réputation d'honorabilité sans faille. Il peut mettreen jeu son honneur pour garantir sa parole et la justesse de ses actions. Il bénéficie d'un bonus de +5 à tous les tests où sa bonne foi est en jeu. Il est considéré comme une référence en matière de justice, ce qui lui accorde le même bonus pour rendre justice, apaiser une foule en colère ou infliéchir la décision d'un dirigeant.",
+    "type3":"passive",
+    
+    "Affichage4": "Seuls au monde",
+    "rang4": "Capacité passive <br>Effet: +5 Defense contre les cibles autres que celle défiée. <br><br>Lorsqu'il a défié un adversaire, le samouraï obtient un bonus de +5 en DEF contre les attaques de tous les autres adversaires, à chaque tour où il attaque uniquement la cible qu'il a défié.",
+    "type4":"passive",
+    
+    "Affichage5": "Surmonter la douleur",
+    "rang5": "Capacité passive <br>Effet : +5 aux tests de douleur, immunisé contre Affaibli, + 1 tour +5 Contact Distance + 1d6 DM contre la cible défiée en cas de décès <br><br>Le samouraï obtient un bonus de +5 à tous les tests pour résister à la douleur et il est immunisé à l'état préjudiciable Affaibli . Lorsqu'il arrive à 0 PV, il peut encore agir un tour complet et, s'il a défié un ennemi, il obtient un bonus de +5 en attaque et +1d6 aux DM contre cet adversaire au cours de ce baroud d'honneur.",
+    "type5":"passive",
+    
+    "Voie": "Voie de l'honneur"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Arme de prédilection",
+    "rang1": "Capacité passive <br>Effet : +1 🗡️ avec arme de prédilection.<br><br> Le guerrier choisit une arme de prédilection (par exemple épée longue ou hache à 1 main, arc court, etc.), et gagne +1 en attaque lorsqu’il l’utilise.",
+    "type1":"passive",
+
+    "Affichage2": "Science du critique",
+    "rang2": "Capacité passive <br>Effet : critique sur 19-20. <br><br>Le guerrier inflige des critiques sur 19-20 (18-20 lorsqu’il emploie une rapière ou une Vivelame).",
+     "type2":"passive",
+
+    "Affichage3": "Spécialisation",
+    "rang3": "Capacité passive<br> Effet : +2 DM avec arme de prédilection. <br><br>Lorsque le guerrier emploie son arme de prédilection, il gagne un bonus de +2 aux DM.",
+     "type3":"passive",
+
+    "Affichage4": "Attaque parfaite (L)",
+    "rang4": "Action limitée <br>Effet : 2d20 🗡️, +1d6 DM. <br><br>Lancez deux d20 en attaque au contact et gardez le meilleur résultat, ajoutez +1d6 aux DM.",
+     "type4":"limitée",
+
+    "Affichage5": "Riposte",
+    "rang5": "Capacité passive <br>Effet : +1 attaque 🗡️ si l’adversaire rate son attaque. <br><br>En plus de ses actions normales, une fois par tour, lorsqu’un adversaire rate une attaque de contact contre le guerrier, le joueur obtient une attaque supplémentaire contre cet adversaire.",
+    "type5":"passive",
+
+    "Voie": "Voie du maître d’armes"
+}

@@ -1,0 +1,106 @@
+{
+                          "Affichage11":"Discrétion",
+
+    "ContenuCase11": "Capacité passive: Effet : [+2 x rang] DEX en mode furtif. Quand il essaie de passer inaperçu, le voleur bénéficie d'un bonus de +2 à son test de DEX pour chaque rang acquis dans cette voie.",
+                      "Affichage12":"Sprint",
+    "ContenuCase12": "Capacité passive:cEffet: déplacement gratuit de 20 mètres, 1x par combat. Une fois par combat, le voleur peut effectuer un déplacement supplémentaire gratuit de 20 mètres à n'importe quel moment du tour.",
+                      "Affichage13":"Esquive",
+"ContenuCase13": "Capacité passive Effet: [rang] DEF d'esquive , [+rang] DEX aux tests. Le voleur est très vif et bénéficie d'un bonus de +1 par rang dans cette voie à sa DEF et à tous ses tests de DEX destinés à esquiver.",
+                      "Affichage14":"Doigts agiles",
+    "ContenuCase14": "Capacité passive: Effet: +2 DEX aux tests de précision. Pour chaque Rang acquis dans cette Voie, le voleur reçoit un bonus de +2 pour tous ses tests de DEX liés à la précision : crocheter une serrure, désamorcer un piège, pickpocket...",
+                      "Affichage15":"Attaque en finesse",
+"ContenuCase15": "Capacité passive: Effet : utilise Distance au contact avec une arme légère. [mod FOR ou mod INT] DM au choix. Le voleur peut utiliser son score d'Attaque à distance pour une attaque au contact lorsqu'il utilise une arme légère comme une dague ou une Rapière. S'il le souhaite, il peut dans ce cas remplacer le Mod. de FOR aux DM par son Mod. d'INT.",
+   
+    
+    
+    
+    
+                          "Affichage21":"Attaque sournoise (L)",
+
+    "ContenuCase21": "Action limitée: Effet: +2d6 DM si attaque par surprise ou dans le dos (+ 1d6 DM / rang 4). Quand il attaque un adversaire Surpris ou dans le dos, le Voleur inflige 2d6 de DM supplémentaires (notez que les dés bonus ne sont pas multipliés en cas de critique). Les DM infligés par cette capacité augmentent de +1d6 à chaque fois que le personnage atteint le rang 4 dans une Voie du voleur.",
+                          "Affichage22":"Provocation (L)",
+"ContenuCase22": "Action limitée: Effet: force la cible à l'attaquer sur test CHA vs INT, riposte gratuite. Le voleur maîtrise l'art de serendre désagréable, voire insupportable. Par un test opposé de CHA contre l'INT de la victime, il peut forcer celle-ci à l'attaquer pendant ce tour. Le voleur peut immédiatementriposter par une attaque gratuite ou, si la cible l'a raté, par une Attaque sournoise !",
+                          "Affichage23":"Chute",
+"ContenuCase23": "Capacité passive: Effet: chutte sur 3 mètres sans dommage. Le voleur peut tomber d'une hauteur de 3 m par rang sans se faire mal (rappel : un personnage qui n'a pas cette capacité subit 1d6 points de dégâts tous les 3 m de chute).",
+                      "Affichage24":"Détecter les pièges",
+    "ContenuCase24": "Capacité passive: Effet : détecte les pièges sur tests d'INT. En réussissant un test d'INT difficulté 10, le voleur peut détecter (et ensuite contourner sans danger) les pièges (avant qu'ils se déclenchent bien entendu). Les pièges magiques demandent un test d'INT de difficulté 15.",
+                      "Affichage25":"Esquive fatale",
+"ContenuCase25": "Capacité passive: Effet : transfert une attaque subit sur un adversaire. Une fois par combat, le duelliste peut esquiver une attaque qui devait le toucher et s'arranger pour que celle-ci affecte un autre adversaire à son contact. Comparez le test d'attaque à la DEF de la nouvelle cible pour savoir si celle-ci subit des DM.",
+
+    
+    
+    
+    
+                          "Affichage31":"Ombre mouvante (L)",
+
+    "ContenuCase31": "Action limitée: Effet : disparait furtivement. En réussissant un test de DEX difficulté 10, le voleur peut disparaître dans les ombres à son tour et ne réapparaître qu'au tour suivant durant sa phase d'initiative. Aucun adversaire ne peut l'attaquer pendant qu'il a disparu dans les ombres, mais il peut subir des DM de zone. Le voleur réapparait à une distance maximum de 10 m de sa position initiale, si le voleur a l'initiative, il peut réaliser une attaque sournoise.",
+                          "Affichage32":"Grâce féline",
+"ContenuCase32": "Capacité passive Effet : [+mod CHA] Init, [+mod CHA] DEF [+mod CHA] tests de DEX de déplacement. Le voleur possède une démarche et une façon de se déplacer à la fois élégante, féline et souple. Il gagne son Mod. de CHA en Initiative, en DEF et à tous les tests de DEX en rapport avec le déplacement (escalade, saut, course, acrobaties, etc.).",
+                          "Affichage33":"Acrobaties",
+"ContenuCase33": "Capacité passive. Effet : surprend son adversaire sur test de DEX. Si le voleur réussit un test de DEX difficulté 15, il peut effectuer une acrobatie pour franchir un obstacle ou, s'il est au combat au contact, pour surprendre son adversaire par une cabriole, ce qui lui permet de l'attaquer dans le dos (et d'utiliser l'attaque sournoise).",
+                      "Affichage34":"Croc-en-jambe",
+"ContenuCase34": "Capacité passive: Effet : renverse la cible. Lorsqu'il obtient un score de 17 à 20 sur son d20 en attaque au contact, le voleur fait chuter son adversaire en plus de lui infliger des DM normaux. Un score de 19 à 20 est nécessaire pour une créature quadrupède.",
+
+
+                      "Affichage35":"Frappe chirurgicale",
+
+"ContenuCase35": "Capacité passive: Effet : critique sur [20 - mod. INT]. Par sa science de l'escrime (et de la fourberie), le voleur augmente de manière permanente ses chances de faire des coups critiques. Il retranche désormais son Mod. d'INT au score nécessaire pour obtenir un critique en attaque au contact. Par exemple, Alonzo (INT 14/+2) obtient à présent un critique sur 17 ou plus au d20 lorsqu'il emploie la rapière (19 - Mod. d'INT).",
+
+    
+    
+    
+    
+    
+                          "Affichage41":"Surprise",
+
+    "ContenuCase41": "Capacité passive: Effet : Attaque sournoise n'est plus une action limitée. Le voleur n'est jamais surpris. Il peut réaliser une Attaque sournoise en utilisant une action d'attaque plutôt qu'une action limitée contre un adversaire Surpris.",
+                      "Affichage42":"Feindre la mort",
+"ContenuCase42": "Capacité passive: Effet : feint la mort, + 1d6 PV +1 mouvement lorsque se relève. Une fois par combat, le voleur peut feindre la mort après avoir reçu une blessure (même à 0 PV). Il peut ainsi passer pour mort aussi longtemps qu'il le souhaite et un test d'INT difficulté 20 est nécessaire pour révéler la supercherie. Lorsqu'il décide de se relever, le voleur gagne + 1 d6 PV et il obtient une action de mouvemen supplémentaire en plus des actions normales autorisées à son tour.",
+                      "Affichage43":"Esquive de la magie",
+"ContenuCase43": "Capacité passive: Effet : 1/2 DM Magie subits ou annulés sur test de DEX vs Magie à chaque fois qu'un sort le prend pour cible (y compris un sort de zone ou l'affectant en plus de la personne visée), le voleur peut effectuer un test de DEX en opposition au test d'attaque magique du sort. S'il réussit,il échappe au sort. S'il échoue, tous les effets du sort (puissance, durée, etc.) sont divisés par 2. Au cas où un autre effet diviserait déjà les DM par 2, ils seront au total divisés par 4.",
+                       "Affichage44":"Attaque paralysante (L)",
+"ContenuCase44": "Action limitée: Effet : 1x par combat: paralyse la cible, elle ne peut encaisser de DM Durée : 1d4 tours. Une fois par combat, le voleur peut, en réussissant une attaque de contact, paralyser un adversaire de douleur. Ce dernier n'encaisse pas de DM, mais il ne peut plus attaquer ni se déplacer pendant 1d4 tours.",
+    
+    
+                          "Affichage45":"Ambidextrie",
+
+    "ContenuCase45": "Capacité passive: Effet: Contact gratuite supplémentaire par tour. Le voleur peut à présent utiliser une arme dans chaque main sans pénalité. Avec sa main gauche, il peut effectuer une attaque au contact gratuite supplémentaire à chaque tour. Cette deuxième attaque n'empêche pas l'utilisation d'une capacité limitée, mais elle ne peut pas en être l'origine.",
+
+    
+    
+    
+    
+                          "Affichage51":"Ouverture mortelle",
+
+    "ContenuCase51": "Capacité passive: Effet: critique automatique 1x par combat. Une fois par combat, le voleur obtient une réussite critique automatique contre la cible de son choix. Il profite donc d'une réussite automatique, des dégats multipliés par 2 révus dans ce cas, et même des do d'attaquesournoise, eux aussi multipliés. * Attaquer de dos: lorsque le voleur attaque la même créature qu'un allié, on considère qu'il peut attaquer celle-ci de dos à 2 conditions. 1. Le voleur et l'allié peuvent se placer de part et d'autre de la cible. 2. La cible n'a pas attaqué le voleur à son dernier tour (dans le cas contraire, on considère qu'elle lui fait face).",
+                          "Affichage52":"Charisme héroïque",
+"ContenuCase52": "Capacité passive: Effet: +2 CHA, 2d20 aux tests de CHA. Le voleur augmente sa valeur de CHA de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test de CHA lui est demandé et conserver le meilleur résultat.",
+                      "Affichage53":"Dextérité héroïque",
+    "ContenuCase53": "Capacité passive: Effet : +2 DEX, 2d20 aux tests de DEX. Le voleur augmente sa valeur de DEX de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test de DEX lui est demandé et conserver le meilleur résultat.",
+                      "Affichage54":"Attaque en traître",
+    "ContenuCase54": "Capacité passive: Effet: attaque gratuite sur ouverture d'un allié. Une fois par tour, lorsqu'un allié réussit à blesser une créature au contact du voleur, celui-ci peut lui porter une attaque normale gratuite en profitant de l'ouverture.",
+
+
+
+                      "Affichage55":"Botte secrète",
+
+        "ContenuCase55": "Capacité passive: Effet: Attaque sournoise sur Contact critique. Lorsque le voleur obtient un critique sur une attaque au contact, l'attaque devient automatiquement une Attaque sournoise. Les effets de la capacité d'Attaque sournoise s'appliquent en plus des effets normaux du critique.",
+        
+        
+            "Voie1":"Voie de l’assassin",
+    "Voie2":"Voie de l’aventurier",
+    "Voie3": "Voie du déplacement",
+    "Voie4":"Voie du roublard",
+    "Voie5":"Voie du spadassin"
+    
+    
+}
+
+
+
+
+
+
+
+
+

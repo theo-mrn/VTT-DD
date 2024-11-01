@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Connaissance du poison",
+    "rang1": "Capacité passive <br>Effet : Le voleur peut effectuer un test d’INT difficulté 10 pour reconnaître, identifier ou détecter un poison.<br><br> Il n’a plus besoin de test d’INT pour réussir à appliquer un poison sur une arme.",
+    "type1":"passive",
+
+    "Affichage2": "Poison rapide",
+    "rang2": "Capacité passive <br>Effet : Le voleur sait fabriquer du poison « rapide » en petite quantité.<br><br> Avant chaque combat ses armes (trois au maximum) sont enduites de ce poison. La première attaque réussie provoque 2d6 de DM supplémentaires. Si la victime réussit un test de CON difficulté [10 + rang dans la voie], elle ne subit que la moitié des DM poison. Les DM du poison rapide passent à 3d6 au rang 4 de la voie.",
+    "type2":"passive",
+
+    "Affichage3": "Poison affaiblissant",
+    "rang3": "Capacité passive <br>Effet : Le voleur peut remplacer le poison rapide par un poison affaiblissant, les effets ne sont appliqués que sur la première attaque réussie avec cette arme.<br><br> Si elle ne réussit pas un test de CON difficulté 15, la victime est Affaiblie pour le reste du combat (voir états préjudiciables).",
+    "type3":"passive",
+
+    "Affichage4": "Résistance au poison",
+    "rang4": "Capacité passive <br>Effet : À force de manipuler les poisons, le voleur a développé des immunités. <br><br>Lorsqu’il est empoisonné, faites un test de CON difficulté 10. En cas de succès, il ne subit aucun effet, s’il rate, seulement la moitié.",
+    "type4":"passive",
+
+    "Affichage5": "Poisons virulents",
+    "rang5": "Capacité passive <br>Effet : Le voleur sait fabriquer en petites quantités les poisons « lent » et « violent », il peut en utiliser [1 + Mod. d’INT] doses par jour (cumul des 2 sortes de poisons). <br><br>La difficulté de résistance à ces poisons est de [12+Mod. d’INT] du voleur.",
+    "type5":"passive",
+
+    "Voie": "Maître des poisons"
+}

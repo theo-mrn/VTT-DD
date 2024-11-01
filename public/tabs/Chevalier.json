@@ -1,0 +1,107 @@
+{
+            "Affichage11":"Armure sur mesure",
+    "ContenuCase11": "Capacité passive: Effet: 1/2 pénalité d'armure ou DEF+1. L'armure du chevalier est parfaitement ajustée, aussi il n'ajoute que la moitié de sa DEF à la difficulté des tests pour lesquels l'armure inflige une pénalité (de même pour les casques). Si vous n'utiliser pas la règle de pénalité des armures, le chevalier obtient un bonus de +1 en DEF lorsqu'il porte une armure métallique.",
+   
+           "Affichage12":"Eduqué",
+    "ContenuCase12": "Capacité passive: Effet : +rang INT, +rang CHA. Le chevalier sait lire et écrire, il gagne +1 par rang dans la voie à tous les tests d'INT et de CHA.",
+    
+            "Affichage13":"Fidèle monture",
+    "ContenuCase13": "Capacité passive: Effet : fidèle monture: FOR+4, DEX+0, CON+4, INT-2, SAG+O, CHA+0, Init 10, DEF 13, PV 15, Contact+5 (Ruade), DM 1d6+4. Le chevalier possède un puissant destrier (voir marge cicontre), c'est un cheval de guerre bien dressé quicomprend les ordres simples. Acheval, il peut ajouter un déplacement de 10 m avant ou après une action normale (par exemple faire 10 m et une action limitée). La monture n'attaque que si elle est elle-même attaquée au contact par une créature.",
+    
+            "Affichage14":"Ignorer la douleur",
+    "ContenuCase14": "Capacité passive: Effet : applique les DM en fin de combat. Une fois par combat, le chevalier peut noter à part les DM subit par une attaque. Il n'en subira les effets que lorsque le combat sera terminé.",
+    
+            "Affichage15":"Sans peur",
+     "ContenuCase15": "Capacité passive: Effet : immunisé contre la peur. Le chevalier est immunisé aux attaques de peur et il offre un bonus de [2 + Mod. de CHA] à tous ses alliés contre ce type d'effet.",
+   
+    
+    
+    
+    
+            "Affichage21":"Encaisser un coup (L)",
+    "ContenuCase21": "Action limitée: Effet : DM subits réduit de mod. de DEF, l'armure au prix d'une action. Le chevalier se place de façon à dévier un coup sur son armure. A son tour, il fait seulement une action d'attaque ou une action de mouvement. Par la suite, à tout moment avant son prochain tour, il peut retrancher aux dégâts subits suite à une attaque au contact un total égal au Mod. de DEF de son armure (plus d'éventuels bonus de magie et de bouclier).",
+  
+          "Affichage22":"Autorité naturelle",
+    "ContenuCase22": "Capacité passive: Effet: [1 + mod. CHA] Init et DEF, +5 aux tests de CHA pour intimider. Le chevalier obtient un bonus égal à [1 + Mod. de CHA] en Initiative et en DEF. De plus, il bénéficie d'un bonus de +5 aux tests de CHA réalisés pour donner des ordres ou intimider.",
+
+        "Affichage23":"Cavalier émérite",
+"ContenuCase23": "Capacité passive: Effet: +2 Conatct en selle,DEF destrier = DEF chevalier. Lorsqu'il est en selle, le chevalier gagne un bonus de +2 en attaque au contact, et sa monture obtient une DEF égale à celle du chevalier. Monter ou descendrede cheval est désormais uneaction gratuite.",
+
+        "Affichage24":"Piqures d’insecte",
+"ContenuCase24": "Capacité passive: Effet : -rang DM subits par Distance. Lorsqu'il porte une armure lourde (demiplaques ou plus), le chevalier réduit les DM subits par les attaques à distances d'un montant égal au rang atteint dans cette voie.",
+
+
+
+
+
+        "Affichage25":"Intercepter",
+    "ContenuCase25": "Capacité passive: Effet: encaisse un coup à la place d'un allié, -rang DM subit Une fois par tour, le chevalier peut encaisser un coup à la place d'un allié à ses cotés. Il utilise sa DEF plutôt que celle de la cible initiale et retranche aux DM son rang dans la voie.",
+
+    
+    
+    
+    
+            "Affichage31":"Coup de bouclier",
+    "ContenuCase31": "Capacité passive: Effet : action gratuite : attaque de bouclier Contact 1d12, [1d4 + mod. FOR] DM. Le chevalier peut effectuer à chaque tour une attaque au bouclier avec un d12 au lieu du d20 (action gratuite) qui inflige [1d4 + Mod. de FOR] DM.",
+           "Affichage32":"Ecuyer",
+    "ContenuCase32": "Capacité passive: Effet: critique sur 19-20, Ecuyer : Init 14, DEF 14, PV 13,Contact 2 + 3, DM 1d8+1. Le chevalier dispose d'un écuyer à son service (Initiative 14, Défense 14, PV 13, Att +3, DM 1d8+1). Il est absolument loyal à son maître et lui sert de serviteur, il s'occupe de sa monture et de son équipement, prépare le campement, panse. les blessures, etc. Grâce à l'écuyer, les armes du chevalier sont parfaitement affûtées et infligent des critiques sur 19 ou 20. De plus, le chevalier, sa monture et jusqu'à [1 + Mod. de CHA] alliés récupèrent 2d6 PV supplémentaires chaque nuit s'ils profitent des services de l'écuyer. Tous les frais sont pris en charge par la capacité. Si l'écuyer vient à mourir, le chevalier en prendra un autre à son service au niveau suivant.",
+
+        "Affichage33":"Monture magique",
+"ContenuCase33": "Action limitée: Effet : invoque ou renvoi la monture Le chevalier obtient une monture magique, qui peut apparaître et disparaître depuis un autre plan à volonté. Il peut l'invoquer à tout moment (c'est une action limitée) et elle apparaît alors pour semettre à son service. Lorsqu'il la laisse au moins une heure dans son plan d'origine, elle guérit l'ensemble de ses PV.",
+   
+           "Affichage34":"Laissez-le-moi !",
+     "ContenuCase34": "Capacité passive: Effet : +1d6 DM sur le leader. Le chevalier met un point d'honneur à combattre le leader ennemi. Lorsqu'il peut aisément être identifié dans un groupe d'au moins 4 créatures, le chevalier lui inflige +1d6 DM par attaque.",
+        "Affichage35":"Exemplaire",
+"ContenuCase35": "Capacité passive: Effet : relance le test d'attaque raté d'un allié. Une fois par tour, le chevalier permet à un allié qui combat le même adversaire que lui de relancer le d20 d'un test d'attaque, s'il s'agissait d'un d'échec.",
+
+    
+    
+    
+    
+    
+            "Affichage41":"Frappe lourde (L)",
+    "ContenuCase41": "Action limitée: Effet : Contact 1d12, +2d6 DM. Ignore 1/2 RD de la créature. Le chevalier effectue une attaque au contact avec 1d12 au lieu du d20 (en ajoutant normalement son score d'attaque). Si l'attaque est réussie, il ajoute +2d6 aux DM. Il ignore la moitié de la réduction des DM de la créature(RD), si elle possède cette capacité.",
+            "Affichage42":"Massacrer la piétaille",
+    "ContenuCase42": "Capacité passive: Effet: +1d6 DM contre la pietaille. Le chevalier ajoute + 1d6 aux DM contre la piétaille. S'il y a au moins 4 créatures aux statistiques semblables impliquées dans le combat, elles sont assimilées à de la piétaille (même si leur nombre est par la suite réduit à moins de 4 au cours du combat). Les grandes créatures et les cavaliers ne sont jamais considérés comme de la piétaille.",
+           "Affichage43":"Charge (L)",
+    "ContenuCase43": "Action limitée: Effet : charge sur 40 mètres, 2d20 Contact +1 d6 DM à cheval, le chevalier peut effectuer un déplacement de 40 m en ligne droite, et une attaque de contact placée au moment son choix. Il doit parcourir au moins 10 m avant d'attaquer, mais peut réaliser le reste du déplacement à sa guise. Le joueur lance deux d20 à son test d'attaque et garde le meilleur résultat, tout en ajoutant + 1d6 aux DM. Une créature située sur la trajectoire de la charge doit réussir un test de FOR difficulté 18 ou être contrainte de céder le passage en subissant 1d6 DM. Si elle réussit ce test, la Charge est bloquée et le tour du chevalier se termine.",
+          "Affichage44":"Seul contre tous (L)",
+    "ContenuCase44": "Action limitée: Effet : contre attaque immédiate. Le chevalier sait faire face à de nombreux adversaires, en tentant de profiter d'une éventuelle faille dans leur garde. Chaque fois qu'un des adversaires l'attaque, il bénéficie d'une action d'attaque immédiate contre celui-ci (valablemême si la créature l'attaque plusieurs fois).",
+    
+            "Affichage45":"Ordre de bataille",
+    
+    "ContenuCase45": "Capacité passive: Effet : un allié gagne une action gratuite (mouvement ou attaque). Le chevalier donne des ordres tactiques pertinents au coeur de la bataille. Une fois par tour, il octroie une action supplémentaire gratuite à un allié en vue (une action de mouvement ou une action d'attaque, mais pasune action limitée).",
+
+    
+    
+    
+    
+            "Affichage51":"Force héroïque",
+    "ContenuCase51": "Capacité passive: Effet : +2 FOR, 2d20 aux tests de FOR. Le chevalier augmente sa valeur de FOR de +2. Il peut désormais lancer deux d20 à chaque fois qu'un test de FOR lui est demandé et conserver le meilleur résultat.",
+          "Affichage52":"Formation d’élite",
+    "ContenuCase52": "Capacité passive: Effet: choisit une capacité de rang 1 à 3 des familles de combattants ou voyageurs. Le chevalier possède les moyens et la culture nécessaire pour obtenir une formation dans n'importe quel domaine qui lui sied. Choisissez une capacité de rang 1 à 3 dans n'importe quel profil issu de la famille (voir page 82, Voies de prestige) des combattants ou des voyageurs.",
+         "Affichage53":"Monture fantastique",
+    "ContenuCase53": "Capacité passive: Effet : Pégase : Init 15, DEF 16,PV [5* niveau], Contact+8, DM 1d6+4. Le chevalier obtient une monture volante (pégase, griffon, hippogriffe, drake, etc.). Init 15, DEF 16, PV [5 x niveau], Att +8, DM 1d6+4. Lorsqu'il est en selle, le chevalier peut faire attaquer sa monture une fois par tour (action gratuite), à la même Initiative que lui, avec un score d'attaque égal à son niveau +3. En vol, la monture couvre une distance de 30 m par action de mouvement. Les capacités de la Monture magique s'appliquent également.",
+        "Affichage54":"Charisme héroïque",
+"ContenuCase54": "Capacité passive: Effet: +2 CHA, 2d20 sur tests de CHA. Le chevalier augmente sa valeur de CHA de +2. Il peut désormais lancer deux d20 à chaque fois qu'un test de CHA lui est demandé et conserver le meilleur résultat.",
+
+
+
+        "Affichage55":"Charge fantastique (L)",
+        "ContenuCase55": "Action limitée: Effet: +3 Contact,Disatnce,Magie, +1d6 DM à tous le groupe. Une fois par combat, à l'initiative du chevalier, lui-même et tous ses alliés en vue bénéficient immédiatement d'un déplacement d'un maximum de 20 m en ligne droite, suivi d'une action d'attaque avec un bonus de +3 au testde réussite et +1d6 aux dégâts. Résolvez d'abord tous les déplacements en commençant par le chevalier, puis par ordre d'initiative. Ensuite effectuez xtoutes les attaques dans le même ordre.",
+        
+          "Voie1":"Voie de la guerre",
+    "Voie2":"Voie de la noblesse",
+    "Voie3": "Voie du cavalier",
+    "Voie4":"Voie du héros",
+    "Voie5":"Voie du meneur d’homme"
+}
+
+
+
+
+
+
+
+
+

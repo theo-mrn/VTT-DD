@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Mains d'énergie (L)",
+    "rang1": "Action limitée <br>Effet : +2 contact, +5 si la cible porte une armure.<br><br> Par un effort de concentration, le moine peut rendre ses mains intangibles, à ce titre, il peut faire une attaque simple avec un bonus de +2 en attaque, +5 si la cible porte une armure. De plus, toutes les attaques à mains nues du moine sont considérées comme magiques (même lorsqu’il n’utilise pas Mains d’énergie).",
+    "type1":"limitée",
+
+    "Affichage2": "Pression mortelle (L)",
+    "rang2": "Action limitée <br>Effet : libère les DM accumulés +1d6 DM. <br><br>Le moine frappe les points par lesquels circule l’énergie vitale d’une créature vivante. En touchant un point précis, il libère ensuite des effets dévastateurs. Lorsqu’il combat à mains nues, le joueur peut choisir de ne pas infliger immédiatement les DM de ses attaques. À tout moment dans l’heure qui suit, il peut annoncer une « Pression Mortelle ». Il doit alors réussir un test d’attaque contre la cible, ce qui libère instantanément la totalité des DM infligés jusqu’alors +1d6 DM supplémentaires.",
+  "type2":"limitée",
+
+    "Affichage3": "Invulnérable",
+    "rang3": "Capacité passive <br>Effet : subit 1/2 DM élémentaires, immunisé contre poison et maladie. <br><br>Le Moine ne reçoit que la moitié des DM de toutes les sources « élémentaires » : feu, froid, foudre, acide… Il ne subit aucun DM des poisons ou des maladies.",
+  "type3":"passive",
+
+    "Affichage4": "Projection du ki (L)",
+    "rang4": "Action limitée<br> Effet : [2d6 + mod. SAG] DM.<br><br> Le moine projette une vague de force avec son corps et son esprit à une distance maximum de 20 mètres. Un test d’attaque magique réussi (Mod. de SAG) lui permet d’infliger [2d6 + Mod. de SAG] de DM.",
+  "type4":"limitée",
+
+    "Affichage5": "Ascétisme",
+    "rang5": "Capacité passive <br>Effet : 2d20 aux tests de CON. <br><br>Le moine peut subsister sans nourriture, sans eau et sans sommeil pendant [5 + Mod. SAG] jours. Il ne subit aucune pénalité durant cette période. De plus, il peut désormais lancer deux d20 à chaque fois qu’un test de CON lui est demandé et conserver le meilleur résultat.",
+  "type5":"passive",
+
+    "Voie": "Voie de l'énergie vitale"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Nuées de Criquets (L)",
+    "rang1": "Action limitée, sortilège <br>Effet : Cette capacité remplace la capacité «Nuée d’insectes».  <br> <br>En réussissant un test d’attaque magique (portée 20 m), le druide libère sur sa cible une nuée de criquets affamés qui la dévorent à petit feu pendant [5 + Mod de SAG] tours. La victime subit 2 points de DM par tour et un malus de -3 à toutes ses actions. Les DM de zone détruisent la nuée.",
+    "type1":"limitée",
+
+    "Affichage2": "Compagnon Vermine",
+    "rang2": "Capacité passive  <br>Effet : Le druide adopte un scorpion ou une araignée (au choix du joueur). <br> <br> Scorpion géant : INIT 12, DEF 16, PV [4x niveau du druide], Attaque au contact = [Niveau du druide +3], DM 1d6+3 [poison 2d6 DM, Test CON 13 = DM / 2], FOR +3, DEX +1, CON +2, INT -3, SAG +3, CHA -3. Araignée géante : INIT 13, DEF 15, PV [4x niveau du druide], Attaque au contact = [Niveau du druide +3], DM 1d6+1 [poison 3d6 DM, Test CON 13 = DM / 2], FOR +1, DEX +3, CON +2, INT -3, SAG +4, CHA -3.",
+    "type2":"passive",
+
+    "Affichage3": "Affinité au poison",
+    "rang3": "Capacité passive  <br>Effet : Après des années passées en compagnie des êtres qui rampent ou qui piquent, le druide a développé une aptitude à maîtriser le poison de ces derniers. <br> <br> S’il utilise une arme tranchante, comme une dague ou un sabre, il peut enduire de poison. Pour chaque attaque au contact réussie, le druide inflige 1d6 DM supplémentaires au début de chaque tour de la cible affectée. À chaque fois que la créature souffre du poison, elle peut faire un test de CON difficulté [10 + Mod de SAG du druide] pour stopper les effets du poison, tant que le test n’est pas réussi l’effet continue au tour suivant. L’enduit de poison n’est pas cumulable. En plus des effets décrits ci-dessus, le druide gagne désormais un bonus de +3 à tous les tests de CON destinés à résister au poison.",
+    "type3":"passive",
+
+    "Affichage4": "Vermine supérieure",
+    "rang4": "Capacité passive  <br>Effet : Le compagnon vermine du druide gagne une des capacités suivantes, au choix de la nature (tertre écopique) : le scorpion peut désormais tenter d’attraper une créature entre ses pinces, sur un test de FOR difficulté 12. <br> <br> Lorsqu’il réussit ce test, la victime ne peut plus bouger et subit un malus de -2 à ses actions de résistance.  <br>Au début de son tour, la victime doit faire un test de FOR ou de DEX difficulté 12 pour tenter de se libérer. <br> L’araignée géante, quant à elle, développe la capacité de lancer une toile sur une cible.  <br>Cette toile mesure 10 mètres de large et immobilise la victime lorsqu’elle touche (test de DEX difficulté 12 pour l’éviter). <br> La victime immobilisée par la toile doit réussir un test de FOR difficulté 15 pour s’en libérer, et en attendant elle subit un malus de -4 à toutes ses actions.  <br>Si la victime ne se libère pas au bout de 3 tours, elle est complètement immobilisée (pas de mouvement possible) et doit réussir un test de FOR difficulté 18 pour se libérer. Sinon, elle reste immobile.",
+    "type4":"passive",
+
+    "Affichage5": "Maître vermine",
+    "rang5": "Capacité passive  <br>Effet : Le druide obtient le titre de « Maître Vermine ». <br> <br> Il peut désormais communiquer avec les vermines de tout genre et celles-ci le considèrent plutôt comme une créature amicale, sauf si elles sont sous l’emprise d’un autre druide plus puissant ou sont corrompues par la magie.  <br> <br>En plus de cette capacité de communication, le druide peut désormais commander son compagnon animal.  <br>La vermine gagne +2 aux jets de sauvegarde (défensifs et aux attaques) et le druide peut désormais lancer Vermine supérieure comme une action limitée ou action d’attaque.",
+    "type5":"passive",
+
+    "Voie": "Voie des vermines"
+}

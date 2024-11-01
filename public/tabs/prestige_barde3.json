@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Imitateur",
+    "rang1": "apacité passive <br>Effet : Cette capacité permet au barde d’imiter parfaitement la voix d’une créature qu’il a précédemment entendue. <br>Il peut également imiter différents cris d’animaux.",
+    "type1":"passive",
+
+    "Affichage2": "Ventriloquie (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : Le barde peut projeter sa voix et la faire surgir d’un point de son choix situé à moins de 20 mètres de lui pour une durée de [1d6 + Mod. de CHA] tours.",
+    "type2":"limitée",
+
+    "Affichage3": "Hourras",
+    "rang3": "Capacité passive <br>Effet : Le barde peut utiliser cette capacité une fois par tour lorsqu’un événement positif pour lui et ses alliés se produit. <br><br>Tous les alliés à portée de voix profitent alors d’un bonus de +3 pour leur prochaine action similaire. Si le groupe doit par exemple franchir une crevasse, lorsqu’un premier personnage a réussi, le barde encourage ses alliés par ses hourras et ils obtiennent un bonus de +3 à son test. En combat, pour chaque ennemi neutralisé, le barde peut utiliser cette capacité et donner un bonus de +3 (non-cumulable) au prochain test d’attaque de chacun de ses alliés.",
+    "type3":"passive",
+
+    "Affichage4": "Chant des sirènes (L)",
+    "rang4": "Action limitée, sortilège<br> Effet : Le barde entonne un chant en adoptant une voix si merveilleuse qu’il parvient à fasciner toutes les créatures humanoïdes à portée d’ouïe (environ 10 mètres de rayon).<br><br> Tant que le barde chante, elles cessent immédiatement toute activité et restent immobiles et vulnérables à moins de réussir un test de SAG difficulté [10 + Mod. de CHA du barde] à chaque tour. Les créatures affectées reçoivent une pénalité de 1 en DEF et subissent automatiquement des DM critiques (multipliés par 2) en cas d’attaque. Se boucher les oreilles apporte un nouveau jet de test de SAG mais limite les attaques aux seuls cas de mouvement si l’ennemi sans mains pour le faire.",
+    "type4":"limitée",
+
+    "Affichage5": "Cri de la banshee (L)",
+    "rang5": "Action limitée, sortilège <br>Effet : Toutes les créatures vivantes dans un rayon de 30 mètres autour du barde doivent réussir un test de CON difficulté [10 + Mod. de CHA] ou subir 6d6 DM. <br><br>Les alliés du barde ont un bonus de +5 à ce test (s’ils en sont prévenus et que ceux-ci sont prévenus et peuvent se boucher les oreilles). Les cheveux du barde blanchissent pour une durée de 24 heures après avoir poussé le cri de la banshee, il ne peut pas pousser à nouveau le cri mortel tant que ses cheveux n’ont pas repris leur teinte normale.",
+    "type5":"limitée",
+
+    "Voie": "Voie des voix"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Parole divine",
+    "rang1": "Capacité passive <br>Effet : +2 aux tests de CHA Pour chaque rang dans cette Voie, <br><br>le prêtre obtient un bonus de +2 aux tests de CHA visant à convaincre ou convertir son auditoire.",
+    "type1":"passive",
+    
+    "Affichage2": "Arme d’argent (L)",
+    "rang2": "Action limitée, sortilège<br> Effet: arme d'argent, [1d6 + mod. SAG) DM démons et les mort-vivants : +2 Contact, + 1d6 DM<br><br> Ce miracle crée pour la durée du combat une arme d'argent et de lumière que seul le Prêtre peut utiliser. Cette arme inflige [1d6 + Mod. de SAG] de DM. Contre les démons et les mort-vivants, elle offre un bonus de +2 en attaque et ajoute +1d6 aux DM.",
+    "type2":"limitée",
+    
+    "Affichage3": "Ailes célestes (L)",
+    "rang3": "Action limitée, sortilège <br>Effet : voler <br>Durée : [5 + mod. SAG] tours<br><br> Des ailes divines poussent dans le dos du prêtre, qui peut voler à une vitesse équivalente à deux fois son déplacement normal pendant [5 + Mod. de SAG] tours. Rester en vol stationnaire avec les ailes céleste est une action de mouvement.",
+    "type3":"limitée",
+   
+    "Affichage4": "Foudres divines (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : [1d6 + mod. SAG] DM sur 10 mètres <br><br>La foudre frappe toutes les créatures désignées dans un rayon de 10 mètres autour du prêtre et leur inflige [1d6 + Mod. de SAGI de DM. Le prêtre compare son test d'attaque magique à la DEF de chaque cible.",
+    "type4":"limitée",
+    
+    "Affichage5": "Charisme héroïque",
+    "rang5": "Capacité passive <br>Effet : +2 CHA, 2d20 aux tests de CHA <br><br>Le prêtre augmente sa valeur de CHA de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test de CHA lui est demandé et conserver le meilleur résultat.",
+    "type5":"passive",
+
+    "Voie": "Voie de la foi"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Posture de combat",
+    "rang1": "Capacité passive <br>Effet : malus en début de tour convertis en bonus jusqu’au tour suivant.  <br> <br>Au début de votre tour, choisissez d’appliquer jusqu’à -1 par rang en attaque, en DEF ou aux DM et obtenez l’équivalent en bonus au choix en attaque, en DEF ou aux DM jusqu’à votre prochain tour.",
+    "type1":"passive",
+
+    "Affichage2": "Combat en phalange",
+    "rang2": "Capacité passive  <br>Effet : +1 🗡️🛡️ par allié au contact avec vous.  <br> <br>Lorsque vous combattez la même créature qu’un allié, vous gagnez +1 en attaque et en DEF par allié au contact avec vous et avec la créature.",
+     "type2":"passive",
+
+    "Affichage3": "Prouesse",
+    "rang3": "Capacité passive  <br>Effet : sacrifie -1d4 PV contre +5 FOR ou +5 DEX.  <br> <br>Le guerrier réussit souvent des exploits physiques hors-norme. Une fois par tour, vous pouvez sacrifier 1d4 PV pour obtenir +5 sur un test de FOR ou de DEX. Vous pouvez annoncer l’utilisation de cette capacité après avoir pris connaissance du résultat du test de caractéristique.",
+     "type3":"passive",
+
+    "Affichage4": "Dernier rempart (L)",
+    "rang4": "Action limitée  <br>Effet : +1 attaque 🗡️ contre tout attaquant si aucun déplacement.  <br> <br>Le guerrier effectue uniquement une attaque au contact durant ce tour. En contrepartie, il bénéficie d’une attaque supplémentaire contre tout ennemi qui se déplace à son contact. Un adversaire blessé par cette attaque voit son déplacement stoppé.",
+     "type4":"limitée",
+
+    "Affichage5": "Force héroïque",
+    "rang5": "Capacité passive  <br>Effet : +2 FOR, 2d20 aux tests de FOR. <br> <br> Le guerrier augmente sa valeur de Force de +2 et il peut désormais lancer deux d20 à chaque fois qu’un test de FOR lui est demandé et conserver le meilleur résultat.",
+    "type5":"passive",
+
+    "Voie": "Voie du soldat"
+}

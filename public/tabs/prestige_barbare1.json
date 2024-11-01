@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Ni chaud ni froid",
+    "rang1": "Capacité passive <br>Effet : Le personnage est habitué aux températures froides, il obtient un bonus de +5 à tous les tests de survie en milieu froid et aux tests pour résister au froid.<br><br> Il peut supporter des températures de 0°C en étant habillé d’un simple pagne et il retranche 5 points à tous les DM de froid subits (RD 5).",
+    "type1":"passive",
+
+    "Affichage2": "Déplacement en milieu hostile",
+    "rang2": "Capacité passive <br>Effet : Le barbare augmente tout ses déplacements en milieu naturel de 10 mètres par action de mouvement. <br><br>Il n’est pas ralenti par la neige ou la glace et il gagne un bonus de +5 aux tests d’escalade.",
+    "type2":"passive",
+
+    "Affichage3": "Tueur de géants",
+    "rang3": "Capacité passive<br> Effet : Le personnage est habitué à combattre les géants et les créatures de grandes tailles qui peuplent les montagnes et les régions froides.<br><br>Il obtient un bonus de +1d6 aux DM contre les créatures de taille Enorme et +2d6 aux DM contre celles de taille Colossale.",
+    "type3":"passive",
+
+    "Affichage4": "Rage froide",
+    "rang4": "Capacité passive <br>Effet : Le barbare est capable de garder toute sa lucidité alors qu’il entre en rage (Voie de la rage).<br><br> Il ne subit aucune pénalité de DEF et peut utiliser les armes de jet. Il ne peut toutefois pas utiliser d’arme de trait (arc, arbalète), ni tenter de négocier dans cet état.",
+    "type4":"passive",
+
+    "Affichage5": "Assaut final",
+    "rang5": "Capacité passive<br>Effet : Lorsqu’il est sous les effets de la rage depuis au moins 3 tours, le joueur peut choisir de doubler les DM* d’une attaque, cela met immédiatement fin à la rage.<br><br> Le personnage ne peut pas à nouveau entrer en rage lors du même combat.",
+    "type5":"passive",
+
+    "Voie": "Voie des glaces"
+}

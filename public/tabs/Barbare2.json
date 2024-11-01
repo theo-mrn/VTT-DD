@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Cri de guerre (L)",
+    "rang1": "Action limitée <br>Effet : effraie les adversaires, -2 contact sur le barbare.<br><br> Une fois par combat, le barbare pousse un hurlement qui effraie ses adversaires. Tout ennemi dont la FOR et les PV maximum sont inférieurs à ceux du barbare subit un malus de -2 à ses tests d'attaque au contact contre le personnage pour le reste du combat. Cette capacité ne nécessite plus d'action de mouvement à partir du rang 4.",
+    "type1":"limitée",
+
+    "Affichage2": "Défier la mort",
+    "rang2": "Capacité passive <br>Effet : survit à la mort sur test de CON avec 1 PV.<br><br> Lorsque le barbare subit des DM d'une attaque qui devrait l'amener à 0 PV, il peut réaliser un test de CON difficulté 10. En cas de réussite, il conserve 1 PV. La difficulté augmente de 10 à chaque blessure supplémentaire reçue par la suite. S'il est enragé, il obtient un bonus de +10 à ces tests.",
+    "type2":"passivz",
+
+    "Affichage3": "Rage du berserk (L)",
+    "rang3": "Action limitée <br>Effet : +2 contact, +1d6 DM, -4 Contact.<br>Dure : tant qu'il reste des ennemis. <br><br>Le barbare entre dans une rage berserk pour le reste du combat, ce qui le rend particulièrement dangereux. Il obtient un bonus de +2 en attaque et +1d6 aux DM pour ses attaques au contact, mais perd 4 en DEF et ne peut plus utiliser de sort ou de bouclier.",
+    "type3":"limitée",
+
+    "Affichage4": "Même pas mal",
+    "rang4": "Capacité passive<br> Effet : +1d6 DM et rage ou furie gratuite. <br>Dure : 3 prochains tours.<br><br> Lorsqu'il subit un coup critique, cela a pour effet de décupler la rage du barbare. Il peut immédiatement entrer en Rage ou en Furie (action gratuite), et gagne un bonus de +1d6 aux DM pour ses attaques au contact pour les 3 prochains tours. Le joueur peut choisir de reporter l'attaque critique sur le barbare à la fin de la rage ou de la furie.",
+    "type4":"passive",
+
+    "Affichage5": "Furie du berserk (L)",
+    "rang5": "Action limitée <br> Effet : +3 contact, +2d6 DM, -6 DEF. <br>Dure : 3 prochains tours.<br><br> Au lieu de la Rage du berserk, le barbare peut entrer s'il le souhaite en Furie du berserk, qui lui donne +3 en attaque et +2d6 aux DM pour une pénalité de DEF de -6. La difficulté du test de SAG pour sortir prématurément de cet état passe à 16.",
+    "type5":"limitée",
+
+    "Voie": "Voie de la rage"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Verglas (L)",
+    "rang1": "Action limitée, sortilège <br>Effet : Un verglas glissant recouvre le sol sur une surface de 10m de diamètre pour le reste du combat (vous pouvez stopper le sort plus tôt).<br><br>Dans cette zone les personnages doivent à chaque tour faire un test de Dextérité de difficulté 10, s’y déplacer ou combattre est aussi difficile (test de difficulté 15). Un échec signifie que la créature est au sol, se relever nécessite un nouveau test de Dextérité 15 et prend un tour. Ramper en dehors de la zone demande un tour complet.",
+    "type1":"limitée",
+
+    "Affichage2": "Fils des Glaces (L)",
+    "rang2": "Action limitée <br>Effet : Vous divisez par 2 tous les DM de Froid subis par le personnage pour le reste du combat (10 tours hors combat).",
+    "type2":"limitée",
+
+    "Affichage3": "Cône de Froid (L)",
+    "rang3": "Action limitée, sortilège<br> Effet : Le sort affecte toutes les créatures dans un cône approximatif de 20 mètres de long sur 10 mètres de large à son extrémité. <br><br>Les victimes subissent [2d6+Mod d'INT] DM et sont Ralenties pour 1 tour si elles ratent un test de CON difficulté 13. Sinon, elles subissent seulement la moitié des DM et ne sont pas ralenties.",
+    "type3":"limitée",
+
+    "Affichage4": "Présence Glaciale (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : L’ensorceleur transforme son corps en glace vivante, il gagne +4 en DEF, et est immunisé au froid et divise les DM de feu par 2. <br><br>Les créatures qui le touchent ou l'attaquent avec des armes métalliques subissent 1d6 DM. Lorsqu'il marche, le sol se gèle et il peut se déplacer sur l'eau en la transformant en glace. Le sort a une durée de [1d6 + Mod. d'INT] minutes.",
+    "type4":"limitée",
+
+    "Affichage5": "Cryogénisation (L)",
+    "rang5": "Action limitée, sortilège <br>Effet : L’ensorceleur peut utiliser cette capacité sur lui-même ou sur toute créature volontaire ou inconsciente de taille moyenne ou inférieure. <br><br>La créature est congelée et son métabolisme stoppé. Elle ne vieillit plus et n’a besoin ni de manger ni de boire. Le sort peut être maintenu pour cesser après une durée fixe ou si la créature est touchée par un autre effet magique de taille petite ou plus. La durée maximum est fixée à 1 an par niveau du personnage mais certains rituels et composants légendaires permettent d’augmenter considérablement cette période.",
+    "type5":"limitée",
+
+    "Voie": "Voie du gel"
+}

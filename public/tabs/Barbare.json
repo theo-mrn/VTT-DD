@@ -1,0 +1,99 @@
+{
+            "Affichage11":"Argument de taille",
+    "ContenuCase11": "Capacité passive<br> Effet: [+ mod. FOR] PV max et aux tests de CHA pour intimidation et persuasion.<br> Le barbare ajoute son Mod. de FOR à son score de PV maximum ainsi qu'à ses tests de CHA et à ceux de ses alliés au contact pour les tests de négociation, de persuasion ou d'intimidation. Allez savoir pourquoi, sa simple présence donne de la force aux arguments de ses alliés...",
+    
+                "Affichage12":"Cri de guerre (L)",
+
+    "ContenuCase12": "Action limitée Effet: effraie les adversaires, -2 contact sur le barbare Une fois par combat, le barbare pousse un hurlement qui effraie ses adversaires. Tout ennemi dont la FOR et les PV maximum sont inférieurs à ceux du barbare subit un malus de -2 à ses tests d'attaque au contact contre le personnagepour le reste du combat. Cette capacité ne nécessite plus qu'une action de mouvement à partir du rang 4.",
+    
+                "Affichage13":"Vigueur",
+    "ContenuCase13": "Capacité passive Effet: +2 par rang aux tests de course, saut, escalade  Le barbare est un athlète capable de prouesses physiques extraordinaires, il obtient un bonus de +2 par Rang dans la voie aux tests de course, de saut ou d'escalade.",
+                "Affichage14":"Réflexes félins",
+    "ContenuCase14": "Effet : +1 par rang aux tests de DEX d'esquive Le barbare obtient un bonus de +1 par Rang dans cette voie à son score d'initiative et à tous les tests de DEX destinés à esquiver (boule de feu, souffle, pièges, etc.).",
+                "Affichage15":"Ignorer la douleur",
+     "ContenuCase15": "Capacité passive Effet : applique les DM en fin de combat Une fois par combat, le chevalier peut noter à part les DM subit par une attaque. Il n'en subira les effets que lorsque le combat sera terminé.",
+    
+    
+    
+    
+    
+                "Affichage21":"Tour de force",
+    "ContenuCase21": "Capacité passive Effet : +10 aux tests de FOR, -1d4 PV Le barbare peut temporairement décupler ses ressources physiques pour faire usage d'une force prodigieuse. Il peut ainsi soulever une charge incroyable, briser une épée, tordre des barreaux ou défoncer une porte d'un seul coup de poing. Il obtient un bonus de +10 à son test de FOR, mais cela lui coûte 1d4 PV.",
+                "Affichage22":"Défier la mort",
+    "ContenuCase22": "Capacité passive Effet : survie à la mort sur test de CON avec 1 PV  Lorsque le barbare subit des DM d'une attaque qui devrait l'amener à 0 PV, il peut réaliser un test de CON difficulté 10. En cas de réussite, il conserve 1 PV. La difficulté augmente de 10 à chaque blessure supplémentaire reçue par la suite. S'il est enragé il obtient un bonus de +10 à ces tests.",
+                    "Affichage23":"Peau de pierre",
+    "ContenuCase23": "Capacité passive Effet : + mod. CON en defense Le barbare est particulièrement endurci, il reçoit un bonus de DEF égal à son Mod. de CON.",
+                    "Affichage24":"Charge (L)",
+    "ContenuCase24": "Action limitée Effet : +2 contact, + 1d6 DM Le barbare se déplace en ligne droite d'au moins 5 mètres (20 mètres au maximum) et effectue une attaque au contact avec un bonus de +2 en attaque et + 1d6 DM.",
+                    "Affichage25":"Piqures d’insecte",
+    "ContenuCase25": "Effet : -rang DM subits par distance Lorsqu'il porte une armure lourde (demiplaques ou plus), le chevalier réduit les DM subits par les attaques à distances d'un montant égal au rang atteint dans cette voie.",
+    
+    
+    
+                    "Affichage31":"Attaque brutale",
+    "ContenuCase31": "Action limitée Effet: -2 contact, + 1d6 DM, -5 contact, +2d6 DM Le barbare réalise une attaque au contact avec une pénalité de -2 en attaque et + 1d6 au DM. Au Rang 5 de la voie, il peut choisir une pénalité de -5 pour obtenir +2d6 aux DM.",
+                   "Affichage32":"Rage du berserk (L)",
+    "ContenuCase32": "Action limitée Effet: +2 contact, +1d6 DM, -4 defense Durée : tant qu'il reste des ennemies  Le barbare entre dans une rage berserk pour le reste du combat, ce qui le rend particulièrement dangereux. lI obtient un bonus de +2 en attaque et +1d6 aux DM sur toutes ses attaques au contact, mais perd 4 en  DEF et ne peut fuir ou attaquer à distance. S'il veut stopper la rage avant d'avoir éliminé tous les ennemis sur le terrain, le barbare doit réussir un test de SAG difficulté 13 (un seul essai par tour).",
+                    "Affichage33":"Tatouages",
+    "ContenuCase33": "Capacité passive Effet: +5 au choix : FOR, CON, DEX ou SAG Le barbare possède un tatouage magique qui améliore ses performances physiques. Au choix: taureau (+5 aux tests de FOR), ours (+5 aux tests de CON), panthère (+5 aux tests de DEX) ou chouette (+5 aux tests de SAG).",
+                    "Affichage34":"Enchaînement",
+    "ContenuCase34": "Capacité passive Effet: attaque gratuite sur mort de la cible Chaque fois que le barbare réduit un adversaire à 0 PV avec une attaque de contact, il bénéficie d'une action d'attaque gratuite sur un autre adversaire au contact.",
+                    "Affichage35":"Laissez-le-moi !",
+    "ContenuCase35": "Capacité passive Effet : +1d6 DM sur le leader Le chevalier met un point d'honneur à combattre le leader ennemi. Lorsqu'il peut aisément être identifié dans un groupe d'au moins 4 créatures, le chevalier lui inflige +1d6 DM par attaque.",
+    
+    
+    
+                    "Affichage41":"Briseur d’os",
+    "ContenuCase41": "Capacité passive Effet: contact critique sur 19 ou 20, inflige à la victime -2 FOR, -2 DEX, -2 (contact,magie,distance) Les coups critiques du barbare sont terribles et provoquent des handicaps durables. Le barbare obtient un critique sur 19 et 20 au résultat du d20 en attaque au contact. Lorsqu'il obtient un critique, en plus des DM doublés, il inflige une pénalité de -2 à tous les tests d'attaque, de FOR et de DEX de sa victime. Cette pénalité affecte la cible jusqu'à ce qu'elle soit complètement guérie.",
+                    "Affichage42":"Même pas mal",
+    "ContenuCase42": "Capacité passive Effet : +1d6 DM et rage ou furie gratuite Durée : 3 prochains tours  Lorsqu'il subit un coup critique, cela a pour effet de décupler la rage du barbare. Il peut immédiatement entrer en Rage ou en Furie (action gratuite), et gagne un bonus de +1d6 aux DM de ses attaques au contact pour les 3 prochains tours. Le joueur note les DM supplémentaires de l'attaque critique à part : le barbare ne perdra ces PV qu'à la fin de la rage.",
+                    "Affichage43":"Peau d’acier",
+    "ContenuCase43": "Effet : -3 DM reçus Le barbare ne sent plus la douleur et ignore les égratignures, il réduit tous les DM subits de 3 points. Il subit toujours au moins 1 point de DM de chaque attaque reçue.",
+                    "Affichage44":"Déchaînement d’acier (L)",
+    "ContenuCase44": "Effet : contact toutes cibles sur 10 mètres en ligne droite Le barbare parcourt 10 mètres en ligne droite en dépassant autant d'ennemis qu'il le souhaite. Il porte une attaque à chaque adversaire sur son passage. Il ne peut terminer son déplacement à un endroit occupé par un ennemi.",
+    
+    
+    
+                    "Affichage45":"Seul contre tous (L)",
+    "ContenuCase45": "Action limitée Effet: contre attaque immédiate Le chevalier sait faire face à de nombreux adversaires, en tentant de profiter d'une éventuelle faille dans leur garde. Chaque fois qu'un des adversaires l'attaque, il bénéficie d'une action d'attaque immédiate contre celui-ci (valable même si la créature l'attaque plusieurs fois).",
+ 
+    
+    
+    
+    
+                    "Affichage51":"Force héroïque",
+    "ContenuCase51": "Capacité passive Effet : +2 FOR, 2d20 au test de FOR Le barbare augmente sa valeur de FOR de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test de FOR lui est demandé et garder le meilleur résultat.",
+                   "Affichage52":"Furie du berserk (L)",
+    "ContenuCase52": "Action limitée Effet : +3 contact, +2d6 DM, -6 defense Durée : 3 prochaines tours  Au lieu de la Rage du berserk, le barbare peut entrer s'il le souhaite en Furie du berserk, qui lui donne +3 en attaque et +2d6 aux DM pour une pénalité en DEF de -6. La difficulé du test de SAG pour sortir prématurément de cet état passe à 16.l",
+                    "Affichage53":"Constitution héroïque",
+    "ContenuCase53": "Capacité passive Effet: +2 CON, 2d20 aux test de CON L'arbalétrier augmente son score de CON de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test de CON lui est demandé et conserver le meilleur résultat.",
+                    "Affichage54":"Attaque tourbillon (L)",
+    "ContenuCase54": "Effet: contact  de zone sur 5 mètres autour du barbare Une fois par combat, le barbare tourne sur lui-même en assénant des attaques à toutes les cibles au contact. Il inflige automatiquement des DM correspon-dant à l'arme utilisée (plus tous les bonus habituels) à toutes les cibles dans un rayon de 5 m autour de lui.",
+                   "Affichage55":"Charisme héroïque",
+    "ContenuCase55": "Capacité passiveEffet : +2 CHA, 2d20 sur test de CHALe barde augmente sa valeur de CHA de +2. Il peut de plus lancer deux d20 à chaque fois qu'un test de CHA lui est demandé et conserver le meilleur résultat.",
+    
+    
+    
+    
+    "Voie1":"Voie de la brute",
+    "Voie2":"Voie de la rage",
+    "Voie3": "Voie du pagne",
+    "Voie4":"Voie du pourfendeur",
+    "Voie5":"Voie du héros"
+    
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

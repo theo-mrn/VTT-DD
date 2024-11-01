@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Invocation d'une entité (L)",
+    "rang1": "Action limitée sortilège <br>Effet : entité : répartir 4 pts entre FOR et DEX, 2 pts entre INT, SAG et CHA (mini +0), +2 CON, Défense [12 + DEX], Contact [niveau de l'invocateur (+ FOR ou DEX de l'entité)], [1d6 + FOR] DM, [niveau invocateur x 5] PV.<br><br>L'invocateur appelle une créature d'un autre plan qui entre alors à son service. Personne d'autre que l'invocateur ne peut renvoyer l'entité sur son plan d'origine. Lors que l'entité est réduite à 0 PV, elle disparait immédiatement. Dans ce cas, ou si l'invocateur la renvoie (par une action de mouvement), l'invocateur devra attendre 12 heures avant de pouvoir la convoquer de nouveau. L'entité revient en jeu avec ses PV au maximum et débarrassée de tout effet préjudiciable dont elle pouvait être victime au moment de sa disparition. En dehors de son plan, l'entité ne guérit pas naturellement, mais elle peut bénéficier de sorts de soins. L'entité est totalement dévouée à son invocateur, elle agit au mieux pour respecter les ordres qui lui sont donnés, en fonction de son Mod. d'INT. Elle parle la langue de l'invocateur. L'apparence physique de l'entité est déterminée lors de sa première invocation (un animal, une créature fantastique ou une créature humanoïde), mais elle doit s'inspirer des Mod. de Carac. choisis par le joueur. Elle ne peut pas imiter précisément l'apparence d'un personnage ou d'une créature en particulier. Une fois que le joueur a déterminé son apparence, la créature la conserve pour toujours. L'entité arbore quelque part sur son corps une rune lumineuse qui la maintient sur le plan de l'invocateur. Créer son entité: Le joueur doit répartir 4 points entre les Mod. de FOR et de DEX, puis 2 points entre INT, SAG et CHA (minimum +0). Enfin, le Mod. de CON est égal à +2. La Défense de l'entité est égale à 12 (+ Mod. de DEX), son score d'attaque est égal au niveau de l'invocateur (+ Mod. de FOR ou de DEX de l'entité) et ses DM sont égaux à [1d6 + Mod. de FOR]. Ses PV sont égaux à cinq fois le niveau de l'invocateur.",
+    "type1":"limitée",
+
+    "Affichage2": "Lien magique",
+    "rang2": "Capacité passive <br>Effet : télépathie, transfert des DM entre l'entité et l'invocateur et vice versa (entité subit 2x DM transférés)<br><br> L'invocateur peut communiquer par télépathie avec son entité, quelle que soit la distance qui les sépare. Lorsque l'entité subit des DM, l'invocateur peut choisir de sacrifier ses propres PV pour protéger son entité. Inversement, si l'invocateur subit des DM, il peut les transférer à son entité, mais dans ce cas, les DM subis par celle-ci sont doublés. Enfin, grâce au lien avec l'invocateur, la créature peut toucher et attaquer des cibles protégées normalement du contact des créatures invoquées.",
+       "type2":"passive",
+
+    "Affichage3": "Amélioration",
+    "rang3": "Capacité passive <br>Effet: choix d'amélioration d'entité : <br> Armes puissantes : Contact + 1d6 aux DM <br> Armure: +4 Défense <br>Grande taille: +10 PV et +1 mod. FOR <br> Pouvoir : portée 20m<br>Magie [niveau invocateur + DEX entité], 2d6 DM <br> Puissant: +2 mod. FOR <br>Résistant: +2 mod. CON, + 10 PV et 1/2 DM élem. au choix <br> Supériorité : +2 mod d'INT, SAG et CHA <br> Vif : +2 mod. DEX <br> Vol: l'entité peut se déplacer dans les airs",
+        "type3":"passive",
+
+    "Affichage4": "Protecteur",
+    "rang4": "Capacité passive <br>Effet : au contact de l'entité, +2 Défense si allié, +4 Défense si l'invocateur.<br><br> Quand un allié se trouve au contact de l'entité, il obtient un bonus de +2 en Défense. Si l'allié est l'invocateur, ce bonus passe à +4. De plus, une fois par tour, l'entité peut subir une attaque à la place d'un allié à son contact.",
+       "type4":"passive",
+
+    "Affichage5": "Lien magique amélioré",
+    "rang5": "Capacité passive <br>Effet : téléporte au contact ou échange de place l'invocateur et l'entité Le lien entre l'invocateur et l'entité est tel qu'ils peuvent se téléporter ou échanger leurs places.<br><br> Au prix d'une action de mouvement, l'invocateur peut utiliser une action de son choix : téléporter son entité à son contact, se téléporter au contact de son entité ou enfin, échanger sa place avec son entité.",
+       "type5":"passive",
+
+    "Voie": "Voie de l’entité"
+}

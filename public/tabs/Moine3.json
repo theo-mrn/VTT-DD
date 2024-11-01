@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Poings de fer",
+    "rang1": "Capacité passive <br>Effet : remplace contact par distance FOR <br>rang1 [1d6 +FOR]<br>rang 3 : [1d8 + md. FOR] DM <br>rang 5 : [1d10 + md. FOR] DM :<br><br> Lorsqu'il combat à mains nues, le moine peut (s'il le souhaite) utiliser son score d'attaque à distance au lieu de celui d'attaque au contact. Au rang 1 de cette voie, il inflige [1d6 + Mod. de FOR] DM létaux (cf. DM temporaires page 72). Ces DM passent à 1d8 au Rang 3 et à 1d10 au rang 5.",
+    "type1":"passive",
+
+    "Affichage2": "Parade de projectiles",
+    "rang2": "Capacité passive <br>Effet : dévit un projectile une fois par tour <br><br>Le moine peut dévier un projectile (flèche, javelot,...) une fois par tour de combat (sauf si le test d'attaque est un critique ou si l'attaque vient d'une arme à poudre)...",
+    "type2":"passive",
+
+    "Affichage3": "Peau de fer",
+    "rang3": "Capacité passive <br>Effet : +2 DEF  <br><br>Le moine gagne un bonus de +2 en DEF.",
+    "type3":"passive",
+   
+    "Affichage4": "Déluge de coups (L)",
+    "rang4": "Action limitée <br>Effet : 2 attaques d20 ou 3 attaques d12 <br><br>à son tour, le moine peut effectuer 2 attaques à mains nues sur des cibles de son choix ou 2 attaques avec une arme. Alternativement, il peut choisir de faire 3 attaques en utilisant un d12 en attaquepour chacune d'elle (au lieu d'un d20).",
+    "type4":"limitée",
+
+    "Affichage5": "Puissance du ki",
+    "rang5": "Capacité passive <br>Effet : d12 remplace d20, +2d6 DM <br><br>Le moine peut choisir d'utiliser 1d12 en attaque au lieu du d20 habituel (et il ajoute normalement son score d'attaque). Si l'attaque est réussie, il ajoute 2d6 aux DM. Cette capacité peut être utilisée avec « Déluge de coups » ou « Projectiondu ki » par exemple.",
+    "type5":"limitée",
+
+    "Voie": "Voie du Poing"
+}

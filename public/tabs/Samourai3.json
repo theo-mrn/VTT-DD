@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Esprit vide",
+    "rang1": "Capacité passive <br>Effet : +3 Init. <br>Rang 4: +5 Init <br><br> Le Samourai gagne +3 en Initiative, ce bonus passe à +5 au rang 4 de la Voie.",
+    "type1":"passive",
+    
+    "Affichage2": "Main vide",
+    "rang2": "Capacité passive <br>Effet : A mains nues : contact mod. DEX ou FOR au choix,<br> rang 1 : [1d4 + mod. FOR] DM létaux <br>rang 3 : [1d6 + mod. FOR] DM létaux <br>rang 5 : [1d8 + mod. FOR] DM létaux<br><br> Lorsqu'il combat à mains nues, le samouraï peut (s'il le souhaite) utiliser son Mod. de DEX en attaque au contact au lieu de son Mod. de FOR (mais pas aux DM).",
+    "type2":"passive",
+    
+    "Affichage3": "Kiai",
+    "rang3": "Capacité passive <br>Effet: DM max à (distance/combat) 1x par combat. <br>Rang 5 : 2x par combat 1d6 tours plus tard <br><br>Une fois par combat, lorsqu'il a réussi une attaque (à distance ou au contact), le samouraï peut libérer son énergie sous la forme d'un puissant cri issu du ventre. Il obtient les DM maximum.",
+    "type3":"passive",
+    
+    "Affichage4": "Course mortelle (L)",
+    "rang4": "Action limitée <br>Effet : contact  sur chaque cible sur 10 mètres en ligne droite  <br><br>Le samouraï parcourt jusqu'à 10 mètres en ligne droite en dépassant autant d'ennemis qu'il le souhaite.",
+    "type4":"limitée",
+    
+    "Affichage5": "Puissance du ki",
+    "rang5": "Capacité passive <br>Effet : Contact d12 remplace d20, +2d6 DM <br><br>Le Samourai peut choisir d'utiliser 1d12 en attaque au lieu du d20 habituel. Si l'attaque est réussie, il ajoute 2d6 aux DM.",
+    "type5":"passive",
+    
+    "Voie": "Voie du Ki"
+}

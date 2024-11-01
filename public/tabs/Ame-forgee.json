@@ -1,0 +1,41 @@
+{   
+    "Affichage1":"Main lourde",
+    "rang1": "Capacité passive: <br>Effet: 1d6 DM non temporaire à mains nues. <br><br>A mains nues, l'âme-forgée inflige1d6 DM létaux.",
+    "type1":"passive",
+    
+    "Affichage2":"Choc électrique (L)",
+    "rang2": "Action limitée: <br>Effet : [rang x 1d6] DM électrique à ma nues.<br><br> Sur une attaque à mains nues réussie, l'âme forgée inflige 1d6 DM d'électricité par rang dans cette voie (dégâts de l'attaque à mains nues inclus).",
+    "type2":"limitée",
+
+    "Affichage3":"Camouflage",
+    "rang3": "Capacité passive: <br>Effet: humain pour 1 heure, 1 x par jour. <br><br>Vous pouvez faire croire à ceux qui vous entourent que vous êtes un humain pendant 1 heure. Vous ne pouvez utiliser cette capacité qu'une fois par jour. Vous ne pouvez pas prendre l'apparence d'une personne en particulier.",
+    "type3":"passive",
+
+    
+    "Affichage4":"Forgé dans la bataille",
+    "rang4": "Capacité passive: <br>Effet : ignore les DM subits 1x par combat.<br><br> Une fois par combat, l'âme-forgée peut totalement ignorer les dégâts subis par une attaque.",
+    "type4":"passive",
+
+    
+    "Affichage5":"Machine de guerre",
+    "rang5": "Capacité passive: <br>Effet : +2 CON, +2 FOR. <br><br>L'âme-forgée devient une force impossible à ignorer sur le champ de bataille, elle augmente ses scores de CON et de FOR de +2",
+    "type5":"passive",
+
+    "Voie":"Voie de l’âme-forgée"
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
