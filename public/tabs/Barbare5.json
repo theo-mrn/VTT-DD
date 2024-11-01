@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Proche de la nature",
+    "rang1": "Capacité passive<br> Effet : +1 par rang aux tests de survie ou discrétion en milieu naturel.<br><br> Le barbare obtient un bonus de +1 par Rang dans la voie aux tests de survie, de discrétion ou d'observation en milieu naturel.",
+    "type1":"passive",
+
+    "Affichage2": "Armure de vent",
+    "rang2": "Capacité passive<br> Effet : + rang Défense si pas d'armure. <br><br>Le barbare obtient un bonus en Défense égal à son Rang dans la voie lorsqu'il ne porte aucune armure.",
+    "type2":"passive",
+
+    "Affichage3": "Vigilance",
+    "rang3": "Capacité passive<br> Effet : +5 aux tests de détection des pièges ou embuscades, immunité aux attaques surprises.<br><br> Le barbare possède des sens très affûtés, il est difficile de le surprendre, il gagne un bonus de +5 à tous les tests pour détecter les pièges (mécaniques ou magiques) ou les embuscades. Il devient immunisé aux Attaques sournoises d'un voleur, à l'Embuscade d'un rôdeur ou à toute capacité similaire d'une créature.",
+    "type3":"passive",
+
+    "Affichage4": "Résistance à la magie",
+    "rang4": "Capacité passive<br> Effet : résiste à la magie sur test de magie opposé au lanceur de sort une fois par tour. <br><br>Le barbare devient capable de résister à la magie. Lorsqu'il est la cible d'un sort, une fois par tour, il peut faire un test d'attaque magique (Mod. de SAG) opposé à celui du sort. En cas de réussite, il n'en subit pas les effets.",
+    "type4":"passive",
+
+    "Affichage5": "Vitalité débordante",
+    "rang5": "Capacité passive <br>Effet : récupère 1d6 PV par heure.<br><br> Le barbare guérit à une vitesse presque surnaturelle. Tant qu'il lui reste au moins 1 PV, il récupère 1d6 PV par heure, de nuit comme de jour.",
+    "type5":"passive",
+
+    "Voie": "Voie du primitif"
+}

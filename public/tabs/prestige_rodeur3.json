@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Lycanthropie (L)",
+    "rang1": "Action limitée <br>Effet : Le rôdeur peut fusionner avec son compagnon loup pour se transformer en forme hybride, mi-homme, mi-loup pendant [5 x Mod. de SAG] tours. Sous cette forme,<br> il ne peut plus utiliser d’armes, mais il peut encore utiliser son armure, qui s’adapte à sa taille. <br>Il gagne un bonus de +2 en FOR et obtient les attaques suivantes (elles sont considérées magiques) :<br> Griffes (attaque au contact), DM [2d6 + Mod. de FOR] <br> Morsure (attaque au contact), DM [1d6 + Mod. de FOR].<br><br> Il lui faut seulement une action d’attaque pour utiliser ces deux modes d’attaque au même tour.<br> À partir du rang 3 de la voie, le rôdeur peut utiliser la capacité de druide Attaque bondissante (L).",
+    "type1":"limitée",
+
+    "Affichage2": "Eventration",
+    "rang2": "Capacité passive<br> Effet : Si le rôdeur réussit à toucher et à blesser avec ses deux attaques, il éventre sa cible et bénéficie d’un bonus de +2d6 DM sur sa deuxième attaque.",
+    "type2":"passive",
+
+    "Affichage3": "Fourrure d’acier",
+    "rang3": "Capacité passive<br> Effet : Les poils de la fourrure du lycanthrope se durcissent tandis que ses os se solidifient pour finir aussi solide que de l’acier. <br><br>Le rôdeur gagne un bonus de +3 en DEF et une RD de 3 tant qu’il est transformé en lycanthrope. Cette protection ne s’applique pas contre les attaques provenant d’armes en argent.",
+    "type3":"passive",
+
+    "Affichage4": "Odeur du sang",
+    "rang4": "Capacité passive <br>Effet : Le rôdeur gagne un bonus de +1 en attaque et aux DM pour chaque tranche de 10 PV perdus pendant le combat contre la cible qui lui a infligé ces DM (maximum +5).<br><br> Ces bonus restent jusqu’à la fin du combat. Ces bonus sont annulés si la cible meurt.",
+    "type4":"passive",
+
+    "Affichage5": "Furie bestiale",
+    "rang5": "Capacité passive <br>Effet : Le rôdeur gagne la capacité Rage ou berserk (L) de la Voie de la rage du barbare. <br><br>Il ne peut pas annuler sa transformation lycanthropique tant qu’il est sous l’influence de la furie bestiale.",
+    "type5":"passive",
+
+    "Voie": "Voie de la fusion lycanthropique"
+}

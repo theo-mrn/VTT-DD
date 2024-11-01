@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Saignements (L)",
+    "rang1": "Action limitée, sortilège <br>Effet : 1d6 DM par tour <br>Durée : [rang] tours. <br>Le nécromancien doit réussir un test d’attaque magique (portée 10 m). Du sang s’écoule de la bouche, du nez, des oreilles et même des yeux de la victime, qui subit 1d6 DM par tour pendant [rang] tours.",
+    "type1":"limitée",
+
+    "Affichage2": "Sang mordant (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : 1d6 DM d’acide à l’ennemi qui le blesse<br> Durée : [5 + mod. d'INT] tours. <br><br>Pendant [5 + Mod. d'INT] tours, le sang du nécromancien se transforme en un acide qui gicle lorsqu’il subit une blessure. Chaque fois qu’un ennemi au contact le blesse, ce dernier subit 1d6 DM d’acide.",
+      "type2":"limitée",
+
+    "Affichage3": "Exsangue",
+    "rang3": "Capacité passive <br>Effet : résiste à la mort, -2 à tous les tests. <br><br>Lorsque le nécromant tombe à 0 PV, il peut continuer à agir mais avec un malus de -2 à tous ses tests. Une nouvelle attaque réussie infligeant au moins 1 point de DM n’aura par l’achever !",
+      "type3":"passive",
+
+    "Affichage4": "Hémorragie (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : +1d6 DM <br>Durée : [5 + mod. d'INT] tours. <br><br>Si le nécromancien réussit un test d’attaque magique (portée 10 m), la victime saigne à la moindre coupure. Tous les DM des armes blanches infligés à la cible sont augmentés de 1d6 pendant [5 + Mod. d'INT] tours.",
+      "type4":"limitée",
+
+    "Affichage5": "Lien de sang (L)",
+    "rang5": "Action limitée, sortilège <br>Effet : 1/2 DM subit sont transmis à la cible Durée : [5 + mod. d'INT] tours. <br><br>En réussissant un test d’attaque magique (portée 20 m), le nécromancien tisse un lien avec sa victime. Pendant [5 + Mod. d'INT] tours, la moitié des DM reçus par le nécromancien sont également subis par la cible et le nécromancien peut lui lancer un sort sans la voir.",
+    "type5":"limitée",
+
+    "Voie": "Voie du sang"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Flèche magique",
+    "rang1": "Capacité passive <br>Effet : Le rôdeur enchante ses flèches.<br> S’il obtient un résultat de « 1 » sur son dé de DM, il relance le dé et garde le second résultat. <br>Les DM de ses flèches sont considérés comme magiques.",
+    "type1":"passive",
+
+    "Affichage2": "Flèche tueuse",
+    "rang2": "Capacité passive <br>Effet : Le rôdeur fabrique et enchante une flèche particulière pour un ennemi unique qu’il nomme. <br><br>Il lui faut une journée complète pour créer la flèche et il ne peut en posséder plus d’une à un moment donné (ni plus d’une pour la même cible, ni pour une autre). Lorsqu’il utilise sa flèche contre l’ennemi pour lequel elle a été créée, il obtient un bonus de +3 à l’attaque et de +1d6 aux DM par rang atteint dans la Voie. Si la flèche a été créée depuis plus d’un an, ces bonus sont doublés.",
+    "type2":"passive",
+
+    "Affichage3": "Flèche intangible (L)",
+    "rang3": "Action limitée <br>Effet : Le rôdeur enchante sa flèche pour lui permettre de passer au travers des obstacles physiques.<br><br> Le joueur réalise un test d’attaque normal mais remplace la DEF par le score de DEX de la cible pour fixer sa Difficulté. De surcroît, il ignore toutes les pénalités de couverture. S’il sait précisément où se situe sa cible, il peut même tirer à travers un mur ou une porte.",
+    "type3":"limitée",
+
+    "Affichage4": "Flèche vivante",
+    "rang4": "Capacité passive <br>Effet : Le rôdeur enchante ses flèches pour leur donner vie au contact du sang.<br><br> Plantées dans un corps, elles s’y enfoncent et prennent racines. Sur un résultat de 15 à 20 au test d’attaque (ou de 10 à 12 sur un d12), la flèche inflige +2d6 DM supplémentaires et se transforme en arbuste à la mort de la victime.",
+    "type4":"passive",
+
+    "Affichage5": "Flèche chercheuse (L)",
+    "rang5": "Action limitée <br>Effet : Une fois par jour, le rôdeur peut enchanter une flèche afin qu’elle trouve sa cible de façon infaillible. <br><br>Pour utiliser ce pouvoir, le rôdeur doit avoir blessé ou vu directement la créature ciblée il y a moins de 10 tours. Il tire ensuite sa flèche en l’air et celle-ci voyage aussi loin que nécessaire (y compris à travers les plans) jusqu’à toucher sa cible. L’archer arcanique refait un test d’attaque normal et obtient un bonus de +2d6 aux DM.",
+    "type5":"limitée",
+
+    "Voie": "Voie de l’archer arcanique"
+}

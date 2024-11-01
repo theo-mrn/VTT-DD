@@ -1,0 +1,24 @@
+
+{
+    "Affichage1": "Raccourci (L)",
+    "rang1": "Action limitée, sortilège <br>Effet : portail, max 10 mètres <br><br>L'invocateur emprunte une porte magique qui apparaît à son contact et il ressort par une autre en vue à moins de 10 mètres de distance par rang atteint dans la Voie. Les deux portes disparaissent immédiatement après son passage.",
+    "type1":"limitée",
+
+    "Affichage2": "Porte artificielle (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : porte passe muraille Durée : [5 + mod. CHA] tours <br><br>L'invocateur invoque une porte venant d'un autre monde dans une surface maçonnée non magique de moins d'un mètre d'épaisseur (par exemple le mur d'une maison). Pendant [5 + Mod. de CHA] tours, cette porte peut être ouverte et refermée normalement et elle donne de l'autre côté du mur, de façon tout à fait ordinaire.",
+    "type2":"limitée",
+
+    "Affichage3": "Manoir d'outre-monde (L)",
+    "rang3": "Action limitée sortilège <br>Effet : salle sur demande<br> Durée : 1 heure par niveau L'invocateur entre par une porte ordinaire existante dans une porte artificielle, et pendant jusqu'à 1 heure par niveau, il la camoufle magiquement dans le monde réel.<br><br> Une fois que la porte est bloquée par magie, le manoir se substitue à la pièce où l'invocateur se trouve. Le manoir dispose de toute une salle, spacieuse, entourée de décorations spirituelles magnifiques et protectrices. Il peut également désorienter les ennemis et offrir aux alliés une protection optimale. Le manoir dispose d'une capacité d'ouverture, et l'invocateur peut la refermer en rentrant ou en sortant à volonté. Toutes les portes de sortie donnent de nouveau sur le monde réel lorsque l'invocateur les ferme. À tout moment, s'il se rend compte de son intrusion, l'invocateur peut la refermer immédiatement. S'il se trouve encore à l'intérieur, il ne subira aucune perturbation, mais toute personne qui tenterait de revenir en dehors serait prise au piège. Les ennemis situés devant la porte et subissant cette porte spéciale sont éjectés devant la porte et subissent 1d6 DM.",
+    "type3":"limitée",
+    
+    "Affichage4": "Engloutissement lointain (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : téléporte la cible Une fois par combat<br><br>l'invocateur désigne d'un mouvement de la main une cible à moins de 20 mètres, et un tourbillon de lumière multicolore emporte la victime en lieu lointain. En cas de succès de l'attaque (opposée par la SAG adverse), la cible est immédiatement téléportée en direction d'un point fixe sur le terrain, ou tout autre espace d'une portée maximale de [5 + Mod. de CHA] tours. Si vous utilisez ce sort sur un allié, il lui confère un avantage, et s'il rate son action, il échouera, même à 10 ou 20 kilomètres, il peut alors se rattraper si besoin ou plus loin pour ne pas jouer.",
+    "type4":"limitée",
+
+    "Affichage5": "Porte dimensionnelle (L)",
+    "rang5": "Action limitée, sortilège <br>Effet : portail de téléportation, max 200 mètres<br> Durée : [5 + mod. CHA] minutes <br><br>L'invocateur fait apparaître une porte lumineuse pour une durée maximum de [5 + Mod. de CHA] minutes, bien qu'il puisse permettre de l'ouvrir à tout moment. Cette porte apparaît en prenant place dans un autre lieu choisi par l'invocateur, soit à portée de vue, soit à un endroit parfaitement connu de l'invocateur, même si celui-ci n'y est jamais venu en personne. Si la porte donne vers un autre endroit, le niveau de difficulté est de trois fois la distance réelle de la sortie par rapport à l'entrée. Si l'endroit dépasse la valeur limite, il perdra progressivement de la puissance et les deux portes se refermeront automatiquement à la fin de l'usage, à la première apparition du sort.",
+    "type5":"limitée",
+
+    "Voie": "Voie des portes"
+}

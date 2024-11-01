@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Muet comme une tombe",
+    "rang1": "Capacité passive <br>Effet : Le messager sait garder un secret, il bénéficie d’un bonus de +5 pour résister à toute tentative d’extorsion d’information que cela soit par l’intimidation, la torture, la ruse ou la magie… <br><br>Il obtient le même bonus pour résister à tout sort de contrôle mental.",
+    "type1":"passive",
+
+    "Affichage2": "Jusqu’à bon port",
+    "rang2": "Capacité passive<br> Effet : Le messager peut voyager deux fois plus longtemps qu’un autre personnage sans fatigue et il bénéficie d’un bonus de +5 aux tests d’équitation. <br><br>Il obtient aussi un bonus de +5 aux tests destinés à détecter les embuscades et les pièges sur son chemin.",
+    "type2":"passive",
+
+    "Affichage3": "Conducteur de diligence",
+    "rang3": "Capacité passive <br>Effet : L’arquebusier obtient un bonus de +5 à tous les tests pour conduire un attelage, un chariot ou tout autre véhicule tracté par des animaux, cela lui demande une action limitée pour manœuvrer par tour.<br><br> Il obtient aussi un bonus de +5 à tous les tests pour éviter un accident à bord d’un véhicule en mouvement. Il obtient un bonus de +2 en attaque contre toutes les cibles se trouvant au sol ou sur le même véhicule en mouvement.",
+    "type3":"passive",
+
+    "Affichage4": "Sens du devoir",
+    "rang4": "Capacité passive <br>Effet : Lorsqu’il défend une missive, un colis ou un individu qu’il escorte, le messager obtient un bonus de +2 en DEF et à tous les tests (actions, attaques).",
+    "type4":"passive",
+
+    "Affichage5": "Attaque en mouvement",
+    "rang5": "Capacité passive <br>Effet : Lorsqu’il réalise une action limitée, le messager peut utiliser une action de mouvement dans le même tour pour effectuer un déplacement.",
+    "type5":"passive",
+
+    "Voie": "Voie du messager"
+}

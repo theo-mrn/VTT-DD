@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Forgeron",
+    "rang1": "Capacité passive <br>Effet : enflamme son arme, +1 par rang DM <br>Durée : [5 + mod. d'INT] tours. <br><br>Le forgesort obtient un bonus de +2 par rang dans la voie aux tests d’orfèvrerie ou de forge. Au prix d’une action de mouvement, il peut enflammer son marteau ou son bâton pour une durée de [5 + Mod. d’INT] tours et gagne alors un bonus aux DM de +1 par rang dans la voie avec cette arme (DM de feu).",
+    "type1":"passive",
+
+    "Affichage2": "Métal brillant (L)",
+    "rang2": "Action limitée, sortilège<br> Effet : chauffe une pièce métallique de la cible <br>Durée : [5 + mod. d'INT] tours. <br>vLe forgesort doit réussir un test d’attaque magique (portée 20 m) pour faire chauffer un objet métallique que sa cible transporte pendant [5 + Mod. d’INT] tours. S’il s’agit d’une arme, elle inflige un malus de -2 aux tests d’attaque. S’il s’agit d’une armure, elle inflige 1d4 DM par tour à son porteur. La victime peut se débarrasser précipitamment de son armure au prix d’une action limitée.",
+        "type2":"limitée",
+
+    "Affichage3": "Magnétisme (L)",
+    "rang3": "Action limitée, sortilège<br> Effet : +5 🛡️, 1/2 DM reçus <br>Durée : [3 + mod. d'INT] tours. <br><br>Le forgesort contrôle le magnétisme autour de lui pendant [3 + Mod. d’INT] tours. Il gagne un bonus de +5 en DEF et divise par 2 les DM de toutes les armes ou projectiles métalliques.",
+        "type3":"limitée",
+
+    "Affichage4": "Métal hurlant (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : déforme une pièce d’équipement métallique de la cible. <br><br>Sur un test d’attaque magique réussi, le forgesort déforme une pièce d’équipement métallique infligeant de lourds malus à son utilisateur pendant [5 + Mod. d’INT] tours. Une arme devient inutilisable de bonne foi et réduit son DM de 1d8 pour chaque attaque. Si l’armure est touchée, elle perd 2 points de RD (réduction des DM).",
+        "type4":"limitée",
+
+    "Affichage5": "Endurer",
+    "rang5": "Capacité passive<br> Effet : +2 CON, 2d20 aux tests de CON, -5 DM de feu subit.<br><br> Le forgesort est habitué aux travaux et à la chaleur de la forge. Il réduit tous les DM de feu subits de 5 points et augmente sa valeur de CON de +2. Il peut désormais lancer deux d20 à chaque fois qu’un test de CON lui est demandé, en gardant le meilleur résultat.",
+    "type5":"passive",
+
+    "Voie": "Voie du métal"
+}

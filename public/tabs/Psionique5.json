@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Injonction (L)",
+    "rang1": "Action limitée, sortilège <br>Effet : donne un ordre à la cible <br>Durée : cible immunisée 24h en cas d'échec <br><br>L'ensorceleur donne un ordre simple (mais pas dangereux pour elle) que la victime doit pouvoir comprendre. Il doit réussir un test d'attaque magique opposé avec la cible (contre attaque au contact si la créature n'en a pas) à une portée de 20 mètres. En cas d'échec, la cible doit exécuter l'ordre pendant son prochain tour.",
+    "type1":"limitée",
+    
+    "Affichage2": "Sommeil (L)",
+    "rang2": "Action limitée, sortilège <br>Effet: [1d6 + mod. CHA] cibles tombent de somme <br>Réveil sur contact Durée : [5 + mod. CHA] minutes. <br><br>Cible immunisée 24h en cas d'échec [1 d6 + Mod. de CHA] cibles vivantes dans une zone de 10 m de diamètre (portée 20 m) et dont le score max de PV ne dépasse pas le score d'attaque magique de l'ensorceleur* sombrent dans l'inconscience pendant [5 + Mod. de CHA] minutes. Il est possible de les réveiller en les giflant (action d'attaque).",
+    "type2":"limitée",
+    
+    "Affichage3": "Confusion (L)",
+    "rang3": "Action limitée, sortilège <br>Effet : désoriente la cible <br>Durée : [3 + mod. CHA] tours.<br><br> Cible immunisée 24h en cas d'échec  En réussissant un test d'attaque magique (portée 20 m), l'ensorceleur désoriente sa cible pendant [3 + Mod. de CHA] tours. Chaque tour, lancer 1d6 : 1-3 la victime n'agit pas, 4-6 elle attaque la créature la plus proche (au hasard). Chaque fin de tour, elle fait un test de SAG difficulté [10 + Mod. de CHA] pour mettre fin au sort.",
+    "type3":"limitée",
+    
+    "Affichage4": "Amitié (L)",
+    "rang4": "Action limitée, sortilège <br>Effet: la cible devient un allié<br> Durée : renouvelable une fois par jour.<br><br>Cible immunisée 24h en cas d'échec Si l'ensorceleur réussit un test d'attaque magique (portée 10 m) contre le score max de PV d'une cible humanoïde, celle-ci se comporte comme un ami de longue date tant qu'elle n'est pas attaquée. Elle peut résister au sort avec un test de SAG difficulté [12 + Mod. de CHA], renouvelable une fois par jour.",
+    "type4":"limitée",
+    
+    "Affichage5": "Domination (L)",
+    "rang5": "Action limitée, sortilège <br>Effet : prend le contrôle de la cible <br>Durée : [1d4 + mod. CHA minutes]. <br>Cible immunisée 24h en cas d'échec <br><br>En réussissant un test d'attaque magique (portée 20 m) en opposition contre un test d'attaque magique de la cible (ou d'attaque au contact si la créature n'en a pas), l'ensorceleur prend contrôle de son esprit pendant [1d4 + Mod. CHA] minutes. Son propre corps devient inactif. La victime peut résister au sort avec un test de SAG difficulté [10 + Mod. de CHA] à chaque fois qu'elle subit des DM. Si la créature meurt pendant la domination, l'ensorceleur réintègre son corps et subit 1d6 DM.",
+    "type5":"limitée",
+    
+    "Voie": "Voie de l’envoûteur"
+}

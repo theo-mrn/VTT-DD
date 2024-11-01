@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Secrets d’Alcôves",
+    "rang1": "Capacité passive <br>Effet : Le voleur obtient un bonus de +5 pour tous les tests visant à trouver ou obtenir des informations secrètes ou sensibles et +5 à tous les tests de perception auditive (SAG).<br><br> De plus, en réussissant un test de SAG difficulté 12, il est capable de suivre une conversation à distance en lisant sur les lèvres.",
+    "type1":"passive",
+
+    "Affichage2": "À la garde !",
+    "rang2": "Capacité passive <br>Effet : Le voleur a développé une sorte de 6ème sens qui lui assure un coup d’avance sur les gardes et autres forces armées. <br><br>Le MJ doit prévenir le joueur 1 tour complet avant que des PNJ armés interviennent sur le lieu où il opère. Il doit aussi indiquer la direction d’où provient la menace. Cette capacité n’est d’aucune utilité contre une embuscade.",
+    "type2":"passive",
+
+    "Affichage3": "Mémoire éidétique",
+    "rang3": "Capacité passive <br>Effet : Le voleur a une parfaite mémoire de tout ce qu’il a vu et entendu.<br><br> Si le joueur le demande, le MJ doit lui rappeler tous les détails relatifs à un lieu qu’il a visité ou à une conversation qu’il a entendue. De plus, le voleur gagne un bonus de +5 à tous ses tests de connaissance (INT).",
+    "type3":"passive",
+
+    "Affichage4": "Réseau",
+    "rang4": "Capacité passive<br> Effet : Grâce à son réseau de connaissances ou par l’intermédiaire d’autres espions, le personnage peut obtenir de nombreux avantages.<br><br> Un test de CHA difficulté 10 lui suffit pour obtenir une entrevue avec n’importe quel personnage puissant à tout moment. Un test de difficulté 15 peut lui permettre d’obtenir un service, par exemple une recommandation, une escorte armée ou une audience auprès de l’élite, ces billets pouvant même servir à obtenir audience auprès de rois ou de grands seigneurs.",
+    "type4":"passive",
+
+    "Affichage5": "Se fondre dans la foule",
+    "rang5": "Capacité passive <br>Effet : Le voleur sait se rendre complètement quelconque.<br><br> Il peut repérer des lieux, suivre des gens, infiltrer des endroits réservés (avec le costume adapté) sans aucun jet de dé tant qu’il n’entreprend aucune action qui pourrait sérieusement attirer l’attention sur lui. S’il se fait repérer mais parvient à prendre la fuite, personne ne sera capable de le décrire correctement. Il gagne +5 à tous ses tests de discrétion et de déguisement, et lorsqu’il réalise une action de fuite dans un lieu bondé, il lui suffit de réussir un test de CHA difficulté 10 pour disparaître.",
+    "type5":"passive",
+
+    "Voie": "Voie de l’espion"
+}

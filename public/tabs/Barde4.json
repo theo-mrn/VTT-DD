@@ -1,0 +1,24 @@
+{
+    "Affichage1": "Acrobate",
+    "rang1": "Capacité passive  <br>Effet : +1 par rang aux tests de DEX d'esquive <br><br>  Le barde obtient un bonus de +1 par Rang dans cette voie à son score d'initiative et à tous les tests de DEX destinés à esquiver (boule de feu, souffle, pièges, etc.).",
+    "type1":"passive",
+
+
+    "Affichage2": "Grâce féline",
+  "rang2": "Action limitée <br>Effet : +2 contact, + 1d6 DM <br> <br> Le barde se déplace en ligne droite d'au moins 5 mètres (20 mètres au maximum) et effectue une attaque au contact avec un bonus de +2 en attaque et + 1d6 DM.",
+  "type2":"passive",
+
+  "Affichage3": "Lanceur de couteau",
+    "rang3": "Capacité passive <br>Effet : action gratuite : esquive une attaque sur test de Distance. <br> <br> Une fois par tour, le barde peut réaliser une esquive en réussissant un test d'Attaque à Distance contre une Difficulté égale au score obtenu par son adversaire lors de son attaque. En cas de réussite, le barde ne subit aucun DM. Si cette attaque était un critique, il subit tout de même des DM normaux (et annule donc l'effet critique « dégâts doublés »).",
+  "typ3":"passive",
+
+    "Affichage4": "Esquive acrobatique",
+    "rang4": "Capacité passive. <br>Effet : action gratuite : esquive une attaque sur test de Contact. <br> <br> Une fois par tour, le barde peut réaliser une esquive en réussissant un test d'Attaque à Distance contre une Difficulté égale au score obtenu par son adversaire lors de son attaque. En cas de réussite, le barde ne subit aucun DM. Si cette attaque était un critique, il subit tout de même des DM normaux (et annule donc l'effet critique « dégâts doublés »).",
+   "type4":"passive",
+
+    "Affichage5": "Liberté d’action",
+ "rang5": "Capacité passive. <br>Effet : immunisé aux formes de contrôle.<br> <br>  Le barde est immunisé à la peur et à tous les sorts ou effets magiques qui asservissent l'esprit ou le corps (possession, charme, paralysie, ralentissement, etc.).",
+   "type5":"passive",
+
+    "Voie": "Voie du saltimbanque"
+}

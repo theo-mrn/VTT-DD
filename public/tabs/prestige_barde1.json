@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Ça pique les yeux",
+    "rang1": "Capacité passive <br>Effet : Le personnage porte un costume chamarré aux motifs complexes (Arlequin, bouffon…) qui attire l’attention et distrait les regards. <br><br>Associé à des postures étranges et imprévisibles, il masque efficacement ses mouvements et obtient un bonus de +1 en DEF par rang dans cette voie.",
+    "type1":"passive",
+
+    "Affichage2": "Blagues et cabrioles (L)",
+    "rang2": "Action limitée <br>Effet : Le personnage réalise un test de CHA de difficulté égale au score d’INT de sa cible (en cas de cibles multiples, le résultat d’un unique test est comparé au score de chacun des observateurs). <br><br>En cas de réussite, la cible est victime de distraction et subit une pénalité de 5 à tous les tests de SAG et d’INT pendant toute la durée des blagues et cabrioles. La victime perd 10 en Initiative si un combat survient.",
+    "type2":"passive",
+
+    "Affichage3": "Corps élastique",
+    "rang3": "Capacité passive <br>Effet : Le barde sait accompagner les coups et les chutes, il obtient une réduction des DM de 3 contre toutes les sources de DM physique (armes, chutes mais pas énergie ou magie).",
+    "type3":"passive",
+
+    "Affichage4": "Mort de rire (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : Si le barde réussit un test d’attaque magique (portée de 10 mètres), la victime est prise d’un fou rire incontrôlable qui lui tord l’abdomen et la fait s’étouffer progressivement.<br><br> Elle subit d’abord une -2 en attaque et en DEF et subit 1d6 DM par tour jusqu’à ce qu’elle réussisse un test de SAG difficulté [12 + Mod. CHA] pour mettre fin au sort (un essai à la fin de chaque tour du barde) ou en mourir ! Ce sort n’affecte que les créatures humanoïdes.",
+    "type4":"limitée",
+
+    "Affichage5": "Blague mortelle (L)",
+    "rang5": "Action limitée <br>Effet : Après avoir réussi à distraire sa victime avec « Blagues et cabrioles », si le barde attaque au tour suivant et emporte l’initiative, il obtient un bonus de +5 en attaque et +2d6 aux DM.",
+    "type5":"limitée",
+
+    "Voie": "Voie du bouffon"
+}

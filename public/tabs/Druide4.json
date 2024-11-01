@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Peau d’écorce (L)",
+    "rang1": "Action limitée, sortilège: <br>Effet : +1 DEF par rang: <br>Durée : [5 + mod. SAG] tours.<br> <br>  La peau du druide prend la consistance de l'écorce. Il gagne +1 en DEF par rang dans la voie pendant [5 + Mod. de SAG] tours.",
+    "type1":"limitée",
+
+    "Affichage2": "Prison végétale (L)",
+    "rang2": "Action limitée, sortilège: <br>Effet : entrave : -2 Contact, Distance, Magie, DEF, <br>Durée : [5 + mod. SAG] tours. <br> <br> Le druide peut commander à la végétationde pousser et bloquer ses ennemis (mais pas ses alliés) dans une zone de 10 m de diamètre (portée 20 m) pendant [5 + Mod. de SAG] tours. Entravées, les cibles subissent un malus de -2 en attaque et en DEF, et ne peuvent pas se déplacer. Chaque tour, une créature peut se libérer avec un test de FOR difficulté [10 + Mod. de SAG].",
+   "type2":"limitée",
+
+    "Affichage3": "Animation d’un arbre (L)",
+    "rang3": "Action limitée, sortilège: <br>Effet : Arbre animé : Init 7,DEF 13, [rang x 10] PV, Contact 1d6+3 DMdéplacement 10 mètres, RD 10 DM sauf feu et Contact. <br>Durée : [niveau] tours. <br> <br> Une fois par combat, le druide peut animer un arbre en le touchant. Il combat pendant [niveau du druide] tours. Arbre animé : Init 7, DEF 13, PV [rang x 10], attaque de contact = [niveau du druide], DM 1d6+3, Déplacement 10 m par action de mouvement. Réduction de DM de 10 sauf contre les armes tranchantes et le feu.",
+    "type3":"limitée",
+
+    "Affichage4": "Gland de pouvoir (L)",
+    "rang4": "Action limitée, sortilège: <br>Effet : statue de bois : $ 10, DM réduit (-10). <br>Durée : [2d6 + mod. SAG] tours ou perte de plus de 10 PV. <br> <br> Une fois par combat, le druide peut lancer un gland sur une cible (portée 10 m). En cas d'attaque magique réussie, la victime se transforme en statue de bois pendant [2d6 + Mod. de SAG] tours. Sous cette forme elle ne peut agir et ne ressent rien. Sa DEF passe à 10 mais elle gagne une réduction des DM de 10. Le sort s'achève dès que la cible perd plus de 10 PV.",
+   "type14":"limitée",
+
+    "Affichage5": "Porte végétale (L)",
+    "rang5": "Action limitée, sortilège: <br>Effet : en forêt, téléporte à [mod. SAG] x 10 Km. <br> <br> Une fois par jour, le druide peut pénétrer dans le tronc d'un gros arbre et sortir de celui d'un autre arbre appartenant à la même forêt et situé à une distance maximum de [Mod. de SAG] x 10 km.",
+   "type5":"limitée",
+
+    "Voie": "Voie des végétaux"
+}

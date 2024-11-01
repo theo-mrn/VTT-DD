@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Petit veinard",
+    "rang1": "Capacité passive <br>Effet : relance 1 dé de son choix 1x par combat. <br>Rang 3 : esquive gratuite 1x par combat. <br><br>Le halfelin peut relancer un dé de son choix une fois par combat. Au rang 3 de la voie, il peut esquiver une attaque de son choix par combat (après avoir pris connaissance des DM).",
+    "type1":"passive",
+
+    "Affichage2": "Résistance légendaire",
+    "rang2": "Capacité passive <br>Effet : +5 tests de CON, +5 🛡️ contre magie.<br><br> Le halfelin obtient un bonus de +5 à tous ses tests de CON et un bonus de +5 en DEF contre la magie.",
+     "type2":"passive",
+
+    "Affichage3": "Bon pour le moral",
+    "rang3": "Capacité passive <br>Effet : régén sur bon repas 1d6 PV ou sieste [2d6 + niveau] PV. <br><br>Un halfelin qui mange bien est un halfelin heureux. À chaque repas où le personnage boit ou mange un met de qualité, il récupère 1d6 PV. Une fois par jour, s’il participe à un véritable festin ou s’il fait une bonne sieste (au moins 1 heure en plein après-midi), il récupère [2d6 + niveau] PV !",
+     "type3":"passive",
+
+    "Affichage4": "Perception",
+    "rang4": "Capacité passive <br>Effet : fronde 🗡️ [+ mod. DEX] DM, +5 tests de perception et discrétion.<br><br> Le halfelin obtient un bonus de +5 à tous les tests de perception et de discrétion. Il peut ajouter son Mod. de DEX aux DM à la fronde et il sait utiliser cette arme quel que soit son profil.",
+     "type4":"passive",
+
+    "Affichage5": "Lfit et alerte",
+    "rang5": "Capacité passive <br>Effet : +2 DEX, +2 CON. <br><br>Le halfelin augmente ses valeurs de DEX et de CON de +2.",
+    "type5":"passive",
+
+    "Voie": "Voie du halfelin"
+}

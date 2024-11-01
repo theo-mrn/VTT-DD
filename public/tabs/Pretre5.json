@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Soins légers (L)",
+    "rang1": "Action limitée, sortilège <br>Effet: soigne [1d8 + niveau du prêtre] PV ([rang] x par jour) <br><br>Le prêtre peut toucher une cible, qui récupère alors [1d8 + niveau du prêtre] PV perdus. Le prêtre peut utiliser ce sort sur lui-même.",
+    "type1":"limitée",
+   
+    "Affichage2": "Soins modérés (L)",
+    "rang2": "Action limitée, sortilège <br>Effet: soigne [2d8 + niveau du prêtre] PV ([rang] x par jour) <br><br>Le prêtre peut toucher une cible, qui récupère alors [2d8 + niveau du prêtre] PV perdus. Le prêtre peut utiliser ce sort sur lui-même.",
+    "type2":"limitée",
+   
+    "Affichage3": "Soins de groupe (L)",
+    "rang3": "Action limitée, sortilège <br>Effet: soigne le groupe [1d8 + niveau du prêtre] PV (1x par combat) <br><br>Une fois par combat, le prêtre peut libérer une décharge d'énergie bienfaitrice : tous ses compagnons en vue et lui récupèrent [1d8 + niveau du prêtre] PV perdus.",
+    "type3":"limitée",
+   
+    "Affichage4": "Guérison (L)",
+    "rang4": "Action limitée, sortilège <br>Effet: soigne PV max et état anormaux <br><br>Une fois par jour, le prêtre peut toucher une cible, qui récupère alors tous ses PV perdus et se trouve guérie des poisons, maladies et affaiblissements de caractéristiques.",
+    "type4":"limitée",
+   
+    "Affichage5": "Rappel à la vie",
+    "rang5": "Capacité passive, sortilège <br>Effet :Magie , ressucite pour 1d6 PV Une fois par jour,<br><br> le prêtre peut rappeler à la vie un personnage décédé depuis moins de [Mod. de SAG du prêtre] heures par un rituel de 10 minutes. Il doit connaitre personnellement la personne rappelée et posséder une relique lui appartenant. Le personnage revient à la conscience avec 1d6 PV.",
+    "type5":"passive",
+
+    "Voie": "Voie des soins"
+}

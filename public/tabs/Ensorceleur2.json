@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Murmures dans le vent (L)",
+    "rang1": "Action limitée, sortilège <br> Effet : message chuchoté sur 100 mètres. <br> <br> L’ensorceleur chuchote un message d’une dizaine de mots qui voyage jusqu’à son destinataire. Il peut entendre sa réponse immédiatement. La portée est de 100 m par Rang dans la voie et le personnage doit connaître la cible ou la voir.",
+    "type1":"limitée",
+
+    "Affichage2": "Sous tension (L)",
+    "rang2": "Action limitée, sortilège <br> Effet : dégat à l’attaquant de 1d6 DM, décharge magique [1d6 + Mod. CHA] DM<br>  Durée : [5 + mod. CHA] tours.<br> <br>  L’ensorceleur se charge d’énergie électrique pour [5 + Mod. de CHA] tours. Toute créature qui le touche reçoit une décharge infligeant 1d6 DM. Il peut également délivrer une décharge électrique (attaque magique, portée 10 m) infligeant [1d6 + Mod. de CHA] DM.",
+    "type2":"limitée",
+
+    "Affichage3": "Télékinésie (L)",
+    "rang3": "Action limitée, sortilège <br> Effet : soulève un objet n’excédant pas 50 Kg <br> Durée : [5 + mod. CHA] tours.<br> <br>  L’ensorceleur peut déplacer dans les airs un objet inerte ou une cible volontaire (par exemple lumière) dont le poids n’excède pas 50 kg par Rang, à une portée de 20 m pendant [5 + Mod. de CHA] tours. L’objet peut être déplacé de 10 m par tour au prix d’une action de mouvement. Il est possible de faire tomber un objet sur une cible surprise (DM 1d6 tous les 50 kg).",
+    "type3":"limitée",
+
+    "Affichage4": "Foudre (L)",
+    "rang4": "Action limitée, sortilège <br> Effet : éclair [4d6 + mod. CHA] DM. <br> <br> L’ensorceleur produit un éclair sur une ligne de 10 mètres. Toutes les créatures sur la trajectoire sont soumises à un test d’attaque magique et subissent [4d6 + Mod. de CHA] DM en cas de réussite. Les victimes peuvent tenter un test de DEX difficulté [12 + Mod. de DEX] pour ne subir que la moitié des DM.",
+    "type4":"limitée",
+
+    "Affichage5": "Forme éthérée (L)",
+    "rang5": "Action limitée, sortilège <br> Effet : intangible <br> Durée : [5 + mod. CHA] tours.<br> <br>  L’ensorceleur et tout son équipement deviennent translucides et intangibles pendant [5 + Mod. de CHA] tours. Sous cette forme, il peut passer à travers murs et obstacles, et ne peut subir aucun DM physiques, ni en infliger, ni lancer des sorts.",
+    "type5":"limitée",
+    
+    "Voie": "Voie de l’air"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Malédiction (L)",
+    "rang1": "Action limitée, sortilège <br>Effet : 2d20, résultat le plus faible <br>Durée : 3 tests ratés. <br><br>Effectuez un test d’attaque magique contre une cible à moins de 20 mètres. En cas de succès, la victime réalise tous ses tests sous l’effet du malus de prendre le résultat le plus faible. Le sort prend fin dès qu’elle aura raté trois tests (il n’y a sinon aucune limite de temps). Si la cible possède une capacité lui permettant de lancer deux dés et de garder le meilleur, elle ne lance plus qu’un seul dé.",
+    "type1":"limitée",
+
+    "Affichage2": "Aspect de la succube (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : +5 tests de CHA, 🗡️1d4 + mod. CHA] DM qui soigne d'autant le nécromancien <br>Durée : [5 + Mod. d'INT] tours. <br><br>Le nécromancien acquiert une beauté fascinante pour [5 + Mod. d'INT] tours. Il gagne un bonus de +5 aux tests de CHA ainsi qu’à toute attaque de contact nécessitant un test d’attaque magique et qui inflige [1d4 + Mod. de CHA] DM. Ces DM sont transformés en PV, au bénéfice du nécromancien (sans dépasser son score max de PV).",
+      "type2":"limitée",
+
+    "Affichage3": "Pacte sanglant",
+    "rang3": "Capacité passive <br>Effet : sacrifie 1d4 PV, +3 🗡️ ou résultat d20 <br>rang 5 : sacrifie 2d4 PV, +5 🗡️ ou résultat d20. <br><br>Par une action gratuite, le nécromancien sacrifie 1d4 PV et gagne immédiatement +3 sur un jet de d20 de son choix ou en DEF contre une attaque. À partir du Rang 5 dans la voie, il peut sacrifier 2d4 PV pour faire passer ce bonus à +5.",
+      "type3":"passive",
+
+    "Affichage4": "Aspect du démon (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : +2 🗡️, +2 FOR, +2 DEX, +2 CON<br> Durée : [5 + Mod. d'INT] tours. <br><br>Le nécromancien prend l’apparence d’un démon pendant [5 + Mod. d'INT] tours. Il gagne +2 en attaque au contact et +2 à tous les tests physiques (FOR, DEX, CON). Il peut aussi attaquer avec sa griffe à [1d6 + Mod. d'ATT] DM à chaque tour, en action limitée (une seule en action d’attaque). Cette capacité remplace l’aspect de la succube.",
+      "type4":"limitée",
+
+    "Affichage5": "Invocation d’un démon (L)",
+    "rang5": "Action limitée, sortilège <br>Effet : sacrifie 1d6 PV, invoque un démon : FOR +5, DEX +2, CON +4, INT -2, SAG +2, CHA 0  Init 16, Defdense 7, PV [niveau x 15], Contact [Niveau du nécro], DM 1d8+5 <br>Durée : [5 + mod d'INT] tours. <br><br>Une fois par combat, en sacrifiant 1d6 PV, le nécromancien invoque un démon à son service pendant [5 + Mod. d'INT] tours. Ce démon d’apparence humaine (ou elfe) peut être invoqué dans un rayon de 20 m. Le démon voyage sur ses deux jambes, attaque chaque tour avec ses deux griffes infligeant des DM normaux. Il peut encaisser une masse de vies équivalente à [niveau du nécromancien x 15]. Lorsque le sort prend fin, le démon s’évanouit en une traînée de fumée, à moins d’avoir encaissé deux fois trop de DM et d’avoir été éliminé.",
+    "type5":"limitée",
+
+    "Voie": "Voie du démon"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Forme d’Ange (L)",
+    "rang1": "Action limitée, sortilège <br>Effet : Le prêtre prend la forme d’un ange pour [5 + Mod. SAG] tours. <br><br>Lorsqu’il est en forme d’ange, le prêtre bénéficie automatiquement du sort Ailes célestes pour la même durée. Toutefois, il n’a plus besoin d’utiliser une action de mouvement pour rester en vol stationnaire ce qui lui permet de lancer ses sorts en volant.",
+    "type1":"limitée",
+
+    "Affichage2": "Soins améliorés",
+    "rang2": "Capacité passive <br>Effet : Quand il est en forme d’ange, si le prêtre obtient un résultat de « 1 » sur son dé de soins, il peut relancer ce dé et conserver le second résultat.<br><br> Sous cette forme, il est aussi immunisé à tous les sorts destinés à restreindre son déplacement.",
+    "type2":"passive",
+
+    "Affichage3": "Épée céleste",
+    "rang3": "Capacité passive<br> Effet : Lorsqu’il est en forme d’ange, le prêtre bénéficie automatiquement du sort Arme d’argent pour la même durée.<br><br> Il est aussi immunisé à tous les sorts de drain ou d’affaiblissement des morts-vivants (ombre, vampire, goule, etc.).",
+    "type3":"passive",
+
+    "Affichage4": "Protection divine",
+    "rang4": "Capacité passive <br>Effet : Sous sa forme d’ange, le prêtre, sous la protection de son dieu, bénéficie d’un bonus de +3 en DEF.<br><br> De plus, une fois par jour, il peut décider que les DM d’une attaque sont absorbés entièrement par la puissance de son dieu, après avoir pris connaissance des DM.",
+    "type4":"passive",
+    
+    "Affichage5": "Forme d’Archange (L)",
+    "rang5": "Action limitée<br> Effet : Cette capacité remplace « Forme d’Ange ». <br><br>Sous cette forme, le prêtre peut désormais relancer les résultats de « 1 » ou « 2 » sur les dés de soins (mais il devra se plier au second résultat) et il obtient une réduction des DM (RD) de 5 points contre les attaques des morts-vivants et des créatures démoniaques.",
+    "type5":"limitée",
+
+    "Voie": "Voie de l’archange"
+}

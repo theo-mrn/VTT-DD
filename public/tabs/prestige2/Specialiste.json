@@ -1,0 +1,13 @@
+{
+    "Affichage1": "Expertise",
+    "rang1": "Capacit\u00e9 passive Effet: Bonus de +5 sur tests de caract\u00e9ristiques ou +10 sur tests de comp\u00e9tences, +2 aux attaques en utilisant une capacit\u00e9 limit\u00e9e.",
+    "Affichage2": "Capacit\u00e9 signature",
+    "rang2": "Capacit\u00e9 passive Effet: Choisir une capacit\u00e9 limit\u00e9e, interruption du tour pour l'utiliser en plus des actions normales.",
+    "Affichage3": "Capacit\u00e9 sup\u00e9rieure",
+    "rang3": "Capacit\u00e9 passive Effet: Augmente l'effet de la capacit\u00e9 limit\u00e9e choisie, ajout de +1d6 aux DM ou personnalisation de la capacit\u00e9.",
+    "Affichage4": "Caract\u00e9ristique fabuleuse",
+    "rang4": "Capacit\u00e9 passive Effet: Augmente de 2 points la valeur de la plus haute caract\u00e9ristique du personnage.",
+    "Affichage5": "Capacit\u00e9 fabuleuse",
+    "rang5": "Capacit\u00e9 passive Effet: La capacit\u00e9 choisie n'utilise plus d'action limit\u00e9e, mais une action d'attaque ou de mouvement.",
+    "Voie": "Voie de prestige sp\u00e9cialis\u00e9"
+}

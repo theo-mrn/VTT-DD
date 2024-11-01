@@ -1,0 +1,23 @@
+{
+    "Affichage1": "6ème sens",
+    "rang1": "Capacité passive<br> Effet : +1 Init, +1 🛡️.<br> <br>  L'ensorceleur sait toujours légèrement en avance ce qui va arriver. Il gagne un bonus de +1 par Rang dans la voie en Initiative et en DEF, ainsi qu’un bonus de +2 par Rang à tous les tests pour éviter d’être surpris.",
+    "type1":"passive",
+
+    "Affichage2": "Détection de l'invisible (L)",
+    "rang2": "Action limitée, sortilège <br> Effet : détection des créatures sur 30 mètres <br> Durée : [5 + mod. CHA] tours. <br> <br> Pendant [5 + Mod. de CHA] tours, l’ensorceleur détecte les créatures invisibles ou cachées à moins de 30 mètres et détecter si un sort de Clairvoyance affecte l’endroit. Aveuglé, ce sort lui permet de voir normalement.",
+    "type2":"limitée",
+
+    "Affichage3": "Clairvoyance (L)",
+    "rang3": "Action limitée, sortilège <br> Effet : voit et entend à distance.<br> <br>  L’ensorceleur peut voir et entendre à distance ce qui se passe dans un lieu qu’il connaît, tant qu’il reste concentré (action limitée à chaque tour). Les créatures présentes ont droit à un test de SAG difficulté [12 + Mod. de CHA] : en cas de réussite, elles se sentent observées.",
+    "type3":"limitée",
+
+    "Affichage4": "Prescience",
+    "rang4": "Capacité passive, sortilège <br> Effet : rejoue le dernier tour, +10 🛡️, +10 Init.<br> <br>  Une fois par combat, à la fin d’un tour, le joueur peut décider que tout ce qui s’est passé durant ce tour n’était que la vision d’un futur possible. On rejoue alors tout depuis le début : les autres personnages ne peuvent pas changer leurs actions, contrairement à l’ensorceleur qui bénéficie d’un bonus de +10 en Initiative et en DEF.",
+    "type4":"passive",
+
+    "Affichage5": "Hyperconscience",
+    "rang5": "Capacité passive <br> Effet : +2 SAG, +2 INT, 2d20 aux tests de SAG ou INT. <br> <br> L'ensorceleur augmente ses valeurs de SAG et d'INT de +2. Il peut désormais lancer deux d20 à chaque fois qu’un test de SAG ou d'INT lui est demandé et garder le meilleur résultat.",
+    "type5":"passive",
+
+    "Voie": "Voie de la divination"
+}

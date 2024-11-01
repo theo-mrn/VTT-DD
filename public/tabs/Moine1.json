@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Esquive du singe",
+    "rang1": "Capacité passive<br> Effet: +1 par rang DEF et aux tests de DEX <br><br>Pour chaque Rang dans cette Voie, le moine gagne +1 en DEF et à tous ses tests de DEX pour effectuer des acrobaties.",
+    "type1":"lpassive",
+
+    "Affichage2": "Morsure du serpent",
+    "rang2": "Capacité passive <br>Effet: DM x 2 sur 19 ou 20 contact , 18 - 20 avec une rapière ou vivelame  <br><br>Le moine obtient des DM critiques (multipliés par 2) sur un résultat de 19 à 20 au d20 du test d'attaque à mains nues ou avec une arme de contact, et sur des résultats de 18 et 20 avec une rapière ou une Vivelame.",
+    "type2":"passive",
+
+    "Affichage3": "Griffes du tigre",
+    "rang3": "Capacité passive <br>Effet: +1d DM pour chaque valeur max <br><br>Les DM des attaques à mains nues du moine sont désormais des jets sans limite : s'il obtient les DM maximum sur son dé, le joueur le relance et ajoute le nouveau résultat à ses DM. Tant que le dé donne le meilleur résultat possible, il est relancé et son score comptabilisé. Les dés en bonus (Puissance du Ki par exemple) ne sont jamais relancés, seulement ceux des DM à mains nues.",
+    "type3":"passive",
+
+    "Affichage4": "Fureur du dragon (L)",
+    "rang4": "Action limitée <br>Effet : [2d6 + mod. FOR] DM <br><br>Une fois par combat, le moine peut effectuer une attaque tournoyante qui inflige automatiquement [2d6+ Mod. de FORI de DM à tous les adversaires au contact et oblige ceux-ci à réussir un test de FOR difficulté 10 pour ne pas tomber au sol.",
+    "type4":"limitée",
+   
+    "Affichage5": "Moment de perfection",
+    "rang5": "Capacité passive <br>Effet : réussite automatique d'attaques et esquives pendant le tour <br><br> Une fois par combat, le moine peut choisir de réussir toutes ses attaques automatiquement et d'esquiver toutes celles qui le prennent pour cible pendant un tour. Tout semble aller au ralenti autour de lui...",
+    "type5":"passive",
+
+    "Voie": "Voie de la maitrise"
+}

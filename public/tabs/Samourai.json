@@ -1,0 +1,90 @@
+{
+                "Affichage11":"Chef né",
+    "ContenuCase11": "Capacité passive Effet : [+rang] aux tests de CHA d'intimidation, immunisé à la peur Le Samouraï est immunisé aux effets de peur (magie, pouvoir de dragon, etc.) De plus, il bénéficie d'un bonus de +1 par rang aux tests de CHA pour donner des ordres ou intimider.",
+              "Affichage12":"Eduqué",
+    "ContenuCase12": "Capacité passive :Effet: +5 connaissances des bannières noblesse, étiquette. Le samouraï bénéficie d'un bonus de +5 pour reconnaître les bannières et les familles nobles et d'un bonus de +5 aux tests d'étiquette et d'interaction avec la noblesse et la haute société.",
+                "Affichage13":"Esprit vide",
+    "ContenuCase13": "Capacité passive Effet : +3 Init. Rang 4: +5 Init  Le Samourai gagne +3 en Initiative, ce bonus passe à +5 au rang 4 de la Voie.",
+                "Affichage14":"Technique du sabre",
+    "ContenuCase14": "Capacité passive Effet : mod. FOR ou DEX pour [+mod FOR ou +rang] DM  Les techniques du sabre reposent sur la précision, la vitesse et la maîtrise acquise par des heures de répétition plutôt que sur la force. Lorsqu'il utilise un sabre, le samouraï peut remplacer son Mod de FOR par son Mod. de DEX enattaque au contact et remplacerson Mod. de FOR aux DM par le rang atteint dans la Voie du sabre.",
+                "Affichage15":"Bénédiction (L)",
+    "ContenuCase15": "Action limitée, sortilège Effet : +1 (contact/distance/magie), + 1 tous tests Durée : [3 + mod. SAG] tour Le prêtre entonne un chant pour encourager ses compagnons en vue. Lui et ses alliés bénéficient d'un bonus de +1 à tous leurs tests de caractéristique et d'attaque pendant [3 + Mod. de SAG tours.",
+   
+    
+    
+    
+    
+                "Affichage21":"Défi (L)",
+    "ContenuCase21": "Action limitée Effet : [+rang] DM aux dégats sur la cible. Durée : jusqu'à la fin du combat.Le samouraï défie un ennemi par une action limitée. Il obtient un bonus aux DM égal au rang atteint dans la Voie contre cet adversaire jusqu'à la fin du combat. Le samouraï peut défier un seul adversaire par scène de combat.",
+                "Affichage22":"Homme de cour",
+    "ContenuCase22": "Capacité passive Effet: +5 connaissances des bannières noblesse, étiquette. Le samouraï bénéficie d'un bonus de +5 pour reconnaître les bannières et les familles nobles et d'un bonus de +5 aux tests d'étiquette et d'interaction avec la noblesse et la haute société.",
+                "Affichage23":"Main vide",
+    "ContenuCase23": "Capacité passive Effet : A mains nues : (contact)  mod. DEX ou FOR au choix, rang 1 : [1d4 + mod. FOR] DM létaux rang 3 : [1d6 + mod. FOR] DM létaux rang 5 : [1d8 + mod. FOR] DM létaux Lorsqu'il combat à mains nues, le samouraï peut (s'il le souhaite) utiliser son Mod. de DEX en attaque au contact au lieu de son Mod. de FOR (mais pas aux DM). Au rang 1 de cette voie, il inflige [1d4 + Mod. de FOR] DM létaux. Ces DM passent à 1d6 au Rang 3 et à 1d8 au rang 5.",
+                "Affichage24":"Frappe du vide",
+    "ContenuCase24": "Capacité passive Effet: distance+2, + 1d6 DM sur première attaque Le samouraï sait porter une attaque en dégainant son arme du fourreau ou à l'instant où il la saisit. Cela surprend généralement son adversaire. Sur sa première attaque au contact lors d'un combat, si son sabre était au fourreau, il obtient un bonus de +2 en attaque et + 1d6 aux DM. De plus, il dégaine en action gratuite.",
+               "Affichage25":"Destruction des morts-vivants (L)",
+    "ContenuCase25": "Action limitée, sortilège Effet: 2d6 DM à tous les morts-vivants. Rang 4 : 3d6 DM  Le prêtre peut faire un test de SAG difficulté 13. S'il réussit, tous les morts-vivants en vue subissent 2d6 points de DM. Ces DM passent à 3d6 au rang 4 de la Voie.",
+
+    
+    
+    
+    
+                "Affichage31":"Honorable",
+    "ContenuCase31": "Capacité passive Effet: +5 aux tests de bonne foi ou décision Le samouraï a une réputation d'honorabilité sans faille. Il peut mettreen jeu son honneur pour garantir sa parole et la justesse de ses actions. Il bénéficie d'un bonus de +5 à tous les tests où sa bonne foi est en jeu. Il est considéré comme une référence en matière de justice, ce qui lui accorde le même bonus pour rendre justice, apaiser une foule en colère ou infliéchir la décision d'un dirigeant.",
+                "Affichage32":"Lame de lignée",
+    "ContenuCase32": "Capacité passive Effet: +1 X tous les 3 niveaux. Rang 5: + 1 niveau de magie : affutée, fléau ou DM élémentaires Le samourai possède un sabre (ou une paire de sabre s'il possède la capacité lames jumelles) qui se transmet dans sa famille depuis des générations et qui symbolise l'honneur des siens. Entre ses mains, cette arme devient magique et lui confère un bonus de +1 en attaque au contact (mais pas aux DM) tous les 3 niveaux: +1 au niveau 3, +2 au niveau 6, +3 au niveau 9, etc. En accord avec le MJ, l'arme obtient un pouvoir supplémentaire lorsque le samouraï atteint le rang 5 de la Voie (+1 niveau de magie : affutée, fléau ou DM élémentaires). S'il perd son arme, le samouraï subit un malus de -1 à tous ses tests tant qu'il ne la retrouve pas. L'arme est réputée incassable, mais si elle venait à être détruite, ce malus s'estomperait au bout d'un an. Il faudrait une année entière pour forger une nouvelle arme de famille.",
+                "Affichage33":"Kiai",
+    "ContenuCase33": "Capacité passive Effet: DM max à (distance/combat) 1x par combat. Rang 5 : 2x par combat 1d6 tours plus tard Une fois par combat, lorsqu'il a réussi une attaque (à distance ou au contact), le samouraï peut libérer son énergie sous la forme d'un puissant cri issu du ventre. Il obtient les DM maximum. Au rang 5 de la Voie, il peut utiliser son Kiai une seconde fois, au minimum 1d6 tours plus tard.",
+                "Affichage34":"Lames jumelles (L)",
+    "ContenuCase34": "Action limitée Effet: double attaque contact -1 si mod. FOR < 2 Si le samouraï possède un Mod. de FOR au moins égal à +2, il peut utiliser le katana d'une main et le wakizachi de l'autre sans pénalité. Il fait un test d'attaque normal pour chaque arme, mais ne bénéficie pas deson bonus de technique du  sabre sur son attaque au wakizashi. Si son Mod. de FOR est inférieur à +2, il subit une pénalité de -1 en attaque sur chaque attaque par point manquant.",
+                "Affichage35":"Sanctuaire (L)",
+    "ContenuCase35": "Action limitée, sortilège Effet: protection contre les attaques Durée : [5 + mod. SAG] tours.Quand le prêtre lance ce sort, tous les adversaires qui veulent l'attaquer doivent d'abord réussir un test de SAG difficulté 15. S'ils échouent, ils ne peuvent pas l'attaquer. Les effets de ce sort durent [5 + Mod de SAG] tours, mais s'il tente la moindre attaque, le sort prend fin immédiatement.",
+
+    
+    
+    
+    
+    
+                "Affichage41":"Seuls au monde",
+    "ContenuCase41": "Capacité passive Effet: +5 contre les cibles autres que celle défiée. Lorsqu'il a défié un adversaire, le samouraï obtient un bonus de +5 en DEF contre les attaques de tous les autres adversaires, à chaque tour où il attaque uniquement la cible qu'il a défié.",
+                "Affichage42":"Moment zen",
+    "ContenuCase42": "Capacité passive Effet : 2d6 tours pour prendre 10, 2d6 minutes pour prendre 20 Le samouraï est capable d'atteindre la paix intérieure même dans les moments les plus stressants. Désormais, il est capable de prendre 10 (CO Fantasy p. 69), même en situation stressante et il lui faut seulement 2d6 tours (aulieu de 2d6 minutes). Il lui faut seulement 2d6 minutes pour prendre 20 (au lieu de 2d6 heures). De plus, lorsqu'il prend 10, il ajoute toujours son Mod. de SAG au résultat en plus du Mod. de Carac. prévu initialement pour le test. Le samouraï est enfin capable de prendre10 sur une action d'attaque au prix d'une action limitée (L) jusqu'à 3 fois par combat.",
+                "Affichage43":"Course mortelle (L)",
+    "ContenuCase43": "Action limitée Effet : contact* sur chaque cible sur 10 mètres en ligne droite  Le samouraï parcourt jusqu'à 10 mètres en ligne droite en dépassant autant d'ennemis qu'il le souhaite. Il porte une attaque à chaque adversaire sur son passage. Il ne peut pas terminer son déplacement à unendroit occupé par un ennemi.",
+                "Affichage44":"Attaque en rotation (L)",
+    "ContenuCase44": "Action limitée Effet: Contact contre tous ennemis au contact Le samouraï peut tenter une attaque au contact contre chaque adversaire engagé au contact avec lui. Toutefois, s'il utilise un sabre dans chaque main, lorsque le résultat du dé du test d'attaque est pair, le katana inflige des DM et lorsqu'il est impair, c'est le wakizachi qui frappe. Il bénéficie du bonus aux DM de la technique du sabre quelle que soit l'arme qui inflige les DM.",
+                "Affichage45":"Intervention divine",
+    "ContenuCase45": "Capacité passive Effet: décide de la réussite ou de l'échec Le prêtre fait appel à son dieu pour changer le cours des événements. Une fois par combat, il peut décider qu'un test du MJ ou des joueurs est une réussite ou un échec, même après que les dés aient révélé leur résultat.",
+
+    
+    
+    
+    
+                "Affichage51":"Surmonter la douleur",
+    "ContenuCase51": "Capacité passive Effet : +5 aux tests de douleur, immunisé contre Affaibli, + 1 tour +5 Contact Distance + 1d6 DM contre la cible défiée en cas de décès Le samouraï obtient un bonus de +5 à tous les tests pour résister à la douleur et il est immunisé à l'état préjudiciable Affaibli . Lorsqu'il arrive à 0 PV, il peut encore agir un tour complet et, s'il a défié un ennemi, il obtient un bonus de +5 en attaque et +1d6 aux DM contre cet adversaire au cours de ce baroud d'honneur.",
+                "Affichage52":"Homme complet",
+    "ContenuCase52": "Capacité passiveEffet: +1 capacité de rang 1 à 3 profil de base Le samouraï possède les moyens et la culture nécessaire pour obtenir une formation dans n'importe quel domaine qui lui sied. Choisissez une capacité de rang 1 à 3 dans n'importe quel profil de base.",
+                "Affichage53":"Puissance du ki",
+    "ContenuCase53": "Capacité passive Effet : d12 remplace d20, +2d6 DM Le moine peut choisir d'utiliser 1d12 en attaque au lieu du d20 habituel (et il ajoute normalement son score d'attaque). Si l'attaque est réussie, il ajoute 2d6 aux DM. Cette capacité peut être utilisée avec « Déluge de coups » ou « Projection du ki » par exemple.",
+        
+        "Affichage54":"Dextérité héroïque",
+    "ContenuCase54": "Le samouraï augmente sa valeur de DEX de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test de DEX lui est demandé et conserver le meilleur résultat.",
+    
+     "Affichage55":"Sagesse Héroique",
+        "ContenuCase55": "Capacité passive Effet: +2 SAG, 2d20 aux tests de SAG Le druide augmente sa valeur de SAG de +2. Il peut désormais lancer deux d20 à chaque fois qu'un test de SAG lui estdemandé et conserver le meilleur résultat.",
+        
+    "Voie1":"Voie de l’honneur",
+    "Voie2":"Voie du dirigeant",
+    "Voie3": "Voie du Ki",
+    "Voie4":"Voie du sabre",
+    "Voie5":"Voie de la prière"
+}
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,38 @@
+{
+        "Affichage1":"Enfant des ténèbres",
+        "rang1": "Capacité passive: <br>Effet : +5 Init, +5 DEX dans le noir.<br><br> L'elfe gagne un bonus de +5 en Initiative et aux tests de DEX dans le noir complet ou la pénombre. Il ne subit pas de pénalité d'attaque à distance dans la pénombre.",
+        "type1":"passive",
+
+        "Affichage2":"Société de caste",
+        "rang2": "Capacité passive: <br>Effet: +1 capacité de rang 1 selon le sexe.<br> Rang 4: +1 capacité rang 2<br><br> Le joueur choisit une capacité de rang 1 d'une voie de nécromancien ou de guerrier pour un personnage mâle, d'une voie de prêtre ou de guerrier pour une femme. Il peut utiliser cette capacité en armure sans pénalité. Au rang 4 de la voie, il pourra choisir une capacité supplémentaire de rang 2.",
+        "type2":"passive",
+
+        "Affichage3":"Maîtrise des arbalètes",
+        "rang3": "Capacité passive: <br>Effet : critique d'arbalète sur 19-20.<br><br> Lorsqu'il utilise une arbalète de poing ou légère, l'elfe noir obtient une réussite critique sur un résultat de 19-20. Il sait manier ces arbalètes quel que soit son profil.",
+        "type3":"passive",
+
+        "Affichage4":"Combat à 2 armes",
+        "rang4": "Voie de l'elfe noir. Capacité passive. Effet: 2d12 remplace d20, capacité non limitée. Les elfes noirs sont passés maître dans l'art du combat à deux armes. Réaliser une attaque de chaque main (en utilisant 1d12) ne compte plus pour une action limitée. Le personnage peut remplacer ses tests d'attaque au d20 par une attaque au d12 de chacune des mains.",
+        "type4":"passive",
+
+        "Affichage5":"Supériorité elfique",
+        "rang5": "Capacité passive: Effet : +2 INT, +2 SAG L'elfe augmente ses valeurs d'INT et de SAG de +2.",
+        "type5":"passive",
+
+        "Voie":"Voie de l’elfe noir"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

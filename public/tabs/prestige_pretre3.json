@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Premiers soins",
+    "rang1": "Capacité passive <br>Effet : Ce sort ne demande qu’une action de mouvement pour être lancé et s’effectue seulement sur un personnage à 0 PV.<br><br> La cible touchée récupère immédiatement [2d6 + Mod. de SAG] PV. Par ailleurs, le prêtre augmente les effets de tous les sorts de la Voie des soins de 1 point par rang atteint dans cette nouvelle Voie.",
+    "type1":"passive",
+
+    "Affichage2": "Immunité (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : Le personnage touché devient immunisé aux poisons et aux maladies pour une durée de [1d6 + Mod. de SAG] tours.<br><br> Si le personnage est déjà malade ou empoisonné, le sort soulage la victime et annule les effets de l’affliction pendant toute sa durée : il agit même sur les maladies magiques, incurables et sur les malédictions divines.",
+    "type2":"limitée",
+
+    "Affichage3": "Soins rapides",
+    "rang3": "Capacité passive <br>Effet : Tous les sorts de la Voie des soins sont à présent lancés par une simple action de mouvement au lieu d’une action limitée.<br><br> Durant son tour, le prêtre peut donc opter pour le lancement d’un sort de soins et, au choix, une action d’attaque ou de mouvement.",
+    "type3":"passive",
+
+    "Affichage4": "Zone de vie (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : Trois fois par jour, le prêtre peut enchanter une surface de 10 mètres de rayon autour de lui pour une durée de [1d6 + Mod. de SAG] tours. <br><br>La zone est illuminée par une lumière bienfaitrice et l’air comme l’eau y sont purifiés. Les alliés du prêtre présents dans la zone récupèrent 1d6 PV à chaque tour de jeu (à la fin du tour du prêtre).",
+    "type4":"limitée",
+
+    "Affichage5": "Phénix",
+    "rang5": "Capacité passive <br>Effet : Une fois par combat, lorsque le prêtre tombe à 0 PV, il se relève imbibé d’une aura de lumière et feu prenant la forme d’un phénix. <br><br>Il produit alors une onde d’énergie positive qui restitue [3d6 + Mod. de SAG] PV à tous ses alliés dans un rayon de 30 mètres et double pour lui-même.",
+    "type5":"passive",
+
+    "Voie": "Voie du guérisseur"
+}

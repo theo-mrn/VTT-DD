@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Armure sur mesure",
+    "rang1": "Capacité passive: Effet: 1/2 pénalité d'armure ou DEF+1.<br> <br>  L'armure du chevalier est parfaitement ajustée, aussi il n'ajoute que la moitié de sa DEF à la difficulté des tests pour lesquels l'armure inflige une pénalité (de même pour les casques). Si vous n'utiliser pas la règle de pénalité des armures, le chevalier obtient un bonus de +1 en DEF lorsqu'il porte une armure métallique.",
+    "type1":"passive",
+
+    "Affichage2": "Encaisser un coup (L)",
+    "rang2": "Action limitée: <br>Effet : DM subits réduit de mod. de DEF, l'armure au prix d'une action.<br> <br> Le chevalier se place de façon à dévier un coup sur son armure. A son tour, il fait seulement une action d'attaque ou une action de mouvement. Par la suite, à tout moment avant son prochain tour, il peut retrancher aux dégâts subits suite à une attaque au contact un total égal au Mod. de DEF de son armure (plus d'éventuels bonus de magie et de bouclier).",
+    "type2":"limitée",
+
+    "Affichage3": "Coup de bouclier",
+    "rang3": "Capacité passive: <br>Effet : action gratuite : attaque de bouclier Contact 1d12, [1d4 + mod. FOR] DM. <br> <br> Le chevalier peut effectuer à chaque tour une attaque au bouclier avec un d12 au lieu du d20 (action gratuite) qui inflige [1d4 + Mod. de FOR] DM.",
+    "type3":"passive",
+
+    "Affichage4": "Frappe lourde (L)",
+    "rang4": "Action limitée: <br>Effet : Contact 1d12, +2d6 DM. Ignore 1/2 RD de la créature.<br> <br>  Le chevalier effectue une attaque au contact avec 1d12 au lieu du d20 (en ajoutant normalement son score d'attaque). Si l'attaque est réussie, il ajoute +2d6 aux DM. Il ignore la moitié de la réduction des DM de la créature(RD), si elle possède cette capacité.",
+    "type4":"limitée",
+
+    "Affichage5": "Force héroïque",
+    "rang5": "Capacité passive: <br>Effet : +2 FOR, 2d20 aux tests de FOR.<br> <br>  Le chevalier augmente sa valeur de FOR de +2. Il peut désormais lancer deux d20 à chaque fois qu'un test de FOR lui est demandé et conserver le meilleur résultat.",
+    "type5":"passive",
+
+    "Voie": "Voie de la guerre"
+}

@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Lumière (L)",
+    "rang1": "Action limitée, sortilège <br>Effet : éclaire sur 20 mètres, +2 par rang aux tests d'INT en connaissance et érudition <br>Durée : 10 minutes. <br><br>Le magicien désigne un objet, lequel produit des lors de la lumière dans un rayon de 20 mètres. Cette source de lumière n’émet pas de chaleur et s’éteint après 10 minutes ou lorsque le magicien le décide. Ce sort permet d’annuler un sort de Ténèbres lancé par un nécromancien de niveau inférieur.",
+    "type1":"limitée",
+    
+    "Affichage2": "Détection de la magie (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : détecte la présence de magie, +2 par rang aux tests d'INT en connaissance et érudition.<br><br> Le magicien se concentre et détecte la présence de toute inscription et de tout objet magique situé dans la pièce où il se trouve (ou dans les 15 mètres autour de lui). Ce sort permet aussi d’analyser les propriétés d’un objet magique au prix de 2 heures d’étude et de 100 pa de poudre d’argent.",
+    "type2":"limitée",
+
+    "Affichage3": "Invisibilité (L)",
+    "rang3": "Action limitée, sortilège <br>Effet : devient invisible, +2 par rang aux tests d'INT en connaissance et érudition <br>Durée : [1d6 + Mod. d'INT] minutes. <br><br>Le magicien se rend invisible pendant [1d6 + Mod. d'INT] minutes. Une fois invisible, personne ne peut détecter sa présence ni l'attaquer. Si le magicien attaque ou utilise une capacité limitée, il redevient visible.",
+        "type3":"limitée",
+
+    "Affichage4": "Vol (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : peut voler, +2 par rang aux tests d'INT en connaissance et érudition <br>Durée : [1d6 + Mod. d'INT] minutes.<br><br> Le magicien peut voler pendant [1d6 + Mod. d'INT] minutes. Sa vitesse de déplacement est la même qu’au sol.",
+    "type4":"limitée",
+
+    "Affichage5": "Intelligence héroïque",
+    "rang5": "Capacité passive<br>Effet : +2 INT, 2d20 aux tests d'INT, +2 par rang aux tests d'INT en connaissance et érudition. <br><br>Le magicien augmente sa valeur d'INT de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test d'INT lui est demandé et conserver le meilleur résultat.",
+    "type5":"passive",
+
+    "Voie": "Voie de la magie universelle"
+}

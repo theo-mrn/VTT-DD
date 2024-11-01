@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Précision",
+    "rang1": "Capacité passive <br>Effet: utilise Distance  au contact à la place de Contact. <br> <br> Le barde peut utiliser son score d'attaque à distance pour combattre au contact lorsqu'il emploie une arme à une main légère comme une dague, une épée courte ou une rapière.",
+    "type1":"passive",
+
+    "Affichage2": "Intelligence du combat",
+    "rang2": "Capacité passive <br>Effet : + mod. d'INT en Init et en Défense <br> <br> Le barde ajoute son Mod. d'INT en Initiative et en DEF en plus de son Mod. de DEX.",
+   "type2":"passive",
+
+    "Affichage3": "Feinte (L)",
+    "rang3": "Action limitée <br>Effet : au tour suivant +5 Contact, +2d6 DM <br> <br> Le barde effectue une attaque fictive pour déséquilibrer son adversaire et réaliser ensuite une attaque mortelle. Faites un test d'attaque normal à ce tour mais n'infligez aucun dégât. Au tour suivant, si vous attaquez le même adversaire,vous profiterez d'un bonus de +5 en attaque et, si votre feinte était réussie, de +2d6 aux DM.",
+   "type3":"limitée",
+
+    "Affichage4": "Attaque flamboyante (L)",
+    "rang4": "Action limitée <br>Effet : + mod. CHA en Contact et DM <br> <br> Le style de combat du barde est flamboyant et surprenant : avec cette Capacité, il effectue une attaque de contact avec un bonus d'attaque et de DM égal à son Mod. de CHA (en plus du Mod. de FOR ou de DEX).",
+   "type4":"limitée",
+
+    "Affichage5": "Botte mortelle",
+    "rang5": "Capacité passive <br>Effet : +2d6 DM si Contact >=Def+10 de la cible  <br> <br> Lors d'une attaque au contact, s'il obtient un score total d'attaque supérieur ou égal à la DEF de son adversaire +10 points, le barde obtient un bonus de +2d6 aux DM de son attaque.",
+   "type5":"passive",
+
+    "Voie": "Voie de l’escrime"
+}

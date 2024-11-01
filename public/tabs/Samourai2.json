@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Éduqué",
+    "rang1": "Capacité passive :<br>Effet: +5 connaissances des bannières noblesse, étiquette. Le samouraï bénéficie d'un bonus de +5 pour reconnaître les bannières et les familles nobles et d'un bonus de +5 aux tests d'étiquette et d'interaction avec la noblesse et la haute société.",
+   "type1":"passive",
+   
+    "Affichage2": "Homme de cour",
+    "rang2": "Capacité passive <br>Effet: +5 connaissances des bannières noblesse, étiquette. Le samouraï bénéficie d'un bonus de +5 pour reconnaître les bannières et les familles nobles et d'un bonus de +5 aux tests d'étiquette et d'interaction avec la noblesse et la haute société.",
+   "type2":"passive",
+   
+    "Affichage3": "Lame de lignée",
+    "rang3": "Capacité passive <br>Effet: +1 Contact tous les 3 niveaux. <br>Rang 5: + 1 niveau de magie : affutée, fléau ou DM élémentaires <br><br>Le samourai possède un sabre (ou une paire de sabre s'il possède la capacité lames jumelles) qui se transmet dans sa famille depuis des générations et qui symbolise l'honneur des siens. Entre ses mains, cette arme devient magique et lui confère un bonus de +1 en attaque au contact (mais pas aux DM) tous les 3 niveaux: +1 au niveau 3, +2 au niveau 6, +3 au niveau 9, etc.",
+   "type3":"passive",
+   
+    "Affichage4": "Moment zen",
+    "rang4": "Capacité passive <br>Effet : 2d6 tours pour prendre 10, 2d6 minutes pour prendre 20 Le samouraï est capable d'atteindre la paix intérieure même dans les moments les plus stressants.<br><br> Désormais, il est capable de prendre 10 (CO Fantasy p. 69), même en situation stressante et il lui faut seulement 2d6 tours (au lieu de 2d6 minutes).",
+   "type4":"passive",
+   
+    "Affichage5": "Homme complet",
+    "rang5": "Capacité passive <br>Effet: +1 capacité de rang 1 à 3 profil de base <br><br>Le samouraï possède les moyens et la culture nécessaire pour obtenir une formation dans n'importe quel domaine qui lui sied. Choisissez une capacité de rang 1 à 3 dans n'importe quel profil de base.",
+   "type5":"passive",
+   
+    "Voie": "Voie du dirigeant"
+}

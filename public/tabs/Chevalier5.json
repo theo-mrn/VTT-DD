@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Sans peur",
+    "rang1": "Capacité passive: <br>Effet : immunisé contre la peur. <br> <br> Le chevalier est immunisé aux attaques de peur et il offre un bonus de [2 + Mod. de CHA] à tous ses alliés contre ce type d'effet.",
+    "type1":"passive",
+
+    "Affichage2": "Intercepter",
+    "rang2": "Capacité passive: Effet: encaisse un coup à la place d'un allié, -rang DM subit <br> <br> Une fois par tour, le chevalier peut encaisser un coup à la place d'un allié à ses cotés. Il utilise sa DEF plutôt que celle de la cible initiale et retranche aux DM son rang dans la voie.",
+   "type2":"passive",
+
+    "Affichage3": "Exemplaire",
+    "rang3": "Capacité passive: <br>Effet : relance le test d'attaque raté d'un allié.<br> <br>  Une fois par tour, le chevalier permet à un allié qui combat le même adversaire que lui de relancer le d20 d'un test d'attaque, s'il s'agissait d'un d'échec.",
+    "type3":"passive",
+
+    "Affichage4": "Ordre de bataille",
+    "rang4": "Capacité passive: <br>Effet : un allié gagne une action gratuite (mouvement ou attaque).<br> <br> Le chevalier donne des ordres tactiques pertinents au coeur de la bataille. Une fois par tour, il octroie une action supplémentaire gratuite à un allié en vue (une action de mouvement ou une action d'attaque, mais pasune action limitée).",
+    "type4":"passive",
+
+    "Affichage5": "Charge fantastique (L)",
+    "rang5": "Action limitée: Effet: +3 Contact,Disatnce,Magie, +1d6 DM à tous le groupe. <br> <br> Une fois par combat, à l'initiative du chevalier, lui-même et tous ses alliés en vue bénéficient immédiatement d'un déplacement d'un maximum de 20 m en ligne droite, suivi d'une action d'attaque avec un bonus de +3 au testde réussite et +1d6 aux dégâts. Résolvez d'abord tous les déplacements en commençant par le chevalier, puis par ordre d'initiative. Ensuite effectuez xtoutes les attaques dans le même ordre.",
+   "type5":"limitée",
+   
+    "Voie": "Voie du meneur d’homme"
+}

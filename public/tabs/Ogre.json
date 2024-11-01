@@ -1,0 +1,23 @@
+{
+     "Affichage1":"Sang-froid",
+     "rang1": "Capacité passive <br>Effet: +5 résistance à la réaction violente (RV), atténue les effets. <br><br>Le demi-ogre obtient un bonus de +5 aux tests pour garder son sang-froid et notamment pour ré-sister à une réaction violente. La durée de la réaction violente est réduite à 1d4 tours et les DM subis lorsqu'il prend sur lui à 1d4 par tour restant.",
+     "type1":"passive",
+
+     "Affichage2":"Violence ciblée",
+     "rang2": "Capacité passive:<br> Effet: +1 RV d'action gratuite si résiste une RV <br><br>A chaque fois qu'il résiste à une crise de réaction violente, le demi-ogre gagne un point de violence. Il peut dépenser ce point par une action gratuite au moment de son choix dans la même journée pour obtenir les effets d'une réaction violente (1d4 tours) contre une cible de son choix. Il ne gagne aucun point de violence si un allié le provoque délibérément.",
+     "type2":"passive",
+
+     "Affichage3":"Vorace",
+     "rang3": "Capacité passive: <br>Effet : [3d6 + niveau] PV repris avec un festin <br><br>Le demi-ogre peut man-ger des quantités astronomiques. Une fois par jour, lors d'un repas, s'il avale à lui seul un sanglier ou l'équi- valent (un chevreuil, un demi-bœuf, etc.), il récupère (3d6 + niveau) PV. Cela correspond à un repas d'auberge d'une valeur en Pa égale au nombre de PV récupérés.",
+     "type3":"passive",
+
+     "Affichage4":"Toujours plus gros",
+     "rang4": "Capacité passive: <br>Effet: 2d6 DM à 1 main, 3d6 DM à 2 mains, ignore les RD de la Voie du colosse <br><br>Désormais, le demi-ogre inflige 2d6 DM avec une arme à deux mains tenue à une main et 3d6 DM avec une arme à deux mains à sa mesure. Lorsqu'il utilise une arme de cette façon, il ignore laréduction des DM (RD) imposéepar la Voie du colosse.",
+     "type4":"passive",
+
+     "Affichage5":"Monumental",
+     "rang5": "Capacité passive: <br>Effet : +2 CON, +2 FOR Le demi-ogre est une montagne de mus-cle, il augmente ses valeurs de CON et de FOR de +2.",
+     "type5":"passive",     
+
+     "Voie":"Voie de l'ogre"
+}

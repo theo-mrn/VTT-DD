@@ -1,0 +1,100 @@
+{
+    "rules": [
+          {
+            "title": "Jet de sauvegarde",
+            "description": "test de dé (1d20 + modificateur) pour déterminer si un personnage résiste à un effet néfaste comme un sort, un piège ou un poison. Le type de sauvegarde (Force, Dextérité, etc.) dépend de la nature de la menace. Réussir un jet de sauvegarde permet de réduire ou d'éviter les conséquences négatives de l'effet."
+        },
+         {
+            "title": "Aveuglé",
+            "description": "Un personnage aveuglé ne peut pas voir et échoue automatiquement à tout test de caractéristique qui nécessite la vue.Les attaques contre ce personnage ont l'avantage.Les attaques du personnage aveuglé ont un désavantage."
+        },
+        
+        
+        {
+            "title": "Charmé",
+            "description": "Un personnage charmé ne peut pas attaquer la créature qui l'a charmé, ni la prendre pour cible avec des capacités ou des effets magiques. La créature qui a charmé le personnage a l'avantage sur les tests de caractéristiques pour interagir socialement avec lui."
+        },
+        {
+            "title": "Assourdi",
+            "description": "Un personnage assourdi ne peut pas entendre et échoue automatiquement à tout test de caractéristique qui nécessite l'ouïe."
+        },
+        {
+            "title": "Effrayé",
+            "description": "Un personnage effrayé a un désavantage sur les tests de caractéristique et les jets d'attaque tant que la source de sa peur est dans sa ligne de vue. Le personnage ne peut volontairement se déplacer plus près de la source de sa peur."
+        },
+       
+        {
+            "title": " Incapacité",
+            "description": "Un personnage en incapacité ne peut pas entreprendre des actions ou des réactions."
+        },
+       {
+            "title": "Paralysé",
+            "description": "Un personnage paralysé a Incapacitaté et ne peut ni bouger ni parler. Les jets d'attaque contre ce personnage ont l'avantage. Toute attaque qui touche le personnage paralysé est un coup critique si l'attaquant est à moins de 1,5 mètre (5 pieds) du personnage. Le personnage échoue automatiquement aux jets de sauvegarde de Force et de Dextérité."
+        },
+        
+           {
+            "title": "Empoisonné",
+            "description": "Un personnage empoisonné a un désavantage sur les jets d'attaque et les tests de caractéristique."
+        },
+          
+              {
+            "title": "Etourdi",
+            "description": "Le personnage étourdi a Incapacité, ne peut pas bouger, et ne peut parler que faiblement. Les jets d'attaque contre lui ont l'avantage. Le personnage échoue automatiquement aux jets de sauvegarde de Force et de Dextérité."
+        },
+              {
+            "title": "Inconscient",
+            "description": "Le personnage inconscient a Incapacitaté, ne peut pas bouger ou parler, et est inconscient. Il laisse tomber tout ce qu'il tient et tombe à terre (prone). Les jets d'attaque contre le personnage ont l'avantage. Toute attaque qui touche le personnage inconscient est un coup critique si l'attaquant est à moins de 1,5 mètre (5 pieds). Le personnage échoue automatiquement aux jets de sauvegarde de Force et de Dextérité."
+        },
+        
+        
+        
+        {
+            "title": "CON (Constitution)",
+            "description": "La Constitution mesure la santé, l'endurance et la vitalité générale du personnage. Une haute constitution permet de mieux résister aux blessures et aux maladies."
+        },
+        {
+            "title": "DEX (Dextérité)",
+            "description": "La Dextérité mesure l'agilité, les réflexes et l'équilibre du personnage. Elle est essentielle pour les actions nécessitant de la précision et de la rapidité."
+        },
+        {
+            "title": "INT (Intelligence)",
+            "description": "L'Intelligence mesure les capacités d'apprentissage et de raisonnement du personnage. Elle est cruciale pour les compétences académiques et la résolution de problèmes."
+        },
+        {
+            "title": "SAG (Sagesse)",
+            "description": "La Sagesse mesure la perception, l'intuition et la capacité à prendre de bonnes décisions. Elle est souvent utilisée pour les compétences liées à l'observation et à la conscience de l'environnement."
+        },
+        {
+            "title": "CHA (Charisme)",
+            "description": "Le Charisme mesure la force de la personnalité, la capacité à inspirer les autres et les compétences en communication. Un haut charisme permet de mieux influencer les autres."
+        },
+        {
+            "title": "FOR (Force)",
+            "description": "La Force mesure la puissance physique et la capacité à exercer une force brute. Elle est essentielle pour les actions nécessitant de la force physique, comme le combat au corps à corps."
+        },
+        {
+            "title": "Défense",
+            "description": "La Défense représente la capacité du personnage à éviter les attaques ou à réduire les dégâts reçus. Elle est calculée en fonction de l'armure et de la dextérité."
+        },
+        {
+            "title": "Initiative",
+            "description": "L'Initiative détermine l'ordre dans lequel les personnages agissent en combat. Une haute initiative permet de réagir plus rapidement que les adversaires."
+        },
+        {
+            "title": "Dés de Vie",
+            "description": "Les dés de vie représentent la quantité de points de vie qu'un personnage peut obtenir notament a travers les potions de vie. Ils varient en fonction de la classe et peuvent être influencés par la Constitution."
+        },
+        {
+            "title": "Contact",
+            "description": "Le score de contact détermine si un personnage réussit à toucher sa cible lors d'une attaque au corps à corps. Ce score est influencé par la force et les compétences en combat rapproché."
+        },
+        {
+            "title": "Distance",
+            "description": "Le score de distance détermine si un personnage réussit à toucher sa cible avec une arme à distance, telle qu'un arc ou une arbalète. Ce score est principalement influencé par la dextérité."
+        },
+        {
+            "title": "Magie",
+            "description": "Le score de magie détermine si un personnage réussit à atteindre sa cible avec un sort. Ce score dépend souvent de l'intelligence, de la sagesse ou du charisme, selon la classe de lanceur de sorts."
+        }
+    ]
+}

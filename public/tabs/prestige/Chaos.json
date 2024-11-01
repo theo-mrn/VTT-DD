@@ -1,0 +1,13 @@
+{
+    "Affichage1": "Jet prismatique (L)",
+    "rang1": "Action limit\u00e9e, sortil\u00e8ge Effet: Ralentit ou affaiblit l'ennemi selon le niveau, maximum 10 m\u00e8tres de port\u00e9e.",
+    "Affichage2": "Bond en avant (L)",
+    "rang2": "Action limit\u00e9e, sortil\u00e8ge Effet: Projection du mage vers le futur pendant [1d6+Mod. d'INT] tours, r\u00e9apparition et attaque si aucune obstruction.",
+    "Affichage3": "Lenteur (L)",
+    "rang3": "Action limit\u00e9e, sortil\u00e8ge Effet: Ralentit une cr\u00e9ature dans un rayon de 30 m\u00e8tres, test de CON requis pour \u00e9viter.",
+    "Affichage4": "Enl\u00e8vement lointain (L)",
+    "rang4": "Action limit\u00e9e, sortil\u00e8ge Effet: Transporte une cible sur 20 m\u00e8tres avec un test d'attaque magique, 10 km max pour le d\u00e9placement.",
+    "Affichage5": "Mur prismatique (L)",
+    "rang5": "Action limit\u00e9e, sortil\u00e8ge Effet: Mur scintillant inflige des DM selon la capacit\u00e9 de la voie, tir\u00e9 au hasard avec 1d4.",
+    "Voie": "Voie du chaos"
+}

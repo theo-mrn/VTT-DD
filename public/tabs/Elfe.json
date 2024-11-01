@@ -1,0 +1,40 @@
+{
+        "Affichage1":"Grâce elfique",
+        "rang1": "Capacité passive <br>Effet: +5 Init et tous les tests de DEX <br><br>L'elfe gagne un bonus de +5 en Initiative et à tous les tests de DEX.",
+        "type1":"passive",
+
+        "Affichage2":"Talent pour la magie",
+        "rang2": "Capacité passive <br>Effet: +1 capacité rang 1 Magicien ou Ensorceleur.<br>Rang 4: +1 sort de rang 2 <br><br>Le joueur choisit une capacité de rang 1 de n'importe quelle voie de magicien ou d'ensorceleur. Il peut utiliser cette capacité en armure sans pénalité. Au rang 4 de la voie, il pourra choisir un sortsupplémentaire de rang 2.",
+        "type2":"passive",
+
+        "Affichage3":"Force d’âme",
+        "rang3": "Capacité passive <br>Effet: +5 DEF vs magie, +5 SAG aux tests de résist. magie <br><br>L'elfe est immunisé à la peur et au sommeil magique. Il obtient un bonus de +5 en DEF contre les attaques magiques et à tous les tests de SAG destinés à résister à la magie.",
+        "type3":"passive",
+
+        "Affichage4":"Immortel",
+        "rang4": "Capacité passive <br>Effet : immunisé contre poison et maladie  <br><br>L'elfe n'a besoin que de la moitié du repos, de la nourriture ou de la boisson d'un humain normal pour être en pleine forme. Il est immunisé aux effets des poisons et des maladies.",
+        "type4":"passive",
+
+
+        "Affichage5":"Supériorité elfique",
+        "rang5": "Capacité passive<br> Effet : +2 INT, +2 SAG <br><br>L'elfe augmente ses valeurs d'INT et de SAG de +2.",
+        "type5":"passive",
+
+        "Voie":"Voie du haut elfe"
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

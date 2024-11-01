@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Charge (L)",
+    "rang1": "Action limitée <br>Effet : +2 🗡️, +1d6 DM. <br><br>Le minotaure se déplace en ligne droite d’au moins 5 mètres (20 mètres au maximum) et il réalise une attaque avec +2 au test et +1d6 DM en cas de réussite. Cette capacité peut se cumuler à la charge du barbare.",
+    "type1":"limitée",
+
+    "Affichage2": "Frénésie",
+    "rang2": "Capacité passive <br>Effet : frénésie sur blessure : +2 🗡️, +2 DM, -2 🛡️ <br>Durée : 1d6 tours.<br><br> Après avoir reçu une blessure, le minotaure peut entrer en frénésie (action gratuite), il gagne un bonus de +2 en attaque au contact et aux DM, mais subit un malus de -2 en DEF pour 1d6 tours. Ces bonus/malus ne sont pas cumulables à la rage du barbare.",
+    "type2":"passive",
+
+    "Affichage3": "Orientation infaillible",
+    "rang3": "Capacité passive <br>Effet : sens de l'orientation. <br><br>Désormais, le minotaure ne se perd jamais et il connaît toujours le plus court chemin vers la sortie ou la surface.",
+    "type3":"passive",
+
+    "Affichage4": "Encorner",
+    "rang4": "Capacité passive <br>Effet : 🗡️ attaque de corne 1x par tour.<br><br> Le minotaure peut désormais réaliser une attaque de corne en action gratuite une fois par tour.",
+    "type4":"passive",
+
+    "Affichage5": "Colosse",
+    "rang5": "Capacité passive <br>Effet : +2 CON, +2 FOR. <br><br>Le minotaure est une montagne de muscles, il augmente ses valeurs de CON et de FOR de +2.",
+    "type5":"passive",
+
+    "Voie": "Voie du minotaure"
+}

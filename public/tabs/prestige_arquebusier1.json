@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Pied marin",
+    "rang1": "Capacité passive <br> Effet : Le personnage gagne un bonus de +5 sur tous les tests de DEX réalisés sur un bateau ou sur d’autres supports mobiles (ce qui comprend les chariots, les cordages, les ponts de corde).<br><br> Il gagne un bonus de +5 sur tous les tests relatifs à la natation et à la navigation.",
+    "type1":"passive",
+
+    "Affichage2": "Coup de crosse",
+    "rang2": "Capacité passive <br>Effet : Une fois par tour, le personnage peut, au moment de son choix, accomplir une attaque gratuite avec la crosse d’une pétoire qu’il a utilisée précédemment lors du tour pour une attaque à distance. <br><br>Il utilise un d12 pour le test d’attaque et inflige [1d4 + Mod. de FOR] DM.",
+    "type2":"passive",
+
+    "Affichage3": "À l’abordage !",
+    "rang3": "Capacité passive Effet : Le personnage sait s’élancer vers ses ennemis et mettre du cœur dans sa première attaque au contact lors d’un combat. Lors de cette première attaque, il obtient un bonus de +5 en attaque et de +1d6 aux DM.",
+    "type3":"passive",
+
+    "Affichage4": "Sabre au poing (L)",
+    "rang4": "Action limitée <br>Effet : À ce tour, le personnage peut tirer avec une arme à poudre d’une main et porter une attaque de contact sans pénalité avec une seconde arme (tenue dans son autre main).",
+    "type4":"limitéee",
+
+    "Affichage5": "Pas de quartier",
+    "rang5": "Capacité passive <br>Effet : Pour le flibustier, il s’agit de vaincre ou mourir.<br><br> Sa férocité est légendaire : il peut tenter une action d’attaque gratuite contre toute créature à son contact qui utilise une action de mouvement dans le but de s’éloigner de lui. Pour cette attaque, il obtient un bonus de +5 en attaque et de +1d6 aux DM.",
+    "type5":"passive",
+
+    "Voie": "Voie du flibustier"
+}

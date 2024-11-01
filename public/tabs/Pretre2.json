@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Arme bénie",
+    "rang1": "Capacité passive <br>Effet : relance si DM de 1 Le prêtre bénit son arme sacrée. <br><br>S'il obtient un résultat de « 1 » sur son dé de DM, il relance le dé et garde le second résultat. Les DM de l'arme sont considérés comme magiques.",
+    "type1":"passive",
+    
+    "Affichage2": "Bouclier de la foi",
+    "rang2": "Capacité passive Effet: +1 DEF, rang 4: +2 DEF <br><br>Le prêtre porte le symbole de sa foi sur son bouclier, ce qui lui confère un bonus supplémentaire de +1 en DEF. Ce bonus passe à +2 au Rang 4 de la Voie.",
+    "type2":"passive",
+   
+    "Affichage3": "Marteau spirituel (L)",
+    "rang3": "Action limitée, sortilège <br>Effet : [1d8 + mod. SAG] DM <br><br>Le prêtre effectue une attaque magique avec une portée de 30 mètres. Un projectile d'énergie prenant la forme de l'arme du prêtre va percuter la cible, lui infligeant [1d8 + Mod. de SAG] de DM.",
+    "type3":"limitée",
+   
+    "Affichage4": "Châtiment divin (L)",
+    "rang4": "Action limitée <br>Effet : [+ mod SAG] en Contact et DM <br><br>Le prêtre effectue une attaque de contact avec un bonus en attaque et aux dégâts égal à son Mod. de SAG.",
+    "type4":"limitée",
+   
+    "Affichage5": "Mot de pouvoir (L)",
+    "rang5": "Action limitée, sortilège <br>Effet : alliés +5 Contact, Distance, Magie, paralysie ennemies <br>Durée : 1 tour Une fois par combat, <br><br>le prêtre peut prononcer un mot avec la voix de son dieu. Cela dépasse l'entendement des mortels et ses ennemis à portée de vue sont paralysés de terreur pendant 1 tour tandis que tous ses alliés en vue bénéficient d'un bonus de +5 en attaque pendant cette période.",
+    "type5":"limitée",
+
+    "Voie": "Voie de la guerre sainte"
+}

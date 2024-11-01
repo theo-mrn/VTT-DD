@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Vigueur",
+    "rang1": "Capacité passive <br>Effet : +2 par rang aux tests de course, saut, escalade. <br><br>Le barbare est un athlète capable de prouesses physiques extraordinaires, il obtient un bonus de +2 par Rang dans la voie aux tests de course, de saut ou d'escalade.",
+    "type1":"passive",
+
+    "Affichage2": "Peau de pierre",
+    "rang2": "Capacité passive <br>Effet : + mod. CON en Défense. <br><br>Le barbare est particulièrement endurci, il reçoit un bonus de Défense égal à son Mod. de CON.",
+    "type2":"passive",
+
+    "Affichage3": "Tatouages",
+    "rang3": "Capacité passive <br>Effet : +5 au choix : FOR, CON, DEX ou SAG. <br><br>Le barbare possède un tatouage magique qui améliore ses performances physiques. Au choix : taureau (+5 aux tests de FOR), ours (+5 aux tests de CON), panthère (+5 aux tests de DEX) ou chouette (+5 aux tests de SAG).",
+    "type3":"passive",
+
+    "Affichage4": "Peau d'acier",
+    "rang4": "Capacité passive <br>Effet : -3 DM reçus. <br><br>Le barbare ne sent plus la douleur et ignore les égratignures, il réduit tous les DM subis de 3 points. Il subit toujours au moins 1 point de DM de chaque attaque reçue.",
+    "type4":"passive",
+
+    "Affichage5": "Constitution héroïque",
+    "rang5": "Capacité passive<br> Effet : +2 CON, 2d20 aux tests de CON. <br><br>Le barbare augmente sa valeur de CON de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test de CON lui est demandé et garder le meilleur résultat.",
+    "type5":"passive",
+
+    "Voie": "Voie du pagne"
+}

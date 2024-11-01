@@ -1,0 +1,24 @@
+{
+    "Affichage1": "Bâton de mage",
+    "rang1": "Capacité passive <br>Effet : +1 🗡️ [1d6 + mod. d'INT] DM.<br>Rang 3 : Action limitée, utilis Magie pour Contact  [2d6 Mod. d'INT] DM. <br><br>Le forgesort crée un grand bâton magique. Avec cette arme à deux mains, il gagne un bonus de +1 aux tests d’attaque au contact et inflige [1d6 + Mod. d'INT] DM magiques. À partir du rang 3, sur action limitée, il peut utiliser son score d’attaque magique pour une attaque au contact et infliger [2d6 + Mod. d'INT] DM dans un éclair d’énergie !",
+    "type1":"passive",
+
+    "Affichage2": "Blocage (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : scelle un objet, +5 solidité et RD <br>Durée : INT minutes.<br><br> Le forgesort scelle une porte ou un coffre pour une durée en minutes égale à sa valeur d’INT. Seul un mot de commande qu’il choisit permet d’ouvrir l’objet. Celui-ci peut toujours être brisé par la force, mais il bénéficie d’un bonus de +5 en solidité et en RD (réduction des DM) pour toute la durée du sort.",
+    "type2":"limitée",
+
+    "Affichage3": "Sac sans fond",
+    "rang3": "Capacité passive <br>Effet : sac magique 50 Kg par rang. <br>Le forgesort possède un sac dans lequel il peut entreposer 50 kg de matériel par rang dans la voie, tandis que le sac ne semble pas peser plus de 1 m3. Les objets stockés dans le sac ne fournissent pas de contrainte en termes de volume ou de taille. Le sac est résistant à l’eau et aux attaques physiques et magiques. Un objet vivant ne peut pas respirer, une fois mis dans le sac. Il peut en retirer ou ranger un objet en 1 action. Si un objet n’est pas récupéré dans un délai de 3 heures, il se perd définitivement.",
+    "type3":"passive",
+
+    "Affichage4": "Frappe des arcanes (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : sort de zone, [2d6 + mod. d'INT] DM. <br><br>Le forgesort frappe le sol de son bâton et provoque une onde dévastatrice dans un rayon de 10 m autour de lui. Toutes les créatures dans la zone subissent automatiquement [2d6 + Mod. d'INT] DM et doivent réussir un test de FOR difficulté [10 + Mod. d'INT] pour ne pas tomber au sol.",
+    "type4":"limitée",
+
+    "Affichage5": "Artefact majeur",
+    "rang5": "Capacité passive<br> Effet : enchantement d’objet. <br><br>Le forgesort peut enchanter des objets. Il peut créer une arme ou une armure qui donne un bonus de +1 aux tests d’attaque ou à la DEF et bénéficie d’améliorations élémentaires (lame de feu, etc.). L’objet enchanté gagne également un bonus de +1 en solidité et en RD pour toute la durée de l’effet magique.",
+    "type5":"passive",
+
+    "Voie": "Voie des artefacts"
+
+}

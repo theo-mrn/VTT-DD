@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Gris-gris (L)",
+    "rang1": "Action limitée <br>Effet : Le nécromancien utilise un petit fétiche (crâne d’oiseau, petite pierre, statuette) sur lequel il fait couler un peu de son sang afin de lui conférer du pouvoir.<br><br> Ce rituel se traduit par le sacrifice de 1 PV. Le fétiche permet au nécromancien ou à une personne tenant le gris-gris de relancer 1d20 une fois par jour pour les tests ou les attaques. S’il est détruit, le nécromancien récupère son PV. Le nécromancien peut créer ainsi plusieurs gris-gris.",
+    "type1":"limitée",
+
+    "Affichage2": "Rituel primitif (L)",
+    "rang2": "Action limitée <br>Effet : Après avoir consacré 10 minutes à psalmodier, danser et préparer des ingrédients occultes<br><br>le nécromancien choisit un sort parmi ceux de sa liste de sorts primitifs. Lors de sa prochaine utilisation de ce sort, il double un paramètre : la portée, les DM ou le nombre de cibles affectées. Au rang 2, le nécromancien peut préparer un sort à la fois par ce biais, à partir du rang 4, il peut préparer jusqu’à 2 sorts différents (par deux rituels distincts) en utilisant cette capacité.",
+    "type2":"limitée",
+
+    "Affichage3": "Magie du sang",
+    "rang3": "Capacité passive <br>Effet : En sacrifiant 1d4 PV, le nécromancien obtient la possibilité de lancer un sort en une action d'attaque à ce tour-là en lieu et place d'une action limitée.<br><br> En sacrifiant 2d4 PV, il obtient la possibilité de lancer un sort en action d’attaque même si le sort est une action d’attaque et en une action limitée. A partir du rang 4, le nécromancien peut lancer deux sorts différents le même tour en sacrifiant au total 3d4 PV. Les sorts affectés par cette capacité sont limités au rang 3.",
+    "type3":"passive",
+
+    "Affichage4": "Dents des âmes (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : Le nécromancien invoque des esprits torturés qui hurlent et tourmentent un ennemi pendant un nombre de tours égal à son Mod. d’INT.<br><br> Pendant la durée du sort, la cible peine à se concentrer et ne peut réaliser aucune incantation ni réussir un test de SAG difficulté 12 à chaque tour. De plus, cette créature bloquée ne peut être soignée tant qu’elle est possédée par l’effet (elle ne peut pas se régénérer ou être soignée).",
+    "type4":"limitée",
+
+    "Affichage5": "Mauvais œil",
+    "rang5": "Capacité passive <br>Effet : Tant que le nécromancien regarde sa cible avec le mauvais œil, celle-ci est accablée de malchance.<br><br> Une fois ses actions terminées, le personnage peut poser le mauvais œil sur la cible de son choix à chaque tour (avec une portée de 20 mètres). La victime choisie subit une pénalité de -2 à tous les tests. Si elle obtient un résultat de 1 ou 2 au test, le joueur peut décider de lui infliger une condition critique à son test ou à son action. Il s’agit d’une créature ou d’un PNJ allié, la condition est généralement une blessure ou une défaillance spécifique (ex: une arme cassée ou une armure brisée).",
+    "type5":"passive",
+
+    "Voie": "Voie de la magie primitive"
+}

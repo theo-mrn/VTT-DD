@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Projectile magique (L)",
+    "rang1": "Action limitée, sortilège <br>Effet : dégâts automatiques : 1d4 DM, <br>rang 4 : 1d6 DM. <br><br>Le magicien choisit une cible visible située à moins de 50 mètres. Elle encaisse automatiquement 1d4 points de dégâts (pas de test d’attaque nécessaire). À partir du Rang 4 dans cette Voie, les DM passent à 1d6.",
+    "type1":"limitée",
+
+    "Affichage2": "Rayon affaiblissant (L)",
+    "rang2": "Action limitée, sortilège <br>Effet : la cible subit -2 🗡️, -2 FOR, -2 DM <br>Durée : [1d6 + Mod. d'INT] tours. <br><br>Le magicien choisit une cible située à moins de 10 mètres. Si son attaque magique réussit, le rayon affecte la cible qui subit un malus de -2 à ses tests de FOR, d’attaque au contact et de dégâts pendant [1d6 + Mod. d'INT] tours.",
+        "type2":"limitée",
+
+    "Affichage3": "Flèche enflammée (L)",
+    "rang3": "Action limitée, sortilège <br>Effet : [1d6 + Mod. d'INT] DM plus 1d6 chaque tour <br>Durée : s’arrête sur 1-2.<br><br> Le magicien choisit une cible située à moins de 30 mètres. Si son attaque magique réussit, la cible encaisse [1d6 + Mod. d'INT] DM et la flèche enflamme ses vêtements. Chaque tour de combat suivant, le feu inflige 1d6 dégâts supplémentaires. Sur un résultat de 1 à 2, les flammes s’éteignent et le sort prend fin.",
+        "type3":"limitée",
+
+    "Affichage4": "Boule de feu (L)*",
+    "rang4": "Action limitée, sortilège <br>Effet : [4d6 + Mod. d'INT] DM de zone sur 6 mètres.<br><br> Le magicien choisit une cible située à moins de 30 mètres. Il fait un test d’attaque magique et le compare à la DEF de tous les personnages compris dans un rayon de 6 mètres autour du point d’impact. Chaque victime pour laquelle le test est réussi subit [4d6 + Mod. d'INT] DM et doit réussir un test de DEX difficulté 10 + [Mod. d’INT du magicien] pour ne subir que la moitié des DM. Un échec total au test de DEX inflige la totalité des DM (pas besoin de faire le test de DEX).",
+        "type4":"limitée",
+
+    "Affichage5": "Rituel de puissance",
+    "rang5": "Capacité passive <br>Effet : 🗡️d12 remplace d20, +2d6 DM.<br><br> Sur une attaque magique, le magicien peut utiliser un d12 en attaque au lieu du d20 habituel. Si l’attaque est réussie, il ajoute 2d6 aux DM. Cette capacité s’utilise uniquement avec les sorts nécessitant un test d’attaque et infligeant des DM. Si les DM sont répartis sur plusieurs tours, seuls les DM initiaux sont modifiés.",
+    "type5":"limitée",
+
+    "Voie": "Voie de la magie destructrice"
+}

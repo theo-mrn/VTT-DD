@@ -1,0 +1,38 @@
+{
+        "Affichage1":"Adaptable",
+        "rang1": "Capacité passive, sortilège<br> Effet: recommence le test raté avec un bonus de +5 au tour suivant Après avoir raté un test de Carac., <br><br>le personnage obtient un bonus de +5 au test pour recommencer a même action au prochain tour.",
+        "type1":"passive",
+
+        "Affichage2":"Loup parmi les loups",
+        "rang2": "Capacité passive<br> Effet: +1 DM contre les humanoïdes, rang 4 : +2 DM Le personnage gagne +1 aux DM lorsqu'il combat un adversaire humanoïde.<br> Ce bonus passe à +2 au rang 4 de la voie.",
+        "type2":"passive",
+
+        "Affichage3":"Versatile",
+        "rang3": "Capacité passive<br> Effet: +1 capacité rang 1 au choix ou rang 2 si profil de même famille  <br><br>Le personnage obtient une capacité de rang 1 de n'importe quel profil au choix du joueur ou une capacité de rang 2 d'un profil de la même famille que le sien.",
+        "type3":"passive",
+
+        "Affichage4":"Increvable",
+        "rang4": "Capacité passive <br>Effet : esquive sur coup mortel <br><br>Une fois par tour, lorsqu'une attaque fait tomber le personnage à 0 PV, ce dernier peut effectuer un test d'attaque (du même type) opposé à celui de l'adversaire. En cas de réussite, le personnage esquive ou résiste à cette attaqueet ne subit aucun DM.",
+        "type4":"passive",
+
+        "Affichage5":"Polyvalence",
+        "rang5": "Capacité passive<br>Effet : +2 carac. la plus faible, +2 carac.<br><br> au choix Le personnage augmente de 2 points la valeur de sa caractéristique la plus faible, ainsi que la valeur d'une autre caractéristique au choix.",
+        "type5":"passive",
+        
+        "Voie":"Voie de l’humain"
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,13 @@
+{
+    "Affichage1": "Ni chaud ni froid",
+    "rang1": "Capacit\u00e9 passive Effet: R\u00e9sistance aux temp\u00e9ratures froides, +5 \u00e0 tous les tests de survie en milieu froid, r\u00e9duit de 5 les DM de froid.",
+    "Affichage2": "D\u00e9placement en milieu hostile",
+    "rang2": "Capacit\u00e9 passive Effet: Augmentation du d\u00e9placement en milieu naturel de 10 m\u00e8tres par action, +5 aux tests d'escalade, insensible \u00e0 la neige et glace.",
+    "Affichage3": "Tueur de g\u00e9ants",
+    "rang3": "Capacit\u00e9 passive Effet: +1d6 aux DM contre les cr\u00e9atures de taille Enorme et +2d6 contre les cr\u00e9atures Colossales.",
+    "Affichage4": "Rage froide",
+    "rang4": "Capacit\u00e9 passive Effet: Pas de p\u00e9nalit\u00e9 de DEF pendant la rage, mais interdit d'utiliser des armes de jet ou de n\u00e9gocier.",
+    "Affichage5": "Assaut final",
+    "rang5": "Capacit\u00e9 passive Effet: Double les DM d'une attaque apr\u00e8s 3 tours de rage, mais met fin \u00e0 la rage apr\u00e8s cette attaque.",
+    "Voie": "Voie des glaces"
+}

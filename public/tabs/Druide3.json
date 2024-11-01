@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Vitesse du félin",
+    "rang1": "Capacité passive: Effet: +1 par rang en Init, course, saut ou escalade. <br> <br> Le druide gagne + 1 par rang dans la voie en Initiative et aux tests de course, d'escalade ou de saut.",
+    "type1":"passive",
+
+    "Affichage2": "Panthère",
+    "rang2": "Capacité passive: <br>Effet : Panthère : FOR+2, DEX+4, CON+2, INT-3 SAG+2, CHA-2, Init 18,DEF 16, PV [niveau x 4], Contact [niveau], DM 1d6+2. <br> <br> Le druide apprivoise une panthère (ou un puma) qui lui obéit au doigt et à l'oeil (voir marge).",
+    "type2":"passive",
+
+    "Affichage3": "Attaque bondissante (L)",
+    "rang3": "Action limitée: <br>Effet : Contact+5, DM + 1d6. <br>Durée : premier tour de combat, nécessite 5 à 30 mètres en lignes droite. <br> <br> Le druide parcourt jusqu'à 30 m et bénéficie d'un bonus de +5 au test d'attaque et de +1d6 aux DM contre sa cible. Il doit se déplacer d'au minimum 5 m en ligne droite pour faire cette attaque, qui ne peut par ailleurs être réalisée qu'à son premier tour du combat.",
+   "type3":"limitée",
+
+    "Affichage4": "Grand félin",
+    "rang4": "Capacité passive: <br>Effet : Animal fabuleux : FOR+5, DEX+4, CON+5, INT-3, SAG+2, CHA-2, DEF 18, DM 1d6+5. <br> <br> La panthère devient un animal fabuleux (voir marge), ou est remplacée par un félin plus grand (tigre, lion). Lorsque le druide atteint le niveau 8, les DM passent à 2d6+5. Au niveau 12, le félin peut utiliser Attaque bondissante. Le druide peut également communiquer avec son félin par télépathie, et le guérir à distance en dépensant ses propres PV (-1 PV au druide par PV octroyé aufélin).",
+   "type4":"passive",
+
+    "Affichage5": "Les sept vies du chat",
+    "rang5": "Capacité passive: <br>Effet : ignore la mort 7 fois. <br> <br> Cette capacité ne peut être utilisée que sept fois, et pas plus d'une fois par niveau. Lorsque que les PV du druide tombent à 0 ou qu'il meurt, le druide peut choisir d'ignorer ce qui a provoqué la mort ! Le MJ et le joueur doivent se mettre d'accord et trouver une raison plausible (ou pas !) pour expliquer la survie du personnage, et le faire réapparaître immédiatement ou un peu plus tard dans l'aventure si nécessaire.",
+   "type5":"passive",
+
+    "Voie": "Voie du fauve"
+}

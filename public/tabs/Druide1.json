@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Maître de la survie",
+    "rang1": "Capacité passive: Effet: +2 par rang à tous les tests de survie. <br> <br> Le druide obtient un bonus de +2 par rang dans la voie à tous les tests basés sur la survie en milieu naturel (survie, vigilance, discrétion, etc.).",
+    "type1":"passive",
+
+    "Affichage2": "Marche sylvestre",
+    "rang2": "Capacité passive: Effet: en terrain difficile, pas de pénalité de déplacement, +2 en Contact, DEF.<br> <br>  Non seulement le druide ne subit aucune pénalité de déplacement en terrain difficile (neige, boue, broussailles, pente abrupte, etc.) mais en plus, il obtient un bonus de +2 en attaque et en DEF lors d'un combat dans ces conditions.",
+    "type2":"passive",
+
+    "Affichage3": "Résistant",
+    "rang3": "Capacité passive: <br>Effet : réduction de [2 x rang] DM. <br> <br> Le druide obtient une réduction de DM égal à son [Rang x 2] contre toutes les sources de dégâts « naturels » : froid, chaleur, chutes, poisons... mais aussi aux DM provoqués par les animaux ou les insectes (même géants).",
+    "type3":"passive",
+
+    "Affichage4": "Bâton de druide (L)",
+    "rang4": "Action limitée: <br>Effet : 2 attaques Contact, [1d6 + mod. FOR ou DEX]. <br> <br> Le druide combat avec les deux extrémités de son bâton de bois noueux. Lorsqu'il utilise cette capacité, il effectue deux attaques de contact infligeant [1d6 DM + Mod. de FOR ou de DEX] (au choix) par attaque.",
+    "type4":"limitée",
+
+    "Affichage5": "Constitution héroïque",
+    "rang5": "Capacité passive: Effet: +2 CON, 2d20 aux tests de CON. <br> <br> Le druide augmente sa valeur de CON de +2. Il peut désormais lancer deux d20 à chaque fois qu'un test de CON lui est demandé et conserver le meilleur résultat.",
+   "type5":"passive",
+
+    "Voie": "Voie de la nature"
+}

@@ -1,0 +1,102 @@
+{
+                "Affichage11":"Esquive du singe",
+    "ContenuCase11": "Capacité passive Effet: +1 par rang DEF et aux tests de DEX Pour chaque Rang dans cette Voie, le moine gagne +1 en DEF et à tous ses tests de DEX pour effectuer des acrobaties.",
+                "Affichage12":"Pacifisme",
+    "ContenuCase12": "Capacité passive Effet: +5 DEF tant que n'attaque pas Tant que le moine n'a réalisé aucune action offensive dans un combat, il bénéficie d'un bonus en DEF de +5.",
+                "Affichage13":"Poings de fer",
+    "ContenuCase13": "Capacité passive Effet : remplace contact par distance FORI DM * rang 3 : [1d8 + md. FOR] DM * rang 5 : [1d10 + md. FOR] DM :* rang 1 : [1d6 + md.  Lorsqu'il combat à mains nues, le moine peut (s'il le souhaite) utiliser son score d'attaque à distance au lieu de celui d'attaque au contact. Au rang 1 de cette voie, il inflige [1d6 + Mod. de FOR] DM létaux (cf. DM temporaires page 72). Ces DM passent à 1d8 au Rang 3 et à 1d10 au rang 5.",
+                "Affichage14":"Pas du vent",
+    "ContenuCase14": "Capacité passive Effet: +1 par rang en Init, + 1 déplacement si non consécutif Le moine peut se déplacer avant et après avoir attaqué (mais il couvre toujours une distance normale). De plus, il gagne +1 par rang dans la Voie en Initiative.",
+                "Affichage15":"Réflexes félins",
+    "ContenuCase15": "Capacité passive Effet: +1 par rang aux tests de DEX d'esquive Le barbare obtient un bonus de +1 par Rang dans cette voie à son score d'initiative et à tous les tests de DEX destinés à esquiver (boule de feu, souffle, pièges, etc.).",
+   
+    
+    
+                "Affichage21":"Morsure du serpent",
+"ContenuCase21": "Capacité passive Effet: DM x 2 sur 19 ou 20 contact , 18 - 20 avec une rapière ou vivelame  Le moine obtient des DM critiques (multipliés par 2) sur un résultat de 19 à 20 au d20 du test d'attaque à mains nues ou avec une arme de contact, et sur des résultats de 18 et 20 avec une rapière ou une Vivelame.",
+                "Affichage22":"Transe de guérison",
+    "ContenuCase22": "Capacité passive Effet : récupère [niveau + mod. SAG] PV Durée : 10 minutes Une fois après chaque combat, le moine peut méditer pendant 10 minutes et ré- cupérer ainsi [niveau + Mod de SAG] PV.",
+                "Affichage23":"Parade de projectiles",
+    "ContenuCase23": "Capacité passive Effet : dévit un projectile une fois par tour Le moine peut dévier un projectile (flèche, javelot,...) une fois par tour de combat (sauf si le test d'attaque est un critique ou si l'attaque vient d'une arme à poudre)...",
+                "Affichage24":"Course du vent",
+    "ContenuCase24": "Capacité passive Effet : distance de déplacement x 2 Le moine se déplace à une vitesse surhumaine. Il couvre une distance de 40 mètres par action de mouvement (la distance normale est de 20 mètres) et se relever est pour lui une actiongratuite.",
+                "Affichage25":"Charge (L)",
+    "ContenuCase25": "Action limitée Effet : +2 contact, + 1d6 DM Le barbare se déplace en ligne droite d'au moins 5 mètres (20 mètres au maximum) et effectue une attaque au contact avec un bonus de +2 en attaque et + 1d6 aux DM.",
+    
+    
+    
+    
+    
+    
+   
+    
+    
+    
+    
+    
+                "Affichage31":"Griffes du tigre",
+    "ContenuCase31": "Capacité passive Effet: +1d DM pour chaque valeur max Les DM des attaques à mains nues du moine sont désormais des jets sans limite : s'il obtient les DM maximum sur son dé, le joueur le relance et ajoute le nouveau résultat à ses DM. Tant que le dé donne le meilleur résultat possible, il est relancé et son score comptabilisé. Les dés en bonus (Puissance du Ki par exemple) ne sont jamais relancés, seulement ceux des DM à mains nues.",
+                "Affichage32":"Maîtrise du ki",
+    "ContenuCase32": "Capacité passive Effet : ajoute son mod. SAG à Init et DEF Le moine utilise son intuition et son empathie avec le monde pour augmenter son efficacité en combat. Il ajoute son Mod. de SAG à son Initiative et sa DEF.",
+                "Affichage33":"Peau de fer",
+    "ContenuCase33": "Capacité passive Effet : +2 DEF  Le moine gagne un bonus de +2 en DEF.",
+                "Affichage34":"Course des airs",
+    "ContenuCase34": "Capacité passive Effet : déplacement anti gravité Le moine défie les lois de la pesanteur et peut se déplacer sur des surfaces qui ne devraient pas supporter son poids. Il peut se déplacer surl'eau, la neige, le feuillage des arbres ou courir sur un mur vertical. Il doit commencer et terminer sondéplacement sur une surface normale.",
+                "Affichage35":"Enchaînement",
+    "ContenuCase35": "Capacité passive Effet: attaque gratuite sur mort de la cible  Chaque fois que le barbare réduit un adversaire à 0 PV avec une attaque de contact, il bénéficie d'une action d'attaque gratuite sur un autre adversaire au contact.",
+    
+    
+    
+    
+    
+   
+    
+    
+    
+    
+    
+                "Affichage41":"Fureur du dragon (L)",
+    "ContenuCase41": "Action limitée Effet : [2d6 + mod. FOR] DM Une fois par combat, le moine peut effectuer une attaque tournoyante qui inflige automatiquement [2d6+ Mod. de FORI de DM à tous les adversaires au contact et oblige ceux-ci à réussir un test de FOR difficulté 10 pour ne pas tomber au sol.",
+                "Affichage42":"Projection mentale ",
+    "ContenuCase42": "Action limitée Effet : projette son esprit hors du corps Durée : [valeur de SAG] tours Le moine entre en méditation et projette son esprit hors de son corps. Celui-ci ressemble à un ectoplasme de couleur blanche qui se déplace en volant à la vitesse de 10 m par tour. Il peut passer au traversdes murs, mais pas des êtres vivants, et il reste relié à son corps d'origine par un long filin argenté. La durée maximum de la projection est de [valeur de SAG] tours. Le moine ne perçoit le monde que via sa projection mentale mais ressent si des DM sont infligés à son corps.",
+                "Affichage43":"Déluge de coups (L)",
+    "ContenuCase43": "Action limitée Effet : 2 attaques d20 ou 3 attaques d12 à son tour, le moine peut effectuer 2 attaques à mains nues sur des cibles de son choix ou 2 attaques avec une arme. Alternativement, il peut choisir de faire 3 attaques en utilisant un d12 en attaquepour chacune d'elle (au lieu d'un d20).",
+                "Affichage44":"Lévitation (L)",
+    "ContenuCase44": "Action limitée Effet : lévite sur 10 mètres  En se concentrant, le moine peut « léviter » à une vitesse de 10 m par tour.",
+                "Affichage45":"Déchaînement d’acier (L)",
+    "ContenuCase45": "Action limitée Effet: contact toutes cibles sur 10 mètres en ligne droite Le barbare parcourt 10 mètres en ligne droite en dépassant autant d'ennemis qu'il le souhaite. Il porte une attaque à chaque adversaire sur son passage. Il ne peut terminer son déplacement à un endroit occupé par un ennemi.",
+    
+    
+    
+    
+    
+   
+    
+    
+    
+    
+    
+    
+    
+    
+    
+                "Affichage51":"Moment de perfection",
+    "ContenuCase51": "Capacité passive Effet : réussite automatique d'attaques et esquives pendant le tour  Une fois par combat, le moine peut choisir de réussir toutes ses attaques automatiquement et d'esquiver toutes celles qui le prennent pour cible pendant un tour. Tout semble aller au ralenti autour de lui...",
+                "Affichage52":"Sagesse héroïque",
+    "ContenuCase52": "Capacité passive Effet: +2 SAG, 2d20 aux tests de SAG Le druide augmente sa valeur de SAG de +2. Il peut désormais lancer deux d20 à chaque fois qu'un test de SAG lui est demandé et conserver le meilleur résultat.",
+               "Affichage53":"Puissance du ki",
+    "ContenuCase53": "Capacité passive Effet : d12 remplace d20, +2d6 DM Le moine peut choisir d'utiliser 1d12 en attaque au lieu du d20 habituel (et il ajoute normalement son score d'attaque). Si l'attaque est réussie, il ajoute 2d6 aux DM. Cette capacité peut être utilisée avec « Déluge de coups » ou « Projectiondu ki » par exemple.",
+                "Affichage54":"Passe-muraille (L)",
+    "ContenuCase54": "Action limitée Effet : traverse un mur de [mod. SAG] mètres Le moine peut rendre son corps intangible le temps de passer au travers d'un mur d'une épaisseur maximum de [Mod. de SAG] mètres. Il ne peut rester immatériel qu'un court instant et reprend corps dès qu'il émerge du mur. Il est insensible aux attaques tant qu'il est entièrement dans le mur, sauf si le mur est détruit.",
+                "Affichage55":"Attaque tourbillon (L)",
+    "ContenuCase55": "Action limitée Effet: contact de zone sur 5 mètres autour du barbare  Une fois par combat, le barbare tourne sur lui-même en assénant des attaques à toutes les cibles au contact. Il inflige automatiquement des DM correspon-dant à l'arme utilisée (plus tous les bonus habituels) à toutes les cibles dans un rayon de 5 m autour de lui.",
+    
+    
+    "Voie1":"Voie de la maitrise",
+    "Voie2":"Voie de la méditation",
+    "Voie3": "Voie du Poing",
+    "Voie4":"Voie du vent",
+    "Voie5":"Voie du pourfendeur"
+    
+        
+}

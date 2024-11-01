@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Ignorer la douleur",
+    "rang1": "Capacité passive: <br>Effet : applique les DM en fin de combat. <br> <br> Une fois par combat, le chevalier peut noter à part les DM subit par une attaque. Il n'en subira les effets que lorsque le combat sera terminé.",
+   "type1":"passive",
+
+    "Affichage2": "Piqures d’insecte",
+    "rang2": "Capacité passive: <br>Effet : -rang DM subits par Distance.<br> <br>  Lorsqu'il porte une armure lourde (demiplaques ou plus), le chevalier réduit les DM subits par les attaques à distances d'un montant égal au rang atteint dans cette voie.",
+   "type2":"passive",
+
+    "Affichage3": "Laissez-le-moi !",
+    "rang3": "Capacité passive: <br>Effet : +1d6 DM sur le leader.<br> <br>  Le chevalier met un point d'honneur à combattre le leader ennemi. Lorsqu'il peut aisément être identifié dans un groupe d'au moins 4 créatures, le chevalier lui inflige +1d6 DM par attaque.",
+   "type3":"passive",
+
+    "Affichage4": "Seul contre tous (L)",
+    "rang4": "Action limitée: <br>Effet : contre attaque immédiate. <br> <br> Le chevalier sait faire face à de nombreux adversaires, en tentant de profiter d'une éventuelle faille dans leur garde. Chaque fois qu'un des adversaires l'attaque, il bénéficie d'une action d'attaque immédiate contre celui-ci (valablemême si la créature l'attaque plusieurs fois).",
+  "type4":"limitée",
+
+    "Affichage5": "Charisme héroïque",
+    "rang5": "Capacité passive: Effet: +2 CHA, 2d20 sur tests de CHA. <br> <br> Le chevalier augmente sa valeur de CHA de +2. Il peut désormais lancer deux d20 à chaque fois qu'un test de CHA lui est demandé et conserver le meilleur résultat.",
+  "type5":"passive",
+
+    "Voie": "Voie du héros"
+}

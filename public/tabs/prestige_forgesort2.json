@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Parchemins",
+    "rang1": "Capacité passive <br>Effet : Le forgesort devient capable de créer des parchemins et peut inscrire un sort au prix d’un jour de travail et de 5 pa par rang du sort.<br><br> S’il ne connaît pas lui-même le sort, il doit se faire aider par un personnage capable de le lancer puis doit réussir un test d’INT difficulté [10 + 2 x rang du sort]. En cas d’échec, le parchemin est inutilisable. En cas de réussite ou d’échec critique, le MJ est libre de préparer une petite surprise de son cru…",
+    "type1":"passive",
+
+    "Affichage2": "Grimoires",
+    "rang2": "Capacité passive<br> Effet : Le personnage peut créer des grimoires (cf. objets magiques). Il peut y inscrire un nombre de rangs de sort maximum égal à son niveau au prix de 50 pa par sort et d’une semaine de travail par rang. <br><br>S’il ne connaît pas lui-même un des sorts inscrits, il peut se faire aider par un personnage qui le lancera. À la fin du processus, il doit réussir un test d’INT difficulté [10 + 2 x rang du sort le plus puissant inscrit]. En cas de succès, le forgesort doit insuffler un peu d’énergie vitale dans l’objet : il sacrifie à cette fin 1 PV qu’il perd définitivement.",
+    "type2":"passive",
+
+    "Affichage3": "Propriétés étranges",
+    "rang3": "Capacité passive<br> Effet : Le forgesort est dorénavant capable d’apporter une propriété spéciale (comme celles décrites au chapitre Objets magiques page 14) au-delà de sa création.<br><br> Cela lui prend un minimum de deux mois de travail et la demande d’un composant très rare ou de fabrication de l’objet (au choix). Si l’objet fabriqué est déjà puissant, il s’agira d’un cristal rare et précieux en rapport avec l’objet (de l’éclat d’étoile pour une épée de feu par exemple). À partir du rang 5, il peut ajouter 2 propriétés spéciales à un objet.",
+    "type3":"passive",
+
+    "Affichage4": "Objet de puissance",
+    "rang4": "Capacité passive <br>Effet : Le forgesort est capable de créer des objet qui octroient des bonus aux Mod. de Carac.<br><br> au prix de 2 mois de travail et de 200 pa par point de bonus. Un tel objet nécessite le sacrifice de 1 PV (permanent). Le bonus maximum que peut obtenir le forgesort est égal à son niveau divisé par 5 (arrondi à l’inférieur).",
+    "type4":"passive",
+
+    "Affichage5": "Artefacts d'exception",
+    "rang5": "Capacité passive <br>Effet : Les voies de forgesort ne permettent pas de créer d’objet avec un niveau de magie supérieur à 5.<br><br> Désormais, le personnage peut cumuler sur un même objet les effets des capacités Artefact majeur, Rune de pouvoir ou encore Propriétés étranges avec un niveau de magie total égal au maximum à son niveau divisé par 2.",
+    "type5":"passive",
+
+    "Voie": "Voie de l’enchanteur"
+}

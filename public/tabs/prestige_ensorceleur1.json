@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Ascendance draconique",
+    "rang1": "Capacité passive  <br>Effet : Choisissez une couleur de dragon pour l’ascendance de votre personnage. <br> <br> L’ensorceleur obtient une réduction des DM de 5 points correspondant au type d’énergie utilisé par le souffle du dragon. Cette résistance passe à 10 au rang 4 de la voie.",
+    "type1":"passive",
+
+    "Affichage2": "Férocité (L)",
+    "rang2": "Action limitée  <br>Effet : L’ensorceleur voit ses muscles se développer de façon spectaculaire pendant [1d6 + Mod. de CHA] tours tandis que d’énormes griffes poussent subitement au bout de ses doigts.  <br> <br>Pendant toute la durée de la transformation, il ne peut plus lancer de sort. Par contre, son score de FOR passe à 18 (+4) et il obtient une attaque de contact de griffes infligeant [1d6+4] DM.",
+    "type2":"limitée",
+
+    "Affichage3": "Souffle du dragon",
+    "rang3": "Capacité passive  <br>Effet : Une fois par combat, par une action d’attaque, l’ensorceleur peut produire un souffle létal correspondant à son ascendance.  <br> <br>Ce souffle couvre une zone conique de 5 mètres de long sur 5 mètres de large à son extrémité et inflige 2d6 DM par rang atteint dans cette voie. Les victimes dans le cône d’effet peuvent diviser les DM infligés par 2 à condition de réussir un test de DEX difficulté [10 + rang].",
+    "type3":"passive",
+
+    "Affichage4": "Armure naturelle",
+    "rang4": "Capacité passive  <br>Effet : Le corps de l’ensorceleur se renforce et se couvre d’écailles lorsqu’il reçoit des blessures graves.  <br> <br>Lorsque le personnage passe sous la moitié de ses PV, il gagne une réduction des DM de 5 points face à tous les types de dégâts.",
+    "type4":"passive",
+
+    "Affichage5": "Ailes de dragon (L)",
+    "rang5": "Action limitée, sortilège  <br>Effet : L’ensorceleur déploie des ailes de dragon pendant [1d6 + Mod. de CHA] minutes.  <br> <br>Ces ailes lui permettent de se déplacer en vol à une vitesse de 30 mètres par action de mouvement. Faire du surplace est une action gratuite.",
+    "type5":"limitée",
+
+    "Voie": "Voie du sang-dragon"
+}

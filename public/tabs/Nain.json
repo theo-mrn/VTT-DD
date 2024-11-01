@@ -1,0 +1,23 @@
+{
+     "Affichage1":"Résistance",
+     "rang1": "Capacité passive <br>Effet : +5 aux tests de CON.<br><br> Le nain gagne un bonus de +5 à tous ses tests de CON.",
+     "type1":"passive",
+
+     "Affichage2":"Solide comme un roc",
+     "rang2": "Capacité passive: <br>Effet : RD 2 (mini 1 DM subit) cumulable. <br>Rang 4 : RD 3.<br><br> Le nain réduit tous les DM subis de 2 points (mais il subit toujours au moins 1 point de DM par attaque reçue). Ce bonus est cumulable avec d'autres sources de réduction des DM comme la Peau d'acier du barbare. Au rang 4, la réduction passe à 3 points.",
+     "type2":"passive",
+
+     "Affichage3":"Haches et marteaux",
+     "rang3": "Capacité passive. <br>Effet: +1 Contact et + 1 DM avec hache ou marteau de guerre. <br><br>Le nain gagne un bonus de + 1 en attaque et aux DM lorsqu'il utilise une hache ou un marteau de guerre. Il sait utiliser ces armes quel que soit son profil.",
+     "type3":"passive",
+
+     "Affichage4":"Résistance à la magie",
+     "rang4": "Capacité passive: <br>Effet : ignore un sort de rang < 1d6 <br><br>Chaque fois que le personnage est la cible d'un sort (sauf un sort de zone), le joueur lance 1d6° : sur un résultat supérieur au rang du sort, il peut en ignorer les effets.",
+     "type4":"passive",
+
+     "Affichage5":"Ténacité",
+     "rang5": "Capacité passive: <br>Effet : +2 CON, +2 SAG<br><br> Le nain augmente ses valeurs de CON et de SAG de +2.",
+     "type5":"passive",     
+     
+     "Voie":"Voie du nain"
+}

@@ -1,0 +1,91 @@
+{
+                "Affichage11":"Maître de la survie",
+    "ContenuCase11": "Capacité passive: Effet: +2 par rang à tous les tests de survie. Le druide obtient un bonus de +2 par rang dans la voie à tous les tests basés sur la survie en milieu naturel (survie, vigilance, discrétion, etc.).",
+               "Affichage12":"Langage des animaux",
+    "ContenuCase12": "Capacité passive: Effet: +2 par rang aux tests d'influence animal. Le druide peut communiquer avec les animaux qui, en général, se comportent avec lui de manière amicale. Il gagne un bonus de +2 par rang à tous les tests destinés à influencer un animal. La communication reste primitive et limitée à l'intelligence de l'animal et à son point de vue (prédateur, proie, etc.).",
+              "Affichage13":"Vitesse du félin",
+    "ContenuCase13": "Capacité passive: Effet: +1 par rang en Init, course, saut ou escalade. Le druide gagne + 1 par rang dans la voie en Initiative et aux tests de course, d'escalade ou de saut.",
+             "Affichage14":"Peau d’écorce (L)",
+    "ContenuCase14": "Action limitée, sortilège: Effet : +1 DEF par rang: Durée : [5 + mod. SAG] tours. La peau du druide prend la consistance de l'écorce. Il gagne +1 en DEF par rang dans la voie pendant [5 + Mod. de SAG] tours.",
+              "Affichage15":"Baies magiques (L)",
+    "ContenuCase15": "Action limitée, sortilège: Effet : fait pousser [1d6 + mod. SAG] fruits, rend [1d6 + niveau du druide] PV. Le druide doit se trouver devant un buisson ou un arbre vivant. Son incantation fait pousser [1 d6 + Mod. de SAG] fruits qu'il peut cueillir. Chaque fruit offre l'équivalent d'un repas et rend [1d6+ niveau du druide] PV à celui qui le consomme. Les effets de ces fruits ne fonctionnent qu'une fois par jour et par personnage.",
+   
+    
+    
+    
+    
+               "Affichage21":"Marche sylvestre",
+    "ContenuCase21": "Capacité passive: Effet: en terrain difficile, pas de pénalité de déplacement, +2 en Contact, DEF. Non seulement le druide ne subit aucune pénalité de déplacement en terrain difficile (neige, boue, broussailles, pente abrupte, etc.) mais en plus, il obtient un bonus de +2 en attaque et en DEF lors d'un combat dans ces conditions.",
+              "Affichage22":"Nuée d’insectes (L)",
+    "ContenuCase22": "Action limitée, sortilège: Effet: +1 DM par tour, -2 toutes actions Durée : [5 + mod. SAG] tours. En réussissant un test d'attaque magique (portée 20 m), le druide libère sur sa cible une nuée d'insectes volants qui piquent, aveuglent et la suivent pendant [5 + Mod. de SAG] tours. La victime subit 1 point de DM par tour et un malus de -2 à toutes ses actions. Les DM de zone détruisent la nuée.",
+            "Affichage23":"Panthère",
+    "ContenuCase23": "Capacité passive: Effet : Panthère : FOR+2, DEX+4, CON+2, INT-3 SAG+2, CHA-2, Init 18,DEF 16, PV [niveau x 4], Contact [niveau], DM 1d6+2. Le druide apprivoise une panthère (ou un puma) qui lui obéit au doigt et à l'oeil (voir marge).",
+            "Affichage24":"Prison végétale (L)",
+    "ContenuCase24": "Action limitée, sortilège: Effet : entrave : -2 Contact, Distance, Magie, DEF, Durée : [5 + mod. SAG] tours. Le druide peut commander à la végétationde pousser et bloquer ses ennemis (mais pas ses alliés) dans une zone de 10 m de diamètre (portée 20 m) pendant [5 + Mod. de SAG] tours. Entravées, les cibles subissent un malus de -2 en attaque et en DEF, et ne peuvent pas se déplacer. Chaque tour, une créature peut se libérer avec un test de FOR difficulté [10 + Mod. de SAG].",
+               "Affichage25":"Forêt vivante (L)",
+    "ContenuCase25": "Action limitée, sortilège: Effet: éveil de la forêt sur 1 Km par rang. Durée : 12 heures. La forêt s'éveille dans un rayon d'1 km par rang et devient une alliée du druide pendant les 12 prochaines heures. Dans ce périmètre, les ennemis du druide sont désorientés et gênés par les branches etles racines. Ils divisent leur déplacement par deux et subissent une pénalité de -5 en Initiative et à tous les tests de survie, d'orientation, de perception ou de discrétion. Si deux druides essayent d'influencer la forêt, c'est celui dont le niveau est le plus élevé qui l'emporte.",
+
+    
+    
+    
+    
+               "Affichage31":"Résistant",
+    "ContenuCase31": "Capacité passive: Effet : réduction de [2 x rang] DM. Le druide obtient une réduction de DM égal à son [Rang x 2] contre toutes les sources de dégâts « naturels » : froid, chaleur, chutes, poisons... mais aussi aux DM provoqués par les animaux ou les insectes (même géants).",
+             "Affichage32":"Le guetteur",
+    "ContenuCase32": "Capacité passive: Effet : Aigles : DEF 15,Magie  1d4 DM, +5 perception. Le druide reçoit un oiseau de proie comme compagnon animal. Il possède un lien télépathique avec lui et peut percevoir par ses sens avec un bonus de +5 aux tests basés sur la perception. Aigle : DEF 15, PV [il les partage avec ceux de son maître]. Attaque de contact = [attaque magique du druide], DM 1d4.",
+            "Affichage33":"Attaque bondissante (L)",
+    "ContenuCase33": "Action limitée: Effet : Contact+5, DM + 1d6. Durée : premier tour de combat, nécessite 5 à 30 mètres en lignes droite. Le druide parcourt jusqu'à 30 m et bénéficie d'un bonus de +5 au test d'attaque et de +1d6 aux DM contre sa cible. Il doit se déplacer d'au minimum 5 m en ligne droite pour faire cette attaque, qui ne peut par ailleurs être réalisée qu'à son premier tour du combat.",
+           "Affichage34":"Animation d’un arbre (L)",
+"ContenuCase34": "Action limitée, sortilège: Effet : Arbre animé : Init 7,DEF 13, [rang x 10] PV, Contact 1d6+3 DMdéplacement 10 mètres, RD 10 DM sauf feu et Contact. Durée : [niveau] tours. Une fois par combat, le druide peut animer un arbre en le touchant. Il combat pendant [niveau du druide] tours. Arbre animé : Init 7, DEF 13, PV [rang x 10], attaque de contact = [niveau du druide], DM 1d6+3, Déplacement 10 m par action de mouvement. Réduction de DM de 10 sauf contre les armes tranchantes et le feu.",
+           "Affichage35":"Régénération (L)",
+"ContenuCase35": "Action limitée, sortilège: Effet : guérit 3 PV par tour. Durée : [niveau druide + mod. SAG] tours  La cible touchée par le druide guérit 3 PV par tour pendant [niveau du druide + Mod. de SAG] tours. Ce sort ne peut pas affecter une créature plus d'une fois par jour.",
+
+    
+    
+    
+    
+               "Affichage41":"Bâton de druide (L)",
+    
+    "ContenuCase41": "Action limitée: Effet : 2 attaques Contact, [1d6 + mod. FOR ou DEX]. Le druide combat avec les deux extrémités de son bâton de bois noueux. Lorsqu'il utilise cette capacité, il effectue deux attaques de contact infligeant [1d6 DM + Mod. de FOR ou de DEX] (au choix) par attaque.",
+           "Affichage42":"Masque du prédateur (L)",
+"ContenuCase42": "Action limitée, sortilège: Effet: + mod. SAG en Init, Contact,Distance, Magie. Durée : [5 + mod. SAG]. Lorsqu'il est sous l'effet de ce sort, le druide prend les traits d'un fauve ou d'un loup. Il gagne son Mod. de SAG en Initiative, en attaque et aux DM et peut voir dans la nuit (comme un elfe) pendant [5 + Mod. de SAG] tours.",
+           "Affichage43":"Grand félin",
+"ContenuCase43": "Capacité passive: Effet : Animal fabuleux : FOR+5, DEX+4, CON+5, INT-3, SAG+2, CHA-2, DEF 18, DM 1d6+5. La panthère devient un animal fabuleux (voir marge), ou est remplacée par un félin plus grand (tigre, lion). Lorsque le druide atteint le niveau 8, les DM passent à 2d6+5. Au niveau 12, le félin peut utiliser Attaque bondissante. Le druide peut également communiquer avec son félin par télépathie, et le guérir à distance en dépensant ses propres PV (-1 PV au druide par PV octroyé aufélin).",
+            "Affichage44":"Gland de pouvoir (L)",
+ "ContenuCase44": "Action limitée, sortilège: Effet : statue de bois : $ 10, DM réduit (-10). Durée : [2d6 + mod. SAG] tours ou perte de plus de 10 PV. Une fois par combat, le druide peut lancer un gland sur une cible (portée 10 m). En cas d'attaque magique réussie, la victime se transforme en statue de bois pendant [2d6 + Mod. de SAG] tours. Sous cette forme elle ne peut agir et ne ressent rien. Sa DEF passe à 10 mais elle gagne une réduction des DM de 10. Le sort s'achève dès que la cible perd plus de 10 PV.",
+            "Affichage45":"Forme d’arbre (L)",
+    "ContenuCase45": "Action limitée, sortilège: Effet : transformation Arbdre animé : Init 7, DEF 13, [rang x 10] PV, Contact 1d6+3 DMdéplacement 10 mètres, RD 10 DM sauf feu et Contact Durée : [5 + mod. SAG] tours. Une fois par combat, le druide peut se transformer en arbre de petite taille (environ 4 m de hauteur)pendant [5 + Mod. de SAG] tours. Il prend les mêmes caractéristiques que l'arbre animé (voir plus loin), mais conserve ses propres PV. Sous cette forme, il ne peut pas parler mais peut utiliser les sorts des voies du protecteur et des végétaux.",
+
+    
+    
+    
+    
+               "Affichage51":"Constitution héroïque",
+    "ContenuCase51": "Capacité passive: Effet: +2 CON, 2d20 aux tests de CON. Le druide augmente sa valeur de CON de +2. Il peut désormais lancer deux d20 à chaque fois qu'un test de CON lui est demandé et conserver le meilleur résultat.",
+              "Affichage52":"Forme animale (L)",
+    "ContenuCase52": "Action limitée, sortilège: Effet : forme animale souhaitée. Le druide peut prendre la forme d'un animal d'une taille inférieure ou égale à la sienne. Il conserve sa DEF et ses PV, il acquiert les Carac. et les capacités naturelles de la forme choisie (le vol pour un oiseau, la respiration aquatiquepour le poisson, etc.). Le druide peut reprendre sa forme humaine lorsqu'il le désire (L).",
+              "Affichage53":"Les sept vies du chat",
+    "ContenuCase53": "Capacité passive: Effet : ignore la mort 7 fois. Cette capacité ne peut être utilisée que sept fois, et pas plus d'une fois par niveau. Lorsque que les PV du druide tombent à 0 ou qu'il meurt, le druide peut choisir d'ignorer ce qui a provoqué la mort ! Le MJ et le joueur doivent se mettre d'accord et trouver une raison plausible (ou pas !) pour expliquer la survie du personnage, et le faire réapparaître immédiatement ou un peu plus tard dans l'aventure si nécessaire.",
+            "Affichage54":"Porte végétale (L)",
+    "ContenuCase54": "Action limitée, sortilège: Effet : en forêt, téléporte à [mod. SAG] x 10 Km. Une fois par jour, le druide peut pénétrer dans le tronc d'un gros arbre et sortir de celui d'un autre arbre appartenant à la même forêt et situé à une distance maximum de [Mod. de SAG] x 10 km.",
+                  "Affichage55":"Sagesse héroïque",
+        "ContenuCase55": "Capacité passive: Effet : +2 SAG, 2d20 aux tests de SAG. Le druide augmente sa valeur de SAG de +2. Il peut désormais lancer deux d20 à chaque fois qu'un test de SAG lui est demandé et conserver le meilleur résultat.",
+        
+        
+        
+          "Voie1":"Voie de la nature",
+    "Voie2":"Voie des animaux",
+    "Voie3": "Voie du fauve",
+    "Voie4":"Voie des végétaux",
+    "Voie5":"Voie du protecteur"
+    
+}
+
+
+
+
+
+
+
+
+

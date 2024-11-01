@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Charmant",
+    "rang1": "Capacité passive <br>Effet : +2 par rang test de CHA <br><br>Le barde obtient un bonus de +2 par rang atteint dans cette voie pour tous ses tests de CHA visant à séduire, baratiner ou mentir.",
+    "type1":"passive",
+
+    "Affichage2": "Dentelles et rapière",
+    "rang2": "Capacité passive Effet: +1 DEF par rang contre les attaques contact <br><br>Le barde ne met pas d'armure, cela ne sied point en société. Sa seule armure est la dentelle, sa seule défense, la rapière. Lorsqu'il ne porte aucune armure et combat avec une rapière ou une épée, le barde obtient un bonus de +1 en DEF contre les attaques au contact par Rang possédé dans cette Voie.",
+    "type2":"passive",
+
+    "Affichage3": "Arme secrète",
+    "rang3": "Capacité passive <br>Effet : subterfuge, la cible subit -10 contact, distance, magie, defense: <br>Durée : 1 tour Une fois par combat,<br><br> le barde peut utiliser un subterfuge de séducteur pour surprendre et déstabiliser un adversaire du sexe opposé. Ce peut être un baiser fougueux soudainement délivré au coeurd'une mêlée, un sein qui s'échappe d'un bustier par mégarde, une main qui s'égare par le plus grand des hasards... Il doit réussir un test de CHA de difficulté égale à l'INT de son adversaire. En cas de succès celui-ci subit un malus de -10 en attaque et en DEF pendant 1 tour.",
+   "type3":"passive",
+
+    "Affichage4": "Suggestion (L)",
+    "rang4": "Action limitée, sortilège <br>Effet : la cible devient larbin personnel <br>Durée : 24 heures Une fois par jour,<br><br>le barde peut suggérer une action à une créature en réussissant un test d'attaque magique avec pour difficulté les PV maximum de celle-ci. En cas de réussite la créature fera tout son possible pour satisfaire sa demande pendant 24 heures. Elle évitera les actions suicidaires (ce qui lui donnerait immédiatement un test d'INT difficulté 10 pour échapper au sort).",
+   "type4":"limitée",
+
+    "Affichage5": "Charisme héroïque",
+    "rang5": "Capacité passive <br>Effet : +2 CHA, 2d20 sur test de CHA <br><br>Le barde augmente sa valeur de CHA de +2. Il peut de plus lancerdeux d20 à chaque fois qu'un test de CHA lui est demandé et conserver le meilleur résultat.",
+    "type5":"passive",
+
+    "Voie": "Voie de la séduction"
+}

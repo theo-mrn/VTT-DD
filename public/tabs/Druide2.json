@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Langage des animaux",
+    "rang1": "Capacité passive: Effet: +2 par rang aux tests d'influence animal. <br> <br> Le druide peut communiquer avec les animaux qui, en général, se comportent avec lui de manière amicale. Il gagne un bonus de +2 par rang à tous les tests destinés à influencer un animal. La communication reste primitive et limitée à l'intelligence de l'animal et à son point de vue (prédateur, proie, etc.).",
+    "type1":"passive",
+
+    "Affichage2": "Nuée d’insectes (L)",
+    "rang2": "Action limitée, sortilège: Effet: +1 DM par tour, -2 toutes actions <br>Durée : [5 + mod. SAG] tours.<br> <br>  En réussissant un test d'attaque magique (portée 20 m), le druide libère sur sa cible une nuée d'insectes volants qui piquent, aveuglent et la suivent pendant [5 + Mod. de SAG] tours. La victime subit 1 point de DM par tour et un malus de -2 à toutes ses actions. Les DM de zone détruisent la nuée.",
+    "type2":"limitée",
+
+    "Affichage3": "Le guetteur",
+    "rang3": "Capacité passive: <br>Effet : Aigles : DEF 15,Magie  1d4 DM, +5 perception. <br> <br> Le druide reçoit un oiseau de proie comme compagnon animal. Il possède un lien télépathique avec lui et peut percevoir par ses sens avec un bonus de +5 aux tests basés sur la perception. Aigle : DEF 15, PV [il les partage avec ceux de son maître]. Attaque de contact = [attaque magique du druide], DM 1d4.",
+   "type3":"passive",
+
+    "Affichage4": "Masque du prédateur (L)",
+    "rang4": "Action limitée, sortilège: Effet: + mod. SAG en Init, Contact,Distance, Magie. <br>Durée : [5 + mod. SAG]. <br> <br> Lorsqu'il est sous l'effet de ce sort, le druide prend les traits d'un fauve ou d'un loup. Il gagne son Mod. de SAG en Initiative, en attaque et aux DM et peut voir dans la nuit (comme un elfe) pendant [5 + Mod. de SAG] tours.",
+   "type4":"limitée",
+
+    "Affichage5": "Forme animale (L)",
+    "rang5": "Action limitée, sortilège: <br>Effet : forme animale souhaitée. <br> <br> Le druide peut prendre la forme d'un animal d'une taille inférieure ou égale à la sienne. Il conserve sa DEF et ses PV, il acquiert les Carac. et les capacités naturelles de la forme choisie (le vol pour un oiseau, la respiration aquatiquepour le poisson, etc.). Le druide peut reprendre sa forme humaine lorsqu'il le désire (L).",
+   "type5":"limitée",
+
+    "Voie": "Voie des animaux"
+}

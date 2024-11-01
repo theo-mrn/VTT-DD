@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Sprint",
+    "rang1": "Capacité passive:<br>Effet: déplacement gratuit de 20 mètres, 1x par combat.<br><br> Une fois par combat, le voleur peut effectuer un déplacement supplémentaire gratuit de 20 mètres à n'importe quel moment du tour.",
+    "type1":"passive",
+    
+    "Affichage2": "Provocation (L)",
+    "rang2": "Action limitée: <br>Effet: force la cible à l'attaquer sur test CHA vs INT, riposte gratuite.<br><br> Le voleur maîtrise l'art de serendre désagréable, voire insupportable. Par un test opposé de CHA contre l'INT de la victime, il peut forcer celle-ci à l'attaquer pendant ce tour. Le voleur peut immédiatementriposter par une attaque gratuite ou, si la cible l'a raté, par une Attaque sournoise !",
+    "type2":"limitée",
+    
+    "Affichage3": "Grâce féline",
+    "rang3": "Capacité passive <br>Effet : [+mod CHA] Init, [+mod CHA] DEF [+mod CHA] tests de DEX de déplacement.<br><br> Le voleur possède une démarche et une façon de se déplacer à la fois élégante, féline et souple. Il gagne son Mod. de CHA en Initiative, en DEF et à tous les tests de DEX en rapport avec le déplacement (escalade, saut, course, acrobaties, etc.).",
+    "type3":"passive",
+    
+    "Affichage4": "Feindre la mort",
+    "rang4": "Capacité passive: <br>Effet : feint la mort, + 1d6 PV +1 mouvement lorsque se relève.<br><br> Une fois par combat, le voleur peut feindre la mort après avoir reçu une blessure (même à 0 PV). Il peut ainsi passer pour mort aussi longtemps qu'il le souhaite et un test d'INT difficulté 20 est nécessaire pour révéler la supercherie. Lorsqu'il décide de se relever, le voleur gagne + 1 d6 PV et il obtient une action de mouvemen supplémentaire en plus des actions normales autorisées à son tour.",
+    "type4":"passive",
+    
+    "Affichage5": "Charisme héroïque",
+    "rang5": "Capacité passive: <br>Effet: +2 CHA, 2d20 aux tests de CHA. <br><br>Le voleur augmente sa valeur de CHA de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test de CHA lui est demandé et conserver le meilleur résultat.",
+    "type5":"passive",
+    
+    "Voie": "Voie de l’aventurier"
+}

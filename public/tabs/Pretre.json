@@ -1,0 +1,68 @@
+ {
+        "Affichage11": "Parole divine",
+        "ContenuCase11": "Capacité passive Effet : +2 aux tests de CHA Pour chaque rang dans cette Voie, le prêtre obtient un bonus de +2 aux tests de CHA visant à convaincre ou convertir son auditoire.",
+        "Affichage12": "Arme bénie",
+        "ContenuCase12": "Capacité passive Effet : relance si DM de 1 Le prêtre bénit son arme sacrée. S'il obtient un résultat de « 1 » sur son dé de DM, il relance le dé et garde le second résultat. Les DM de l'arme sont considérés comme magiques.",
+        "Affichage13": "Bénédiction (L)",
+        "ContenuCase13": "Action limitée, sortilège Effet: +1 Contact, Distance, Magie, +1 tous tests Durée : [3 + mod. SAG] tour Le prêtre entonne un chant pour encourager ses compagnons en vue. Lui et ses alliés bénéficient d'un bonus de +1 à tous leurs tests de caractéristique et d'attaque pendant [3 + Mod. de SAG] tours.",
+        "Affichage14": "Vêtements sacrés",
+        "ContenuCase14": "Capacité passive Effet: +1 DEF par rang si pas d'armure La tenue religieuse traditionnelle du prêtre remplace une armure et a été bénie à cet effet: il obtient un bonus en DEF égal à +1 pour chaque Rang dans cette Voie (lorsqu'il ne porte aucune armure).",
+        "Affichage15": "Soins légers (L)",
+        "ContenuCase15": "Action limitée, sortilège Effet: soigne [1d8 + niveau du prêtre] PV ([rang] x par jour) Le prêtre peut toucher une cible, qui récupère alors [1d8 + niveau du prêtre] PV perdus. Le prêtre peut utiliser ce sort sur lui-même.",
+
+        "Affichage21": "Arme d’argent (L)",
+        "ContenuCase21": "Action limitée, sortilège Effet: arme d'argent, [1d6 + mod. SAG) DM démons et les mort-vivants : +2 Contact, + 1d6 DM Ce miracle crée pour la durée du combat une arme d'argent et de lumière que seul le Prêtre peut utiliser. Cette arme inflige [1d6 + Mod. de SAG] de DM. Contre les démons et les mort-vivants, elle offre un bonus de +2 en attaque et ajoute +1d6 aux DM.",
+        "Affichage22": "Bouclier de la foi",
+        "ContenuCase22": "Capacité passive Effet: +1 DEF, rang 4: +2 DEF Le prêtre porte le symbole de sa foi sur son bouclier, ce qui lui confère un bonus supplémentaire de +1 en DEF. Ce bonus passe à +2 au Rang 4 de la Voie.",
+        "Affichage23": "Destruction des morts-vivants (L)",
+        "ContenuCase23": "Action limitée, sortilège Effet: 2d6 DM à tous les morts-vivants. Rang 4 : 3d6 DM Le prêtre peut faire un test de SAG difficulté 13. S'il réussit, tous les morts-vivants en vue subissent 2d6 points de DM. Ces DM passent à 3d6 au rang 4 de la Voie.",
+        "Affichage24": "Protection contre le mal (L)",
+        "ContenuCase24": "Action limitée, sortilège Effet: la cible (prêtre ou allié) gagne +2 DEF. Le prêtre peut lancer ce sort sur lui ou sur tout allié (portée : contact) pour la durée d'un combat. La cible obtient alors un bonus de +2 en DEF et pour tous les tests de résistance contre les attaques des mort-vivants, des démons, des élémentaires et des créatures conjurées (appelées d'un autre plan par magie).",
+        "Affichage25": "Soins modérés (L)",
+        "ContenuCase25": "Action limitée, sortilège Effet: soigne [2d8 + niveau du prêtre] PV ([rang] x par jour) Le prêtre peut toucher une cible, qui récupère alors [2d8 + niveau du prêtre] PV perdus. Le prêtre peut utiliser ce sort sur lui-même.",
+
+        "Affichage31": "Ailes célestes (L)",
+        "ContenuCase31": "Action limitée, sortilège Effet : voler Durée : [5 + mod. SAG] tours Des ailes divines poussent dans le dos du prêtre, qui peut voler à une vitesse équivalente à deux fois son déplacement normal pendant [5 + Mod. de SAG] tours. Rester en vol stationnaire avec les ailes céleste est une action de mouvement.",
+        "Affichage32": "Marteau spirituel (L)",
+        "ContenuCase32": "Action limitée, sortilège Effet : [1d8 + mod. SAG] DM Le prêtre effectue une attaque magique avec une portée de 30 mètres. Un projectile d'énergie prenant la forme de l'arme du prêtre va percuter la cible, lui infligeant [1d8 + Mod. de SAG] de DM.",
+        "Affichage33": "Sanctuaire (L)",
+        "ContenuCase33": "Action limitée, sortilège Effet: protection contre les attaques Durée : [5 + mod. SAG] tours Quand le prêtre lance ce sort, tous les adversaires qui veulent l'attaquer doivent d'abord réussir un test de SAG difficulté 15. S'ils échouent, ils ne peuvent pas l'attaquer. Les effets de ce sort durent [5 + Mod de SAG] tours, mais s'il tente la moindre attaque, le sort prend fin immédiatement.",
+        "Affichage34": "Délivrance (L)",
+        "ContenuCase34": "Action limitée, sortilège Effet: annule les pénalités et états anormaux En touchant sa cible, le prêtre annule les pénalités infligées par les sorts, les malédictions et les capacités spéciales d'autres personnages ou de créatures (douleur, mutilation, poisons, pétrification, etc.).",
+        "Affichage35": "Soins de groupe (L)",
+        "ContenuCase35": "Action limitée, sortilège Effet: soigne le groupe [1d8 + niveau du prêtre] PV (1x par combat) Une fois par combat, le prêtre peut libérer une décharge d'énergie bienfaitrice : tous ses compagnons en vue et lui récupèrent [1d8 + niveau du prêtre] PV perdus.",
+
+        "Affichage41": "Foudres divines (L)",
+        "ContenuCase41": "Action limitée, sortilège Effet : [1d6 + mod. SAG] DM sur 10 mètres La foudre frappe toutes les créatures désignées dans un rayon de 10 mètres autour du prêtre et leur inflige [1d6 + Mod. de SAGI de DM. Le prêtre compare son test d'attaque magique à la DEF de chaque cible.",
+        "Affichage42": "Châtiment divin (L)",
+        "ContenuCase42": "Action limitée Effet : [+ mod SAG] en Contact et DM Le prêtre effectue une attaque de contact avec un bonus en attaque et aux dégâts égal à son Mod. de SAG.",
+        "Affichage43": "Intervention divine",
+        "ContenuCase43": "Capacité passive Effet: décide de la réussite ou de l'échec Le prêtre fait appel à son dieu pour changer le cours des événements. Une fois par combat, il peut décider qu'un test du MJ ou des joueurs est une réussite ou un échec, même après que les dés aient révélé leur résultat.",
+        "Affichage44": "Marche des plans (L)",
+        "ContenuCase44": "Action limitée, sortilège Effet: déplacement 10 Km par tour Durée : [3 + mod. SAG] tours max Une fois par jour et pour une durée maximale de [3 + Mod. de SAG] tours, le prétre peut passer dans une dimension entre les plans d'existence où le temps et l'espace sont déformés. Il se déplace dans une sorte de brouillard gris où le paysage défile à toute vitesse. Pour chaque tour de « Marche des Plans », il se déplace en réalité de 10 km. Le lieu de sortie n'est cependant pas très précis et le MJ doit déterminer une position au hasard autour du point visé (à 1d6 km près).",
+        "Affichage45": "Guérison (L)",
+        "ContenuCase45": "Action limitée, sortilège Effet: soigne PV max et état anormaux Une fois par jour, le prêtre peut toucher une cible, qui récupère alors tous ses PV perdus et se trouve guérie des poisons, maladies et affaiblissements de caractéristiques.",
+
+        "Affichage51": "Charisme héroïque",
+        "ContenuCase51": "Capacité passive Effet : +2 CHA, 2d20 aux tests de CHA Le prêtre augmente sa valeur de CHA de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test de CHA lui est demandé et conserver le meilleur résultat.",
+        "Affichage52": "Mot de pouvoir (L)",
+        "ContenuCase52": "Action limitée, sortilège Effet : alliés +5 Contact, Distance, Magie, paralysie ennemies Durée : 1 tour Une fois par combat, le prêtre peut prononcer un mot avec la voix de son dieu. Cela dépasse l'entendement des mortels et ses ennemis à portée de vue sont paralysés de terreur pendant 1 tour tandis que tous ses alliés en vue bénéficient d'un bonus de +5 en attaque pendant cette période.",
+        "Affichage53": "Sagesse héroïque",
+        "ContenuCase53": "Capacité passive Effet: +2 SAG, 2d20 aux tests de SAG Le prêtre augmente sa valeur de SAG de +2 et il peut désormais lancer deux d20 à chaque fois qu'un test de SAG lui est demandé et conserver le meilleur résultat.",
+        "Affichage54": "Messie",
+        "ContenuCase54": "Capacité passive, sortilège Effet : Magie, miracle sur demande Une fois par aventure, le prêtre entre directement en contact avec la puissance divine et réalise un miracle. Il s'agit d'un pouvoir extraordinaire que le MJ accorde au joueur et qui permet des actes légendaires comme écarter les eaux, téléporter tout son groupe ou invoquer des nuées mortelles...",
+        "Affichage55": "Rappel à la vie",
+        "ContenuCase55": "Capacité passive, sortilège Effet :Magie , ressucite pour 1d6 PV Une fois par jour, le prêtre peut rappeler à la vie un personnage décédé depuis moins de [Mod. de SAG du prêtre] heures par un rituel de 10 minutes. Il doit connaitre personnellement la personne rappelée et posséder une relique lui appartenant. Le personnage revient à la conscience avec 1d6 PV.",
+        
+        
+          
+    "Voie1":"Voie de la foi",
+    "Voie2":"Voie de la guerre sainte",
+    "Voie3": "Voie de la prière",
+    "Voie4":"Voie de la spiritualité",
+    "Voie5":"Voie des soins"
+    
+
+      
+
+}

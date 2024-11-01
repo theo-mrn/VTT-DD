@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Familier",
+    "rang1": "Capacité passive<br> Effet : petit animal :<br> FOR+4, DEX+3, CON+0, Défense [personnage], INT-2, SAG+1, CHA-2, Init [personnage], PV partage <br><br>L'invocateur choisit un petit animal (corbeau, chat, furet, serpent…). Il peut utiliser les sens de son familier et communiquer avec lui à distance illimitée. Il gagne +1 en initiative lorsque son familier est présent. Familier : Défense [= invocateur], Init [= invocateur], PV [= invocateur] Si le familier meurt ou est détruit par un sort ennemi, ils forment un cible unique pour les attaques de son créateur. FOR +4, DEX +3, CON 0, INT -2, SAG +1, CHA -2. Lorsque le familier subit des DM, l'invocateur peut choisir de ne pas les subir, dans ce cas, le familier est détruit et il ne pourra pas à nouveau être convoqué avant 24 heures.",
+    "type1":"passive",
+
+    "Affichage2": "Résistance",
+    "rang2": "Capacité passive<br> Effet : +1 rang RD pour le familier <br><br>Le familier obtient une réduction des DM (RD) de 1 point par rang atteint dans la Voie face à tous les types de DM.",
+    "type2":"passive",
+
+    "Affichage3": "Sens développés",
+    "rang3": "Capacité passive <br>Effet : +5 SAG aux tests de perception, vision nocturne améliorée Capable de percevoir avec les sens de son familier.<br><br>L'invocateur améliore grandement sa vigilance. Il obtient un bonus de +5 à tous les tests de perception (SAG) et peut voir dans le noir comme s'il était dans la pénombre jusqu'à une distance de 20 m. S'il possède déjà cette capacité, la distance est doublée.",
+    "type3":"passive",
+
+    "Affichage4": "Rappel",
+    "rang4": "Capacité passive <br>Effet : téléporte le familier sur son maître L'invocateur peut rappeler son familier à son contact par magie. <br><br>Le familier est téléporté sur son maître au prix d'une action de mouvement s'il est en vue ou par d'autres moyens dans tous les autres cas.",
+    "type4":"passive",
+
+    "Affichage5": "Lilliputien (L)",
+    "rang5": "Action limitée, sortilège <br>Effet : devient minuscule, DM 1, RD 5 L'invocateur rapetisse jusqu'à devenir plus petit que son familier (entre 10 et 30 cm, minuscule ou très petit). <br><br>La transformation en génie sur les sens (ou dans l'autre domaine) dure 1 tour complet. Sa durée est illimitée. Sous cette forme, l'invocateur obtient la même réduction au DM que le familier (RD 5), bien que les bonus de +10 aux tests de déplacement soient des espaces très réduits. En revanche, ses DM sont réduits à 1 point par attaque dans ses différentes régions. Ses déplacements sont réduits d'environ 30 cm par segment, et s'il échappe au combat, sa réduction sera supérieure à 5 km par heure pendant son déplacement. Si vous invoquez un nouveau familier, il le réduira à nouveau (au bout d'un tour) et il se limitera à 1 RD. La transformation est annulée si votre familier est déjà une créature volante (100 km/j).",
+    "type5":"limitée",
+
+    "Voie": "Voie du familier"
+}

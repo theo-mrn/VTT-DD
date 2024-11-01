@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Discrétion",
+    "rang1": "Capacité passive: <br>Effet : [+2 x rang] DEX en mode furtif.<br><br> Quand il essaie de passer inaperçu, le voleur bénéficie d'un bonus de +2 à son test de DEX pour chaque rang acquis dans cette voie.",
+    "type1":"passive",
+   
+    "Affichage2": "Attaque sournoise (L)",
+    "rang2": "Action limitée: Effet: +2d6 DM si attaque par surprise ou dans le dos (+ 1d6 DM / rang 4).<br><br> Quand il attaque un adversaire Surpris ou dans le dos, le Voleur inflige 2d6 de DM supplémentaires (notez que les dés bonus ne sont pas multipliés en cas de critique). Les DM infligés par cette capacité augmentent de +1d6 à chaque fois que le personnage atteint le rang 4 dans une Voie du voleur.",
+    "type2":"limitée",
+   
+    "Affichage3": "Ombre mouvante (L)",
+    "rang3": "Action limitée: <br>Effet : disparait furtivement. <br><br>En réussissant un test de DEX difficulté 10, le voleur peut disparaître dans les ombres à son tour et ne réapparaître qu'au tour suivant durant sa phase d'initiative. Aucun adversaire ne peut l'attaquer pendant qu'il a disparu dans les ombres, mais il peut subir des DM de zone. Le voleur réapparait à une distance maximum de 10 m de sa position initiale, si le voleur a l'initiative, il peut réaliser une attaque sournoise.",
+    "type3":"limitée",
+   
+    "Affichage4": "Surprise",
+    "rang4": "Capacité passive: <br>Effet : Attaque sournoise n'est plus une action limitée.<br><br>Le voleur n'est jamais surpris. Il peut réaliser une Attaque sournoise en utilisant une action d'attaque plutôt qu'une action limitée contre un adversaire Surpris.",
+    "type4":"passive",
+   
+    "Affichage5": "Ouverture mortelle",
+    "rang5": "Capacité passive: Effet: critique automatique 1x par combat.<br><br> Une fois par combat, le voleur obtient une réussite critique automatique contre la cible de son choix. Il profite donc d'une réussite automatique, des dégats multipliés par 2 révus dans ce cas, et même des do d'attaquesournoise, eux aussi multipliés. * Attaquer de dos: lorsque le voleur attaque la même créature qu'un allié, on considère qu'il peut attaquer celle-ci de dos à 2 conditions. 1. Le voleur et l'allié peuvent se placer de part et d'autre de la cible. 2. La cible n'a pas attaqué le voleur à son dernier tour (dans le cas contraire, on considère qu'elle lui fait face).",
+    "type5":"passive",
+   
+    "Voie": "Voie de l’assassin"
+}

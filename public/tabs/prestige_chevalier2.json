@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Meute de chasse",
+    "rang1": "Capacité passive <br>Effet : Le chevalier fait l’acquisition d’une meute de chiens de chasse (environ 5 chiens plus 2 par rang). <br><br>Ces chiens n’ont pas de caractéristiques individuelles mais des scores qui correspondent à tout le groupe. Init 15, DEF 15, PV [15 + 5 par rang], Att [niveau + Mod. de CHA], DM : [2d6 + rang]. La meute récupère 1d6 PV par jour par rang et de plus, en ville, le chevalier peut acheter de nouveaux chiens, la meute récupère alors 1d6 PV par pièce d’argent investie.",
+    "type1":"passive",
+
+    "Affichage2": "Harcèlement (L)",
+    "rang2": "Action limitée <br>Effet : La meute harcèle une créature et essaie de l’obliger à se déplacer tout en restant hors de portée des attaques de celle-ci.<br><br> Cela nécessite de la meute que le groupe gagne +2 DEF par rang dans la voie et le joueur doit faire un test de commandement dans laquelle il pousse la créature ciblée. Si la cible suit cette direction d’au moins 10 mètres par tour, elle ne subit que la moitié des DM de la meute en cas d’attaque réussie. Si elle s’y refuse, elle subit des dégâts normaux.",
+    "type2":"limitée",
+
+    "Affichage3": "Meute fabuleuse",
+    "rang3": "Capacité passive<br> Effet : Les créatures qui composent la meute du chevalier sont magiques et elles répondent à son appel depuis un autre monde (par un sifflet ou un cor par exemple).<br><br> Il peut l’appeler à tout moment et elle surgit pour se mettre à son service instantanément. La meute apparaît dans un lieu, alors lorsqu’il dégage des chiens il reste au moins une minute, ce qui en fait un obstacle durable et il adapte la composition de ses chiens en fonction de ses besoins. Rapide (Félin) : +10 mètres de déplacement, +5 en Initiative, Capacité de Vol (Chiens ailés, marche sur l’air…) Férocité : +3 en attaque, Puissant (gueule Géantesque, attaque griffée…), +1d6 DM, Résistant (grande taille, régénération…) : +10 PV.",
+    "type3":"passive",
+
+    "Affichage4": "Mise à mort (L)",
+    "rang4": "Action limitée<br> Effet : Après une attaque réussie de sa meute de chiens, le chevalier peut exécuter une attaque contre la victime acculée. <br><br>Il double les DM de cette attaque et, si elle est effectuée à l’épée, il obtient en plus un bonus de +5 en attaque. Toutefois si la cible n’est pas tuée par cette attaque, elle gagne immédiatement une action d’attaque gratuite contre le chevalier.",
+    "type4":"limitée",
+
+    "Affichage5": "Gibier royal",
+    "rang5": "Capacité passive <br>Effet : Le chevalier met un point d’honneur à traquer et tuer les créatures les plus dangereuses. <br><br>Il gagne un bonus de +1d6 aux DM à ses attaques contre les prédateurs (ours, lion, prédateurs fantastiques comme les animaux préhistoriques) et gagne +2d6 aux DM du gibier le plus noble qui soit : les dragons !",
+    "type5":"passive",
+
+    "Voie": "Voie du grand veneur"
+}

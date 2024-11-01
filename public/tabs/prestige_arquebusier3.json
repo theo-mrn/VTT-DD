@@ -1,0 +1,23 @@
+{
+    "Affichage1": "Traqueur",
+    "rang1": "Capacité passive <br>Effet : L'arquebusier obtient un bonus de +5 aux tests de SAG pour pister les gros animaux (taille grande et supérieure).",
+    "type1":"passive",
+
+    "Affichage2": "Tueur d’animaux",
+    "rang2": "Capacité passive <br>Effet : L'arquebusier obtient un bonus de +2 en attaque et aux DM lorsqu'il emploie une arme à distance contre les animaux de taille grande ou énorme (ours, tigre, éléphant, etc).",
+    "type2":"passive",
+
+    "Affichage3": "Gros calibre (L)",
+    "rang3": "Action limitée <br>Effet : L'arquebusier a mis au point une variante de très gros calibre du mousquet qui inflige 3d6 DM et nécessite une action limitée pour tirer.<br><br> Si l'arquebusier n’a pas au moins 12 en FOR, il subit un malus de -2 en attaque avec cette arme.",
+    "type3":"limitéee",
+
+    "Affichage4": "Tueur d'animaux fantastiques",
+    "rang4": "Capacité passive <br>Effet : L'arquebusier obtient un bonus de +2 en attaque et aux DM lorsqu'il emploie une arme à distance contre les monstres non-humanoïdes de taille grande ou énorme (griffon, dragon, ours-hiboux, etc).",
+    "type4":"passive",
+
+    "Affichage5": "Expert en survie",
+    "rang5": "Capacité passive <br>Effet : L'arquebusier augmente son score de CON de +2 et obtient un bonus de +5 à tous les tests de survie en nature.",
+    "type5":"passive",
+
+    "Voie": "Voie du chasseur de gros gibier"
+}
