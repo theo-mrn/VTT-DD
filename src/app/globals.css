@@ -13,7 +13,8 @@
 
 body {
   font-family: "Aclonica", sans-serif;
-  background-image:url('/images/bg.png');
+  //background-color:#2a2a2a;
+  //background-image:url('/images/bg.png');
 }
 
 @layer base {
