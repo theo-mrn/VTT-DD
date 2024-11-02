@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
-import { Shield, Dices,Swords, Trash2 } from 'lucide-react';
+import { Shield, Dices, Swords, Trash2 } from 'lucide-react';
 import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import RollRequest from './Rollrequest'; // Importation du composant RollRequest
 
 type Roll = {
   id: string;
@@ -48,6 +49,7 @@ export default function DiceRollerDnD() {
     INT: 0,
     CHA: 0,
   });
+  const [showRollRequest, setShowRollRequest] = useState(false); // État pour afficher ou masquer RollRequest
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -82,8 +84,6 @@ export default function DiceRollerDnD() {
     const modifier = characterModifiers[char] || 0;
     rollDice(modifier, char);
   };
-
-  
 
   const fetchCharacterInfo = async (roomId: string, persoId: string) => {
     try {
@@ -237,6 +237,13 @@ export default function DiceRollerDnD() {
             Supprimer tous les lancers
           </Button>
 
+          <Button
+            onClick={() => setShowRollRequest((prev) => !prev)}
+            className="w-full bg-white hover:bg-white text-gray-900 flex items-center justify-center gap-2 mt-4"
+          >
+            Demande de dé
+          </Button>
+
           {!isMJ && (
             <div className="grid grid-cols-3 gap-2 mt-4">
               {["CON", "DEX", "FOR", "SAG", "INT", "CHA"].map((char) => (
@@ -254,36 +261,36 @@ export default function DiceRollerDnD() {
         </CardContent>
       </Card>
 
+      {showRollRequest && <RollRequest />} {/* Afficher RollRequest si showRollRequest est vrai */}
+
       <div className="space-y-3">
         {rolls.map(roll => (
           canDisplayRoll(roll) && (
             <Card key={roll.id} className="border border-brown-600">
-<CardContent className="p-3 flex items-center space-x-3">
-  {roll.userAvatar && (
-    <Avatar className="h-8 w-8">
-      <AvatarImage src={roll.userAvatar} alt="Avatar" />
-    </Avatar>
-  )}
-  <div className="flex-grow">
-    <div className="flex justify-between items-center">
-      <span className="text-sm font-medieval text-brown-900">{roll.userName}</span>
-      {roll.isPrivate && <Shield className="h-4 w-4 text-brown-600" />}
-    </div>
-    <span className="text-sm font-medium text-brown-700">
-      {roll.type}: {roll.diceCount}d{roll.diceFaces}
-      {roll.modifier > 0 ? ` + ${roll.modifier}` : roll.modifier < 0 ? ` - ${Math.abs(roll.modifier)}` : ''}
-    </span>
-    <div className="flex items-center gap-1">
-      <span className="text-lg font-bold text-brown-900">Total: {roll.total}</span>
-    </div>
-    <div className="flex items-center gap-1 text-xs text-brown-700">
-      <Dices className="h-4 w-4 text-brown-700" /> {/* SVG icon */}
-      <span>{roll.results.join(', ')} {roll.modifier !== 0 ? `+ ${roll.modifier}` : ''}</span>
-    </div>
-  </div>
-</CardContent>
-
-
+              <CardContent className="p-3 flex items-center space-x-3">
+                {roll.userAvatar && (
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={roll.userAvatar} alt="Avatar" />
+                  </Avatar>
+                )}
+                <div className="flex-grow">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medieval text-brown-900">{roll.userName}</span>
+                    {roll.isPrivate && <Shield className="h-4 w-4 text-brown-600" />}
+                  </div>
+                  <span className="text-sm font-medium text-brown-700">
+                    {roll.type}: {roll.diceCount}d{roll.diceFaces}
+                    {roll.modifier > 0 ? ` + ${roll.modifier}` : roll.modifier < 0 ? ` - ${Math.abs(roll.modifier)}` : ''}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-lg font-bold text-brown-900">Total: {roll.total}</span>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-brown-700">
+                    <Dices className="h-4 w-4 text-brown-700" />
+                    <span>{roll.results.join(', ')} {roll.modifier !== 0 ? `+ ${roll.modifier}` : ''}</span>
+                  </div>
+                </div>
+              </CardContent>
             </Card>
           )
         ))}

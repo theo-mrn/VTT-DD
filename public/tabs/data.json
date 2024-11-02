@@ -1,0 +1,308 @@
+{
+    "armes": [
+      {"nom": "Arbalète de poing", "type": "Distance (simple)", "portée": "10 m", "dégâts": "1d6", "prix": "8 pa"},
+      {"nom": "Arbalète légère", "type": "Distance (simple)", "portée": "30 m", "dégâts": "2d4", "prix": "10 pa"},
+      {"nom": "Arbalète lourde", "type": "Distance (simple)", "portée": "60 m", "dégâts": "3d4", "prix": "12 pa"},
+      {"nom": "Arc court", "type": "Distance (simple)", "portée": "30 m", "dégâts": "1d6", "prix": "4 pa"},
+      {"nom": "Arc long", "type": "Distance (simple)", "portée": "50 m", "dégâts": "1d8", "prix": "5 pa"},
+      {"nom": "Bâton", "type": "Contact", "portée": "-", "dégâts": "1d4", "prix": "1 pa"},
+      {"nom": "Bâton ferré", "type": "Contact", "portée": "-", "dégâts": "1d6", "prix": "2 pa"},
+      {"nom": "Dague", "type": "Contact", "portée": "5 m", "dégâts": "1d4", "prix": "3 pa"},
+      {"nom": "Épée à 2 mains", "type": "Contact", "portée": "-", "dégâts": "2d6", "prix": "10 pa"},
+      {"nom": "Épée bâtarde", "type": "Contact", "portée": "-", "dégâts": "1d8 à 1 main, 1d12 à 2 mains", "prix": "9 pa"},
+      {"nom": "Épée courte", "type": "Contact", "portée": "-", "dégâts": "1d6", "prix": "5 pa"},
+      {"nom": "Épée longue", "type": "Contact", "portée": "-", "dégâts": "1d8", "prix": "6 pa"},
+      {"nom": "Fronde", "type": "Distance (simple)", "portée": "20 m", "dégâts": "1d4", "prix": "1 pa"},
+      {"nom": "Gourdin", "type": "Contact", "portée": "-", "dégâts": "1d4", "prix": "1 pa"},
+      {"nom": "Hache à 1 main", "type": "Contact", "portée": "-", "dégâts": "1d8", "prix": "6 pa"},
+      {"nom": "Hache à 2 mains", "type": "Contact", "portée": "-", "dégâts": "2d6", "prix": "10 pa"},
+      {"nom": "Hachette", "type": "Distance (simple)", "portée": "5 m", "dégâts": "1d6", "prix": "2 pa"},
+      {"nom": "Javelot", "type": "Distance (simple)", "portée": "20 m", "dégâts": "1d6", "prix": "6 pa"},
+      {"nom": "Katana", "type": "Contact", "portée": "-", "dégâts": "1d10", "prix": "12 pa"}
+    ],
+    "armures": [
+      {"nom": "Petit bouclier", "DEF": "+1", "prix": "2 pa", "commentaires": "La DEF s'additionne à celle de l'armure."},
+      {"nom": "Grand bouclier ", "DEF": "+3", "prix": "8 pa", "commentaires": "Bouclier magique qui repousse les projectiles et les attaques magiques."},
+      {"nom": "Tissu matelassé", "DEF": "+1", "prix": "2 pa", "commentaires": ""},
+      {"nom": "Cuir", "DEF": "+2", "prix": "4 pa", "commentaires": ""},
+      {"nom": "Grand bouclier", "DEF": "+2", "prix": "4 pa", "commentaires": "La DEF s'additionne à celle de l'armure."},
+      {"nom": "Cuir renforcé", "DEF": "+3", "prix": "8 pa", "commentaires": ""},
+      {"nom": "Chemise de mailles", "DEF": "+4", "prix": "15 pa", "commentaires": ""},
+      {"nom": "Cotte de mailles", "DEF": "+5", "prix": "20 pa", "commentaires": ""},
+      {"nom": "Demi-plaque", "DEF": "+6", "prix": "50 pa", "commentaires": "Très rare."},
+      {"nom": "Plaque complète", "DEF": "+8", "prix": "200 pa", "commentaires": "Très rare. Fabriquée sur mesure, seul le profil de Chevalier est formé au port de cette armure au niveau 1."},
+      {"nom": "Armure de cuir cloutée", "DEF": "+3", "prix": "10 pa", "commentaires": "Armure légère mais offrant une meilleure protection grâce aux clous."},
+      {"nom": "Armure de cuir de dragon", "DEF": "+4", "prix": "50 pa", "commentaires": "Fabriquée à partir de l'écaille d'un dragon mineur. Très rare et très résistante."},
+      {"nom": "Armure de plaques légères", "DEF": "+5", "prix": "25 pa", "commentaires": "Conçue pour offrir de la mobilité avec une protection correcte."},
+      {"nom": "Armure lamellaire", "DEF": "+4", "prix": "18 pa", "commentaires": "Armure constituée de plaques de métal attachées à une base en cuir, populaire dans les cultures orientales."},
+      {"nom": "Armure de brigandine", "DEF": "+5", "prix": "30 pa", "commentaires": "Armure composée de petites plaques de métal entre deux couches de tissu ou de cuir."},
+      {"nom": "Armure lourde en écailles", "DEF": "+6", "prix": "45 pa", "commentaires": "Fournit une défense accrue au détriment de la mobilité."},
+      {"nom": "Armure de plaques d'adamantine", "DEF": "+7", "prix": "100 pa", "commentaires": "Très rare, faite d'adamantine, un métal presque indestructible. Offerte uniquement aux héros ou aux nobles."},
+      {"nom": "Armure runique", "DEF": "+6", "prix": "120 pa", "commentaires": "Armure enchantée avec des runes magiques, augmente la résistance à la magie."}
+    ],
+    
+        "objets": [
+          {
+            "nom": "Briquet à silex",
+            "effet": "Permet d'allumer un feu dans des conditions normales",
+            "prix": "1 pa"
+          },
+          {
+            "nom": "Carquois (20 flèches)",
+            "effet": "Stocke jusqu'à 20 flèches pour les arcs ou arbalètes",
+            "prix": "3 pa"
+          },
+          {
+            "nom": "Corde (15m)",
+            "effet": "Utile pour escalader ou attacher des objets",
+            "prix": "2 pa"
+          },
+          {
+            "nom": "Couverture",
+            "effet": "Protège du froid lors des nuits en extérieur",
+            "prix": "1 pa"
+          },
+          {
+            "nom": "Grapin",
+            "effet": "Permet de grimper ou d'ancrer une corde sur une surface élevée",
+            "prix": "2 pa"
+          },
+          {
+            "nom": "Huile (durée 6 heures)",
+            "effet": "Alimente une lanterne pour 6 heures de lumière",
+            "prix": "1 pa"
+          },
+          {
+            "nom": "Lanterne à huile (portée 10 m)",
+            "effet": "Fournit une source de lumière jusqu'à 10 mètres",
+            "prix": "2 pa"
+          },
+          {
+            "nom": "Matériel d'écriture",
+            "effet": "Contient un encrier et une plume pour écrire des lettres ou documents",
+            "prix": "1 pa"
+          },
+          {
+            "nom": "Outils de crochetage (pénalité -10 au test de DEX sans outils)",
+            "effet": "Permet d'ouvrir des serrures avec un test de dextérité",
+            "prix": "5 pa"
+          },
+          {
+            "nom": "Potion de soin (soigne 1d8 PV)",
+            "effet": "Restaure 1d8 points de vie lorsqu'elle est consommée",
+            "prix": "5 pa"
+          },
+          {
+            "nom": "Ration (1 semaine)",
+            "effet": "Contient assez de nourriture pour nourrir une personne pendant une semaine",
+            "prix": "10 pa"
+          },
+          {
+            "nom": "Sac à dos",
+            "effet": "Permet de transporter jusqu'à 15 kg d'équipement",
+            "prix": "4 pa"
+          },
+          {
+            "nom": "Torches (3 torches, durée 1 heure, portée 10 m)",
+            "effet": "Chaque torche brûle pendant 1 heure et éclaire jusqu'à 10 mètres",
+            "prix": "1 pa"
+          },
+          {
+            "nom": "Tente de voyage",
+            "effet": "Abri pour 2 personnes",
+            "prix": "5 pa"
+          },
+          {
+            "nom": "Trousse de premiers soins",
+            "effet": "Soigne les blessures légères",
+            "prix": "3 pa"
+          },
+          {
+            "nom": "Sac de couchage",
+            "effet": "Permet de dormir confortablement même sur un sol dur",
+            "prix": "2 pa"
+          },
+          {
+            "nom": "Couteau de survie",
+            "effet": "Outil multi-usage pour couper des cordes, préparer des repas, etc.",
+            "prix": "1 pa"
+          },
+          {
+            "nom": "Kit de cuisine de campagne",
+            "effet": "Permet de préparer des repas simples en extérieur",
+            "prix": "2 pa"
+          },
+          {
+            "nom": "Gourde en cuir",
+            "effet": "Contient jusqu'à 2 litres d'eau",
+            "prix": "1 pa"
+          },
+          {
+            "nom": "Lampe-tempête",
+            "effet": "Source de lumière résistante au vent et à la pluie",
+            "prix": "3 pa"
+          },
+          {
+            "nom": "Sifflet d'urgence",
+            "effet": "Permet d'appeler à l'aide à longue distance",
+            "prix": "1 pa"
+          },
+          {
+            "nom": "Bottes imperméables",
+            "effet": "Protège contre l'humidité et la boue",
+            "prix": "4 pa"
+          },
+          {
+            "nom": "Sangle de transport",
+            "effet": "Utile pour attacher ou transporter des objets encombrants",
+            "prix": "1 pa"
+          },
+          {
+            "nom": "Filet de pêche",
+            "effet": "Permet de pêcher dans les rivières ou lacs",
+            "prix": "2 pa"
+          },
+          {
+            "nom": "Chaudière en cuivre",
+            "effet": "Utile pour faire bouillir de l'eau ou préparer des potions simples",
+            "prix": "3 pa"
+          },
+          {
+            "nom": "Cape de pluie",
+            "effet": "Protège contre la pluie et le vent lors de déplacements",
+            "prix": "2 pa"
+          },
+          {
+            "nom": "Baudrier de voyage",
+            "effet": "Permet de transporter facilement des armes et outils",
+            "prix": "3 pa"
+          },
+          {
+            "nom": "Selle de voyage",
+            "effet": "Rend les longs voyages à cheval plus confortables",
+            "prix": "5 pa"
+          },
+          {
+            "nom": "Torche en résine",
+            "effet": "Source de lumière qui brûle longtemps",
+            "prix": "1 pa"
+          },
+          {
+            "nom": "Carte locale",
+            "effet": "Aide à naviguer dans une région spécifique",
+            "prix": "2 pa"
+          },
+          {
+            "nom": "Chaîne de 3 mètres",
+            "effet": "Peut être utilisée pour sécuriser des objets ou capturer des animaux",
+            "prix": "2 pa"
+          },
+          {
+            "nom": "Sacoche d'herbes médicinales",
+            "effet": "Contient des herbes de base pour traiter des blessures ou maladies mineures",
+            "prix": "4 pa"
+          },
+          {
+            "nom": "Bidon de réserve",
+            "effet": "Contient jusqu'à 10 litres de liquide pour de longs voyages",
+            "prix": "5 pa"
+          },
+          {"nom": "Lingot d'acier", "utilisation": "Matériau de base pour fabriquer des armes et armures", "prix": "3 pa"},
+          {"nom": "Lingot d'or", "utilisation": "Matériau de base pour fabriquer des armes et armures", "prix": "3 po"},
+      
+          {"nom": "Peau de bête", "utilisation": "Utilisée pour la confection d'armures légères", "prix": "2 pa"},
+          { "nom": "Outils de forgeron","utilisation": "Permet de forger des armes et des armures", "prix": "10 pa"}
+        ],
+    "nourriture": [
+      {"nom": "Banquet", "prix": "10-100 pa"},
+      {"nom": "Bon repas", "prix": "5 pa"},
+      {"nom": "Cervoise, Bière (Pinte)", "prix": "2 pc"},
+      {"nom": "Cidre, Lait (Verre)", "prix": "1 pc"},
+      {"nom": "Grand Cru (Bouteille)", "prix": "5-50 pa"},
+      {"nom": "Hydromel, Vin (Verre)", "prix": "5 pc"},
+      {"nom": "Repas avec viande", "prix": "1 pa"},
+      {"nom": "Soupe et pain", "prix": "1 pc"},
+      {"nom": "Petite potion de vie", "prix": "10 pa"},
+      {"nom": "Grande potion de vie ", "prix": "18 pa"}
+    ],
+    "montures": [
+      {"nom": "Carriole", "prix": "50 pa"},
+      {"nom": "Chariot", "prix": "90 pa"},
+      {"nom": "Cheval de guerre léger", "prix": "300 pa"},
+      {"nom": "Cheval de selle", "prix": "100 pa"},
+      {"nom": "Mule ou âne", "prix": "25 pa"},
+      {"nom": "Poney", "prix": "50 pa"}
+    ],
+    "logement": [
+      {"nom": "Nuit (chambre de 4)", "prix": "1-2 pa"},
+      {"nom": "Nuit (chambre individuelle)", "prix": "2-5 pa"},
+      {"nom": "Nuit (dortoir)", "prix": "5-10 pc"},
+      {"nom": "Nuit (suite)", "prix": "10-50 pa"},
+      {"nom": "Appartement (2 pièces)", "prix": "250 po"},
+      {"nom": "Château", "prix": "150 000 po"},
+      {"nom": "Maison (6 pièces)", "prix": "2000 po"},
+      {"nom": "Manoir", "prix": "20 000 po"},
+      {"nom": "Masure (3 pièces)", "prix": "500 po"},
+      {"nom": "Palais", "prix": "300 000 po"},
+      {"nom": "Place forte", "prix": "60 000 po"},
+      {"nom": "Suite (5 pièces)", "prix": "1000 po"},
+      {"nom": "Villa luxueuse", "prix": "10 000 po"}
+    ],
+    "immobilier": [
+      {"nom": "Appartement (2 pièces)", "prix": "250 po"},
+      {"nom": "Château", "prix": "150 000 po"},
+      {"nom": "Maison (6 pièces)", "prix": "2000 po"},
+      {"nom": "Manoir", "prix": "20 000 po"},
+      {"nom": "Masure (3 pièces)", "prix": "500 po"},
+      {"nom": "Palais", "prix": "300 000 po"},
+      {"nom": "Place forte", "prix": "60 000 po"},
+      {"nom": "Suite (5 pièces)", "prix": "1000 po"},
+      {"nom": "Villa luxueuse", "prix": "10 000 po"}
+    ],
+    "potions": [
+        {"nom": "Petite potion de vie", "prix": "10 pa"},
+    {"nom": "Grande potion de vie ", "prix": "18 pa"}
+  ],
+  "vetements": [
+    {"nom": "Cape de voyage en laine", "prix": "2 pa"},
+    {"nom": "Robe de mage", "prix": "15 pa"}
+  ],
+
+
+
+  "artisanat_materiaux": [
+    {"nom": "Lingot d'acier", "utilisation": "Matériau de base pour fabriquer des armes et armures", "prix": "3 pa"},
+    {"nom": "Lingot d'or", "utilisation": "Matériau de base pour fabriquer des armes et armures", "prix": "3 po"},
+
+    {"nom": "Peau de bête", "utilisation": "Utilisée pour la confection d'armures légères", "prix": "2 pa"},
+    { "nom": "Outils de forgeron","utilisation": "Permet de forger des armes et des armures", "prix": "10 pa"}
+  ],
+  "animaux_familiers": [
+    {"nom": "Faucon d'élevage", "effet": "Peut être utilisé pour la chasse ou la reconnaissance", "prix": "30 pa"},
+    {"nom": "Loup entraîné","effet": "Peut assister en combat ou en garde", "prix": "100 pa"}
+  ],
+  "services": [
+    {"nom": "Réparation d'arme", "effet": "Répare une arme endommagée", "prix": "de 2 à 20 pa"},
+    { "nom": "Purification d'aliments et boissons", "effet": "Enlève toute toxine ou poison", "prix": "2 pa"},
+    {"nom": "Guide local", "effet": "Guide à travers une région dangereuse ou inconnue", "prix": "10 pa/jour"},
+    {"nom": "Barde pour une soirée", "effet": "Augmente le moral des compagnons par une performance musicale", "prix": "5 pa"},
+    { "nom": "Services d'un scribe", "effet": "Copie ou traduit des documents",  "prix": "3 pa/page"  },
+    {  "nom": "Herboriste - Confection de remèdes", "effet": "Prépare des remèdes contre diverses maladies",  "prix": "5 pa" },
+    { "nom": "Location de monture",  "effet": "Location d'un cheval ou poney pour voyager",  "prix": "5 pa/jour"}
+  ],
+"vehicules": [
+    {"nom": "Charrette en bois","effet": "Transport de marchandises légères ou de petits groupes","prix": "50 pa"},
+    {"nom": "Chariot couvert","effet": "Transport protégé pour de longues distances","prix": "80 pa"},
+    {"nom": "Carriole de marchands","effet": "Utilisé par les marchands pour transporter des biens","prix": "100 pa"},
+    {"nom": "Char de guerre","effet": "Utilisé pour le combat, tiré par des chevaux","prix": "200 pa"},
+    {"nom": "Carrosse", "effet": "Véhicule de luxe pour les nobles ou riches marchands","prix": "300 pa" },
+    {"nom": "Bateau de pêche", "effet": "Petit bateau pour la pêche côtière","prix": "150 pa"},
+    { "nom": "Navire marchand","effet": "Grand navire pour le transport de marchandises", "prix": "500 po"},
+    {"nom": "Galère","effet": "Navire de guerre propulsé par des rames et des voiles","prix": "1000 po"},
+    {"nom": "Barque", "effet": "Petit bateau à rames pour traverser des rivières ou des lacs","prix": "20 pa"},
+    {"nom": "Brouette","effet": "Utilisé pour transporter des charges légères","prix": "10 pa"},
+    {"nom": "Bateau à fond plat","effet": "Utilisé pour le transport fluvial","prix": "200 pa"},
+    {"nom": "Chariot blindé","effet": "Chariot renforcé pour transporter des objets de grande valeur ou des prisonniers","prix": "400 pa"}
+  ]
+  }
+  

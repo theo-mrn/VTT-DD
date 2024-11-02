@@ -1,12 +1,14 @@
 "use client";
 
 import { ReactNode, useState, useEffect } from "react";
-import { FileText, Edit, Dice5, List, Swords, X } from "lucide-react";
+import Sidebar from "@/components/Sidebar";
 import GMDashboard from "@/components/MJcombat";
 import Component from "@/components/fiche";
 import MedievalNotes from "@/components/Notes";
 import DiceRollerDnD from "@/components/campagne";
 import Competences from "@/components/competences";
+import OverlayComponent from "@/components/overlay";
+import InfoComponent from "@/components/info"; // Ensure case matches the file name exactly
 import { auth, db, getDoc, doc, onAuthStateChanged } from "@/lib/firebase";
 
 type LayoutProps = {
@@ -14,7 +16,7 @@ type LayoutProps = {
 };
 
 export default function Layout({ children }: LayoutProps) {
-  const [activeTab, setActiveTab] = useState<string>(""); // Typage explicite pour activeTab
+  const [activeTab, setActiveTab] = useState<string>("");
   const [isMJ, setIsMJ] = useState(false);
 
   useEffect(() => {
@@ -51,11 +53,13 @@ export default function Layout({ children }: LayoutProps) {
         return <DiceRollerDnD />;
       case "Competences":
         return <Competences />;
+      case "infoComponent":
+        return <InfoComponent />; 
       default:
         return null;
     }
   };
-
+  
   const handleIconClick = (tabName: string) => {
     setActiveTab(activeTab === tabName ? "" : tabName);
   };
@@ -66,35 +70,19 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <div className="relative h-screen bg-[#1c1c1c] text-[#d4d4d4] flex">
-      {/* Always-visible Sidebar */}
-      <aside className="fixed top-1/2 left-0 transform -translate-y-1/2 z-20 bg-[#242424] p-4 rounded-r-lg shadow-lg flex flex-col items-center space-y-6">
-        {isMJ && (
-          <button onClick={() => handleIconClick("GMDashboard")} className="p-2">
-            <Swords className={`h-6 w-6 ${activeTab === "GMDashboard" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
-          </button>
-        )}
+      {/* Sidebar Component */}
+      <Sidebar activeTab={activeTab} handleIconClick={handleIconClick} isMJ={isMJ} />
 
-        <button onClick={() => handleIconClick("Component")} className="p-2">
-          <FileText className={`h-6 w-6 ${activeTab === "Component" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
-        </button>
+      <div className="absolute left-0 z-10" style={{ transform: "translateY(10vh)" }}>
+  <OverlayComponent />
+</div>
 
-        <button onClick={() => handleIconClick("NewComponent")} className="p-2">
-          <Edit className={`h-6 w-6 ${activeTab === "NewComponent" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
-        </button>
 
-        <button onClick={() => handleIconClick("DiceRollerDnD")} className="p-2">
-          <Dice5 className={`h-6 w-6 ${activeTab === "DiceRollerDnD" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
-        </button>
-
-        <button onClick={() => handleIconClick("Competences")} className="p-2">
-          <List className={`h-6 w-6 ${activeTab === "Competences" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
-        </button>
-      </aside>
 
       {/* Side Panel for Selected Tab */}
       {activeTab && (
         <aside
-          className={`fixed left-20 top-0 h-full ${getPanelWidth()} bg-[#242424] shadow-lg p-6 overflow-y-auto transition-transform duration-300 ease-in-out z-10`}
+          className={`fixed left-20 top-0 h-full ${getPanelWidth()} bg-[#242424] shadow-lg  overflow-y-auto transition-transform duration-300 ease-in-out z-20`}
         >
           {renderActiveTab()}
         </aside>
