@@ -115,7 +115,7 @@ export default function CharacterSelection() {
           </div>
         ))}
         <a
-          href="creation.html"
+          href="/creation"
           className="group w-36 h-[500px] rounded-[50px] bg-white relative overflow-hidden transition-all duration-500 ease-in-out cursor-pointer hover:w-96 flex flex-col justify-center items-center"
         >
           <Plus className="w-12 h-12 text-black transition-transform duration-300 ease-in-out group-hover:scale-150" />

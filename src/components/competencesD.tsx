@@ -318,7 +318,9 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
                     <DialogContent className="bg-[#1c1c1c] text-[#d4d4d4]">
                       <DialogHeader>
                         <DialogTitle>{selectedCompetence?.name}</DialogTitle>
-                        <DialogDescription>{selectedCompetence?.description}</DialogDescription>
+    
+                        <DialogDescription dangerouslySetInnerHTML={{ __html: selectedCompetence?.description || "" }}/>
+
                       </DialogHeader>
                       <DialogFooter>
                         <Button variant="ghost" className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]" onClick={() => setIsDetailsOpen(false)}>

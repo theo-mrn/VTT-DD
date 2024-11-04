@@ -1,115 +1,72 @@
 {
-  "Ame-forgée": {
+  "ame_forgee": {
     "description": "Les âmes forgées sont des êtres artificiels créés par des artisans habiles dans l'art de la magie et de la mécanique. Ils sont souvent vus comme des gardiens imperturbables et stoïques, dotés d'une force surhumaine et d'une résistance inébranlable.",
-    "capacite":"test",
     "modificateurs": {
       "CON": 2,
       "CHA": -2
-    }
+    },
+    "image": "/images/races/ame_forgee.png"
   },
-  "Elfe": {
+  "elfe": {
     "description": "Les elfes sont des créatures élégantes et gracieuses, vivant en harmonie avec la nature. Ils sont connus pour leur agilité et leur maîtrise de la magie, ainsi que pour leur longévité et leur sagesse.",
-        "capacite":"test",
     "modificateurs": {
       "FOR": -2,
       "CHA": 2
-    }
+    },
+    "image": "/images/races/Elfe.webp"
   },
-  "Elfe noir": {
-    "description": "Les elfes noirs, également connus sous le nom de drows, sont les descendants renégats des elfes. Vivant dans les profondeurs des souterrains, ils sont souvent associés à la magie noire et à la cruauté.",
-            "capacite":"test",
+  "elfe_noir": {
+    "description": "Les elfes noirs, ou drows, vivent dans les profondeurs souterraines et sont souvent associés à la magie noire et à la cruauté.",
     "modificateurs": {
       "FOR": -2,
       "DEX": 2
-    }
+    },
+    "image": "/images/races/elfe_noir.png"
   },
-  "Elfe sylvain": {
-    "description": "Les elfes sylvains sont des habitants des forêts, en harmonie avec la nature. Ils sont agiles et rusés, se déplaçant silencieusement à travers les bois et protégeant leur territoire contre les intrus.",
-            "capacite":"test",
+  "elfe_sylvain": {
+    "description": "Les elfes sylvains sont des habitants des forêts, en harmonie avec la nature. Ils sont agiles et se déplacent silencieusement dans les bois.",
     "modificateurs": {
       "FOR": -2,
       "DEX": 2
-    }
+    },
+    "image": "/images/races/elfe_sylvain.png"
   },
-  "Humain": {
-    "description": "Les humains sont des êtres polyvalents et adaptables, répartis dans le monde entier. Leur diversité culturelle et leur capacité à s'adapter à différents environnements en font des individus remarquables.",
-        "capacite":"test"
+  "humain": {
+    "description": "Les humains sont des êtres polyvalents et adaptables, présents dans le monde entier. Leur diversité culturelle et leur capacité à s'adapter en font des individus remarquables.",
+    "modificateurs": {},
+    "image": "/images/races/Humain.webp"
   },
-  "Nain": {
-    "description": "Les nains sont des mineurs et des forgerons habiles, vivant dans des citadelles souterraines. Ils sont robustes et endurants, avec une grande affection pour la bière et les festins.",
-            "capacite":"test",
+  "nain": {
+    "description": "Les nains sont des mineurs et forgerons habiles, vivant dans des citadelles souterraines. Ils sont robustes et endurants.",
     "modificateurs": {
       "DEX": -2,
       "CON": 2
-    }
+    },
+    "image": "/images/races/Nain.webp"
   },
-  "Ogre": {
-    "description": "Les ogres sont des créatures massives et brutales, souvent mal comprises en raison de leur apparence intimidante. Bien qu'ils soient généralement associés à la force brute, certains ogres sont dotés d'une intelligence surprenante.",
-            "capacite":"test",
+  "halfelin": {
+    "description": "Les halfelins sont une race de petite taille, souvent joyeux et farceurs. Ce sont des individus curieux et sociables.",
     "modificateurs": {
-      "FOR": 4,
-      "DEX": -2,
-      "CON":2,
-      "INT":-2,
-      "CHA": -2,
-      "SAG" :-2
-      
-    }
+      "FOR": -2,
+      "DEX": 2
+    },
+    "image": "/images/races/halfelin.png"
   },
-  "Orque": {
-    "description": "Les orques sont des guerriers farouches et belliqueux, vivant dans des tribus nomades ou des sociétés militaires organisées. Leur force physique et leur agressivité en font des combattants redoutables sur le champ de bataille.",
-            "capacite":"test",
+  "orque": {
+    "description": "Les orques sont des guerriers puissants et belliqueux, vivant en tribus ou en sociétés militaires organisées.",
     "modificateurs": {
       "FOR": 2,
       "INT": -2,
       "CHA": -2
-    }
+    },
+    "image": "/images/races/Orc.Webp"
   },
-  "Minotaure": {
-    "description": "Les minotaures sont des créatures mi-hommes, mi-taureaux, souvent vénérées pour leur force et leur courage. Ils sont souvent associés à la bravoure et à l'honneur, mais peuvent aussi être impitoyables envers leurs ennemis.",
-    
-        "capacite":"test",
-    "modificateurs": {
-      "FOR": 22222,
-      "INT": -4,
-      "CHA": -2
-    }
-  },
-  "Drakonide": {
-    "description": "Les drakonides sont des êtres draconiques, possédant des traits reptiliens et des ailes puissantes. Ils sont souvent vus comme des gardiens des anciennes connaissances et des secrets des dragons, et certains peuvent même être capables de voler.",
-        "capacite":"test",
+  "drakonide": {
+    "description": "Les drakonides possèdent des traits reptiliens et des ailes puissantes. Ils sont souvent vus comme des gardiens des anciennes connaissances des dragons.",
     "modificateurs": {
       "FOR": 2,
       "SAG": -2
-    }
-  },
-  "Aasimar": {
-    "description": "Les aasimar n’ont pas de société propre, ce sont simplement des humains un peu particuliers : ils sont dotés d’une ascendance céleste, des créatures des plans extérieurs alignées sur le bien.",
-        "capacite":"test",
-    "modificateurs": {
-      "SAG": 2
-    }
-  },
-  "Frouin": {
-    "description": "Un frouïn, ressemble à un rat humanoïde d’un mètre de haut. Les frouïns sont des citadins, ils affectionnent les tunnels et les égouts qui courent sous les cités des humains et participent activement à leur propagation. Leur civilisation est basée sur la discrétion et la récupération.",
-        "capacite":"test",
-    "modificateurs": {
-      "FOR": -2,
-      "DEX":2,
-      "CON":2,
-      "CHA":-2
-    }
-  },
-  "Halfelin": {
-    "description": "Le Halfelin est la plus petite des races jouables. Toujours bon vivant, souvent vif, curieux, et parfois farceur, c’est un incompris que les autres Races considèrent souvent comme turbulent, pénible, voire parfois comme un voleur",
-        "capacite":"test",
-    "modificateurs": {
-      "FOR": -2,
-      "DEX":2
-    }
-  },
-  "Wolfer": {
-    "description": "Les wolfers sont des êtres robustes avec une pilosité importante, ils vivent en clan et mènent une vie de chasseurs nomade dans les forêts, les montagnes et les plaines sauvages. Ce mode de vie ancestral les fait souvent entrer en conflit avec ceux dont la civilisation s’étend, débordant sur leur territoire de chasse.",
-        "capacite":"test"
+    },
+    "image": "/images/races/Drakonide.webp"
   }
 }

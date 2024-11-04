@@ -63,8 +63,9 @@ export default function Marketplace() {
           <>
             <TableHead>Nom</TableHead>
             <TableHead>DEF</TableHead>
-            <TableHead>Prix</TableHead>
             <TableHead>Commentaires</TableHead>
+            <TableHead>Prix</TableHead>
+         
           </>
         );
       case 'objets':
@@ -132,13 +133,13 @@ export default function Marketplace() {
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <Tabs defaultValue={categories[0]} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12 gap-2 mb-8 bg-[#5a3d1e] text-white">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12 gap-2 mb-8 bg-[#444] text-white">
               {categories.map((category) => (
                 <TabsTrigger
                   key={category}
                   value={category}
                   onClick={() => setActiveCategory(category)}
-                  className={`px-2 py-1 ${activeCategory === category ? 'bg-[#a56434]' : ''}`}
+                  className={`px-2 py-1 rounded-lg ${activeCategory === category ? 'bg-[#888] text-black font-semibold' : 'text-white'}`}
                 >
                   {category.charAt(0).toUpperCase() + category.slice(1).replace(/_/g, ' ')}
                 </TabsTrigger>

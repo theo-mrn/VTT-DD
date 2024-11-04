@@ -82,7 +82,7 @@ export default function Layout({ children }: LayoutProps) {
       {/* Side Panel for Selected Tab */}
       {activeTab && (
         <aside
-          className={`fixed left-20 top-0 h-full ${getPanelWidth()} bg-[#242424] shadow-lg  overflow-y-auto transition-transform duration-300 ease-in-out z-20`}
+          className={`fixed left-20 top-0 h-full ${getPanelWidth()} bg-[#242424] text-black shadow-lg  overflow-y-auto transition-transform duration-300 ease-in-out z-20`}
         >
           {renderActiveTab()}
         </aside>
