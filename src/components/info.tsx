@@ -45,10 +45,10 @@ export default function InfoComponent() {
           </div>
         </div>
       ) : isFullScreenInfo ? (
-        <div className="fixed inset-0 bg-black bg-opacity-90 z-50 overflow-auto">
+        <div className="fixed top-1/6 left-1/6 w-2/3 h-full z-50 overflow-auto rounded-lg shadow-lg">
           <button
             onClick={closeFullScreenInfo}
-            className="fixed top-4 left-4 bg-black bg-opacity-70 text-white p-3 rounded-full hover:bg-opacity-90 transition text-xl"
+            className="absolute top-4 left-4 bg-black bg-opacity-70 text-white p-3 rounded-full hover:bg-opacity-90 transition text-xl"
           >
             retour
           </button>
@@ -86,7 +86,7 @@ export default function InfoComponent() {
               </CardHeader>
               <CardContent>
                 <Image
-                  src="/images/index5.webp"
+                  src="/images/information.png"
                   alt="Information image"
                   width={200}
                   height={100}
@@ -107,7 +107,7 @@ export default function InfoComponent() {
               </CardHeader>
               <CardContent>
                 <Image
-                  src="/images/index7.webp"
+                  src="/images/competences.png"
                   alt="Compétences image"
                   width={200}
                   height={100}
@@ -128,7 +128,7 @@ export default function InfoComponent() {
               </CardHeader>
               <CardContent>
                 <Image
-                  src="/images/index7.webp"
+                  src="/images/image.webp"
                   alt="Images example"
                   width={200}
                   height={100}

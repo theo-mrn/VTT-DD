@@ -185,13 +185,13 @@ export default function DiceRollerDnD() {
               checked={isPrivate}
               onCheckedChange={setIsPrivate}
             />
-            <Label htmlFor="private-mode" className="text-sm text-brown-100">
+            <Label htmlFor="private-mode" className="text-sm text-white">
               Privé
             </Label>
           </div>
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-1">
-              <Label htmlFor="dice-count" className="text-sm text-brown-100">Nombre de dés</Label>
+              <Label htmlFor="dice-count" className="text-sm text-white">Nombre de dés</Label>
               <Input
                 id="dice-count"
                 type="number"
@@ -202,7 +202,7 @@ export default function DiceRollerDnD() {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="dice-faces" className="text-sm text-brown-100">Nombre de faces</Label>
+              <Label htmlFor="dice-faces" className="text-sm text-white">Nombre de faces</Label>
               <Input
                 id="dice-faces"
                 type="number"
@@ -213,7 +213,7 @@ export default function DiceRollerDnD() {
               />
             </div>
             <div className="space-y-1">
-              <Label htmlFor="modifier" className="text-sm text-brown-100">Modificateur</Label>
+              <Label htmlFor="modifier" className="text-sm text-white">Modificateur</Label>
               <Input
                 id="modifier"
                 type="number"
@@ -239,7 +239,7 @@ export default function DiceRollerDnD() {
 
           <Button
             onClick={() => setShowRollRequest((prev) => !prev)}
-            className="w-full bg-white hover:bg-white text-gray-900 flex items-center justify-center gap-2 mt-4"
+            className="w-full bg-gray-800 hover:bg-gray-600 text-gray-800 flex items-center justify-center gap-2 mt-4"
           >
             Demande de dé
           </Button>
@@ -275,17 +275,17 @@ export default function DiceRollerDnD() {
                 )}
                 <div className="flex-grow">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-medieval text-brown-900">{roll.userName}</span>
+                    <span className="text-sm font-medieval text-white">{roll.userName}</span>
                     {roll.isPrivate && <Shield className="h-4 w-4 text-brown-600" />}
                   </div>
-                  <span className="text-sm font-medium text-brown-700">
+                  <span className="text-sm font-medium text-white">
                     {roll.type}: {roll.diceCount}d{roll.diceFaces}
                     {roll.modifier > 0 ? ` + ${roll.modifier}` : roll.modifier < 0 ? ` - ${Math.abs(roll.modifier)}` : ''}
                   </span>
                   <div className="flex items-center gap-1">
-                    <span className="text-lg font-bold text-brown-900">Total: {roll.total}</span>
+                    <span className="text-lg font-bold text-white">Total: {roll.total}</span>
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-brown-700">
+                  <div className="flex items-center gap-1 text-xs text-white">
                     <Dices className="h-4 w-4 text-brown-700" />
                     <span>{roll.results.join(', ')} {roll.modifier !== 0 ? `+ ${roll.modifier}` : ''}</span>
                   </div>
