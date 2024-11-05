@@ -14,6 +14,18 @@ type Player = {
   abilities: Record<string, number>;
 }
 
+type RollRequestData = {
+  requestId: string;
+  ability: string;
+  isRequesting: boolean;
+  // Add any other fields needed
+};
+
+interface RollRequestProps {
+  data: RollRequestData;
+}
+
+
 type AbilityScore = 'CON' | 'DEX' | 'FOR' | 'SAG' | 'INT' | 'CHA'
 type Role = 'MJ' | 'Joueur'
 
@@ -190,7 +202,7 @@ function DiceRollComponent({ role, roomId, playerId }: { role: Role, roomId: str
   }
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-md bg-white">
       <CardHeader>
         <CardTitle>Lancer de dés</CardTitle>
       </CardHeader>

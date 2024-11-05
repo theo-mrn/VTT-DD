@@ -220,12 +220,12 @@ onSnapshot(charactersRef, (snapshot) => {
       visibility: data.visibility || 'visible',
       visibilityRadius: parseFloat(data.visibilityRadius) || 100,
       type: data.type || 'pnj',
-      PV: data.PV || 100, // Assurez-vous que chaque champ est bien extrait
-      Defense: data.Defense || 0,
-      Contact: data.Contact || 0,
-      Distance: data.Distance || 0,
-      Magie: data.Magie || 0,
-      INIT: data.INIT || 0,
+      PV: data.PV || 10, // Assurez-vous que chaque champ est bien extrait
+      Defense: data.Defense || 5,
+      Contact: data.Contact || 5,
+      Distance: data.Distance || 5,
+      Magie: data.Magie || 5,
+      INIT: data.INIT || 5,
     });
   });
   setCharacters(chars);
@@ -465,12 +465,12 @@ const handleCharacterSubmit = async () => {
               name: '',
               image: null,
               visibility: 'visible',
-              PV: 100,
-              Defense: 0,
-              Contact: 0,
-              Distance: 0,
-              Magie: 0,
-              INIT: 0,
+              PV: 10,
+              Defense: 5,
+              Contact: 5,
+              Distance: 5,
+              Magie: 5,
+              INIT: 5,
               nombre: 1, // RéINITialiser le champ nombre
           });
           setDialogOpen(false);

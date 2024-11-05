@@ -8,8 +8,12 @@ import MedievalNotes from "@/components/Notes";
 import DiceRollerDnD from "@/components/campagne";
 import Competences from "@/components/competences";
 import OverlayComponent from "@/components/overlay";
-import InfoComponent from "@/components/info"; // Ensure case matches the file name exactly
-import { auth, db, getDoc, doc, onAuthStateChanged } from "@/lib/firebase";
+import InfoComponent from "@/components/info";
+import RollRequest from '@/components/Rollrequest';
+import { Button } from "@/components/ui/button";
+import SharedMusicPlayer from "@/components/music"; // Import SharedMusicPlayer
+
+import { auth, db, getDoc, doc, onAuthStateChanged, collection, onSnapshot } from "@/lib/firebase";
 
 type LayoutProps = {
   children: ReactNode;
@@ -18,28 +22,44 @@ type LayoutProps = {
 export default function Layout({ children }: LayoutProps) {
   const [activeTab, setActiveTab] = useState<string>("");
   const [isMJ, setIsMJ] = useState(false);
+  const [showRollRequest, setShowRollRequest] = useState(false);
+  const [roomId, setRoomId] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       if (user) {
         const uid = user.uid;
-        try {
-          const userDocRef = doc(db, `users/${uid}`);
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setIsMJ(userData.perso === "MJ");
-          }
-        } catch (error) {
-          console.error("Erreur lors de la récupération des données utilisateur :", error);
+        const userDocRef = doc(db, `users/${uid}`);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setIsMJ(userData.perso === "MJ");
+          setRoomId(userData.room_id);
         }
-      } else {
-        setIsMJ(false);
       }
     });
 
-    return () => unsubscribe();
+    return () => unsubscribeAuth();
   }, []);
+
+  useEffect(() => {
+    if (!roomId) return;
+
+    const requestsRef = collection(db, `Rollsrequests/${roomId}/requete`);
+
+    const unsubscribe = onSnapshot(requestsRef, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added" || change.type === "modified") {
+          const data = change.doc.data();
+          if (data.isRequesting && !data.isCompleted) {
+            setShowRollRequest(true);
+          }
+        }
+      });
+    });
+
+    return () => unsubscribe();
+  }, [roomId]);
 
   const renderActiveTab = () => {
     switch (activeTab) {
@@ -54,44 +74,65 @@ export default function Layout({ children }: LayoutProps) {
       case "Competences":
         return <Competences />;
       case "infoComponent":
-        return <InfoComponent />; 
+        return <InfoComponent />;
+      case "Music": // Music tab
+        return <SharedMusicPlayer />;
       default:
         return null;
     }
   };
-  
+
   const handleIconClick = (tabName: string) => {
     setActiveTab(activeTab === tabName ? "" : tabName);
   };
 
   const getPanelWidth = () => {
-    return activeTab === "Competences" ? "w-[1200px]" : "w-[700px]";
+    switch (activeTab) {
+      case "Competences":
+        return "w-[1200px]";
+        case "GMDashboard":
+          return " bg-white";
+      case "Music":
+        return " bg-white w-[800px]"; // Optional: Customize for Music tab
+      default:
+        return "w-[700px]";
+    }
   };
 
   return (
     <div className="relative h-screen bg-[#1c1c1c] text-[#d4d4d4] flex">
-      {/* Sidebar Component */}
       <Sidebar activeTab={activeTab} handleIconClick={handleIconClick} isMJ={isMJ} />
 
-      <div className="absolute left-0 z-10" style={{ transform: "translateY(10vh)" }}>
-  <OverlayComponent />
-</div>
+      <div className="absolute left-0 z-10">
+        <OverlayComponent />
+      </div>
 
-
-
-      {/* Side Panel for Selected Tab */}
       {activeTab && (
         <aside
-          className={`fixed left-20 top-0 h-full ${getPanelWidth()} bg-[#242424] text-black shadow-lg  overflow-y-auto transition-transform duration-300 ease-in-out z-20`}
+          className={`fixed left-20 top-0 h-full ${getPanelWidth()} bg-[#242424] text-black shadow-lg overflow-y-auto transition-transform duration-300 ease-in-out z-20`}
         >
           {renderActiveTab()}
         </aside>
       )}
 
-      {/* Main Content */}
-      <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c] p-4">
-        <div className="w-full h-full px-4">{children}</div>
+      <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c]">
+        <div className="w-full h-full">{children}</div>
       </main>
+
+      {showRollRequest && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50">
+          <div className="rounded text-black w-1/3  text-center">
+            <RollRequest />
+            <Button
+              onClick={() => setShowRollRequest(false)}
+              className="mt-4 items-center justify-center "
+              variant="default"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
