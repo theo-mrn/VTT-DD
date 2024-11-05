@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { X, Plus, Minus, Move, Edit, Pencil, Eraser ,ChevronDown ,ChevronUp,ChevronRight,ChevronLeft} from 'lucide-react'
+import { X, Plus, Minus, Move, Edit, Pencil, Eraser ,ChevronDown ,ChevronUp} from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc,getDoc,getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc } from '@/lib/firebase'
 import Combat from '@/components/combat';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -400,30 +400,15 @@ onSnapshot(charactersRef, (snapshot) => {
   const handleBackgroundChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && roomId) {
-      try {
-        const storage = getStorage();
-        // Create a reference to where the image will be stored in Firebase Storage
-        const storageRef = ref(storage, `backgrounds/${roomId}/${file.name}-${Date.now()}`);
-        
-        // Upload the image file
-        await uploadBytes(storageRef, file);
-        
-        // Get the download URL for the uploaded file
-        const downloadURL = await getDownloadURL(storageRef);
-        
-        // Update Firestore with the download URL instead of the image data
-        await updateDoc(doc(db, 'cartes', roomId, 'fond', 'fond1'), {
-          url: downloadURL,
-        });
-  
-        // Set the background image locally (optional, if needed for immediate display)
-        setBackgroundImage(downloadURL);
-      } catch (error) {
-        console.error("Error uploading background image:", error);
-      }
+        const reader = new FileReader();
+        reader.onload = async (event: ProgressEvent<FileReader>) => {
+            await updateDoc(doc(db, 'cartes', roomId, 'fond', 'fond1'), {
+                url: event.target?.result as string, // Ensure it's treated as a string
+            });
+        };
+        reader.readAsDataURL(file);
     }
-  };
-  
+};
 
 const handleCharacterSubmit = async () => {
   if (newCharacter.name && newCharacter.image && roomId) {
@@ -813,81 +798,81 @@ const handleNoteEditSubmit = async () => {
   }
 
   return (
-    <div className="flex flex-col">
-<div className="flex flex-row-reverse right-0">
-  <div className="flex flex-row h-full absolute z-50 ">
-    {/* Toggle button for toolbar visibility */}
-    <Button onClick={() => setToolbarVisible(!toolbarVisible)} className="self-center">
-      {toolbarVisible ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-    </Button>
+    <div className="flex flex-col items-center space-y-4">
+      <div className="flex space-x-4">
+      <div className="flex flex-col w-full">
+  {/* Toggle button for toolbar visibility */}
+  <Button onClick={() => setToolbarVisible(!toolbarVisible)} className="self-center">
+    {toolbarVisible ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+  </Button>
 
-    {/* Toolbar: conditionally rendered */}
-    {toolbarVisible && (
-      <div className="flex flex-col gap-6 h-full p-6 bg-white self-center text-black">
-        <Button onClick={() => handleZoom(-0.1)}>
-          <Minus className="w-4 h-4" />
-        </Button>
-        <Button onClick={() => handleZoom(0.1)}>
-          <Plus className="w-4 h-4" />
-        </Button>
+  {/* Toolbar: conditionally rendered */}
+  {toolbarVisible && (
+    <div className="flex space-x-4">
+      <Button onClick={() => handleZoom(-0.1)}>
+        <Minus className="w-4 h-4" />
+      </Button>
+      <Button onClick={() => handleZoom(0.1)}>
+        <Plus className="w-4 h-4" />
+      </Button>
 
-        <div className="flex items-center space-x-2">
-          <Switch
-            id="grid-switch"
-            checked={showGrid}
-            onCheckedChange={setShowGrid}
-          />
-          <Label htmlFor="grid-switch">Quadrillage</Label>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <Label htmlFor="visibilityRadiusSlider">Rayon de visibilité</Label>
-          <input
-            id="visibilityRadiusSlider"
-            type="range"
-            min="10"
-            max="500"
-            value={visibilityRadius}
-            onChange={(e) => {
-              const newRadius = parseInt(e.target.value, 10);
-              setVisibilityRadius(newRadius);
-              if (persoId) {
-                updateDoc(doc(db, 'cartes', String(roomId), 'characters', persoId), {
-                  visibilityRadius: newRadius
-                });
-              }
-            }}
-            className="w-32"
-          />
-        </div>
-
-        {isMJ && (
-          <Input
-            type="file"
-            onChange={handleBackgroundChange}
-            className="w-40"
-          />
-        )}
-
-        <Button onClick={handleAddNote}>Ajouter une note</Button>
-
-        {isMJ && (
-          <Button onClick={() => setDialogOpen(true)}>Ajouter un personnage</Button>
-        )}
-
-        <Button onClick={toggleDrawMode}>
-          {drawMode ? <Eraser className="w-4 h-4 mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
-          {drawMode ? 'Arrêter de dessiner' : 'Dessiner'}
-        </Button>
-
-        {(
-          <Button onClick={clearDrawings}>Effacer les dessins</Button>
-        )}
+      <div className="flex items-center space-x-2">
+        <Switch
+          id="grid-switch"
+          checked={showGrid}
+          onCheckedChange={setShowGrid}
+        />
+        <Label htmlFor="grid-switch">Quadrillage</Label>
       </div>
-    )}
-  </div>
+
+      <div className="flex items-center space-x-2">
+        <Label htmlFor="visibilityRadiusSlider">Rayon de visibilité</Label>
+        <input
+          id="visibilityRadiusSlider"
+          type="range"
+          min="10"
+          max="500"
+          value={visibilityRadius}
+          onChange={(e) => {
+            const newRadius = parseInt(e.target.value, 10);
+            setVisibilityRadius(newRadius);
+            if (persoId) {
+              updateDoc(doc(db, 'cartes', String(roomId), 'characters', persoId), {
+                visibilityRadius: newRadius
+              });
+            }
+          }}
+          className="w-32"
+        />
+      </div>
+
+      {isMJ && (
+        <Input
+          type="file"
+          onChange={handleBackgroundChange}
+          className="w-40"
+        />
+      )}
+
+      <Button onClick={handleAddNote}>Ajouter une note</Button>
+
+      {isMJ && (
+        <Button onClick={() => setDialogOpen(true)}>Ajouter un personnage</Button>
+      )}
+
+      <Button onClick={toggleDrawMode}>
+        {drawMode ? <Eraser className="w-4 h-4 mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
+        {drawMode ? 'Arrêter de dessiner' : 'Dessiner'}
+      </Button>
+
+      {(
+        <Button onClick={clearDrawings}>Effacer les dessins</Button>
+      )}
+    </div>
+  )}
 </div>
 
+      </div>
   
       <div
     ref={containerRef}
@@ -900,7 +885,7 @@ const handleNoteEditSubmit = async () => {
 >
     <canvas
         ref={canvasRef}
-        style={{ width: '100%', height: '100vh' }}
+        style={{ width: '100%', height: '85vh' }}
     />
     {combatOpen && (
         <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-10">
@@ -917,7 +902,7 @@ const handleNoteEditSubmit = async () => {
 </div>
 
 {selectedCharacterIndex !== null && (
-    <div className="absolute bottom-3 flex left-1/2 space-x-2">
+    <div className="flex space-x-2">
         {/* Vérifier si le joueur est MJ ou s'il s'agit de son propre personnage */}
         {isMJ || characters[selectedCharacterIndex].id === persoId ? (
             <>
