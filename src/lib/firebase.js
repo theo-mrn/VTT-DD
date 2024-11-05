@@ -1,8 +1,8 @@
 // lib/firebase.js
 import { initializeApp } from 'firebase/app';
-import { getStorage } from 'firebase/storage';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getAuth, onAuthStateChanged } from 'firebase/auth';
-import { getFirestore ,doc, setDoc, addDoc,getDoc,writeBatch, collection, orderBy,onSnapshot, updateDoc, deleteDoc, query, where, getDocs } from 'firebase/firestore';
+import { getFirestore ,doc, setDoc, addDoc, getDoc, writeBatch, collection, orderBy, onSnapshot, updateDoc, deleteDoc, query, where, getDocs } from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: "AIzaSyDrc70mfENCh6gCd5uJmeVbWJ98lcD6mQY",
@@ -15,14 +15,13 @@ const firebaseConfig = {
   measurementId: "G-TT348Z0BVP"
 };
 
-
 // Initialisation de Firebase
 const app = initializeApp(firebaseConfig);
 
 // Services Firebase
 const auth = getAuth(app); // Authentification Firebase
 const db = getFirestore(app); // Firestore pour la base de données
-const storage = getStorage(app); // Firebase Storage pour le stockage d'images
+const storage = getStorage(app); // Firebase Storage pour le stockage de fichiers
 
-export { auth, db, storage, onAuthStateChanged, writeBatch,doc,getAuth,orderBy,setDoc, getDoc, collection, addDoc,onSnapshot, updateDoc, deleteDoc, query, where, getDocs };
-
+// Export services and methods for use in other parts of the application
+export { auth, db, storage, onAuthStateChanged, writeBatch, doc, getAuth, orderBy, setDoc, getDoc, collection, addDoc, onSnapshot, updateDoc, deleteDoc, query, where, getDocs, ref, uploadBytes, getDownloadURL };

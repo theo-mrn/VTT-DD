@@ -1,7 +1,7 @@
 // Sidebar.tsx
 "use client";
 
-import { Swords, BookOpen,FileText, Edit, Dice5, List } from "lucide-react";
+import { Swords, BookOpen, FileText, Edit, Dice5, List, Music } from "lucide-react"; // Import Music icon
 
 type SidebarProps = {
   activeTab: string;
@@ -31,6 +31,9 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
       </button>
       <button onClick={() => handleIconClick("infoComponent")} className="p-2">
         <BookOpen className={`h-6 w-6 ${activeTab === "infoComponent" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
+      </button>
+      <button onClick={() => handleIconClick("Music")} className="p-2"> {/* New Music tab button */}
+        <Music className={`h-6 w-6 ${activeTab === "Music" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
       </button>
     </aside>
   );
