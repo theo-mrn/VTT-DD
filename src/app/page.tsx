@@ -19,9 +19,9 @@ export default function LandingPage() {
         if (userSnapshot.exists()) {
           const { room_id, perso } = userSnapshot.data();
           if (!room_id) {
-            router.push('/pages/Salle.html');
+            router.push('/Salle.html');
           } else if (!perso) {
-            router.push('/pages/personnages.html');
+            router.push('/personnages.html');
           } else {
             router.push('/map');
           }
