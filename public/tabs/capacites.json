@@ -1,0 +1,47 @@
+{
+    "ame_forgee": {
+        "capacite1": "Créature artificielle : Une âme-forgée n’a pas besoin de boire ni de se nourrir, ni même de respirer ! Elle a toutefois besoin de rêver quatre heures par jour (sans quoi elle subit un malus de -2 à ses tests de SAG, ce malus est cumulatif). Elle est naturellement immunisée aux poisons et aux maladies. Les âmes-forgées sont incapables de nager mais elles peuvent marcher au fond de l’eau (considéré comme un terrain difficile).",
+        "capacite2": "Créature de métal : Les parties métalliques d’une âme-forgée lui offrent une protection naturelle qui lui accorde un bonus de +1 en DEF. De plus, l’âme-forgée retranche 5 points (RD 5) à tous les DM de feu, de froid et aux drains de vie (pouvoir de vampire par exemple). Enfin, elle est immunisée aux effets de saignement."
+    },
+    "drakonide": {
+        "capacite1": "Voie raciale de base : le personnage remplace une Voie de son profil par sa Voie raciale dès le premier niveau."
+    },
+    "elfe_noir": {
+        "capacite1": "Vision dans le noir : dans le noir total, l’elfe noir voit comme dans la pénombre jusqu’à 30 m."
+    },
+    "elfe_sylvain": {
+        "capacite1": "Lumière des étoiles : pour un elfe sylvain, l’obscurité de la nuit sous la lumière des étoiles n’est que de la pénombre, où seuls les petits détails lui échappent."
+    },
+    "elfe": {
+        "capacite1": "Lumière des étoiles : pour un haut elfe, l’obscurité de la nuit sous la lumière des étoiles n’est que de la pénombre, où seuls les petits détails lui échappent."
+    },
+    "frouin": {
+        "capacite1": "Vision dans le noir : dans le noir total, le frouïn noir voit comme dans la pénombre jusqu’à 30 m",
+        "capacite2": "Résistance : les frouïns obtiennent un bonus de +5 pour résister aux maladies et aux poisons. Ils peuvent manger des aliments avariés sans tomber malade et n’ont besoin que de trois fois moins de nourriture qu’un humain."
+    },
+    "halfelin": {
+        "capacite1": "Petite taille : Le halfelin obtient un bonus de +1 en DEF et de +2 à tous les tests de discrétion. En revanche, un halfelin peut seulement utiliser à une main une arme dont les DM sont au maximum égaux à 1d6 (épée courte, masse, etc.). Il lui faut utiliser les 2 mains pour les armes qui infligent 1d8 à 1d10 de DM (épée longue). Enfin il lui est interdit d’utiliser les armes qui infligent plus de 1d10 DM."
+    },
+    "humain": {
+        "capacite1": "Instinct de survie : Lorsqu’une attaque devrait amener le personnage à 0 PV, les DM qu’elle inflige sont divisés par 2 (minimum 1)."
+    },
+    "minotaure": {
+        "capacite1": "Coup de corne : Un minotaure peut réaliser une attaque de corne qui inflige [1d6 + Mod. de FOR] DM à la place d’une attaque normale. Au prix d’une action limitée, il peut faire une attaque normale avec une arme de contact plus une attaque de corne.",
+        "capacite2": "Sens de l’orientation : Le minotaure reçoit un test de +5 à tous les tests d’orientation.",
+        "capacite3": "Vision dans le noir : dans le noir total, le minotaure voit comme dans la pénombre jusqu’à 30 m."
+    },
+    "nain": {
+        "capacite1": "Vision dans le noir : dans le noir total, le nain voit comme dans la pénombre jusqu’à 30 m."
+    },
+    "ogre": {
+        "capacite1": "Enorme : Le demi-ogre peut utiliser une épée bâtarde ou une épée à 2 mains à une seule main, il inflige alors 1d12 DM. Il peut utiliser des armes à 2 mains à sa mesure qui infligent 2d8 DM.",
+        "capacite2": "Vision dans le noir : Dans le noir total, le demi-ogre voit comme dans la pénombre jusqu’à 30 m."
+    },
+    "orque": {
+        "capacite1": "Vision dans le noir : dans le noir total, le demi-orque voit comme dans la pénombre jusqu’à 30 m."
+    },
+    "wolfer": {
+        "capacite1": "Vision dans le noir : dans le noir total, le wolfer voit comme dans la pénombre jusqu’à 30 m.",
+        "capacite2": "Voie raciale de base : le personnage remplace une Voie de son profil par sa Voie raciale dès le premier niveau."
+    }
+}

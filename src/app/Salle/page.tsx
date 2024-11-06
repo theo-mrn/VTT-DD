@@ -121,7 +121,7 @@ export default function Component() {
     title: '',
     description: '',
     maxPlayers: 4,
-    isPublic: true,
+    isPublic: false,
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
