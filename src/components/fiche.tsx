@@ -69,6 +69,10 @@ export default function Component() {
   const [rollResult, setRollResult] = useState<number | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [bonuses, setBonuses] = useState<Bonuses | null>(null);
+  const [isRaceModalOpen, setIsRaceModalOpen] = useState(false);
+const [selectedRaceAbilities, setSelectedRaceAbilities] = useState<string[]>([]);
+
+  
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -149,6 +153,64 @@ export default function Component() {
     });
     setIsEditing(true);
   };
+
+  interface RaceAbilitiesModalProps {
+    abilities: string[];
+    onClose: () => void;
+  }
+  
+  const RaceAbilitiesModal: React.FC<RaceAbilitiesModalProps> = ({ abilities, onClose }) => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-[#2a2a2a] p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center">
+        <h2 className="text-xl font-bold text-[#c0a080] mb-4">Capacités Raciales</h2>
+        <div className="space-y-4">
+          {abilities.map((ability, index) => (
+            <p key={index} className="text-[#d4d4d4]">{ability}</p>
+          ))}
+        </div>
+        <button
+          onClick={onClose}
+          className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-sm font-bold mt-4"
+        >
+          Fermer
+        </button>
+      </div>
+    </div>
+  );
+
+
+  
+
+  const handleRaceClick = async (race: string) => {
+    console.log(race);
+    if (!race) {
+      setSelectedRaceAbilities(["Race non spécifiée."]);
+      setIsRaceModalOpen(true);
+      return;
+    }
+  
+    try {
+      const response = await fetch('/tabs/capacites.json');
+      if (!response.ok) {
+        throw new Error("Erreur lors du chargement des capacités.");
+      }
+  
+      const abilitiesData: Record<string, string[]> = await response.json();
+      const abilities = abilitiesData[race.toLowerCase()] 
+          ? Object.values(abilitiesData[race.toLowerCase()]) 
+          : ["Aucune capacité raciale trouvée."];
+      
+      setSelectedRaceAbilities(abilities);
+      
+      setIsRaceModalOpen(true);
+    } catch (error) {
+      console.error("Erreur lors du chargement des capacités:", error);
+      setSelectedRaceAbilities(["Erreur lors du chargement des capacités."]);
+      setIsRaceModalOpen(true);
+    }
+  };
+
+  
 
   const handleSave = async () => {
     if (!selectedCharacter) return;
@@ -251,6 +313,7 @@ export default function Component() {
     }
   };
 
+  
   const closeLevelUpModal = () => {
     setShowLevelUpModal(false);
   };
@@ -310,8 +373,17 @@ export default function Component() {
                     <div>Niveau: <span className="text-[#a0a0a0]">{selectedCharacter.niveau}</span></div>
                     <div>Initiative: <span className="text-[#a0a0a0]">{getDisplayValue("INIT")}</span></div>
                     <div>Profil: <span className="text-[#a0a0a0]">{selectedCharacter.Profile}</span></div>
-                    <div>Race: <span className="text-[#a0a0a0]">{selectedCharacter.Race}</span></div>
                     <div>Taille: <span className="text-[#a0a0a0]">{selectedCharacter.Taille} cm</span></div>
+                    <div>
+  Race: 
+  <span 
+    className="text-[#a0a0a0] underline cursor-pointer" 
+    onClick={() => handleRaceClick(selectedCharacter.Race || "")}
+  >
+    {selectedCharacter.Race}
+  </span>
+</div>
+
                     <div>Poids: <span className="text-[#a0a0a0]">{selectedCharacter.Poids} Kg</span></div>
                   </div>
                 </div>
@@ -489,6 +561,14 @@ export default function Component() {
             </div>
           </div>
         )}
+          {isRaceModalOpen && (
+    <RaceAbilitiesModal 
+      abilities={selectedRaceAbilities} 
+      onClose={() => setIsRaceModalOpen(false)} 
+    />
+  )}
+
+
 
         {showLevelUpModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

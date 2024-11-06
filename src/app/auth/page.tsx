@@ -9,27 +9,32 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth'
 import { doc, setDoc } from 'firebase/firestore'
-import { auth, db } from '../../lib/firebase'  // Importer auth et db depuis firebase.js
+import { auth, db } from '../../lib/firebase'
+
 export default function AuthForm() {
   const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [username, setUsername] = useState('') // Nouvel état pour le nom d'utilisateur
   const [error, setError] = useState<string | null>(null)
 
   const handleSubmit = async (event: React.FormEvent, action: 'signup' | 'login') => {
     event.preventDefault()
-    setError(null)  // Réinitialiser l'erreur
+    setError(null) // Réinitialiser l'erreur
 
     try {
       if (action === 'signup') {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password)
         const user = userCredential.user
-        // Stocker uniquement l'UID dans Firestore sans email ni date de création
-        await setDoc(doc(db, "users", user.uid), {})
-        router.push('/Salle')  // Rediriger vers la page d'accueil
+        // Stocker le nom d'utilisateur et le titre dans Firestore
+        await setDoc(doc(db, "users", user.uid), {
+          name: username,
+          title: "débutant"
+        })
+        router.push('/Salle') // Rediriger vers la page d'accueil
       } else if (action === 'login') {
         await signInWithEmailAndPassword(auth, email, password)
-        router.push('/Salle')  // Rediriger vers la page d'accueil
+        router.push('/Salle') // Rediriger vers la page d'accueil
       }
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -55,6 +60,18 @@ export default function AuthForm() {
 
             <TabsContent value="signup">
               <form onSubmit={(e) => handleSubmit(e, 'signup')} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-username" className="text-base">Nom d'utilisateur</Label>
+                  <Input 
+                    id="signup-username" 
+                    type="text" 
+                    placeholder="Nom d'utilisateur" 
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required 
+                    className="text-base py-2"
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label htmlFor="signup-email" className="text-base">Email</Label>
                   <Input 

@@ -19,9 +19,9 @@ export default function LandingPage() {
         if (userSnapshot.exists()) {
           const { room_id, perso } = userSnapshot.data();
           if (!room_id) {
-            router.push('/Salle.html');
+            router.push('/Salle');
           } else if (!perso) {
-            router.push('/personnages.html');
+            router.push('/personnages');
           } else {
             router.push('/map');
           }
@@ -67,7 +67,7 @@ export default function LandingPage() {
       </header>
 
       <main>
-        <section className="h-screen bg-cover bg-center flex items-center justify-start text-white relative" style={{ backgroundImage: "url('/images/index1.webp')" }}>
+        <section className="h-screen bg-cover bg-center flex items-center justify-start text-white relative" style={{ backgroundImage: "url('/images/index9.webp')" }}>
           <div className="bg-black bg-opacity-50 absolute inset-0"></div>
           <div className="relative z-10 p-10 max-w-lg">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Plongez dans l'Univers Épique de D&D</h1>

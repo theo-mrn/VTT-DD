@@ -2,41 +2,84 @@
   "barbare": {
     "description": "Un guerrier sauvage et puissant, le barbare puise sa force dans sa rage et son instinct de survie. Il excelle dans les affrontements au corps à corps.",
     "hitDie": "d12",
-    "image": "/images/profiles/barbare.png"
+    "image": "/images/profiles/barbare.jpg"
   },
   "barde": {
     "description": "Un artiste polyvalent et charismatique, le barde utilise la magie de la musique et des mots pour inspirer ses alliés et confondre ses ennemis.",
     "hitDie": "d8",
-    "image": "/images/profiles/barde.png"
+    "image": "/images/profiles/Barde.jpg"
   },
-  "magicien": {
-    "description": "Un érudit des arcanes qui maîtrise les secrets de la magie pour lancer des sorts puissants. Sa vaste connaissance le rend précieux en aventure.",
-    "hitDie": "d6",
-    "image": "/images/profiles/magicien.png"
-  },
-  "guerrier": {
-    "description": "Un maître du combat, le guerrier excelle dans l'art de la guerre sous toutes ses formes, faisant de lui un combattant redoutable.",
+  "chevalier": {
+    "description": "Le Chevalier est un noble guerrier errant, monté sur un puissant destrier et protégé par une armure lourde. Il parcourt la campagne en quête de torts à redresser et d’occasions de mettre son courage à l’épreuve.",
     "hitDie": "d10",
-    "image": "/images/profiles/guerrier.png"
-  },
-  "rodeur": {
-    "description": "Un expert de la nature, le rôdeur combine ses talents de pisteur et de chasseur avec une connexion profonde avec le monde naturel.",
-    "hitDie": "d10",
-    "image": "/images/profiles/rodeur.png"
-  },
-  "pretre": {
-    "description": "Le prêtre utilise la force de sa foi pour protéger et soigner ses alliés, tout en combattant au nom de sa divinité.",
-    "hitDie": "d8",
-    "image": "/images/profiles/pretre.png"
+    "image": "/images/profiles/chevalier.jpg"
   },
   "druide": {
     "description": "Un prêtre de la nature qui tire ses pouvoirs des éléments et protège la pureté de la nature.",
     "hitDie": "d8",
-    "image": "/images/profiles/druide.png"
+    "image": "/images/profiles/druide.webp"
+  },
+  "ensorceleur": {
+    "description": "L’Ensorceleur tire son pouvoir d’un talent inné pour la magie. Il pratique une magie subtile à base de tromperie et de contrôle, et possède peu de sorts de destruction massive.",
+    "hitDie": "d4",
+    "image": "/images/profiles/ensorceleur.jpg"
+  },
+  "forgesort": {
+    "description": "A la fois artisan et enchanteur, artiste et magicien, le Forgesort lie les énergies occultes à la matière qu’il façonne pour créer des artefacts magiques ou des breuvages aux propriétés fantastiques.",
+    "hitDie": "d6",
+    "image": "/images/profiles/forgesort.jpg"
+  },
+
+
+  "guerrier": {
+    "description": "Un maître du combat, le guerrier excelle dans l'art de la guerre sous toutes ses formes, faisant de lui un combattant redoutable.",
+    "hitDie": "d10",
+    "image": "/images/profiles/guerrier.webp"
+  },
+  "invocateur": {
+    "description": "Un maître du combat, le guerrier excelle dans l'art de la guerre sous toutes ses formes, faisant de lui un combattant redoutable.",
+    "hitDie": "d6",
+    "image": "/images/profiles/invocateur.jpg"
+  },
+  "magicien": {
+    "description": "Un érudit des arcanes qui maîtrise les secrets de la magie pour lancer des sorts puissants. Sa vaste connaissance le rend précieux en aventure.",
+    "hitDie": "d6",
+    "image": "/images/profiles/magicien.jpg"
+  },
+  "moine": {
+    "description": "Le Moine combat à mains nues et utilise le contrôle qu’il a sur son esprit et son corps pour transformer ce dernier en arme de chair..",
+    "hitDie": "d8",
+    "image": "/images/profiles/moine.jpg"
   },
   "necromancien": {
     "description": "Le nécromancien s'intéresse aux forces obscures et au pouvoir de la mort, manipulant les énergies pour ses propres fins.",
     "hitDie": "d6",
-    "image": "/images/profiles/necromancien.png"
+    "image": "/images/profiles/necromancien.webp"
+  },
+  "pretre": {
+    "description": "Le prêtre utilise la force de sa foi pour protéger et soigner ses alliés, tout en combattant au nom de sa divinité.",
+    "hitDie": "d8",
+    "image": "/images/profiles/pretre.jpg"
+  },
+  "psionique": {
+    "description": "Le psionique est un être d’exception. Il est né doté de pouvoirs psychiques extraordinaires qu’il a travaillés par la suite à la force de son ego et de son intuition. Profil polyvalent, le psionique peut être développé comme un subtil maître de l’esprit et un combattant à distance ou au contraire comme un guerrier porté par des pouvoirs psychiques.",
+    "hitDie": "d6",
+    "image": "/images/profiles/psionique.jpg"
+  },
+  "rodeur": {
+    "description": "Un expert de la nature, le rôdeur combine ses talents de pisteur et de chasseur avec une connexion profonde avec le monde naturel.",
+    "hitDie": "d10",
+    "image": "/images/profiles/rodeur.jpg"
+  },
+  "samourai": {
+    "description": "Le samouraï est un guerrier, mais aussi un seigneur, un homme de cour. Surtout, il est un homme d’honneur. Ces caractéristiques le rapprochent du profil du chevalier, mais il se distingue de ce dernier par des techniques de combat axées sur la vitesse et la maîtrise de l’arc. Le samouraï est lui-même le vassal dévoué d’un seigneur, dans un système de type féodal.",
+    "hitDie": "d8",
+    "image": "/images/profiles/samourai.jpg"
+  },
+  
+  "voleur": {
+    "description": "Le Voleur crochète les portes, détecte les pièges et préfère piller les cadavres des ennemis que de se salir les mains pendant le combat.",
+    "hitDie": "d6",
+    "image": "/images/profiles/voleur.webp"
   }
 }

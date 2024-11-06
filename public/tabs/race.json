@@ -5,7 +5,7 @@
       "CON": 2,
       "CHA": -2
     },
-    "image": "/images/races/ame_forgee.png"
+    "image": "/images/races/ame-forgee.webp"
   },
   "elfe": {
     "description": "Les elfes sont des créatures élégantes et gracieuses, vivant en harmonie avec la nature. Ils sont connus pour leur agilité et leur maîtrise de la magie, ainsi que pour leur longévité et leur sagesse.",
@@ -21,7 +21,7 @@
       "FOR": -2,
       "DEX": 2
     },
-    "image": "/images/races/elfe_noir.png"
+    "image": "/images/races/Elfenoir.jpg"
   },
   "elfe_sylvain": {
     "description": "Les elfes sylvains sont des habitants des forêts, en harmonie avec la nature. Ils sont agiles et se déplacent silencieusement dans les bois.",
@@ -29,7 +29,7 @@
       "FOR": -2,
       "DEX": 2
     },
-    "image": "/images/races/elfe_sylvain.png"
+    "image": "/images/races/Elfesylvain.webp"
   },
   "humain": {
     "description": "Les humains sont des êtres polyvalents et adaptables, présents dans le monde entier. Leur diversité culturelle et leur capacité à s'adapter en font des individus remarquables.",
@@ -44,13 +44,22 @@
     },
     "image": "/images/races/Nain.webp"
   },
+  "minotaure": {
+    "description": "Le minotaure est une créature mi-homme mi-taureau. Il est connu pour son sens de l’orientation et ses explosions de rage. Les minotaures, les mâles en particuliers, sont des solitaires. Ils chassent dans les grandes plaines désertiques et vivent dans des grottes ou des souterrains.",
+    "modificateurs": {
+      "FOR": 4,
+      "INT": -4,
+      "CHA":-2
+    },
+    "image": "/images/races/Minotaure.webp"
+  },
   "halfelin": {
     "description": "Les halfelins sont une race de petite taille, souvent joyeux et farceurs. Ce sont des individus curieux et sociables.",
     "modificateurs": {
       "FOR": -2,
       "DEX": 2
     },
-    "image": "/images/races/halfelin.png"
+    "image": "/images/races/Halfelin.webp"
   },
   "orque": {
     "description": "Les orques sont des guerriers puissants et belliqueux, vivant en tribus ou en sociétés militaires organisées.",
