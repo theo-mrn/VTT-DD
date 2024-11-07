@@ -29,11 +29,11 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
       <button onClick={() => handleIconClick("Competences")} className="p-2">
         <List className={`h-6 w-6 ${activeTab === "Competences" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
       </button>
-      <button onClick={() => handleIconClick("infoComponent")} className="p-2">
-        <BookOpen className={`h-6 w-6 ${activeTab === "infoComponent" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
-      </button>
       <button onClick={() => handleIconClick("Music")} className="p-2"> {/* New Music tab button */}
         <Music className={`h-6 w-6 ${activeTab === "Music" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
+      </button>
+      <button onClick={() => handleIconClick("infoComponent")} className="p-2">
+        <BookOpen className={`h-6 w-6 ${activeTab === "infoComponent" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
       </button>
     </aside>
   );

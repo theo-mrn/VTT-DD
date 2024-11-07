@@ -27,6 +27,7 @@ export default function Component() {
   const [newCharacter, setNewCharacter] = useState<NewCharacter>({
     name: '',
     image: null,
+    niveau :1,
     visibility: 'visible',
     PV: 100,
     Defense: 0,
@@ -103,6 +104,7 @@ export default function Component() {
   
 
   type Character = {
+    niveau : number,
     id: string;
     name: string;
     x: number;
@@ -133,6 +135,7 @@ type Drawing = Path[];
 const drws: Drawing[] = [];
 
 type NewCharacter = {
+  niveau : number;
   name: string;
   image: { src: string } | null;
   visibility: 'visible' | 'hidden';
@@ -156,6 +159,9 @@ type CombatProps = {
   targetId: string | null;
   onClose: () => void;
 };
+
+
+
 
 useEffect(() => {
   const canvas = canvasRef.current;
@@ -213,6 +219,7 @@ onSnapshot(charactersRef, (snapshot) => {
     // Ajoutez tous les champs requis
     chars.push({
       id: doc.id,
+      niveau : data.niveau ||1,
       name: data.Nomperso || '',
       x: data.x || 0,
       y: data.y || 0,
@@ -275,8 +282,10 @@ onSnapshot(charactersRef, (snapshot) => {
     const scaledWidth = image.width * scale * zoom;
     const scaledHeight = image.height * scale * zoom;
   
+    // Draw background image
     ctx.drawImage(image, -offset.x, -offset.y, scaledWidth, scaledHeight);
   
+    // Draw grid if enabled
     if (showGrid) {
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 1;
@@ -295,6 +304,7 @@ onSnapshot(charactersRef, (snapshot) => {
       }
     }
   
+    // Draw each character
     characters.forEach((char, index) => {
       const x = char.x * zoom - offset.x;
       const y = char.y * zoom - offset.y;
@@ -310,27 +320,17 @@ onSnapshot(charactersRef, (snapshot) => {
       }
   
       if (isVisible) {
-        if (index === selectedCharacterIndex && char.type === "joueurs") {
-          ctx.fillStyle = 'rgba(173, 216, 230, 0.3)';
-          ctx.beginPath();
-          ctx.arc(x, y, (char.id === persoId ? visibilityRadius : char.visibilityRadius) * zoom, 0, 2 * Math.PI);
-          ctx.fill();
-        }
+        // Set border color based on character type
+        const borderColor = char.type === 'joueurs' ? 'rgba(0, 0, 255, 0.8)' : 'rgba(255, 165, 0, 0.8)'; // Blue for 'joueurs', Orange for others
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 3;
   
-        if (char.id === persoId) {
-          ctx.strokeStyle = 'red';
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.arc(x, y, 20 * zoom + 3, 0, 2 * Math.PI);
-          ctx.stroke();
-        } else if (index === selectedCharacterIndex) {
-          ctx.strokeStyle = 'blue';
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.arc(x, y, 20 * zoom + 3, 0, 2 * Math.PI);
-          ctx.stroke();
-        }
+        // Draw character border circle
+        ctx.beginPath();
+        ctx.arc(x, y, 22 * zoom, 0, 2 * Math.PI);  // Slightly larger than the character icon
+        ctx.stroke();
   
+        // Draw character icon
         if (char.image) {
           ctx.save();
           ctx.beginPath();
@@ -344,9 +344,28 @@ onSnapshot(charactersRef, (snapshot) => {
           ctx.arc(x, y, 20 * zoom, 0, 2 * Math.PI);
           ctx.fill();
         }
+  
+        // Draw discreet level badge at the bottom-right of the character icon
+        const badgeRadius = 8 * zoom;  // Smaller and more discreet badge
+        const badgeX = x + 16 * zoom;  // Positioning the badge slightly further out
+        const badgeY = y + 16 * zoom;
+  
+        // Draw the badge circle
+        ctx.fillStyle = char.type === 'joueurs' ? 'rgba(0, 0, 255, 1)' : 'rgba(255, 165, 0, 1)'; // Blue for 'joueurs', Orange for others
+        ctx.beginPath();
+        ctx.arc(badgeX, badgeY, badgeRadius, 0, 2 * Math.PI);
+        ctx.fill();
+  
+        // Draw the level number inside the badge
+        ctx.fillStyle = 'white';
+        ctx.font = `${8 * zoom}px Arial`;  // Smaller font size for the discreet badge
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${char.niveau}`, badgeX, badgeY);
       }
     });
   
+    // Draw each note
     notes.forEach((note, index) => {
       const x = note.x * zoom - offset.x;
       const y = note.y * zoom - offset.y;
@@ -362,6 +381,7 @@ onSnapshot(charactersRef, (snapshot) => {
       }
     });
   
+    // Draw each saved drawing path
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 2;
     if (drawings && Array.isArray(drawings)) {
@@ -382,6 +402,7 @@ onSnapshot(charactersRef, (snapshot) => {
       });
     }
   
+    // Draw current path if in drawing mode
     if (currentPath.length > 0) {
       ctx.beginPath();
       currentPath.forEach((point, index) => {
@@ -396,6 +417,7 @@ onSnapshot(charactersRef, (snapshot) => {
       ctx.stroke();
     }
   };
+  
   
   const handleBackgroundChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -451,6 +473,7 @@ const handleCharacterSubmit = async () => {
                   y: (Math.random() * (canvasRef.current?.height || 0) + offset.y) / zoom,
                   visibility: newCharacter.visibility,
                   PV: newCharacter.PV,
+                  niveau : newCharacter.niveau,
                   Defense: newCharacter.Defense,
                   Contact: newCharacter.Contact,
                   Distance: newCharacter.Distance,
@@ -464,6 +487,7 @@ const handleCharacterSubmit = async () => {
           setNewCharacter({
               name: '',
               image: null,
+              niveau : 1,
               visibility: 'visible',
               PV: 10,
               Defense: 5,
@@ -711,21 +735,81 @@ const handleEditNote = () => {
 
   const handleCharacterEditSubmit = async () => {
     if (editingCharacter && selectedCharacterIndex !== null && roomId) {
-        const charToUpdate = characters[selectedCharacterIndex];
-        if (roomId && typeof charToUpdate?.id === 'string') {
-            await updateDoc(doc(db, 'cartes', roomId, 'characters', charToUpdate.id), {
-                Nomperso: editingCharacter.name,
-                imageURL: editingCharacter.image?.src || charToUpdate.image.src
-            });
-            setEditingCharacter(null);
-            setCharacterDialogOpen(false);
-            setSelectedCharacterIndex(null);
-        } else {
-            console.error("Erreur: roomId ou charToUpdate.id n'est pas une chaîne valide.");
+      const charToUpdate = characters[selectedCharacterIndex];
+      if (charToUpdate?.id) {
+        try {
+          // Met à jour les données du personnage dans Firestore
+          const updatedData: {
+            Nomperso: string;
+            niveau: number;
+            PV: number;
+            Defense: number;
+            Contact: number;
+            Distance: number;
+            Magie: number;
+            INIT: number;
+            imageURL?: string; // Add imageURL as an optional field
+          } = {
+            Nomperso: editingCharacter.name,
+            niveau: editingCharacter.niveau,
+            PV: editingCharacter.PV,
+            Defense: editingCharacter.Defense,
+            Contact: editingCharacter.Contact,
+            Distance: editingCharacter.Distance,
+            Magie: editingCharacter.Magie,
+            INIT: editingCharacter.INIT,
+          };
+          
+          // Check if a new image is selected and upload it if necessary
+          if (editingCharacter.image?.src !== charToUpdate.image.src) {
+            const storage = getStorage();
+            const imageRef = ref(storage, `characters/${editingCharacter.name}-${Date.now()}`);
+            const response = await fetch(editingCharacter.image.src);
+            const blob = await response.blob();
+            await uploadBytes(imageRef, blob);
+            const imageURL = await getDownloadURL(imageRef);
+          
+            // Add the image URL to Firestore data
+            updatedData.imageURL = imageURL;
+          }
+          
+  
+          // Vérifiez si une nouvelle image est sélectionnée et téléchargez-la si nécessaire
+          if (editingCharacter.image?.src !== charToUpdate.image.src) {
+            const storage = getStorage();
+            const imageRef = ref(storage, `characters/${editingCharacter.name}-${Date.now()}`);
+            const response = await fetch(editingCharacter.image.src);
+            const blob = await response.blob();
+            await uploadBytes(imageRef, blob);
+            const imageURL = await getDownloadURL(imageRef);
+  
+            // Ajoutez l'URL de l'image au document Firestore
+            updatedData.imageURL = imageURL;
+          }
+  
+          // Mise à jour dans Firestore
+          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToUpdate.id), updatedData);
+  
+          // Mettez à jour le personnage localement
+          setCharacters((prevCharacters) =>
+            prevCharacters.map((character, index) =>
+              index === selectedCharacterIndex ? { ...character, ...updatedData } : character
+            )
+          );
+  
+          // Réinitialisez l'état d'édition
+          setEditingCharacter(null);
+          setCharacterDialogOpen(false);
+          setSelectedCharacterIndex(null);
+        } catch (error) {
+          console.error("Erreur lors de la mise à jour du personnage :", error);
         }
+      } else {
+        console.error("Erreur: ID du personnage non valide.");
+      }
     }
-};
-
+  };
+  
 
   
 const handleNoteSubmit = async () => {
@@ -951,7 +1035,7 @@ const handleNoteEditSubmit = async () => {
 )}
 
       {selectedNoteIndex !== null  && (
-        <div className="flex space-x-2">
+        <div className="absolute bottom-3 flex left-1/2 space-x-2">
           <Button onClick={handleDeleteNote}>
             <X className="w-4 h-4 mr-2" /> Supprimer
           </Button>
@@ -965,7 +1049,7 @@ const handleNoteEditSubmit = async () => {
       )}
   
   <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-  <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080]">
+  <DialogContent className="bg-[rgb(36,36,36)] max-w-3xl text-[#c0a080]">
     <DialogHeader>
       <DialogTitle>Ajouter un personnage</DialogTitle>
     </DialogHeader>
@@ -1026,6 +1110,19 @@ const handleNoteEditSubmit = async () => {
           className="col-span-3"
         />
       </div>
+
+
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="niveau" className="text-right">niveau</Label>
+        <Input
+          id="niveau"
+          type="number"
+          value={newCharacter.niveau}
+          onChange={(e) => setNewCharacter({ ...newCharacter, niveau: parseInt(e.target.value) || 1 })}
+          className="col-span-3"
+        />
+      </div>
+
 
       {/* Defense Field */}
       <div className="grid grid-cols-4 items-center gap-4">
@@ -1094,7 +1191,7 @@ const handleNoteEditSubmit = async () => {
 </Dialog>
 
       <Dialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen}>
-        <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080]">
+        <DialogContent className="bg-[rgb(36,36,36)] max-w-3xl text-[#c0a080]">
           <DialogHeader>
             <DialogTitle>Modifier la note</DialogTitle>
           </DialogHeader>
@@ -1127,7 +1224,7 @@ const handleNoteEditSubmit = async () => {
 
 
       <Dialog open={characterDialogOpen} onOpenChange={setCharacterDialogOpen}>
-  <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080]">
+  <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">
     <DialogHeader>
       <DialogTitle>Modifier le personnage</DialogTitle>
     </DialogHeader>
@@ -1191,6 +1288,22 @@ const handleNoteEditSubmit = async () => {
         />
       </div>
 
+      {/* niveau Field */}
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="niveau" className="text-right text-white">Niveau</Label>
+        <Input
+          id="niveau"
+          type="number"
+          value={editingCharacter?.niveau || 1}
+          onChange={(e) => {
+            if (editingCharacter) {
+              setEditingCharacter({ ...editingCharacter, niveau: parseInt(e.target.value) || 1 });
+            }
+          }}
+          className="col-span-3"
+        />
+      </div>
+
       {/* Contact Field */}
       <div className="grid grid-cols-4 items-center gap-4">
         <Label htmlFor="Contact" className="text-right text-white">Contact</Label>
@@ -1217,6 +1330,22 @@ const handleNoteEditSubmit = async () => {
           onChange={(e) => {
             if (editingCharacter) {
               setEditingCharacter({ ...editingCharacter, Distance: parseInt(e.target.value) || 0 });
+            }
+          }}
+          className="col-span-3"
+        />
+      </div>
+
+        {/* Distance Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="Magie" className="text-right text-white">Magie</Label>
+        <Input
+          id="Magie"
+          type="number"
+          value={editingCharacter?.Magie || 0}
+          onChange={(e) => {
+            if (editingCharacter) {
+              setEditingCharacter({ ...editingCharacter, Magie: parseInt(e.target.value) || 0 });
             }
           }}
           className="col-span-3"

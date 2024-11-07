@@ -1,7 +1,7 @@
 // lib/firebase.js
 import { initializeApp } from 'firebase/app';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, onAuthStateChanged ,signOut} from 'firebase/auth';
 import { getFirestore ,doc, setDoc, addDoc, getDoc, writeBatch, collection, orderBy, onSnapshot, updateDoc, deleteDoc, query, where, getDocs } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -24,4 +24,4 @@ const db = getFirestore(app); // Firestore pour la base de données
 const storage = getStorage(app); // Firebase Storage pour le stockage de fichiers
 
 // Export services and methods for use in other parts of the application
-export { auth, db, storage, onAuthStateChanged, writeBatch, doc, getAuth, orderBy, setDoc, getDoc, collection, addDoc, onSnapshot, updateDoc, deleteDoc, query, where, getDocs, ref, uploadBytes, getDownloadURL };
+export { auth, db, storage, onAuthStateChanged, writeBatch, doc, getAuth,signOut, orderBy, setDoc, getDoc, collection, addDoc, onSnapshot, updateDoc, deleteDoc, query, where, getDocs, ref, uploadBytes, getDownloadURL };

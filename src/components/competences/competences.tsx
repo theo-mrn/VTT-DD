@@ -203,7 +203,7 @@ export default function Competences() {
                         key={character.id}
                         onClick={() => selectCharacter(character)}
                         variant="outline"
-                        className="bg-[#3a3a3a] text-[#d4d4d4] hover:bg-[#4a4a4a] hover:text-[#c0a080]"
+                        className="bg-[#3a3a3a] text-black hover:bg-[#4a4a4a] hover:text-[#c0a080]"
                     >
                         {character.Nomperso}
                     </Button>
@@ -218,7 +218,7 @@ export default function Competences() {
                     <Button 
                         onClick={resetSkills} 
                         variant="outline" 
-                        className="mb-5 bg-[#3a3a3a] text-[#d4d4d4] hover:bg-[#4a4a4a] hover:text-[#c0a080]"
+                        className="mb-5 bg-[#3a3a3a] text-black hover:bg-[#4a4a4a] hover:text-[#c0a080]"
                     >
                         Réinitialiser
                     </Button>
