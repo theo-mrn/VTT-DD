@@ -3,10 +3,10 @@
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
-import Capacites from "@/components/capacites";
-import Information from "@/components/Information";
-import Component from "@/components/wiki";
-import Images from "@/components/images";
+import Capacites from "@/components/infos/capacites";
+import Information from "@/components/infos/Information";
+import Component from "@/components/infos/wiki";
+import Images from "@/components/infos/images";
 
 export default function InfoComponent() {
   const [selectedComponent, setSelectedComponent] = useState<string | null>(null);
@@ -110,7 +110,7 @@ export default function InfoComponent() {
                 alt="Information image"
                 width={100}
                 height={100}
-                className="rounded-md w-1/3"
+                className="rounded-md w-1/5"
               />
             </Card>
 
@@ -129,7 +129,7 @@ export default function InfoComponent() {
                 alt="Compétences image"
                 width={100}
                 height={100}
-                className="rounded-md w-1/3"
+                className="rounded-md w-1/5"
               />
             </Card>
 
@@ -149,7 +149,7 @@ export default function InfoComponent() {
                 alt="Compétences image"
                 width={100}
                 height={100}
-                className="rounded-md w-1/3"
+                className="rounded-md w-1/5"
               />
             </Card>
 
@@ -169,7 +169,7 @@ export default function InfoComponent() {
                 alt="Images example"
                 width={100}
                 height={100}
-                className="rounded-md w-1/3"
+                className="rounded-md w-1/5"
               />
             </Card>
           </div>
