@@ -14,7 +14,7 @@ import {
 } from '@/lib/firebase';
 import { Heart, Shield } from 'lucide-react';
 import InventoryManagement from '@/components/Inventaire';
-import CompetencesDisplay from "@/components/competences/competencesD";
+import CompetencesDisplay from "@/components/competencesD";
 import CharacterImage from '@/components/CharacterImage';
 
 interface Character {
