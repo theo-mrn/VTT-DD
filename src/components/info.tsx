@@ -3,10 +3,10 @@
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
-import Capacites from "@/components/infos/capacites";
-import Information from "@/components/infos/Information";
-import Component from "@/components/infos/wiki";
-import Images from "@/components/infos/images";
+import Capacites from "@/components/capacites";
+import Information from "@/components/Information";
+import Component from "@/components/wiki";
+import Images from "@/components/images";
 
 export default function InfoComponent() {
   const [selectedComponent, setSelectedComponent] = useState<string | null>(null);

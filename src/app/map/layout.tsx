@@ -6,7 +6,7 @@ import GMDashboard from "@/components/MJcombat";
 import Component from "@/components/fiche";
 import MedievalNotes from "@/components/Notes";
 import DiceRollerDnD from "@/components/campagne";
-import Competences from "@/components/competences/competences";
+import Competences from "@/components/competences";
 import OverlayComponent from "@/components/overlay";
 import InfoComponent from "@/components/info";
 import RollRequest from '@/components/Rollrequest';
