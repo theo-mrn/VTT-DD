@@ -304,66 +304,77 @@ onSnapshot(charactersRef, (snapshot) => {
       }
     }
   
-    // Draw each character
-    characters.forEach((char, index) => {
-      const x = char.x * zoom - offset.x;
-      const y = char.y * zoom - offset.y;
+  // Draw each character
+  characters.forEach((char, index) => {
+    const x = char.x * zoom - offset.x;
+    const y = char.y * zoom - offset.y;
   
-      let isVisible = true;
-      if (char.visibility === 'hidden') {
-        isVisible = isMJ || characters.some((player) => {
-          return (
-            player.type === 'joueurs' &&
-            calculateDistance(char.x, char.y, player.x, player.y) <= (player.id === persoId ? visibilityRadius : player.visibilityRadius)
-          );
-        });
-      }
+    let isVisible = true;
+    if (char.visibility === 'hidden') {
+      isVisible = isMJ || characters.some((player) => {
+        return (
+          player.type === 'joueurs' &&
+          calculateDistance(char.x, char.y, player.x, player.y) <= (player.id === persoId ? visibilityRadius : player.visibilityRadius)
+        );
+      });
+    }
   
-      if (isVisible) {
-        // Set border color based on character type
-        const borderColor = char.type === 'joueurs' ? 'rgba(0, 0, 255, 0.8)' : 'rgba(255, 165, 0, 0.8)'; // Blue for 'joueurs', Orange for others
-        ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 3;
+    if (isVisible) {
+      // Set border color based on character type or if it is the player's character
+      const borderColor = char.id === persoId 
+        ? 'rgba(255, 0, 0, 0.8)'           // Red for the player's character
+        : char.type === 'joueurs' 
+        ? 'rgba(0, 0, 255, 0.8)'           // Blue for other 'joueurs' type characters
+        : 'rgba(255, 165, 0, 0.8)';        // Orange for other characters (e.g., NPCs)
+        
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 3;
   
-        // Draw character border circle
+      // Draw character border circle
+      ctx.beginPath();
+      ctx.arc(x, y, 22 * zoom, 0, 2 * Math.PI);  // Slightly larger than the character icon
+      ctx.stroke();
+  
+      // Draw character icon
+      if (char.image) {
+        ctx.save();
         ctx.beginPath();
-        ctx.arc(x, y, 22 * zoom, 0, 2 * Math.PI);  // Slightly larger than the character icon
-        ctx.stroke();
-  
-        // Draw character icon
-        if (char.image) {
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(x, y, 20 * zoom, 0, 2 * Math.PI);
-          ctx.clip();
-          ctx.drawImage(char.image, x - 20 * zoom, y - 20 * zoom, 40 * zoom, 40 * zoom);
-          ctx.restore();
-        } else {
-          ctx.fillStyle = 'red';
-          ctx.beginPath();
-          ctx.arc(x, y, 20 * zoom, 0, 2 * Math.PI);
-          ctx.fill();
-        }
-  
-        // Draw discreet level badge at the bottom-right of the character icon
-        const badgeRadius = 8 * zoom;  // Smaller and more discreet badge
-        const badgeX = x + 16 * zoom;  // Positioning the badge slightly further out
-        const badgeY = y + 16 * zoom;
-  
-        // Draw the badge circle
-        ctx.fillStyle = char.type === 'joueurs' ? 'rgba(0, 0, 255, 1)' : 'rgba(255, 165, 0, 1)'; // Blue for 'joueurs', Orange for others
+        ctx.arc(x, y, 20 * zoom, 0, 2 * Math.PI);
+        ctx.clip();
+        ctx.drawImage(char.image, x - 20 * zoom, y - 20 * zoom, 40 * zoom, 40 * zoom);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = 'red';
         ctx.beginPath();
-        ctx.arc(badgeX, badgeY, badgeRadius, 0, 2 * Math.PI);
+        ctx.arc(x, y, 20 * zoom, 0, 2 * Math.PI);
         ctx.fill();
-  
-        // Draw the level number inside the badge
-        ctx.fillStyle = 'white';
-        ctx.font = `${8 * zoom}px Arial`;  // Smaller font size for the discreet badge
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${char.niveau}`, badgeX, badgeY);
       }
-    });
+  
+      // Draw discreet level badge at the bottom-right of the character icon
+      const badgeRadius = 8 * zoom;  // Smaller and more discreet badge
+      const badgeX = x + 16 * zoom;  // Positioning the badge slightly further out
+      const badgeY = y + 16 * zoom;
+  
+      // Set badge color: Red if it's the player's character, Blue for 'joueurs', Orange for others
+      ctx.fillStyle = char.id === persoId 
+        ? 'rgba(255, 0, 0, 1)'             // Red for the player's character
+        : char.type === 'joueurs' 
+        ? 'rgba(0, 0, 255, 1)'             // Blue for 'joueurs'
+        : 'rgba(255, 165, 0, 1)';          // Orange for other characters
+      ctx.beginPath();
+      ctx.arc(badgeX, badgeY, badgeRadius, 0, 2 * Math.PI);
+      ctx.fill();
+  
+      // Draw the level number inside the badge
+      ctx.fillStyle = 'white';
+      ctx.font = `${8 * zoom}px Arial`;  // Smaller font size for the discreet badge
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${char.niveau}`, badgeX, badgeY);
+    }
+  });
+  
+
   
     // Draw each note
     notes.forEach((note, index) => {

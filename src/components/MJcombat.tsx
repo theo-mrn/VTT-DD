@@ -175,23 +175,32 @@ export function GMDashboard() {
 
   const nextCharacter = async () => {
     if (!roomId || characters.length === 0) return
-
+  
     const firstCharacterId = characters[0].id
     const combatRef = collection(db, `cartes/${roomId}/combat/${firstCharacterId}/rapport`)
-
+  
     // Delete each report for the current character
     const reportsToDelete = attackReports.filter(report => report.attaquant === firstCharacterId)
     for (const report of reportsToDelete) {
       const reportRef = doc(combatRef, report.reportId)
       await deleteDoc(reportRef)
     }
-
+  
     setCharacters(prevChars => {
       const [first, ...rest] = prevChars
       return [...rest, first]
     })
+  
+    // Update `tour_joueur` with the new active character's ID
+    try {
+      const newActiveCharacterId = characters[1].id // Le prochain personnage après réorganisation
+      const settingsRef = doc(db, `cartes/${roomId}/settings/general`)
+      await updateDoc(settingsRef, { tour_joueur: newActiveCharacterId })
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de tour_joueur :", error)
+    }
   }
-
+  
   const openDrawer = (character: Character) => {
     setSelectedCharacter(character)
     setIsDrawerOpen(true)
