@@ -27,14 +27,14 @@ interface Competence {
 interface BonusData {
   CHA: number;
   CON: number;
-  Contact: number;
   DEX: number;
   Defense: number;
-  Distance: number;
   FOR: number;
   INIT: number;
   INT: number;
+  Contact: number;
   Initiative: number;
+  Distance: number;
   Magie: number;
   PV: number;
   SAG: number;
@@ -42,7 +42,7 @@ interface BonusData {
   category: string;
 }
 
-const statOptions = ["FOR", "DEX", "CON", "INT", "SAG", "CHA", "PV", "PV_MAX", "DEF", "ATK"];
+const statOptions = ["FOR", "DEX", "CON", "INT", "SAG", "CHA", "PV", "PV_MAX","Contact","Distance","Magie", "Defense"];
 
 interface CompetencesDisplayProps {
   roomId: string;
@@ -180,6 +180,7 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
 
   const handleAddBonus = async () => {
     if (selectedCompetence && newBonus.stat && newBonus.value) {
+      // Mettre à jour les compétences localement
       const updatedCompetences = competences.map((comp) =>
         comp.id === selectedCompetence.id
           ? {
@@ -195,10 +196,11 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
       setCompetences(updatedCompetences);
       setSelectedCompetence(updatedCompetences.find((comp) => comp.id === selectedCompetence.id) || null);
       
-      // Reset `newBonus` to initial state
+      // Réinitialiser `newBonus` à son état initial
       setNewBonus({ stat: undefined, value: 0 });
   
       try {
+        // Récupérer le document du personnage
         const characterDoc = await getDoc(doc(db, `cartes/${roomId}/characters/${characterId}`));
         if (characterDoc.exists()) {
           const { Nomperso } = characterDoc.data();
@@ -208,8 +210,11 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
           }
           
           const bonusPath = `Bonus/${roomId}/${Nomperso}/${selectedCompetence.id}`;
+          console.log("Bonus path:", bonusPath);
+          
           const updatedCompetence = updatedCompetences.find((comp) => comp.id === selectedCompetence.id);
   
+          // Créer l'objet `bonusData` pour sauvegarder dans Firestore
           const bonusData: BonusData = {
             CHA: updatedCompetence?.bonuses.CHA || 0,
             CON: updatedCompetence?.bonuses.CON || 0,
@@ -228,6 +233,7 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
             category: "competence",
           };
   
+          // Enregistrer le bonus dans Firestore
           await setDoc(doc(db, bonusPath), bonusData, { merge: true });
           console.log("Bonus successfully added to Firestore:", bonusData);
         } else {
@@ -240,6 +246,7 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
       console.error("Invalid bonus data or no competence selected.");
     }
   };
+  
   
   
 
@@ -315,7 +322,7 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
                         Détails
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="bg-[#1c1c1c] text-[#d4d4d4]">
+                    <DialogContent className=" max-w-3xl bg-[#1c1c1c] text-[#d4d4d4]">
                       <DialogHeader>
                         <DialogTitle>{selectedCompetence?.name}</DialogTitle>
     
@@ -334,7 +341,7 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]"
+                        className="bg-[#c0a080] max-w-3xl text-[#1c1c1c] hover:bg-[#d4b48f]"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedCompetence(competence);
@@ -344,7 +351,7 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
                         Bonus
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="bg-[#1c1c1c] text-[#d4d4d4]">
+                    <DialogContent className="max-w-3xl bg-[#1c1c1c] text-[#d4d4d4]">
                       <DialogHeader>
                         <DialogTitle>Gérer les bonus pour {selectedCompetence?.name}</DialogTitle>
                       </DialogHeader>
@@ -367,9 +374,7 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
           Supprimer
         </Button>
       </div>
-    ))}
-
-                          
+    ))}                          
                           {/* Interface pour ajouter de nouveaux bonus */}
                           <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="stat" className="text-right text-[#d4d4d4]">

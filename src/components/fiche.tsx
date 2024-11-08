@@ -278,40 +278,73 @@ const [selectedRaceAbilities, setSelectedRaceAbilities] = useState<string[]>([])
   };
   
 
+  const [showLevelUpConfirmationModal, setShowLevelUpConfirmationModal] = useState<boolean>(false);
+
+  const LevelUpConfirmationModal: React.FC<{ onClose: () => void; updatedCharacter: Character }> = ({ onClose, updatedCharacter }) => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-[#2a2a2a] p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center">
+        <h2 className="text-2xl font-bold text-[#c0a0a0] mb-4">Niveau Augmenté !</h2>
+        <p className="text-[#d4d4d4] mb-4">
+          Félicitations, votre personnage a monté de niveau ! Voici les nouvelles valeurs :
+        </p>
+        <div className="grid grid-cols-2 gap-2 text-sm text-[#a0a0a0] mb-4">
+          <div>PV Max: <span className="text-[#d4d4d4] font-bold">{updatedCharacter.PV_Max}</span></div>
+          <div>Contact: <span className="text-[#d4d4d4] font-bold">{updatedCharacter.Contact}</span></div>
+          <div>Distance: <span className="text-[#d4d4d4] font-bold">{updatedCharacter.Distance}</span></div>
+          <div>Magie: <span className="text-[#d4d4d4] font-bold">{updatedCharacter.Magie}</span></div>
+        </div>
+        <button
+          onClick={onClose}
+          className="bg-[#5c6bc0] text-white px-6 py-2 rounded-lg hover:bg-[#7986cb] transition duration-300 text-sm font-bold"
+        >
+          Fermer
+        </button>
+      </div>
+    </div>
+  );
+  
   const confirmLevelUp = async () => {
     if (rollResult == null || !selectedCharacter) {
       alert("Veuillez lancer le dé avant de valider.");
       return;
     }
-
+  
     const newPV_Max = (selectedCharacter.PV_Max || 0) + rollResult;
     const updatedCharacter = {
       ...selectedCharacter,
       PV_Max: newPV_Max,
       PV: newPV_Max, 
+      Contact: (selectedCharacter.Contact || 0) + 1,
+      Distance: (selectedCharacter.Distance || 0) + 1,
+      Magie: (selectedCharacter.Magie || 0) + 1,
     };
-
+  
     try {
       const userDoc = await getDoc(doc(db, 'users', auth.currentUser!.uid));
       const roomId = String(userDoc.data()?.room_id);
-
+  
       await updateDoc(doc(db, `cartes/${roomId}/characters`, selectedCharacter.id), {
         PV_Max: newPV_Max,
         PV: newPV_Max,
+        Contact: updatedCharacter.Contact,
+        Distance: updatedCharacter.Distance,
+        Magie: updatedCharacter.Magie,
       });
-
+  
       setSelectedCharacter(updatedCharacter);
       setCharacters(characters.map(char => 
         char.id === selectedCharacter.id ? updatedCharacter : char
       ));
       
-      alert(`Niveau augmenté ! PV Max augmenté de ${rollResult} à ${newPV_Max}.`);
       setShowLevelUpModal(false);
+      setShowLevelUpConfirmationModal(true); // Show the new confirmation modal
     } catch (error) {
       console.error("Erreur lors de l'augmentation de niveau:", error);
       alert("Erreur lors de l'augmentation de niveau");
     }
   };
+  
+  
 
   
   const closeLevelUpModal = () => {
@@ -452,12 +485,22 @@ const [selectedRaceAbilities, setSelectedRaceAbilities] = useState<string[]>([])
           </>
         )}
 
-        {selectedCharacter && (
-          <>
-            <InventoryManagement playerName={selectedCharacter.Nomperso} roomId={roomId!} />
-            <CompetencesDisplay roomId={roomId!} characterId={selectedCharacter.id} />
-          </>
-        )}
+{showLevelUpConfirmationModal && selectedCharacter && (
+  <LevelUpConfirmationModal 
+    onClose={() => setShowLevelUpConfirmationModal(false)} 
+    updatedCharacter={selectedCharacter} 
+  />
+)}
+
+
+{!isEditing && selectedCharacter && (
+  <>
+    <InventoryManagement playerName={selectedCharacter.Nomperso} roomId={roomId!} />
+    <CompetencesDisplay roomId={roomId!} characterId={selectedCharacter.id} />
+  </>
+)}
+
+
 
         {isEditing && (
           <div className="bg-[#2a2a2a] p-6 rounded-lg border border-[#3a3a3a]">

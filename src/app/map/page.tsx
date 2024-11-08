@@ -19,7 +19,7 @@ export default function Component() {
   const [persoId, setPersoId] = useState(null);
   const [backgroundImage, setBackgroundImage] = useState('/placeholder.svg?height=600&width=800')
   const [showGrid, setShowGrid] = useState(false)
-  const [zoom, setZoom] = useState(1)
+  const [zoom, setZoom] = useState(1.2)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [characters, setCharacters] = useState<Character[]>([]);
   const [notes, setNotes] = useState<Text[]>([]);
@@ -907,7 +907,7 @@ const handleNoteEditSubmit = async () => {
 
     {/* Toolbar: conditionally rendered */}
     {toolbarVisible && (
-      <div className="flex flex-col gap-6 h-full p-6 bg-white self-center text-black">
+      <div className="flex flex-col gap-6 w-64 rounded-lg  p-6 bg-white self-center text-black">
         <Button onClick={() => handleZoom(-0.1)}>
           <Minus className="w-4 h-4" />
         </Button>
