@@ -312,7 +312,7 @@ export function GMDashboard() {
       {characters.length > 1 && (
         <>
           <h2 className="text-lg font-semibold mb-2">Autres personnages</h2>
-          <ScrollArea className="h-[calc(100vh-24rem)] pr-4">
+          <ScrollArea className="h-full pr-4">
             <div className="space-y-4">
               {characters.slice(1).map((character, index) => renderCharacterCard(character, index + 1))}
             </div>
@@ -321,7 +321,7 @@ export function GMDashboard() {
       )}
 
       <Drawer open={isDrawerOpen} onClose={() => setIsDrawerOpen(false)}>
-        <DrawerContent>
+        <DrawerContent  className="max-w-7xl p-6 mx-auto">
           <DrawerHeader>
             <DrawerTitle>Ajuster les PV de {selectedCharacter?.name || "Inconnu"}</DrawerTitle>
             <DrawerDescription>Modifiez les points de vie du personnage</DrawerDescription>
