@@ -127,15 +127,15 @@ export default function DiceRollerDnD() {
   };
 
   const rollDice = async (modifier: number, type: string) => {
-    const result = Math.floor(Math.random() * 20) + 1;
-    const total = result + modifier;
+    const results = Array.from({ length: diceCount }, () => Math.floor(Math.random() * diceFaces) + 1);
+    const total = results.reduce((sum, result) => sum + result, 0) + modifier;
     const newRoll: Roll = {
       id: crypto.randomUUID(),
       isPrivate,
-      diceCount: 1,
-      diceFaces: 20,
+      diceCount,
+      diceFaces,
       modifier,
-      results: [result],
+      results,
       total,
       userName: isMJ ? "MJ" : userName,
       type,
