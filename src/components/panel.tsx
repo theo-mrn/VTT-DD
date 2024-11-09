@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { User, LogOut, X, Clipboard, Share2 } from "lucide-react";
+import { User, LogOut, X, Clipboard, Share2,SquareUserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { auth, db, doc, getDoc, onAuthStateChanged, updateDoc, signOut } from "@/lib/firebase";
 
@@ -52,6 +52,10 @@ export default function Sidebar({ onClose }: SidebarProps) {
     });
   };
 
+  const handlechangecharacter = () => {
+    router.push("/personnages");
+  };
+  
   const handleVoirProfil = () => {
     router.push("/profile");
   };
@@ -73,7 +77,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   };
 
   return (
-    <div className="fixed left-0 top-0 w-64 z-50 bg-[#242424] shadow-lg flex text-[#d4d4d4] flex-col">
+    <div className="fixed left-0 top-0 w-80 z-50 bg-[#242424] shadow-lg flex text-[#d4d4d4] flex-col">
       <button
         className="absolute top-3 right-3 p-1 text-[#d4d4d4] hover:text-[#c0a080] transition-colors"
         onClick={onClose}
@@ -101,6 +105,16 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <User className="w-5 h-5 text-[#d4d4d4] hover:text-[#c0a080]" />
           <span className="text-[#d4d4d4] hover:text-[#c0a080]">Voir le profil</span>
         </button>
+
+
+        <button
+          className="w-full flex items-center gap-3 p-2 hover:bg-[#333333] rounded-lg transition-colors"
+          onClick={handlechangecharacter}
+        >
+          <SquareUserRound className="w-5 h-5 text-[#d4d4d4] hover:text-[#c0a080]" />
+          <span className="text-[#d4d4d4] hover:text-[#c0a080]">Changer de personnage</span>
+        </button>
+        
         
         {/* Invite Button with Inline Room ID and Copy Icon */}
         <div className="relative">
