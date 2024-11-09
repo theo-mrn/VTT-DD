@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { X, Plus, Minus, Move, Edit, Pencil, Eraser ,ChevronDown ,ChevronUp} from 'lucide-react'
+import { X, Plus, Minus, Move, Edit, Pencil, Eraser ,ChevronDown ,ChevronUp,ChevronRight,ChevronLeft} from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc,getDoc,getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc } from '@/lib/firebase'
 import Combat from '@/components/combat';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -19,7 +19,7 @@ export default function Component() {
   const [persoId, setPersoId] = useState(null);
   const [backgroundImage, setBackgroundImage] = useState('/placeholder.svg?height=600&width=800')
   const [showGrid, setShowGrid] = useState(false)
-  const [zoom, setZoom] = useState(1)
+  const [zoom, setZoom] = useState(1.2)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [characters, setCharacters] = useState<Character[]>([]);
   const [notes, setNotes] = useState<Text[]>([]);
@@ -27,6 +27,7 @@ export default function Component() {
   const [newCharacter, setNewCharacter] = useState<NewCharacter>({
     name: '',
     image: null,
+    niveau :1,
     visibility: 'visible',
     PV: 100,
     Defense: 0,
@@ -103,6 +104,7 @@ export default function Component() {
   
 
   type Character = {
+    niveau : number,
     id: string;
     name: string;
     x: number;
@@ -133,6 +135,7 @@ type Drawing = Path[];
 const drws: Drawing[] = [];
 
 type NewCharacter = {
+  niveau : number;
   name: string;
   image: { src: string } | null;
   visibility: 'visible' | 'hidden';
@@ -157,19 +160,23 @@ type CombatProps = {
   onClose: () => void;
 };
 
+
+
+
 useEffect(() => {
   const canvas = canvasRef.current;
   if (!canvas) return;
   const ctx = canvas.getContext('2d')!;
   const image = new Image();
   image.src = backgroundImage;
-  // Multiplier de taille pour agrandir le canvas (par exemple, 1.5 ou 2 pour doubler)
   const sizeMultiplier = 1.5;
   image.onload = () => {
-    canvas.width = (containerRef.current?.clientWidth || canvas.width) * sizeMultiplier;
-    canvas.height = (containerRef.current?.clientHeight || canvas.height) * sizeMultiplier;
-    ctx.scale(sizeMultiplier, sizeMultiplier); // Mise à l'échelle du contenu pour correspondre à l'agrandissement
-    drawMap(ctx, image);      
+    const containerWidth = containerRef.current?.clientWidth || canvas.width;
+    const containerHeight = containerRef.current?.clientHeight || canvas.height;
+    canvas.width = containerWidth * sizeMultiplier;
+    canvas.height = containerHeight * sizeMultiplier;
+    ctx.scale(sizeMultiplier, sizeMultiplier);
+    drawMap(ctx, image, containerWidth, containerHeight); // Pass container dimensions
   };
 }, [backgroundImage, showGrid, zoom, offset, characters, notes, selectedCharacterIndex, selectedNoteIndex, drawings, currentPath]);
 
@@ -213,6 +220,7 @@ onSnapshot(charactersRef, (snapshot) => {
     // Ajoutez tous les champs requis
     chars.push({
       id: doc.id,
+      niveau : data.niveau ||1,
       name: data.Nomperso || '',
       x: data.x || 0,
       y: data.y || 0,
@@ -220,12 +228,12 @@ onSnapshot(charactersRef, (snapshot) => {
       visibility: data.visibility || 'visible',
       visibilityRadius: parseFloat(data.visibilityRadius) || 100,
       type: data.type || 'pnj',
-      PV: data.PV || 100, // Assurez-vous que chaque champ est bien extrait
-      Defense: data.Defense || 0,
-      Contact: data.Contact || 0,
-      Distance: data.Distance || 0,
-      Magie: data.Magie || 0,
-      INIT: data.INIT || 0,
+      PV: data.PV || 10, // Assurez-vous que chaque champ est bien extrait
+      Defense: data.Defense || 5,
+      Contact: data.Contact || 5,
+      Distance: data.Distance || 5,
+      Magie: data.Magie || 5,
+      INIT: data.INIT || 5,
     });
   });
   setCharacters(chars);
@@ -267,16 +275,18 @@ onSnapshot(charactersRef, (snapshot) => {
     return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
   };
   
-  const drawMap = (ctx: CanvasRenderingContext2D, image: HTMLImageElement) => {
+  const drawMap = (ctx: CanvasRenderingContext2D, image: HTMLImageElement, containerWidth: number, containerHeight: number) => {
     const canvas = ctx.canvas;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-    const scale = Math.min(canvas.width / image.width, canvas.height / image.height);
+    const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
     const scaledWidth = image.width * scale * zoom;
     const scaledHeight = image.height * scale * zoom;
   
+    // Draw background image
     ctx.drawImage(image, -offset.x, -offset.y, scaledWidth, scaledHeight);
   
+    // Draw grid if enabled
     if (showGrid) {
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 1;
@@ -295,61 +305,90 @@ onSnapshot(charactersRef, (snapshot) => {
       }
     }
   
-    characters.forEach((char, index) => {
-      const x = char.x * zoom - offset.x;
-      const y = char.y * zoom - offset.y;
+  // Draw each character
+  characters.forEach((char, index) => {
+    const x = (char.x / image.width) * scaledWidth - offset.x;
+    const y = (char.y / image.height) * scaledHeight - offset.y;
   
-      let isVisible = true;
-      if (char.visibility === 'hidden') {
-        isVisible = isMJ || characters.some((player) => {
-          return (
-            player.type === 'joueurs' &&
-            calculateDistance(char.x, char.y, player.x, player.y) <= (player.id === persoId ? visibilityRadius : player.visibilityRadius)
-          );
-        });
+    let isVisible = true;
+    if (char.visibility === 'hidden') {
+      isVisible = isMJ || characters.some((player) => {
+        return (
+          player.type === 'joueurs' &&
+          calculateDistance(char.x, char.y, player.x, player.y) <= (player.id === persoId ? visibilityRadius : player.visibilityRadius)
+        );
+      });
+    }
+  
+    if (isVisible) {
+      // Set border color based on character type or if it is the player's character
+      const borderColor = char.id === persoId 
+        ? 'rgba(255, 0, 0, 0.8)'           // Red for the player's character
+        : char.type === 'joueurs' 
+        ? 'rgba(0, 0, 255, 0.8)'           // Blue for other 'joueurs' type characters
+        : 'rgba(255, 165, 0, 0.8)';        // Orange for other characters (e.g., NPCs)
+        
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 3;
+  
+      // Draw character border circle
+      ctx.beginPath();
+      ctx.arc(x, y, 22 * zoom, 0, 2 * Math.PI);  // Slightly larger than the character icon
+      ctx.stroke();
+  
+      // Draw character icon
+      if (char.image) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, 20 * zoom, 0, 2 * Math.PI);
+        ctx.clip();
+        ctx.drawImage(char.image, x - 20 * zoom, y - 20 * zoom, 40 * zoom, 40 * zoom);
+        ctx.restore();
+      } else {
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.arc(x, y, 20 * zoom, 0, 2 * Math.PI);
+        ctx.fill();
       }
   
-      if (isVisible) {
-        if (index === selectedCharacterIndex && char.type === "joueurs") {
-          ctx.fillStyle = 'rgba(173, 216, 230, 0.3)';
-          ctx.beginPath();
-          ctx.arc(x, y, (char.id === persoId ? visibilityRadius : char.visibilityRadius) * zoom, 0, 2 * Math.PI);
-          ctx.fill();
-        }
+      // Draw discreet level badge at the bottom-right of the character icon
+      const badgeRadius = 8 * zoom;  // Smaller and more discreet badge
+      const badgeX = x + 16 * zoom;  // Positioning the badge slightly further out
+      const badgeY = y + 16 * zoom;
   
-        if (char.id === persoId) {
-          ctx.strokeStyle = 'red';
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.arc(x, y, 20 * zoom + 3, 0, 2 * Math.PI);
-          ctx.stroke();
-        } else if (index === selectedCharacterIndex) {
-          ctx.strokeStyle = 'blue';
-          ctx.lineWidth = 3;
-          ctx.beginPath();
-          ctx.arc(x, y, 20 * zoom + 3, 0, 2 * Math.PI);
-          ctx.stroke();
-        }
+      // Set badge color: Red if it's the player's character, Blue for 'joueurs', Orange for others
+      ctx.fillStyle = char.id === persoId 
+        ? 'rgba(255, 0, 0, 1)'             // Red for the player's character
+        : char.type === 'joueurs' 
+        ? 'rgba(0, 0, 255, 1)'             // Blue for 'joueurs'
+        : 'rgba(255, 165, 0, 1)';          // Orange for other characters
+      ctx.beginPath();
+      ctx.arc(badgeX, badgeY, badgeRadius, 0, 2 * Math.PI);
+      ctx.fill();
   
-        if (char.image) {
-          ctx.save();
-          ctx.beginPath();
-          ctx.arc(x, y, 20 * zoom, 0, 2 * Math.PI);
-          ctx.clip();
-          ctx.drawImage(char.image, x - 20 * zoom, y - 20 * zoom, 40 * zoom, 40 * zoom);
-          ctx.restore();
-        } else {
-          ctx.fillStyle = 'red';
-          ctx.beginPath();
-          ctx.arc(x, y, 20 * zoom, 0, 2 * Math.PI);
-          ctx.fill();
-        }
-      }
-    });
+      // Draw the level number inside the badge
+      ctx.fillStyle = 'white';
+      ctx.font = `${8 * zoom}px Arial`;  // Smaller font size for the discreet badge
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(`${char.niveau}`, badgeX, badgeY);
+    }
+
+    // Draw visibility radius if character is of type 'joueurs' and is selected
+    if (char.type === 'joueurs' && index === selectedCharacterIndex) {
+      ctx.fillStyle = 'rgba(0, 0, 255, 0.2)'; // Light blue with transparency
+      ctx.beginPath();
+      ctx.arc(x, y, char.visibilityRadius * zoom, 0, 2 * Math.PI);
+      ctx.fill();
+    }
+  });
   
+
+  
+    // Draw each note
     notes.forEach((note, index) => {
-      const x = note.x * zoom - offset.x;
-      const y = note.y * zoom - offset.y;
+      const x = (note.x / image.width) * scaledWidth - offset.x;
+      const y = (note.y / image.height) * scaledHeight - offset.y;
       ctx.fillStyle = note.color || 'yellow';
       ctx.font = `${12 * zoom}px Arial`;
       ctx.fillText(note.text, x, y);
@@ -362,6 +401,7 @@ onSnapshot(charactersRef, (snapshot) => {
       }
     });
   
+    // Draw each saved drawing path
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 2;
     if (drawings && Array.isArray(drawings)) {
@@ -369,8 +409,8 @@ onSnapshot(charactersRef, (snapshot) => {
         if (path && Array.isArray(path)) {
           ctx.beginPath();
           path.forEach((point, index) => {
-            const x = point.x * zoom - offset.x;
-            const y = point.y * zoom - offset.y;
+            const x = (point.x / image.width) * scaledWidth - offset.x;
+            const y = (point.y / image.height) * scaledHeight - offset.y;
             if (index === 0) {
               ctx.moveTo(x, y);
             } else {
@@ -382,11 +422,12 @@ onSnapshot(charactersRef, (snapshot) => {
       });
     }
   
+    // Draw current path if in drawing mode
     if (currentPath.length > 0) {
       ctx.beginPath();
       currentPath.forEach((point, index) => {
-        const x = point.x * zoom - offset.x;
-        const y = point.y * zoom - offset.y;
+        const x = (point.x / image.width) * scaledWidth - offset.x;
+        const y = (point.y / image.height) * scaledHeight - offset.y;
         if (index === 0) {
           ctx.moveTo(x, y);
         } else {
@@ -397,18 +438,34 @@ onSnapshot(charactersRef, (snapshot) => {
     }
   };
   
+
   const handleBackgroundChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && roomId) {
-        const reader = new FileReader();
-        reader.onload = async (event: ProgressEvent<FileReader>) => {
-            await updateDoc(doc(db, 'cartes', roomId, 'fond', 'fond1'), {
-                url: event.target?.result as string, // Ensure it's treated as a string
-            });
-        };
-        reader.readAsDataURL(file);
+      try {
+        const storage = getStorage();
+        // Create a reference to where the image will be stored in Firebase Storage
+        const storageRef = ref(storage, `backgrounds/${roomId}/${file.name}-${Date.now()}`);
+        
+        // Upload the image file
+        await uploadBytes(storageRef, file);
+        
+        // Get the download URL for the uploaded file
+        const downloadURL = await getDownloadURL(storageRef);
+        
+        // Update Firestore with the download URL instead of the image data
+        await updateDoc(doc(db, 'cartes', roomId, 'fond', 'fond1'), {
+          url: downloadURL,
+        });
+  
+        // Set the background image locally (optional, if needed for immediate display)
+        setBackgroundImage(downloadURL);
+      } catch (error) {
+        console.error("Error uploading background image:", error);
+      }
     }
-};
+  };
+  
 
 const handleCharacterSubmit = async () => {
   if (newCharacter.name && newCharacter.image && roomId) {
@@ -436,6 +493,7 @@ const handleCharacterSubmit = async () => {
                   y: (Math.random() * (canvasRef.current?.height || 0) + offset.y) / zoom,
                   visibility: newCharacter.visibility,
                   PV: newCharacter.PV,
+                  niveau : newCharacter.niveau,
                   Defense: newCharacter.Defense,
                   Contact: newCharacter.Contact,
                   Distance: newCharacter.Distance,
@@ -449,13 +507,14 @@ const handleCharacterSubmit = async () => {
           setNewCharacter({
               name: '',
               image: null,
+              niveau : 1,
               visibility: 'visible',
-              PV: 100,
-              Defense: 0,
-              Contact: 0,
-              Distance: 0,
-              Magie: 0,
-              INIT: 0,
+              PV: 10,
+              Defense: 5,
+              Contact: 5,
+              Distance: 5,
+              Magie: 5,
+              INIT: 5,
               nombre: 1, // RéINITialiser le champ nombre
           });
           setDialogOpen(false);
@@ -510,20 +569,28 @@ const handleAddNote = async () => {
   }
 };
 
-  const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const clickX = (e.clientX - rect.left + offset.x) / zoom;
-    const clickY = (e.clientY - rect.top + offset.y) / zoom;
+const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
+  const rect = canvasRef.current?.getBoundingClientRect();
+  if (!rect) return;
+  const containerWidth = containerRef.current?.clientWidth || rect.width;
+  const containerHeight = containerRef.current?.clientHeight || rect.height;
+  const image = new Image();
+  image.src = backgroundImage;
+  image.onload = () => {
+    const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
+    const scaledWidth = image.width * scale * zoom;
+    const scaledHeight = image.height * scale * zoom;
+    const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
+    const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
+
     if (drawMode) {
       setIsDrawing(true);
       setCurrentPath([{ x: clickX, y: clickY }]);
     } else if (isMoving) {
       if (selectedCharacterIndex !== null) {
         const charToMove = characters[selectedCharacterIndex];
-  
         if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && typeof charToMove?.id === 'string' && charToMove.id.trim()) {
-          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToMove.id), {
+          updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToMove.id), {
             x: clickX,
             y: clickY
           });
@@ -533,7 +600,7 @@ const handleAddNote = async () => {
       } else if (selectedNoteIndex !== null) {
         const noteToMove = notes[selectedNoteIndex];
         if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && typeof noteToMove?.id === 'string' && noteToMove.id.trim()) {
-          await updateDoc(doc(db, 'cartes', String(roomId), 'text', noteToMove.id), {
+          updateDoc(doc(db, 'cartes', String(roomId), 'text', noteToMove.id), {
             x: clickX,
             y: clickY
           });
@@ -545,12 +612,16 @@ const handleAddNote = async () => {
       setSelectedCharacterIndex(null);
       setSelectedNoteIndex(null);
     } else {
-      const clickedCharIndex = characters.findIndex(char => 
-        Math.abs(char.x - clickX) < 20 && Math.abs(char.y - clickY) < 20
-      );
-      const clickedNoteIndex = notes.findIndex(note => 
-        Math.abs(note.x - clickX) < 50 && Math.abs(note.y - clickY) < 20
-      );
+      const clickedCharIndex = characters.findIndex(char => {
+        const charX = (char.x / image.width) * scaledWidth - offset.x;
+        const charY = (char.y / image.height) * scaledHeight - offset.y;
+        return Math.abs(charX - e.clientX + rect.left) < 20 * zoom && Math.abs(charY - e.clientY + rect.top) < 20 * zoom;
+      });
+      const clickedNoteIndex = notes.findIndex(note => {
+        const noteX = (note.x / image.width) * scaledWidth - offset.x;
+        const noteY = (note.y / image.height) * scaledHeight - offset.y;
+        return Math.abs(noteX - e.clientX + rect.left) < 50 * zoom && Math.abs(noteY - e.clientY + rect.top) < 20 * zoom;
+      });
       if (clickedCharIndex !== -1) {
         setSelectedCharacterIndex(clickedCharIndex);
         setSelectedNoteIndex(null);
@@ -565,8 +636,9 @@ const handleAddNote = async () => {
       }
     }
   };
-  
-  
+};
+
+
   const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
     if (isDragging) {
         const dx = e.clientX - dragStart.x;
@@ -696,21 +768,81 @@ const handleEditNote = () => {
 
   const handleCharacterEditSubmit = async () => {
     if (editingCharacter && selectedCharacterIndex !== null && roomId) {
-        const charToUpdate = characters[selectedCharacterIndex];
-        if (roomId && typeof charToUpdate?.id === 'string') {
-            await updateDoc(doc(db, 'cartes', roomId, 'characters', charToUpdate.id), {
-                Nomperso: editingCharacter.name,
-                imageURL: editingCharacter.image?.src || charToUpdate.image.src
-            });
-            setEditingCharacter(null);
-            setCharacterDialogOpen(false);
-            setSelectedCharacterIndex(null);
-        } else {
-            console.error("Erreur: roomId ou charToUpdate.id n'est pas une chaîne valide.");
+      const charToUpdate = characters[selectedCharacterIndex];
+      if (charToUpdate?.id) {
+        try {
+          // Met à jour les données du personnage dans Firestore
+          const updatedData: {
+            Nomperso: string;
+            niveau: number;
+            PV: number;
+            Defense: number;
+            Contact: number;
+            Distance: number;
+            Magie: number;
+            INIT: number;
+            imageURL?: string; // Add imageURL as an optional field
+          } = {
+            Nomperso: editingCharacter.name,
+            niveau: editingCharacter.niveau,
+            PV: editingCharacter.PV,
+            Defense: editingCharacter.Defense,
+            Contact: editingCharacter.Contact,
+            Distance: editingCharacter.Distance,
+            Magie: editingCharacter.Magie,
+            INIT: editingCharacter.INIT,
+          };
+          
+          // Check if a new image is selected and upload it if necessary
+          if (editingCharacter.image?.src !== charToUpdate.image.src) {
+            const storage = getStorage();
+            const imageRef = ref(storage, `characters/${editingCharacter.name}-${Date.now()}`);
+            const response = await fetch(editingCharacter.image.src);
+            const blob = await response.blob();
+            await uploadBytes(imageRef, blob);
+            const imageURL = await getDownloadURL(imageRef);
+          
+            // Add the image URL to Firestore data
+            updatedData.imageURL = imageURL;
+          }
+          
+  
+          // Vérifiez si une nouvelle image est sélectionnée et téléchargez-la si nécessaire
+          if (editingCharacter.image?.src !== charToUpdate.image.src) {
+            const storage = getStorage();
+            const imageRef = ref(storage, `characters/${editingCharacter.name}-${Date.now()}`);
+            const response = await fetch(editingCharacter.image.src);
+            const blob = await response.blob();
+            await uploadBytes(imageRef, blob);
+            const imageURL = await getDownloadURL(imageRef);
+  
+            // Ajoutez l'URL de l'image au document Firestore
+            updatedData.imageURL = imageURL;
+          }
+  
+          // Mise à jour dans Firestore
+          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToUpdate.id), updatedData);
+  
+          // Mettez à jour le personnage localement
+          setCharacters((prevCharacters) =>
+            prevCharacters.map((character, index) =>
+              index === selectedCharacterIndex ? { ...character, ...updatedData } : character
+            )
+          );
+  
+          // Réinitialisez l'état d'édition
+          setEditingCharacter(null);
+          setCharacterDialogOpen(false);
+          setSelectedCharacterIndex(null);
+        } catch (error) {
+          console.error("Erreur lors de la mise à jour du personnage :", error);
         }
+      } else {
+        console.error("Erreur: ID du personnage non valide.");
+      }
     }
-};
-
+  };
+  
 
   
 const handleNoteSubmit = async () => {
@@ -798,81 +930,81 @@ const handleNoteEditSubmit = async () => {
   }
 
   return (
-    <div className="flex flex-col items-center space-y-4">
-      <div className="flex space-x-4">
-      <div className="flex flex-col w-full">
-  {/* Toggle button for toolbar visibility */}
-  <Button onClick={() => setToolbarVisible(!toolbarVisible)} className="self-center">
-    {toolbarVisible ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-  </Button>
+    <div className="flex flex-col">
+<div className="flex flex-row-reverse right-0">
+  <div className="flex flex-row h-full absolute z-50 ">
+    {/* Toggle button for toolbar visibility */}
+    <Button onClick={() => setToolbarVisible(!toolbarVisible)} className="self-center">
+      {toolbarVisible ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+    </Button>
 
-  {/* Toolbar: conditionally rendered */}
-  {toolbarVisible && (
-    <div className="flex space-x-4">
-      <Button onClick={() => handleZoom(-0.1)}>
-        <Minus className="w-4 h-4" />
-      </Button>
-      <Button onClick={() => handleZoom(0.1)}>
-        <Plus className="w-4 h-4" />
-      </Button>
+    {/* Toolbar: conditionally rendered */}
+    {toolbarVisible && (
+      <div className="flex flex-col gap-6 w-64 rounded-lg  p-6 bg-white self-center text-black">
+        <Button onClick={() => handleZoom(-0.1)}>
+          <Minus className="w-4 h-4" />
+        </Button>
+        <Button onClick={() => handleZoom(0.1)}>
+          <Plus className="w-4 h-4" />
+        </Button>
 
-      <div className="flex items-center space-x-2">
-        <Switch
-          id="grid-switch"
-          checked={showGrid}
-          onCheckedChange={setShowGrid}
-        />
-        <Label htmlFor="grid-switch">Quadrillage</Label>
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="grid-switch"
+            checked={showGrid}
+            onCheckedChange={setShowGrid}
+          />
+          <Label htmlFor="grid-switch">Quadrillage</Label>
+        </div>
+
+        <div className="flex items-center space-x-2">
+          <Label htmlFor="visibilityRadiusSlider">Rayon de visibilité</Label>
+          <input
+            id="visibilityRadiusSlider"
+            type="range"
+            min="10"
+            max="500"
+            value={visibilityRadius}
+            onChange={(e) => {
+              const newRadius = parseInt(e.target.value, 10);
+              setVisibilityRadius(newRadius);
+              if (persoId) {
+                updateDoc(doc(db, 'cartes', String(roomId), 'characters', persoId), {
+                  visibilityRadius: newRadius
+                });
+              }
+            }}
+            className="w-32"
+          />
+        </div>
+
+        {isMJ && (
+          <Input
+            type="file"
+            onChange={handleBackgroundChange}
+            className="w-40"
+          />
+        )}
+
+        <Button onClick={handleAddNote}>Ajouter une note</Button>
+
+        {isMJ && (
+          <Button onClick={() => setDialogOpen(true)}>Ajouter un personnage</Button>
+        )}
+
+        <Button onClick={toggleDrawMode}>
+          {drawMode ? <Eraser className="w-4 h-4 mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
+          {drawMode ? 'Arrêter de dessiner' : 'Dessiner'}
+        </Button>
+
+        {(
+          <Button onClick={clearDrawings}>Effacer les dessins</Button>
+        )}
       </div>
-
-      <div className="flex items-center space-x-2">
-        <Label htmlFor="visibilityRadiusSlider">Rayon de visibilité</Label>
-        <input
-          id="visibilityRadiusSlider"
-          type="range"
-          min="10"
-          max="500"
-          value={visibilityRadius}
-          onChange={(e) => {
-            const newRadius = parseInt(e.target.value, 10);
-            setVisibilityRadius(newRadius);
-            if (persoId) {
-              updateDoc(doc(db, 'cartes', String(roomId), 'characters', persoId), {
-                visibilityRadius: newRadius
-              });
-            }
-          }}
-          className="w-32"
-        />
-      </div>
-
-      {isMJ && (
-        <Input
-          type="file"
-          onChange={handleBackgroundChange}
-          className="w-40"
-        />
-      )}
-
-      <Button onClick={handleAddNote}>Ajouter une note</Button>
-
-      {isMJ && (
-        <Button onClick={() => setDialogOpen(true)}>Ajouter un personnage</Button>
-      )}
-
-      <Button onClick={toggleDrawMode}>
-        {drawMode ? <Eraser className="w-4 h-4 mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
-        {drawMode ? 'Arrêter de dessiner' : 'Dessiner'}
-      </Button>
-
-      {(
-        <Button onClick={clearDrawings}>Effacer les dessins</Button>
-      )}
-    </div>
-  )}
+    )}
+  </div>
 </div>
 
-      </div>
   
       <div
     ref={containerRef}
@@ -885,7 +1017,7 @@ const handleNoteEditSubmit = async () => {
 >
     <canvas
         ref={canvasRef}
-        style={{ width: '100%', height: '85vh' }}
+        style={{ width: '100%', height: '100vh' }}
     />
     {combatOpen && (
         <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-10">
@@ -902,7 +1034,7 @@ const handleNoteEditSubmit = async () => {
 </div>
 
 {selectedCharacterIndex !== null && (
-    <div className="flex space-x-2">
+    <div className="absolute bottom-3 flex left-1/2 space-x-2">
         {/* Vérifier si le joueur est MJ ou s'il s'agit de son propre personnage */}
         {isMJ || characters[selectedCharacterIndex].id === persoId ? (
             <>
@@ -936,7 +1068,7 @@ const handleNoteEditSubmit = async () => {
 )}
 
       {selectedNoteIndex !== null  && (
-        <div className="flex space-x-2">
+        <div className="absolute bottom-3 flex left-1/2 space-x-2">
           <Button onClick={handleDeleteNote}>
             <X className="w-4 h-4 mr-2" /> Supprimer
           </Button>
@@ -950,7 +1082,7 @@ const handleNoteEditSubmit = async () => {
       )}
   
   <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-  <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080]">
+  <DialogContent className="bg-[rgb(36,36,36)] max-w-3xl text-[#c0a080]">
     <DialogHeader>
       <DialogTitle>Ajouter un personnage</DialogTitle>
     </DialogHeader>
@@ -1011,6 +1143,19 @@ const handleNoteEditSubmit = async () => {
           className="col-span-3"
         />
       </div>
+
+
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="niveau" className="text-right">niveau</Label>
+        <Input
+          id="niveau"
+          type="number"
+          value={newCharacter.niveau}
+          onChange={(e) => setNewCharacter({ ...newCharacter, niveau: parseInt(e.target.value) || 1 })}
+          className="col-span-3"
+        />
+      </div>
+
 
       {/* Defense Field */}
       <div className="grid grid-cols-4 items-center gap-4">
@@ -1079,7 +1224,7 @@ const handleNoteEditSubmit = async () => {
 </Dialog>
 
       <Dialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen}>
-        <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080]">
+        <DialogContent className="bg-[rgb(36,36,36)] max-w-3xl text-[#c0a080]">
           <DialogHeader>
             <DialogTitle>Modifier la note</DialogTitle>
           </DialogHeader>
@@ -1112,7 +1257,7 @@ const handleNoteEditSubmit = async () => {
 
 
       <Dialog open={characterDialogOpen} onOpenChange={setCharacterDialogOpen}>
-  <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080]">
+  <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">
     <DialogHeader>
       <DialogTitle>Modifier le personnage</DialogTitle>
     </DialogHeader>
@@ -1176,6 +1321,22 @@ const handleNoteEditSubmit = async () => {
         />
       </div>
 
+      {/* niveau Field */}
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="niveau" className="text-right text-white">Niveau</Label>
+        <Input
+          id="niveau"
+          type="number"
+          value={editingCharacter?.niveau || 1}
+          onChange={(e) => {
+            if (editingCharacter) {
+              setEditingCharacter({ ...editingCharacter, niveau: parseInt(e.target.value) || 1 });
+            }
+          }}
+          className="col-span-3"
+        />
+      </div>
+
       {/* Contact Field */}
       <div className="grid grid-cols-4 items-center gap-4">
         <Label htmlFor="Contact" className="text-right text-white">Contact</Label>
@@ -1202,6 +1363,22 @@ const handleNoteEditSubmit = async () => {
           onChange={(e) => {
             if (editingCharacter) {
               setEditingCharacter({ ...editingCharacter, Distance: parseInt(e.target.value) || 0 });
+            }
+          }}
+          className="col-span-3"
+        />
+      </div>
+
+        {/* Distance Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="Magie" className="text-right text-white">Magie</Label>
+        <Input
+          id="Magie"
+          type="number"
+          value={editingCharacter?.Magie || 0}
+          onChange={(e) => {
+            if (editingCharacter) {
+              setEditingCharacter({ ...editingCharacter, Magie: parseInt(e.target.value) || 0 });
             }
           }}
           className="col-span-3"

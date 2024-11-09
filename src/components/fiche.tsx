@@ -40,6 +40,7 @@ interface Character {
   INT?: number;
   CHA?: number;
   type?: string;
+  deVie?:string;
 }
 
 interface Bonuses {
@@ -71,6 +72,8 @@ export default function Component() {
   const [bonuses, setBonuses] = useState<Bonuses | null>(null);
   const [isRaceModalOpen, setIsRaceModalOpen] = useState(false);
 const [selectedRaceAbilities, setSelectedRaceAbilities] = useState<string[]>([]);
+const [userPersoId, setUserPersoId] = useState<string | null>(null);
+const [userRole, setUserRole] = useState<string | null>(null);
 
   
 
@@ -98,6 +101,8 @@ const [selectedRaceAbilities, setSelectedRaceAbilities] = useState<string[]>([])
         const userData = userDoc.data();
         const roomIdValue = String(userData?.room_id);
         setRoomId(roomIdValue);
+        setUserPersoId(userData?.persoId || null); // Set the userPersoId
+        setUserRole(userData?.perso || null); // Set the userRole
 
         const charactersCollection = collection(db, `cartes/${roomIdValue}/characters`);
         const charactersSnapshot = await getDocs(charactersCollection);
@@ -242,7 +247,9 @@ const [selectedRaceAbilities, setSelectedRaceAbilities] = useState<string[]>([])
 
   const handleRollDie = () => {
     if (!selectedCharacter) return;
-    const roll = Math.floor(Math.random() * 8) + 1;
+    const deVie = selectedCharacter.deVie || 'd8'; // Default to 'd8' if deVie is not defined
+    const faces = parseInt(deVie.substring(1)); // Extract the number of faces from the deVie string
+    const roll = Math.floor(Math.random() * faces) + 1;
     const conModifier = getModifier(selectedCharacter.CON || 0);
     setRollResult(roll + conModifier);
   };
@@ -469,18 +476,22 @@ const [selectedRaceAbilities, setSelectedRaceAbilities] = useState<string[]>([])
             </div>
 
             <div className="flex justify-center mt-6 space-x-4">
-              <button
-                onClick={handleEdit}
-                className="bg-[#c0a080] text-[#1c1c1c] px-6 py-2 rounded-lg hover:bg-[#d4b48f] transition duration-300 text-sm font-bold"
-              >
-                Modifier
-              </button>
-              <button
-                onClick={openLevelUpModal}
-                className="bg-[#5c6bc0] text-white px-6 py-2 rounded-lg hover:bg-[#7986cb] transition duration-300 text-sm font-bold"
-              >
-                Monter de Niveau
-              </button>
+              {(selectedCharacter.id === userPersoId || userRole === "MJ") && (
+                <>
+                  <button
+                    onClick={handleEdit}
+                    className="bg-[#c0a080] text-[#1c1c1c] px-6 py-2 rounded-lg hover:bg-[#d4b48f] transition duration-300 text-sm font-bold"
+                  >
+                    Modifier
+                  </button>
+                  <button
+                    onClick={openLevelUpModal}
+                    className="bg-[#5c6bc0] text-white px-6 py-2 rounded-lg hover:bg-[#7986cb] transition duration-300 text-sm font-bold"
+                  >
+                    Monter de Niveau
+                  </button>
+                </>
+              )}
             </div>
           </>
         )}
@@ -493,7 +504,7 @@ const [selectedRaceAbilities, setSelectedRaceAbilities] = useState<string[]>([])
 )}
 
 
-{!isEditing && selectedCharacter && (
+{!isEditing && selectedCharacter && (selectedCharacter.id === userPersoId || userRole === "MJ") && (
   <>
     <InventoryManagement playerName={selectedCharacter.Nomperso} roomId={roomId!} />
     <CompetencesDisplay roomId={roomId!} characterId={selectedCharacter.id} />
@@ -613,20 +624,20 @@ const [selectedRaceAbilities, setSelectedRaceAbilities] = useState<string[]>([])
 
 
 
-        {showLevelUpModal && (
+        {showLevelUpModal && selectedCharacter && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div className="bg-[#2a2a2a] p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center">
               <h2 className="text-xl font-bold text-[#c0a0a0] mb-4">Monter de Niveau</h2>
-              <p className="text-[#d4d4d4] mb-4">Lancez un dé à 8 faces pour augmenter les PV Max.</p>
+              <p className="text-[#d4d4d4] mb-4">Lancez un dé pour augmenter les PV Max.</p>
               <button
                 onClick={handleRollDie}
                 className="bg-[#c0a080] text-[#1c1c1c] px-4 py-2 rounded-lg mb-4 hover:bg-[#d4b48f] transition duration-300 text-sm font-bold"
               >
                 Lancer le Dé
               </button>
-              {rollResult !== null && (
+              {rollResult !== null && selectedCharacter && (
                 <div className="text-2xl font-bold text-green-500 mb-4">
-                  Résultat: +{rollResult}
+                  {rollResult - getModifier(selectedCharacter.CON || 0)} + CON ({getModifier(selectedCharacter.CON || 0)}) = {rollResult}
                 </div>
               )}
               <div className="flex justify-center space-x-4">
