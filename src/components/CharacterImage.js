@@ -21,7 +21,7 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
   const [showCropper, setShowCropper] = useState(false);
   const [showDecorationModal, setShowDecorationModal] = useState(false);
   const [croppedImageUrl, setCroppedImageUrl] = useState(imageUrl || "/api/placeholder/192/192");
-  const [overlayUrl, setOverlayUrl] = useState("/token/Token1.png");
+  const [overlayUrl, setOverlayUrl] = useState("/Token/token1.png");
 
   const roomId = "665441";
 
@@ -34,7 +34,7 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
         if (characterDoc.exists()) {
           const data = characterDoc.data();
           setCroppedImageUrl(data.imageURL2 || imageUrl || "/api/placeholder/192/192");
-          setOverlayUrl(`/token/${data.Token || "Token1"}.png`);
+          setOverlayUrl(`/Token/${data.Token || "token1"}.png`);
         } else {
           setCroppedImageUrl(imageUrl || "/api/placeholder/192/192");
         }
@@ -94,7 +94,7 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
     try {
       const characterDocRef = doc(db, `cartes/${roomId}/characters`, characterId);
       await updateDoc(characterDocRef, { Token: `Token${tokenNumber}` });
-      setOverlayUrl(`/token/Token${tokenNumber}.png`);
+      setOverlayUrl(`/Token/token${tokenNumber}.png`);
     } catch (e) {
       console.error('Failed to update token:', e);
     }
