@@ -148,14 +148,21 @@ export default function CharacterCreationPage() {
       }
 
       // Save character data to Firestore with additional fields
-      await addDoc(collection(db, `users/${userId}/characters`), {
+      const characterData = {
         ...character,
         imageURL,
         type: 'joueurs',
         visibilityRadius: 150,
         x: 500,
         y: 500
-      })
+      }
+
+      // Save to user's characters collection
+      await addDoc(collection(db, `users/${userId}/characters`), characterData)
+
+      // Save to cartes/room_id/characters/id
+      const roomId = '665441' // Replace with actual room ID
+      await addDoc(collection(db, `cartes/${roomId}/characters`), characterData)
 
       console.log("Character created successfully")
       
