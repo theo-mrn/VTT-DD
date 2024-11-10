@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer"
 import { Plus, Minus, Dices, ChevronRight, Sword } from "lucide-react"
-import { auth, db, doc, getDoc, onSnapshot, updateDoc, deleteDoc, collection, onAuthStateChanged } from "@/lib/firebase"
+import { auth, db, doc, getDoc, onSnapshot, updateDoc, deleteDoc, collection, onAuthStateChanged, writeBatch } from "@/lib/firebase" // Ajoutez writeBatch ici
 import { Dialog, DialogTrigger, DialogPortal, DialogOverlay, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 
 type Character = {
@@ -95,7 +95,8 @@ export function GMDashboard() {
               avatar: data.imageURL || `/placeholder.svg?height=40&width=40&text=${data.Nomperso ? data.Nomperso[0] : "?"}`,
               pv: data.PV ?? "absente",
               init: data.INIT ?? "absente",
-              type: data.type || "npc" // Ajoutez cette ligne
+              initDetails: data.initDetails || "absente", // Ajoutez cette ligne
+              type: data.type || "npc"
             }
           })
   
@@ -170,7 +171,7 @@ export function GMDashboard() {
     }
   }
 
-  const rerollInitiative = () => {
+  const rerollInitiative = async () => {
     const updatedCharacters = characters.map(char => {
       const diceRoll = Math.floor(Math.random() * 20) + 1
       const initValue = parseInt(char.init as unknown as string, 10) // Convertir en entier
@@ -183,6 +184,19 @@ export function GMDashboard() {
     })
     const sortedCharacters = updatedCharacters.sort((a, b) => b.init - a.init)
     setCharacters(sortedCharacters)
+
+    if (roomId) {
+      try {
+        const batch = writeBatch(db) // Utilisez writeBatch ici
+        sortedCharacters.forEach(char => {
+          const characterRef = doc(db, `cartes/${roomId}/characters/${char.id}`)
+          batch.update(characterRef, { INIT: char.init, initDetails: char.initDetails })
+        })
+        await batch.commit()
+      } catch (error) {
+        console.error("Erreur lors de la mise à jour des initiatives :", error)
+      }
+    }
   }
 
   const confirmDeleteCharacter = (character: Character) => {
