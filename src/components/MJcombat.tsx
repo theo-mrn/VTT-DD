@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer"
 import { Plus, Minus, Dices, ChevronRight, Sword } from "lucide-react"
 import { auth, db, doc, getDoc, onSnapshot, updateDoc, deleteDoc, collection, onAuthStateChanged } from "@/lib/firebase"
+import { Dialog, DialogTrigger, DialogPortal, DialogOverlay, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 
 type Character = {
   id: string
@@ -13,6 +14,8 @@ type Character = {
   avatar: string
   pv: number
   init: number
+  initDetails?: string
+  type: string // Ajoutez cette ligne
 }
 
 type AttackReport = {
@@ -38,6 +41,8 @@ export function GMDashboard() {
   const [userId, setUserId] = useState<string | null>(null)
   const [roomId, setRoomId] = useState<string | null>(null)
   const [attackReports, setAttackReports] = useState<AttackReport[]>([])
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
+  const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -90,6 +95,7 @@ export function GMDashboard() {
               avatar: data.imageURL || `/placeholder.svg?height=40&width=40&text=${data.Nomperso ? data.Nomperso[0] : "?"}`,
               pv: data.PV ?? "absente",
               init: data.INIT ?? "absente",
+              type: data.type || "npc" // Ajoutez cette ligne
             }
           })
   
@@ -165,32 +171,43 @@ export function GMDashboard() {
   }
 
   const rerollInitiative = () => {
-    const updatedCharacters = characters.map(char => ({
-      ...char,
-      init: Math.floor(Math.random() * 20) + 1
-    }))
+    const updatedCharacters = characters.map(char => {
+      const diceRoll = Math.floor(Math.random() * 20) + 1
+      const initValue = parseInt(char.init as unknown as string, 10) // Convertir en entier
+      const totalInit = initValue + diceRoll
+      return {
+        ...char,
+        init: totalInit,
+        initDetails: `${initValue}+${diceRoll}=${totalInit}`
+      }
+    })
     const sortedCharacters = updatedCharacters.sort((a, b) => b.init - a.init)
     setCharacters(sortedCharacters)
   }
 
-  const nextCharacter = async () => {
-    if (!roomId || characters.length === 0) return
-  
-    const firstCharacterId = characters[0].id
+  const confirmDeleteCharacter = (character: Character) => {
+    setCharacterToDelete(character)
+    setIsConfirmDialogOpen(true)
+  }
+
+  const handleDeleteCharacter = async () => {
+    if (!characterToDelete || !roomId) return
+
+    const firstCharacterId = characterToDelete.id
     const combatRef = collection(db, `cartes/${roomId}/combat/${firstCharacterId}/rapport`)
-  
+
     // Delete each report for the current character
     const reportsToDelete = attackReports.filter(report => report.attaquant === firstCharacterId)
     for (const report of reportsToDelete) {
       const reportRef = doc(combatRef, report.reportId)
       await deleteDoc(reportRef)
     }
-  
+
     setCharacters(prevChars => {
       const [first, ...rest] = prevChars
       return [...rest, first]
     })
-  
+
     // Update `tour_joueur` with the new active character's ID
     try {
       const newActiveCharacterId = characters[1].id // Le prochain personnage après réorganisation
@@ -199,8 +216,23 @@ export function GMDashboard() {
     } catch (error) {
       console.error("Erreur lors de la mise à jour de tour_joueur :", error)
     }
+
+    setIsConfirmDialogOpen(false)
+    setCharacterToDelete(null)
   }
-  
+
+  const nextCharacter = async () => {
+    if (!roomId || characters.length === 0) return
+
+    const firstCharacter = characters[0]
+    if (firstCharacter.type === "joueurs") {
+      console.warn("Impossible de supprimer un personnage de type 'joueurs'")
+      return
+    }
+
+    confirmDeleteCharacter(firstCharacter)
+  }
+
   const openDrawer = (character: Character) => {
     setSelectedCharacter(character)
     setIsDrawerOpen(true)
@@ -287,7 +319,7 @@ export function GMDashboard() {
                 {index === 0 && <Sword className="ml-2 h-4 w-4 text-primary" />}
               </h2>
               <p className="text-sm text-muted-foreground mb-2">
-                PV: {character.pv ?? "absente"} | INIT: {character.init ?? "absente"}
+                PV: {character.pv ?? "absente"} | INIT: {character.initDetails ?? "absente"}
               </p>
               {characterReports.map(report => renderAttackReport(report))}
             </div>
@@ -376,6 +408,26 @@ export function GMDashboard() {
           </DrawerFooter>
         </DrawerContent>
       </Drawer>
+
+      <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <DialogPortal>
+          <DialogOverlay />
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Confirmation de suppression</DialogTitle>
+              <DialogDescription>
+                Êtes-vous sûr de vouloir supprimer le personnage {characterToDelete?.name} ?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button onClick={handleDeleteCharacter}>Confirmer</Button>
+              <DialogClose asChild>
+                <Button variant="outline">Annuler</Button>
+              </DialogClose>
+            </DialogFooter>
+          </DialogContent>
+        </DialogPortal>
+      </Dialog>
     </div>
   )
 }
