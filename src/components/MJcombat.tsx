@@ -16,6 +16,7 @@ type Character = {
   init: number
   initDetails?: string
   type: string // Ajoutez cette ligne
+  currentInit?: number // Ajoutez cette ligne
 }
 
 type AttackReport = {
@@ -43,6 +44,7 @@ export function GMDashboard() {
   const [attackReports, setAttackReports] = useState<AttackReport[]>([])
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null)
+  const [isRollingInitiative, setIsRollingInitiative] = useState(false)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -172,17 +174,19 @@ export function GMDashboard() {
   }
 
   const rerollInitiative = async () => {
+    if (isRollingInitiative) return
+    setIsRollingInitiative(true)
     const updatedCharacters = characters.map(char => {
       const diceRoll = Math.floor(Math.random() * 20) + 1
       const initValue = parseInt(char.init as unknown as string, 10) // Convertir en entier
       const totalInit = initValue + diceRoll
       return {
         ...char,
-        init: totalInit,
+        currentInit: totalInit,
         initDetails: `${initValue}+${diceRoll}=${totalInit}`
       }
     })
-    const sortedCharacters = updatedCharacters.sort((a, b) => b.init - a.init)
+    const sortedCharacters = updatedCharacters.sort((a, b) => (b.currentInit ?? 0) - (a.currentInit ?? 0))
     setCharacters(sortedCharacters)
 
     if (roomId) {
@@ -190,13 +194,14 @@ export function GMDashboard() {
         const batch = writeBatch(db) // Utilisez writeBatch ici
         sortedCharacters.forEach(char => {
           const characterRef = doc(db, `cartes/${roomId}/characters/${char.id}`)
-          batch.update(characterRef, { INIT: char.init, initDetails: char.initDetails })
+          batch.update(characterRef, { currentInit: char.currentInit, initDetails: char.initDetails })
         })
         await batch.commit()
       } catch (error) {
         console.error("Erreur lors de la mise à jour des initiatives :", error)
       }
     }
+    setIsRollingInitiative(false)
   }
 
   const confirmDeleteCharacter = (character: Character) => {
@@ -349,7 +354,7 @@ export function GMDashboard() {
   return (
     <div className="p-4">
       <div className="flex justify-between mb-4">
-        <Button onClick={rerollInitiative}>
+        <Button onClick={rerollInitiative} disabled={isRollingInitiative}>
           <Dices className="mr-2 h-4 w-4" />
           Relancer l'initiative
         </Button>

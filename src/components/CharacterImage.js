@@ -10,7 +10,7 @@ import DecorationSelector from '@/components/DecorationSelector';
 const tokenList = Array.from({ length: 70 }, (_, i) => ({
   id: i + 1,
   name: `Token ${i + 1}`,
-  src: `/Token/Token${i + 1}.png`
+  src: `/Token/token${i + 1}.png`
 }));
 
 export default function CharacterImage({ imageUrl, altText, characterId }) {
