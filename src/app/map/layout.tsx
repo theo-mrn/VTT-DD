@@ -92,8 +92,8 @@ export default function Layout({ children }: LayoutProps) {
         return "w-[1200px]";
         case "GMDashboard":
           return " bg-white";
-      case "Music":
-        return " bg-white w-[800px]"; // Optional: Customize for Music tab
+      case "DiceRollerDnD":
+        return "w-[500px]"; // Optional: Customize for Music tab
       default:
         return "w-[700px]";
     }
