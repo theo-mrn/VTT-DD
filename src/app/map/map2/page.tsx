@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { X, Plus, Minus, Move, Edit, Pencil, Eraser ,ChevronDown ,ChevronUp,ChevronRight,ChevronLeft} from 'lucide-react'
+import { X, Plus, Minus, Move, Edit, Pencil, Eraser ,ChevronDown ,ChevronUp,ChevronRight,ChevronLeft, Eye, EyeOff} from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc,getDoc,getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc } from '@/lib/firebase'
-import Combat from '@/components/combat';  // Importez le composant de combat
+import Combat from '@/components/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 
@@ -649,9 +649,18 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
         const rect = canvasRef.current?.getBoundingClientRect();
         if (!rect) return; // Ensure canvasRef.current is not null
 
-        const x = (e.clientX - rect.left + offset.x) / zoom;
-        const y = (e.clientY - rect.top + offset.y) / zoom;
-        setCurrentPath((prev) => [...prev, { x, y }]);
+        const containerWidth = containerRef.current?.clientWidth || rect.width;
+        const containerHeight = containerRef.current?.clientHeight || rect.height;
+        const image = new Image();
+        image.src = backgroundImage;
+        image.onload = () => {
+          const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
+          const scaledWidth = image.width * scale * zoom;
+          const scaledHeight = image.height * scale * zoom;
+          const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
+          const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
+          setCurrentPath((prev) => [...prev, { x, y }]);
+        };
     }
 };
 
@@ -921,6 +930,29 @@ const handleNoteEditSubmit = async () => {
     }
   };
   
+  const toggleVisibility = async () => {
+    if (selectedCharacterIndex !== null && roomId) {
+      const charToUpdate = characters[selectedCharacterIndex];
+      if (charToUpdate?.id) {
+        const newVisibility = charToUpdate.visibility === 'visible' ? 'hidden' : 'visible';
+        try {
+          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToUpdate.id), {
+            visibility: newVisibility
+          });
+          setCharacters((prevCharacters) =>
+            prevCharacters.map((character, index) =>
+              index === selectedCharacterIndex ? { ...character, visibility: newVisibility } : character
+            )
+          );
+        } catch (error) {
+          console.error("Erreur lors de la mise à jour de la visibilité du personnage :", error);
+        }
+      } else {
+        console.error("Erreur: ID du personnage non valide.");
+      }
+    }
+  };
+  
   if (loading) {
     return <div>Chargement...</div>
   }
@@ -1021,10 +1053,9 @@ const handleNoteEditSubmit = async () => {
     />
     {combatOpen && (
         <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-10">
-            <div className="bg-white p-6 rounded-lg shadow-lg w-1/3 h-2/5">
+            <div className="text-black p-6 rounded-lg shadow-lg w-1/3 h-2/5">
             <Combat
   attackerId={attackerId || ''} // Fallback to an empty string
-  targetId={targetId || ''}      // Fallback to an empty string
   onClose={() => setCombatOpen(false)}
 />
 
@@ -1034,37 +1065,44 @@ const handleNoteEditSubmit = async () => {
 </div>
 
 {selectedCharacterIndex !== null && (
-    <div className="absolute bottom-3 flex left-1/2 space-x-2">
-        {/* Vérifier si le joueur est MJ ou s'il s'agit de son propre personnage */}
-        {isMJ || characters[selectedCharacterIndex].id === persoId ? (
-            <>
-                <Button onClick={handleMoveCharacter}>
-                    <Move className="w-4 h-4 mr-2" /> Déplacer
-                </Button>
-                {isMJ && (
-                    <>
-                        <Button onClick={handleDeleteCharacter}>
-                            <X className="w-4 h-4 mr-2" /> Supprimer
-                        </Button>
-                        <Button onClick={handleEditCharacter}>
-                            <Edit className="w-4 h-4 mr-2" /> Modifier
-                        </Button>
-                        {/* Bouton attaquer pour le MJ */}
-                        <Button onClick={handleAttack}>
-                            <Edit className="w-4 h-4 mr-2" /> Attaquer
-                        </Button>
-                    </>
-                )}
-            </>
-        ) : (
-
-            characters[selectedCharacterIndex].id !== persoId && (
-                <Button onClick={handleAttack}>
-                    <Edit className="w-4 h-4 mr-2" /> Attaquer
-                </Button>
-            )
+  <div className="absolute bottom-3 flex left-1/2 space-x-2">
+    {/* Vérifier si le joueur est MJ ou s'il s'agit de son propre personnage */}
+    {isMJ || characters[selectedCharacterIndex].id === persoId ? (
+      <>
+        <Button onClick={handleMoveCharacter}>
+          <Move className="w-4 h-4 mr-2" /> Déplacer
+        </Button>
+        {isMJ && (
+          <>
+            <Button onClick={handleDeleteCharacter}>
+              <X className="w-4 h-4 mr-2" /> Supprimer
+            </Button>
+            <Button onClick={handleEditCharacter}>
+              <Edit className="w-4 h-4 mr-2" /> Modifier
+            </Button>
+            <Button onClick={toggleVisibility}>
+              {characters[selectedCharacterIndex].visibility === 'visible' ? (
+                <EyeOff className="w-4 h-4 mr-2" /> // Icon for hiding
+              ) : (
+                <Eye className="w-4 h-4 mr-2" /> // Icon for showing
+              )}
+              {characters[selectedCharacterIndex].visibility === 'visible' ? 'Masquer' : 'Afficher'}
+            </Button>
+            {/* Bouton attaquer pour le MJ */}
+            <Button onClick={handleAttack}>
+              <Edit className="w-4 h-4 mr-2" /> Attaquer
+            </Button>
+          </>
         )}
-    </div>
+      </>
+    ) : (
+      characters[selectedCharacterIndex].id !== persoId && (
+        <Button onClick={handleAttack}>
+          <Edit className="w-4 h-4 mr-2" /> Attaquer
+        </Button>
+      )
+    )}
+  </div>
 )}
 
       {selectedNoteIndex !== null  && (

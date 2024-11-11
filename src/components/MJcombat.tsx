@@ -7,6 +7,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, Dr
 import { Plus, Minus, Dices, ChevronRight, Sword } from "lucide-react"
 import { auth, db, doc, getDoc, onSnapshot, updateDoc, deleteDoc, collection, onAuthStateChanged, writeBatch } from "@/lib/firebase" // Ajoutez writeBatch ici
 import { Dialog, DialogTrigger, DialogPortal, DialogOverlay, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 
 type Character = {
   id: string
@@ -45,6 +46,7 @@ export function GMDashboard() {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null)
   const [isRollingInitiative, setIsRollingInitiative] = useState(false)
+  const [selectedTarget, setSelectedTarget] = useState<string | null>(null) // Ajoutez cette ligne
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -76,18 +78,18 @@ export function GMDashboard() {
   useEffect(() => {
     const fetchCharactersAndSettings = async () => {
       if (!roomId) return
-  
+
       try {
         const settingsDoc = await getDoc(doc(db, `cartes/${roomId}/settings/general`))
         let activePlayerId: string | null = null
-  
+
         if (settingsDoc.exists()) {
           const data = settingsDoc.data()
           activePlayerId = data.tour_joueur || null
         }
-  
+
         const charactersRef = collection(db, `cartes/${roomId}/characters`)
-  
+
         onSnapshot(charactersRef, (snapshot) => {
           const charactersData = snapshot.docs.map((doc) => {
             const data = doc.data()
@@ -98,12 +100,13 @@ export function GMDashboard() {
               pv: data.PV ?? "absente",
               init: data.INIT ?? "absente",
               initDetails: data.initDetails || "absente", // Ajoutez cette ligne
-              type: data.type || "npc"
+              type: data.type || "pnj",
+              currentInit: data.currentInit || 0 // Ajoutez cette ligne
             }
           })
-  
-          const sortedCharacters = charactersData.sort((a, b) => (b.init as number) - (a.init as number))
-  
+
+          const sortedCharacters = charactersData.sort((a, b) => (b.currentInit ?? 0) - (a.currentInit ?? 0))
+
           if (activePlayerId) {
             const activePlayerIndex = sortedCharacters.findIndex((char) => char.id === activePlayerId)
             if (activePlayerIndex > 0) {
@@ -111,14 +114,14 @@ export function GMDashboard() {
               sortedCharacters.unshift(activeCharacter)
             }
           }
-  
+
           setCharacters(sortedCharacters)
         })
       } catch (error) {
         console.error("Erreur lors du chargement des personnages et des paramètres :", error)
       }
     }
-  
+
     fetchCharactersAndSettings()
   }, [roomId])
 
@@ -197,6 +200,11 @@ export function GMDashboard() {
           batch.update(characterRef, { currentInit: char.currentInit, initDetails: char.initDetails })
         })
         await batch.commit()
+
+        // Mettre à jour le personnage actif
+        const newActiveCharacterId = sortedCharacters[0].id
+        const settingsRef = doc(db, `cartes/${roomId}/settings/general`)
+        await updateDoc(settingsRef, { tour_joueur: newActiveCharacterId })
       } catch (error) {
         console.error("Erreur lors de la mise à jour des initiatives :", error)
       }
@@ -242,14 +250,28 @@ export function GMDashboard() {
 
   const nextCharacter = async () => {
     if (!roomId || characters.length === 0) return
-
+  
     const firstCharacter = characters[0]
-    if (firstCharacter.type === "joueurs") {
-      console.warn("Impossible de supprimer un personnage de type 'joueurs'")
-      return
+    const combatRef = collection(db, `cartes/${roomId}/combat/${firstCharacter.id}/rapport`)
+  
+    // Delete each report for the current character
+    const reportsToDelete = attackReports.filter(report => report.attaquant === firstCharacter.id)
+    for (const report of reportsToDelete) {
+      const reportRef = doc(combatRef, report.reportId)
+      await deleteDoc(reportRef)
     }
-
-    confirmDeleteCharacter(firstCharacter)
+  
+    const newCharacters = [...characters.slice(1), firstCharacter]
+    setCharacters(newCharacters)
+  
+    // Update `tour_joueur` with the new active character's ID
+    try {
+      const newActiveCharacterId = newCharacters[0].id
+      const settingsRef = doc(db, `cartes/${roomId}/settings/general`)
+      await updateDoc(settingsRef, { tour_joueur: newActiveCharacterId })
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de tour_joueur :", error)
+    }
   }
 
   const openDrawer = (character: Character) => {
@@ -262,6 +284,7 @@ export function GMDashboard() {
     setSelectedAttack(attack)
     setIsOtherDrawerOpen(true)
     setDamageChange(attack.degat_result)
+    setSelectedTarget(attack.cible) // Ajoutez cette ligne
   }
 
   const updateCharacterHP = async () => {
@@ -282,8 +305,8 @@ export function GMDashboard() {
   }
 
   const applyManualDamage = async () => {
-    if (selectedAttack && selectedAttack.cible && roomId) {
-      await applyDamage(selectedAttack.cible, damageChange)
+    if (selectedAttack && selectedTarget && roomId) { // Modifiez cette ligne
+      await applyDamage(selectedTarget, damageChange) // Modifiez cette ligne
       setIsOtherDrawerOpen(false)
     }
   }
@@ -291,23 +314,15 @@ export function GMDashboard() {
   const renderAttackReport = (report: AttackReport) => (
     <div key={report.reportId} className="mb-4 border-b pb-4">
       <p className="text-sm text-muted-foreground mt-2">
-        <strong>Cible:</strong> {report.cible_nom}
-      </p>
-      <p className="text-sm text-muted-foreground mt-1">
         <strong>Attaque:</strong> {report.attaque_result} | <strong>Dégâts:</strong> {report.degat_result}
       </p>
       <p className="text-sm text-muted-foreground">
-        <strong>Arme:</strong> {report.arme_utilisée} | <strong>Type:</strong> {report.type}
+        <strong>Arme:</strong> {report.arme_utilisée}
       </p>
-      <p className="text-sm text-muted-foreground">
-        <strong>Réussite:</strong> {report.réussite ? "Succès" : "Échec"}
-      </p>
+      
       <div className="flex space-x-2 mt-2">
-        <Button size="sm" onClick={() => applyDamage(report.cible, report.degat_result)}>
-          Appliquer les dégâts
-        </Button>
         <Button size="sm" onClick={() => openOtherDrawer(report)}>
-          Autre
+        <Sword />Infliger les dégats 
         </Button>
       </div>
     </div>
@@ -407,9 +422,25 @@ export function GMDashboard() {
       <Drawer open={isOtherDrawerOpen} onClose={() => setIsOtherDrawerOpen(false)}>
         <DrawerContent>
           <DrawerHeader>
-            <DrawerTitle>Ajustter les Dégâts pour la cible {selectedAttack?.cible_nom || "Inconnue"}</DrawerTitle>
-            <DrawerDescription>Modifiez les dégâts de l'attaque manuellement</DrawerDescription>
+            <DrawerTitle>Ajuster les Dégâts</DrawerTitle>
           </DrawerHeader>
+          <div className="p-4">
+            <label htmlFor="target-select" className="block text-sm font-medium text-gray-700">
+              Choisir la cible
+            </label>
+            <Select value={selectedTarget || ""} onValueChange={setSelectedTarget}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Choisir une cible" />
+              </SelectTrigger>
+              <SelectContent>
+                {characters.map((character) => (
+                  <SelectItem key={character.id} value={character.id}>
+                    {character.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           <div className="p-4 flex items-center justify-center space-x-4">
             <Button variant="outline" size="icon" onClick={() => setDamageChange(prev => Math.max(0, prev - 1))}>
               <Minus className="h-4 w-4" />
