@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { X, Plus, Minus, Move, Edit, Pencil, Eraser ,ChevronDown ,ChevronUp,ChevronRight,ChevronLeft} from 'lucide-react'
+import { X, Plus, Minus, Move, Edit, Pencil, Eraser ,ChevronDown ,ChevronUp,ChevronRight,ChevronLeft, Eye, EyeOff} from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc,getDoc,getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc } from '@/lib/firebase'
-import Combat from '@/components/combat';  // Importez le composant de combat
+import Combat from '@/components/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 
@@ -19,7 +19,7 @@ export default function Component() {
   const [persoId, setPersoId] = useState(null);
   const [backgroundImage, setBackgroundImage] = useState('/placeholder.svg?height=600&width=800')
   const [showGrid, setShowGrid] = useState(false)
-  const [zoom, setZoom] = useState(1.2)
+  const [zoom, setZoom] = useState(1.4)
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [characters, setCharacters] = useState<Character[]>([]);
   const [notes, setNotes] = useState<Text[]>([]);
@@ -59,6 +59,7 @@ export default function Component() {
   const [visibilityRadius, setVisibilityRadius] = useState(100);
   const [isMJ, setIsMJ] = useState(false);
   const [toolbarVisible, setToolbarVisible] = useState(false);
+  const [isDungeonMode, setIsDungeonMode] = useState(true);
 
 
   useEffect(() => {
@@ -100,7 +101,7 @@ export default function Component() {
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [roomId]);
   
 
   type Character = {
@@ -169,13 +170,14 @@ useEffect(() => {
   const ctx = canvas.getContext('2d')!;
   const image = new Image();
   image.src = backgroundImage;
-  // Multiplier de taille pour agrandir le canvas (par exemple, 1.5 ou 2 pour doubler)
   const sizeMultiplier = 1.5;
   image.onload = () => {
-    canvas.width = (containerRef.current?.clientWidth || canvas.width) * sizeMultiplier;
-    canvas.height = (containerRef.current?.clientHeight || canvas.height) * sizeMultiplier;
-    ctx.scale(sizeMultiplier, sizeMultiplier); // Mise à l'échelle du contenu pour correspondre à l'agrandissement
-    drawMap(ctx, image);      
+    const containerWidth = containerRef.current?.clientWidth || canvas.width;
+    const containerHeight = containerRef.current?.clientHeight || canvas.height;
+    canvas.width = containerWidth * sizeMultiplier;
+    canvas.height = containerHeight * sizeMultiplier;
+    ctx.scale(sizeMultiplier, sizeMultiplier);
+    drawMap(ctx, image, containerWidth, containerHeight); // Pass container dimensions
   };
 }, [backgroundImage, showGrid, zoom, offset, characters, notes, selectedCharacterIndex, selectedNoteIndex, drawings, currentPath]);
 
@@ -274,11 +276,11 @@ onSnapshot(charactersRef, (snapshot) => {
     return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
   };
   
-  const drawMap = (ctx: CanvasRenderingContext2D, image: HTMLImageElement) => {
+  const drawMap = (ctx: CanvasRenderingContext2D, image: HTMLImageElement, containerWidth: number, containerHeight: number) => {
     const canvas = ctx.canvas;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   
-    const scale = Math.min(canvas.width / image.width, canvas.height / image.height);
+    const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
     const scaledWidth = image.width * scale * zoom;
     const scaledHeight = image.height * scale * zoom;
   
@@ -304,82 +306,121 @@ onSnapshot(charactersRef, (snapshot) => {
       }
     }
   
-  // Draw each character
-  characters.forEach((char, index) => {
-    const x = char.x * zoom - offset.x;
-    const y = char.y * zoom - offset.y;
+    // If dungeon mode is enabled, apply visibility mask
+    if (isDungeonMode) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
   
-    let isVisible = true;
-    if (char.visibility === 'hidden') {
-      isVisible = isMJ || characters.some((player) => {
-        return (
-          player.type === 'joueurs' &&
-          calculateDistance(char.x, char.y, player.x, player.y) <= (player.id === persoId ? visibilityRadius : player.visibilityRadius)
-        );
+      characters.forEach((char) => {
+        if (char.type === 'joueurs') {
+          const x = (char.x / image.width) * scaledWidth - offset.x;
+          const y = (char.y / image.height) * scaledHeight - offset.y;
+          ctx.globalCompositeOperation = 'destination-out';
+          ctx.beginPath();
+          ctx.arc(x, y, char.visibilityRadius * zoom, 0, 2 * Math.PI);
+          ctx.fill();
+        }
       });
+  
+      ctx.globalCompositeOperation = 'destination-over';
+      ctx.drawImage(image, -offset.x, -offset.y, scaledWidth, scaledHeight);
+      ctx.restore();
     }
   
-    if (isVisible) {
-      // Set border color based on character type or if it is the player's character
-      const borderColor = char.id === persoId 
-        ? 'rgba(255, 0, 0, 0.8)'           // Red for the player's character
-        : char.type === 'joueurs' 
-        ? 'rgba(0, 0, 255, 0.8)'           // Blue for other 'joueurs' type characters
-        : 'rgba(255, 165, 0, 0.8)';        // Orange for other characters (e.g., NPCs)
-        
-      ctx.strokeStyle = borderColor;
-      ctx.lineWidth = 3;
+    // Draw each character
+    characters.forEach((char, index) => {
+      const x = (char.x / image.width) * scaledWidth - offset.x;
+      const y = (char.y / image.height) * scaledHeight - offset.y;
   
-      // Draw character border circle
-      ctx.beginPath();
-      ctx.arc(x, y, 22 * zoom, 0, 2 * Math.PI);  // Slightly larger than the character icon
-      ctx.stroke();
-  
-      // Draw character icon
-      if (char.image) {
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(x, y, 20 * zoom, 0, 2 * Math.PI);
-        ctx.clip();
-        ctx.drawImage(char.image, x - 20 * zoom, y - 20 * zoom, 40 * zoom, 40 * zoom);
-        ctx.restore();
-      } else {
-        ctx.fillStyle = 'red';
-        ctx.beginPath();
-        ctx.arc(x, y, 20 * zoom, 0, 2 * Math.PI);
-        ctx.fill();
+      let isVisible = true;
+      if (char.visibility === 'hidden') {
+        isVisible = isMJ || characters.some((player) => {
+          return (
+            player.type === 'joueurs' &&
+            calculateDistance(char.x, char.y, player.x, player.y) <= (player.id === persoId ? visibilityRadius : player.visibilityRadius)
+          );
+        });
       }
   
-      // Draw discreet level badge at the bottom-right of the character icon
-      const badgeRadius = 8 * zoom;  // Smaller and more discreet badge
-      const badgeX = x + 16 * zoom;  // Positioning the badge slightly further out
-      const badgeY = y + 16 * zoom;
+      // Additional check for dungeon mode to hide NPCs outside visibility radius
+      if (isDungeonMode && char.type === 'pnj') {
+        isVisible = characters.some((player) => {
+          return (
+            player.type === 'joueurs' &&
+            calculateDistance(char.x, char.y, player.x, player.y) <= player.visibilityRadius
+          );
+        });
+      }
   
-      // Set badge color: Red if it's the player's character, Blue for 'joueurs', Orange for others
-      ctx.fillStyle = char.id === persoId 
-        ? 'rgba(255, 0, 0, 1)'             // Red for the player's character
-        : char.type === 'joueurs' 
-        ? 'rgba(0, 0, 255, 1)'             // Blue for 'joueurs'
-        : 'rgba(255, 165, 0, 1)';          // Orange for other characters
-      ctx.beginPath();
-      ctx.arc(badgeX, badgeY, badgeRadius, 0, 2 * Math.PI);
-      ctx.fill();
+      if (isVisible) {
+        // Set border color based on character type or if it is the player's character
+        const borderColor = char.id === persoId 
+          ? 'rgba(255, 0, 0, 0.8)'           // Red for the player's character
+          : char.type === 'joueurs' 
+          ? 'rgba(0, 0, 255, 0.8)'           // Blue for other 'joueurs' type characters
+          : 'rgba(255, 165, 0, 0.8)';        // Orange for other characters (e.g., NPCs)
+          
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 3;
   
-      // Draw the level number inside the badge
-      ctx.fillStyle = 'white';
-      ctx.font = `${8 * zoom}px Arial`;  // Smaller font size for the discreet badge
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`${char.niveau}`, badgeX, badgeY);
-    }
-  });
+        // Draw character border circle
+        ctx.beginPath();
+        ctx.arc(x, y, 22 * zoom, 0, 2 * Math.PI);  // Slightly larger than the character icon
+        ctx.stroke();
   
-
+        // Draw character icon
+        if (char.image) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(x, y, 20 * zoom, 0, 2 * Math.PI);
+          ctx.clip();
+          ctx.drawImage(char.image, x - 20 * zoom, y - 20 * zoom, 40 * zoom, 40 * zoom);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = 'red';
+          ctx.beginPath();
+          ctx.arc(x, y, 20 * zoom, 0, 2 * Math.PI);
+          ctx.fill();
+        }
+  
+        // Draw discreet level badge at the bottom-right of the character icon
+        const badgeRadius = 8 * zoom;  // Smaller and more discreet badge
+        const badgeX = x + 16 * zoom;  // Positioning the badge slightly further out
+        const badgeY = y + 16 * zoom;
+  
+        // Set badge color: Red if it's the player's character, Blue for 'joueurs', Orange for others
+        ctx.fillStyle = char.id === persoId 
+          ? 'rgba(255, 0, 0, 1)'             // Red for the player's character
+          : char.type === 'joueurs' 
+          ? 'rgba(0, 0, 255, 1)'             // Blue for 'joueurs'
+          : 'rgba(255, 165, 0, 1)';          // Orange for other characters
+        ctx.beginPath();
+        ctx.arc(badgeX, badgeY, badgeRadius, 0, 2 * Math.PI);
+        ctx.fill();
+  
+        // Draw the level number inside the badge
+        ctx.fillStyle = 'white';
+        ctx.font = `${8 * zoom}px Arial`;  // Smaller font size for the discreet badge
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(`${char.niveau}`, badgeX, badgeY);
+      }
+  
+      // Draw visibility radius if character is of type 'joueurs' and is selected
+      if (char.type === 'joueurs' && index === selectedCharacterIndex) {
+        ctx.fillStyle = 'rgba(0, 0, 255, 0.2)'; // Light blue with transparency
+        ctx.beginPath();
+        ctx.arc(x, y, char.visibilityRadius * zoom, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    });
   
     // Draw each note
     notes.forEach((note, index) => {
-      const x = note.x * zoom - offset.x;
-      const y = note.y * zoom - offset.y;
+      const x = (note.x / image.width) * scaledWidth - offset.x;
+      const y = (note.y / image.height) * scaledHeight - offset.y;
       ctx.fillStyle = note.color || 'yellow';
       ctx.font = `${12 * zoom}px Arial`;
       ctx.fillText(note.text, x, y);
@@ -400,8 +441,8 @@ onSnapshot(charactersRef, (snapshot) => {
         if (path && Array.isArray(path)) {
           ctx.beginPath();
           path.forEach((point, index) => {
-            const x = point.x * zoom - offset.x;
-            const y = point.y * zoom - offset.y;
+            const x = (point.x / image.width) * scaledWidth - offset.x;
+            const y = (point.y / image.height) * scaledHeight - offset.y;
             if (index === 0) {
               ctx.moveTo(x, y);
             } else {
@@ -417,8 +458,8 @@ onSnapshot(charactersRef, (snapshot) => {
     if (currentPath.length > 0) {
       ctx.beginPath();
       currentPath.forEach((point, index) => {
-        const x = point.x * zoom - offset.x;
-        const y = point.y * zoom - offset.y;
+        const x = (point.x / image.width) * scaledWidth - offset.x;
+        const y = (point.y / image.height) * scaledHeight - offset.y;
         if (index === 0) {
           ctx.moveTo(x, y);
         } else {
@@ -429,7 +470,7 @@ onSnapshot(charactersRef, (snapshot) => {
     }
   };
   
-  
+
   const handleBackgroundChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && roomId) {
@@ -560,20 +601,28 @@ const handleAddNote = async () => {
   }
 };
 
-  const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const clickX = (e.clientX - rect.left + offset.x) / zoom;
-    const clickY = (e.clientY - rect.top + offset.y) / zoom;
+const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
+  const rect = canvasRef.current?.getBoundingClientRect();
+  if (!rect) return;
+  const containerWidth = containerRef.current?.clientWidth || rect.width;
+  const containerHeight = containerRef.current?.clientHeight || rect.height;
+  const image = new Image();
+  image.src = backgroundImage;
+  image.onload = () => {
+    const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
+    const scaledWidth = image.width * scale * zoom;
+    const scaledHeight = image.height * scale * zoom;
+    const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
+    const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
+
     if (drawMode) {
       setIsDrawing(true);
       setCurrentPath([{ x: clickX, y: clickY }]);
     } else if (isMoving) {
       if (selectedCharacterIndex !== null) {
         const charToMove = characters[selectedCharacterIndex];
-  
         if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && typeof charToMove?.id === 'string' && charToMove.id.trim()) {
-          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToMove.id), {
+          updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToMove.id), {
             x: clickX,
             y: clickY
           });
@@ -583,7 +632,7 @@ const handleAddNote = async () => {
       } else if (selectedNoteIndex !== null) {
         const noteToMove = notes[selectedNoteIndex];
         if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && typeof noteToMove?.id === 'string' && noteToMove.id.trim()) {
-          await updateDoc(doc(db, 'cartes', String(roomId), 'text', noteToMove.id), {
+          updateDoc(doc(db, 'cartes', String(roomId), 'text', noteToMove.id), {
             x: clickX,
             y: clickY
           });
@@ -595,12 +644,16 @@ const handleAddNote = async () => {
       setSelectedCharacterIndex(null);
       setSelectedNoteIndex(null);
     } else {
-      const clickedCharIndex = characters.findIndex(char => 
-        Math.abs(char.x - clickX) < 20 && Math.abs(char.y - clickY) < 20
-      );
-      const clickedNoteIndex = notes.findIndex(note => 
-        Math.abs(note.x - clickX) < 50 && Math.abs(note.y - clickY) < 20
-      );
+      const clickedCharIndex = characters.findIndex(char => {
+        const charX = (char.x / image.width) * scaledWidth - offset.x;
+        const charY = (char.y / image.height) * scaledHeight - offset.y;
+        return Math.abs(charX - e.clientX + rect.left) < 20 * zoom && Math.abs(charY - e.clientY + rect.top) < 20 * zoom;
+      });
+      const clickedNoteIndex = notes.findIndex(note => {
+        const noteX = (note.x / image.width) * scaledWidth - offset.x;
+        const noteY = (note.y / image.height) * scaledHeight - offset.y;
+        return Math.abs(noteX - e.clientX + rect.left) < 50 * zoom && Math.abs(noteY - e.clientY + rect.top) < 20 * zoom;
+      });
       if (clickedCharIndex !== -1) {
         setSelectedCharacterIndex(clickedCharIndex);
         setSelectedNoteIndex(null);
@@ -615,8 +668,9 @@ const handleAddNote = async () => {
       }
     }
   };
-  
-  
+};
+
+
   const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
     if (isDragging) {
         const dx = e.clientX - dragStart.x;
@@ -627,9 +681,18 @@ const handleAddNote = async () => {
         const rect = canvasRef.current?.getBoundingClientRect();
         if (!rect) return; // Ensure canvasRef.current is not null
 
-        const x = (e.clientX - rect.left + offset.x) / zoom;
-        const y = (e.clientY - rect.top + offset.y) / zoom;
-        setCurrentPath((prev) => [...prev, { x, y }]);
+        const containerWidth = containerRef.current?.clientWidth || rect.width;
+        const containerHeight = containerRef.current?.clientHeight || rect.height;
+        const image = new Image();
+        image.src = backgroundImage;
+        image.onload = () => {
+          const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
+          const scaledWidth = image.width * scale * zoom;
+          const scaledHeight = image.height * scale * zoom;
+          const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
+          const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
+          setCurrentPath((prev) => [...prev, { x, y }]);
+        };
     }
 };
 
@@ -899,6 +962,43 @@ const handleNoteEditSubmit = async () => {
     }
   };
   
+  const toggleVisibility = async () => {
+    if (selectedCharacterIndex !== null && roomId) {
+      const charToUpdate = characters[selectedCharacterIndex];
+      if (charToUpdate?.id) {
+        const newVisibility = charToUpdate.visibility === 'visible' ? 'hidden' : 'visible';
+        try {
+          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToUpdate.id), {
+            visibility: newVisibility
+          });
+          setCharacters((prevCharacters) =>
+            prevCharacters.map((character, index) =>
+              index === selectedCharacterIndex ? { ...character, visibility: newVisibility } : character
+            )
+          );
+        } catch (error) {
+          console.error("Erreur lors de la mise à jour de la visibilité du personnage :", error);
+        }
+      } else {
+        console.error("Erreur: ID du personnage non valide.");
+      }
+    }
+  };
+  
+  const toggleDungeonMode = async () => {
+    if (roomId) {
+      const settingsRef = doc(db, 'cartes', String(roomId), 'settings', 'general');
+      try {
+        await updateDoc(settingsRef, {
+          donjon: !isDungeonMode
+        });
+        setIsDungeonMode(!isDungeonMode);
+      } catch (error) {
+        console.error("Erreur lors de la mise à jour du mode donjon :", error);
+      }
+    }
+  };
+
   if (loading) {
     return <div>Chargement...</div>
   }
@@ -978,6 +1078,9 @@ const handleNoteEditSubmit = async () => {
         {(
           <Button onClick={clearDrawings}>Effacer les dessins</Button>
         )}
+        <Button onClick={toggleDungeonMode}>
+          {isDungeonMode ? 'Mode Normal' : 'Mode Donjon'}
+        </Button>
       </div>
     )}
   </div>
@@ -999,10 +1102,9 @@ const handleNoteEditSubmit = async () => {
     />
     {combatOpen && (
         <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-10">
-            <div className="bg-white p-6 rounded-lg shadow-lg w-1/3 h-2/5">
+            <div className="text-black p-6 rounded-lg shadow-lg w-1/3 h-2/5">
             <Combat
   attackerId={attackerId || ''} // Fallback to an empty string
-  targetId={targetId || ''}      // Fallback to an empty string
   onClose={() => setCombatOpen(false)}
 />
 
@@ -1012,37 +1114,44 @@ const handleNoteEditSubmit = async () => {
 </div>
 
 {selectedCharacterIndex !== null && (
-    <div className="absolute bottom-3 flex left-1/2 space-x-2">
-        {/* Vérifier si le joueur est MJ ou s'il s'agit de son propre personnage */}
-        {isMJ || characters[selectedCharacterIndex].id === persoId ? (
-            <>
-                <Button onClick={handleMoveCharacter}>
-                    <Move className="w-4 h-4 mr-2" /> Déplacer
-                </Button>
-                {isMJ && (
-                    <>
-                        <Button onClick={handleDeleteCharacter}>
-                            <X className="w-4 h-4 mr-2" /> Supprimer
-                        </Button>
-                        <Button onClick={handleEditCharacter}>
-                            <Edit className="w-4 h-4 mr-2" /> Modifier
-                        </Button>
-                        {/* Bouton attaquer pour le MJ */}
-                        <Button onClick={handleAttack}>
-                            <Edit className="w-4 h-4 mr-2" /> Attaquer
-                        </Button>
-                    </>
-                )}
-            </>
-        ) : (
-
-            characters[selectedCharacterIndex].id !== persoId && (
-                <Button onClick={handleAttack}>
-                    <Edit className="w-4 h-4 mr-2" /> Attaquer
-                </Button>
-            )
+  <div className="absolute bottom-3 flex left-1/2 space-x-2">
+    {/* Vérifier si le joueur est MJ ou s'il s'agit de son propre personnage */}
+    {isMJ || characters[selectedCharacterIndex].id === persoId ? (
+      <>
+        <Button onClick={handleMoveCharacter}>
+          <Move className="w-4 h-4 mr-2" /> Déplacer
+        </Button>
+        {isMJ && (
+          <>
+            <Button onClick={handleDeleteCharacter}>
+              <X className="w-4 h-4 mr-2" /> Supprimer
+            </Button>
+            <Button onClick={handleEditCharacter}>
+              <Edit className="w-4 h-4 mr-2" /> Modifier
+            </Button>
+            <Button onClick={toggleVisibility}>
+              {characters[selectedCharacterIndex].visibility === 'visible' ? (
+                <EyeOff className="w-4 h-4 mr-2" /> // Icon for hiding
+              ) : (
+                <Eye className="w-4 h-4 mr-2" /> // Icon for showing
+              )}
+              {characters[selectedCharacterIndex].visibility === 'visible' ? 'Masquer' : 'Afficher'}
+            </Button>
+            {/* Bouton attaquer pour le MJ */}
+            <Button onClick={handleAttack}>
+              <Edit className="w-4 h-4 mr-2" /> Attaquer
+            </Button>
+          </>
         )}
-    </div>
+      </>
+    ) : (
+      characters[selectedCharacterIndex].id !== persoId && (
+        <Button onClick={handleAttack}>
+          <Edit className="w-4 h-4 mr-2" /> Attaquer
+        </Button>
+      )
+    )}
+  </div>
 )}
 
       {selectedNoteIndex !== null  && (
