@@ -316,14 +316,14 @@ const [userRole, setUserRole] = useState<string | null>(null);
       return;
     }
   
-    const newPV_Max = (selectedCharacter.PV_Max || 0) + rollResult;
+    const newPV_Max = (parseInt(selectedCharacter.PV_Max as any) || 0) + rollResult;
     const updatedCharacter = {
       ...selectedCharacter,
       PV_Max: newPV_Max,
       PV: newPV_Max, 
-      Contact: (selectedCharacter.Contact || 0) + 1,
-      Distance: (selectedCharacter.Distance || 0) + 1,
-      Magie: (selectedCharacter.Magie || 0) + 1,
+      Contact: (parseInt(selectedCharacter.Contact as any) || 0) + 1,
+      Distance: (parseInt(selectedCharacter.Distance as any) || 0) + 1,
+      Magie: (parseInt(selectedCharacter.Magie as any) || 0) + 1,
     };
   
     try {
