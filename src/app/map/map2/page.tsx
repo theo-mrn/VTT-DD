@@ -65,6 +65,9 @@ export default function Component() {
   const [fogSquares, setFogSquares] = useState<Point[]>([]);
   const squareSize = 200; // Déclarer la taille des carrés de brouillard en dehors de la fonction drawMap
   const [revealMode, setRevealMode] = useState(false);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionStart, setSelectionStart] = useState<Point | null>(null);
+  const [selectedCharacters, setSelectedCharacters] = useState<number[]>([]);
 
 
   useEffect(() => {
@@ -407,7 +410,9 @@ onSnapshot(charactersRef, (snapshot) => {
   
       if (isVisible) {
         // Set border color based on character type or if it is the player's character
-        const borderColor = char.id === persoId 
+        const borderColor = selectedCharacters.includes(index)
+          ? 'rgba(0, 255, 0, 0.8)'           // Green for selected characters
+          : char.id === persoId 
           ? 'rgba(255, 0, 0, 0.8)'           // Red for the player's character
           : char.type === 'joueurs' 
           ? 'rgba(0, 0, 255, 0.8)'           // Blue for other 'joueurs' type characters
@@ -458,22 +463,22 @@ onSnapshot(charactersRef, (snapshot) => {
         ctx.textBaseline = 'middle';
         ctx.fillText(`${char.niveau}`, badgeX, badgeY);
       }
-
+  
       // Draw hidden status badge if character is hidden
       if (char.visibility === 'hidden' && isMJ) {
         const badgeX = x + 16 * zoom; // Positioning the badge at the top-right
         const badgeY = y - 16 * zoom;
-
+  
         ctx.fillStyle = char.id === persoId 
           ? 'rgba(255, 0, 0, 1)'             // Red for the player's character
           : char.type === 'joueurs' 
           ? 'rgba(0, 0, 255, 1)'             // Blue for 'joueurs'
           : 'rgba(255, 165, 0, 1)';          // Orange for other characters
-
+  
         ctx.beginPath();
         ctx.arc(badgeX, badgeY, 8 * zoom, 0, 2 * Math.PI);
         ctx.fill();
-
+  
         ctx.fillStyle = 'white';
         ctx.font = `${8 * zoom}px Arial`;
         ctx.textAlign = 'center';
@@ -834,6 +839,20 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
         } else {
           console.error("Erreur: roomId ou noteToMove.id n'est pas une chaîne valide.");
         }
+      } else if (selectedCharacters.length > 0) {
+        const updatePromises = selectedCharacters.map(async (index) => {
+          const charToMove = characters[index];
+          if (charToMove?.id) {
+            const deltaX = charToMove.x - characters[selectedCharacters[0]].x;
+            const deltaY = charToMove.y - characters[selectedCharacters[0]].y;
+            await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToMove.id), {
+              x: clickX + deltaX,
+              y: clickY + deltaY
+            });
+          }
+        });
+        await Promise.all(updatePromises);
+        setSelectedCharacters([]);
       }
       setIsMoving(false);
       setSelectedCharacterIndex(null);
@@ -863,16 +882,76 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
       }
     }
   };
+  if (isSelecting) {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const containerWidth = containerRef.current?.clientWidth || rect.width;
+    const containerHeight = containerRef.current?.clientHeight || rect.height;
+    const image = new Image();
+    image.src = backgroundImage;
+    image.onload = () => {
+      const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
+      const scaledWidth = image.width * scale * zoom;
+      const scaledHeight = image.height * scale * zoom;
+      const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
+      const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
+      setSelectionStart({ x: clickX, y: clickY });
+    };
+  }
 };
 
 
-  const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
-    if (isDragging) {
-        const dx = e.clientX - dragStart.x;
-        const dy = e.clientY - dragStart.y;
-        setOffset((prev) => ({ x: prev.x - dx, y: prev.y - dy }));
-        setDragStart({ x: e.clientX, y: e.clientY });
-    } else if (isDrawing && fogMode) {
+const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
+  if (isSelecting && selectionStart) {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const containerWidth = containerRef.current?.clientWidth || rect.width;
+    const containerHeight = containerRef.current?.clientHeight || rect.height;
+    const image = new Image();
+    image.src = backgroundImage;
+    image.onload = () => {
+      const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
+      const scaledWidth = image.width * scale * zoom;
+      const scaledHeight = image.height * scale * zoom;
+      const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
+      const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
+      const selected = characters
+        .map((char, index) => {
+          return (
+            char.type === 'pnj' &&
+            char.x >= Math.min(selectionStart.x, x) &&
+            char.x <= Math.max(selectionStart.x, x) &&
+            char.y >= Math.min(selectionStart.y, y) &&
+            char.y <= Math.max(selectionStart.y, y)
+          )
+            ? index
+            : null;
+        })
+        .filter((index) => index !== null) as number[];
+      setSelectedCharacters(selected);
+    };
+  } else if (isDragging) {
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    setOffset((prev) => ({ x: prev.x - dx, y: prev.y - dy }));
+    setDragStart({ x: e.clientX, y: e.clientY });
+  } else if (isDrawing && fogMode) {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return; // Ensure canvasRef.current is not null
+
+    const containerWidth = containerRef.current?.clientWidth || rect.width;
+    const containerHeight = containerRef.current?.clientHeight || rect.height;
+    const image = new Image();
+    image.src = backgroundImage;
+    image.onload = () => {
+      const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
+      const scaledWidth = image.width * scale * zoom;
+      const scaledHeight = image.height * scale * zoom;
+      const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
+      const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
+      setCurrentPath((prev) => [...prev, { x, y }]);
+    };
+  } else if (isDrawing) {
       const rect = canvasRef.current?.getBoundingClientRect();
       if (!rect) return; // Ensure canvasRef.current is not null
 
@@ -888,58 +967,45 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
         const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
         setCurrentPath((prev) => [...prev, { x, y }]);
       };
-    } else if (isDrawing) {
-        const rect = canvasRef.current?.getBoundingClientRect();
-        if (!rect) return; // Ensure canvasRef.current is not null
-
-        const containerWidth = containerRef.current?.clientWidth || rect.width;
-        const containerHeight = containerRef.current?.clientHeight || rect.height;
-        const image = new Image();
-        image.src = backgroundImage;
-        image.onload = () => {
-          const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
-          const scaledWidth = image.width * scale * zoom;
-          const scaledHeight = image.height * scale * zoom;
-          const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
-          const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
-          setCurrentPath((prev) => [...prev, { x, y }]);
-        };
-    }
+  }
 };
 
-  
-  const handleCanvasMouseUp = async () => {
-    setIsDragging(false);
-    if (isDrawing && fogMode) {
-      setIsDrawing(false);
-  
-      // Vérifie si roomId est une chaîne ou un nombre valide et si currentPath n'est pas vide
-      if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && currentPath.length > 0) {
-        await addDoc(collection(db, 'cartes', String(roomId), 'fog'), {
-          paths: currentPath
-        });
-        setFogPaths(prev => [...prev, currentPath]);
-        setCurrentPath([]);
-      } else {
-        console.error("Erreur: roomId n'est pas une chaîne valide ou currentPath est vide.");
-      }
-    } else if (isDrawing) {
-      setIsDrawing(false);
-  
-      // Vérifie si roomId est une chaîne ou un nombre valide et si currentPath n'est pas vide
-      if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && currentPath.length > 0) {
-        await addDoc(collection(db, 'cartes', String(roomId), 'drawings'), {
-          paths: currentPath
-        });
-        setDrawings(prev => [...prev, currentPath]);
-        setCurrentPath([]);
-      } else {
-        console.error("Erreur: roomId n'est pas une chaîne valide ou currentPath est vide.");
-      }
+
+const handleCanvasMouseUp = async () => {
+  setIsDragging(false);
+  if (isDrawing && fogMode) {
+    setIsDrawing(false);
+
+    // Vérifie si roomId est une chaîne ou un nombre valide et si currentPath n'est pas vide
+    if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && currentPath.length > 0) {
+      await addDoc(collection(db, 'cartes', String(roomId), 'fog'), {
+        paths: currentPath
+      });
+      setFogPaths(prev => [...prev, currentPath]);
+      setCurrentPath([]);
+    } else {
+      console.error("Erreur: roomId n'est pas une chaîne valide ou currentPath est vide.");
     }
-  };
-  
-  
+  } else if (isDrawing) {
+    setIsDrawing(false);
+
+    // Vérifie si roomId est une chaîne ou un nombre valide et si currentPath n'est pas vide
+    if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && currentPath.length > 0) {
+      await addDoc(collection(db, 'cartes', String(roomId), 'drawings'), {
+        paths: currentPath
+      });
+      setDrawings(prev => [...prev, currentPath]);
+      setCurrentPath([]);
+    } else {
+      console.error("Erreur: roomId n'est pas une chaîne valide ou currentPath est vide.");
+    }
+  }
+  if (isSelecting) {
+    setIsSelecting(false);
+    setSelectionStart(null);
+  }
+};
+
 
   const handleZoom = (delta: number) => {
     setZoom((prev) => {
@@ -1277,7 +1343,7 @@ const handleNoteEditSubmit = async () => {
         charX >= square.x - squareSize / 2 &&
         charX <= square.x + squareSize / 2 &&
         charY >= square.y - squareSize / 2 &&
-        charY <= square.y + squareSize / 2
+        charY <= squareSize / 2
       );
   
       if (isInFog && data.visibility === 'visible') {
@@ -1289,6 +1355,42 @@ const handleNoteEditSubmit = async () => {
   useEffect(() => {
     updateCharacterVisibilityInFog();
   }, [fogSquares]);
+  
+
+  const handleDeleteSelectedCharacters = async () => {
+    if (selectedCharacters.length > 0 && roomId) {
+      const deletePromises = selectedCharacters.map(async (index) => {
+        const charToDelete = characters[index];
+        if (charToDelete?.id) {
+          await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', charToDelete.id));
+        }
+      });
+  
+      await Promise.all(deletePromises);
+      setCharacters(characters.filter((_, index) => !selectedCharacters.includes(index)));
+      setSelectedCharacters([]);
+    }
+  };
+  
+  const handleToggleVisibilitySelectedCharacters = async (visibility: 'visible' | 'hidden') => {
+    console.log("hdhdh");
+    if (selectedCharacters.length > 0 && roomId) {
+      const updatePromises = selectedCharacters.map(async (index) => {
+        const charToUpdate = characters[index];
+        if (charToUpdate?.id) {
+          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToUpdate.id), {
+            visibility: visibility
+          });
+        }
+      });
+  
+      await Promise.all(updatePromises);
+      setCharacters(characters.map((character, index) => 
+        selectedCharacters.includes(index) ? { ...character, visibility: visibility } : character
+      ));
+      setSelectedCharacters([]);
+    }
+  };
   
 
   if (loading) {
@@ -1380,8 +1482,8 @@ const handleNoteEditSubmit = async () => {
         {fogMode && (
           <Button onClick={clearFog}>Effacer le brouillard</Button>
         )}
-        <Button onClick={toggleRevealMode}>
-          {revealMode ? 'Arrêter de révéler' : 'Révéler'
+        <Button onClick={() => setIsSelecting(!isSelecting)}>
+          {isSelecting ? 'Arrêter de sélectionner' : 'Sélectionner'
           }
         </Button>
       </div>
@@ -1392,7 +1494,7 @@ const handleNoteEditSubmit = async () => {
   
       <div
     ref={containerRef}
-    className="w-full h-full flex-1 overflow-hidden border border-gray-300 cursor-move relative"
+    className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${isSelecting ? 'cursor-crosshair' : 'cursor-move'} relative`}
     style={{ height: '100vh' }}
     onMouseDown={handleCanvasMouseDown}
     onMouseMove={handleCanvasMouseMove}
@@ -1461,7 +1563,24 @@ const handleNoteEditSubmit = async () => {
   </div>
 )}
 
-// ...existing code...
+{selectedCharacters.length > 0 && (
+  <div className="absolute bottom-3 flex left-1/2 space-x-2 items-center">
+      <Button onClick={() => handleToggleVisibilitySelectedCharacters('hidden')}>
+      <EyeOff className="w-4 h-4 mr-2" /> Rendre caché
+    </Button>
+    <Button onClick={() => handleToggleVisibilitySelectedCharacters('visible')}>
+      <Eye className="w-4 h-4 mr-2" /> Rendre visible
+    </Button>
+    <Button onClick={() => setIsMoving(true)}>
+      <Move className="w-4 h-4 mr-2" /> Déplacer
+    </Button>
+    <Button onClick={handleDeleteSelectedCharacters}>
+      <X className="w-4 h-4 mr-2" /> Supprimer
+    </Button>
+   
+  
+  </div>
+)}
 
       {selectedNoteIndex !== null  && (
         <div className="absolute bottom-3 flex left-1/2 space-x-2">
