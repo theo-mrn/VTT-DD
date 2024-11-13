@@ -60,6 +60,11 @@ export default function Component() {
   const [isMJ, setIsMJ] = useState(false);
   const [toolbarVisible, setToolbarVisible] = useState(false);
   const [isDungeonMode, setIsDungeonMode] = useState(false);
+  const [fogMode, setFogMode] = useState(false);
+  const [fogPaths, setFogPaths] = useState<Drawing[]>([]);
+  const [fogSquares, setFogSquares] = useState<Point[]>([]);
+  const squareSize = 200; // Déclarer la taille des carrés de brouillard en dehors de la fonction drawMap
+  const [revealMode, setRevealMode] = useState(false);
 
 
   useEffect(() => {
@@ -179,7 +184,7 @@ useEffect(() => {
     ctx.scale(sizeMultiplier, sizeMultiplier);
     drawMap(ctx, image, containerWidth, containerHeight); // Pass container dimensions
   };
-}, [backgroundImage, showGrid, zoom, offset, characters, notes, selectedCharacterIndex, selectedNoteIndex, drawings, currentPath]);
+}, [backgroundImage, showGrid, zoom, offset, characters, notes, selectedCharacterIndex, selectedNoteIndex, drawings, currentPath, fogPaths, fogSquares]);
 
 
   // Firebase Functions
@@ -270,11 +275,53 @@ onSnapshot(charactersRef, (snapshot) => {
       });
       setDrawings(drws);
     });
+
+    // Charger le brouillard
+    const fogRef = collection(db, 'cartes', room.toString(), 'fog');
+    onSnapshot(fogRef, (snapshot) => {
+      const fogs: Drawing[] = [];
+      const squares: Point[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.paths && Array.isArray(data.paths)) {
+          fogs.push(data.paths);
+        }
+        if (data.x !== undefined && data.y !== undefined) {
+          squares.push({ x: data.x, y: data.y });
+        }
+      });
+      setFogPaths(fogs);
+      setFogSquares(squares);
+    });
   };
   
   const calculateDistance = (x1:number, y1:number, x2:number, y2:number) => {
     return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
   };
+
+  const updateCharacterVisibility = async () => {
+    if (!roomId) return;
+  
+    const charactersRef = collection(db, 'cartes', String(roomId), 'characters');
+    const snapshot = await getDocs(charactersRef);
+  
+    snapshot.forEach(async (doc) => {
+      const data = doc.data();
+      const charX = data.x;
+      const charY = data.y;
+  
+      const isVisible = characters.some((player) => {
+        return (
+          player.type === 'joueurs' &&
+          calculateDistance(charX, charY, player.x, player.y) <= player.visibilityRadius
+        );
+      });
+    });
+  };
+  
+  useEffect(() => {
+    updateCharacterVisibility();
+  }, [characters, visibilityRadius]);
   
   const drawMap = (ctx: CanvasRenderingContext2D, image: HTMLImageElement, containerWidth: number, containerHeight: number) => {
     const canvas = ctx.canvas;
@@ -337,19 +384,23 @@ onSnapshot(charactersRef, (snapshot) => {
       let isVisible = true;
       if (char.visibility === 'hidden') {
         isVisible = isMJ || characters.some((player) => {
+          const playerX = (player.x / image.width) * scaledWidth - offset.x;
+          const playerY = (player.y / image.height) * scaledHeight - offset.y;
           return (
             player.type === 'joueurs' &&
-            calculateDistance(char.x, char.y, player.x, player.y) <= (player.id === persoId ? visibilityRadius : player.visibilityRadius)
+            calculateDistance(x, y, playerX, playerY) <= player.visibilityRadius * zoom
           );
         });
       }
   
-      // Additional check for dungeon mode to hide NPCs outside visibility radius
-      if (isDungeonMode && char.type === 'pnj') {
+      // Additional check for dungeon mode to hide NPCs outside visibility radius for players
+      if (!isMJ && isDungeonMode && char.type === 'pnj') {
         isVisible = characters.some((player) => {
+          const playerX = (player.x / image.width) * scaledWidth - offset.x;
+          const playerY = (player.y / image.height) * scaledHeight - offset.y;
           return (
             player.type === 'joueurs' &&
-            calculateDistance(char.x, char.y, player.x, player.y) <= player.visibilityRadius
+            calculateDistance(x, y, playerX, playerY) <= player.visibilityRadius * zoom
           );
         });
       }
@@ -407,6 +458,28 @@ onSnapshot(charactersRef, (snapshot) => {
         ctx.textBaseline = 'middle';
         ctx.fillText(`${char.niveau}`, badgeX, badgeY);
       }
+
+      // Draw hidden status badge if character is hidden
+      if (char.visibility === 'hidden' && isMJ) {
+        const badgeX = x + 16 * zoom; // Positioning the badge at the top-right
+        const badgeY = y - 16 * zoom;
+
+        ctx.fillStyle = char.id === persoId 
+          ? 'rgba(255, 0, 0, 1)'             // Red for the player's character
+          : char.type === 'joueurs' 
+          ? 'rgba(0, 0, 255, 1)'             // Blue for 'joueurs'
+          : 'rgba(255, 165, 0, 1)';          // Orange for other characters
+
+        ctx.beginPath();
+        ctx.arc(badgeX, badgeY, 8 * zoom, 0, 2 * Math.PI);
+        ctx.fill();
+
+        ctx.fillStyle = 'white';
+        ctx.font = `${8 * zoom}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('👁️', badgeX, badgeY); // EyeOff symbol
+      }
   
       // Draw visibility radius if character is of type 'joueurs' and is selected
       if (char.type === 'joueurs' && index === selectedCharacterIndex) {
@@ -453,6 +526,35 @@ onSnapshot(charactersRef, (snapshot) => {
         }
       });
     }
+  
+    // Draw fog paths
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.lineWidth = 2;
+    if (fogPaths && Array.isArray(fogPaths)) {
+      fogPaths.forEach(path => {
+        if (path && Array.isArray(path)) {
+          ctx.beginPath();
+          path.forEach((point, index) => {
+            const x = (point.x / image.width) * scaledWidth - offset.x;
+            const y = (point.y / image.height) * scaledHeight - offset.y;
+            if (index === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          });
+          ctx.stroke();
+        }
+      });
+    }
+  
+    // Draw fog squares
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+    fogSquares.forEach((point) => {
+      const x = (point.x / image.width) * scaledWidth - offset.x;
+      const y = (point.y / image.height) * scaledHeight - offset.y;
+      ctx.fillRect(x - (squareSize * zoom) / 2, y - (squareSize * zoom) / 2, squareSize * zoom, squareSize * zoom);
+    });
   
     // Draw current path if in drawing mode
     if (currentPath.length > 0) {
@@ -601,6 +703,40 @@ const handleAddNote = async () => {
   }
 };
 
+const updateCharacterVisibilityAfterFogRemoval = async (removedSquare: Point) => {
+
+  if (!roomId) return;
+
+  const charactersRef = collection(db, 'cartes', String(roomId), 'characters');
+  const snapshot = await getDocs(charactersRef);
+
+  snapshot.forEach(async (doc) => {
+    const data = doc.data();
+    const charX = data.x;
+    const charY = data.y;
+
+    const wasInRemovedSquare = (
+      charX >= removedSquare.x - squareSize / 2 &&
+      charX <= removedSquare.x + squareSize / 2 &&
+      charY >= removedSquare.y - squareSize / 2 &&
+      charY <= removedSquare.y + squareSize / 2
+    );
+
+    if (wasInRemovedSquare && data.visibility === 'hidden') {
+      const isVisible = characters.some((player) => {
+        return (
+          player.type === 'joueurs' &&
+          calculateDistance(charX, charY, player.x, player.y) <= player.visibilityRadius
+        );
+      });
+
+      if (isVisible) {
+        await updateDoc(doc.ref, { visibility: 'visible' });
+      }
+    }
+  });
+};
+
 const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
   const rect = canvasRef.current?.getBoundingClientRect();
   if (!rect) return;
@@ -608,21 +744,80 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
   const containerHeight = containerRef.current?.clientHeight || rect.height;
   const image = new Image();
   image.src = backgroundImage;
-  image.onload = () => {
+  image.onload = async () => {
     const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
     const scaledWidth = image.width * scale * zoom;
     const scaledHeight = image.height * scale * zoom;
     const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
     const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
 
-    if (drawMode) {
+    if (fogMode) {
+      const clickedSquareIndex = fogSquares.findIndex(square => 
+        clickX >= square.x - squareSize / 2 &&
+        clickX <= square.x + squareSize / 2 &&
+        clickY >= square.y - squareSize / 2 &&
+        clickY <= square.y + squareSize / 2
+      );
+
+      if (clickedSquareIndex !== -1) {
+        const squareToRemove = fogSquares[clickedSquareIndex];
+        if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim()) {
+          const fogRef = collection(db, 'cartes', String(roomId), 'fog');
+          const snapshot = await getDocs(fogRef);
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data.x === squareToRemove.x && data.y === squareToRemove.y) {
+              deleteDoc(doc.ref);
+            }
+          });
+          setFogSquares(prev => prev.filter((_, index) => index !== clickedSquareIndex));
+          await updateCharacterVisibilityAfterFogRemoval(squareToRemove); // Ajoutez cette ligne
+        } else {
+          console.error("Erreur: roomId n'est pas une chaîne valide.");
+        }
+      } else {
+        if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim()) {
+          await addDoc(collection(db, 'cartes', String(roomId), 'fog'), {
+            x: clickX,
+            y: clickY
+          });
+          setFogSquares(prev => [...prev, { x: clickX, y: clickY }]);
+        } else {
+          console.error("Erreur: roomId n'est pas une chaîne valide.");
+        }
+      }
+    } else if (revealMode) {
+      const clickedSquareIndex = fogSquares.findIndex(square => 
+        clickX >= square.x - squareSize / 2 &&
+        clickX <= square.x + squareSize / 2 &&
+        clickY >= square.y - squareSize / 2 &&
+        clickY <= square.y + squareSize / 2
+      );
+
+      if (clickedSquareIndex !== -1) {
+        const squareToRemove = fogSquares[clickedSquareIndex];
+        if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim()) {
+          const fogRef = collection(db, 'cartes', String(roomId), 'fog');
+          const snapshot = await getDocs(fogRef);
+          snapshot.forEach((doc) => {
+            const data = doc.data();
+            if (data.x === squareToRemove.x && data.y === squareToRemove.y) {
+              deleteDoc(doc.ref);
+            }
+          });
+          setFogSquares(prev => prev.filter((_, index) => index !== clickedSquareIndex));
+        } else {
+          console.error("Erreur: roomId n'est pas une chaîne valide.");
+        }
+      }
+    } else if (drawMode) {
       setIsDrawing(true);
       setCurrentPath([{ x: clickX, y: clickY }]);
     } else if (isMoving) {
       if (selectedCharacterIndex !== null) {
         const charToMove = characters[selectedCharacterIndex];
         if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && typeof charToMove?.id === 'string' && charToMove.id.trim()) {
-          updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToMove.id), {
+          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToMove.id), {
             x: clickX,
             y: clickY
           });
@@ -632,7 +827,7 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
       } else if (selectedNoteIndex !== null) {
         const noteToMove = notes[selectedNoteIndex];
         if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && typeof noteToMove?.id === 'string' && noteToMove.id.trim()) {
-          updateDoc(doc(db, 'cartes', String(roomId), 'text', noteToMove.id), {
+          await updateDoc(doc(db, 'cartes', String(roomId), 'text', noteToMove.id), {
             x: clickX,
             y: clickY
           });
@@ -677,6 +872,22 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
         const dy = e.clientY - dragStart.y;
         setOffset((prev) => ({ x: prev.x - dx, y: prev.y - dy }));
         setDragStart({ x: e.clientX, y: e.clientY });
+    } else if (isDrawing && fogMode) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return; // Ensure canvasRef.current is not null
+
+      const containerWidth = containerRef.current?.clientWidth || rect.width;
+      const containerHeight = containerRef.current?.clientHeight || rect.height;
+      const image = new Image();
+      image.src = backgroundImage;
+      image.onload = () => {
+        const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
+        const scaledWidth = image.width * scale * zoom;
+        const scaledHeight = image.height * scale * zoom;
+        const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
+        const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
+        setCurrentPath((prev) => [...prev, { x, y }]);
+      };
     } else if (isDrawing) {
         const rect = canvasRef.current?.getBoundingClientRect();
         if (!rect) return; // Ensure canvasRef.current is not null
@@ -699,7 +910,20 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
   
   const handleCanvasMouseUp = async () => {
     setIsDragging(false);
-    if (isDrawing) {
+    if (isDrawing && fogMode) {
+      setIsDrawing(false);
+  
+      // Vérifie si roomId est une chaîne ou un nombre valide et si currentPath n'est pas vide
+      if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && currentPath.length > 0) {
+        await addDoc(collection(db, 'cartes', String(roomId), 'fog'), {
+          paths: currentPath
+        });
+        setFogPaths(prev => [...prev, currentPath]);
+        setCurrentPath([]);
+      } else {
+        console.error("Erreur: roomId n'est pas une chaîne valide ou currentPath est vide.");
+      }
+    } else if (isDrawing) {
       setIsDrawing(false);
   
       // Vérifie si roomId est une chaîne ou un nombre valide et si currentPath n'est pas vide
@@ -961,6 +1185,33 @@ const handleNoteEditSubmit = async () => {
       console.error('Error clearing drawings:', error);
     }
   };
+
+  const clearFog = async () => {
+    if (!db) {
+      console.error("Database instance 'db' is not initialisée.");
+      return;
+    }
+  
+    if (!roomId) {
+      console.error("Room ID is missing or undefined.");
+      return;
+    }
+  
+    try {
+      const fogRef = collection(db, 'cartes', String(roomId), 'fog');
+      const snapshot = await getDocs(fogRef);
+  
+      if (snapshot.empty) {
+        return;
+      }
+  
+      const deletePromises = snapshot.docs.map((doc) => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      setFogSquares([]);
+    } catch (error) {
+      console.error('Error clearing fog:', error);
+    }
+  };
   
   const toggleVisibility = async () => {
     if (selectedCharacterIndex !== null && roomId) {
@@ -969,7 +1220,7 @@ const handleNoteEditSubmit = async () => {
         const newVisibility = charToUpdate.visibility === 'visible' ? 'hidden' : 'visible';
         try {
           await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToUpdate.id), {
-            visibility: newVisibility
+            visibility: newVisibility,
           });
           setCharacters((prevCharacters) =>
             prevCharacters.map((character, index) =>
@@ -998,6 +1249,47 @@ const handleNoteEditSubmit = async () => {
       }
     }
   };
+
+  const toggleFogMode = () => {
+    setFogMode(!fogMode);
+    setSelectedCharacterIndex(null);
+    setSelectedNoteIndex(null);
+  };
+
+  const toggleRevealMode = () => {
+    setRevealMode(!revealMode);
+    setSelectedCharacterIndex(null);
+    setSelectedNoteIndex(null);
+  };
+
+  const updateCharacterVisibilityInFog = async () => {
+    if (!roomId) return;
+  
+    const charactersRef = collection(db, 'cartes', String(roomId), 'characters');
+    const snapshot = await getDocs(charactersRef);
+  
+    snapshot.forEach(async (doc) => {
+      const data = doc.data();
+      const charX = data.x;
+      const charY = data.y;
+  
+      const isInFog = fogSquares.some(square => 
+        charX >= square.x - squareSize / 2 &&
+        charX <= square.x + squareSize / 2 &&
+        charY >= square.y - squareSize / 2 &&
+        charY <= square.y + squareSize / 2
+      );
+  
+      if (isInFog && data.visibility === 'visible') {
+        await updateDoc(doc.ref, { visibility: 'hidden' });
+      }
+    });
+  };
+  
+  useEffect(() => {
+    updateCharacterVisibilityInFog();
+  }, [fogSquares]);
+  
 
   if (loading) {
     return <div>Chargement...</div>
@@ -1081,6 +1373,17 @@ const handleNoteEditSubmit = async () => {
         <Button onClick={toggleDungeonMode}>
           {isDungeonMode ? 'Mode Normal' : 'Mode Donjon'}
         </Button>
+        <Button onClick={toggleFogMode}>
+          {fogMode ? <Eraser className="w-4 h-4 mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
+          {fogMode ? 'Arrêter de dessiner le brouillard' : 'Dessiner le brouillard'}
+        </Button>
+        {fogMode && (
+          <Button onClick={clearFog}>Effacer le brouillard</Button>
+        )}
+        <Button onClick={toggleRevealMode}>
+          {revealMode ? 'Arrêter de révéler' : 'Révéler'
+          }
+        </Button>
       </div>
     )}
   </div>
@@ -1113,8 +1416,12 @@ const handleNoteEditSubmit = async () => {
     )}
 </div>
 
+// ...existing code...
+
 {selectedCharacterIndex !== null && (
-  <div className="absolute bottom-3 flex left-1/2 space-x-2">
+  <div className="absolute bottom-3 flex left-1/2 space-x-2 items-center">
+    {/* Afficher le nom du personnage sélectionné */}
+    <Button className="disabled text-white">{characters[selectedCharacterIndex].name}</Button>
     {/* Vérifier si le joueur est MJ ou s'il s'agit de son propre personnage */}
     {isMJ || characters[selectedCharacterIndex].id === persoId ? (
       <>
@@ -1153,6 +1460,8 @@ const handleNoteEditSubmit = async () => {
     )}
   </div>
 )}
+
+// ...existing code...
 
       {selectedNoteIndex !== null  && (
         <div className="absolute bottom-3 flex left-1/2 space-x-2">

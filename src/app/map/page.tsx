@@ -59,7 +59,7 @@ export default function Component() {
   const [visibilityRadius, setVisibilityRadius] = useState(100);
   const [isMJ, setIsMJ] = useState(false);
   const [toolbarVisible, setToolbarVisible] = useState(false);
-  const [isDungeonMode, setIsDungeonMode] = useState(true);
+  const [isDungeonMode, setIsDungeonMode] = useState(false);
 
 
   useEffect(() => {
