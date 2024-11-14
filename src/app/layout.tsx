@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import {Aclonica} from "next/font/google"
+import { Aclonica } from "next/font/google";
+import { MusicPlayerProvider } from "@/context/MusicPlayerContext";
 
 const Aclonica_init = Aclonica({
-  subsets: ['latin'],
-  weight: ['400'],
-})
+  subsets: ["latin"],
+  weight: ["400"],
+});
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
@@ -33,7 +34,9 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <MusicPlayerProvider>
+          {children}
+        </MusicPlayerProvider>
       </body>
     </html>
   );

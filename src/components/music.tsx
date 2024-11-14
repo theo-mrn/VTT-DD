@@ -1,271 +1,188 @@
-'use client'
+"use client"
 
-import { useState, useRef, useEffect } from 'react'
-import { Music, Pause, Play, Plus, Edit, Trash, MoreHorizontal, type LucideIcon } from 'lucide-react'
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
-import { auth, db, storage, onAuthStateChanged, addDoc, collection, getDoc, doc, onSnapshot, uploadBytes, getDownloadURL, where, query, updateDoc, setDoc, deleteDoc } from "@/lib/firebase"
-import { ref } from "firebase/storage"
-import { User } from 'firebase/auth';
+import { Card, CardContent } from "@/components/ui/card"
+import { Slider } from "@/components/ui/slider"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Volume2 } from 'lucide-react'
+import { useMusicPlayer } from "@/context/MusicPlayerContext"
 
-let audioInstance: HTMLAudioElement | null = null
+// Simulons plusieurs playlists
+const playlists = [
+  {
+    id: 1,
+    name: "Chill",
+    tracks: [
+      { id: 1, title: "Musique 1", src: "/Musics/chill/M1.mp3" },
+      { id: 2, title: "Musique 2", src: "/Musics/chill/M2.mp3" },
+      { id: 3, title: "Musique 3", src: "/Musics/chill/M3.mp3" },
+      { id: 4, title: "Musique 4", src: "/Musics/chill/M4.mp3" },
+      { id: 5, title: "Musique 5", src: "/Musics/chill/M5.mp3" },
+      { id: 6, title: "Musique 6", src: "/Musics/chill/M6.mp3" },
+      { id: 7, title: "Musique 7", src: "/Musics/chill/M7.mp3" },
+      { id: 8, title: "Musique 8", src: "/Musics/chill/M8.mp3" },
+      { id: 9, title: "Musique 9", src: "/Musics/chill/M9.mp3" },
+      { id: 10, title: "Musique 10", src: "/Musics/chill/M10.mp3" },
+      { id: 11, title: "Musique 11", src: "/Musics/chill/M11.mp3" },
+      { id: 12, title: "Musique 12", src: "/Musics/chill/M12.mp3" },
+      { id: 13, title: "Musique 13", src: "/Musics/chill/M13.mp3" },
+    ]
+  },
+  {
+    id: 2,
+    name: "Combats",
+    tracks: [
+      { id: 1, title: "Musique 1", src: "/Musics/epic/M1.mp3" },
+      { id: 2, title: "Musique 2", src: "/Musics/epic/M2.mp3" },
+      { id: 3, title: "Musique 3", src: "/Musics/epic/M3.mp3" },
+      { id: 4, title: "Musique 4", src: "/Musics/epic/M4.mp3" },
+      { id: 5, title: "Musique 5", src: "/Musics/epic/M5.mp3" },
+      { id: 6, title: "Musique 6", src: "/Musics/epic/M6.mp3" },
+    ]
+  },
+  {
+    id: 3,
+    name: "Taverne",
+    tracks: [
+      { id: 1, title: "Musique 1", src: "/Musics/taverne/M1.mp3" },
+      { id: 2, title: "Musique 2", src: "/Musics/taverne/M2.mp3" },
+      { id: 3, title: "Musique 3", src: "/Musics/taverne/M3.mp3" },
+      { id: 4, title: "Musique 4", src: "/Musics/taverne/M4.mp3" },
+      { id: 5, title: "Musique 5", src: "/Musics/taverne/M5.mp3" },
+    ]
+  }
+]
 
-export default function SharedMusicPlayer() {
-  const [music, setMusic] = useState<Array<{ id: string, name: string, fileUrl: string }>>([])
-  const [newMusicName, setNewMusicName] = useState('')
-  const [isPaused, setIsPaused] = useState(false)
-  const [roomId, setRoomId] = useState<string | null>(null)
-  const [user, setUser] = useState<User | null>(null);
-  const [currentTrack, setCurrentTrack] = useState<{ name: string; fileUrl: string } | null>(null)
-  const [volume, setVolume] = useState(1)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editingName, setEditingName] = useState('')
-  const [isMJ, setIsMJ] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  
+export default function Component() {
+  const {
+    currentPlaylistId,
+    setCurrentPlaylistId,
+    isPlaying,
+    setIsPlaying,
+    currentTrack,
+    setCurrentTrack,
+    currentTime,
+    setCurrentTime,
+    volume,
+    setVolume,
+    isRepeat,
+    setIsRepeat,
+    isShuffle,
+    setIsShuffle,
+    audioRef,
+    togglePlay,
+    playNextTrack,
+    playPreviousTrack,
+    formatTime,
+    toggleShuffle,
+    toggleRepeat
+  } = useMusicPlayer()
+
+  const currentPlaylist = playlists.find(playlist => playlist.id === currentPlaylistId) || playlists[0]
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        setUser(currentUser)
-        const userDoc = await getDoc(doc(db, `users/${currentUser.uid}`))
-        if (userDoc.exists()) {
-          setRoomId(userDoc.data().room_id)
-          setIsMJ(userDoc.data().perso === "MJ") // Vérifie si l'utilisateur est MJ
-        }
-      }
-    })
-    return () => unsubscribeAuth()
-  }, [])
-
-  useEffect(() => {
-    if (!roomId) return
-
-    const musicQuery = query(collection(db, 'music'), where('room_id', '==', roomId))
-    const unsubscribeMusic = onSnapshot(musicQuery, (snapshot) => {
-      const musicList = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Array<{ id: string, name: string, fileUrl: string }>
-      setMusic(musicList)
-    })
-
-    const roomDocRef = doc(db, `rooms/${roomId}`)
-    const unsubscribeCurrentTrack = onSnapshot(roomDocRef, (doc) => {
-      const data = doc.data()
-      if (data && data.currentTrack) {
-        if (!audioInstance || audioInstance.src !== data.currentTrack.fileUrl) {
-          playNewTrack(data.currentTrack.fileUrl)
-        }
-        setCurrentTrack(data.currentTrack)
-      }
-      if (data && typeof data.isPaused === 'boolean') {
-        setIsPaused(data.isPaused)
-        if (audioInstance) {
-          data.isPaused ? audioInstance.pause() : audioInstance.play()
-        }
-      }
-    })
-
-    return () => {
-      unsubscribeMusic()
-      unsubscribeCurrentTrack()
-    }
-  }, [roomId])
-
-  const playNewTrack = (fileUrl: string) => {
-    if (audioInstance) {
-      audioInstance.pause()
-      audioInstance.currentTime = 0
-    }
-    audioInstance = new Audio(fileUrl)
-    audioInstance.volume = volume
-    if (!isPaused) {
-      audioInstance.play()
-    }
-  }
-
-  // Permet aux MJ de sélectionner une piste et la jouer
-  const selectTrack = async (track: { name: string; fileUrl: string }) => {
-    if (!roomId) return
-    setCurrentTrack(track) // Mettez à jour le state local pour la piste courante
-
-    const roomDocRef = doc(db, `rooms/${roomId}`)
-    await updateDoc(roomDocRef, { currentTrack: track, isPaused: false }) // Met à jour Firestore
-  }
-
-  const togglePauseState = async () => {
-    if (!roomId) return
-
-    const roomDocRef = doc(db, `rooms/${roomId}`)
-    const roomDoc = await getDoc(roomDocRef)
-
-    if (roomDoc.exists()) {
-      await updateDoc(roomDocRef, { isPaused: !isPaused })
-    } else {
-      await setDoc(roomDocRef, { isPaused: !isPaused, currentTrack: currentTrack })
-    }
-  }
-
-  const handleAddMusic = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newMusicName || !fileInputRef.current?.files?.[0] || !roomId) return
-
-    const file = fileInputRef.current.files[0]
-    const fileRef = ref(storage, `music/${roomId}/${file.name}`)
-
-    await uploadBytes(fileRef, file)
-    const fileUrl = await getDownloadURL(fileRef)
-
-    await addDoc(collection(db, 'music'), {
-      name: newMusicName,
-      fileUrl,
-      room_id: roomId
-    })
-
-    setNewMusicName('')
-    if (fileInputRef.current) fileInputRef.current.value = ''
-  }
-
-  const handleRename = async (id: string) => {
-    if (!editingName) return
-    const musicDocRef = doc(db, 'music', id)
-    await updateDoc(musicDocRef, { name: editingName })
-    setEditingId(null)
-    setEditingName('')
-  }
-
-  const handleDelete = async (id: string) => {
-    const musicDocRef = doc(db, 'music', id)
-    await deleteDoc(musicDocRef)
-  }
-
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newVolume = parseFloat(e.target.value)
-    setVolume(newVolume)
-    if (audioInstance) {
-      audioInstance.volume = newVolume
-    }
-  }
-
-  const MusicGrid = ({ items, Icon }: { items: typeof music, Icon: LucideIcon }) => (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-      {items.map((item) => (
-        <div key={item.id} className="relative">
-          <Button
-            variant="outline"
-            className={`h-20 w-full ${isPaused ? 'opacity-50' : ''}`}
-            onClick={() => isMJ && selectTrack({ name: item.name, fileUrl: item.fileUrl })} // Assurez-vous que le clic fonctionne pour MJ
-          >
-            <Icon className="mr-2 h-4 w-4" />
-            {editingId === item.id && isMJ ? (
-              <Input
-                value={editingName}
-                onChange={(e) => setEditingName(e.target.value)}
-                onBlur={() => handleRename(item.id)}
-                autoFocus
-              />
-            ) : (
-              item.name
-            )}
-          </Button>
-          {isMJ && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <div className="absolute top-1 right-1">
-                  <Button variant="ghost">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </div>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem onClick={() => { setEditingId(item.id); setEditingName(item.name) }}>
-                  <Edit className="mr-2 h-4 w-4" /> Renommer
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDelete(item.id)}>
-                  <Trash className="mr-2 h-4 w-4" /> Supprimer
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-      ))}
-    </div>
-  )
+    setVolume(0.03); // Définir le volume par défaut à 10%
+  }, []);
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-3xl font-bold">Musique Partagée</h1>
-        {isMJ && (
-          <Button
-            variant={isPaused ? "destructive" : "default"}
-            onClick={togglePauseState}
-          >
-            {isPaused ? <Play className="mr-2 h-4 w-4" /> : <Pause className="mr-2 h-4 w-4" />}
-            {isPaused ? "Reprendre" : "Pause"}
-          </Button>
-        )}
-      </div>
-      
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Bibliothèque Musicale</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <MusicGrid items={music} Icon={Music} />
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
+      <Card className="m-auto w-full max-w-4xl overflow-hidden">
+        <CardContent className="p-6">
+          <div className="mb-8 text-center">
+            <h2 className="mb-2 text-3xl font-bold">{currentTrack.title}</h2>
+          </div>
+          <div className="mb-8">
+            <Select value={currentPlaylistId.toString()} onValueChange={(value) => setCurrentPlaylistId(parseInt(value))}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Sélectionnez une playlist" />
+              </SelectTrigger>
+              <SelectContent>
+                {playlists.map((playlist) => (
+                  <SelectItem key={playlist.id} value={playlist.id.toString()}>
+                    {playlist.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="mb-8">
+            <Slider
+              value={[currentTime]}
+              max={audioRef.current?.duration || 0}
+              step={1}
+              onValueChange={(value) => setCurrentTime(value[0])}
+              className="w-full"
+            />
+            <div className="mt-2 flex justify-between text-sm">
+              <span>{formatTime(currentTime)}</span>
+              <span>{formatTime(audioRef.current?.duration || 0)}</span>
+            </div>
+          </div>
+          <div className="mb-8 flex items-center justify-center space-x-4">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={toggleShuffle}
+              className={isShuffle ? "bg-[hsl(var(--primary))] text-white" : ""}
+            >
+              <Shuffle />
+            </Button>
+            <Button variant="outline" size="icon" onClick={playPreviousTrack}>
+              <SkipBack />
+            </Button>
+            <Button size="icon" onClick={togglePlay}>
+              {isPlaying ? <Pause className="h-6 w-6" /> : <Play className="h-6 w-6" />}
+            </Button>
+            <Button variant="outline" size="icon" onClick={playNextTrack}>
+              <SkipForward />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={toggleRepeat}
+              className={isRepeat ? "bg-[hsl(var(--primary))] text-white" : ""}
+            >
+              <Repeat />
+            </Button>
+          </div>
+          <div className="mb-8 flex items-center space-x-2">
+            <Volume2 className="h-5 w-5" />
+            <Slider
+              value={[volume *300]} // Ajuster la valeur maximale du volume
+              max={20} 
+              min={0}// Garder la valeur maximale du slider à 100
+              step={0.5}
+              onValueChange={(value) => setVolume(value[0] / 300)}
+              className="w-full"
+            />
+          </div>
+          <ScrollArea className="h-48">
+            <div className="space-y-2">
+              {currentPlaylist.tracks.map((track) => (
+                <div
+                  key={track.id}
+                  className={`flex cursor-pointer items-center justify-between rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-gray-800 ${
+                    currentTrack.id === track.id ? "bg-gray-200 dark:bg-gray-700" : ""
+                  }`}
+                  onClick={() => {
+                    setCurrentTrack(track)
+                    setIsPlaying(true)
+                  }}
+                >
+                  <div>
+                    <p className="font-medium">{track.title}</p>
+                  </div>
+                  {currentTrack.id === track.id && (
+                    <span className="text-primary">En cours</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </CardContent>
       </Card>
-
-      <div className="flex items-center mb-6">
-        <Label className="mr-4">Volume</Label>
-        <input
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={volume}
-          onChange={handleVolumeChange}
-          className="w-full"
-        />
-      </div>
-
-      {isMJ && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Ajouter une nouvelle musique</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleAddMusic} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="music-name">Nom de la musique</Label>
-                <Input
-                  id="music-name"
-                  value={newMusicName}
-                  onChange={(e) => setNewMusicName(e.target.value)}
-                  placeholder="Ex: Symphonie relaxante"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="music-file">Fichier audio</Label>
-                <Input
-                  id="music-file"
-                  type="file"
-                  ref={fileInputRef}
-                  accept="audio/*"
-                />
-              </div>
-              <Button type="submit">
-                <Plus className="mr-2 h-4 w-4" />
-                Ajouter une musique
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

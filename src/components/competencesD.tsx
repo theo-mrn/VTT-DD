@@ -22,8 +22,6 @@ interface Competence {
   type: "passive" | "limitée" | "other";
 }
 
-
-
 interface BonusData {
   CHA: number;
   CON: number;
@@ -146,110 +144,92 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
 
   
 
-  const handleRemoveBonus = async (stat: string) => {
-    if (selectedCompetence) {
-      const updatedCompetences = competences.map((comp) =>
-        comp.id === selectedCompetence.id
-          ? { ...comp, bonuses: { ...comp.bonuses, [stat]: 0 } }
-          : comp
-      );
+const handleRemoveBonus = async (stat: string) => {
+  if (selectedCompetence) {
+    const updatedCompetences = competences.map((comp) =>
+      comp.id === selectedCompetence.id
+        ? { ...comp, bonuses: { ...comp.bonuses, [stat]: 0 } }
+        : comp
+    );
 
-      setCompetences(updatedCompetences);
-      setSelectedCompetence(updatedCompetences.find((comp) => comp.id === selectedCompetence.id) || null);
+    setCompetences(updatedCompetences);
+    setSelectedCompetence(updatedCompetences.find((comp) => comp.id === selectedCompetence.id) || null);
 
-      try {
-        const characterDoc = await getDoc(doc(db, `cartes/${roomId}/characters/${characterId}`));
-        if (characterDoc.exists()) {
-          const { Nomperso } = characterDoc.data();
-          const bonusPath = `Bonus/${roomId}/${Nomperso}/${selectedCompetence.id}`;
+    try {
+      const characterDoc = await getDoc(doc(db, `cartes/${roomId}/characters/${characterId}`));
+      if (characterDoc.exists()) {
+        const { Nomperso } = characterDoc.data();
+        const bonusPath = `Bonus/${roomId}/${Nomperso}/${selectedCompetence.id}`;
 
-          await updateDoc(doc(db, bonusPath), {
-            [stat]: 0,
-          });
-          console.log("Bonus supprimé avec succès dans Firestore pour", stat);
-        } else {
-          console.error("Document de personnage introuvable pour characterId:", characterId);
-        }
-      } catch (error) {
-        console.error("Erreur lors de la suppression du bonus:", error);
+        await updateDoc(doc(db, bonusPath), {
+          [stat]: 0,
+        });
+        console.log("Bonus supprimé avec succès dans Firestore pour", stat);
+      } else {
+        console.error("Document de personnage introuvable pour characterId:", characterId);
       }
+    } catch (error) {
+      console.error("Erreur lors de la suppression du bonus:", error);
     }
-  };
-  
+  }
+};
 
-
-  const handleAddBonus = async () => {
-    if (selectedCompetence && newBonus.stat && newBonus.value) {
-      // Mettre à jour les compétences localement
-      const updatedCompetences = competences.map((comp) =>
-        comp.id === selectedCompetence.id
-          ? {
-              ...comp,
-              bonuses: {
-                ...comp.bonuses,
-                [newBonus.stat as string]: (Number(comp.bonuses[newBonus.stat as keyof BonusData]) || 0) + newBonus.value,
-              },
-            }
-          : comp
-      );
-  
-      setCompetences(updatedCompetences);
-      setSelectedCompetence(updatedCompetences.find((comp) => comp.id === selectedCompetence.id) || null);
-      
-      // Réinitialiser `newBonus` à son état initial
-      setNewBonus({ stat: undefined, value: 0 });
-  
-      try {
-        // Récupérer le document du personnage
-        const characterDoc = await getDoc(doc(db, `cartes/${roomId}/characters/${characterId}`));
-        if (characterDoc.exists()) {
-          const { Nomperso } = characterDoc.data();
-          if (!Nomperso) {
-            console.error("Nom perso is undefined.");
-            return;
+const handleAddBonus = async () => {
+  if (selectedCompetence && newBonus.stat && newBonus.value) {
+    const updatedCompetences = competences.map((comp) =>
+      comp.id === selectedCompetence.id
+        ? {
+            ...comp,
+            bonuses: {
+              ...comp.bonuses,
+              [newBonus.stat as string]: (Number(comp.bonuses[newBonus.stat as keyof BonusData]) || 0) + newBonus.value,
+            },
           }
-          
-          const bonusPath = `Bonus/${roomId}/${Nomperso}/${selectedCompetence.id}`;
-          console.log("Bonus path:", bonusPath);
-          
-          const updatedCompetence = updatedCompetences.find((comp) => comp.id === selectedCompetence.id);
-  
-          // Créer l'objet `bonusData` pour sauvegarder dans Firestore
-          const bonusData: BonusData = {
-            CHA: updatedCompetence?.bonuses.CHA || 0,
-            CON: updatedCompetence?.bonuses.CON || 0,
-            Contact: updatedCompetence?.bonuses.Contact || 0,
-            DEX: updatedCompetence?.bonuses.DEX || 0,
-            Defense: updatedCompetence?.bonuses.Defense || 0,
-            Distance: updatedCompetence?.bonuses.Distance || 0,
-            FOR: updatedCompetence?.bonuses.FOR || 0,
-            INIT: updatedCompetence?.bonuses.INIT || 0,
-            INT: updatedCompetence?.bonuses.INT || 0,
-            Initiative: updatedCompetence?.bonuses.Initiative || 0,
-            Magie: updatedCompetence?.bonuses.Magie || 0,
-            PV: updatedCompetence?.bonuses.PV || 0,
-            SAG: updatedCompetence?.bonuses.SAG || 0,
-            active: updatedCompetence?.isActive || false,
-            category: "competence",
-          };
-  
-          // Enregistrer le bonus dans Firestore
-          await setDoc(doc(db, bonusPath), bonusData, { merge: true });
-          console.log("Bonus successfully added to Firestore:", bonusData);
-        } else {
-          console.error("Character document not found for characterId:", characterId);
-        }
-      } catch (error) {
-        console.error("Error saving bonus:", error);
-      }
-    } else {
-      console.error("Invalid bonus data or no competence selected.");
-    }
-  };
-  
-  
-  
+        : comp
+    );
 
+    setCompetences(updatedCompetences);
+    setSelectedCompetence(updatedCompetences.find((comp) => comp.id === selectedCompetence.id) || null);
+    setNewBonus({ stat: undefined, value: 0 });
+
+    try {
+      const characterDoc = await getDoc(doc(db, `cartes/${roomId}/characters/${characterId}`));
+      if (characterDoc.exists()) {
+        const { Nomperso } = characterDoc.data();
+        const bonusPath = `Bonus/${roomId}/${Nomperso}/${selectedCompetence.id}`;
+
+        const updatedCompetence = updatedCompetences.find((comp) => comp.id === selectedCompetence.id);
+
+        const bonusData: BonusData = {
+          CHA: updatedCompetence?.bonuses.CHA || 0,
+          CON: updatedCompetence?.bonuses.CON || 0,
+          Contact: updatedCompetence?.bonuses.Contact || 0,
+          DEX: updatedCompetence?.bonuses.DEX || 0,
+          Defense: updatedCompetence?.bonuses.Defense || 0,
+          Distance: updatedCompetence?.bonuses.Distance || 0,
+          FOR: updatedCompetence?.bonuses.FOR || 0,
+          INIT: updatedCompetence?.bonuses.INIT || 0,
+          INT: updatedCompetence?.bonuses.INT || 0,
+          Initiative: updatedCompetence?.bonuses.Initiative || 0,
+          Magie: updatedCompetence?.bonuses.Magie || 0,
+          PV: updatedCompetence?.bonuses.PV || 0,
+          SAG: updatedCompetence?.bonuses.SAG || 0,
+          active: updatedCompetence?.isActive || false,
+          category: "competence",
+        };
+
+        await setDoc(doc(db, bonusPath), bonusData, { merge: true });
+        console.log("Bonus successfully added to Firestore:", bonusData);
+      } else {
+        console.error("Character document not found for characterId:", characterId);
+      }
+    } catch (error) {
+      console.error("Error saving bonus:", error);
+    }
+  } else {
+    console.error("Invalid bonus data or no competence selected.");
+  }
+};
 
   const toggleCompetenceActive = async (competenceId: string, event: React.MouseEvent) => {
     event.stopPropagation();

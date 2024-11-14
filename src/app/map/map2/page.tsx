@@ -28,8 +28,8 @@ export default function Component() {
     name: '',
     image: null,
     niveau :1,
-    visibility: 'visible',
-    PV: 100,
+    visibility: 'hidden',
+    PV: 50,
     Defense: 0,
     Contact: 0,
     Distance: 0,
@@ -234,7 +234,7 @@ onSnapshot(charactersRef, (snapshot) => {
       x: data.x || 0,
       y: data.y || 0,
       image: img,
-      visibility: data.visibility || 'visible',
+      visibility: data.visibility || 'hidden',
       visibilityRadius: parseFloat(data.visibilityRadius) || 100,
       type: data.type || 'pnj',
       PV: data.PV || 10, // Assurez-vous que chaque champ est bien extrait
@@ -1639,7 +1639,7 @@ const handleNoteEditSubmit = async () => {
 
       {/* Visibility Field */}
       <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="visibility" className="text-right">Visibilité</Label>
+        <Label htmlFor="visibility" className="text-right">Visible </Label>
         <Switch
           id="visibility"
           checked={newCharacter.visibility === 'visible'}
