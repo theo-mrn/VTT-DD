@@ -31,16 +31,16 @@ interface BonusData {
   INIT: number;
   INT: number;
   Contact: number;
-  Initiative: number;
   Distance: number;
   Magie: number;
   PV: number;
+  PV_Max:number;
   SAG: number;
   active: boolean;
   category: string;
 }
 
-const statOptions = ["FOR", "DEX", "CON", "INT", "SAG", "CHA", "PV", "PV_MAX","Contact","Distance","Magie", "Defense"];
+const statOptions = ["FOR", "DEX", "CON", "INT", "SAG", "CHA", "PV", "PV_Max","Contact","Distance","Magie", "Defense"];
 
 interface CompetencesDisplayProps {
   roomId: string;
@@ -131,9 +131,9 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
         FOR: bonusData.FOR || 0,
         INIT: bonusData.INIT || 0,
         INT: bonusData.INT || 0,
-        Initiative: bonusData.Initiative || 0,
         Magie: bonusData.Magie || 0,
         PV: bonusData.PV || 0,
+        PV_Max: bonusData.PV_Max || 0,
         SAG: bonusData.SAG || 0,
         active: bonusData.active || false,
       };
@@ -210,9 +210,9 @@ const handleAddBonus = async () => {
           FOR: updatedCompetence?.bonuses.FOR || 0,
           INIT: updatedCompetence?.bonuses.INIT || 0,
           INT: updatedCompetence?.bonuses.INT || 0,
-          Initiative: updatedCompetence?.bonuses.Initiative || 0,
           Magie: updatedCompetence?.bonuses.Magie || 0,
           PV: updatedCompetence?.bonuses.PV || 0,
+          PV_Max: updatedCompetence?.bonuses.PV_Max || 0,
           SAG: updatedCompetence?.bonuses.SAG || 0,
           active: updatedCompetence?.isActive || false,
           category: "competence",
