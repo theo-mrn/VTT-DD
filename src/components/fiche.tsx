@@ -260,7 +260,7 @@ const [userRole, setUserRole] = useState<string | null>(null);
     onSnapshot(bonusesRef, (snapshot) => {
       const totalBonuses: Bonuses = {
         CHA: 0, CON: 0, Contact: 0, DEX: 0, Defense: 0, Distance: 0,
-        FOR: 0, INIT: 0, INT: 0, Magie: 0, PV: 0, SAG: 0,
+        FOR: 0, INIT: 0, INT: 0, Magie: 0,PV_Max:0, PV: 0, SAG: 0,
       };
 
       snapshot.forEach((doc) => {
