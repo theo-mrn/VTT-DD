@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { X, Plus, Minus, Move, Edit, Pencil, Eraser ,ChevronDown ,ChevronUp,ChevronRight,ChevronLeft, Eye, EyeOff} from 'lucide-react'
-import { auth, db, onAuthStateChanged, doc,getDoc,getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc } from '@/lib/firebase'
+import { X, Plus, Minus, Move, Edit, Pencil, Eraser ,CircleUserRound, Eclipse ,Baseline,SquareDashedMousePointer,ChevronRight,ChevronLeft, Eye, EyeOff} from 'lucide-react'
+import { auth, db, onAuthStateChanged, doc,getDoc,getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
@@ -59,7 +59,6 @@ export default function Component() {
   const [visibilityRadius, setVisibilityRadius] = useState(100);
   const [isMJ, setIsMJ] = useState(false);
   const [toolbarVisible, setToolbarVisible] = useState(false);
-  const [isDungeonMode, setIsDungeonMode] = useState(false);
   const [fogMode, setFogMode] = useState(false);
   const [fogPaths, setFogPaths] = useState<Drawing[]>([]);
   const [fogSquares, setFogSquares] = useState<Point[]>([]);
@@ -68,6 +67,10 @@ export default function Component() {
   const [isSelecting, setIsSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<Point | null>(null);
   const [selectedCharacters, setSelectedCharacters] = useState<number[]>([]);
+  const [shadowOpacity, setShadowOpacity] = useState(0.5); // Ajouter un état pour l'opacité des ombres
+  const [fogRectangles, setFogRectangles] = useState<{ start: Point, end: Point }[]>([]);
+  const [clearFogMode, setClearFogMode] = useState(false);
+  const [selectedFogIndex, setSelectedFogIndex] = useState<number | null>(null);
 
 
   useEffect(() => {
@@ -187,7 +190,7 @@ useEffect(() => {
     ctx.scale(sizeMultiplier, sizeMultiplier);
     drawMap(ctx, image, containerWidth, containerHeight); // Pass container dimensions
   };
-}, [backgroundImage, showGrid, zoom, offset, characters, notes, selectedCharacterIndex, selectedNoteIndex, drawings, currentPath, fogPaths, fogSquares]);
+}, [backgroundImage, showGrid, zoom, offset, characters, notes, selectedCharacterIndex, selectedNoteIndex, drawings, currentPath, fogPaths, fogSquares, fogRectangles]);
 
 
   // Firebase Functions
@@ -280,21 +283,14 @@ onSnapshot(charactersRef, (snapshot) => {
     });
 
     // Charger le brouillard
-    const fogRef = collection(db, 'cartes', room.toString(), 'fog');
-    onSnapshot(fogRef, (snapshot) => {
-      const fogs: Drawing[] = [];
-      const squares: Point[] = [];
-      snapshot.forEach((doc) => {
+    const fogRef = doc(db, 'cartes', room.toString(), 'fog', 'fogData');
+    onSnapshot(fogRef, (doc) => {
+      if (doc.exists()) {
         const data = doc.data();
-        if (data.paths && Array.isArray(data.paths)) {
-          fogs.push(data.paths);
-        }
-        if (data.x !== undefined && data.y !== undefined) {
-          squares.push({ x: data.x, y: data.y });
-        }
-      });
-      setFogPaths(fogs);
-      setFogSquares(squares);
+        setFogPaths(data.paths || []);
+        setFogSquares(data.squares || []);
+        setFogRectangles(data.rectangles || []);
+      }
     });
   };
   
@@ -356,27 +352,97 @@ onSnapshot(charactersRef, (snapshot) => {
       }
     }
   
-    // If dungeon mode is enabled, apply visibility mask
-    if (isDungeonMode) {
-      ctx.save();
-      ctx.globalCompositeOperation = 'source-over';
-      ctx.fillStyle = 'black';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
   
-      characters.forEach((char) => {
-        if (char.type === 'joueurs') {
-          const x = (char.x / image.width) * scaledWidth - offset.x;
-          const y = (char.y / image.height) * scaledHeight - offset.y;
-          ctx.globalCompositeOperation = 'destination-out';
+  
+    // Draw each note
+    notes.forEach((note, index) => {
+      const x = (note.x / image.width) * scaledWidth - offset.x;
+      const y = (note.y / image.height) * scaledHeight - offset.y;
+      ctx.fillStyle = note.color || 'yellow';
+      ctx.font = `${12 * zoom}px Arial`;
+      ctx.fillText(note.text, x, y);
+  
+      if (index === selectedNoteIndex) {
+        ctx.strokeStyle = 'blue';
+        ctx.lineWidth = 2;
+        const metrics = ctx.measureText(note.text);
+        ctx.strokeRect(x - 2, y - 12, metrics.width + 4, 16);
+      }
+    });
+  
+    // Draw each saved drawing path
+    ctx.strokeStyle = 'black';
+    ctx.lineWidth = 2;
+    if (drawings && Array.isArray(drawings)) {
+      drawings.forEach(path => {
+        if (path && Array.isArray(path)) {
           ctx.beginPath();
-          ctx.arc(x, y, char.visibilityRadius * zoom, 0, 2 * Math.PI);
-          ctx.fill();
+          path.forEach((point, index) => {
+            const x = (point.x / image.width) * scaledWidth - offset.x;
+            const y = (point.y / image.height) * scaledHeight - offset.y;
+            if (index === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          });
+          ctx.stroke();
         }
       });
+    }
   
-      ctx.globalCompositeOperation = 'destination-over';
-      ctx.drawImage(image, -offset.x, -offset.y, scaledWidth, scaledHeight);
-      ctx.restore();
+    // Draw fog paths
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+    ctx.lineWidth = 2;
+    if (fogPaths && Array.isArray(fogPaths)) {
+      fogPaths.forEach(path => {
+        if (path && Array.isArray(path)) {
+          ctx.beginPath();
+          path.forEach((point, index) => {
+            const x = (point.x / image.width) * scaledWidth - offset.x;
+            const y = (point.y / image.height) * scaledHeight - offset.y;
+            if (index === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          });
+          ctx.stroke();
+        }
+      });
+    }
+  
+    // Draw fog squares
+    ctx.fillStyle = `rgba(0, 0, 0, ${shadowOpacity})`; // Utiliser l'état shadowOpacity pour l'opacité des ombres
+    fogSquares.forEach((point) => {
+      const x = (point.x / image.width) * scaledWidth - offset.x;
+      const y = (point.y / image.height) * scaledHeight - offset.y;
+      ctx.fillRect(x - (squareSize * zoom) / 2, y - (squareSize * zoom) / 2, squareSize * zoom, squareSize * zoom);
+    });
+
+    // Draw fog rectangles
+    ctx.fillStyle = `rgba(0, 0, 0, ${shadowOpacity})`;
+    fogRectangles.forEach(({ start, end }) => {
+      const x1 = (start.x / image.width) * scaledWidth - offset.x;
+      const y1 = (start.y / image.height) * scaledHeight - offset.y;
+      const x2 = (end.x / image.width) * scaledWidth - offset.x;
+      const y2 = (end.y / image.height) * scaledHeight - offset.y;
+      ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+    });
+  
+    // Draw current path if in drawing mode
+    if (currentPath.length > 0) {
+      ctx.beginPath();
+      currentPath.forEach((point, index) => {
+        const x = (point.x / image.width) * scaledWidth - offset.x;
+        const y = (point.y / image.height) * scaledHeight - offset.y;
+        if (index === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
     }
   
     // Draw each character
@@ -396,17 +462,7 @@ onSnapshot(charactersRef, (snapshot) => {
         });
       }
   
-      // Additional check for dungeon mode to hide NPCs outside visibility radius for players
-      if (!isMJ && isDungeonMode && char.type === 'pnj') {
-        isVisible = characters.some((player) => {
-          const playerX = (player.x / image.width) * scaledWidth - offset.x;
-          const playerY = (player.y / image.height) * scaledHeight - offset.y;
-          return (
-            player.type === 'joueurs' &&
-            calculateDistance(x, y, playerX, playerY) <= player.visibilityRadius * zoom
-          );
-        });
-      }
+  
   
       if (isVisible) {
         // Set border color based on character type or if it is the player's character
@@ -494,87 +550,6 @@ onSnapshot(charactersRef, (snapshot) => {
         ctx.fill();
       }
     });
-  
-    // Draw each note
-    notes.forEach((note, index) => {
-      const x = (note.x / image.width) * scaledWidth - offset.x;
-      const y = (note.y / image.height) * scaledHeight - offset.y;
-      ctx.fillStyle = note.color || 'yellow';
-      ctx.font = `${12 * zoom}px Arial`;
-      ctx.fillText(note.text, x, y);
-  
-      if (index === selectedNoteIndex) {
-        ctx.strokeStyle = 'blue';
-        ctx.lineWidth = 2;
-        const metrics = ctx.measureText(note.text);
-        ctx.strokeRect(x - 2, y - 12, metrics.width + 4, 16);
-      }
-    });
-  
-    // Draw each saved drawing path
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 2;
-    if (drawings && Array.isArray(drawings)) {
-      drawings.forEach(path => {
-        if (path && Array.isArray(path)) {
-          ctx.beginPath();
-          path.forEach((point, index) => {
-            const x = (point.x / image.width) * scaledWidth - offset.x;
-            const y = (point.y / image.height) * scaledHeight - offset.y;
-            if (index === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.lineTo(x, y);
-            }
-          });
-          ctx.stroke();
-        }
-      });
-    }
-  
-    // Draw fog paths
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.lineWidth = 2;
-    if (fogPaths && Array.isArray(fogPaths)) {
-      fogPaths.forEach(path => {
-        if (path && Array.isArray(path)) {
-          ctx.beginPath();
-          path.forEach((point, index) => {
-            const x = (point.x / image.width) * scaledWidth - offset.x;
-            const y = (point.y / image.height) * scaledHeight - offset.y;
-            if (index === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.lineTo(x, y);
-            }
-          });
-          ctx.stroke();
-        }
-      });
-    }
-  
-    // Draw fog squares
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-    fogSquares.forEach((point) => {
-      const x = (point.x / image.width) * scaledWidth - offset.x;
-      const y = (point.y / image.height) * scaledHeight - offset.y;
-      ctx.fillRect(x - (squareSize * zoom) / 2, y - (squareSize * zoom) / 2, squareSize * zoom, squareSize * zoom);
-    });
-  
-    // Draw current path if in drawing mode
-    if (currentPath.length > 0) {
-      ctx.beginPath();
-      currentPath.forEach((point, index) => {
-        const x = (point.x / image.width) * scaledWidth - offset.x;
-        const y = (point.y / image.height) * scaledHeight - offset.y;
-        if (index === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      });
-      ctx.stroke();
-    }
   };
   
 
@@ -724,7 +699,7 @@ const updateCharacterVisibilityAfterFogRemoval = async (removedSquare: Point) =>
       charX >= removedSquare.x - squareSize / 2 &&
       charX <= removedSquare.x + squareSize / 2 &&
       charY >= removedSquare.y - squareSize / 2 &&
-      charY <= removedSquare.y + squareSize / 2
+      charY <= squareSize / 2
     );
 
     if (wasInRemovedSquare && data.visibility === 'hidden') {
@@ -761,7 +736,7 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
         clickX >= square.x - squareSize / 2 &&
         clickX <= square.x + squareSize / 2 &&
         clickY >= square.y - squareSize / 2 &&
-        clickY <= square.y + squareSize / 2
+        clickY <= squareSize / 2
       );
 
       if (clickedSquareIndex !== -1) {
@@ -781,39 +756,8 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
           console.error("Erreur: roomId n'est pas une chaîne valide.");
         }
       } else {
-        if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim()) {
-          await addDoc(collection(db, 'cartes', String(roomId), 'fog'), {
-            x: clickX,
-            y: clickY
-          });
-          setFogSquares(prev => [...prev, { x: clickX, y: clickY }]);
-        } else {
-          console.error("Erreur: roomId n'est pas une chaîne valide.");
-        }
-      }
-    } else if (revealMode) {
-      const clickedSquareIndex = fogSquares.findIndex(square => 
-        clickX >= square.x - squareSize / 2 &&
-        clickX <= square.x + squareSize / 2 &&
-        clickY >= square.y - squareSize / 2 &&
-        clickY <= square.y + squareSize / 2
-      );
-
-      if (clickedSquareIndex !== -1) {
-        const squareToRemove = fogSquares[clickedSquareIndex];
-        if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim()) {
-          const fogRef = collection(db, 'cartes', String(roomId), 'fog');
-          const snapshot = await getDocs(fogRef);
-          snapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.x === squareToRemove.x && data.y === squareToRemove.y) {
-              deleteDoc(doc.ref);
-            }
-          });
-          setFogSquares(prev => prev.filter((_, index) => index !== clickedSquareIndex));
-        } else {
-          console.error("Erreur: roomId n'est pas une chaîne valide.");
-        }
+        setIsDrawing(true);
+        setCurrentPath([{ x: clickX, y: clickY }]);
       }
     } else if (drawMode) {
       setIsDrawing(true);
@@ -868,15 +812,30 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
         const noteY = (note.y / image.height) * scaledHeight - offset.y;
         return Math.abs(noteX - e.clientX + rect.left) < 50 * zoom && Math.abs(noteY - e.clientY + rect.top) < 20 * zoom;
       });
+      const clickedFogIndex = fogRectangles.findIndex(({ start, end }) => {
+        return (
+          clickX >= Math.min(start.x, end.x) &&
+          clickX <= Math.max(start.x, end.x) &&
+          clickY >= Math.min(start.y, end.y) &&
+          clickY <= Math.max(start.y, end.y)
+        );
+      });
       if (clickedCharIndex !== -1) {
         setSelectedCharacterIndex(clickedCharIndex);
         setSelectedNoteIndex(null);
+        setSelectedFogIndex(null);
       } else if (clickedNoteIndex !== -1) {
         setSelectedNoteIndex(clickedNoteIndex);
         setSelectedCharacterIndex(null);
+        setSelectedFogIndex(null);
+      } else if (clickedFogIndex !== -1) {
+        setSelectedFogIndex(clickedFogIndex);
+        setSelectedCharacterIndex(null);
+        setSelectedNoteIndex(null);
       } else {
         setSelectedCharacterIndex(null);
         setSelectedNoteIndex(null);
+        setSelectedFogIndex(null);
         setIsDragging(true);
         setDragStart({ x: e.clientX, y: e.clientY });
       }
@@ -978,10 +937,21 @@ const handleCanvasMouseUp = async () => {
 
     // Vérifie si roomId est une chaîne ou un nombre valide et si currentPath n'est pas vide
     if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && currentPath.length > 0) {
-      await addDoc(collection(db, 'cartes', String(roomId), 'fog'), {
-        paths: currentPath
-      });
-      setFogPaths(prev => [...prev, currentPath]);
+      const start = currentPath[0];
+      const end = currentPath[currentPath.length - 1];
+      const newFogRectangles = [...fogRectangles, { start, end }];
+      const fogDocRef = doc(db, 'cartes', String(roomId), 'fog', 'fogData');
+      const fogDoc = await getDoc(fogDocRef);
+      if (fogDoc.exists()) {
+        await updateDoc(fogDocRef, {
+          rectangles: newFogRectangles
+        });
+      } else {
+        await setDoc(fogDocRef, {
+          rectangles: newFogRectangles
+        });
+      }
+      setFogRectangles(newFogRectangles);
       setCurrentPath([]);
     } else {
       console.error("Erreur: roomId n'est pas une chaîne valide ou currentPath est vide.");
@@ -1273,7 +1243,8 @@ const handleNoteEditSubmit = async () => {
   
       const deletePromises = snapshot.docs.map((doc) => deleteDoc(doc.ref));
       await Promise.all(deletePromises);
-      setFogSquares([]);
+      setFogPaths([]);
+      setFogRectangles([]);
     } catch (error) {
       console.error('Error clearing fog:', error);
     }
@@ -1302,19 +1273,41 @@ const handleNoteEditSubmit = async () => {
     }
   };
   
-  const toggleDungeonMode = async () => {
+
+
+  useEffect(() => {
     if (roomId) {
       const settingsRef = doc(db, 'cartes', String(roomId), 'settings', 'general');
-      try {
-        await updateDoc(settingsRef, {
-          donjon: !isDungeonMode
-        });
-        setIsDungeonMode(!isDungeonMode);
-      } catch (error) {
-        console.error("Erreur lors de la mise à jour du mode donjon :", error);
-      }
+      onSnapshot(settingsRef, (settingsDoc) => {
+        if (settingsDoc.exists()) {
+          const data = settingsDoc.data();
+          setShadowOpacity(data.ombre ? 1 : 0.5);
+        }
+      });
     }
-  };
+  }, [roomId]);
+  
+
+const toggleDungeonMode = async () => {
+  if (roomId) {
+    const settingsRef = doc(db, 'cartes', String(roomId), 'settings', 'general');
+    const newDungeonMode = shadowOpacity !== 1;
+    await updateDoc(settingsRef, { donjon: newDungeonMode });
+    setShadowOpacity(newDungeonMode ? 1 : 0.5);
+  }
+};
+
+useEffect(() => {
+  if (roomId) {
+    const settingsRef = doc(db, 'cartes', String(roomId), 'settings', 'general');
+    onSnapshot(settingsRef, (settingsDoc) => {
+      if (settingsDoc.exists()) {
+        const data = settingsDoc.data();
+        setShadowOpacity(data.donjon ? 1 : 0.5);
+      }
+    });
+  }
+}, [roomId]);
 
   const toggleFogMode = () => {
     setFogMode(!fogMode);
@@ -1391,6 +1384,32 @@ const handleNoteEditSubmit = async () => {
       setSelectedCharacters([]);
     }
   };
+
+  const toggleClearFogMode = () => {
+    setClearFogMode(!clearFogMode);
+    setSelectedCharacterIndex(null);
+    setSelectedNoteIndex(null);
+  };
+
+  const handleDeleteFog = async () => {
+    if (selectedFogIndex !== null && roomId) {
+      const fogToDelete = fogRectangles[selectedFogIndex];
+      const newFogRectangles = fogRectangles.filter((_, index) => index !== selectedFogIndex);
+      const fogDocRef = doc(db, 'cartes', String(roomId), 'fog', 'fogData');
+      const fogDoc = await getDoc(fogDocRef);
+      if (fogDoc.exists()) {
+        await updateDoc(fogDocRef, {
+          rectangles: newFogRectangles
+        });
+      } else {
+        await setDoc(fogDocRef, {
+          rectangles: newFogRectangles
+        });
+      }
+      setFogRectangles(newFogRectangles);
+      setSelectedFogIndex(null);
+    }
+  };
   
 
   if (loading) {
@@ -1413,12 +1432,15 @@ const handleNoteEditSubmit = async () => {
     {/* Toolbar: conditionally rendered */}
     {toolbarVisible && (
       <div className="flex flex-col gap-6 w-64 rounded-lg  p-6 bg-white self-center text-black">
+        <div className='flex flex-row gap-6 justify-center '>
         <Button onClick={() => handleZoom(-0.1)}>
           <Minus className="w-4 h-4" />
         </Button>
         <Button onClick={() => handleZoom(0.1)}>
           <Plus className="w-4 h-4" />
         </Button>
+        </div>
+       
 
         <div className="flex items-center space-x-2">
           <Switch
@@ -1458,34 +1480,69 @@ const handleNoteEditSubmit = async () => {
           />
         )}
 
-        <Button onClick={handleAddNote}>Ajouter une note</Button>
+    
+
+          {isMJ && (
+           <Button onClick={() => setIsSelecting(!isSelecting)}>
+           <SquareDashedMousePointer className="w-4 h-4 mr-2" />
+             {isSelecting ? 'Quitter sélection' : 'Sélectionner'
+             }
+           </Button>
+        )}
+
 
         {isMJ && (
-          <Button onClick={() => setDialogOpen(true)}>Ajouter un personnage</Button>
+          <Button onClick={() => setDialogOpen(true)}>
+            <CircleUserRound/>
+            Personnage</Button>
         )}
+
+<Button onClick={handleAddNote}>
+          <Baseline/>
+          Texte
+          </Button>
+
 
         <Button onClick={toggleDrawMode}>
           {drawMode ? <Eraser className="w-4 h-4 mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
-          {drawMode ? 'Arrêter de dessiner' : 'Dessiner'}
+          {drawMode ? 'Quitter dessin' : 'Dessiner'}
         </Button>
 
+
+        
+
         {(
-          <Button onClick={clearDrawings}>Effacer les dessins</Button>
+          <Button onClick={clearDrawings}>
+            <X/>
+            Effacer les dessins
+            </Button>
         )}
-        <Button onClick={toggleDungeonMode}>
-          {isDungeonMode ? 'Mode Normal' : 'Mode Donjon'}
-        </Button>
-        <Button onClick={toggleFogMode}>
-          {fogMode ? <Eraser className="w-4 h-4 mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
-          {fogMode ? 'Arrêter de dessiner le brouillard' : 'Dessiner le brouillard'}
-        </Button>
-        {fogMode && (
-          <Button onClick={clearFog}>Effacer le brouillard</Button>
+
+{isMJ && (
+    <Button onClick={toggleFogMode}>
+    {fogMode ? <Eraser className="w-4 h-4 mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
+    {fogMode ? 'Quitter le brouillard' : 'Brouillard'}
+  </Button>
         )}
-        <Button onClick={() => setIsSelecting(!isSelecting)}>
-          {isSelecting ? 'Arrêter de sélectionner' : 'Sélectionner'
-          }
-        </Button>
+
+
+
+      
+
+
+       
+
+        {isMJ && (
+           <Button onClick={toggleDungeonMode}>
+           <Eclipse  className="w-4 h-4 mr-2" />
+             {shadowOpacity === 1 ? 'Quitter mode Donjon' : 'Mode donjon'}
+           </Button>
+        )}
+
+
+       
+
+
       </div>
     )}
   </div>
@@ -1517,8 +1574,6 @@ const handleNoteEditSubmit = async () => {
         </div>
     )}
 </div>
-
-// ...existing code...
 
 {selectedCharacterIndex !== null && (
   <div className="absolute bottom-3 flex left-1/2 space-x-2 items-center">
@@ -1596,6 +1651,14 @@ const handleNoteEditSubmit = async () => {
         </div>
       )}
   
+{isMJ && selectedFogIndex !== null && (
+  <div className="absolute bottom-3 flex left-1/2 space-x-2 items-center">
+    <Button onClick={handleDeleteFog}>
+      <X className="w-4 h-4 mr-2" /> Supprimer le brouillard
+    </Button>
+  </div>
+)}
+
   <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
   <DialogContent className="bg-[rgb(36,36,36)] max-w-3xl text-[#c0a080]">
     <DialogHeader>
