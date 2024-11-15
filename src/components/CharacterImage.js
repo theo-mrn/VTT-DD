@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // Générer la liste des tokens de 1 à 70
 const tokenList = Array.from({ length: 70 }, (_, i) => ({
   id: i + 1,
-  name: `Token ${i + 1}`,
+  name: `token ${i + 1}`,
   src: `/Token/token${i + 1}.png`
 }));
 
@@ -115,7 +115,7 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
 
     try {
       const characterDocRef = doc(db, `cartes/${roomId}/characters`, characterId);
-      await updateDoc(characterDocRef, { Token: `Token${tokenNumber}` });
+      await updateDoc(characterDocRef, { Token: `token${tokenNumber}` });
       setOverlayUrl(`/Token/token${tokenNumber}.png`);
     } catch (e) {
       console.error('Failed to update token:', e);
