@@ -52,6 +52,8 @@ export default function DiceRollerDnD() {
   const [showInfo, setShowInfo] = useState(false); // État pour afficher ou masquer les informations
   const [characters, setCharacters] = useState<{ id: string, name: string }[]>([]);
   const [selectedCharacter, setSelectedCharacter] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]); // État pour les suggestions
+  const [showSuggestions, setShowSuggestions] = useState(false); // État pour afficher ou masquer les suggestions
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -159,26 +161,26 @@ export default function DiceRollerDnD() {
     console.log("Parsing command:", command);
     console.log("Character data:", charData);
   
-    const regex = /^(\d+)d(\d+)(([+-](\d+|CON|DEX|SAG|FOR|INT|CHA|c|d|m))*)\s*(-p)?$/;
+    const regex = /^(\d+)d(\d+)(([+-](\d+|CON|FOR|DEX|CHA|INT|SAG|Contact|Distance|Magie))*)\s*(-p)?$/;
     const match = command.match(regex);
     if (match) {
       const diceCount = parseInt(match[1]);
       const diceFaces = parseInt(match[2]);
       let modifier = 0;
-      const modifiers = match[3].match(/[+-](\d+|CON|DEX|SAG|FOR|INT|CHA|c|d|m)/g) || [];
+      const modifiers = match[3].match(/[+-](\d+|CON|FOR|DEX|CHA|INT|SAG|Contact|Distance|Magie)/g) || [];
       console.log("Modifiers found:", modifiers);
   
       modifiers.forEach(mod => {
         const sign = mod[0];
         const value = mod.substring(1);
         let modValue = 0;
-        if (["CON", "DEX", "SAG", "FOR", "INT", "CHA"].includes(value)) {
+        if (["CON", "FOR", "DEX", "CHA", "INT", "SAG"].includes(value)) {
           modValue = characterModifiers[value] || 0;
-        } else if (value === "c") {
+        } else if (value === "Contact") {
           modValue = charData.Contact || 0;
-        } else if (value === "d") {
+        } else if (value === "Distance") {
           modValue = charData.Distance || 0;
-        } else if (value === "m") {
+        } else if (value === "Magie") {
           modValue = charData.Magie || 0;
         } else {
           modValue = parseInt(value);
@@ -221,6 +223,23 @@ export default function DiceRollerDnD() {
         console.error("Invalid roll command");
       }
     }
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setRollCommand(value);
+  
+    if (value.includes('/')) {
+      setShowSuggestions(true);
+      setSuggestions(['CON', 'FOR', 'DEX', 'CHA', 'INT', 'SAG', 'Contact', 'Distance', 'Magie']);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+  
+  const handleSuggestionClick = (suggestion: string) => {
+    setRollCommand((prev) => prev.replace('/', '') + suggestion);
+    setShowSuggestions(false);
   };
 
   const rollDice = async (diceCount: number, diceFaces: number, modifier: number, type: string, selectedCharacterId?: string, persoId?: string, isPrivate: boolean = false) => {
@@ -316,10 +335,25 @@ export default function DiceRollerDnD() {
               id="roll-command"
               type="text"
               value={rollCommand}
-              onChange={(e) => setRollCommand(e.target.value)}
+              onChange={handleInputChange} // Remplacer onChange par handleInputChange
               className="bg-parchment border-brown-600 text-brown-900 h-8 w-1/2"
               placeholder="Ex: 1d20+3-p"
             />
+            {showSuggestions && (
+              <div className="fixed inset-0 flex items-center justify-center z-10">
+                <div className="bg-white border border-gray-300 rounded shadow-md p-4">
+                  {suggestions.map((suggestion, index) => (
+                    <div
+                      key={index}
+                      className="p-2 cursor-pointer hover:bg-gray-200"
+                      onClick={() => handleSuggestionClick(suggestion)}
+                    >
+                      {suggestion}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <Button
               onClick={handleRollCommand}
               className="bg-brown-700 hover:bg-brown-800 text-brown-100"

@@ -36,6 +36,12 @@ export default function Component() {
     Magie: 0,
     INIT: 0,
     nombre: 1, 
+    FOR: 0,
+    DEX: 0,
+    CON: 0,
+    SAG: 0,
+    INT: 0,
+    CHA: 0,
 });
   
   const [isDragging, setIsDragging] = useState(false)
@@ -131,6 +137,12 @@ export default function Component() {
     Distance: number;
     Magie: number;
     INIT: number;
+    FOR: number;
+    DEX: number;
+    CON: number;
+    SAG: number;
+    INT: number;
+    CHA: number;
   };
 
   
@@ -158,6 +170,12 @@ type NewCharacter = {
   Magie: number;
   INIT: number;
   nombre :number
+  FOR: number;
+  DEX: number;
+  CON: number;
+  SAG: number;
+  INT: number;
+  CHA: number;
 };
 type Point = { x: number; y: number };
 
@@ -246,6 +264,12 @@ onSnapshot(charactersRef, (snapshot) => {
       Distance: data.Distance || 5,
       Magie: data.Magie || 5,
       INIT: data.INIT || 5,
+      FOR: data.FOR || 0,
+      DEX: data.DEX || 0,
+      CON: data.CON || 0,
+      SAG: data.SAG || 0,
+      INT: data.INT || 0,
+      CHA: data.CHA || 0,
     });
   });
   setCharacters(chars);
@@ -613,6 +637,12 @@ const handleCharacterSubmit = async () => {
                   Distance: newCharacter.Distance,
                   Magie: newCharacter.Magie,
                   INIT: newCharacter.INIT,
+                  FOR: newCharacter.FOR,
+                  DEX: newCharacter.DEX,
+                  CON: newCharacter.CON,
+                  SAG: newCharacter.SAG,
+                  INT: newCharacter.INT,
+                  CHA: newCharacter.CHA,
                   type: "pnj"
               });
           }
@@ -630,6 +660,12 @@ const handleCharacterSubmit = async () => {
               Magie: 5,
               INIT: 5,
               nombre: 1, // RéINITialiser le champ nombre
+              FOR: 0,
+              DEX: 0,
+              CON: 0,
+              SAG: 0,
+              INT: 0,
+              CHA: 0,
           });
           setDialogOpen(false);
 
@@ -697,7 +733,7 @@ const updateCharacterVisibilityAfterFogRemoval = async (removedSquare: Point) =>
 
     const wasInRemovedSquare = (
       charX >= removedSquare.x - squareSize / 2 &&
-      charX <= removedSquare.x + squareSize / 2 &&
+      charX <= squareSize / 2 &&
       charY >= removedSquare.y - squareSize / 2 &&
       charY <= squareSize / 2
     );
@@ -734,7 +770,7 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
     if (fogMode) {
       const clickedSquareIndex = fogSquares.findIndex(square => 
         clickX >= square.x - squareSize / 2 &&
-        clickX <= square.x + squareSize / 2 &&
+        clickX <= squareSize / 2 &&
         clickY >= square.y - squareSize / 2 &&
         clickY <= squareSize / 2
       );
@@ -1082,6 +1118,12 @@ const handleEditNote = () => {
             Distance: number;
             Magie: number;
             INIT: number;
+            FOR: number;
+            DEX: number;
+            CON: number;
+            SAG: number;
+            INT: number;
+            CHA: number;
             imageURL?: string; // Add imageURL as an optional field
           } = {
             Nomperso: editingCharacter.name,
@@ -1092,6 +1134,12 @@ const handleEditNote = () => {
             Distance: editingCharacter.Distance,
             Magie: editingCharacter.Magie,
             INIT: editingCharacter.INIT,
+            FOR: editingCharacter.FOR,
+            DEX: editingCharacter.DEX,
+            CON: editingCharacter.CON,
+            SAG: editingCharacter.SAG,
+            INT: editingCharacter.INT,
+            CHA: editingCharacter.CHA,
           };
           
           // Check if a new image is selected and upload it if necessary
@@ -1334,7 +1382,7 @@ useEffect(() => {
   
       const isInFog = fogSquares.some(square => 
         charX >= square.x - squareSize / 2 &&
-        charX <= square.x + squareSize / 2 &&
+        charX <= squareSize / 2 &&
         charY >= square.y - squareSize / 2 &&
         charY <= squareSize / 2
       );
@@ -1794,6 +1842,67 @@ useEffect(() => {
           className="col-span-3"
         />
       </div>
+
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="FOR" className="text-right">FOR</Label>
+        <Input
+          id="FOR"
+          type="number"
+          value={newCharacter.FOR}
+          onChange={(e) => setNewCharacter({ ...newCharacter, FOR: parseInt(e.target.value) || 0 })}
+          className="col-span-3"
+        />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="DEX" className="text-right">DEX</Label>
+        <Input
+          id="DEX"
+          type="number"
+          value={newCharacter.DEX}
+          onChange={(e) => setNewCharacter({ ...newCharacter, DEX: parseInt(e.target.value) || 0 })}
+          className="col-span-3"
+        />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="CON" className="text-right">CON</Label>
+        <Input
+          id="CON"
+          type="number"
+          value={newCharacter.CON}
+          onChange={(e) => setNewCharacter({ ...newCharacter, CON: parseInt(e.target.value) || 0 })}
+          className="col-span-3"
+        />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="SAG" className="text-right">SAG</Label>
+        <Input
+          id="SAG"
+          type="number"
+          value={newCharacter.SAG}
+          onChange={(e) => setNewCharacter({ ...newCharacter, SAG: parseInt(e.target.value) || 0 })}
+          className="col-span-3"
+        />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="INT" className="text-right">INT</Label>
+        <Input
+          id="INT"
+          type="number"
+          value={newCharacter.INT}
+          onChange={(e) => setNewCharacter({ ...newCharacter, INT: parseInt(e.target.value) || 0 })}
+          className="col-span-3"
+        />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="CHA" className="text-right">CHA</Label>
+        <Input
+          id="CHA"
+          type="number"
+          value={newCharacter.CHA}
+          onChange={(e) => setNewCharacter({ ...newCharacter, CHA: parseInt(e.target.value) || 0 })}
+          className="col-span-3"
+        />
+      </div>
     </div>
     <DialogFooter>
       <Button onClick={handleCharacterSubmit}>Ajouter</Button>
@@ -1973,6 +2082,91 @@ useEffect(() => {
           onChange={(e) => {
             if (editingCharacter) {
               setEditingCharacter({ ...editingCharacter, INIT: parseInt(e.target.value) || 0 });
+            }
+          }}
+          className="col-span-3"
+        />
+      </div>
+
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="FOR" className="text-right text-white">FOR</Label>
+        <Input
+          id="FOR"
+          type="number"
+          value={editingCharacter?.FOR || 0}
+          onChange={(e) => {
+            if (editingCharacter) {
+              setEditingCharacter({ ...editingCharacter, FOR: parseInt(e.target.value) || 0 });
+            }
+          }}
+          className="col-span-3"
+        />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="DEX" className="text-right text-white">DEX</Label>
+        <Input
+          id="DEX"
+          type="number"
+          value={editingCharacter?.DEX || 0}
+          onChange={(e) => {
+            if (editingCharacter) {
+              setEditingCharacter({ ...editingCharacter, DEX: parseInt(e.target.value) || 0 });
+            }
+          }}
+          className="col-span-3"
+        />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="CON" className="text-right text-white">CON</Label>
+        <Input
+          id="CON"
+          type="number"
+          value={editingCharacter?.CON || 0}
+          onChange={(e) => {
+            if (editingCharacter) {
+              setEditingCharacter({ ...editingCharacter, CON: parseInt(e.target.value) || 0 });
+            }
+          }}
+          className="col-span-3"
+        />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="SAG" className="text-right text-white">SAG</Label>
+        <Input
+          id="SAG"
+          type="number"
+          value={editingCharacter?.SAG || 0}
+          onChange={(e) => {
+            if (editingCharacter) {
+              setEditingCharacter({ ...editingCharacter, SAG: parseInt(e.target.value) || 0 });
+            }
+          }}
+          className="col-span-3"
+        />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="INT" className="text-right text-white">INT</Label>
+        <Input
+          id="INT"
+          type="number"
+          value={editingCharacter?.INT || 0}
+          onChange={(e) => {
+            if (editingCharacter) {
+              setEditingCharacter({ ...editingCharacter, INT: parseInt(e.target.value) || 0 });
+            }
+          }}
+          className="col-span-3"
+        />
+      </div>
+      <div className="grid grid-cols-4 items-center gap-4">
+        <Label htmlFor="CHA" className="text-right text-white">CHA</Label>
+        <Input
+          id="CHA"
+          type="number"
+          value={editingCharacter?.CHA || 0}
+          onChange={(e) => {
+            if (editingCharacter) {
+              setEditingCharacter({ ...editingCharacter, CHA: parseInt(e.target.value) || 0 });
             }
           }}
           className="col-span-3"
