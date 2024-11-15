@@ -103,15 +103,15 @@ export default function DiceRollerDnD() {
 
         // Calculate and set the modifier for each characteristic
         setCharacterModifiers({
-          CON: calculateModifier(charData.CON || 0),
-          DEX: calculateModifier(charData.DEX || 0),
-          FOR: calculateModifier(charData.FOR || 0),
-          SAG: calculateModifier(charData.SAG || 0),
-          INT: calculateModifier(charData.INT || 0),
-          CHA: calculateModifier(charData.CHA || 0),
-          Contact: charData.Contact || 0, // Ajout de Contact
-          Distance: charData.Distance || 0, // Ajout de Distance
-          Magie: charData.Magie || 0, // Ajout de Magie
+          CON: calculateModifier(charData.CON_F || charData.CON || 0),
+          DEX: calculateModifier(charData.DEX_F || charData.DEX || 0),
+          FOR: calculateModifier(charData.FOR_F || charData.FOR || 0),
+          SAG: calculateModifier(charData.SAG_F || charData.SAG || 0),
+          INT: calculateModifier(charData.INT_F || charData.INT || 0),
+          CHA: calculateModifier(charData.CHA_F || charData.CHA || 0),
+          Contact: charData.Contact_F || charData.Contact || 0, // Ajout de Contact
+          Distance: charData.Distance_F || charData.Distance || 0, // Ajout de Distance
+          Magie: charData.Magie_F || charData.Magie || 0, // Ajout de Magie
         });
         console.log("Fetched character info:", charData);
         return charData; // Retourner les données du personnage
@@ -177,11 +177,11 @@ export default function DiceRollerDnD() {
         if (["CON", "FOR", "DEX", "CHA", "INT", "SAG"].includes(value)) {
           modValue = characterModifiers[value] || 0;
         } else if (value === "Contact") {
-          modValue = charData.Contact || 0;
+          modValue = charData.Contact_F || charData.Contact || 0;
         } else if (value === "Distance") {
-          modValue = charData.Distance || 0;
+          modValue = charData.Distance_F || charData.Distance || 0;
         } else if (value === "Magie") {
-          modValue = charData.Magie || 0;
+          modValue = charData.Magie_F || charData.Magie || 0;
         } else {
           modValue = parseInt(value);
         }
@@ -197,28 +197,19 @@ export default function DiceRollerDnD() {
   };
 
   const handleRollCommand = () => {
-    if (isMJ) {
-      if (selectedCharacter) {
-        fetchCharacterInfo(roomId!, selectedCharacter).then((charData) => {
-          const parsed = parseRollCommand(rollCommand, charData);
-          if (parsed) {
-            rollDice(parsed.diceCount, parsed.diceFaces, parsed.modifier, "", selectedCharacter || undefined, persoId || undefined, true); // Toujours privé pour le MJ
-          } else {
-            console.error("Invalid roll command");
-          }
-        });
-      } else {
-        const parsed = parseRollCommand(rollCommand, characterModifiers);
+    if (isMJ && selectedCharacter) {
+      fetchCharacterInfo(roomId!, selectedCharacter).then((charData) => {
+        const parsed = parseRollCommand(rollCommand, charData);
         if (parsed) {
-          rollDice(parsed.diceCount, parsed.diceFaces, parsed.modifier, "", undefined, undefined, true); // Toujours privé pour le MJ
+          rollDice(parsed.diceCount, parsed.diceFaces, parsed.modifier, "", selectedCharacter || undefined, persoId || undefined, isPrivate);
         } else {
           console.error("Invalid roll command");
         }
-      }
+      });
     } else {
       const parsed = parseRollCommand(rollCommand, characterModifiers);
       if (parsed) {
-        rollDice(parsed.diceCount, parsed.diceFaces, parsed.modifier, "", undefined, undefined, parsed.isPrivate);
+        rollDice(parsed.diceCount, parsed.diceFaces, parsed.modifier, "", undefined, undefined, isPrivate);
       } else {
         console.error("Invalid roll command");
       }
@@ -328,8 +319,10 @@ export default function DiceRollerDnD() {
 
             </Select>
           )}
-      
-        
+          <div className="flex items-center space-x-2">
+            <Label htmlFor="private-switch" className="text-black">Privé</Label>
+            <Switch id="private-switch" checked={isPrivate} onCheckedChange={setIsPrivate} />
+          </div>
           <div className="flex items-center space-x-2">
             <Input
               id="roll-command"
@@ -337,7 +330,7 @@ export default function DiceRollerDnD() {
               value={rollCommand}
               onChange={handleInputChange} // Remplacer onChange par handleInputChange
               className="bg-parchment border-brown-600 text-brown-900 h-8 w-1/2"
-              placeholder="Ex: 1d20+3-p"
+              placeholder="Ex: 1d20+3"
             />
             {showSuggestions && (
               <div className="fixed inset-0 flex items-center justify-center z-10">

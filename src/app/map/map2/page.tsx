@@ -245,7 +245,7 @@ onSnapshot(charactersRef, (snapshot) => {
   snapshot.forEach((doc) => {
     const data = doc.data();
     const img = new Image();
-    img.src = data.imageURL;
+    img.src = data.imageURL2 || data.imageURL; // Utiliser imageURL2 si disponible, sinon imageURL
 
     // Ajoutez tous les champs requis
     chars.push({
@@ -626,7 +626,7 @@ const handleCharacterSubmit = async () => {
               const characterName = `${newCharacter.name} ${i}`; // Ajouter un numéro au nom
               await addDoc(charactersCollectionRef, {
                   Nomperso: characterName,
-                  imageURL,  // Utiliser l'URL de téléchargement pour l'image
+                  imageURL2: imageURL,  // Utiliser imageURL2 pour l'image
                   x: (Math.random() * (canvasRef.current?.width || 0) + offset.x) / zoom,
                   y: (Math.random() * (canvasRef.current?.height || 0) + offset.y) / zoom,
                   visibility: newCharacter.visibility,
@@ -1124,7 +1124,7 @@ const handleEditNote = () => {
             SAG: number;
             INT: number;
             CHA: number;
-            imageURL?: string; // Add imageURL as an optional field
+            imageURL2?: string; // Add imageURL2 as an optional field
           } = {
             Nomperso: editingCharacter.name,
             niveau: editingCharacter.niveau,
@@ -1152,7 +1152,7 @@ const handleEditNote = () => {
             const imageURL = await getDownloadURL(imageRef);
           
             // Add the image URL to Firestore data
-            updatedData.imageURL = imageURL;
+            updatedData.imageURL2 = imageURL;
           }
           
   
@@ -1166,7 +1166,7 @@ const handleEditNote = () => {
             const imageURL = await getDownloadURL(imageRef);
   
             // Ajoutez l'URL de l'image au document Firestore
-            updatedData.imageURL = imageURL;
+            updatedData.imageURL2 = imageURL;
           }
   
           // Mise à jour dans Firestore

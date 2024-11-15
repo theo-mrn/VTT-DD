@@ -94,45 +94,6 @@ export default function InfoComponent() {
           <p className="text-sm text-stone-400 mb-6 text-center">Ressources, information, et compétences dans la quête principale</p>
           
           <div className="flex flex-col space-y-4">
-            {/* Information Card */}
-            <Card 
-              className="flex items-center justify-between p-4 bg-[#242424] text-white cursor-pointer transition-all"
-              onClick={() => handleClick("Information")}
-            >
-              <div className="flex-1">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg text-stone-200">Objets</CardTitle>
-                </CardHeader>
-                <p className="text-sm text-stone-400">Des informations sur les objets courants.</p>
-              </div>
-              <Image
-                src="/images/information.png"
-                alt="Information image"
-                width={100}
-                height={100}
-                className="rounded-md w-1/5"
-              />
-            </Card>
-
-            <Card 
-              className="flex items-center justify-between p-4 bg-[#242424] text-white cursor-pointer transition-all"
-              onClick={() => handleClick("wiki")}
-            >
-              <div className="flex-1">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg text-stone-200">Wiki</CardTitle>
-                </CardHeader>
-                <p className="text-sm text-stone-400">Retrouvez les informations détaillées.</p>
-              </div>
-              <Image
-                src="/images/wiki.png"
-                alt="Compétences image"
-                width={100}
-                height={100}
-                className="rounded-md w-1/5"
-              />
-            </Card>
-
             {/* Compétences Card */}
             <Card 
               className="flex items-center justify-between p-4 bg-[#242424] text-white cursor-pointer transition-all"

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Aclonica } from "next/font/google";
-import { MusicPlayerProvider } from "@/context/MusicPlayerContext";
 
 const Aclonica_init = Aclonica({
   subsets: ["latin"],
@@ -34,9 +33,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <MusicPlayerProvider>
           {children}
-        </MusicPlayerProvider>
       </body>
     </html>
   );

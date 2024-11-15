@@ -320,6 +320,12 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                             <DropdownMenuItem onSelect={() => handleToggleBonusActive(item.id)}>
                               Activer/Désactiver le bonus
                             </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => { 
+                              setCurrentItem(item); 
+                              setIsDiceDialogOpen(true);
+                            }}>
+                              Modifier les dés
+                            </DropdownMenuItem>
                             <DropdownMenuItem onSelect={() => handleDeleteItem(item.id)}>
                               Supprimer
                             </DropdownMenuItem>
@@ -385,7 +391,7 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
         </Dialog>
 
         <Dialog open={isDiceDialogOpen} onOpenChange={setIsDiceDialogOpen}>
-          <DialogContent className="bg-[#1c1c1c] text-[#d4d4d4]">
+          <DialogContent className="max-w-3xl bg-[#1c1c1c] text-[#d4d4d4]">
             <DialogHeader>
               <DialogTitle>Modifier les dés pour {currentItem?.message}</DialogTitle>
             </DialogHeader>

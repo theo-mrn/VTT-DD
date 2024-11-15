@@ -4,7 +4,6 @@ import { doc, updateDoc, getDoc, db, auth, onAuthStateChanged } from '@/lib/fire
 import { getCroppedImg } from '@/lib/cropImageHelper';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import DecorationSelector from '@/components/DecorationSelector';
 
 // Générer la liste des tokens de 1 à 70
 const tokenList = Array.from({ length: 70 }, (_, i) => ({
@@ -22,11 +21,32 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
   const [showDecorationModal, setShowDecorationModal] = useState(false);
   const [croppedImageUrl, setCroppedImageUrl] = useState(imageUrl || "/api/placeholder/192/192");
   const [overlayUrl, setOverlayUrl] = useState("/Token/token1.png");
+  const [roomId, setRoomId] = useState(null);
 
-  const roomId = "665441";
+  useEffect(() => {
+    const fetchRoomId = async () => {
+      try {
+        const userDocRef = doc(db, `users/${auth.currentUser.uid}`);
+        const userDoc = await getDoc(userDocRef);
+
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setRoomId(data.room_id);
+        } else {
+          console.error("User document does not exist.");
+        }
+      } catch (error) {
+        console.error("Failed to fetch user data:", error);
+      }
+    };
+
+    if (auth.currentUser) fetchRoomId();
+  }, [auth.currentUser]);
 
   useEffect(() => {
     const fetchImageURL = async () => {
+      if (!roomId) return;
+
       try {
         const characterDocRef = doc(db, `cartes/${roomId}/characters`, characterId);
         const characterDoc = await getDoc(characterDocRef);
@@ -43,8 +63,8 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
       }
     };
 
-    if (characterId) fetchImageURL();
-  }, [characterId, imageUrl]);
+    if (characterId && roomId) fetchImageURL();
+  }, [characterId, imageUrl, roomId]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -58,7 +78,7 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
   }, []);
 
   const handleSaveCroppedImage = useCallback(async () => {
-    if (!currentUser) {
+    if (!currentUser || !roomId) {
       alert("Please log in to save changes.");
       return;
     }
@@ -72,10 +92,10 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
     } catch (e) {
       console.error('Failed to save cropped image:', e);
     }
-  }, [croppedAreaPixels, croppedImageUrl, characterId, currentUser]);
+  }, [croppedAreaPixels, croppedImageUrl, characterId, currentUser, roomId]);
 
   const handleResetImage = useCallback(async () => {
-    if (!currentUser) {
+    if (!currentUser || !roomId) {
       alert("Please log in to reset image.");
       return;
     }
@@ -88,9 +108,11 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
     } catch (e) {
       console.error('Failed to reset image:', e);
     }
-  }, [imageUrl, characterId, currentUser]);
+  }, [imageUrl, characterId, currentUser, roomId]);
 
   const handleSelectToken = async (tokenNumber) => {
+    if (!roomId) return;
+
     try {
       const characterDocRef = doc(db, `cartes/${roomId}/characters`, characterId);
       await updateDoc(characterDocRef, { Token: `Token${tokenNumber}` });
@@ -200,19 +222,6 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </div>
-      )}
-
-      {/* Decoration Modal */}
-      {showDecorationModal && (
-        <div className="fixed inset-0 z-70 bg-black bg-opacity-100 flex items-center justify-center">
-          <div className="bg-white p-6 rounded-lg shadow-lg max-w-lg w-full relative">
-            <DecorationSelector
-              characterId={characterId}
-              roomId={roomId}
-              onClose={() => setShowDecorationModal(false)}
-            />
           </div>
         </div>
       )}

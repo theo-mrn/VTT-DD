@@ -254,6 +254,24 @@ const [userRole, setUserRole] = useState<string | null>(null);
     setRollResult(roll + conModifier);
   };
 
+  const saveFinalStats = async (character: Character, bonuses: Bonuses) => {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', auth.currentUser!.uid));
+      const roomId = String(userDoc.data()?.room_id);
+  
+      const finalStats: Partial<Record<string, number>> = {};
+      for (let stat in bonuses) {
+        if (bonuses[stat] !== undefined) {
+          finalStats[`${stat}_F`] = getDisplayValue(stat as keyof Character);
+        }
+      }
+  
+      await updateDoc(doc(db, `cartes/${roomId}/characters`, character.id), finalStats);
+    } catch (error) {
+      console.error("Erreur lors de la sauvegarde des statistiques finales:", error);
+    }
+  };
+  
   const listenToBonuses = (roomId: string, nomperso: string) => {
     const bonusesRef = collection(db, `Bonus/${roomId}/${nomperso}`);
     
@@ -262,7 +280,7 @@ const [userRole, setUserRole] = useState<string | null>(null);
         CHA: 0, CON: 0, Contact: 0, DEX: 0, Defense: 0, Distance: 0,
         FOR: 0, INIT: 0, INT: 0, Magie: 0,PV_Max:0, PV: 0, SAG: 0,
       };
-
+  
       snapshot.forEach((doc) => {
         const bonusData = doc.data();
         if (bonusData.active) {
@@ -273,15 +291,32 @@ const [userRole, setUserRole] = useState<string | null>(null);
           }
         }
       });
-
+  
       setBonuses(totalBonuses);
+      if (selectedCharacter) {
+        saveFinalStats(selectedCharacter, totalBonuses);
+      }
     });
   };
-
+  
   const getDisplayValue = (stat: keyof Character): number => {
     const baseValue = selectedCharacter ? parseInt(selectedCharacter[stat] as any || "0") : 0;
-    const bonusValue = bonuses ? bonuses[stat] || 0 : 0; // Remove parseInt
-    return baseValue + bonusValue;
+    const bonusValue = bonuses ? bonuses[stat] || 0 : 0;
+    const finalValue = baseValue + bonusValue;
+  
+    // Enregistrer la valeur finale dans la base de données
+    if (selectedCharacter && roomId) {
+      const finalStatKey = `${stat}_F`;
+      const finalStats: Partial<Record<string, number>> = {
+        [finalStatKey]: finalValue
+      };
+      updateDoc(doc(db, `cartes/${roomId}/characters`, selectedCharacter.id), finalStats)
+        .catch(error => {
+          console.error(`Erreur lors de la sauvegarde de ${finalStatKey}:`, error);
+        });
+    }
+  
+    return finalValue;
   };
   
 
@@ -324,6 +359,7 @@ const [userRole, setUserRole] = useState<string | null>(null);
       Contact: (parseInt(selectedCharacter.Contact as any) || 0) + 1,
       Distance: (parseInt(selectedCharacter.Distance as any) || 0) + 1,
       Magie: (parseInt(selectedCharacter.Magie as any) || 0) + 1,
+      niveau: (selectedCharacter.niveau || 0) + 1, // Increment level by 1
     };
   
     try {
@@ -336,6 +372,7 @@ const [userRole, setUserRole] = useState<string | null>(null);
         Contact: updatedCharacter.Contact,
         Distance: updatedCharacter.Distance,
         Magie: updatedCharacter.Magie,
+        niveau: updatedCharacter.niveau, // Update level in Firestore
       });
   
       setSelectedCharacter(updatedCharacter);
