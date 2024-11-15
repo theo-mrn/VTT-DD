@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import { ChevronLeft, ChevronRight, Dice6 } from 'lucide-react'
 import Image from 'next/image'
 import { db, auth, storage } from '@/lib/firebase'
-import { doc, setDoc, addDoc, collection } from 'firebase/firestore'
+import { doc, setDoc, addDoc, collection, getDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
@@ -32,6 +32,7 @@ export default function CharacterCreationPage() {
   const [profileData, setProfileData] = useState<any>({})
   const [currentRaceCapabilities, setCurrentRaceCapabilities] = useState<any[]>([])
   const [userId, setUserId] = useState<string | null>(null)
+  const [roomId, setRoomId] = useState<string | null>(null)
   const [character, setCharacter] = useState({
     Nomperso: '',
     Nomjoueur: '',
@@ -95,6 +96,11 @@ export default function CharacterCreationPage() {
     onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserId(user.uid)
+        const userDoc = await getDoc(doc(db, `users/${user.uid}`))
+        if (userDoc.exists()) {
+          const userData = userDoc.data()
+          setRoomId(userData.room_id)
+        }
       }
     })
   }, [])
@@ -134,8 +140,8 @@ export default function CharacterCreationPage() {
   }, [raceData, raceIndex])
 
   const handleCreateCharacter = async () => {
-    if (!userId) {
-      console.error("User ID is not set, cannot save character data.")
+    if (!userId || !roomId) {
+      console.error("User ID or Room ID is not set, cannot save character data.")
       return
     }
 
@@ -157,11 +163,8 @@ export default function CharacterCreationPage() {
         y: 500
       }
 
-      // Save to user's characters collection
       await addDoc(collection(db, `users/${userId}/characters`), characterData)
 
-      // Save to cartes/room_id/characters/id
-      const roomId = '665441' // Replace with actual room ID
       await addDoc(collection(db, `cartes/${roomId}/characters`), characterData)
 
       console.log("Character created successfully")

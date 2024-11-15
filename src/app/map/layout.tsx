@@ -11,7 +11,6 @@ import OverlayComponent from "@/components/overlay";
 import InfoComponent from "@/components/info";
 import RollRequest from '@/components/Rollrequest';
 import { Button } from "@/components/ui/button";
-import SharedMusicPlayer from "@/components/music"; // Import SharedMusicPlayer
 
 import { auth, db, getDoc, doc, onAuthStateChanged, collection, onSnapshot } from "@/lib/firebase";
 
@@ -75,8 +74,6 @@ export default function Layout({ children }: LayoutProps) {
         return <Competences />;
       case "infoComponent":
         return <InfoComponent />;
-      case "Music": // Music tab
-        return <SharedMusicPlayer />;
       default:
         return null;
     }

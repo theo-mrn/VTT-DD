@@ -62,9 +62,9 @@ export default function CombatPage({ attackerId, onClose }: CombatPageProps) {
               await loadWeapons(fetchedRoomId, nomperso)
               
               setAttacks({
-                contact: attackerDoc.data().Contact || null,
-                distance: attackerDoc.data().Distance || null,
-                magie: attackerDoc.data().Magie || null
+                contact: attackerDoc.data().Contact_F || attackerDoc.data().Contact || null,
+                distance: attackerDoc.data().Distance_F || attackerDoc.data().Distance || null,
+                magie: attackerDoc.data().Magie_F || attackerDoc.data().Magie || null
               })
             }
           }
