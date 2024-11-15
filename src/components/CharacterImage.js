@@ -8,8 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 // Générer la liste des tokens de 1 à 70
 const tokenList = Array.from({ length: 70 }, (_, i) => ({
   id: i + 1,
-  name: `token ${i + 1}`,
-  src: `/Token/token${i + 1}.png`
+  name: `Token ${i + 1}`,
+  src: `/Token/Token${i + 1}.png`
 }));
 
 export default function CharacterImage({ imageUrl, altText, characterId }) {
@@ -20,7 +20,7 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
   const [showCropper, setShowCropper] = useState(false);
   const [showDecorationModal, setShowDecorationModal] = useState(false);
   const [croppedImageUrl, setCroppedImageUrl] = useState(imageUrl || "/api/placeholder/192/192");
-  const [overlayUrl, setOverlayUrl] = useState("/Token/token1.png");
+  const [overlayUrl, setOverlayUrl] = useState("/Token/Token1.png");
   const [roomId, setRoomId] = useState(null);
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
         if (characterDoc.exists()) {
           const data = characterDoc.data();
           setCroppedImageUrl(data.imageURL2 || imageUrl || "/api/placeholder/192/192");
-          setOverlayUrl(`/Token/${data.Token || "token1"}.png`);
+          setOverlayUrl(`/Token/${data.Token || "Token1"}.png`);
         } else {
           setCroppedImageUrl(imageUrl || "/api/placeholder/192/192");
         }
@@ -115,8 +115,8 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
 
     try {
       const characterDocRef = doc(db, `cartes/${roomId}/characters`, characterId);
-      await updateDoc(characterDocRef, { Token: `token${tokenNumber}` });
-      setOverlayUrl(`/Token/token${tokenNumber}.png`);
+      await updateDoc(characterDocRef, { Token: `Token${tokenNumber}` });
+      setOverlayUrl(`/Token/Token${tokenNumber}.png`);
     } catch (e) {
       console.error('Failed to update token:', e);
     }
