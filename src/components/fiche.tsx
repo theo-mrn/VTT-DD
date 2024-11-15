@@ -460,8 +460,8 @@ const [userRole, setUserRole] = useState<string | null>(null);
     {selectedCharacter.Race}
   </span>
 </div>
-
-                    <div>Poids: <span className="text-[#a0a0a0]">{selectedCharacter.Poids} Kg</span></div>
+<div>Poids: <span className="text-[#a0a0a0]">{selectedCharacter.Poids} Kg</span></div>
+<div>Dé de Vie: <span className="text-[#a0a0a0]">{selectedCharacter.deVie}</span></div>
                   </div>
                 </div>
 
