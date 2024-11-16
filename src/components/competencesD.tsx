@@ -54,8 +54,8 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
   stat: undefined,
   value: 0,
 });
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [isBonusOpen, setIsBonusOpen] = useState(false);
+  const [detailsOpenCompetenceId, setDetailsOpenCompetenceId] = useState<string | null>(null);
+  const [bonusOpenCompetenceId, setBonusOpenCompetenceId] = useState<string | null>(null);
   
 
   useEffect(() => {
@@ -274,7 +274,7 @@ const handleAddBonus = async () => {
     const filteredCompetences = type === "all" ? competences : competences.filter((comp) => comp.type === type);
 
     return (
-      <ScrollArea className="h-[600px]">
+      <ScrollArea className="h-[600px] p-2">
         <div className="space-y-2">
           {filteredCompetences.map((competence) => (
             <Card
@@ -287,7 +287,7 @@ const handleAddBonus = async () => {
               <CardContent className="flex justify-between items-center p-4 text-[#d4d4d4]">
                 <span className="font-semibold text-[#c0a080]">{competence.name}</span>
                 <div className="flex space-x-2">
-                  <Dialog open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+                  <Dialog open={detailsOpenCompetenceId === competence.id} onOpenChange={(isOpen) => setDetailsOpenCompetenceId(isOpen ? competence.id : null)}>
                     <DialogTrigger asChild>
                       <Button
                         variant="ghost"
@@ -302,21 +302,26 @@ const handleAddBonus = async () => {
                         Détails
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className=" max-w-3xl bg-[#1c1c1c] text-[#d4d4d4]">
+                    <DialogContent
+                      className="max-w-3xl bg-[#1c1c1c] text-[#d4d4d4]"
+                      onPointerDownOutside={(e) => e.stopPropagation()}
+                      onEscapeKeyDown={(e) => e.stopPropagation()}
+                    >
                       <DialogHeader>
                         <DialogTitle>{selectedCompetence?.name}</DialogTitle>
-    
                         <DialogDescription dangerouslySetInnerHTML={{ __html: selectedCompetence?.description || "" }}/>
-
                       </DialogHeader>
                       <DialogFooter>
-                        <Button variant="ghost" className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]" onClick={() => setIsDetailsOpen(false)}>
+                        <Button variant="ghost" className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]" onClick={(e) => {
+                          e.stopPropagation();
+                          setDetailsOpenCompetenceId(null);
+                        }}>
                           Fermer
                         </Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>
-                  <Dialog open={isBonusOpen} onOpenChange={setIsBonusOpen}>
+                  <Dialog open={bonusOpenCompetenceId === competence.id} onOpenChange={(isOpen) => setBonusOpenCompetenceId(isOpen ? competence.id : null)}>
                     <DialogTrigger asChild>
                       <Button
                         variant="ghost"
@@ -331,7 +336,11 @@ const handleAddBonus = async () => {
                         Bonus
                       </Button>
                     </DialogTrigger>
-                    <DialogContent className="max-w-3xl bg-[#1c1c1c] text-[#d4d4d4]">
+                    <DialogContent
+                      className="max-w-3xl bg-[#1c1c1c] text-[#d4d4d4]"
+                      onPointerDownOutside={(e) => e.stopPropagation()}
+                      onEscapeKeyDown={(e) => e.stopPropagation()}
+                    >
                       <DialogHeader>
                         <DialogTitle>Gérer les bonus pour {selectedCompetence?.name}</DialogTitle>
                       </DialogHeader>
@@ -393,7 +402,10 @@ const handleAddBonus = async () => {
                         </Button>
                       </div>
                       <DialogFooter>
-                        <Button variant="ghost" className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]" onClick={() => setIsBonusOpen(false)}>
+                        <Button variant="ghost" className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]" onClick={(e) => {
+                          e.stopPropagation();
+                          setBonusOpenCompetenceId(null);
+                        }}>
                           Fermer
                         </Button>
                       </DialogFooter>
