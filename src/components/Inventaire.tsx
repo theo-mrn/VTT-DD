@@ -137,7 +137,8 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
         const itemRef = doc(db, `Bonus/${roomId}/${playerName}/${currentItem.id}`);
         await setDoc(itemRef, { 
             [bonusType]: parseInt(bonusValue),
-            active: true
+            active: true,
+            category: 'Inventaire'
         }, { merge: true });
         setBonusType('');
         setBonusValue('');
@@ -239,7 +240,7 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                 <Plus className="mr-2 h-4 w-4" /> Ajouter
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-[#1c1c1c] text-[#d4d4d4]">
+            <DialogContent className="bg-[#1c1c1c] max-w-3xl text-[#d4d4d4]">
               <DialogHeader>
                 <DialogTitle>Ajouter un objet</DialogTitle>
               </DialogHeader>
@@ -342,7 +343,7 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
         </Tabs>
 
         <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
-          <DialogContent className="bg-[#1c1c1c] text-[#d4d4d4]">
+          <DialogContent className="bg-[#1c1c1c] max-w-3xl text-[#d4d4d4]">
             <DialogHeader>
               <DialogTitle>Renommer {currentItem?.message}</DialogTitle>
             </DialogHeader>
@@ -359,7 +360,7 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
         </Dialog>
 
         <Dialog open={isBonusDialogOpen} onOpenChange={setIsBonusDialogOpen}>
-          <DialogContent className="bg-[#1c1c1c] text-[#d4d4d4]">
+          <DialogContent className="bg-[#1c1c1c] max-w-3xl text-[#d4d4d4]">
             <DialogHeader>
               <DialogTitle>Gérer les bonus de {currentItem?.message}</DialogTitle>
             </DialogHeader>

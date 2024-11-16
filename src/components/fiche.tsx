@@ -16,6 +16,7 @@ import { Heart, Shield } from 'lucide-react';
 import InventoryManagement from '@/components/Inventaire';
 import CompetencesDisplay from "@/components/competencesD";
 import CharacterImage from '@/components/CharacterImage';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface Character {
   id: string;
@@ -57,6 +58,14 @@ interface Bonuses {
   Magie: number;
   PV: number;
   SAG: number;
+  PV_Max: number;
+}
+
+interface CategorizedBonuses {
+  [key: string]: {
+    Inventaire: number;
+    Competence: number;
+  };
 }
 
 export default function Component() {
@@ -70,6 +79,7 @@ export default function Component() {
   const [rollResult, setRollResult] = useState<number | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [bonuses, setBonuses] = useState<Bonuses | null>(null);
+  const [categorizedBonuses, setCategorizedBonuses] = useState<CategorizedBonuses | null>(null);
   const [isRaceModalOpen, setIsRaceModalOpen] = useState(false);
 const [selectedRaceAbilities, setSelectedRaceAbilities] = useState<string[]>([]);
 const [userPersoId, setUserPersoId] = useState<string | null>(null);
@@ -137,6 +147,26 @@ const [userRole, setUserRole] = useState<string | null>(null);
 
   const getModifier = (value: number): number => {
     return Math.floor((value - 10) / 2);
+  };
+
+  const getDisplayModifier = (stat: keyof Character): number => {
+    const baseValue = selectedCharacter ? parseInt(selectedCharacter[stat] as any || "0") : 0;
+    const bonusValue = bonuses ? bonuses[stat] || 0 : 0;
+    const finalValue = getModifier(baseValue) + bonusValue;
+  
+    // Enregistrer la valeur finale dans la base de données
+    if (selectedCharacter && roomId) {
+      const finalStatKey = `${stat}_F`;
+      const finalStats: Partial<Record<string, number>> = {
+        [finalStatKey]: finalValue
+      };
+      updateDoc(doc(db, `cartes/${roomId}/characters`, selectedCharacter.id), finalStats)
+        .catch(error => {
+          console.error(`Erreur lors de la sauvegarde de ${finalStatKey}:`, error);
+        });
+    }
+  
+    return finalValue;
   };
 
   const handleEdit = () => {
@@ -281,18 +311,40 @@ const [userRole, setUserRole] = useState<string | null>(null);
         FOR: 0, INIT: 0, INT: 0, Magie: 0,PV_Max:0, PV: 0, SAG: 0,
       };
   
+      const categorizedBonuses: CategorizedBonuses = {
+        CHA: { Inventaire: 0, Competence: 0 },
+        CON: { Inventaire: 0, Competence: 0 },
+        Contact: { Inventaire: 0, Competence: 0 },
+        DEX: { Inventaire: 0, Competence: 0 },
+        Defense: { Inventaire: 0, Competence: 0 },
+        Distance: { Inventaire: 0, Competence: 0 },
+        FOR: { Inventaire: 0, Competence: 0 },
+        INIT: { Inventaire: 0, Competence: 0 },
+        INT: { Inventaire: 0, Competence: 0 },
+        Magie: { Inventaire: 0, Competence: 0 },
+        PV_Max: { Inventaire: 0, Competence: 0 },
+        PV: { Inventaire: 0, Competence: 0 },
+        SAG: { Inventaire: 0, Competence: 0 },
+      };
+  
       snapshot.forEach((doc) => {
         const bonusData = doc.data();
         if (bonusData.active) {
           for (let stat in totalBonuses) {
             if (bonusData[stat] !== undefined) {
               totalBonuses[stat] += parseInt(bonusData[stat] || 0);
+              if (bonusData.category === "Inventaire") {
+                categorizedBonuses[stat].Inventaire += parseInt(bonusData[stat] || 0);
+              } else if (bonusData.category === "competence") {
+                categorizedBonuses[stat].Competence += parseInt(bonusData[stat] || 0);
+              }
             }
           }
         }
       });
   
       setBonuses(totalBonuses);
+      setCategorizedBonuses(categorizedBonuses);
       if (selectedCharacter) {
         saveFinalStats(selectedCharacter, totalBonuses);
       }
@@ -410,6 +462,7 @@ const [userRole, setUserRole] = useState<string | null>(null);
   }
 
   return (
+    <TooltipProvider>
     <div className="min-h-screen bg-[#1c1c1c] text-[#d4d4d4] p-4">
       <div className="max-w-4xl mx-auto bg-[#242424] rounded-lg shadow-2xl p-6 space-y-6">
         
@@ -467,36 +520,63 @@ const [userRole, setUserRole] = useState<string | null>(null);
 
                 <div className="grid grid-cols-3 gap-2 text-center">
                   {[
-                    { name: 'FOR', value: getDisplayValue("FOR") },
-                    { name: 'DEX', value: getDisplayValue("DEX") },
-                    { name: 'CON', value: getDisplayValue("CON") },
-                    { name: 'INT', value: getDisplayValue("INT") },
-                    { name: 'SAG', value: getDisplayValue("SAG") },
-                    { name: 'CHA', value: getDisplayValue("CHA") },
+                    { name: 'FOR', value: getDisplayModifier("FOR") },
+                    { name: 'DEX', value: getDisplayModifier("DEX") },
+                    { name: 'CON', value: getDisplayModifier("CON") },
+                    { name: 'INT', value: getDisplayModifier("INT") },
+                    { name: 'SAG', value: getDisplayModifier("SAG") },
+                    { name: 'CHA', value: getDisplayModifier("CHA") },
                   ].map((ability) => (
-                    <div key={ability.name} className="bg-[#2a2a2a] p-2 rounded-lg border border-[#3a3a3a]">
-                      <div className="text-[#c0a0a0] font-semibold">{ability.name}</div>
-                      <div className={`text-2xl font-bold ${getModifier(ability.value) >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {getModifier(ability.value) >= 0 ? '+' : ''}{getModifier(ability.value)}
+                    <Tooltip key={ability.name}>
+                    <TooltipTrigger>
+                      <div className="bg-[#2a2a2a] p-2 rounded-lg border border-[#3a3a3a]">
+                        <div className="text-[#c0a0a0] font-semibold">{ability.name}</div>
+                        <div className={`text-2xl font-bold ${ability.value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {ability.value >= 0 ? '+' : ''}{ability.value}
+                        </div>
+                        <div className="text-sm text-[#a0a0a0]">{selectedCharacter ? selectedCharacter[ability.name as keyof Character] : 0}</div>
                       </div>
-                      <div className="text-sm text-[#a0a0a0]">{ability.value}</div>
-                    </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Mod de base: {getModifier(selectedCharacter ? selectedCharacter[ability.name as keyof Character] as number : 0)}</p>
+                      <p>Inventaire: {categorizedBonuses ? categorizedBonuses[ability.name].Inventaire : 0}</p>
+                      <p>Compétence: {categorizedBonuses ? categorizedBonuses[ability.name].Competence : 0}</p>
+                    </TooltipContent>
+                  </Tooltip>
                   ))}
                 </div>
               </div>
             </div>
 
             <div className="bg-[#2a2a2a] p-4 rounded-lg border border-[#3a3a3a] flex justify-between items-center">
-              <div className="flex items-center space-x-2">
-                <Heart className="text-red-500" size={24} />
-                <span className="text-2xl font-bold text-[#d4d4d4]">
-                  {getDisplayValue("PV")} / {getDisplayValue("PV_Max")}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Shield className="text-blue-500" size={24} />
-                <span className="text-2xl font-bold text-[#d4d4d4]">{getDisplayValue("Defense")}</span>
-              </div>
+              <Tooltip>
+                <TooltipTrigger>
+                  <div className="flex items-center space-x-2">
+                    <Heart className="text-red-500" size={24} />
+                    <span className="text-2xl font-bold text-[#d4d4d4]">
+                      {getDisplayValue("PV")} / {getDisplayValue("PV_Max")}
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Base: {selectedCharacter ? selectedCharacter.PV : 0}</p>
+                  <p>Inventaire: {categorizedBonuses ? categorizedBonuses.PV.Inventaire : 0}</p>
+                  <p>Compétence: {categorizedBonuses ? categorizedBonuses.PV.Competence : 0}</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger>
+                  <div className="flex items-center space-x-2">
+                    <Shield className="text-blue-500" size={24} />
+                    <span className="text-2xl font-bold text-[#d4d4d4]">{getDisplayValue("Defense")}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Base: {selectedCharacter ? selectedCharacter.Defense : 0}</p>
+                  <p>Inventaire: {categorizedBonuses ? categorizedBonuses.Defense.Inventaire : 0}</p>
+                  <p>Compétence: {categorizedBonuses ? categorizedBonuses.Defense.Competence : 0}</p>
+                </TooltipContent>
+              </Tooltip>
             </div>
 
             <div className="grid grid-cols-3 gap-4">
@@ -505,10 +585,19 @@ const [userRole, setUserRole] = useState<string | null>(null);
                 { name: 'Distance', value: getDisplayValue("Distance") },
                 { name: 'Magie', value: getDisplayValue("Magie") }
               ].map((stat) => (
-                <div key={stat.name} className="bg-[#2a2a2a] p-4 rounded-lg border border-[#3a3a3a] text-center">
-                  <h3 className="text-lg font-semibold text-[#c0a0a0] mb-1">{stat.name}</h3>
-                  <span className="text-2xl font-bold text-[#d4d4d4]">{stat.value}</span>
-                </div>
+                <Tooltip key={stat.name}>
+                  <TooltipTrigger>
+                    <div className="bg-[#2a2a2a] p-4 rounded-lg border border-[#3a3a3a] text-center">
+                      <h3 className="text-lg font-semibold text-[#c0a0a0] mb-1">{stat.name}</h3>
+                      <span className="text-2xl font-bold text-[#d4d4d4]">{stat.value}</span>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Base: {selectedCharacter ? selectedCharacter[stat.name as keyof Character] : 0}</p>
+                    <p>Inventaire: {categorizedBonuses ? categorizedBonuses[stat.name].Inventaire : 0}</p>
+                    <p>Compétence: {categorizedBonuses ? categorizedBonuses[stat.name].Competence : 0}</p>
+                  </TooltipContent>
+                </Tooltip>
               ))}
             </div>
 
@@ -696,5 +785,6 @@ const [userRole, setUserRole] = useState<string | null>(null);
         )}
       </div>
     </div>
+  </TooltipProvider>
   );
 }
