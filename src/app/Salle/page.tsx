@@ -12,6 +12,7 @@ import { ArrowLeft, Users, Trash } from 'lucide-react'
 import { auth, db, collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, storage } from '@/lib/firebase'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
+import { Alert, AlertTitle } from "@/components/ui/alert"
 
 interface Room {
   id: string;
@@ -47,9 +48,38 @@ function DialogDeleteConfirmation({ onConfirm }: { onConfirm: () => void }) {
   )
 }
 
+const fetchCreatorInfo = async (creatorId: string) => {
+  const creatorDoc = await getDoc(doc(db, 'users', creatorId))
+  if (creatorDoc.exists()) {
+    return creatorDoc.data() as { name: string; pp: string }
+  }
+  return null
+}
+
+const fetchRoomByCode = async (code: string): Promise<Room | null> => {
+  const roomDoc = await getDoc(doc(db, 'Salle', code))
+  if (roomDoc.exists()) {
+    return { id: roomDoc.id, ...roomDoc.data() } as Room
+  }
+  return null
+}
+
 // Composant pour afficher les informations de la salle et les actions disponibles
 function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => void; onEdit: () => void }) {
+  const [creatorInfo, setCreatorInfo] = useState<{ name: string; pp: string } | null>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    const getCreatorInfo = async () => {
+      if (room.creatorId) {
+        const info = await fetchCreatorInfo(room.creatorId)
+        if (info) {
+          setCreatorInfo(info)
+        }
+      }
+    }
+    getCreatorInfo()
+  }, [room.creatorId])
 
   const handleDeleteRoom = async () => {
     try {
@@ -84,27 +114,30 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
         <h1 className="text-4xl font-bold text-[#c0a0a0]">{room.title}</h1>
       </div>
       <hr className="border-t border-[#3a3a3a] my-2" />
-      <div className="flex flex-1 mt-4">
-        <div className="w-3/5 pr-8 space-y-6 flex flex-col justify-center">
-          <p className="text-lg text-[#a0a0a0]">{room.description}</p>
-          <div className="flex items-center space-x-3">
-            <Users className="h-5 w-5 text-[#c0a0a0]" />
-            <span>Joueurs : {room.maxPlayers}</span>
-          </div>
-          <div className="flex space-x-4 mt-4">
-            <Button onClick={handleJoin} className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f] transition duration-300">Rejoindre la partie</Button>
-            {room.creatorId === auth.currentUser?.uid && (
-              <>
-                <Button variant="outline" onClick={onEdit} className="text-[#d4d4d4] border border-[#5c6bc0] hover:bg-[#5c6bc0]">Modifier</Button>
-                <DialogDeleteConfirmation onConfirm={handleDeleteRoom} />
-              </>
-            )}
-          </div>
+      <div className="flex flex-col items-center mt-4">
+        <img src={room.imageUrl} alt={`Image de la salle ${room.title}`} className="w-3/5 h-80 rounded-lg object-cover border border-[#3a3a3a] mb-6" />
+        <p className="text-lg text-[#a0a0a0]">{room.description}</p>
+        <div className="flex items-center space-x-3 mt-4">
+          <Users className="h-5 w-5 text-[#c0a0a0]" />
+          <span>Joueurs : {room.maxPlayers}</span>
         </div>
-        <div className="w-2/5 flex justify-center items-center">
-          <img src={room.imageUrl} alt={`Image de la salle ${room.title}`} className="w-full h-auto object-cover rounded-lg border border-[#3a3a3a]" />
+        <div className="flex space-x-4 mt-4">
+          <Button onClick={handleJoin} className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f] transition duration-300">Rejoindre la partie</Button>
+          {room.creatorId === auth.currentUser?.uid && (
+            <>
+              <Button variant="outline" onClick={onEdit} className="text-[#d4d4d4] border border-[#5c6bc0] hover:bg-[#5c6bc0]">Modifier</Button>
+              <DialogDeleteConfirmation onConfirm={handleDeleteRoom} />
+            </>
+          )}
         </div>
       </div>
+      <hr className="border-t border-[#3a3a3a] my-2" />
+      {creatorInfo && (
+        <div className="flex items-center mt-4">
+          <img src={creatorInfo.pp} alt={`Image de ${creatorInfo.name}`} className="w-20 h-20 rounded-full mr-2" />
+          <span className="text-[#a0a0a0]">Créer par<br></br> {creatorInfo.name}</span>
+        </div>
+      )}
     </div>
   )
 }
@@ -125,6 +158,7 @@ export default function Component() {
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
+  const [showAlert, setShowAlert] = useState(false)
 
   const router = useRouter()
 
@@ -184,12 +218,13 @@ export default function Component() {
     return code;
   };
 
-  const handleJoinRoom = (code: string) => {
-    const room = publicRooms.find((r) => r.id === code)
+  const handleJoinRoom = async (code: string) => {
+    const room = await fetchRoomByCode(code)
     if (room) {
       setSelectedRoom(room)
     } else {
-      console.log(`Aucune salle trouvée avec le code: ${code}`)
+      setShowAlert(true)
+      setTimeout(() => setShowAlert(false), 2000)
     }
   }
 
@@ -300,7 +335,13 @@ export default function Component() {
   }
 
   return (
-    <div className="container mx-auto p-4 min-h-screen bg-[#1c1c1c] text-[#d4d4d4]">
+    <div className="container mx-auto p-4 min-h-screen bg-[#1c1c1c] text-[#d4d4d4] relative">
+      {showAlert && (
+        <div className="absolute top-0 left-0 right-0 bg-red-600 text-white p-4 text-center z-50">
+          <AlertTitle>Aucune salle trouvée</AlertTitle>
+          Le code que vous avez entré ne correspond à aucune salle existante.
+        </div>
+      )}
       <h1 className="text-3xl font-bold mb-6 text-[#c0a0a0]">Trouvez une partie</h1>
       
       <Tabs defaultValue="rejoindre" className="w-full">
@@ -431,7 +472,7 @@ export default function Component() {
                 {userRooms.length > 0 ? (
                   <ul className="space-y-2">
                     {userRooms.map((room) => (
-                      <li key={room.id} className="flex justify-between items-center bg-secondary p-2 rounded bg-[#2a2a2a] border border-[#3a3a3a]">
+                      <li key={room.id} className="flex justify-between items-center bg-black p-2 rounded  border border-[#3a3a3a]">
                         <span>{room.title}</span>
                         <Button onClick={() => setSelectedRoom(room)} variant="outline" size="sm" className="text-[#d4d4d4] border border-[#5c6bc0] hover:bg-[#5c6bc0]">
                           Voir
