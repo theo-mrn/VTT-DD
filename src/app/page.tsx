@@ -1,139 +1,127 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { auth, db, onAuthStateChanged, doc, getDoc } from '@/lib/firebase';
 
 export default function LandingPage() {
-  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [isButtonVisible, setIsButtonVisible] = useState(false);
+  const [isBackgroundVisible, setIsBackgroundVisible] = useState(false);
   const router = useRouter();
 
-  const toggleMobileNav = () => setIsMobileNavOpen((prev) => !prev);
+  useEffect(() => {
+    console.log('LandingPage mounted');
+    const backgroundTimer = setTimeout(() => {
+      setIsBackgroundVisible(true);
+    }, 1); // Background starts fading in after 0.5 seconds
 
-  // Fonction pour vérifier les données de l'utilisateur et rediriger
-  const checkUserDataAndRedirect = async () => {
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDoc = doc(db, 'users', user.uid);
-        const userSnapshot = await getDoc(userDoc);
-        if (userSnapshot.exists()) {
-          const { room_id, perso } = userSnapshot.data();
-          if (!room_id) {
-            router.push('/Salle');
-          } else if (!perso) {
-            router.push('/personnages');
-          } else {
-            router.push('/map');
-          }
-        }
-      } else {
-        router.push('/auth'); 
-      }
-    });
+    const buttonTimer = setTimeout(() => {
+      setIsButtonVisible(true);
+    }, 6000); // Button appears after 6 seconds
+
+    return () => {
+      clearTimeout(backgroundTimer);
+      clearTimeout(buttonTimer);
+    };
+  }, []);
+
+  const handleClick = () => {
+    console.log('Button clicked');
+    router.push('/auth');
   };
 
   return (
-    <div className="text-gray-800">
-      <header className="fixed top-0 left-0 w-full bg-black bg-opacity-80 z-50">
-        <nav className="flex items-center justify-between p-4 max-w-7xl mx-auto">
-          <div className="text-white text-2xl font-bold uppercase">D&D Aventures</div>
-          <div className="md:hidden cursor-pointer" onClick={toggleMobileNav}>
-            <div className="w-6 h-0.5 bg-white mb-1"></div>
-            <div className="w-6 h-0.5 bg-white mb-1"></div>
-            <div className="w-6 h-0.5 bg-white"></div>
-          </div>
-          <div className="hidden md:flex space-x-6">
-            <button
-              onClick={() => router.push('/auth')}
-              className="text-white hover:text-red-500"
-            >
-              Se connecter / S'inscrire
-            </button>
-          </div>
-        </nav>
-        {isMobileNavOpen && (
-          <div className="bg-black bg-opacity-90 absolute w-full flex flex-col items-center md:hidden">
-            <button
-              onClick={() => {
-                router.push('/auth');
-                setIsMobileNavOpen(false);
-              }}
-              className="text-white py-2"
-            >
-              Se connecter / S'inscrire
-            </button>
-          </div>
-        )}
-      </header>
+    <div
+      style={{
+        margin: 0,
+        color: '#000000',
+        height: '100vh',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        position: 'relative',
+        overflow: 'hidden',
+        backgroundColor: 'black',
+        zIndex: 0 // Ajout de l'arrière-plan noir
+      }}
+    >
+      {/* Background Div */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: -1,
+          backgroundImage: "url('/images/index9.webp')",
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          height: '100%',
+          width: '100%',
+          maskImage: "url('/ink_lv2.gif')",
+          maskSize: 'cover',
+          maskPosition: 'center',
+          WebkitMaskImage: "url('/ink_lv2.gif')",
+          opacity: isBackgroundVisible ? 1 : 0, 
+          transition: 'opacity 2s ease-in-out', 
+        }}
+      ></div>
 
-      <main>
-        <section className="h-screen bg-cover bg-center flex items-center justify-start text-white relative" style={{ backgroundImage: "url('/images/index9.webp')" }}>
-          <div className="bg-black bg-opacity-50 absolute inset-0"></div>
-          <div className="relative z-10 p-10 max-w-lg">
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">Plongez dans l'Univers Épique de D&D</h1>
-            <p className="text-lg md:text-xl mb-6">Forgez votre légende, affrontez des monstres redoutables et vivez des aventures inoubliables dans le monde fantastique de Donjons & Dragons.</p>
-            <button
-              onClick={checkUserDataAndRedirect} // Appelle la fonction de vérification au clic
-              className="inline-block bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition-transform transform hover:-translate-y-1"
-              id="start-button"
-            >
-              Commencer l'Aventure
-            </button>
-          </div>
-        </section>
+      {/* Title SVG */}
+      <div className="title" style={{ zIndex: 1 }}>
+        <svg
+          width="320"
+          height="106"
+          viewBox="0 0 320 106"
+          fill="none"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            d="M84.25 0L55.125 52.1875V90H30.3125V53.5625L0.875 0H26.1875L45.75 45.25L66.75 0H84.25ZM162 48.625C162 53.5 161.396 58.5833 160.188 63.875C159.021 69.1667 157.375 74.3542 155.25 79.4375C153.125 84.5208 150.583 89.2917 147.625 93.75C144.667 98.25 141.417 102.125 137.875 105.375L129.938 101.062C131.062 98.9792 132.125 96.6458 133.125 94.0625C134.125 91.4792 135.021 88.75 135.812 85.875C136.646 82.9583 137.375 79.9583 138 76.875C138.667 73.7917 139.208 70.75 139.625 67.75C140.083 64.7083 140.417 61.7708 140.625 58.9375C140.875 56.0625 141 53.3958 141 50.9375C141 49.3125 140.938 47.5833 140.812 45.75C140.688 43.875 140.417 42.0208 140 40.1875C139.625 38.3125 139.104 36.5208 138.438 34.8125C137.771 33.1042 136.875 31.6042 135.75 30.3125C134.667 29.0208 133.333 27.9792 131.75 27.1875C130.208 26.3958 128.375 26 126.25 26C124.167 26 122.312 26.4792 120.688 27.4375C119.062 28.3542 117.625 29.5833 116.375 31.125C115.125 32.625 114.042 34.3542 113.125 36.3125C112.25 38.2708 111.521 40.2917 110.938 42.375C110.396 44.4167 110 46.4375 109.75 48.4375C109.5 50.4375 109.375 52.2292 109.375 53.8125V90H88.1875V17.8125H96.3125L106 34.625C107.167 31.8333 108.625 29.2917 110.375 27C112.125 24.7083 114.104 22.75 116.312 21.125C118.521 19.5 120.958 18.25 123.625 17.375C126.333 16.5 129.25 16.0625 132.375 16.0625C137.375 16.0625 141.729 16.875 145.438 18.5C149.146 20.125 152.229 22.3958 154.688 25.3125C157.146 28.1875 158.979 31.625 160.188 35.625C161.396 39.5833 162 43.9167 162 48.625ZM193.312 55.75C195.896 56.3333 198.479 56.7917 201.062 57.125C203.646 57.4583 206.25 57.625 208.875 57.625C211.625 57.625 214.167 57.375 216.5 56.875C218.875 56.3333 220.917 55.4583 222.625 54.25C224.375 53 225.75 51.3542 226.75 49.3125C227.75 47.2708 228.25 44.7292 228.25 41.6875C228.25 39.2292 227.917 36.9792 227.25 34.9375C226.583 32.8958 225.583 31.1458 224.25 29.6875C222.958 28.2292 221.354 27.1042 219.438 26.3125C217.521 25.4792 215.292 25.0625 212.75 25.0625C210.375 25.0625 208.229 25.5 206.312 26.375C204.438 27.25 202.771 28.4375 201.312 29.9375C199.896 31.3958 198.667 33.1042 197.625 35.0625C196.625 37.0208 195.792 39.0625 195.125 41.1875C194.458 43.3125 193.979 45.4583 193.688 47.625C193.396 49.7917 193.25 51.8333 193.25 53.75C193.25 54.0833 193.25 54.4167 193.25 54.75C193.25 55.0833 193.271 55.4167 193.312 55.75ZM245.375 41.5C245.375 44.4583 244.896 47.1042 243.938 49.4375C242.979 51.7292 241.667 53.75 240 55.5C238.375 57.25 236.479 58.7292 234.312 59.9375C232.146 61.1458 229.833 62.1458 227.375 62.9375C224.917 63.6875 222.375 64.2292 219.75 64.5625C217.167 64.8958 214.646 65.0625 212.188 65.0625C209.062 65.0625 205.979 64.8542 202.938 64.4375C199.896 63.9792 196.896 63.2708 193.938 62.3125C194.396 65.0625 195.125 67.6875 196.125 70.1875C197.125 72.6458 198.458 74.8125 200.125 76.6875C201.792 78.5208 203.833 79.9792 206.25 81.0625C208.708 82.1458 211.604 82.6875 214.938 82.6875C217.146 82.6875 219.25 82.3542 221.25 81.6875C223.25 81.0208 225.083 80.0833 226.75 78.875C228.417 77.6667 229.875 76.2292 231.125 74.5625C232.417 72.8958 233.458 71.0417 234.25 69L243.375 72.375C242 75.6667 240.104 78.5208 237.688 80.9375C235.312 83.3125 232.604 85.2917 229.562 86.875C226.562 88.4167 223.354 89.5625 219.938 90.3125C216.562 91.0625 213.208 91.4375 209.875 91.4375C204.375 91.4375 199.292 90.5208 194.625 88.6875C189.958 86.8125 185.938 84.2083 182.562 80.875C179.188 77.5417 176.542 73.5625 174.625 68.9375C172.708 64.3125 171.75 59.25 171.75 53.75C171.75 48.25 172.708 43.1875 174.625 38.5625C176.542 33.9375 179.188 29.9583 182.562 26.625C185.938 23.2917 189.958 20.7083 194.625 18.875C199.292 17 204.375 16.0625 209.875 16.0625C212.542 16.0625 215.271 16.25 218.062 16.625C220.854 17 223.562 17.6042 226.188 18.4375C228.812 19.2292 231.292 20.2708 233.625 21.5625C235.958 22.8542 237.979 24.4583 239.688 26.375C241.438 28.25 242.812 30.4375 243.812 32.9375C244.854 35.4375 245.375 38.2917 245.375 41.5ZM319.938 24.1875L308.062 43.875C307.562 42.2083 306.917 40.3333 306.125 38.25C305.333 36.1667 304.354 34.2292 303.188 32.4375C302.021 30.6042 300.625 29.0833 299 27.875C297.375 26.625 295.5 26 293.375 26C291.417 26 289.708 26.5 288.25 27.5C286.833 28.5 285.625 29.8125 284.625 31.4375C283.625 33.0208 282.792 34.8333 282.125 36.875C281.5 38.875 281 40.9167 280.625 43C280.292 45.0417 280.062 47.0208 279.938 48.9375C279.812 50.8125 279.75 52.4375 279.75 53.8125V90H258.562V17.8125H266.688L275.25 34.625C276.417 31.9167 277.75 29.4375 279.25 27.1875C280.75 24.8958 282.479 22.9375 284.438 21.3125C286.396 19.6458 288.604 18.3542 291.062 17.4375C293.562 16.5208 296.375 16.0625 299.5 16.0625C301.125 16.0625 302.938 16.2083 304.938 16.5C306.938 16.75 308.896 17.2083 310.812 17.875C312.729 18.5 314.5 19.3333 316.125 20.375C317.75 21.4167 319.021 22.6875 319.938 24.1875Z"
+            fill="none"
+            stroke="#c0a080"
+            strokeWidth="2"
+            strokeDasharray="450"
+            strokeDashoffset="450"
+            style={{
+              animation: 'textAnimation 5s ease-in-out forwards',
+            }}
+          />
+        </svg>
+      </div>
 
-        <section className="py-16 bg-gray-100 text-center">
-          <div className="max-w-7xl mx-auto px-4">
-            <h2 className="text-3xl font-bold mb-12">Caractéristiques du Jeu</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              <div className="bg-white p-8 rounded-lg shadow-md transition-transform transform hover:-translate-y-2">
-                <h3 className="text-xl font-semibold mb-4 text-red-500">Combats Épiques</h3>
-                <p>Affrontez des créatures légendaires et des ennemis redoutables dans des combats tactiques palpitants.</p>
-              </div>
-              <div className="bg-white p-8 rounded-lg shadow-md transition-transform transform hover:-translate-y-2">
-                <h3 className="text-xl font-semibold mb-4 text-red-500">Jeu Coopératif</h3>
-                <p>Formez une équipe soudée avec vos amis et relevez ensemble ou mettez vous sur la gueule.</p>
-              </div>
-              <div className="bg-white p-8 rounded-lg shadow-md transition-transform transform hover:-translate-y-2">
-                <h3 className="text-xl font-semibold mb-4 text-red-500">Fiche de personnages</h3>
-                <p>Créez vos fiches de personnage interactif.</p>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="py-16 bg-white text-center">
-          <div className="max-w-7xl mx-auto px-4">
-            <h2 className="text-3xl font-bold mb-12">Galerie d'Aventures</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="relative overflow-hidden rounded-lg h-80">
-                <img src="/images/foret.webp" className="w-full h-full object-cover transform transition-transform hover:scale-110" />
-              </div>
-              <div className="relative overflow-hidden rounded-lg h-80">
-                <img src="/images/carte.webp" className="w-full h-full object-cover transform transition-transform hover:scale-110" />
-              </div>
-              <div className="relative overflow-hidden rounded-lg h-80">
-                <img src="/images/prison.webp" className="w-full h-full object-cover transform transition-transform hover:scale-110" />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="py-32 bg-cover bg-center text-center text-white relative" style={{ backgroundImage: "url('/images/index2.webp')" }}>
-          <div className="bg-black bg-opacity-60 absolute inset-0"></div>
-          <div className="relative z-10 max-w-3xl mx-auto px-4">
-            <h2 className="text-4xl md:text-5xl font-bold mb-6">Prêt à Commencer Votre Quête ?</h2>
-            <p className="text-lg md:text-xl mb-8">Rejoignez des millions d'aventuriers dans le monde fascinant de Donjons & Dragons. Votre légende vous attend !</p>
-            <button
-              onClick={checkUserDataAndRedirect} // Appelle la fonction de vérification au clic
-              className="inline-block bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded transition-transform transform hover:-translate-y-1"
-              id="create-character-button"
-            >
-              Créer un Personnage
-            </button>
-          </div>
-        </section>
-      </main>
+      {/* Button */}
+      <button
+        style={{
+          position: 'absolute',
+          bottom: '200px',
+          padding: '10px 20px',
+          fontSize: '18px',
+          color: '#fff',
+          backgroundColor: '#000000',
+          border: 'none',
+          borderRadius: '5px',
+          cursor: 'pointer',
+          opacity: isButtonVisible ? 1 : 0,
+          transition: 'opacity 0.5s',
+          zIndex: 2, // Assurez-vous que le bouton est au-dessus de tout
+          pointerEvents: isButtonVisible ? 'auto' : 'none', // Assurez-vous que le bouton peut être cliqué
+        }}
+        onClick={handleClick}
+      >
+        Commencer
+      </button>
+      <style jsx>{`
+        @keyframes textAnimation {
+          0% {
+            stroke-dashoffset: 450;
+          }
+          80% {
+            fill: transparent;
+          }
+          100% {
+            fill: #c0a080;
+            stroke-dashoffset: 0;
+          }
+        }
+      `}</style>
     </div>
   );
 }
