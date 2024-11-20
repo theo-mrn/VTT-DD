@@ -10,6 +10,7 @@ import { X, Plus, Minus, Move, Edit, Pencil, Eraser ,CircleUserRound, Eclipse ,B
 import { auth, db, onAuthStateChanged, doc,getDoc,getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 
 export default function Component() {
@@ -77,6 +78,8 @@ export default function Component() {
   const [fogRectangles, setFogRectangles] = useState<{ start: Point, end: Point }[]>([]);
   const [clearFogMode, setClearFogMode] = useState(false);
   const [selectedFogIndex, setSelectedFogIndex] = useState<number | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
 
 
   useEffect(() => {
@@ -756,8 +759,8 @@ const updateCharacterVisibilityAfterFogRemoval = async (removedSquare: Point) =>
 const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
   const rect = canvasRef.current?.getBoundingClientRect();
   if (!rect) return;
-  const containerWidth = containerRef.current?.clientWidth || rect.width;
-  const containerHeight = containerRef.current?.clientHeight || rect.height;
+  const containerWidth = containerRef.current?.getBoundingClientRect().width || rect.width;
+  const containerHeight = containerRef.current?.getBoundingClientRect().height || rect.height;
   const image = new Image();
   image.src = backgroundImage;
   image.onload = async () => {
@@ -1026,29 +1029,23 @@ const handleCanvasMouseUp = async () => {
 };
 
 
-  const handleDeleteCharacter = async () => {
-    // Assurez-vous qu'un personnage est sélectionné et que roomId est valide
-    if (selectedCharacterIndex !== null && roomId) {
-      const charToDelete = characters[selectedCharacterIndex];
-      
-      // Vérifiez que l'ID du personnage existe
-      if (charToDelete?.id) {
-        try {
-          // Supprimez le document Firestore correspondant
-          await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', charToDelete.id));
-          // Mettez à jour l'état pour refléter la suppression
-          setCharacters(characters.filter((_, index) => index !== selectedCharacterIndex));
-          setSelectedCharacterIndex(null); // RéINITialisez l'index du personnage sélectionné
-        } catch (error) {
-          console.error("Erreur lors de la suppression du personnage :", error);
-        }
-      } else {
-        console.error("ID du personnage introuvable pour la suppression.");
+const handleDeleteCharacter = async () => {
+  if (characterToDelete && roomId) {
+    if (characterToDelete?.id) {
+      try {
+        await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', characterToDelete.id));
+        setCharacters(characters.filter((char) => char.id !== characterToDelete.id));
+        setSelectedCharacterIndex(null);
+      } catch (error) {
+        console.error("Erreur lors de la suppression du personnage :", error);
       }
     } else {
-      console.error("Aucun personnage sélectionné ou roomId invalide.");
+      console.error("ID du personnage introuvable pour la suppression.");
     }
-  };
+  } else {
+    console.error("Aucun personnage sélectionné ou roomId invalide.");
+  }
+};
   
   const handleDeleteNote = async () => {
     console.log("Appel de handleDeleteNote");
@@ -1633,9 +1630,12 @@ useEffect(() => {
         <Button onClick={handleMoveCharacter}>
           <Move className="w-4 h-4 mr-2" /> Déplacer
         </Button>
-        {isMJ && (
+        {isMJ && characters[selectedCharacterIndex]?.type !== 'joueurs' && (
           <>
-            <Button onClick={handleDeleteCharacter}>
+            <Button onClick={() => {
+              setCharacterToDelete(characters[selectedCharacterIndex]);
+              setConfirmDeleteOpen(true);
+            }}>
               <X className="w-4 h-4 mr-2" /> Supprimer
             </Button>
             <Button onClick={handleEditCharacter}>
@@ -1712,198 +1712,186 @@ useEffect(() => {
     <DialogHeader>
       <DialogTitle>Ajouter un personnage</DialogTitle>
     </DialogHeader>
-    <div className="grid gap-4 py-4">
-      {/* Name Field */}
-      {/* Nombre Field */}
-<div className="grid grid-cols-4 items-center gap-4">
-    <Label htmlFor="nombre" className="text-right">Nombre</Label>
-    <Input
-        id="nombre"
-        type="number"
-        value={newCharacter.nombre}
-        onChange={(e) => setNewCharacter({ ...newCharacter, nombre: parseInt(e.target.value) || 1 })}
-        className="col-span-3"
-    />
-</div>
-
-
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="name" className="text-right">Nom</Label>
-        <Input
-          id="name"
-          value={newCharacter.name}
-          onChange={(e) => setNewCharacter({ ...newCharacter, name: e.target.value })}
-          className="col-span-3"
-        />
+    <ScrollArea className="h-96"> {/* Ajouter ScrollArea ici */}
+      <div className="grid gap-4 py-4">
+        {/* Nombre Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="nombre" className="text-right">Nombre</Label>
+          <Input
+            id="nombre"
+            type="number"
+            value={newCharacter.nombre}
+            onChange={(e) => setNewCharacter({ ...newCharacter, nombre: parseInt(e.target.value) || 1 })}
+            className="col-span-3"
+          />
+        </div>
+        {/* Name Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="name" className="text-right">Nom</Label>
+          <Input
+            id="name"
+            value={newCharacter.name}
+            onChange={(e) => setNewCharacter({ ...newCharacter, name: e.target.value })}
+            className="col-span-3"
+          />
+        </div>
+        {/* Image Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="image" className="text-right">Image</Label>
+          <Input
+            id="image"
+            type="file"
+            onChange={handleCharacterImageChange}
+            className="col-span-3"
+          />
+        </div>
+        {/* Visibility Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="visibility" className="text-right">Visible </Label>
+          <Switch
+            id="visibility"
+            checked={newCharacter.visibility === 'visible'}
+            onCheckedChange={(visible) => setNewCharacter({ ...newCharacter, visibility: visible ? 'visible' : 'hidden' })}
+          />
+        </div>
+        {/* PV Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="PV" className="text-right">PV</Label>
+          <Input
+            id="PV"
+            type="number"
+            value={newCharacter.PV}
+            onChange={(e) => setNewCharacter({ ...newCharacter, PV: parseInt(e.target.value) || 100 })}
+            className="col-span-3"
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="niveau" className="text-right">niveau</Label>
+          <Input
+            id="niveau"
+            type="number"
+            value={newCharacter.niveau}
+            onChange={(e) => setNewCharacter({ ...newCharacter, niveau: parseInt(e.target.value) || 1 })}
+            className="col-span-3"
+          />
+        </div>
+        {/* Defense Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="Defense" className="text-right">Defense</Label>
+          <Input
+            id="Defense"
+            type="number"
+            value={newCharacter.Defense}
+            onChange={(e) => setNewCharacter({ ...newCharacter, Defense: parseInt(e.target.value) || 0 })}
+            className="col-span-3"
+          />
+        </div>
+        {/* Contact Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="Contact" className="text-right">Contact</Label>
+          <Input
+            id="Contact"
+            type="number"
+            value={newCharacter.Contact}
+            onChange={(e) => setNewCharacter({ ...newCharacter, Contact: parseInt(e.target.value) || 0 })}
+            className="col-span-3"
+          />
+        </div>
+        {/* Distance Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="Distance" className="text-right">Distance</Label>
+          <Input
+            id="Distance"
+            type="number"
+            value={newCharacter.Distance}
+            onChange={(e) => setNewCharacter({ ...newCharacter, Distance: parseInt(e.target.value) || 0 })}
+            className="col-span-3"
+          />
+        </div>
+        {/* Magie Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="Magie" className="text-right">Magie</Label>
+          <Input
+            id="Magie"
+            type="number"
+            value={newCharacter.Magie}
+            onChange={(e) => setNewCharacter({ ...newCharacter, Magie: parseInt(e.target.value) || 0 })}
+            className="col-span-3"
+          />
+        </div>
+        {/* INIT Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="INIT" className="text-right">INIT</Label>
+          <Input
+            id="INIT"
+            type="number"
+            value={newCharacter.INIT}
+            onChange={(e) => setNewCharacter({ ...newCharacter, INIT: parseInt(e.target.value) || 0 })}
+            className="col-span-3"
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="FOR" className="text-right">FOR</Label>
+          <Input
+            id="FOR"
+            type="number"
+            value={newCharacter.FOR}
+            onChange={(e) => setNewCharacter({ ...newCharacter, FOR: parseInt(e.target.value) || 0 })}
+            className="col-span-3"
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="DEX" className="text-right">DEX</Label>
+          <Input
+            id="DEX"
+            type="number"
+            value={newCharacter.DEX}
+            onChange={(e) => setNewCharacter({ ...newCharacter, DEX: parseInt(e.target.value) || 0 })}
+            className="col-span-3"
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="CON" className="text-right">CON</Label>
+          <Input
+            id="CON"
+            type="number"
+            value={newCharacter.CON}
+            onChange={(e) => setNewCharacter({ ...newCharacter, CON: parseInt(e.target.value) || 0 })}
+            className="col-span-3"
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="SAG" className="text-right">SAG</Label>
+          <Input
+            id="SAG"
+            type="number"
+            value={newCharacter.SAG}
+            onChange={(e) => setNewCharacter({ ...newCharacter, SAG: parseInt(e.target.value) || 0 })}
+            className="col-span-3"
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="INT" className="text-right">INT</Label>
+          <Input
+            id="INT"
+            type="number"
+            value={newCharacter.INT}
+            onChange={(e) => setNewCharacter({ ...newCharacter, INT: parseInt(e.target.value) || 0 })}
+            className="col-span-3"
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="CHA" className="text-right">CHA</Label>
+          <Input
+            id="CHA"
+            type="number"
+            value={newCharacter.CHA}
+            onChange={(e) => setNewCharacter({ ...newCharacter, CHA: parseInt(e.target.value) || 0 })}
+            className="col-span-3"
+          />
+        </div>
       </div>
-
-      {/* Image Field */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="image" className="text-right">Image</Label>
-        <Input
-          id="image"
-          type="file"
-          onChange={handleCharacterImageChange}
-          className="col-span-3"
-        />
-      </div>
-
-      {/* Visibility Field */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="visibility" className="text-right">Visible </Label>
-        <Switch
-          id="visibility"
-          checked={newCharacter.visibility === 'visible'}
-          onCheckedChange={(visible) => setNewCharacter({ ...newCharacter, visibility: visible ? 'visible' : 'hidden' })}
-        />
-      </div>
-
-      {/* PV Field */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="PV" className="text-right">PV</Label>
-        <Input
-          id="PV"
-          type="number"
-          value={newCharacter.PV}
-          onChange={(e) => setNewCharacter({ ...newCharacter, PV: parseInt(e.target.value) || 100 })}
-          className="col-span-3"
-        />
-      </div>
-
-
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="niveau" className="text-right">niveau</Label>
-        <Input
-          id="niveau"
-          type="number"
-          value={newCharacter.niveau}
-          onChange={(e) => setNewCharacter({ ...newCharacter, niveau: parseInt(e.target.value) || 1 })}
-          className="col-span-3"
-        />
-      </div>
-
-
-      {/* Defense Field */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="Defense" className="text-right">Defense</Label>
-        <Input
-          id="Defense"
-          type="number"
-          value={newCharacter.Defense}
-          onChange={(e) => setNewCharacter({ ...newCharacter, Defense: parseInt(e.target.value) || 0 })}
-          className="col-span-3"
-        />
-      </div>
-
-      {/* Contact Field */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="Contact" className="text-right">Contact</Label>
-        <Input
-          id="Contact"
-          type="number"
-          value={newCharacter.Contact}
-          onChange={(e) => setNewCharacter({ ...newCharacter, Contact: parseInt(e.target.value) || 0 })}
-          className="col-span-3"
-        />
-      </div>
-
-      {/* Distance Field */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="Distance" className="text-right">Distance</Label>
-        <Input
-          id="Distance"
-          type="number"
-          value={newCharacter.Distance}
-          onChange={(e) => setNewCharacter({ ...newCharacter, Distance: parseInt(e.target.value) || 0 })}
-          className="col-span-3"
-        />
-      </div>
-
-      {/* Magie Field */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="Magie" className="text-right">Magie</Label>
-        <Input
-          id="Magie"
-          type="number"
-          value={newCharacter.Magie}
-          onChange={(e) => setNewCharacter({ ...newCharacter, Magie: parseInt(e.target.value) || 0 })}
-          className="col-span-3"
-        />
-      </div>
-
-      {/* INIT Field */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="INIT" className="text-right">INIT</Label>
-        <Input
-          id="INIT"
-          type="number"
-          value={newCharacter.INIT}
-          onChange={(e) => setNewCharacter({ ...newCharacter, INIT: parseInt(e.target.value) || 0 })}
-          className="col-span-3"
-        />
-      </div>
-
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="FOR" className="text-right">FOR</Label>
-        <Input
-          id="FOR"
-          type="number"
-          value={newCharacter.FOR}
-          onChange={(e) => setNewCharacter({ ...newCharacter, FOR: parseInt(e.target.value) || 0 })}
-          className="col-span-3"
-        />
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="DEX" className="text-right">DEX</Label>
-        <Input
-          id="DEX"
-          type="number"
-          value={newCharacter.DEX}
-          onChange={(e) => setNewCharacter({ ...newCharacter, DEX: parseInt(e.target.value) || 0 })}
-          className="col-span-3"
-        />
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="CON" className="text-right">CON</Label>
-        <Input
-          id="CON"
-          type="number"
-          value={newCharacter.CON}
-          onChange={(e) => setNewCharacter({ ...newCharacter, CON: parseInt(e.target.value) || 0 })}
-          className="col-span-3"
-        />
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="SAG" className="text-right">SAG</Label>
-        <Input
-          id="SAG"
-          type="number"
-          value={newCharacter.SAG}
-          onChange={(e) => setNewCharacter({ ...newCharacter, SAG: parseInt(e.target.value) || 0 })}
-          className="col-span-3"
-        />
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="INT" className="text-right">INT</Label>
-        <Input
-          id="INT"
-          type="number"
-          value={newCharacter.INT}
-          onChange={(e) => setNewCharacter({ ...newCharacter, INT: parseInt(e.target.value) || 0 })}
-          className="col-span-3"
-        />
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="CHA" className="text-right">CHA</Label>
-        <Input
-          id="CHA"
-          type="number"
-          value={newCharacter.CHA}
-          onChange={(e) => setNewCharacter({ ...newCharacter, CHA: parseInt(e.target.value) || 0 })}
-          className="col-span-3"
-        />
-      </div>
-    </div>
+    </ScrollArea>
     <DialogFooter>
       <Button onClick={handleCharacterSubmit}>Ajouter</Button>
     </DialogFooter>
@@ -1948,233 +1936,242 @@ useEffect(() => {
     <DialogHeader>
       <DialogTitle>Modifier le personnage</DialogTitle>
     </DialogHeader>
-    <div className="grid gap-4 py-4">
-      {/* Nom Field */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="characterName" className="text-right text-white">Nom</Label>
-        <Input
-          id="characterName"
-          value={editingCharacter?.name || ''}
-          onChange={(e) => {
-            if (editingCharacter) { // Vérifie que `editingCharacter` n'est pas null
-              setEditingCharacter({ ...editingCharacter, name: e.target.value });
-            }
-          }}
-          className="col-span-3"
-        />
-      </div>
-
-      {/* Image Field */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="characterImage" className="text-right text-white">Image</Label>
-        <Input
-          id="characterImage"
-          type="file"
-          onChange={(e) => {
-            const file = e.target.files ? e.target.files[0] : null;
-            if (file) {
-              const reader = new FileReader();
-              reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                  if (editingCharacter) { // Vérifie que `editingCharacter` n'est pas null
-                    setEditingCharacter({ ...editingCharacter, image: img });
+    <ScrollArea className="h-96"> {/* Ajouter ScrollArea ici */}
+      <div className="grid gap-4 py-4">
+        {/* Nom Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="characterName" className="text-right text-white">Nom</Label>
+          <Input
+            id="characterName"
+            value={editingCharacter?.name || ''}
+            onChange={(e) => {
+              if (editingCharacter) { // Vérifie que `editingCharacter` n'est pas null
+                setEditingCharacter({ ...editingCharacter, name: e.target.value });
+              }
+            }}
+            className="col-span-3"
+          />
+        </div>
+        {/* Image Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="characterImage" className="text-right text-white">Image</Label>
+          <Input
+            id="characterImage"
+            type="file"
+            onChange={(e) => {
+              const file = e.target.files ? e.target.files[0] : null;
+              if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                  const img = new Image();
+                  img.onload = () => {
+                    if (editingCharacter) { // Vérifie que `editingCharacter` n'est pas null
+                      setEditingCharacter({ ...editingCharacter, image: img });
+                    }
+                  };
+                  if (typeof e.target?.result === 'string') {
+                    img.src = e.target.result;
                   }
                 };
-                if (typeof e.target?.result === 'string') {
-                  img.src = e.target.result;
-                }
-              };
-              reader.readAsDataURL(file);
-            }
-          }}
-          className="col-span-3"
-        />
-      </div>
-
-      {/* PV Field */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="PV" className="text-right text-white">PV</Label>
-        <Input
-          id="PV"
-          type="number"
-          value={editingCharacter?.PV || 0}
-          onChange={(e) => {
-            if (editingCharacter) {
-              setEditingCharacter({ ...editingCharacter, PV: parseInt(e.target.value) || 0 });
-            }
-          }}
-          className="col-span-3"
-        />
-      </div>
-
-      {/* niveau Field */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="niveau" className="text-right text-white">Niveau</Label>
-        <Input
-          id="niveau"
-          type="number"
-          value={editingCharacter?.niveau || 1}
-          onChange={(e) => {
-            if (editingCharacter) {
-              setEditingCharacter({ ...editingCharacter, niveau: parseInt(e.target.value) || 1 });
-            }
-          }}
-          className="col-span-3"
-        />
-      </div>
-
-      {/* Contact Field */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="Contact" className="text-right text-white">Contact</Label>
-        <Input
-          id="Contact"
-          type="number"
-          value={editingCharacter?.Contact || 0}
-          onChange={(e) => {
-            if (editingCharacter) {
-              setEditingCharacter({ ...editingCharacter, Contact: parseInt(e.target.value) || 0 });
-            }
-          }}
-          className="col-span-3"
-        />
-      </div>
-
-      {/* Distance Field */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="Distance" className="text-right text-white">Distance</Label>
-        <Input
-          id="Distance"
-          type="number"
-          value={editingCharacter?.Distance || 0}
-          onChange={(e) => {
-            if (editingCharacter) {
-              setEditingCharacter({ ...editingCharacter, Distance: parseInt(e.target.value) || 0 });
-            }
-          }}
-          className="col-span-3"
-        />
-      </div>
-
+                reader.readAsDataURL(file);
+              }
+            }}
+            className="col-span-3"
+          />
+        </div>
+        {/* PV Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="PV" className="text-right text-white">PV</Label>
+          <Input
+            id="PV"
+            type="number"
+            value={editingCharacter?.PV || 0}
+            onChange={(e) => {
+              if (editingCharacter) {
+                setEditingCharacter({ ...editingCharacter, PV: parseInt(e.target.value) || 0 });
+              }
+            }}
+            className="col-span-3"
+          />
+        </div>
+        {/* niveau Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="niveau" className="text-right text-white">Niveau</Label>
+          <Input
+            id="niveau"
+            type="number"
+            value={editingCharacter?.niveau || 1}
+            onChange={(e) => {
+              if (editingCharacter) {
+                setEditingCharacter({ ...editingCharacter, niveau: parseInt(e.target.value) || 1 });
+              }
+            }}
+            className="col-span-3"
+          />
+        </div>
+        {/* Contact Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="Contact" className="text-right text-white">Contact</Label>
+          <Input
+            id="Contact"
+            type="number"
+            value={editingCharacter?.Contact || 0}
+            onChange={(e) => {
+              if (editingCharacter) {
+                setEditingCharacter({ ...editingCharacter, Contact: parseInt(e.target.value) || 0 });
+              }
+            }}
+            className="col-span-3"
+          />
+        </div>
         {/* Distance Field */}
         <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="Magie" className="text-right text-white">Magie</Label>
-        <Input
-          id="Magie"
-          type="number"
-          value={editingCharacter?.Magie || 0}
-          onChange={(e) => {
-            if (editingCharacter) {
-              setEditingCharacter({ ...editingCharacter, Magie: parseInt(e.target.value) || 0 });
-            }
-          }}
-          className="col-span-3"
-        />
+          <Label htmlFor="Distance" className="text-right text-white">Distance</Label>
+          <Input
+            id="Distance"
+            type="number"
+            value={editingCharacter?.Distance || 0}
+            onChange={(e) => {
+              if (editingCharacter) {
+                setEditingCharacter({ ...editingCharacter, Distance: parseInt(e.target.value) || 0 });
+              }
+            }}
+            className="col-span-3"
+          />
+        </div>
+        {/* Distance Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="Magie" className="text-right text-white">Magie</Label>
+          <Input
+            id="Magie"
+            type="number"
+            value={editingCharacter?.Magie || 0}
+            onChange={(e) => {
+              if (editingCharacter) {
+                setEditingCharacter({ ...editingCharacter, Magie: parseInt(e.target.value) || 0 });
+              }
+            }}
+            className="col-span-3"
+          />
+        </div>
+        {/* INIT Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="INIT" className="text-right text-white">INIT</Label>
+          <Input
+            id="INIT"
+            type="number"
+            value={editingCharacter?.INIT || 0}
+            onChange={(e) => {
+              if (editingCharacter) {
+                setEditingCharacter({ ...editingCharacter, INIT: parseInt(e.target.value) || 0 });
+              }
+            }}
+            className="col-span-3"
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="FOR" className="text-right text-white">FOR</Label>
+          <Input
+            id="FOR"
+            type="number"
+            value={editingCharacter?.FOR || 0}
+            onChange={(e) => {
+              if (editingCharacter) {
+                setEditingCharacter({ ...editingCharacter, FOR: parseInt(e.target.value) || 0 });
+              }
+            }}
+            className="col-span-3"
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="DEX" className="text-right text-white">DEX</Label>
+          <Input
+            id="DEX"
+            type="number"
+            value={editingCharacter?.DEX || 0}
+            onChange={(e) => {
+              if (editingCharacter) {
+                setEditingCharacter({ ...editingCharacter, DEX: parseInt(e.target.value) || 0 });
+              }
+            }}
+            className="col-span-3"
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="CON" className="text-right text-white">CON</Label>
+          <Input
+            id="CON"
+            type="number"
+            value={editingCharacter?.CON || 0}
+            onChange={(e) => {
+              if (editingCharacter) {
+                setEditingCharacter({ ...editingCharacter, CON: parseInt(e.target.value) || 0 });
+              }
+            }}
+            className="col-span-3"
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="SAG" className="text-right text-white">SAG</Label>
+          <Input
+            id="SAG"
+            type="number"
+            value={editingCharacter?.SAG || 0}
+            onChange={(e) => {
+              if (editingCharacter) {
+                setEditingCharacter({ ...editingCharacter, SAG: parseInt(e.target.value) || 0 });
+              }
+            }}
+            className="col-span-3"
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="INT" className="text-right text-white">INT</Label>
+          <Input
+            id="INT"
+            type="number"
+            value={editingCharacter?.INT || 0}
+            onChange={(e) => {
+              if (editingCharacter) {
+                setEditingCharacter({ ...editingCharacter, INT: parseInt(e.target.value) || 0 });
+              }
+            }}
+            className="col-span-3"
+          />
+        </div>
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="CHA" className="text-right text-white">CHA</Label>
+          <Input
+            id="CHA"
+            type="number"
+            value={editingCharacter?.CHA || 0}
+            onChange={(e) => {
+              if (editingCharacter) {
+                setEditingCharacter({ ...editingCharacter, CHA: parseInt(e.target.value) || 0 });
+              }
+            }}
+            className="col-span-3"
+          />
+        </div>
       </div>
-
-      {/* INIT Field */}
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="INIT" className="text-right text-white">INIT</Label>
-        <Input
-          id="INIT"
-          type="number"
-          value={editingCharacter?.INIT || 0}
-          onChange={(e) => {
-            if (editingCharacter) {
-              setEditingCharacter({ ...editingCharacter, INIT: parseInt(e.target.value) || 0 });
-            }
-          }}
-          className="col-span-3"
-        />
-      </div>
-
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="FOR" className="text-right text-white">FOR</Label>
-        <Input
-          id="FOR"
-          type="number"
-          value={editingCharacter?.FOR || 0}
-          onChange={(e) => {
-            if (editingCharacter) {
-              setEditingCharacter({ ...editingCharacter, FOR: parseInt(e.target.value) || 0 });
-            }
-          }}
-          className="col-span-3"
-        />
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="DEX" className="text-right text-white">DEX</Label>
-        <Input
-          id="DEX"
-          type="number"
-          value={editingCharacter?.DEX || 0}
-          onChange={(e) => {
-            if (editingCharacter) {
-              setEditingCharacter({ ...editingCharacter, DEX: parseInt(e.target.value) || 0 });
-            }
-          }}
-          className="col-span-3"
-        />
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="CON" className="text-right text-white">CON</Label>
-        <Input
-          id="CON"
-          type="number"
-          value={editingCharacter?.CON || 0}
-          onChange={(e) => {
-            if (editingCharacter) {
-              setEditingCharacter({ ...editingCharacter, CON: parseInt(e.target.value) || 0 });
-            }
-          }}
-          className="col-span-3"
-        />
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="SAG" className="text-right text-white">SAG</Label>
-        <Input
-          id="SAG"
-          type="number"
-          value={editingCharacter?.SAG || 0}
-          onChange={(e) => {
-            if (editingCharacter) {
-              setEditingCharacter({ ...editingCharacter, SAG: parseInt(e.target.value) || 0 });
-            }
-          }}
-          className="col-span-3"
-        />
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="INT" className="text-right text-white">INT</Label>
-        <Input
-          id="INT"
-          type="number"
-          value={editingCharacter?.INT || 0}
-          onChange={(e) => {
-            if (editingCharacter) {
-              setEditingCharacter({ ...editingCharacter, INT: parseInt(e.target.value) || 0 });
-            }
-          }}
-          className="col-span-3"
-        />
-      </div>
-      <div className="grid grid-cols-4 items-center gap-4">
-        <Label htmlFor="CHA" className="text-right text-white">CHA</Label>
-        <Input
-          id="CHA"
-          type="number"
-          value={editingCharacter?.CHA || 0}
-          onChange={(e) => {
-            if (editingCharacter) {
-              setEditingCharacter({ ...editingCharacter, CHA: parseInt(e.target.value) || 0 });
-            }
-          }}
-          className="col-span-3"
-        />
-      </div>
-    </div>
+    </ScrollArea>
     <DialogFooter>
       <Button onClick={handleCharacterEditSubmit}>Modifier</Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
+
+<Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+  <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">
+    <DialogHeader>
+      <DialogTitle>Confirmer la suppression</DialogTitle>
+    </DialogHeader>
+    <div className="grid gap-4 py-4">
+      <p>Êtes-vous sûr de vouloir supprimer le personnage {characterToDelete?.name} ? Cette action est irréversible.</p>
+    </div>
+    <DialogFooter>
+      <Button onClick={() => setConfirmDeleteOpen(false)}>Annuler</Button>
+      <Button onClick={() => { handleDeleteCharacter(); setConfirmDeleteOpen(false); }}>Supprimer</Button>
     </DialogFooter>
   </DialogContent>
 </Dialog>
