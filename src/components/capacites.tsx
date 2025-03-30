@@ -1,15 +1,22 @@
 "use client";
+
 import { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, ChevronRight, Scroll, Swords, Crown } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button"; // Import du bouton de shadcn/ui
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Drawer, DrawerClose, DrawerContent, DrawerDescription, DrawerFooter, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 
 type Competence = {
   titre: string;
   description: string;
   type: string;
+  source?: string;
 };
 
 type Voie = {
@@ -22,289 +29,525 @@ type Profile = {
   voies: Voie[];
 };
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0 }
+};
+
 export default function Component() {
   const [searchTerm, setSearchTerm] = useState('');
-  const [showSearchPanel, setShowSearchPanel] = useState(false); // État pour afficher le panneau latéral
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [races, setRaces] = useState<Voie[]>([]);
   const [prestiges, setPrestiges] = useState<Profile[]>([]);
   const [selectedRace, setSelectedRace] = useState<string>('');
   const [selectedProfile, setSelectedProfile] = useState<string>('');
   const [selectedPrestigeProfile, setSelectedPrestigeProfile] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchResults, setSearchResults] = useState<Competence[]>([]);
 
   useEffect(() => {
-    const fetchProfiles = async () => {
-      const profileNames = ["Barbare", "Barde", "Chevalier", "Druide", "Samourai","Ensorceleur","Forgesort","Guerrier","Invocateur","Moine","Psionique","Rodeur","Voleur"];
-      const profileData: Profile[] = [];
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch profiles
+        const profileNames = ["Barbare", "Barde", "Chevalier", "Druide", "Samourai", "Ensorceleur", "Forgesort", "Guerrier", "Invocateur", "Moine", "Psionique", "Rodeur", "Voleur"];
+        const profileData: Profile[] = [];
 
-      for (const name of profileNames) {
-        const voies = [];
-        for (let i = 1; i <= 5; i++) {
-          const response = await fetch(`/tabs/${name}${i}.json`);
-          if (response.ok) {
-            const data = await response.json();
-            const competences: Competence[] = Object.keys(data).filter(key => key.startsWith("Affichage")).map((key, index) => ({
-              titre: data[`Affichage${index + 1}`],
-              description: data[`rang${index + 1}`],
-              type: data[`type${index + 1}`]
-            }));
-            voies.push({ nom: data.Voie, competences });
-          } else {
-            console.warn(`File /tabs/${name}${i}.json not found`);
+        for (const name of profileNames) {
+          const voies = [];
+          for (let i = 1; i <= 5; i++) {
+            try {
+              const response = await fetch(`/tabs/${name}${i}.json`);
+              if (response.ok) {
+                const data = await response.json();
+                
+                // Extraire les compétences en utilisant les clés correctes
+                const competences: Competence[] = [];
+                for (let j = 1; j <= 20; j++) { // On vérifie jusqu'à 20 compétences possibles
+                  const affichageKey = `Affichage${j}`;
+                  const rangKey = `rang${j}`;
+                  const typeKey = `type${j}`;
+                  
+                  if (data[affichageKey] && data[rangKey]) {
+                    competences.push({
+                      titre: data[affichageKey],
+                      description: data[rangKey],
+                      type: data[typeKey] || '',
+                      source: `${name} - ${data.Voie}`
+                    });
+                  }
+                }
+
+                if (competences.length > 0) {
+                  voies.push({ nom: data.Voie, competences });
+                }
+              }
+            } catch (error) {
+              console.error(`Error fetching ${name}${i}.json:`, error);
+            }
+          }
+          if (voies.length > 0) {
+            profileData.push({ nom: name, voies });
           }
         }
-        profileData.push({ nom: name, voies });
-      }
-      setProfiles(profileData);
-    };
+        console.log('Profils chargés:', profileData);
+        setProfiles(profileData);
 
-    const fetchRaces = async () => {
-      const raceNames = ["Ame-forgee","Drakonide","Elfe", "Elfesylvain","Elfenoir", "Humain","Minotaure" ,"Ogre", "Orque","Nain"];
-      const raceData: Voie[] = [];
+        // Fetch races avec la même logique
+        const raceNames = ["Ame-forgee", "Drakonide", "Elfe", "Elfesylvain", "Elfenoir", "Humain", "Minotaure", "Ogre", "Orque", "Nain"];
+        const raceData: Voie[] = [];
 
-      for (const name of raceNames) {
-        const response = await fetch(`/tabs/${name}.json`);
-        if (response.ok) {
-          const data = await response.json();
-          const competences: Competence[] = Object.keys(data).filter(key => key.startsWith("Affichage")).map((key, index) => ({
-            titre: data[`Affichage${index + 1}`],
-            description: data[`rang${index + 1}`],
-            type: data[`type${index + 1}`]
-          }));
-          raceData.push({ nom: data.Voie, competences });
-        } else {
-          console.warn(`File /tabs/${name}.json not found`);
-        }
-      }
-      setRaces(raceData);
-    };
+        for (const name of raceNames) {
+          try {
+            const response = await fetch(`/tabs/${name}.json`);
+            if (response.ok) {
+              const data = await response.json();
+              const competences: Competence[] = [];
+              
+              for (let j = 1; j <= 20; j++) {
+                const affichageKey = `Affichage${j}`;
+                const rangKey = `rang${j}`;
+                const typeKey = `type${j}`;
+                
+                if (data[affichageKey] && data[rangKey]) {
+                  competences.push({
+                    titre: data[affichageKey],
+                    description: data[rangKey],
+                    type: data[typeKey] || '',
+                    source: `Race: ${name}`
+                  });
+                }
+              }
 
-    const fetchPrestiges = async () => {
-      const profileNames = ["arquebusier", "barbare", "barde", "chevalier", "druide", "ensorceleur", "forgesort", "guerrier", "moine", "necromencien", "pretre", "rodeur", "voleur"];
-      const prestigeData: Profile[] = [];
-
-      for (const name of profileNames) {
-        const voies = [];
-        for (let i = 1; i <= 5; i++) {
-          const response = await fetch(`/tabs/prestige_${name}${i}.json`);
-          if (response.ok) {
-            const data = await response.json();
-            const competences: Competence[] = Object.keys(data).filter(key => key.startsWith("Affichage")).map((key, index) => ({
-              titre: data[`Affichage${index + 1}`],
-              description: data[`rang${index + 1}`],
-              type: data[`type${index + 1}`]
-            }));
-            voies.push({ nom: data.Voie, competences });
-          } else {
-            console.warn(`File /tabs/prestige_${name}${i}.json not found`);
-            break; // Stop if no more files for this profile
+              if (competences.length > 0) {
+                raceData.push({ nom: data.Voie, competences });
+              }
+            }
+          } catch (error) {
+            console.error(`Error fetching ${name}.json:`, error);
           }
         }
-        prestigeData.push({ nom: name, voies });
+        console.log('Races chargées:', raceData);
+        setRaces(raceData);
+
+        // Fetch prestiges avec la même logique
+        const prestigeNames = ["arquebusier", "barbare", "barde", "chevalier", "druide", "ensorceleur", "forgesort", "guerrier", "moine", "necromencien", "pretre", "rodeur", "voleur"];
+        const prestigeData: Profile[] = [];
+
+        for (const name of prestigeNames) {
+          const voies = [];
+          for (let i = 1; i <= 5; i++) {
+            try {
+              const response = await fetch(`/tabs/prestige_${name}${i}.json`);
+              if (response.ok) {
+                const data = await response.json();
+                const competences: Competence[] = [];
+                
+                for (let j = 1; j <= 20; j++) {
+                  const affichageKey = `Affichage${j}`;
+                  const rangKey = `rang${j}`;
+                  const typeKey = `type${j}`;
+                  
+                  if (data[affichageKey] && data[rangKey]) {
+                    competences.push({
+                      titre: data[affichageKey],
+                      description: data[rangKey],
+                      type: data[typeKey] || '',
+                      source: `Prestige: ${name} - ${data.Voie}`
+                    });
+                  }
+                }
+
+                if (competences.length > 0) {
+                  voies.push({ nom: data.Voie, competences });
+                }
+              }
+            } catch (error) {
+              console.error(`Error fetching prestige_${name}${i}.json:`, error);
+            }
+          }
+          if (voies.length > 0) {
+            prestigeData.push({ nom: name, voies });
+          }
+        }
+        console.log('Prestiges chargés:', prestigeData);
+        setPrestiges(prestigeData);
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setIsLoading(false);
       }
-      setPrestiges(prestigeData);
     };
 
-    fetchProfiles();
-    fetchRaces();
-    fetchPrestiges();
+    fetchData();
   }, []);
 
-  const allCompetences = [
-    ...races.flatMap(race => race.competences),
-    ...profiles.flatMap(profile => profile.voies.flatMap(voie => voie.competences)),
-    ...prestiges.flatMap(prestige => prestige.voies.flatMap(voie => voie.competences))
-  ];
+  // Fonction simplifiée pour obtenir toutes les compétences
+  const getAllCompetences = () => {
+    const allCompetences: Competence[] = [];
 
-  const filteredCompetences = allCompetences.filter(competence =>
-    competence.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    competence.description.toLowerCase().includes(searchTerm.toLowerCase())
+    // Log pour déboguer
+    console.log('Races:', races);
+    console.log('Profiles:', profiles);
+    console.log('Prestiges:', prestiges);
+
+    // Ajouter les compétences des races
+    races.forEach(race => {
+      race.competences.forEach(comp => {
+        allCompetences.push({
+          ...comp,
+          source: `Race: ${race.nom}`
+        });
+      });
+    });
+
+    // Ajouter les compétences des profils
+    profiles.forEach(profile => {
+      profile.voies.forEach(voie => {
+        voie.competences.forEach(comp => {
+          allCompetences.push({
+            ...comp,
+            source: `${profile.nom} - ${voie.nom}`
+          });
+        });
+      });
+    });
+
+    // Ajouter les compétences des prestiges
+    prestiges.forEach(prestige => {
+      prestige.voies.forEach(voie => {
+        voie.competences.forEach(comp => {
+          allCompetences.push({
+            ...comp,
+            source: `Prestige: ${prestige.nom} - ${voie.nom}`
+          });
+        });
+      });
+    });
+
+    // Log pour déboguer
+    console.log('Toutes les compétences:', allCompetences);
+    return allCompetences;
+  };
+
+  // Fonction de recherche modifiée
+  const searchCompetences = (searchTerm: string) => {
+    if (!searchTerm.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    const term = searchTerm.toLowerCase().trim();
+    console.log('Terme de recherche:', term);
+
+    const results: Competence[] = [];
+
+    // Recherche dans les races
+    races.forEach(race => {
+      race.competences.forEach(comp => {
+        if (comp.titre?.toLowerCase().includes(term) ||
+            comp.description?.toLowerCase().includes(term)) {
+          results.push({
+            ...comp,
+            source: `Race: ${race.nom}`
+          });
+        }
+      });
+    });
+
+    // Recherche dans les profils
+    profiles.forEach(profile => {
+      profile.voies.forEach(voie => {
+        voie.competences.forEach(comp => {
+          if (comp.titre?.toLowerCase().includes(term) ||
+              comp.description?.toLowerCase().includes(term)) {
+            results.push({
+              ...comp,
+              source: `${profile.nom} - ${voie.nom}`
+            });
+          }
+        });
+      });
+    });
+
+    // Recherche dans les prestiges
+    prestiges.forEach(prestige => {
+      prestige.voies.forEach(voie => {
+        voie.competences.forEach(comp => {
+          if (comp.titre?.toLowerCase().includes(term) ||
+              comp.description?.toLowerCase().includes(term)) {
+            results.push({
+              ...comp,
+              source: `Prestige: ${prestige.nom} - ${voie.nom}`
+            });
+          }
+        });
+      });
+    });
+
+    console.log('Nombre de résultats trouvés:', results.length);
+    console.log('Résultats:', results);
+    setSearchResults(results);
+  };
+
+  // Gestionnaire de changement de recherche
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    searchCompetences(value);
+  };
+
+  const CompetenceCard = ({ 
+    voie, 
+    competence, 
+    className = "" 
+  }: { 
+    voie?: Voie; 
+    competence?: Competence; 
+    className?: string 
+  }) => (
+    <motion.div variants={itemVariants}>
+      <Card className={`bg-card hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${className}`}>
+        {voie ? (
+          <>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ChevronRight className="h-5 w-5" />
+                {voie.nom}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Accordion type="single" collapsible className="w-full">
+                {voie.competences.map((competence, index) => (
+                  <AccordionItem key={index} value={`item-${index}`}>
+                    <AccordionTrigger className="hover:no-underline">
+                      <span className="text-sm font-medium">{competence.titre}</span>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <p className="text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: competence.description }} />
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </CardContent>
+          </>
+        ) : competence && (
+          <>
+            <CardHeader>
+              <CardTitle className="text-sm font-medium">
+                {competence.titre}
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1">
+                {competence.source}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <p 
+                  className="text-sm text-muted-foreground" 
+                  dangerouslySetInnerHTML={{ __html: competence.description }}
+                />
+                {competence.type && (
+                  <p className="text-xs text-muted-foreground">
+                    Type: {competence.type}
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </>
+        )}
+      </Card>
+    </motion.div>
   );
 
   return (
-    <div className="container mx-auto p-4 flex text-black relative">
-      
-      {/* Left Panel for Tabs */}
-      <div className="flex-grow">
-        <h1 className="text-3xl font-bold mb-6">Hub d'Information</h1>
-        
-        <Tabs defaultValue="races" className="mb-6">
-          <TabsList>
-            <TabsTrigger value="races">Races</TabsTrigger>
-            <TabsTrigger value="profiles">Profils</TabsTrigger>
-            <TabsTrigger value="prestiges">Prestige</TabsTrigger>
+    <TooltipProvider>
+      <div className="container mx-auto p-4 space-y-8">
+        <div className="flex items-center justify-between">
+          <h1 className="text-4xl font-bold">Compétences</h1>
+          <Button variant="outline" size="icon" onClick={() => setIsSearchOpen(true)}>
+            <Search className="h-5 w-5" />
+          </Button>
+        </div>
+
+        <Tabs defaultValue="races" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-8">
+            <TabsTrigger value="races" className="flex items-center gap-2">
+              <Scroll className="h-4 w-4" /> Races
+            </TabsTrigger>
+            <TabsTrigger value="profiles" className="flex items-center gap-2">
+              <Swords className="h-4 w-4" /> Profils
+            </TabsTrigger>
+            <TabsTrigger value="prestiges" className="flex items-center gap-2">
+              <Crown className="h-4 w-4" /> Prestiges
+            </TabsTrigger>
           </TabsList>
 
-          {/* Races Section with Selector */}
-          <TabsContent value="races">
-            <div className="flex items-center mb-4">
-              <label htmlFor="race-select" className="mr-2 font-semibold">Choisissez une race:</label>
-              <select
-                id="race-select"
-                className="border border-gray-300 rounded p-2"
-                value={selectedRace}
-                onChange={(e) => setSelectedRace(e.target.value)}
+          <AnimatePresence mode="wait">
+            {isLoading ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex justify-center items-center min-h-[400px]"
               >
-                <option value="">Toutes les races</option>
-                {races.map((race, index) => (
-                  <option key={index} value={race.nom}>{race.nom}</option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {(selectedRace ? races.filter(race => race.nom === selectedRace) : races).map((race, index) => (
-                <Card key={index} className="bg-gray-800 text-white w-80">
-                  <CardHeader>
-                    <CardTitle>{race.nom}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Accordion type="single" collapsible>
-                      {race.competences.map((competence, compIndex) => (
-                        <AccordionItem key={compIndex} value={`item-${compIndex}`}>
-                          <AccordionTrigger>{competence.titre}</AccordionTrigger>
-                          <AccordionContent>
-                            <p dangerouslySetInnerHTML={{ __html: competence.description }} />
-                          </AccordionContent>
-                        </AccordionItem>
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary" />
+              </motion.div>
+            ) : (
+              <>
+                <TabsContent value="races">
+                  <div className="mb-6">
+                    <Input
+                      placeholder="Filtrer les races..."
+                      value={selectedRace}
+                      onChange={(e) => setSelectedRace(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
+                  <ScrollArea className="h-[600px] pr-4">
+                    <motion.div
+                      variants={containerVariants}
+                      initial="hidden"
+                      animate="show"
+                      className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+                    >
+                      {(selectedRace
+                        ? races.filter(race => race.nom.toLowerCase().includes(selectedRace.toLowerCase()))
+                        : races
+                      ).map((race, index) => (
+                        <CompetenceCard key={index} voie={race} />
                       ))}
-                    </Accordion>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </TabsContent>
+                    </motion.div>
+                  </ScrollArea>
+                </TabsContent>
 
-          {/* Profiles Section with Selector */}
-          <TabsContent value="profiles">
-            <div className="flex items-center mb-4">
-              <label htmlFor="profile-select" className="mr-2 font-semibold">Choisissez un profil:</label>
-              <select
-                id="profile-select"
-                className="border border-gray-300 rounded p-2"
-                value={selectedProfile}
-                onChange={(e) => setSelectedProfile(e.target.value)}
-              >
-                <option value="">Tous les profils</option>
-                {profiles.map((profile, index) => (
-                  <option key={index} value={profile.nom}>{profile.nom}</option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {(selectedProfile ? profiles.filter(profile => profile.nom === selectedProfile) : profiles).flatMap(profile =>
-                profile.voies.map((voie, voieIndex) => (
-                  <Card key={`${profile.nom}-${voieIndex}`} className="bg-gray-800 text-white w-80">
-                    <CardHeader>
-                      <CardTitle>{`${profile.nom} - ${voie.nom}`}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Accordion type="single" collapsible>
-                        {voie.competences.map((competence, compIndex) => (
-                          <AccordionItem key={compIndex} value={`comp-${compIndex}`}>
-                            <AccordionTrigger>{competence.titre}</AccordionTrigger>
-                            <AccordionContent>
-                              <p dangerouslySetInnerHTML={{ __html: competence.description }} />
-                            </AccordionContent>
-                          </AccordionItem>
-                        ))}
-                      </Accordion>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </TabsContent>
+                <TabsContent value="profiles">
+                  <div className="mb-6">
+                    <Input
+                      placeholder="Filtrer les profils..."
+                      value={selectedProfile}
+                      onChange={(e) => setSelectedProfile(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
+                  <ScrollArea className="h-[600px] pr-4">
+                    <motion.div
+                      variants={containerVariants}
+                      initial="hidden"
+                      animate="show"
+                      className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+                    >
+                      {(selectedProfile
+                        ? profiles.filter(profile => profile.nom.toLowerCase().includes(selectedProfile.toLowerCase()))
+                        : profiles
+                      ).flatMap(profile =>
+                        profile.voies.map((voie, voieIndex) => (
+                          <CompetenceCard
+                            key={`${profile.nom}-${voieIndex}`}
+                            voie={{ ...voie, nom: `${profile.nom} - ${voie.nom}` }}
+                          />
+                        ))
+                      )}
+                    </motion.div>
+                  </ScrollArea>
+                </TabsContent>
 
-          {/* Prestiges Section with Selector */}
-          <TabsContent value="prestiges">
-            <div className="flex items-center mb-4">
-              <label htmlFor="prestige-select" className="mr-2 font-semibold">Choisissez un prestige:</label>
-              <select
-                id="prestige-select"
-                className="border border-gray-300 rounded p-2"
-                value={selectedPrestigeProfile}
-                onChange={(e) => setSelectedPrestigeProfile(e.target.value)}
-              >
-                <option value="">Tous les prestiges</option>
-                {prestiges.map((prestige, index) => (
-                  <option key={index} value={prestige.nom}>{prestige.nom}</option>
-                ))}
-              </select>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {(selectedPrestigeProfile ? prestiges.filter(prestige => prestige.nom === selectedPrestigeProfile) : prestiges).flatMap(prestige =>
-                prestige.voies.map((voie, voieIndex) => (
-                  <Card key={`${prestige.nom}-${voieIndex}`} className="bg-gray-800 text-white w-80">
-                    <CardHeader>
-                      <CardTitle>{`${prestige.nom} - ${voie.nom}`}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <Accordion type="single" collapsible>
-                        {voie.competences.map((competence, compIndex) => (
-                          <AccordionItem key={compIndex} value={`comp-${compIndex}`}>
-                            <AccordionTrigger>{competence.titre}</AccordionTrigger>
-                            <AccordionContent>
-                              <p dangerouslySetInnerHTML={{ __html: competence.description }} />
-                            </AccordionContent>
-                          </AccordionItem>
-                        ))}
-                      </Accordion>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
-          </TabsContent>
+                <TabsContent value="prestiges">
+                  <div className="mb-6">
+                    <Input
+                      placeholder="Filtrer les prestiges..."
+                      value={selectedPrestigeProfile}
+                      onChange={(e) => setSelectedPrestigeProfile(e.target.value)}
+                      className="max-w-sm"
+                    />
+                  </div>
+                  <ScrollArea className="h-[600px] pr-4">
+                    <motion.div
+                      variants={containerVariants}
+                      initial="hidden"
+                      animate="show"
+                      className="grid gap-6 md:grid-cols-2 lg:grid-cols-3"
+                    >
+                      {(selectedPrestigeProfile
+                        ? prestiges.filter(prestige => prestige.nom.toLowerCase().includes(selectedPrestigeProfile.toLowerCase()))
+                        : prestiges
+                      ).flatMap(prestige =>
+                        prestige.voies.map((voie, voieIndex) => (
+                          <CompetenceCard
+                            key={`${prestige.nom}-${voieIndex}`}
+                            voie={{ ...voie, nom: `${prestige.nom} - ${voie.nom}` }}
+                          />
+                        ))
+                      )}
+                    </motion.div>
+                  </ScrollArea>
+                </TabsContent>
+              </>
+            )}
+          </AnimatePresence>
         </Tabs>
-      </div>
-      
-      {/* Bouton pour ouvrir le panneau de recherche en haut à droite */}
-      <Button 
-        onClick={() => setShowSearchPanel(true)} 
-        className="fixed top-4 right-4 z-50"
-      >
-        Rechercher une compétence
-      </Button>
-      
-      {/* Panneau de recherche latéral */}
-      <div className={`fixed top-0 right-0 h-full w-80 bg-white shadow-lg transform ${showSearchPanel ? 'translate-x-0' : 'translate-x-full'} transition-transform duration-300 ease-in-out z-50`}>
-        <div className="p-6 h-full flex flex-col">
-          
-          {/* Bouton pour fermer le panneau */}
-          <button 
-            onClick={() => setShowSearchPanel(false)} 
-            className="self-end text-gray-500 hover:text-gray-700 mb-4"
-          >
-            &times;
-          </button>
 
-          <Input
-            type="text"
-            placeholder="Rechercher une compétence..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full mb-6"
-          />
-
-          {searchTerm && (
-            <div className="overflow-y-auto">
-              <h2 className="text-2xl font-semibold mb-4">Résultats de recherche</h2>
-              <div className="grid gap-4">
-                {filteredCompetences.map((competence, index) => (
-                  <Card key={index} className="bg-gray-800 text-white">
-                    <CardHeader>
-                      <CardTitle>{competence.titre}</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <p dangerouslySetInnerHTML={{ __html: competence.description }} />
-                    </CardContent>
-                  </Card>
-                ))}
+        <Drawer open={isSearchOpen} onOpenChange={setIsSearchOpen}>
+          <DrawerContent>
+            <DrawerHeader>
+              <DrawerTitle>Rechercher une compétence</DrawerTitle>
+              <DrawerDescription>
+                Recherchez dans les titres et descriptions des compétences
+              </DrawerDescription>
+            </DrawerHeader>
+            <div className="p-4 pb-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher une compétence..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  className="pl-9"
+                />
+              </div>
+              <div className="mt-2 text-sm text-muted-foreground">
+                {searchResults.length > 0 ? (
+                  `${searchResults.length} résultat(s) trouvé(s)`
+                ) : searchTerm ? (
+                  'Aucun résultat'
+                ) : null}
               </div>
             </div>
-          )}
-        </div>
+            <ScrollArea className="p-4 h-[500px]">
+              <motion.div
+                variants={containerVariants}
+                initial="hidden"
+                animate="show"
+                className="space-y-4"
+              >
+                {searchResults.map((competence, index) => (
+                  <CompetenceCard
+                    key={index}
+                    competence={competence}
+                  />
+                ))}
+              </motion.div>
+            </ScrollArea>
+            <DrawerFooter>
+              <DrawerClose asChild>
+                <Button variant="outline">Fermer</Button>
+              </DrawerClose>
+            </DrawerFooter>
+          </DrawerContent>
+        </Drawer>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }

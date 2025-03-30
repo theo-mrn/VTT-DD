@@ -122,24 +122,23 @@ export default function Marketplace() {
 
   return (
     <div className="min-h-screen p-8 font-papyrus">
-      <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-xl overflow-hidden">
+      <div className="max-w-6xl mx-auto bg-[var(--bg-dark)] rounded-xl shadow-xl overflow-hidden">
         <div className="p-8">
-       
           <Input
             type="search"
             placeholder="Rechercher un objet..."
-            className="mb-6"
+            className="mb-6 bg-[var(--bg-dark)] text-white placeholder:text-gray-400 border-gray-700"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
           <Tabs defaultValue={categories[0]} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12 gap-2 mb-8 bg-[#444] text-white">
+            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12 gap-2 mb-8 bg-[var(--bg-darker)] text-white">
               {categories.map((category) => (
                 <TabsTrigger
                   key={category}
                   value={category}
                   onClick={() => setActiveCategory(category)}
-                  className={`px-2 py-1 rounded-lg ${activeCategory === category ? 'bg-[#888] text-black font-semibold' : 'text-white'}`}
+                  className={`px-2 py-1 rounded-lg ${activeCategory === category ? 'bg-primary text-white font-semibold' : 'text-gray-300 hover:text-white'}`}
                 >
                   {category.charAt(0).toUpperCase() + category.slice(1).replace(/_/g, ' ')}
                 </TabsTrigger>
@@ -147,9 +146,9 @@ export default function Marketplace() {
             </TabsList>
             {categories.map((category) => (
               <TabsContent key={category} value={category}>
-                <Table>
+                <Table className="text-white">
                   <TableHeader>
-                    <TableRow>{renderTableHeader(category)}</TableRow>
+                    <TableRow className="border-gray-700">{renderTableHeader(category)}</TableRow>
                   </TableHeader>
                   <TableBody>
                     {data[category] && renderTableRows(category, filterItems(data[category]))}

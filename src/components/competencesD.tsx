@@ -279,139 +279,159 @@ const handleAddBonus = async () => {
           {filteredCompetences.map((competence) => (
             <Card
               key={competence.id}
-              className={`bg-[#242424] border border-[#3a3a3a] transition-colors duration-200 cursor-pointer ${
-                competence.isActive ? "border-[#c0a080]" : "border-[#3a3a3a]"
+              className={`card transition-colors duration-200 cursor-pointer ${
+                competence.isActive ? "border-[var(--accent-brown)]" : "border-[var(--border-color)]"
               }`}
               onClick={(e) => toggleCompetenceActive(competence.id, e)}
             >
-              <CardContent className="flex justify-between items-center p-4 text-[#d4d4d4]">
-                <span className="font-semibold text-[#c0a080]">{competence.name}</span>
-                <div className="flex space-x-2">
-                  <Dialog open={detailsOpenCompetenceId === competence.id} onOpenChange={(isOpen) => setDetailsOpenCompetenceId(isOpen ? competence.id : null)}>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedCompetence(competence);
-                        }}
-                      >
-                        <Info className="h-4 w-4 mr-2" />
-                        Détails
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent
-                      className="max-w-3xl bg-[#1c1c1c] text-[#d4d4d4]"
-                      onPointerDownOutside={(e) => e.stopPropagation()}
-                      onEscapeKeyDown={(e) => e.stopPropagation()}
-                    >
-                      <DialogHeader>
-                        <DialogTitle>{selectedCompetence?.name}</DialogTitle>
-                        <DialogDescription dangerouslySetInnerHTML={{ __html: selectedCompetence?.description || "" }}/>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button variant="ghost" className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]" onClick={(e) => {
-                          e.stopPropagation();
-                          setDetailsOpenCompetenceId(null);
-                        }}>
-                          Fermer
+              <CardContent className="flex flex-col p-4 text-[var(--text-primary)]">
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-[var(--accent-brown)]">{competence.name}</span>
+                  <div className="flex space-x-2">
+                    <Dialog open={detailsOpenCompetenceId === competence.id} onOpenChange={(isOpen) => setDetailsOpenCompetenceId(isOpen ? competence.id : null)}>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="button-primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCompetence(competence);
+                          }}
+                        >
+                          <Info className="h-4 w-4 mr-2" />
+                          Détails
                         </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                  <Dialog open={bonusOpenCompetenceId === competence.id} onOpenChange={(isOpen) => setBonusOpenCompetenceId(isOpen ? competence.id : null)}>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="bg-[#c0a080] max-w-3xl text-[#1c1c1c] hover:bg-[#d4b48f]"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedCompetence(competence);
-                        }}
+                      </DialogTrigger>
+                      <DialogContent
+                        className="modal-content"
+                        onPointerDownOutside={(e) => e.stopPropagation()}
+                        onEscapeKeyDown={(e) => e.stopPropagation()}
                       >
-                        <Star className="h-4 w-4 mr-2" />
-                        Bonus
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent
-                      className="max-w-3xl bg-[#1c1c1c] text-[#d4d4d4]"
-                      onPointerDownOutside={(e) => e.stopPropagation()}
-                      onEscapeKeyDown={(e) => e.stopPropagation()}
-                    >
-                      <DialogHeader>
-                        <DialogTitle>Gérer les bonus pour {selectedCompetence?.name}</DialogTitle>
-                      </DialogHeader>
-                      <div className="py-4">
-                        <div className="grid gap-4">
-                        {/* Afficher les bonus existants */}
-{selectedCompetence?.bonuses &&
-  Object.entries(selectedCompetence.bonuses)
-    .filter(([stat, value]) => stat !== "active" && value !== 0) // Exclure "active" et les valeurs nulles
-    .map(([stat, value]) => (
-      <div key={stat} className="flex justify-between items-center">
-        <span>{stat}: {value}</span>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="bg-red-500 text-white"
-          onClick={() => handleRemoveBonus(stat)}
-        >
-          <MinusCircle className="h-4 w-4 mr-1" />
-          Supprimer
-        </Button>
-      </div>
-    ))}                          
-                          {/* Interface pour ajouter de nouveaux bonus */}
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="stat" className="text-right text-[#d4d4d4]">
-                              Statistique
-                            </Label>
-                            <Select onValueChange={(value) => setNewBonus({ ...newBonus, stat: value as keyof BonusData })} value={newBonus.stat}>
-
-                              <SelectTrigger className="bg-[#242424] border border-[#3a3a3a] text-[#c0a080]">
-                                <SelectValue placeholder="Choisir une statistique" />
-                              </SelectTrigger>
-                              <SelectContent className="bg-[#2a2a2a] border border-[#3a3a3a]">
-                                {statOptions.map((stat) => (
-                                  <SelectItem key={stat} value={stat}>
-                                    {stat}
-                                  </SelectItem>
+                        <DialogHeader>
+                          <DialogTitle className="modal-title">{selectedCompetence?.name}</DialogTitle>
+                          <DialogDescription className="modal-text" dangerouslySetInnerHTML={{ __html: selectedCompetence?.description || "" }}/>
+                        </DialogHeader>
+                        <DialogFooter>
+                          <Button variant="ghost" className="button-primary" onClick={(e) => {
+                            e.stopPropagation();
+                            setDetailsOpenCompetenceId(null);
+                          }}>
+                            Fermer
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                    <Dialog open={bonusOpenCompetenceId === competence.id} onOpenChange={(isOpen) => setBonusOpenCompetenceId(isOpen ? competence.id : null)}>
+                      <DialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="button-primary"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCompetence(competence);
+                          }}
+                        >
+                          <Star className="h-4 w-4 mr-2" />
+                          Bonus
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent
+                        className="modal-content"
+                        onPointerDownOutside={(e) => e.stopPropagation()}
+                        onEscapeKeyDown={(e) => e.stopPropagation()}
+                      >
+                        <DialogHeader>
+                          <DialogTitle className="modal-title">Gérer les bonus pour {selectedCompetence?.name}</DialogTitle>
+                        </DialogHeader>
+                        <div className="py-4">
+                          <div className="grid gap-4">
+                            {selectedCompetence?.bonuses &&
+                              Object.entries(selectedCompetence.bonuses)
+                                .filter(([stat, value]) => stat !== "active" && value !== 0)
+                                .map(([stat, value]) => (
+                                  <div key={stat} className="flex justify-between items-center">
+                                    <span>{stat}: {value}</span>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="button-cancel"
+                                      onClick={() => handleRemoveBonus(stat)}
+                                    >
+                                      <MinusCircle className="h-4 w-4 mr-1" />
+                                      Supprimer
+                                    </Button>
+                                  </div>
                                 ))}
-                              </SelectContent>
-                            </Select>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                              <Label htmlFor="stat" className="text-right text-[var(--text-primary)]">
+                                Statistique
+                              </Label>
+                              <Select onValueChange={(value) => setNewBonus({ ...newBonus, stat: value as keyof BonusData })} value={newBonus.stat}>
+                                <SelectTrigger className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--accent-brown)]">
+                                  <SelectValue placeholder="Choisir une statistique" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-[var(--bg-card)] border border-[var(--border-color)]">
+                                  {statOptions.map((stat) => (
+                                    <SelectItem key={stat} value={stat}>
+                                      {stat}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="grid grid-cols-4 items-center gap-4">
+                              <Label htmlFor="value" className="text-right text-[var(--text-primary)]">
+                                Valeur
+                              </Label>
+                              <Input
+                                id="value"
+                                type="number"
+                                value={newBonus.value}
+                                onChange={(e) => setNewBonus({ ...newBonus, value: parseInt(e.target.value) })}
+                                className="input-field col-span-3"
+                              />
+                            </div>
                           </div>
-                          <div className="grid grid-cols-4 items-center gap-4">
-                            <Label htmlFor="value" className="text-right text-[#d4d4d4]">
-                              Valeur
-                            </Label>
-                            <Input
-                              id="value"
-                              type="number"
-                              value={newBonus.value}
-                              onChange={(e) => setNewBonus({ ...newBonus, value: parseInt(e.target.value) })}
-                              className="bg-[#242424] border border-[#3a3a3a] text-[#d4d4d4] col-span-3"
-                            />
-                          </div>
+                          <Button onClick={handleAddBonus} className="button-primary w-full mt-4">
+                            <PlusCircle className="h-4 w-4 mr-2" />
+                            Ajouter le bonus
+                          </Button>
                         </div>
-                        <Button onClick={handleAddBonus} className="w-full mt-4 bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]">
-                          <PlusCircle className="h-4 w-4 mr-2" />
-                          Ajouter le bonus
-                        </Button>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="ghost" className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]" onClick={(e) => {
-                          e.stopPropagation();
-                          setBonusOpenCompetenceId(null);
-                        }}>
-                          Fermer
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                        <DialogFooter>
+                          <Button variant="ghost" className="button-primary" onClick={(e) => {
+                            e.stopPropagation();
+                            setBonusOpenCompetenceId(null);
+                          }}>
+                            Fermer
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </div>
+                {competence.isActive && competence.bonuses && Object.entries(competence.bonuses)
+                  .filter(([stat, value]) => stat !== "active" && value !== 0)
+                  .length > 0 && (
+                  <div className="mt-2 ml-4">
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(competence.bonuses)
+                        .filter(([stat, value]) => stat !== "active" && value !== 0)
+                        .map(([stat, value], index) => {
+                          const numValue = typeof value === 'number' ? value : 0;
+                          return (
+                            <span
+                              key={index}
+                              className="px-2 py-1 rounded-md bg-[var(--bg-card)] text-[var(--accent-brown)] text-sm"
+                            >
+                              {stat} {numValue > 0 ? "+" : ""}{numValue}
+                            </span>
+                          );
+                        })}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -421,9 +441,9 @@ const handleAddBonus = async () => {
   };
 
   return (
-    <Card className="w-full max-w-4xl mx-auto bg-[#242424] border border-[#3a3a3a] text-[#d4d4d4] shadow-lg rounded-lg">
+    <Card className="card w-full max-w-4xl mx-auto">
       <Tabs defaultValue="all">
-        <TabsList className="grid grid-cols-3 bg-[#1c1c1c] text-[#c0a080]">
+        <TabsList className="grid grid-cols-3 bg-[var(--bg-dark)] text-[var(--accent-brown)]">
           <TabsTrigger value="all">Toutes</TabsTrigger>
           <TabsTrigger value="passive">Passives</TabsTrigger>
           <TabsTrigger value="limitée">Limitées</TabsTrigger>

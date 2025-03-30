@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Shield, Dices, Swords, Trash2 ,Info} from 'lucide-react';
 import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy } from "@/lib/firebase";
@@ -28,7 +28,7 @@ type Roll = {
 };
 
 // Helper function to calculate the modifier from a characteristic value
-const calculateModifier = (value: number) => Math.floor((value - 10) / 2);
+const calculateModifier = (value: number) => Math.floor(value);
 
 export default function DiceRollerDnD() {
   const [isPrivate, setIsPrivate] = useState(false);
@@ -46,6 +46,7 @@ export default function DiceRollerDnD() {
     SAG: 0,
     INT: 0,
     CHA: 0,
+    Defense: 0,
   });
   const [showRollRequest, setShowRollRequest] = useState(false);
   const [rollCommand, setRollCommand] = useState(""); // État pour le champ de texte
@@ -101,20 +102,21 @@ export default function DiceRollerDnD() {
         setUserName(charData.Nomperso || "Utilisateur");
         setUserAvatar(charData.imageURL || undefined);
 
-        // Calculate and set the modifier for each characteristic
+        // Set the raw values directly without calculating modifiers again
         setCharacterModifiers({
-          CON: calculateModifier(charData.CON_F || charData.CON || 0),
-          DEX: calculateModifier(charData.DEX_F || charData.DEX || 0),
-          FOR: calculateModifier(charData.FOR_F || charData.FOR || 0),
-          SAG: calculateModifier(charData.SAG_F || charData.SAG || 0),
-          INT: calculateModifier(charData.INT_F || charData.INT || 0),
-          CHA: calculateModifier(charData.CHA_F || charData.CHA || 0),
-          Contact: charData.Contact_F || charData.Contact || 0, // Ajout de Contact
-          Distance: charData.Distance_F || charData.Distance || 0, // Ajout de Distance
-          Magie: charData.Magie_F || charData.Magie || 0, // Ajout de Magie
+          CON: charData.CON_F || charData.CON || 0,
+          DEX: charData.DEX_F || charData.DEX || 0,
+          FOR: charData.FOR_F || charData.FOR || 0,
+          SAG: charData.SAG_F || charData.SAG || 0,
+          INT: charData.INT_F || charData.INT || 0,
+          CHA: charData.CHA_F || charData.CHA || 0,
+          Contact: charData.Contact_F || charData.Contact || 0,
+          Distance: charData.Distance_F || charData.Distance || 0,
+          Magie: charData.Magie_F || charData.Magie || 0,
+          Defense: charData.Defense_F || charData.Defense || 0,
         });
         console.log("Fetched character info:", charData);
-        return charData; // Retourner les données du personnage
+        return charData;
       } else {
         console.log("No character document found!");
       }
@@ -161,13 +163,13 @@ export default function DiceRollerDnD() {
     console.log("Parsing command:", command);
     console.log("Character data:", charData);
   
-    const regex = /^(\d+)d(\d+)(([+-](\d+|CON|FOR|DEX|CHA|INT|SAG|Contact|Distance|Magie))*)\s*(-p)?$/;
+    const regex = /^(\d+)d(\d+)(([+-](\d+|CON|FOR|DEX|CHA|INT|SAG|Contact|Distance|Magie|Defense))*)\s*(-p)?$/;
     const match = command.match(regex);
     if (match) {
       const diceCount = parseInt(match[1]);
       const diceFaces = parseInt(match[2]);
       let modifier = 0;
-      const modifiers = match[3].match(/[+-](\d+|CON|FOR|DEX|CHA|INT|SAG|Contact|Distance|Magie)/g) || [];
+      const modifiers = match[3].match(/[+-](\d+|CON|FOR|DEX|CHA|INT|SAG|Contact|Distance|Magie|Defense)/g) || [];
       console.log("Modifiers found:", modifiers);
   
       modifiers.forEach(mod => {
@@ -175,13 +177,17 @@ export default function DiceRollerDnD() {
         const value = mod.substring(1);
         let modValue = 0;
         if (["CON", "FOR", "DEX", "CHA", "INT", "SAG"].includes(value)) {
-          modValue = characterModifiers[value] || 0;
+          // Calculate modifier here instead of using pre-calculated value
+          const rawValue = characterModifiers[value] || 0;
+          modValue = calculateModifier(rawValue);
         } else if (value === "Contact") {
           modValue = charData.Contact_F || charData.Contact || 0;
         } else if (value === "Distance") {
           modValue = charData.Distance_F || charData.Distance || 0;
         } else if (value === "Magie") {
           modValue = charData.Magie_F || charData.Magie || 0;
+        } else if (value === "Defense") {
+          modValue = charData.Defense_F || charData.Defense || 0;
         } else {
           modValue = parseInt(value);
         }
@@ -222,7 +228,7 @@ export default function DiceRollerDnD() {
   
     if (value.includes('/')) {
       setShowSuggestions(true);
-      setSuggestions(['CON', 'FOR', 'DEX', 'CHA', 'INT', 'SAG', 'Contact', 'Distance', 'Magie']);
+      setSuggestions(['CON', 'FOR', 'DEX', 'CHA', 'INT', 'SAG', 'Contact', 'Distance', 'Magie', 'Defense']);
     } else {
       setShowSuggestions(false);
     }
@@ -297,48 +303,47 @@ export default function DiceRollerDnD() {
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-6 bg-parchment min-h-screen relative">
-      <Card className="bg-leather border-2 border-brown-800">
-        <CardContent className="bg-white space-y-4">
+    <div className="container mx-auto p-4 space-y-6 bg-[var(--bg-dark)] min-h-screen relative">
+      <Card className="card">
+        <CardContent className="space-y-4">
           {isMJ && (
             <Select value={selectedCharacter || "default"} onValueChange={setSelectedCharacter}>
-              <SelectTrigger className="border-brown-600 text-black h-8 w-1/2">
+              <SelectTrigger className="w-1/2 bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
                 {selectedCharacter ? characters.find(char => char.id === selectedCharacter)?.name : "Sélectionner un personnage"}
               </SelectTrigger>
-              <SelectContent>
-  <SelectItem value="default" disabled className="text-black">
-    Sélectionner un personnage
-  </SelectItem>
-  {characters.map(char => (
-    <SelectItem key={char.id} value={char.id} className="text-black">
-      {char.name}
-    </SelectItem>
-  ))}
-</SelectContent>
-
-
+              <SelectContent className="bg-[var(--bg-card)] border-[var(--border-color)]">
+                <SelectItem value="default" disabled className="text-[var(--text-secondary)]">
+                  Sélectionner un personnage
+                </SelectItem>
+                {characters.map(char => (
+                  <SelectItem key={char.id} value={char.id} className="text-[var(--text-primary)] hover:bg-[var(--bg-darker)]">
+                    {char.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           )}
           <div className="flex items-center space-x-2">
-            <Label htmlFor="private-switch" className="text-black">Privé</Label>
+            <Label htmlFor="private-switch" className="text-[var(--text-primary)]">Privé</Label>
             <Switch id="private-switch" checked={isPrivate} onCheckedChange={setIsPrivate} />
+            <Label htmlFor="private-switch" className="text-[var(--text-primary)]">tapez / pour les caractéristiques</Label>
           </div>
           <div className="flex items-center space-x-2">
             <Input
               id="roll-command"
               type="text"
               value={rollCommand}
-              onChange={handleInputChange} // Remplacer onChange par handleInputChange
-              className="bg-parchment border-brown-600 text-brown-900 h-8 w-1/2"
-              placeholder="Ex: 1d20+3"
+              onChange={handleInputChange}
+              className="input-field w-1/2"
+              placeholder="Ex: 1d20+3+DEF"
             />
             {showSuggestions && (
               <div className="fixed inset-0 flex items-center justify-center z-10">
-                <div className="bg-white border border-gray-300 rounded shadow-md p-4">
+                <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded shadow-md p-4">
                   {suggestions.map((suggestion, index) => (
                     <div
                       key={index}
-                      className="p-2 cursor-pointer hover:bg-gray-200"
+                      className="p-2 cursor-pointer hover:bg-[var(--bg-darker)] text-[var(--text-primary)]"
                       onClick={() => handleSuggestionClick(suggestion)}
                     >
                       {suggestion}
@@ -349,7 +354,7 @@ export default function DiceRollerDnD() {
             )}
             <Button
               onClick={handleRollCommand}
-              className="bg-brown-700 hover:bg-brown-800 text-brown-100"
+              className="button-primary"
             >
               Lancer les dés
             </Button>
@@ -357,14 +362,14 @@ export default function DiceRollerDnD() {
           <div className="flex items-center space-x-2">
             <Button
               onClick={deleteAllRolls}
-              className="bg-red-600 hover:bg-red-700 text-brown-100 flex items-center justify-center gap-2 w-1/2"
+              className="button-cancel flex items-center justify-center gap-2 w-1/2"
             >
               <Trash2 className="h-5 w-5" />
               Supprimer
             </Button>
             <Button
               onClick={() => setShowRollRequest((prev) => !prev)}
-              className="bg-gray-800 hover:bg-gray-600 text-gray-800 flex items-center justify-center gap-2 w-1/2"
+              className="button-secondary flex items-center justify-center gap-2 w-1/2"
             >
               Demande de dé
             </Button>
@@ -377,7 +382,7 @@ export default function DiceRollerDnD() {
       <div className="space-y-3">
         {rolls.map(roll => (
           canDisplayRoll(roll) && (
-            <Card key={roll.id} className="border border-brown-600">
+            <Card key={roll.id} className="card">
               <CardContent className="p-3 flex items-center space-x-3">
                 {roll.userAvatar && (
                   <Avatar className="h-8 w-8">
@@ -386,18 +391,18 @@ export default function DiceRollerDnD() {
                 )}
                 <div className="flex-grow">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-medieval text-white">{roll.userName}</span>
-                    {roll.isPrivate && <Shield className="h-4 w-4 text-brown-600" />}
+                    <span className="text-sm font-medieval text-[var(--text-primary)]">{roll.userName}</span>
+                    {roll.isPrivate && <Shield className="h-4 w-4 text-[var(--accent-brown)]" />}
                   </div>
-                  <span className="text-sm font-medium text-white">
+                  <span className="text-sm font-medium text-[var(--text-primary)]">
                     {roll.type}: {roll.diceCount}d{roll.diceFaces}
                     {roll.modifier > 0 ? ` + ${roll.modifier}` : roll.modifier < 0 ? ` - ${Math.abs(roll.modifier)}` : ''}
                   </span>
                   <div className="flex items-center gap-1">
-                    <span className="text-lg font-bold text-white">Total: {roll.total}</span>
+                    <span className="text-lg font-bold text-[var(--text-primary)]">Total: {roll.total}</span>
                   </div>
-                  <div className="flex items-center gap-1 text-xs text-white">
-                    <Dices className="h-4 w-4 text-brown-700" />
+                  <div className="flex items-center gap-1 text-xs text-[var(--text-secondary)]">
+                    <Dices className="h-4 w-4 text-[var(--accent-brown)]" />
                     <span>{roll.results.join(', ')} {roll.modifier !== 0 ? `+ ${roll.modifier}` : ''}</span>
                   </div>
                 </div>

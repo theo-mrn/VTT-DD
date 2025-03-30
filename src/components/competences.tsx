@@ -195,15 +195,14 @@ export default function Competences() {
     }
 
     return (
-        <div className="flex flex-col items-center bg-[#242424] text-[#d4d4d4] min-h-screen p-4">
-            <h1 className="text-2xl font-bold mb-5 text-[#c0a080]">Choisissez un Personnage</h1>
+        <div className="flex flex-col items-center bg-[var(--bg-dark)] text-[var(--text-primary)] min-h-screen p-4">
+            <h1 className="text-2xl font-bold mb-5 text-[var(--accent-brown)]">Choisissez un Personnage</h1>
             <div className="flex flex-wrap gap-4 mb-8">
                 {characters.map((character) => (
                     <Button
                         key={character.id}
                         onClick={() => selectCharacter(character)}
-                        variant="outline"
-                        className="bg-[#3a3a3a] text-black hover:bg-[#4a4a4a] hover:text-[#c0a080]"
+                        className="button-primary"
                     >
                         {character.Nomperso}
                     </Button>
@@ -212,13 +211,12 @@ export default function Competences() {
 
             {selectedCharacter && (
                 <>
-                    <div id="characterInfo" className="mb-3 text-[#c0a080]">
+                    <div id="characterInfo" className="mb-3 text-[var(--accent-brown)]">
                         {selectedCharacter.Nomperso} - {totalPoints} Points
                     </div>
                     <Button 
                         onClick={resetSkills} 
-                        variant="outline" 
-                        className="mb-5 bg-[#3a3a3a] text-black hover:bg-[#4a4a4a] hover:text-[#c0a080]"
+                        className="button-secondary mb-5"
                     >
                         Réinitialiser
                     </Button>
@@ -228,9 +226,9 @@ export default function Competences() {
                             if (!voie) return null
 
                             return (
-                                <Card key={j} className="bg-[#3a3a3a] border-[#4a4a4a]">
+                                <Card key={j} className="card">
                                     <CardHeader>
-                                        <CardTitle className="text-[#c0a080]">{voie.Voie || `Voie ${j + 1}`}</CardTitle>
+                                        <CardTitle className="text-[var(--accent-brown)]">{voie.Voie || `Voie ${j + 1}`}</CardTitle>
                                     </CardHeader>
                                     <CardContent>
                                         {Array.from({ length: 5 }, (_, i) => {
@@ -241,9 +239,9 @@ export default function Competences() {
                                             return (
                                                 <div
                                                     key={i}
-                                                    className={`skill-item mb-3 border-b border-[#4a4a4a] pb-2 ${
-                                                        isUnlocked ? 'text-[#c0a080]' : 'text-[#8a8a8a]'
-                                                    } cursor-pointer hover:text-[#d4d4d4]`}
+                                                    className={`skill-item mb-3 border-b border-[var(--border-color)] pb-2 ${
+                                                        isUnlocked ? 'text-[var(--accent-brown)]' : 'text-[var(--text-secondary)]'
+                                                    } cursor-pointer hover:text-[var(--text-primary)]`}
                                                     onClick={() => handleSkillClick(skillName, skillDescription, i + 1, `v${j + 1}`)}
                                                 >
                                                     {skillName}
@@ -257,40 +255,38 @@ export default function Competences() {
                     </div>
                 </>
             )}
-    <div className='max-w-3xl'>
-    <Dialog open={isModalVisible} onOpenChange={setModalVisible}>
-                <DialogContent className="bg-[#3a3a3a] text-white max-w-3xl">
-                    <DialogHeader>
-                        <DialogTitle className="text-[#c0a080]">{selectedSkill?.name}</DialogTitle>
-                    </DialogHeader>
-                    <p className="text-sm text-white mb-4 whitespace-pre-line">
-                        {selectedSkill?.description}
-                    </p>
-                    <p className="text-sm text-white] mb-4">
-                        Points: {selectedSkill && (selectedSkill.rank <= 2 ? '1 point' : '2 points')}
-                    </p>
-                    <DialogFooter>
-                        <Button 
-                            variant="outline" 
-                            onClick={() => setModalVisible(false)}
-                            className="bg-[#4a4a4a] text-white hover:bg-[#5a5a5a] hover:text-[#c0a080]"
-                        >
-                            Annuler
-                        </Button>
-                        <Button
-                            onClick={unlockSkill}
-                            disabled={!isUnlockable}
-                            className={`bg-[#4a4a4a] text-white hover:bg-[#5a5a5a] hover:text-[#c0a080] ${
-                                !isUnlockable ? 'opacity-50 cursor-not-allowed' : ''
-                            }`}
-                        >
-                            Déverrouiller
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-    </div>
-           
+            <div className='max-w-3xl'>
+                <Dialog open={isModalVisible} onOpenChange={setModalVisible}>
+                    <DialogContent className="modal-content">
+                        <DialogHeader>
+                            <DialogTitle className="modal-title">{selectedSkill?.name}</DialogTitle>
+                        </DialogHeader>
+                        <p className="modal-text mb-4 whitespace-pre-line">
+                            {selectedSkill?.description}
+                        </p>
+                        <p className="modal-text mb-4">
+                            Points: {selectedSkill && (selectedSkill.rank <= 2 ? '1 point' : '2 points')}
+                        </p>
+                        <DialogFooter>
+                            <Button 
+                                className="button-cancel"
+                                onClick={() => setModalVisible(false)}
+                            >
+                                Annuler
+                            </Button>
+                            <Button
+                                onClick={unlockSkill}
+                                disabled={!isUnlockable}
+                                className={`button-primary ${
+                                    !isUnlockable ? 'opacity-50 cursor-not-allowed' : ''
+                                }`}
+                            >
+                                Déverrouiller
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
         </div>
     )
 }

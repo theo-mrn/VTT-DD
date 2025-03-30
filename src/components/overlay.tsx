@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Sidebar from "@/components/panel";
+import CharacterSheet from "@/components/CharacterSheet";
 import { auth, db, onAuthStateChanged, doc, getDoc, collection, query, where, onSnapshot } from "@/lib/firebase";
 
 type Player = {
@@ -10,12 +11,15 @@ type Player = {
   image: string;
   health: number;
   maxHealth: number;
+  type?: string;
 };
 
 export default function Component() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
+  const [showCharacterSheet, setShowCharacterSheet] = useState(false);
 
   // Étape 1 : Récupération du `room_id` de l'utilisateur connecté
   useEffect(() => {
@@ -55,6 +59,7 @@ export default function Component() {
           image: data.imageURL || "/placeholder.svg",
           health: data.PV || 0,
           maxHealth: data.PV_Max || 100,
+          type: data.type
         };
       });
 
@@ -64,10 +69,26 @@ export default function Component() {
     return () => unsubscribeSnapshot();
   }, [roomId]);
 
+  const handleDoubleClick = (playerId: string) => {
+    setSelectedCharacterId(playerId);
+    setShowCharacterSheet(true);
+  };
+
   // Étape 3 : Affichage des joueurs
   return (
     <>
       {isSidebarOpen && <Sidebar onClose={() => setIsSidebarOpen(false)} />}
+      
+      {showCharacterSheet && selectedCharacterId && roomId && (
+        <CharacterSheet
+          characterId={selectedCharacterId}
+          roomId={roomId}
+          onClose={() => {
+            setShowCharacterSheet(false);
+            setSelectedCharacterId(null);
+          }}
+        />
+      )}
 
       <div className="fixed top-4 flex gap-3 p-3 bg-black/70 backdrop-blur-sm rounded-lg border border-white/10 items-center">
         {/* Bouton pour ouvrir la sidebar */}
@@ -79,8 +100,13 @@ export default function Component() {
         </button>
 
         {players.map((player) => (
-          <div key={player.id} className="flex flex-col items-center gap-1 group relative">
-            <div className="relative">
+          <div 
+            key={player.id} 
+            className="flex flex-col items-center gap-1 group relative"
+            onClick={() => setSelectedCharacterId(player.id)}
+            onDoubleClick={() => handleDoubleClick(player.id)}
+          >
+            <div className="relative cursor-pointer">
               <Avatar className="h-12 w-12 border-2 border-white/20 group-hover:border-white/40 transition-colors">
                 <AvatarImage src={player.image} alt={player.name} />
                 <AvatarFallback className="bg-primary-foreground text-xs">
