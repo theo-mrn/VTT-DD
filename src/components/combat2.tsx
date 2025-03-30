@@ -30,10 +30,11 @@ interface Attacks {
 
 interface CombatPageProps {
   attackerId: string;
+  targetId: string;
   onClose: () => void;
 }
 
-export default function CombatPage({ attackerId, onClose }: CombatPageProps) {
+export default function CombatPage({ attackerId, targetId, onClose }: CombatPageProps) {
   const [attackResult, setAttackResult] = useState<string>("")
   const [damageResult, setDamageResult] = useState<string>("")
   const [showDamage, setShowDamage] = useState<boolean>(false)
@@ -119,6 +120,7 @@ export default function CombatPage({ attackerId, onClose }: CombatPageProps) {
       arme_utilisée: selectedWeapon ? selectedWeapon.name : "N/A",
       attaquant: attackerId,
       attaquant_nom: "Attacker Name",  // replace with actual data if available
+      cible: targetId,  // Add target information
       timestamp: new Date().toLocaleString()
     }
     try {

@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Aclonica } from "next/font/google";
+import { ThemeProvider } from "@/components/theme-provider"
+import { ModeToggle } from "@/components/toggledarkmode"
+import { CompetencesProvider } from "@/contexts/CompetencesContext"
+
 
 const Aclonica_init = Aclonica({
   subsets: ["latin"],
@@ -29,11 +33,26 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
+    <html
+      lang="fr"
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable}`}
+    >
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className="antialiased"
+        suppressHydrationWarning
       >
-          {children}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <CompetencesProvider>
+         
+            {children}
+          </CompetencesProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

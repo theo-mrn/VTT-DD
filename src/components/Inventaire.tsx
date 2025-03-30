@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Search, Plus, Sword, Target, Shield, Beaker, ChevronRight, Coins, Apple, MoreHorizontal, X } from 'lucide-react';
@@ -68,6 +68,7 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
   const [diceCount, setDiceCount] = useState<number>(1);
   const [diceFaces, setDiceFaces] = useState<number>(6);
   const [bonuses, setBonuses] = useState<Bonus[]>([]);
+  const [bonusesMap, setBonusesMap] = useState<Record<string, Bonus[]>>({});
 
   const inventoryRef = collection(db, `Inventaire/${roomId}/${playerName}`);
 
@@ -97,6 +98,33 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
       return () => unsubscribe();
     }
   }, [currentItem, playerName, roomId]);
+
+  useEffect(() => {
+    const loadBonuses = async () => {
+      const bonusesData: Record<string, Bonus[]> = {};
+      for (const item of inventory) {
+        const itemRef = doc(db, `Bonus/${roomId}/${playerName}/${item.id}`);
+        const bonusDoc = await getDoc(itemRef);
+        if (bonusDoc.exists() && bonusDoc.data().active) {
+          const data = bonusDoc.data();
+          const bonusArray = statAttributes
+            .map(stat => ({
+              type: stat,
+              value: data[stat] || 0,
+            }))
+            .filter(bonus => bonus.value !== 0);
+          if (bonusArray.length > 0) {
+            bonusesData[item.id] = bonusArray;
+          }
+        }
+      }
+      setBonusesMap(bonusesData);
+    };
+
+    if (inventory.length > 0) {
+      loadBonuses();
+    }
+  }, [inventory, roomId, playerName]);
 
   const handleAddItem = async (item: string) => {
     const existingItem = inventory.find(i => i.message === item && i.category === currentCategory);
@@ -147,8 +175,6 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
         console.log("Missing data for bonus.");
     }
 };
-
-
 
   const handleToggleBonusActive = async (itemId: string | undefined) => {
     try {
@@ -219,37 +245,37 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
   }));
 
   return (
-    <Card className="w-full max-w-4xl mx-auto bg-[#242424] border border-[#3a3a3a] text-[#d4d4d4] shadow-lg rounded-lg">
+    <Card className="card w-full max-w-4xl mx-auto">
       <CardHeader>
-        <CardTitle className="text-[#c0a080]">Inventaire de {playerName}</CardTitle>
+        <CardTitle className="text-[var(--accent-brown)]">Inventaire de {playerName}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex justify-between items-center mb-4">
           <div className="relative w-64">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-[#d4d4d4]" />
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-[var(--text-primary)]" />
             <Input
               placeholder="Rechercher"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8 bg-[#1c1c1c] border border-[#3a3a3a] text-[#d4d4d4]"
+              className="input-field pl-8"
             />
           </div>
           <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]">
+              <Button className="button-primary">
                 <Plus className="mr-2 h-4 w-4" /> Ajouter
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-[#1c1c1c] max-w-3xl text-[#d4d4d4]">
+            <DialogContent className="modal-content">
               <DialogHeader>
-                <DialogTitle>Ajouter un objet</DialogTitle>
+                <DialogTitle className="modal-title">Ajouter un objet</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <Select onValueChange={(value) => setCurrentCategory(value)}>
-                  <SelectTrigger className="bg-[#242424] border border-[#3a3a3a] text-[#c0a080]">
+                  <SelectTrigger className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--accent-brown)]">
                     <SelectValue placeholder="Catégorie" />
                   </SelectTrigger>
-                  <SelectContent className="bg-[#2a2a2a] border border-[#3a3a3a]">
+                  <SelectContent className="bg-[var(--bg-card)] border border-[var(--border-color)]">
                     {Object.keys(predefinedItems).map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
@@ -263,7 +289,7 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                       <Button
                         key={item}
                         onClick={() => handleAddItem(item)}
-                        className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]"
+                        className="button-primary"
                       >
                         {item}
                       </Button>
@@ -274,11 +300,10 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') {
                             handleAddItem((e.target as HTMLInputElement).value);
-                            (e.target as HTMLInputElement).value = ''; // Clear the input after adding the item
+                            (e.target as HTMLInputElement).value = '';
                           }
                         }}
-                        
-                        className="bg-[#1c1c1c] border border-[#3a3a3a] text-[#d4d4d4]"
+                        className="input-field"
                       />
                     )}
                   </div>
@@ -294,21 +319,22 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
               items.length > 0 && (
                 <div key={category} className="mb-4">
                   {items.map(item => (
-                    <div key={item.id} className="flex justify-between items-center p-2 border-b border-[#3a3a3a] text-[#d4d4d4]">
-                      <div className="flex items-center">
-                        {categoryIcons[item.category]}
-                        <span className="ml-2">{item.quantity} x {item.message}</span>
-                        {item.diceSelection && (
-                          <span className="ml-2 text-xs text-green-500">({item.diceSelection})</span>
-                        )}
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm">
-                            <MoreHorizontal className="h-4 w-4 text-[#d4d4d4]" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="bg-[#1c1c1c] border border-[#3a3a3a] text-[#d4d4d4]">
+                    <div key={item.id} className="flex flex-col p-2 border-b border-[var(--border-color)] text-[var(--text-primary)]">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center">
+                          {categoryIcons[item.category]}
+                          <span className="ml-2">{item.quantity} x {item.message}</span>
+                          {item.diceSelection && (
+                            <span className="ml-2 text-xs text-green-500">({item.diceSelection})</span>
+                          )}
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                              <MoreHorizontal className="h-4 w-4 text-[var(--text-primary)]" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
                             <DropdownMenuItem onSelect={() => setIsRenameDialogOpen(true)}>
                               Renommer
                             </DropdownMenuItem>
@@ -330,10 +356,20 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                             <DropdownMenuItem onSelect={() => handleDeleteItem(item.id)}>
                               Supprimer
                             </DropdownMenuItem>
-                            
                           </DropdownMenuContent>
-
-                      </DropdownMenu>
+                        </DropdownMenu>
+                      </div>
+                      {bonusesMap[item.id] && bonusesMap[item.id].length > 0 && (
+                        <div className="ml-6 mt-1 text-sm">
+                          <div className="flex flex-wrap gap-2">
+                            {bonusesMap[item.id].map((bonus, index) => (
+                              <span key={index} className="px-2 py-1 rounded-md bg-[var(--bg-card)] text-[var(--accent-brown)]">
+                                {bonus.type} +{bonus.value}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -343,85 +379,85 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
         </Tabs>
 
         <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
-          <DialogContent className="bg-[#1c1c1c] max-w-3xl text-[#d4d4d4]">
+          <DialogContent className="modal-content">
             <DialogHeader>
-              <DialogTitle>Renommer {currentItem?.message}</DialogTitle>
+              <DialogTitle className="modal-title">Renommer {currentItem?.message}</DialogTitle>
             </DialogHeader>
             <Input
               value={newItemName}
               onChange={(e) => setNewItemName(e.target.value)}
               placeholder="Nouveau nom"
-              className="bg-[#242424] border border-[#3a3a3a] text-[#d4d4d4]"
+              className="input-field"
             />
-            <Button onClick={handleRenameItem} className="mt-4 bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]">
+            <Button onClick={handleRenameItem} className="button-primary mt-4">
               Renommer
             </Button>
           </DialogContent>
         </Dialog>
 
         <Dialog open={isBonusDialogOpen} onOpenChange={setIsBonusDialogOpen}>
-          <DialogContent className="bg-[#1c1c1c] max-w-3xl text-[#d4d4d4]">
+          <DialogContent className="modal-content">
             <DialogHeader>
-              <DialogTitle>Gérer les bonus de {currentItem?.message}</DialogTitle>
+              <DialogTitle className="modal-title">Gérer les bonus de {currentItem?.message}</DialogTitle>
             </DialogHeader>
             <div className="py-4">
               {renderBonuses()}
               <h3 className="mt-4 mb-2 text-sm font-semibold">Ajouter un nouveau bonus :</h3>
               <Select onValueChange={setBonusType} value={bonusType}>
-    <SelectTrigger className="bg-[#242424] border border-[#3a3a3a] text-[#d4d4d4]">
-        <SelectValue placeholder="Type de bonus" />
-    </SelectTrigger>
-    <SelectContent className="bg-[#2a2a2a] border border-[#3a3a3a]">
-        {statAttributes.map(attr => (
-            <SelectItem key={attr} value={attr}>{attr}</SelectItem>
-        ))}
-    </SelectContent>
-</Select>
+                <SelectTrigger className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
+                  <SelectValue placeholder="Type de bonus" />
+                </SelectTrigger>
+                <SelectContent className="bg-[var(--bg-card)] border border-[var(--border-color)]">
+                  {statAttributes.map(attr => (
+                    <SelectItem key={attr} value={attr}>{attr}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-<Input
-    type="number"
-    placeholder="Valeur du bonus"
-    value={bonusValue}
-    onChange={(e) => setBonusValue(e.target.value)}
-    className="mt-2 bg-[#242424] border border-[#3a3a3a] text-[#d4d4d4]"
-/>
+              <Input
+                type="number"
+                placeholder="Valeur du bonus"
+                value={bonusValue}
+                onChange={(e) => setBonusValue(e.target.value)}
+                className="input-field mt-2"
+              />
 
-              <Button className="mt-2 bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]" onClick={handleAddBonus}>Ajouter le bonus</Button>
+              <Button className="button-primary mt-2" onClick={handleAddBonus}>Ajouter le bonus</Button>
             </div>
           </DialogContent>
         </Dialog>
 
         <Dialog open={isDiceDialogOpen} onOpenChange={setIsDiceDialogOpen}>
-          <DialogContent className="max-w-3xl bg-[#1c1c1c] text-[#d4d4d4]">
+          <DialogContent className="modal-content">
             <DialogHeader>
-              <DialogTitle>Modifier les dés pour {currentItem?.message}</DialogTitle>
+              <DialogTitle className="modal-title">Modifier les dés pour {currentItem?.message}</DialogTitle>
             </DialogHeader>
             <div className="grid gap-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="diceCount" className="text-[#d4d4d4]">Nombre de dés</Label>
+                  <Label htmlFor="diceCount" className="text-[var(--text-primary)]">Nombre de dés</Label>
                   <Input
                     id="diceCount"
                     type="number"
                     value={diceCount}
                     onChange={(e) => setDiceCount(parseInt(e.target.value))}
                     min={1}
-                    className="bg-[#242424] border border-[#3a3a3a] text-[#d4d4d4]"
+                    className="input-field"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="diceFaces" className="text-[#d4d4d4]">Nombre de faces</Label>
+                  <Label htmlFor="diceFaces" className="text-[var(--text-primary)]">Nombre de faces</Label>
                   <Input
                     id="diceFaces"
                     type="number"
                     value={diceFaces}
                     onChange={(e) => setDiceFaces(parseInt(e.target.value))}
                     min={2}
-                    className="bg-[#242424] border border-[#3a3a3a] text-[#d4d4d4]"
+                    className="input-field"
                   />
                 </div>
               </div>
-              <Button onClick={handleUpdateDice} className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]">Mettre à jour les dés</Button>
+              <Button onClick={handleUpdateDice} className="button-primary">Mettre à jour les dés</Button>
             </div>
           </DialogContent>
         </Dialog>
