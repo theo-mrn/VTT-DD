@@ -91,7 +91,36 @@ export default function CharacterSelection() {
       console.error("Error saving selected character:", error)
     }
   }
-  
+
+  async function startAsMJ() {
+    try {
+      if (!user) {
+        throw new Error("User is not defined");
+      }
+
+      const userRef = doc(db, 'users', user.uid)
+      
+      // Set the user's role as MJ
+      await setDoc(userRef, { 
+        perso: 'MJ',
+        role: 'MJ'
+      }, { merge: true })
+
+      if (roomId) {
+        const roomRef = doc(db, `salles/${roomId}/Noms/${user.uid}`)
+        await setDoc(roomRef, { nom: 'MJ' }, { merge: true })
+      }
+
+      // Redirect to map
+      if (window.top) {
+        window.top.location.href = "map"
+      } else {
+        console.warn("window.top is null; cannot navigate to 'map'")
+      }
+    } catch (error) {
+      console.error("Error setting MJ role:", error)
+    }
+  }
 
   return (
     <div className="relative w-full min-h-screen flex flex-col items-center justify-start pt-20 bg-cover bg-center" style={{backgroundImage: "url(../images/index1.webp)"}}>
@@ -122,6 +151,12 @@ export default function CharacterSelection() {
           <h3 className="absolute bottom-4 left-6 text-black opacity-0 transition-opacity duration-500 group-hover:opacity-100">Nouveau</h3>
         </a>
       </div>
+      <button
+        onClick={startAsMJ}
+        className="bg-[#c0a080] mt-16 mb-16 text-[#1c1c1c] px-12 py-4 rounded-lg hover:bg-[#d4b48f] transition duration-300 text-lg font-bold"
+      >
+        Commencer en tant que MJ
+      </button>
     </div>
   )
 }

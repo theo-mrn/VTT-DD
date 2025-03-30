@@ -6,18 +6,19 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { X, Plus, Minus, Move, Edit, Pencil, Eraser ,CircleUserRound, Eclipse ,Baseline,SquareDashedMousePointer,ChevronRight,ChevronLeft, Eye, EyeOff} from 'lucide-react'
-import { auth, db, onAuthStateChanged, doc,getDoc,getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
+import { X, Plus, Minus, Move, Edit, Pencil, Eraser, CircleUserRound, Eclipse, Baseline, SquareDashedMousePointer, ChevronRight, ChevronLeft, Eye, EyeOff, User } from 'lucide-react'
+import { auth, db, onAuthStateChanged, doc, getDoc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ScrollArea } from "@/components/ui/scroll-area";
+import CharacterSheet from '@/components/CharacterSheet'; // Importez le composant de fiche de personnage
 
 
 export default function Component() {
   const [combatOpen, setCombatOpen] = useState(false);
-  const [attackerId, setAttackerId] = useState(null);
+  const [attackerId, setAttackerId] = useState<string | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
-  const [persoId, setPersoId] = useState(null);
+  const [persoId, setPersoId] = useState<string | null>(null);
   const [backgroundImage, setBackgroundImage] = useState('/placeholder.svg?height=600&width=800')
   const [showGrid, setShowGrid] = useState(false)
   const [zoom, setZoom] = useState(1.4)
@@ -25,6 +26,8 @@ export default function Component() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [notes, setNotes] = useState<Text[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [showCharacterSheet, setShowCharacterSheet] = useState(false);
+  const [selectedCharacterForSheet, setSelectedCharacterForSheet] = useState<string | null>(null);
   const [newCharacter, setNewCharacter] = useState<NewCharacter>({
     name: '',
     image: null,
@@ -227,9 +230,11 @@ useEffect(() => {
   const handleAttack = () => {
     if (persoId && selectedCharacterIndex !== null) {
       const targetCharacter = characters[selectedCharacterIndex];
-      setAttackerId(persoId);           // L'attaquant est l'utilisateur actuel
-      setTargetId(targetCharacter.id);   // La cible est le personnage sélectionné
-      setCombatOpen(true);               // Ouvrir le composant de combat
+      if (targetCharacter && targetCharacter.id) {  // Add null check
+        setAttackerId(persoId);           // L'attaquant est l'utilisateur actuel
+        setTargetId(targetCharacter.id);   // La cible est le personnage sélectionné
+        setCombatOpen(true);               // Ouvrir le composant de combat
+      }
     }
   };
 
@@ -769,6 +774,22 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
     const scaledHeight = image.height * scale * zoom;
     const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
     const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
+
+    // Gérer le double-clic
+    if (e.detail === 2) { // Si c'est un double-clic
+      const clickedCharIndex = characters.findIndex(char => {
+        const charX = (char.x / image.width) * scaledWidth - offset.x;
+        const charY = (char.y / image.height) * scaledHeight - offset.y;
+        return Math.abs(charX - e.clientX + rect.left) < 20 * zoom && Math.abs(charY - e.clientY + rect.top) < 20 * zoom;
+      });
+
+      if (clickedCharIndex !== -1 && characters[clickedCharIndex].type === "joueurs") {
+        const character = characters[clickedCharIndex];
+        setSelectedCharacterForSheet(character.id);
+        setShowCharacterSheet(true);
+        return; // Sortir de la fonction après avoir géré le double-clic
+      }
+    }
 
     if (fogMode) {
       const clickedSquareIndex = fogSquares.findIndex(square => 
@@ -1476,12 +1497,12 @@ useEffect(() => {
 
     {/* Toolbar: conditionally rendered */}
     {toolbarVisible && (
-      <div className="flex flex-col gap-6 w-64 rounded-lg  p-6 bg-white self-center text-black">
-        <div className='flex flex-row gap-6 justify-center '>
-        <Button onClick={() => handleZoom(-0.1)}>
+      <div className="flex flex-col gap-6 w-64 rounded-lg  p-6 bg-[var(--bg-dark)] self-center text-white">
+        <div className='flex flex-row gap-6 justify-center'>
+        <Button className="button-primary " onClick={() => handleZoom(-0.1)}>
           <Minus className="w-4 h-4" />
         </Button>
-        <Button onClick={() => handleZoom(0.1)}>
+        <Button className="button-primary" onClick={() => handleZoom(0.1)}>
           <Plus className="w-4 h-4" />
         </Button>
         </div>
@@ -1489,6 +1510,7 @@ useEffect(() => {
 
         <div className="flex items-center space-x-2">
           <Switch
+            className="bg-primary"
             id="grid-switch"
             checked={showGrid}
             onCheckedChange={setShowGrid}
@@ -1611,10 +1633,10 @@ useEffect(() => {
         <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-10">
             <div className="text-black p-6 rounded-lg shadow-lg w-1/3 h-2/5">
             <Combat
-  attackerId={attackerId || ''} // Fallback to an empty string
-  onClose={() => setCombatOpen(false)}
-/>
-
+              attackerId={attackerId || ''} 
+              targetId={targetId || ''}
+              onClose={() => setCombatOpen(false)}
+            />
             </div>
         </div>
     )}
@@ -1622,14 +1644,20 @@ useEffect(() => {
 
 {selectedCharacterIndex !== null && (
   <div className="absolute bottom-3 flex left-1/2 space-x-2 items-center">
-    {/* Afficher le nom du personnage sélectionné */}
-    <Button className="disabled text-white">{characters[selectedCharacterIndex].name}</Button>
-    {/* Vérifier si le joueur est MJ ou s'il s'agit de son propre personnage */}
+    <Button className="button-primary">{characters[selectedCharacterIndex].name}</Button>
     {isMJ || characters[selectedCharacterIndex].id === persoId ? (
       <>
         <Button onClick={handleMoveCharacter}>
           <Move className="w-4 h-4 mr-2" /> Déplacer
         </Button>
+        {characters[selectedCharacterIndex].type === 'joueurs' && (
+          <Button onClick={() => {
+            setSelectedCharacterForSheet(characters[selectedCharacterIndex].id);
+            setShowCharacterSheet(true);
+          }}>
+            <User className="w-4 h-4 mr-2 button-secondary" /> Voir fiche
+          </Button>
+        )}
         {isMJ && characters[selectedCharacterIndex]?.type !== 'joueurs' && (
           <>
             <Button onClick={() => {
@@ -1643,14 +1671,13 @@ useEffect(() => {
             </Button>
             <Button onClick={toggleVisibility}>
               {characters[selectedCharacterIndex].visibility === 'visible' ? (
-                <EyeOff className="w-4 h-4 mr-2" /> // Icon for hiding
+                <EyeOff className="w-4 h-4 mr-2" />
               ) : (
-                <Eye className="w-4 h-4 mr-2" /> // Icon for showing
+                <Eye className="w-4 h-4 mr-2" />
               )}
               {characters[selectedCharacterIndex].visibility === 'visible' ? 'Masquer' : 'Afficher'}
             </Button>
-            {/* Bouton attaquer pour le MJ */}
-            <Button onClick={handleAttack}>
+            <Button className="button-primary" onClick={handleAttack}>
               <Edit className="w-4 h-4 mr-2" /> Attaquer
             </Button>
           </>
@@ -1658,9 +1685,19 @@ useEffect(() => {
       </>
     ) : (
       characters[selectedCharacterIndex].id !== persoId && (
-        <Button onClick={handleAttack}>
-          <Edit className="w-4 h-4 mr-2" /> Attaquer
-        </Button>
+        <>
+          <Button className="button-primary" onClick={handleAttack}>
+            <Edit className="w-4 h-4 mr-2" /> Attaquer
+          </Button>
+          {characters[selectedCharacterIndex].type === 'joueurs' && (
+            <Button onClick={() => {
+              setSelectedCharacterForSheet(characters[selectedCharacterIndex].id);
+              setShowCharacterSheet(true);
+            }}>
+              <User className="w-4 h-4 mr-2" /> Voir fiche
+            </Button>
+          )}
+        </>
       )
     )}
   </div>
@@ -2175,6 +2212,17 @@ useEffect(() => {
     </DialogFooter>
   </DialogContent>
 </Dialog>
+
+      {showCharacterSheet && selectedCharacterForSheet && roomId && (
+        <CharacterSheet
+          characterId={selectedCharacterForSheet}
+          roomId={roomId}
+          onClose={() => {
+            setShowCharacterSheet(false);
+            setSelectedCharacterForSheet(null);
+          }}
+        />
+      )}
     </div>
   ); 
 }
