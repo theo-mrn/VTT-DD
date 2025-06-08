@@ -2,14 +2,26 @@
 "use client";
 
 import { Swords, BookOpen, FileText, Edit, Dice5, List, Search } from "lucide-react"; 
-import { useState, useCallback } from "react";
-import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useCompetences } from "@/contexts/CompetencesContext";
 import debounce from 'lodash/debounce';
+import {
+  CommandDialog,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 type SidebarProps = {
   activeTab: string;
@@ -29,20 +41,51 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Competence[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const { searchCompetences } = useCompetences();
+  const { searchCompetences, isLoading, allCompetences } = useCompetences();
+  
+  // Use ref to ensure we always have the latest setSearchResults
+  const searchResultsRef = useRef(setSearchResults);
+  searchResultsRef.current = setSearchResults;
+  
+  const isSearchingRef = useRef(setIsSearching);
+  isSearchingRef.current = setIsSearching;
 
+  // Debug effect to check data loading
+  useEffect(() => {}, [isLoading, allCompetences, searchResults]);
+
+  // Keyboard shortcut handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+      if (e.key === 'Escape') {
+        setIsSearchOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  // Create debounced search function with refs to avoid closure issues
   const debouncedSearch = useCallback(
     debounce((term: string) => {
-      setIsSearching(true);
-      const results = searchCompetences(term);
-      setSearchResults(results);
-      setIsSearching(false);
+      isSearchingRef.current(true);
+      try {
+        const results = searchCompetences(term);
+        searchResultsRef.current(results);
+      } catch (error) {
+        searchResultsRef.current([]);
+      } finally {
+        isSearchingRef.current(false);
+      }
     }, 300),
     [searchCompetences]
   );
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
+  const handleSearchChange = (value: string) => {
     setSearchTerm(value);
     if (value.trim()) {
       setIsSearching(true);
@@ -53,10 +96,31 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
     }
   };
 
+  // Function to highlight search terms in text
+  const highlightSearchTerm = (text: string, term: string) => {
+    if (!term) return text;
+    const regex = new RegExp(`(${term})`, 'gi');
+    return text.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800">$1</mark>');
+  };
+
+  // Reset search when dialog closes
+  const handleOpenChange = (open: boolean) => {
+    setIsSearchOpen(open);
+    if (!open) {
+      setSearchTerm('');
+      setSearchResults([]);
+      setIsSearching(false);
+    }
+  };
+
   return (
     <>
       <aside className="fixed top-1/2 left-0 transform -translate-y-1/2 z-10 bg-[#242424] p-4 rounded-r-lg shadow-lg flex flex-col items-center space-y-6">
-        <button onClick={() => setIsSearchOpen(true)} className="p-2">
+        <button 
+          onClick={() => setIsSearchOpen(true)} 
+          className="p-2 hover:bg-[#333] rounded transition-colors"
+          title="Rechercher une compétence (Ctrl+K)"
+        >
           <Search className="h-6 w-6 text-[#d4d4d4] hover:text-[#c0a080]" />
         </button>
         {isMJ && (
@@ -70,8 +134,8 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
         <button onClick={() => handleIconClick("NewComponent")} className="p-2">
           <Edit className={`h-6 w-6 ${activeTab === "NewComponent" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button>
-        <button onClick={() => handleIconClick("DiceRollerDnD")} className="p-2">
-          <Dice5 className={`h-6 w-6 ${activeTab === "DiceRollerDnD" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
+        <button onClick={() => handleIconClick("DiceRoller")} className="p-2">
+          <Dice5 className={`h-6 w-6 ${activeTab === "DiceRoller" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button>
         <button onClick={() => handleIconClick("Competences")} className="p-2">
           <List className={`h-6 w-6 ${activeTab === "Competences" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
@@ -81,90 +145,79 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
         </button>
       </aside>
 
-      <Sheet open={isSearchOpen} onOpenChange={setIsSearchOpen}>
-        <SheetContent side="left" className="w-full sm:w-[1800px] p-0">
-          <div className="flex flex-col h-full">
-            <div className="p-6 border-b">
-              <SheetHeader className="mb-4">
-                <SheetTitle className="text-2xl">Rechercher une compétence</SheetTitle>
-                <SheetDescription className="text-base">
-                  Recherchez dans les titres et descriptions des compétences
-                </SheetDescription>
-              </SheetHeader>
-
-              <div className="relative max-w-2xl">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Rechercher une compétence..."
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                  className="pl-9 text-lg"
-                />
-              </div>
-
-              <div className="mt-2 text-sm text-muted-foreground">
-                {isSearching ? (
-                  'Recherche en cours...'
-                ) : searchResults.length > 0 ? (
-                  `${searchResults.length} résultat(s) trouvé(s)`
-                ) : searchTerm ? (
-                  'Aucun résultat'
-                ) : null}
-              </div>
+      <Dialog open={isSearchOpen} onOpenChange={handleOpenChange}>
+        <DialogContent className="max-w-4xl w-full max-h-[85vh]">
+          <DialogHeader>
+            <DialogTitle>Rechercher une compétence</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Rechercher une compétence..."
+                value={searchTerm}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="pl-9"
+              />
             </div>
-
-            <ScrollArea className="flex-1">
-              <div className="p-6">
-                <AnimatePresence mode="wait">
-                  {isSearching ? (
-                    <motion.div
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="flex justify-center items-center py-8"
-                    >
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#c0a080]" />
-                    </motion.div>
-                  ) : (
-                    <div className="space-y-6 w-full">
-                      {searchResults.map((competence, index) => (
-                        <Card 
-                          key={index} 
-                          className="bg-card hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                        >
-                          <CardHeader className="pb-3">
-                            <CardTitle className="text-xl font-medium">
-                              {competence.titre}
-                            </CardTitle>
-                            <p className="text-base text-muted-foreground">
-                              {competence.source}
-                            </p>
-                          </CardHeader>
-                          <CardContent>
-                            <div className="space-y-2">
-                              <p 
-                                className="text-base text-muted-foreground leading-relaxed" 
-                                dangerouslySetInnerHTML={{ __html: competence.description }}
-                              />
-                              {competence.type && (
-                                <div className="mt-4">
-                                  <span className="inline-block px-4 py-1.5 text-sm bg-muted rounded-lg">
-                                    {competence.type}
-                                  </span>
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-                </AnimatePresence>
-              </div>
+            <ScrollArea className="h-[500px] w-full">
+              {searchResults.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">
+                  {isLoading ? "Chargement des données..." : 
+                   isSearching ? "Recherche en cours..." : 
+                   allCompetences.length === 0 ? "Aucune donnée chargée" :
+                   searchTerm ? "Aucune compétence trouvée." : "Tapez pour rechercher..."}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="text-sm font-medium px-3 py-2 bg-muted rounded-lg">
+                    {searchResults.length} compétence(s) trouvée(s)
+                  </div>
+                  <div className="grid gap-3">
+                    {searchResults.map((competence, index) => (
+                      <div
+                        key={`${competence.titre}-${index}`}
+                        className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                        onClick={() => {
+                          setIsSearchOpen(false);
+                        }}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="font-semibold text-lg">
+                            <span 
+                              dangerouslySetInnerHTML={{ 
+                                __html: highlightSearchTerm(competence.titre, searchTerm) 
+                              }} 
+                            />
+                          </div>
+                          {competence.type && (
+                            <span className="inline-block px-2 py-1 text-xs bg-muted rounded text-muted-foreground ml-2">
+                              {competence.type}
+                            </span>
+                          )}
+                        </div>
+                        {competence.source && (
+                          <div className="text-sm text-muted-foreground mb-2 font-medium">
+                            📖 {competence.source}
+                          </div>
+                        )}
+                        <div className="text-sm text-muted-foreground leading-relaxed">
+                          <span 
+                            dangerouslySetInnerHTML={{ 
+                              __html: highlightSearchTerm(competence.description, searchTerm) 
+                            }} 
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </ScrollArea>
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

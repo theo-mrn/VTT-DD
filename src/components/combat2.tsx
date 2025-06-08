@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { X } from 'lucide-react'
+import { X, Sword, Target, Wand2, Settings } from 'lucide-react'
 import { auth, db, doc, getDoc, onAuthStateChanged, collection, getDocs, setDoc } from '@/lib/firebase'
 
 interface Weapon {
@@ -167,107 +167,190 @@ export default function CombatPage({ attackerId, targetId, onClose }: CombatPage
   }
 
   return (
-    <div className="flex flex-col items-center p-2">
-      <Card className="bg-white w-full max-w-[375px] relative">
-        <Button onClick={onClose} className="absolute top-2 right-2">
-          <X className="w-5 h-5" />
-        </Button>
-        <CardHeader className="p-3">
-          <CardTitle>Combat</CardTitle>
-        </CardHeader>
-        <CardContent className="p-3">
-          <AnimatePresence>
-            <motion.div className="grid gap-2 py-2">
-              <div className="grid grid-cols-2 gap-2">
-                <Button onClick={() => handleAttack('magic')}>Magie</Button>
-                <Button onClick={() => handleAttack('distance')}>Distance</Button>
-                <Button onClick={() => handleAttack('contact')}>Contact</Button>
-                <Button onClick={() => handleAttack('custom')}>Custom</Button>
-              </div>
-
-              {showCustomFields && (
-                <div className="grid gap-2 py-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="customDice">Nombre de dés</Label>
-                    <Input
-                      id="customDice"
-                      type="number"
-                      value={customRoll.numDice}
-                      onChange={(e) => setCustomRoll({ ...customRoll, numDice: parseInt(e.target.value) || 1 })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="customFaces">Nombre de faces</Label>
-                    <Input
-                      id="customFaces"
-                      type="number"
-                      value={customRoll.numFaces}
-                      onChange={(e) => setCustomRoll({ ...customRoll, numFaces: parseInt(e.target.value) || 20 })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="customModifier">Modificateur</Label>
-                    <Input
-                      id="customModifier"
-                      type="number"
-                      value={customRoll.modifier}
-                      onChange={(e) => setCustomRoll({ ...customRoll, modifier: parseInt(e.target.value) || 0 })}
-                    />
-                  </div>
-                  <Button onClick={handleCustomAttackRoll}>Lancer le dé personnalisé</Button>
+    <div className="fixed inset-0 flex items-center justify-center p-4 z-50">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.9 }}
+        className="w-full max-w-md"
+      >
+        <Card className="card relative !bg-[var(--bg-card)] hover:!bg-[var(--bg-card)] hover:!opacity-100 transition-none">
+          <Button 
+            onClick={onClose} 
+            variant="ghost"
+            className="absolute top-3 right-3 p-2 hover:bg-accent hover:text-accent-foreground hover:opacity-100"
+            size="sm"
+          >
+            <X className="w-4 h-4" />
+          </Button>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-xl font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <Sword className="w-5 h-5 text-[var(--accent-brown)]" />
+              Combat
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <AnimatePresence>
+              <motion.div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <Button 
+                    onClick={() => handleAttack('magic')} 
+                    className="flex items-center gap-2 !bg-primary !text-primary-foreground hover:!bg-primary/80 hover:!opacity-100"
+                  >
+                    <Wand2 className="w-4 h-4" />
+                    Magie
+                  </Button>
+                  <Button 
+                    onClick={() => handleAttack('distance')} 
+                    className="flex items-center gap-2 !bg-primary !text-primary-foreground hover:!bg-primary/80 hover:!opacity-100"
+                  >
+                    <Target className="w-4 h-4" />
+                    Distance
+                  </Button>
+                  <Button 
+                    onClick={() => handleAttack('contact')} 
+                    className="flex items-center gap-2 !bg-primary !text-primary-foreground hover:!bg-primary/80 hover:!opacity-100"
+                  >
+                    <Sword className="w-4 h-4" />
+                    Contact
+                  </Button>
+                  <Button 
+                    onClick={() => handleAttack('custom')} 
+                    variant="outline"
+                    className="flex items-center gap-2 hover:!bg-accent hover:!text-accent-foreground hover:!opacity-100"
+                  >
+                    <Settings className="w-4 h-4" />
+                    Custom
+                  </Button>
                 </div>
-              )}
 
-              {showDamage && (
-                <>
-                  <Select onValueChange={(value) => setSelectedWeapon(weapons.find(w => w.name === value) || weapons[0])}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selectionner une arme" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {weapons.map((weapon) => (
-                        <SelectItem key={weapon.name} value={weapon.name}>{weapon.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-
-                  {selectedWeapon?.name === "Autre" && (
-                    <div className="grid grid-cols-3 gap-2 mt-2">
+                {showCustomFields && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-3 p-4 bg-[var(--accent-brown)]/5 border border-[var(--accent-brown)]/20 rounded-lg"
+                  >
+                    <div className="space-y-2">
+                      <Label htmlFor="customDice" className="text-[var(--text-primary)]">Nombre de dés</Label>
                       <Input
+                        id="customDice"
                         type="number"
-                        placeholder="Nombre de dés"
-                        value={customDamage.numDice}
-                        onChange={(e) => setCustomDamage({ ...customDamage, numDice: parseInt(e.target.value) || 1 })}
-                      />
-                      <Input
-                        type="number"
-                        placeholder="Nombre de faces"
-                        value={customDamage.numFaces}
-                        onChange={(e) => setCustomDamage({ ...customDamage, numFaces: parseInt(e.target.value) || 6 })}
-                      />
-                      <Input
-                        type="number"
-                        placeholder="Modificateur"
-                        value={customDamage.modifier}
-                        onChange={(e) => setCustomDamage({ ...customDamage, modifier: parseInt(e.target.value) || 0 })}
+                        value={customRoll.numDice}
+                        onChange={(e) => setCustomRoll({ ...customRoll, numDice: parseInt(e.target.value) || 1 })}
+                        className="input-field"
                       />
                     </div>
-                  )}
-                  <Button onClick={handleDamageRoll} className="mt-4">Lancer les dégâts</Button>
-                </>
-              )}
-            </motion.div>
-          </AnimatePresence>
+                    <div className="space-y-2">
+                      <Label htmlFor="customFaces" className="text-[var(--text-primary)]">Nombre de faces</Label>
+                      <Input
+                        id="customFaces"
+                        type="number"
+                        value={customRoll.numFaces}
+                        onChange={(e) => setCustomRoll({ ...customRoll, numFaces: parseInt(e.target.value) || 20 })}
+                        className="input-field"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="customModifier" className="text-[var(--text-primary)]">Modificateur</Label>
+                      <Input
+                        id="customModifier"
+                        type="number"
+                        value={customRoll.modifier}
+                        onChange={(e) => setCustomRoll({ ...customRoll, modifier: parseInt(e.target.value) || 0 })}
+                        className="input-field"
+                      />
+                    </div>
+                    <Button onClick={handleCustomAttackRoll} className="w-full bg-primary text-primary-foreground hover:bg-primary/80 hover:opacity-100">
+                      Lancer le dé personnalisé
+                    </Button>
+                  </motion.div>
+                )}
 
-          {attackResult && (
-            <div className="mt-4 p-4 bg-gray-200 rounded-md">
-              <p className="text-lg font-semibold">Résultats</p>
-              <p>{attackResult}</p>
-              {damageResult && <p>{damageResult}</p>}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                {showDamage && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="space-y-3"
+                  >
+                    <div className="space-y-2">
+                      <Label className="text-[var(--text-primary)]">Sélectionner une arme</Label>
+                      <Select onValueChange={(value) => setSelectedWeapon(weapons.find(w => w.name === value) || weapons[0])}>
+                        <SelectTrigger className="input-field">
+                          <SelectValue placeholder="Sélectionner une arme" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {weapons.map((weapon) => (
+                            <SelectItem key={weapon.name} value={weapon.name}>{weapon.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {selectedWeapon?.name === "Autre" && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        className="grid grid-cols-3 gap-2 p-3 bg-[var(--accent-brown)]/5 border border-[var(--accent-brown)]/20 rounded-lg"
+                      >
+                        <div className="space-y-1">
+                          <Label className="text-xs text-[var(--text-secondary)]">Dés</Label>
+                          <Input
+                            type="number"
+                            placeholder="1"
+                            value={customDamage.numDice}
+                            onChange={(e) => setCustomDamage({ ...customDamage, numDice: parseInt(e.target.value) || 1 })}
+                            className="input-field text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-[var(--text-secondary)]">Faces</Label>
+                          <Input
+                            type="number"
+                            placeholder="6"
+                            value={customDamage.numFaces}
+                            onChange={(e) => setCustomDamage({ ...customDamage, numFaces: parseInt(e.target.value) || 6 })}
+                            className="input-field text-sm"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-[var(--text-secondary)]">Mod.</Label>
+                          <Input
+                            type="number"
+                            placeholder="0"
+                            value={customDamage.modifier}
+                            onChange={(e) => setCustomDamage({ ...customDamage, modifier: parseInt(e.target.value) || 0 })}
+                            className="input-field text-sm"
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                    <Button onClick={handleDamageRoll} className="w-full bg-primary text-primary-foreground hover:bg-primary/80 hover:opacity-100">
+                      Lancer les dégâts
+                    </Button>
+                  </motion.div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+
+            {(attackResult || damageResult) && (
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 bg-gradient-to-r from-[var(--accent-brown)]/10 to-[var(--accent-brown)]/5 border border-[var(--accent-brown)]/20 rounded-lg"
+              >
+                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Résultats</h3>
+                {attackResult && (
+                  <p className="text-[var(--text-secondary)] mb-2 font-mono text-sm">{attackResult}</p>
+                )}
+                {damageResult && (
+                  <p className="text-[var(--text-secondary)] font-mono text-sm font-bold">{damageResult}</p>
+                )}
+              </motion.div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   )
 }

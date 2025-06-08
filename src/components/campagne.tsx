@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
-import { Shield, Dices, Swords, Trash2 ,Info} from 'lucide-react';
+import { Shield, Dice1, Swords, Trash2 ,Info} from 'lucide-react';
 import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import RollRequest from './Rollrequest'; // Importation du composant RollRequest
@@ -402,7 +402,7 @@ export default function DiceRollerDnD() {
                     <span className="text-lg font-bold text-[var(--text-primary)]">Total: {roll.total}</span>
                   </div>
                   <div className="flex items-center gap-1 text-xs text-[var(--text-secondary)]">
-                    <Dices className="h-4 w-4 text-[var(--accent-brown)]" />
+                    <Dice1 className="h-4 w-4 text-[var(--accent-brown)]" />
                     <span>{roll.results.join(', ')} {roll.modifier !== 0 ? `+ ${roll.modifier}` : ''}</span>
                   </div>
                 </div>
