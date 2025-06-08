@@ -7,7 +7,7 @@ import Sidebar from "@/components/Sidebar";
 import GMDashboard from "@/components/MJcombat";
 import Component from "@/components/fiche";
 import MedievalNotes from "@/components/Notes";
-import DiceRollerDnD from "@/components/campagne";
+import { DiceRoller } from "@/components/dice-roller";
 import Competences from "@/components/competences";
 import OverlayComponent from "@/components/overlay";
 import InfoComponent from "@/components/info";
@@ -64,8 +64,8 @@ export default function Layout({ children }: LayoutProps) {
         return <Component />;
       case "NewComponent":
         return <MedievalNotes />;
-      case "DiceRollerDnD":
-        return <DiceRollerDnD />;
+      case "DiceRoller":
+        return <DiceRoller />;
       case "Competences":
         return <Competences />;
       case "infoComponent":
@@ -85,7 +85,7 @@ export default function Layout({ children }: LayoutProps) {
         return "w-[1200px]";
         case "GMDashboard":
           return " bg-white";
-      case "DiceRollerDnD":
+      case "DiceRoller":
         return "w-[500px]"; // Optional: Customize for Music tab
       default:
         return "w-[700px]";

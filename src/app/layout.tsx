@@ -4,16 +4,25 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider"
 import { CompetencesProvider } from "@/contexts/CompetencesContext"
 import { GameProvider } from '@/contexts/GameContext';
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
+
+
+import { IM_Fell_English } from 'next/font/google';
+import { Cinzel } from 'next/font/google';
+
+const imFellEnglish = IM_Fell_English({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-body',
+  display: 'swap',
 });
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
+
+const cinzel = Cinzel({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-title',
+  display: 'swap',
 });
+
 
 export const metadata: Metadata = {
   title: "JDR",
@@ -29,7 +38,7 @@ export default function RootLayout({
     <html
       lang="fr"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable}`}
+      className={`${imFellEnglish.variable} ${cinzel.variable}`}
     >
       <body
         className="antialiased"

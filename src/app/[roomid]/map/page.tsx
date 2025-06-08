@@ -22,7 +22,6 @@ export default function Component() {
   const { isMJ, persoId, playerData, setIsMJ, setPersoId, setPlayerData } = useGame();
   
   // Debug log to check context values
-  console.log('Map component - isMJ:', isMJ, 'persoId:', persoId, 'playerData:', playerData);
   
   const [combatOpen, setCombatOpen] = useState(false);
   const [attackerId, setAttackerId] = useState<string | null>(null);
@@ -241,11 +240,6 @@ useEffect(() => {
             setIsMJ(false);
             setPersoId(userData.persoId);
             setPlayerData(fullCharacterData);
-            
-            console.log('Restored player data from Firebase:', {
-              persoId: userData.persoId,
-              playerData: fullCharacterData
-            });
           }
         }
       }
@@ -769,9 +763,7 @@ onSnapshot(charactersRef, (snapshot) => {
       if (isVisible) {
         // Set border color based on character type or if it is the player's character
         // Debug logs
-        if (char.type === 'joueurs') {
-          console.log('Character:', char.name, 'ID:', char.id, 'Player ID:', persoId, 'Match:', char.id === persoId);
-        }
+   
         
         // 🎯 Couleur spéciale pour les personnages dans la zone de sélection
         let borderColor;
@@ -1380,7 +1372,6 @@ const handleCanvasMouseUp = async () => {
           x: draggedNote.x,
           y: draggedNote.y
         });
-        console.log(`Note déplacée vers (${Math.round(draggedNote.x)}, ${Math.round(draggedNote.y)})`);
       } catch (error) {
         console.error("Erreur lors de la sauvegarde du déplacement de la note:", error);
         // Remettre à la position originale en cas d'erreur
@@ -1420,10 +1411,6 @@ const handleCanvasMouseUp = async () => {
       
       const results = await Promise.all(updatePromises);
       const movedCharacters = results.filter(result => result !== null);
-      
-      if (movedCharacters.length > 0) {
-        console.log(`Personnages déplacés: ${movedCharacters.join(', ')}`);
-      }
     } catch (error) {
       console.error("Erreur lors de la sauvegarde du déplacement:", error);
       // Remettre aux positions originales en cas d'erreur
@@ -1474,7 +1461,6 @@ const handleCanvasMouseUp = async () => {
         });
         setDrawings(prev => [...prev, currentPath]);
         setCurrentPath([]);
-        console.log(`Tracé sauvegardé avec ${currentPath.length} points`);
       } catch (error) {
         console.error("Erreur lors de la sauvegarde du tracé:", error);
         setCurrentPath([]);
@@ -1520,21 +1506,16 @@ const handleDeleteCharacter = async () => {
 };
   
   const handleDeleteNote = async () => {
-    console.log("Appel de handleDeleteNote");
-    console.log("Valeur de selectedNoteIndex:", selectedNoteIndex);
-    console.log("Type de roomId:", typeof roomId, "Valeur de roomId:", roomId);
     // Convertir roomId en chaîne de caractères
     const roomIdStr = String(roomId);
     // Vérifie que `selectedNoteIndex` est valide
     if (selectedNoteIndex !== null && typeof roomIdStr === 'string') {
       const noteToDelete = notes[selectedNoteIndex];
-      console.log("Note à supprimer:", noteToDelete);
   
       // Vérifie que la note a un `id` valide avant de supprimer
       if (typeof noteToDelete?.id === 'string') {
         try {
           await deleteDoc(doc(db, 'cartes', roomIdStr, 'text', noteToDelete.id));
-          console.log("Note supprimée avec succès");
           // Met à jour la liste des notes en retirant celle qui a été supprimée
           setNotes((prevNotes) => prevNotes.filter((_, index) => index !== selectedNoteIndex));
           setSelectedNoteIndex(null);
@@ -1661,8 +1642,6 @@ const handleEditNote = () => {
 const handleNoteSubmit = async () => {
   if (editingNote && roomId && selectedNoteIndex !== null) {  // Vérifie que selectedNoteIndex n'est pas null
     const noteToUpdate = notes[selectedNoteIndex];
-    console.log("roomId:", roomId);
-    console.log("noteToUpdate:", noteToUpdate);
     if (typeof roomId === 'string' && typeof noteToUpdate?.id === 'string') {
       try {
         await updateDoc(doc(db, 'cartes', roomId, 'text', noteToUpdate.id), {
