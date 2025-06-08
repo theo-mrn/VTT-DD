@@ -1,8 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus } from 'lucide-react'
-import { db, auth, onAuthStateChanged, getDocs, collection, doc, getDoc, setDoc } from '@/lib/firebase'
+import { db, getDocs, collection, doc, setDoc } from '@/lib/firebase'
+import { useGame } from '@/contexts/GameContext'
 
 interface Character {
   id: string;
@@ -12,114 +14,159 @@ interface Character {
 }
 
 export default function CharacterSelection() {
+  const router = useRouter();
+  const { 
+    user, 
+    isAuthenticated, 
+    isLoading, 
+    setIsMJ, 
+    setPersoId, 
+    setPlayerData 
+  } = useGame();
+  
   const [characters, setCharacters] = useState<Character[]>([])
-  const [roomId, setRoomId] = useState<string | null>(null)
-  const [user, setUser] = useState<{ uid: string } | null>(null)
+  const [charactersLoading, setCharactersLoading] = useState(false)
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        setUser(user)
-        const roomId = await getRoomId(user)
-        setRoomId(roomId)
-        loadCharacters(user.uid, roomId)
-      } else {
-        console.log("No user is signed in.")
-      }
-    })
-
-    return () => unsubscribe()
-  }, [])
-
-  async function getRoomId(user: { uid: string }): Promise<string | null> {
-    const userRef = doc(db, 'users', user.uid)
-    const userDoc = await getDoc(userRef)
-    if (userDoc.exists()) {
-      return userDoc.data().room_id as string
-    } else {
-      throw new Error("User document not found")
-    }
-  }
-
-  async function loadCharacters(uid: string, roomId: string | null) {
-    if (roomId && roomId !== '0') {
+  // Fonction mémorisée pour charger les personnages
+  const loadCharacters = useCallback(async (uid: string, roomId: string) => {
+    setCharactersLoading(true)
+    try {
       const charactersCollection = collection(db, `cartes/${roomId}/characters`)
       const charactersSnapshot = await getDocs(charactersCollection)
 
-      // Retrieve characters where type is "joueurs" and add the document ID
       const charactersData: Character[] = charactersSnapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() } as Character))
-        .filter(character => character.type === "joueurs") // Filter by type "joueurs"
+        .map(doc => ({ 
+          id: doc.id, 
+          Nomperso: doc.data().Nomperso || 'Nom non défini',
+          ...doc.data() 
+        } as Character))
+        .filter(character => character.type === "joueurs")
 
       setCharacters(charactersData)
-    } else {
-      console.log("No Room_id found for this user.")
+    } catch (error) {
+      console.error("Error loading characters:", error)
+      setCharacters([])
+    } finally {
+      setCharactersLoading(false)
     }
-  }
-  async function saveSelectedCharacter(character: Character) {
+  }, [])
+
+  // Charger les personnages quand l'utilisateur et la room sont disponibles
+  useEffect(() => {
+    if (user?.uid && user?.roomId && user.roomId !== '0') {
+      loadCharacters(user.uid, user.roomId)
+    } else if (user && (!user.roomId || user.roomId === '0')) {
+      console.log("No Room_id found for this user.")
+      setCharacters([])
+    }
+  }, [user, loadCharacters])
+
+  const saveSelectedCharacter = useCallback(async (character: Character) => {
+    if (!character.Nomperso || !character.id) {
+      console.error("Character data is incomplete:", character)
+      return
+    }
+
+    if (!user) {
+      throw new Error("User data is not available");
+    }
+
     try {
-      // Check if character.Nomperso and character.id are defined
-      if (!character.Nomperso || !character.id) {
-        console.error("Character data is incomplete:", character)
-        return // Exit if data is incomplete
-      }
-  
-      if (!user) {
-        throw new Error("User is not defined");
-      }
-  
+      // Optimisation : utiliser les données déjà chargées
+      const fullCharacterData = character;
+      
+      // Set context values avec toutes les données du personnage
+      setIsMJ(false);
+      setPersoId(character.id);
+      setPlayerData(fullCharacterData);
+      
+      console.log('Setting player data (OPTIMIZED):', {
+        persoId: character.id,
+        playerData: fullCharacterData
+      });
+
+      // Sauvegarder en base de données
       const userRef = doc(db, 'users', user.uid)
-  
-      // Save both `perso` (character name) and `persoId` (character ID) to the user's document
       await setDoc(userRef, { 
         perso: character.Nomperso, 
         persoId: character.id
       }, { merge: true })
-  
-      const roomRef = doc(db, `salles/${roomId}/Noms/${user.uid}`)
-      await setDoc(roomRef, { nom: character.Nomperso }, { merge: true })
-  
-      console.log("Selected character saved:", character.Nomperso)
-  
-      // Redirect to "map" if window.top exists
-      if (window.top) {
-        window.top.location.href = "map"
-      } else {
-        console.warn("window.top is null; cannot navigate to 'map'")
+
+      if (user.roomId) {
+        const roomRef = doc(db, `salles/${user.roomId}/Noms/${user.uid}`)
+        await setDoc(roomRef, { nom: character.Nomperso }, { merge: true })
       }
+
+      console.log("Selected character saved:", character.Nomperso)
+      
+      // Redirection vers la carte
+      router.push(`/${user.roomId}/map`);
     } catch (error) {
       console.error("Error saving selected character:", error)
     }
-  }
+  }, [user, setIsMJ, setPersoId, setPlayerData, router])
 
-  async function startAsMJ() {
+  const startAsMJ = useCallback(async () => {
+    if (!user) {
+      throw new Error("User data is not available");
+    }
+
     try {
-      if (!user) {
-        throw new Error("User is not defined");
-      }
+      // Set context values
+      setIsMJ(true);
+      setPersoId(null);
+      setPlayerData(null);
 
       const userRef = doc(db, 'users', user.uid)
       
-      // Set the user's role as MJ
       await setDoc(userRef, { 
         perso: 'MJ',
         role: 'MJ'
       }, { merge: true })
 
-      if (roomId) {
-        const roomRef = doc(db, `salles/${roomId}/Noms/${user.uid}`)
+      if (user.roomId) {
+        const roomRef = doc(db, `salles/${user.roomId}/Noms/${user.uid}`)
         await setDoc(roomRef, { nom: 'MJ' }, { merge: true })
       }
 
-      // Redirect to map
-      if (window.top) {
-        window.top.location.href = "map"
-      } else {
-        console.warn("window.top is null; cannot navigate to 'map'")
-      }
+      router.push(`/${user.roomId}/map`);
     } catch (error) {
       console.error("Error setting MJ role:", error)
     }
+  }, [user, setIsMJ, setPersoId, setPlayerData, router])
+
+  // Mémorisation du rendu des personnages pour éviter les re-renders
+  const charactersElements = useMemo(() => {
+    return characters.map((character) => (
+      <div
+        key={character.id}
+        className="group w-36 h-[500px] rounded-[50px] bg-cover bg-top relative overflow-hidden transition-all duration-500 ease-in-out cursor-pointer hover:w-96 flex flex-col justify-end items-start"
+        style={{backgroundImage: `url(${character.imageURL || 'default-avatar.png'})`}}
+        onClick={() => saveSelectedCharacter(character)}
+      >
+        <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-black to-transparent"></div>
+        <h3 className="absolute bottom-4 left-6 text-white text-lg font-semibold opacity-0 transition-opacity duration-500 group-hover:opacity-100">
+          {character.Nomperso || 'Nom non défini'}
+        </h3>
+      </div>
+    ))
+  }, [characters, saveSelectedCharacter])
+
+  // États de chargement
+  if (isLoading) {
+    return (
+      <div className="relative w-full min-h-screen flex items-center justify-center bg-cover bg-center" style={{backgroundImage: "url(../images/index1.webp)"}}>
+        <div className="text-white text-xl">Chargement...</div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="relative w-full min-h-screen flex items-center justify-center bg-cover bg-center" style={{backgroundImage: "url(../images/index1.webp)"}}>
+        <div className="text-white text-xl">Veuillez vous connecter</div>
+      </div>
+    )
   }
 
   return (
@@ -129,28 +176,22 @@ export default function CharacterSelection() {
           Choisissez votre personnage
         </h1>
       </div>
-      <div className="flex flex-wrap justify-center w-4/5 gap-4">
-        {characters.map((character, index) => (
-          <div
-            key={index}
-            className="group w-36 h-[500px] rounded-[50px] bg-cover bg-top relative overflow-hidden transition-all duration-500 ease-in-out cursor-pointer hover:w-96 flex flex-col justify-end items-start"
-            style={{backgroundImage: `url(${character.imageURL || 'default-avatar.png'})`}}
-            onClick={() => saveSelectedCharacter(character)}
+      
+      {charactersLoading ? (
+        <div className="text-white text-xl">Chargement des personnages...</div>
+      ) : (
+        <div className="flex flex-wrap justify-center w-4/5 gap-4">
+          {charactersElements}
+          <a
+            href="/creation"
+            className="group w-36 h-[500px] rounded-[50px] bg-white relative overflow-hidden transition-all duration-500 ease-in-out cursor-pointer hover:w-96 flex flex-col justify-center items-center"
           >
-            <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-black to-transparent"></div>
-            <h3 className="absolute bottom-4 left-6 text-white text-lg font-semibold opacity-0 transition-opacity duration-500 group-hover:opacity-100">
-              {character.Nomperso || 'Nom non défini'}
-            </h3>
-          </div>
-        ))}
-        <a
-          href="/creation"
-          className="group w-36 h-[500px] rounded-[50px] bg-white relative overflow-hidden transition-all duration-500 ease-in-out cursor-pointer hover:w-96 flex flex-col justify-center items-center"
-        >
-          <Plus className="w-12 h-12 text-black transition-transform duration-300 ease-in-out group-hover:scale-150" />
-          <h3 className="absolute bottom-4 left-6 text-black opacity-0 transition-opacity duration-500 group-hover:opacity-100">Nouveau</h3>
-        </a>
-      </div>
+            <Plus className="w-12 h-12 text-black transition-transform duration-300 ease-in-out group-hover:scale-150" />
+            <h3 className="absolute bottom-4 left-6 text-black opacity-0 transition-opacity duration-500 group-hover:opacity-100">Nouveau</h3>
+          </a>
+        </div>
+      )}
+      
       <button
         onClick={startAsMJ}
         className="bg-[#c0a080] mt-16 mb-16 text-[#1c1c1c] px-12 py-4 rounded-lg hover:bg-[#d4b48f] transition duration-300 text-lg font-bold"

@@ -12,7 +12,7 @@ import { ArrowLeft, Users, Trash } from 'lucide-react'
 import { auth, db, collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, storage } from '@/lib/firebase'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
-import { Alert, AlertTitle } from "@/components/ui/alert"
+import { AlertTitle } from "@/components/ui/alert"
 
 interface Room {
   id: string;
@@ -99,7 +99,7 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
 
     try {
       await updateDoc(doc(db, 'users', user.uid), { room_id: room.id })
-      router.push('/personnages')
+      router.push(`/${room.id}`)
     } catch (error) {
       console.error("Error updating room_id:", error)
     }
@@ -254,7 +254,7 @@ export default function Component() {
 
     setNewRoom({ title: '', description: '', maxPlayers: 4, isPublic: true })
     setImageFile(null)
-    router.push('/personnages')
+    router.push(`/${code}`)
   }
 
   const handleEditRoom = () => {
@@ -481,7 +481,7 @@ export default function Component() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-[#a0a0a0]">Vous n'avez pas encore de salles. Rejoignez ou créez une salle pour commencer.</p>
+                  <p className="text-[#a0a0a0]">Vous n&apos;avez pas encore de salles. Rejoignez ou créez une salle pour commencer.</p>
                 )}
               </div>
             </CardContent>
