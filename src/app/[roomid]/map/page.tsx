@@ -1,12 +1,14 @@
 "use client"
 
 import React, { useState, useRef, useEffect } from 'react'
+import { useParams } from 'next/navigation'
+import { useGame } from '@/contexts/GameContext'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { X, Plus, Minus, Move, Edit, Pencil, Eraser, CircleUserRound, Eclipse, Baseline, SquareDashedMousePointer, ChevronRight, ChevronLeft, Eye, EyeOff, User } from 'lucide-react'
+import { X, Plus, Minus, Move, Edit, Pencil, Eraser, CircleUserRound, Baseline, ChevronRight, ChevronLeft, User, Grid } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDoc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -15,10 +17,16 @@ import CharacterSheet from '@/components/CharacterSheet'; // Importez le composa
 
 
 export default function Component() {
+  const params = useParams();
+  const roomId = params.roomid as string;
+  const { isMJ, persoId, playerData, setIsMJ, setPersoId, setPlayerData } = useGame();
+  
+  // Debug log to check context values
+  console.log('Map component - isMJ:', isMJ, 'persoId:', persoId, 'playerData:', playerData);
+  
   const [combatOpen, setCombatOpen] = useState(false);
   const [attackerId, setAttackerId] = useState<string | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
-  const [persoId, setPersoId] = useState<string | null>(null);
   const [backgroundImage, setBackgroundImage] = useState('/placeholder.svg?height=600&width=800')
   const [showGrid, setShowGrid] = useState(false)
   const [zoom, setZoom] = useState(1.4)
@@ -51,35 +59,50 @@ export default function Component() {
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const [isMoving, setIsMoving] = useState(false)
+  
+  // 🎯 NOUVEAUX ÉTATS pour le drag & drop des personnages
+  const [isDraggingCharacter, setIsDraggingCharacter] = useState(false)
+  const [draggedCharacterIndex, setDraggedCharacterIndex] = useState<number | null>(null)
+
+  const [draggedCharactersOriginalPositions, setDraggedCharactersOriginalPositions] = useState<{index: number, x: number, y: number}[]>([])
+  
+  // 🎯 NOUVEAUX ÉTATS pour le drag & drop des notes
+  const [isDraggingNote, setIsDraggingNote] = useState(false)
+  const [draggedNoteIndex, setDraggedNoteIndex] = useState<number | null>(null)
+  const [draggedNoteOriginalPos, setDraggedNoteOriginalPos] = useState({ x: 0, y: 0 })
+  
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState<number | null>(null);
   const [selectedNoteIndex, setSelectedNoteIndex] = useState<number | null>(null);
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
   const [characterDialogOpen, setCharacterDialogOpen] = useState(false)
+  const [addNoteDialogOpen, setAddNoteDialogOpen] = useState(false)
+  const [newNote, setNewNote] = useState({ text: '', color: '#ffff00', fontSize: 16 })
   const [isDrawing, setIsDrawing] = useState(false)
   const [drawMode, setDrawMode] = useState(false)
   const [drawings, setDrawings] = useState<Drawing[]>([]);
   const [currentPath, setCurrentPath] = useState<Point[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
-  const [roomId, setRoomId] = useState<string | null>(null);  
   const [loading, setLoading] = useState(true)
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [visibilityRadius, setVisibilityRadius] = useState(100);
-  const [isMJ, setIsMJ] = useState(false);
   const [toolbarVisible, setToolbarVisible] = useState(false);
+  // 🎯 NOUVEAU SYSTÈME DE BROUILLARD PAR QUADRILLAGE
   const [fogMode, setFogMode] = useState(false);
-  const [fogPaths, setFogPaths] = useState<Drawing[]>([]);
-  const [fogSquares, setFogSquares] = useState<Point[]>([]);
-  const squareSize = 200; // Déclarer la taille des carrés de brouillard en dehors de la fonction drawMap
-  const [revealMode, setRevealMode] = useState(false);
-  const [isSelecting, setIsSelecting] = useState(false);
+  const [fogGrid, setFogGrid] = useState<Map<string, boolean>>(new Map()); // clé: "x,y", valeur: true = brouillard
+  const fogCellSize = 100; // Taille d'une cellule de brouillard en pixels
+  const [showFogGrid, setShowFogGrid] = useState(false); // Pour afficher/masquer la grille
+  const [isFogDragging, setIsFogDragging] = useState(false); // Pour le placement continu de brouillard
+  const [lastFogCell, setLastFogCell] = useState<string | null>(null); // Dernière cellule touchée pour éviter les doublons
+  const [isFogAddMode, setIsFogAddMode] = useState(true); // Pour savoir si on ajoute (true) ou supprime (false) du brouillard
+  const [fullMapFog, setFullMapFog] = useState(false); // Pour couvrir toute la carte de brouillard
+  const [isSelecting, setIsSelecting] = useState(true);
   const [selectionStart, setSelectionStart] = useState<Point | null>(null);
+  const [selectionEnd, setSelectionEnd] = useState<Point | null>(null);
+  const [isSelectingArea, setIsSelectingArea] = useState(false);
   const [selectedCharacters, setSelectedCharacters] = useState<number[]>([]);
-  const [shadowOpacity, setShadowOpacity] = useState(0.5); // Ajouter un état pour l'opacité des ombres
-  const [fogRectangles, setFogRectangles] = useState<{ start: Point, end: Point }[]>([]);
-  const [clearFogMode, setClearFogMode] = useState(false);
   const [selectedFogIndex, setSelectedFogIndex] = useState<number | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
@@ -89,42 +112,18 @@ export default function Component() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserId(user.uid);
-        await fetchRoomId(user.uid);
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-        if (userDoc.exists()) {
-          const perso = userDoc.data().perso;
-          const roomId = userDoc.data().room_id;
-          setIsMJ(perso === "MJ"); 
-          if (perso === "MJ") {
-            if (roomId) {                                                                                                                                                      
-              const settingsRef = doc(db, 'cartes', String(roomId), 'settings', 'general');  
-              onSnapshot(settingsRef, (settingsDoc) => {
-                if (settingsDoc.exists()) {
-                  const tourJoueurId = settingsDoc.data().tour_joueur;
-  
-                  setPersoId(tourJoueurId); // Use tour_joueur ID as persoId for MJ
-                } else {
-                  console.warn("Settings document not found for room:", roomId);
-                }
-              });
-            } else {
-              console.warn("Room ID is not set. Cannot listen to `tour_joueur`.");
-            }
-          } else {
-            const persoId = userDoc.data().persoId;
-            setPersoId(persoId);
-          }
-        } else {
-          console.warn("User document not found for UID:", user.uid);
+        INITializeFirebaseListeners(roomId);
+        
+        // If context is empty, try to restore player data from Firebase
+        if (!persoId && !isMJ) {
+          await restorePlayerDataFromFirebase(user.uid);
         }
       } else {
         setUserId(null);
-        setRoomId(null);
-        setIsMJ(false);
       }
     });
     return () => unsubscribe();
-  }, [roomId]);
+  }, [roomId, persoId, isMJ]);
   
 
   type Character = {
@@ -158,43 +157,38 @@ export default function Component() {
     x: number;
     y: number;
     color: string;
+    fontSize?: number;
   };
-  const texts: Text[] = [];
   type Path = { x: number; y: number };
-type Drawing = Path[];
-const drws: Drawing[] = [];
+  type Drawing = Path[];
 
-type NewCharacter = {
-  niveau : number;
-  name: string;
-  image: { src: string } | null;
-  visibility: 'visible' | 'hidden';
-  PV: number;
-  Defense: number;
-  Contact: number;
-  Distance: number;
-  Magie: number;
-  INIT: number;
-  nombre :number
-  FOR: number;
-  DEX: number;
-  CON: number;
-  SAG: number;
-  INT: number;
-  CHA: number;
-};
-type Point = { x: number; y: number };
+  type NewCharacter = {
+    niveau : number;
+    name: string;
+    image: { src: string } | null;
+    visibility: 'visible' | 'hidden';
+    PV: number;
+    Defense: number;
+    Contact: number;
+    Distance: number;
+    Magie: number;
+    INIT: number;
+    nombre :number
+    FOR: number;
+    DEX: number;
+    CON: number;
+    SAG: number;
+    INT: number;
+    CHA: number;
+  };
+  type Point = { x: number; y: number };
 
-type Note = {
-  text?: string;
-  id?: string;
-  color?: string;
-};
-type CombatProps = {
-  attackerId: string | null;
-  targetId: string | null;
-  onClose: () => void;
-};
+  type Note = {
+    text?: string;
+    id?: string;
+    color?: string;
+  };
+
 
 
 
@@ -214,16 +208,49 @@ useEffect(() => {
     ctx.scale(sizeMultiplier, sizeMultiplier);
     drawMap(ctx, image, containerWidth, containerHeight); // Pass container dimensions
   };
-}, [backgroundImage, showGrid, zoom, offset, characters, notes, selectedCharacterIndex, selectedNoteIndex, drawings, currentPath, fogPaths, fogSquares, fogRectangles]);
+}, [backgroundImage, showGrid, zoom, offset, characters, notes, selectedCharacterIndex, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isFogDragging]);
 
 
   // Firebase Functions
-  const fetchRoomId = async (uid: string) => {
-    const userDoc = await getDoc(doc(db, 'users', uid));
-    if (userDoc.exists()) {
-      const roomId = userDoc.data().room_id;
-      setRoomId(roomId);
-      INITializeFirebaseListeners(roomId);
+  
+  const restorePlayerDataFromFirebase = async (uid: string) => {
+    try {
+      const userRef = doc(db, 'users', uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        
+        if (userData.role === 'MJ') {
+          setIsMJ(true);
+          setPersoId(null);
+          setPlayerData(null);
+        } else if (userData.persoId) {
+          // Get full character data
+          const characterRef = doc(db, `cartes/${roomId}/characters`, userData.persoId);
+          const characterDoc = await getDoc(characterRef);
+          
+          if (characterDoc.exists()) {
+            const characterData = characterDoc.data();
+            const fullCharacterData = { 
+              id: userData.persoId, 
+              Nomperso: characterData.Nomperso || userData.perso,
+              ...characterData 
+            };
+            
+            setIsMJ(false);
+            setPersoId(userData.persoId);
+            setPlayerData(fullCharacterData);
+            
+            console.log('Restored player data from Firebase:', {
+              persoId: userData.persoId,
+              playerData: fullCharacterData
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring player data:', error);
     }
   };
   
@@ -319,9 +346,19 @@ onSnapshot(charactersRef, (snapshot) => {
     onSnapshot(fogRef, (doc) => {
       if (doc.exists()) {
         const data = doc.data();
-        setFogPaths(data.paths || []);
-        setFogSquares(data.squares || []);
-        setFogRectangles(data.rectangles || []);
+        // 🎯 NOUVEAU : Charger la grille de brouillard depuis Firebase
+        const gridMap = new Map<string, boolean>();
+        if (data.grid) {
+          Object.entries(data.grid).forEach(([key, value]) => {
+            gridMap.set(key, value as boolean);
+          });
+        }
+        setFogGrid(gridMap);
+        
+        // 🎯 CHARGER le mode brouillard complet depuis Firebase
+        if (data.fullMapFog !== undefined) {
+          setFullMapFog(data.fullMapFog);
+        }
       }
     });
   };
@@ -330,29 +367,108 @@ onSnapshot(charactersRef, (snapshot) => {
     return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
   };
 
-  const updateCharacterVisibility = async () => {
-    if (!roomId) return;
-  
-    const charactersRef = collection(db, 'cartes', String(roomId), 'characters');
-    const snapshot = await getDocs(charactersRef);
-  
-    snapshot.forEach(async (doc) => {
-      const data = doc.data();
-      const charX = data.x;
-      const charY = data.y;
-  
-      const isVisible = characters.some((player) => {
-        return (
-          player.type === 'joueurs' &&
-          calculateDistance(charX, charY, player.x, player.y) <= player.visibilityRadius
-        );
-      });
-    });
+  // 🎯 NOUVELLES FONCTIONS UTILITAIRES POUR LE BROUILLARD
+  const getCellKey = (x: number, y: number): string => {
+    const cellX = Math.floor(x / fogCellSize);
+    const cellY = Math.floor(y / fogCellSize);
+    return `${cellX},${cellY}`;
   };
-  
-  useEffect(() => {
-    updateCharacterVisibility();
-  }, [characters, visibilityRadius]);
+
+
+
+  const isCellInFog = (x: number, y: number): boolean => {
+    const key = getCellKey(x, y);
+    return fogGrid.get(key) || false;
+  };
+
+  const toggleFogCell = async (x: number, y: number, forceState?: boolean) => {
+    const key = getCellKey(x, y);
+    const newFogGrid = new Map(fogGrid);
+    
+    if (forceState !== undefined) {
+      // Mode forcé (pour le drag continu)
+      if (forceState) {
+        newFogGrid.set(key, true);
+      } else {
+        newFogGrid.delete(key);
+      }
+    } else {
+      // Mode toggle (pour le clic simple)
+      if (newFogGrid.has(key)) {
+        newFogGrid.delete(key);
+      } else {
+        newFogGrid.set(key, true);
+      }
+    }
+    
+    setFogGrid(newFogGrid);
+    
+    // Sauvegarder en Firebase
+    if (roomId) {
+      const fogDocRef = doc(db, 'cartes', String(roomId), 'fog', 'fogData');
+      const gridObject = Object.fromEntries(newFogGrid);
+      await setDoc(fogDocRef, { grid: gridObject }, { merge: true });
+    }
+  };
+
+  const addFogCellIfNew = async (x: number, y: number, addMode: boolean) => {
+    const key = getCellKey(x, y);
+    
+    // Éviter de modifier la même cellule plusieurs fois pendant un drag
+    if (lastFogCell === key) return;
+    
+    setLastFogCell(key);
+    await toggleFogCell(x, y, addMode);
+  };
+
+
+
+  // 🎯 NOUVELLE FONCTION : Calculer l'opacité fog of war selon la distance aux joueurs
+  const calculateFogOpacity = (cellX: number, cellY: number): number => {
+    if (!fogGrid.has(`${cellX},${cellY}`)) return 0; // Pas de brouillard sur cette cellule
+    
+    let minOpacity = 1; // Opacité maximale par défaut (brouillard complet)
+    
+    // Vérifier la distance à tous les personnages joueurs
+    characters.forEach(character => {
+      if (character.type === 'joueurs' && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
+        const cellCenterX = cellX * fogCellSize + fogCellSize / 2;
+        const cellCenterY = cellY * fogCellSize + fogCellSize / 2;
+        const distance = calculateDistance(character.x, character.y, cellCenterX, cellCenterY);
+        
+        // 🎯 Zone d'influence étendue à 2x le rayon de visibilité
+        const extendedRadius = character.visibilityRadius * 2;
+        
+        if (distance <= extendedRadius) {
+          let opacity;
+          
+          if (distance <= character.visibilityRadius * 0.8) {
+            // Zone très proche : complètement visible (opacité = 0)
+            opacity = 0;
+          } else if (distance <= character.visibilityRadius * 1.2) {
+            // Zone de visibilité : transition douce de 0 à 0.3
+            const normalizedDistance = (distance - character.visibilityRadius * 0.8) / (character.visibilityRadius * 0.4);
+            opacity = normalizedDistance * 0.3;
+          } else if (distance <= character.visibilityRadius * 1.6) {
+            // Zone intermédiaire : transition de 0.3 à 0.7
+            const normalizedDistance = (distance - character.visibilityRadius * 1.2) / (character.visibilityRadius * 0.4);
+            opacity = 0.3 + (normalizedDistance * 0.4);
+          } else {
+            // Zone étendue : transition de 0.7 à 1.0
+            const extendedDistance = (distance - character.visibilityRadius * 1.6) / (character.visibilityRadius * 0.4);
+            opacity = 0.7 + (extendedDistance * 0.3);
+          }
+          
+          opacity = Math.max(0, Math.min(1, opacity));
+          minOpacity = Math.min(minOpacity, opacity);
+        }
+      }
+    });
+    
+    return minOpacity;
+  };
+
+
   
   const drawMap = (ctx: CanvasRenderingContext2D, image: HTMLImageElement, containerWidth: number, containerHeight: number) => {
     const canvas = ctx.canvas;
@@ -386,19 +502,23 @@ onSnapshot(charactersRef, (snapshot) => {
   
   
   
-    // Draw each note
+        // Draw each note
     notes.forEach((note, index) => {
       const x = (note.x / image.width) * scaledWidth - offset.x;
       const y = (note.y / image.height) * scaledHeight - offset.y;
       ctx.fillStyle = note.color || 'yellow';
-      ctx.font = `${12 * zoom}px Arial`;
+      
+      // Utiliser la taille de police de la note ou une taille par défaut
+      const fontSize = (note.fontSize || 16) * zoom;
+      ctx.font = `${fontSize}px Arial`;
       ctx.fillText(note.text, x, y);
-  
+
       if (index === selectedNoteIndex) {
-        ctx.strokeStyle = 'blue';
+        ctx.strokeStyle = '#4285F4';
         ctx.lineWidth = 2;
         const metrics = ctx.measureText(note.text);
-        ctx.strokeRect(x - 2, y - 12, metrics.width + 4, 16);
+        const padding = 4;
+        ctx.strokeRect(x - padding, y - fontSize, metrics.width + (padding * 2), fontSize + padding);
       }
     });
   
@@ -423,44 +543,155 @@ onSnapshot(charactersRef, (snapshot) => {
       });
     }
   
-    // Draw fog paths
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.lineWidth = 2;
-    if (fogPaths && Array.isArray(fogPaths)) {
-      fogPaths.forEach(path => {
-        if (path && Array.isArray(path)) {
-          ctx.beginPath();
-          path.forEach((point, index) => {
-            const x = (point.x / image.width) * scaledWidth - offset.x;
-            const y = (point.y / image.height) * scaledHeight - offset.y;
-            if (index === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.lineTo(x, y);
+        // 🎯 NOUVEAU SYSTÈME : Dessiner la grille de brouillard par quadrillage
+    
+    // Afficher la grille de guidage si activée
+    if (showFogGrid) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.lineWidth = 1;
+      
+      // Calculer les limites visibles de la grille
+      const startCellX = Math.floor((-offset.x) / (fogCellSize * zoom)) - 1;
+      const endCellX = Math.floor((-offset.x + containerWidth) / (fogCellSize * zoom)) + 1;
+      const startCellY = Math.floor((-offset.y) / (fogCellSize * zoom)) - 1;
+      const endCellY = Math.floor((-offset.y + containerHeight) / (fogCellSize * zoom)) + 1;
+      
+      // Dessiner les lignes verticales de la grille
+      for (let cellX = startCellX; cellX <= endCellX; cellX++) {
+        const x = cellX * fogCellSize;
+        const screenX = (x / image.width) * scaledWidth - offset.x;
+        ctx.beginPath();
+        ctx.moveTo(screenX, 0);
+        ctx.lineTo(screenX, containerHeight);
+        ctx.stroke();
+      }
+      
+      // Dessiner les lignes horizontales de la grille  
+      for (let cellY = startCellY; cellY <= endCellY; cellY++) {
+        const y = cellY * fogCellSize;
+        const screenY = (y / image.height) * scaledHeight - offset.y;
+        ctx.beginPath();
+        ctx.moveTo(0, screenY);
+        ctx.lineTo(containerWidth, screenY);
+        ctx.stroke();
+      }
+    }
+    
+    // 🎯 NOUVEAU FOG OF WAR : Dessiner avec opacité variable selon la distance aux joueurs
+    if (fullMapFog) {
+      // Mode brouillard sur toute la carte : calculer dynamiquement les cellules visibles
+      // Convertir les coordonnées écran en coordonnées image
+      const topLeftImageX = (offset.x / scaledWidth) * image.width;
+      const topLeftImageY = (offset.y / scaledHeight) * image.height;
+      const bottomRightImageX = ((offset.x + containerWidth) / scaledWidth) * image.width;
+      const bottomRightImageY = ((offset.y + containerHeight) / scaledHeight) * image.height;
+      
+      // Calculer les cellules nécessaires avec une marge pour être sûr de tout couvrir
+      const startCellX = Math.floor(topLeftImageX / fogCellSize) - 2;
+      const endCellX = Math.ceil(bottomRightImageX / fogCellSize) + 2;
+      const startCellY = Math.floor(topLeftImageY / fogCellSize) - 2;
+      const endCellY = Math.ceil(bottomRightImageY / fogCellSize) + 2;
+      
+      for (let cellX = startCellX; cellX <= endCellX; cellX++) {
+        for (let cellY = startCellY; cellY <= endCellY; cellY++) {
+          const x = cellX * fogCellSize;
+          const y = cellY * fogCellSize;
+          
+          const screenX = (x / image.width) * scaledWidth - offset.x;
+          const screenY = (y / image.height) * scaledHeight - offset.y;
+          const screenWidth = (fogCellSize / image.width) * scaledWidth;
+          const screenHeight = (fogCellSize / image.height) * scaledHeight;
+          
+          // Ne dessiner que si la cellule est visible à l'écran
+          if (screenX + screenWidth >= 0 && screenX <= containerWidth && 
+              screenY + screenHeight >= 0 && screenY <= containerHeight) {
+            
+            // Calculer l'opacité selon la distance aux joueurs (même si pas dans fogGrid)
+            let opacity = 1; // Opacité par défaut pour toute la carte
+            
+            // Vérifier la distance à tous les personnages joueurs
+            characters.forEach(character => {
+              if (character.type === 'joueurs' && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
+                const cellCenterX = cellX * fogCellSize + fogCellSize / 2;
+                const cellCenterY = cellY * fogCellSize + fogCellSize / 2;
+                const distance = calculateDistance(character.x, character.y, cellCenterX, cellCenterY);
+                
+                const extendedRadius = character.visibilityRadius * 2;
+                
+                if (distance <= extendedRadius) {
+                  let cellOpacity;
+                  
+                  if (distance <= character.visibilityRadius * 0.8) {
+                    cellOpacity = 0;
+                  } else if (distance <= character.visibilityRadius * 1.2) {
+                    const normalizedDistance = (distance - character.visibilityRadius * 0.8) / (character.visibilityRadius * 0.4);
+                    cellOpacity = normalizedDistance * 0.3;
+                  } else if (distance <= character.visibilityRadius * 1.6) {
+                    const normalizedDistance = (distance - character.visibilityRadius * 1.2) / (character.visibilityRadius * 0.4);
+                    cellOpacity = 0.3 + (normalizedDistance * 0.4);
+                  } else {
+                    const extendedDistance = (distance - character.visibilityRadius * 1.6) / (character.visibilityRadius * 0.4);
+                    cellOpacity = 0.7 + (extendedDistance * 0.3);
+                  }
+                  
+                  cellOpacity = Math.max(0, Math.min(1, cellOpacity));
+                  opacity = Math.min(opacity, cellOpacity);
+                }
+              }
+            });
+            
+            if (opacity > 0) {
+              ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+              ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
             }
-          });
+          }
+        }
+      }
+    } else {
+      // Mode brouillard classique : seulement les cellules du fogGrid
+      fogGrid.forEach((isFogged, key) => {
+        if (isFogged) {
+          const [cellX, cellY] = key.split(',').map(Number);
+          const x = cellX * fogCellSize;
+          const y = cellY * fogCellSize;
+          
+          const screenX = (x / image.width) * scaledWidth - offset.x;
+          const screenY = (y / image.height) * scaledHeight - offset.y;
+          const screenWidth = (fogCellSize / image.width) * scaledWidth;
+          const screenHeight = (fogCellSize / image.height) * scaledHeight;
+          
+          // Ne dessiner que si la cellule est visible à l'écran
+          if (screenX + screenWidth >= 0 && screenX <= containerWidth && 
+              screenY + screenHeight >= 0 && screenY <= containerHeight) {
+            
+            // Calculer l'opacité selon la distance aux joueurs
+            const opacity = calculateFogOpacity(cellX, cellY);
+            
+            if (opacity > 0) { // Ne dessiner que si il y a une opacité
+              ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+              ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
+            }
+          }
+        }
+      });
+    }
+    
+    // 🎯 Optionnel : Dessiner les cercles de visibilité des joueurs (pour debug)
+    if (isMJ && showFogGrid) {
+      characters.forEach(character => {
+        if (character.type === 'joueurs' && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
+          const playerScreenX = (character.x / image.width) * scaledWidth - offset.x;
+          const playerScreenY = (character.y / image.height) * scaledHeight - offset.y;
+          const radiusScreen = (character.visibilityRadius / image.width) * scaledWidth;
+          
+          ctx.strokeStyle = 'rgba(255, 255, 0, 0.3)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.arc(playerScreenX, playerScreenY, radiusScreen, 0, 2 * Math.PI);
           ctx.stroke();
         }
       });
     }
-  
-    // Draw fog squares
-    ctx.fillStyle = `rgba(0, 0, 0, ${shadowOpacity})`; // Utiliser l'état shadowOpacity pour l'opacité des ombres
-    fogSquares.forEach((point) => {
-      const x = (point.x / image.width) * scaledWidth - offset.x;
-      const y = (point.y / image.height) * scaledHeight - offset.y;
-      ctx.fillRect(x - (squareSize * zoom) / 2, y - (squareSize * zoom) / 2, squareSize * zoom, squareSize * zoom);
-    });
-
-    // Draw fog rectangles
-    ctx.fillStyle = `rgba(0, 0, 0, ${shadowOpacity})`;
-    fogRectangles.forEach(({ start, end }) => {
-      const x1 = (start.x / image.width) * scaledWidth - offset.x;
-      const y1 = (start.y / image.height) * scaledHeight - offset.y;
-      const x2 = (end.x / image.width) * scaledWidth - offset.x;
-      const y2 = (end.y / image.height) * scaledHeight - offset.y;
-      ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
-    });
   
     // Draw current path if in drawing mode
     if (currentPath.length > 0) {
@@ -475,6 +706,45 @@ onSnapshot(charactersRef, (snapshot) => {
         }
       });
       ctx.stroke();
+    }
+
+    // 🎯 Dessiner la zone de sélection en cours
+    if (isSelectingArea && selectionStart && selectionEnd) {
+      const startX = (selectionStart.x / image.width) * scaledWidth - offset.x;
+      const startY = (selectionStart.y / image.height) * scaledHeight - offset.y;
+      const endX = (selectionEnd.x / image.width) * scaledWidth - offset.x;
+      const endY = (selectionEnd.y / image.height) * scaledHeight - offset.y;
+      
+      // Calculer les dimensions du rectangle
+      const rectX = Math.min(startX, endX);
+      const rectY = Math.min(startY, endY);
+      const rectWidth = Math.abs(endX - startX);
+      const rectHeight = Math.abs(endY - startY);
+      
+      // Fond semi-transparent d'abord
+      ctx.fillStyle = 'rgba(0, 150, 255, 0.15)';
+      ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+      
+      // Bordure en pointillés plus visible
+      ctx.strokeStyle = '#0096FF';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([10, 5]);
+      ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+      
+      // Bordure solide intérieure pour plus de contraste
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      ctx.strokeRect(rectX + 1, rectY + 1, rectWidth - 2, rectHeight - 2);
+      
+      // Afficher les dimensions de la zone
+      if (rectWidth > 50 && rectHeight > 20) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(rectX + 5, rectY + 5, 100, 20);
+        ctx.fillStyle = 'white';
+        ctx.font = '12px Arial';
+        ctx.fillText(`${Math.round(rectWidth)}×${Math.round(rectHeight)}`, rectX + 10, rectY + 18);
+      }
     }
   
     // Draw each character
@@ -498,16 +768,48 @@ onSnapshot(charactersRef, (snapshot) => {
   
       if (isVisible) {
         // Set border color based on character type or if it is the player's character
-        const borderColor = selectedCharacters.includes(index)
-          ? 'rgba(0, 255, 0, 0.8)'           // Green for selected characters
-          : char.id === persoId 
-          ? 'rgba(255, 0, 0, 0.8)'           // Red for the player's character
-          : char.type === 'joueurs' 
-          ? 'rgba(0, 0, 255, 0.8)'           // Blue for other 'joueurs' type characters
-          : 'rgba(255, 165, 0, 0.8)';        // Orange for other characters (e.g., NPCs)
+        // Debug logs
+        if (char.type === 'joueurs') {
+          console.log('Character:', char.name, 'ID:', char.id, 'Player ID:', persoId, 'Match:', char.id === persoId);
+        }
+        
+        // 🎯 Couleur spéciale pour les personnages dans la zone de sélection
+        let borderColor;
+        let lineWidth = 3;
+        
+        if (selectedCharacters.includes(index)) {
+          // Personnage sélectionné
+          borderColor = 'rgba(0, 255, 0, 1)';  // Vert vif
+          lineWidth = 4;
+        } else if (isSelectingArea && selectionStart && selectionEnd) {
+          // Vérifier si le personnage est dans la zone de sélection en cours
+          const minX = Math.min(selectionStart.x, selectionEnd.x);
+          const maxX = Math.max(selectionStart.x, selectionEnd.x);
+          const minY = Math.min(selectionStart.y, selectionEnd.y);
+          const maxY = Math.max(selectionStart.y, selectionEnd.y);
+          
+          if (char.x >= minX && char.x <= maxX && char.y >= minY && char.y <= maxY) {
+            borderColor = 'rgba(0, 150, 255, 1)'; // Bleu pour prévisualisation
+            lineWidth = 4;
+          } else {
+            // Couleur normale selon le type
+            borderColor = char.id === persoId 
+              ? 'rgba(255, 0, 0, 0.8)'           // Red for the player's character
+              : char.type === 'joueurs' 
+              ? 'rgba(0, 0, 255, 0.8)'           // Blue for other 'joueurs' type characters
+              : 'rgba(255, 165, 0, 0.8)';        // Orange for other characters (e.g., NPCs)
+          }
+        } else {
+          // Couleur normale selon le type
+          borderColor = char.id === persoId 
+            ? 'rgba(255, 0, 0, 0.8)'           // Red for the player's character
+            : char.type === 'joueurs' 
+            ? 'rgba(0, 0, 255, 0.8)'           // Blue for other 'joueurs' type characters
+            : 'rgba(255, 165, 0, 0.8)';        // Orange for other characters (e.g., NPCs)
+        }
           
         ctx.strokeStyle = borderColor;
-        ctx.lineWidth = 3;
+        ctx.lineWidth = lineWidth;
   
         // Draw character border circle
         ctx.beginPath();
@@ -706,19 +1008,25 @@ const handleCharacterImageChange = async (e: React.ChangeEvent<HTMLInputElement>
 };
   
 const handleAddNote = async () => {
-  const text = prompt("Entrez votre note:");
-  console.log("Valeur de text:", text);
-  console.log("Type de roomId:", typeof roomId, "Valeur de roomId:", roomId);
-  // Conversion de roomId en chaîne de caractères
+  // Réinitialiser et ouvrir le dialog
+  setNewNote({ text: '', color: '#ffff00', fontSize: 16 });
+  setAddNoteDialogOpen(true);
+};
+
+const handleNoteSubmitNew = async () => {
   const roomIdStr = String(roomId);
 
-  if (text && typeof roomIdStr === 'string') {
+  if (newNote.text.trim() && typeof roomIdStr === 'string') {
     try {
       await addDoc(collection(db, 'cartes', roomIdStr, 'text'), {
-        content: text,
+        content: newNote.text,
+        color: newNote.color,
+        fontSize: newNote.fontSize,
         x: (Math.random() * (canvasRef.current?.width || 0) + offset.x) / zoom,
         y: (Math.random() * (canvasRef.current?.height || 0) + offset.y) / zoom,
       });
+      setAddNoteDialogOpen(false);
+      setNewNote({ text: '', color: '#ffff00', fontSize: 16 });
     } catch (error) {
       console.error("Erreur lors de l'ajout de la note :", error);
     }
@@ -727,39 +1035,7 @@ const handleAddNote = async () => {
   }
 };
 
-const updateCharacterVisibilityAfterFogRemoval = async (removedSquare: Point) => {
 
-  if (!roomId) return;
-
-  const charactersRef = collection(db, 'cartes', String(roomId), 'characters');
-  const snapshot = await getDocs(charactersRef);
-
-  snapshot.forEach(async (doc) => {
-    const data = doc.data();
-    const charX = data.x;
-    const charY = data.y;
-
-    const wasInRemovedSquare = (
-      charX >= removedSquare.x - squareSize / 2 &&
-      charX <= squareSize / 2 &&
-      charY >= removedSquare.y - squareSize / 2 &&
-      charY <= squareSize / 2
-    );
-
-    if (wasInRemovedSquare && data.visibility === 'hidden') {
-      const isVisible = characters.some((player) => {
-        return (
-          player.type === 'joueurs' &&
-          calculateDistance(charX, charY, player.x, player.y) <= player.visibilityRadius
-        );
-      });
-
-      if (isVisible) {
-        await updateDoc(doc.ref, { visibility: 'visible' });
-      }
-    }
-  });
-};
 
 const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
   const rect = canvasRef.current?.getBoundingClientRect();
@@ -775,8 +1051,8 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
     const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
     const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
 
-    // Gérer le double-clic
-    if (e.detail === 2) { // Si c'est un double-clic
+    // Gérer le double-clic pour ouvrir les fiches de personnage
+    if (e.detail === 2) {
       const clickedCharIndex = characters.findIndex(char => {
         const charX = (char.x / image.width) * scaledWidth - offset.x;
         const charY = (char.y / image.height) * scaledHeight - offset.y;
@@ -787,42 +1063,38 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
         const character = characters[clickedCharIndex];
         setSelectedCharacterForSheet(character.id);
         setShowCharacterSheet(true);
-        return; // Sortir de la fonction après avoir géré le double-clic
+        return;
       }
     }
 
+    // 🎯 NOUVEAU Mode brouillard - priorité élevée (placement continu)
     if (fogMode) {
-      const clickedSquareIndex = fogSquares.findIndex(square => 
-        clickX >= square.x - squareSize / 2 &&
-        clickX <= squareSize / 2 &&
-        clickY >= square.y - squareSize / 2 &&
-        clickY <= squareSize / 2
-      );
+      setIsFogDragging(true);
+      const firstCellKey = getCellKey(clickX, clickY);
+      const isCurrentlyFogged = fogGrid.has(firstCellKey);
+      
+      // Décider si on ajoute ou supprime selon l'état actuel de la première cellule
+      // Si la cellule est dans le brouillard, on supprime (addMode = false)
+      // Si la cellule n'est pas dans le brouillard, on ajoute (addMode = true)
+      const addMode = !isCurrentlyFogged;
+      
+      setLastFogCell(null); // Réinitialiser pour permettre la première modification
+      await addFogCellIfNew(clickX, clickY, addMode);
+      
+      // Stocker le mode pour le drag (utiliser une variable spécifique)
+      setIsFogAddMode(addMode);
+      return;
+    }
 
-      if (clickedSquareIndex !== -1) {
-        const squareToRemove = fogSquares[clickedSquareIndex];
-        if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim()) {
-          const fogRef = collection(db, 'cartes', String(roomId), 'fog');
-          const snapshot = await getDocs(fogRef);
-          snapshot.forEach((doc) => {
-            const data = doc.data();
-            if (data.x === squareToRemove.x && data.y === squareToRemove.y) {
-              deleteDoc(doc.ref);
-            }
-          });
-          setFogSquares(prev => prev.filter((_, index) => index !== clickedSquareIndex));
-          await updateCharacterVisibilityAfterFogRemoval(squareToRemove); // Ajoutez cette ligne
-        } else {
-          console.error("Erreur: roomId n'est pas une chaîne valide.");
-        }
-      } else {
-        setIsDrawing(true);
-        setCurrentPath([{ x: clickX, y: clickY }]);
-      }
-    } else if (drawMode) {
+    // Mode dessin - priorité élevée
+    if (drawMode) {
       setIsDrawing(true);
       setCurrentPath([{ x: clickX, y: clickY }]);
-    } else if (isMoving) {
+      return;
+    }
+
+    // Mode déplacement - priorité élevée
+    if (isMoving) {
       if (selectedCharacterIndex !== null) {
         const charToMove = characters[selectedCharacterIndex];
         if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && typeof charToMove?.id === 'string' && charToMove.id.trim()) {
@@ -861,102 +1133,219 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
       setIsMoving(false);
       setSelectedCharacterIndex(null);
       setSelectedNoteIndex(null);
-    } else {
-      const clickedCharIndex = characters.findIndex(char => {
-        const charX = (char.x / image.width) * scaledWidth - offset.x;
-        const charY = (char.y / image.height) * scaledHeight - offset.y;
-        return Math.abs(charX - e.clientX + rect.left) < 20 * zoom && Math.abs(charY - e.clientY + rect.top) < 20 * zoom;
-      });
-      const clickedNoteIndex = notes.findIndex(note => {
-        const noteX = (note.x / image.width) * scaledWidth - offset.x;
-        const noteY = (note.y / image.height) * scaledHeight - offset.y;
-        return Math.abs(noteX - e.clientX + rect.left) < 50 * zoom && Math.abs(noteY - e.clientY + rect.top) < 20 * zoom;
-      });
-      const clickedFogIndex = fogRectangles.findIndex(({ start, end }) => {
-        return (
-          clickX >= Math.min(start.x, end.x) &&
-          clickX <= Math.max(start.x, end.x) &&
-          clickY >= Math.min(start.y, end.y) &&
-          clickY <= Math.max(start.y, end.y)
-        );
-      });
-      if (clickedCharIndex !== -1) {
-        setSelectedCharacterIndex(clickedCharIndex);
-        setSelectedNoteIndex(null);
-        setSelectedFogIndex(null);
-      } else if (clickedNoteIndex !== -1) {
-        setSelectedNoteIndex(clickedNoteIndex);
-        setSelectedCharacterIndex(null);
-        setSelectedFogIndex(null);
-      } else if (clickedFogIndex !== -1) {
-        setSelectedFogIndex(clickedFogIndex);
-        setSelectedCharacterIndex(null);
-        setSelectedNoteIndex(null);
+      return;
+    }
+
+    // 🎯 MODE SÉLECTION PAR DÉFAUT - Nouveau comportement principal
+    // Vérifier si on clique sur un élément existant
+    const clickedCharIndex = characters.findIndex(char => {
+      const charX = (char.x / image.width) * scaledWidth - offset.x;
+      const charY = (char.y / image.height) * scaledHeight - offset.y;
+      return Math.abs(charX - e.clientX + rect.left) < 20 * zoom && Math.abs(charY - e.clientY + rect.top) < 20 * zoom;
+    });
+    
+    const clickedNoteIndex = notes.findIndex(note => {
+      const noteX = (note.x / image.width) * scaledWidth - offset.x;
+      const noteY = (note.y / image.height) * scaledHeight - offset.y;
+      return Math.abs(noteX - e.clientX + rect.left) < 50 * zoom && Math.abs(noteY - e.clientY + rect.top) < 20 * zoom;
+    });
+    
+    // 🎯 NOUVEAU : Vérifier si on clique sur une cellule de brouillard
+    const clickedFogIndex = isCellInFog(clickX, clickY) ? 0 : -1;
+
+    // Si on clique sur un élément, le sélectionner
+    if (clickedCharIndex !== -1) {
+      // Si Ctrl/Cmd est pressé, ajouter à la sélection multiple
+      if (e.ctrlKey || e.metaKey) {
+        if (selectedCharacters.includes(clickedCharIndex)) {
+          setSelectedCharacters(prev => prev.filter(index => index !== clickedCharIndex));
+        } else {
+          setSelectedCharacters(prev => [...prev, clickedCharIndex]);
+        }
       } else {
+        // 🎯 NOUVEAU : Commencer le drag & drop du personnage ou groupe
+        const isAlreadySelected = selectedCharacters.includes(clickedCharIndex);
+        const charactersToMove = isAlreadySelected && selectedCharacters.length > 1 
+          ? selectedCharacters 
+          : [clickedCharIndex];
+        
+        // Vérifier les permissions de déplacement pour tous les personnages à déplacer
+        const canMoveAllCharacters = charactersToMove.every(index => {
+          const character = characters[index];
+          // MJ peut déplacer tous les personnages
+          if (isMJ) return true;
+          // Joueur peut seulement déplacer son propre personnage (type joueurs)
+          return character.type === 'joueurs' && character.id === persoId;
+        });
+        
+        if (!canMoveAllCharacters) {
+          // Si l'utilisateur n'a pas le droit de déplacer au moins un des personnages, 
+          // on ne fait que sélectionner sans initier le drag
+          if (!isAlreadySelected) {
+            setSelectedCharacterIndex(clickedCharIndex);
+            setSelectedCharacters([clickedCharIndex]);
+          }
+          return;
+        }
+        
+        if (!isAlreadySelected) {
+          setSelectedCharacterIndex(clickedCharIndex);
+          setSelectedCharacters([clickedCharIndex]);
+        }
+        
+        // Préparer le drag des personnages (seulement si autorisé)
+        setIsDraggingCharacter(true);
+        setDraggedCharacterIndex(clickedCharIndex);
+        
+        // Sauvegarder les positions originales de tous les personnages à déplacer
+        const originalPositions = charactersToMove.map(index => ({
+          index,
+          x: characters[index].x,
+          y: characters[index].y
+        }));
+        setDraggedCharactersOriginalPositions(originalPositions);
+        
+        // Calculer l'offset entre la position du personnage cliqué et le clic
+
+      }
+      setSelectedNoteIndex(null);
+      setSelectedFogIndex(null);
+    } else if (clickedNoteIndex !== -1) {
+      setSelectedNoteIndex(clickedNoteIndex);
+      setSelectedCharacterIndex(null);
+      setSelectedFogIndex(null);
+      setSelectedCharacters([]);
+      
+      // 🎯 NOUVEAU : Commencer le drag & drop de la note
+      const note = notes[clickedNoteIndex];
+      setIsDraggingNote(true);
+      setDraggedNoteIndex(clickedNoteIndex);
+      setDraggedNoteOriginalPos({ x: note.x, y: note.y });
+    } else if (clickedFogIndex !== -1) {
+      setSelectedFogIndex(clickedFogIndex);
+      setSelectedCharacterIndex(null);
+      setSelectedNoteIndex(null);
+      setSelectedCharacters([]);
+    } else {
+      // 🎯 COMPORTEMENT SELON LE MODE
+      if (isSelecting) {
+        // Mode sélection : Commencer une sélection par zone
         setSelectedCharacterIndex(null);
         setSelectedNoteIndex(null);
         setSelectedFogIndex(null);
+        setSelectedCharacters([]);
+        
+        setSelectionStart({ x: clickX, y: clickY });
+        setIsSelectingArea(true);
+      } else {
+        // Mode déplacement carte : Commencer le drag de la carte
         setIsDragging(true);
         setDragStart({ x: e.clientX, y: e.clientY });
       }
     }
   };
-  if (isSelecting) {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const containerWidth = containerRef.current?.clientWidth || rect.width;
-    const containerHeight = containerRef.current?.clientHeight || rect.height;
-    const image = new Image();
-    image.src = backgroundImage;
-    image.onload = () => {
-      const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
-      const scaledWidth = image.width * scale * zoom;
-      const scaledHeight = image.height * scale * zoom;
-      const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
-      const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
-      setSelectionStart({ x: clickX, y: clickY });
-    };
-  }
 };
 
 
 const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
-  if (isSelecting && selectionStart) {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const containerWidth = containerRef.current?.clientWidth || rect.width;
-    const containerHeight = containerRef.current?.clientHeight || rect.height;
-    const image = new Image();
-    image.src = backgroundImage;
-    image.onload = () => {
-      const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
-      const scaledWidth = image.width * scale * zoom;
-      const scaledHeight = image.height * scale * zoom;
-      const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
-      const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
-      const selected = characters
+  const rect = canvasRef.current?.getBoundingClientRect();
+  if (!rect) return;
+  const containerWidth = containerRef.current?.clientWidth || rect.width;
+  const containerHeight = containerRef.current?.clientHeight || rect.height;
+  const image = new Image();
+  image.src = backgroundImage;
+  image.onload = () => {
+    const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
+    const scaledWidth = image.width * scale * zoom;
+    const scaledHeight = image.height * scale * zoom;
+    const currentX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
+    const currentY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
+
+    // 🎯 PRIORITÉ 0: Placement continu de brouillard pendant le drag
+    if (isFogDragging && fogMode) {
+      const addMode = isFogAddMode; // isFogAddMode stocke si on ajoute (true) ou supprime (false)
+      addFogCellIfNew(currentX, currentY, addMode);
+      return;
+    }
+
+    // 🎯 DÉPLACEMENT DE CARTE - Priorité élevée si mode déplacement activé
+    if (isDragging && !isSelecting) {
+      const dx = e.clientX - dragStart.x;
+      const dy = e.clientY - dragStart.y;
+      setOffset((prev) => ({ x: prev.x - dx, y: prev.y - dy }));
+      setDragStart({ x: e.clientX, y: e.clientY });
+      return;
+    }
+
+    // 🎯 DRAG & DROP NOTE - Priorité élevée
+    if (isDraggingNote && draggedNoteIndex !== null) {
+      // Mettre à jour temporairement la position de la note
+      setNotes(prev => prev.map((note, index) => {
+        if (index === draggedNoteIndex) {
+          return { ...note, x: currentX, y: currentY };
+        }
+        return note;
+      }));
+      return;
+    }
+
+    // 🎯 DRAG & DROP PERSONNAGE(S) - Priorité élevée
+    if (isDraggingCharacter && draggedCharacterIndex !== null && draggedCharactersOriginalPositions.length > 0) {
+      // Calculer le décalage depuis la position originale du personnage de référence
+      const originalRefChar = draggedCharactersOriginalPositions.find(pos => pos.index === draggedCharacterIndex);
+      if (originalRefChar) {
+        const deltaX = currentX - originalRefChar.x;
+        const deltaY = currentY - originalRefChar.y;
+        
+        // Mettre à jour temporairement la position de tous les personnages sélectionnés
+        setCharacters(prev => prev.map((char, index) => {
+          const originalPos = draggedCharactersOriginalPositions.find(pos => pos.index === index);
+          if (originalPos) {
+            return { 
+              ...char, 
+              x: originalPos.x + deltaX, 
+              y: originalPos.y + deltaY 
+            };
+          }
+          return char;
+        }));
+      }
+      return;
+    }
+
+    // 🎯 SÉLECTION PAR ZONE - Comportement principal
+    if (isSelectingArea && selectionStart) {
+      // Mettre à jour la fin de sélection
+      setSelectionEnd({ x: currentX, y: currentY });
+      
+      // Sélectionner tous les éléments dans la zone
+      const selectedChars = characters
         .map((char, index) => {
+          // Calculer la zone de sélection
+          const minX = Math.min(selectionStart.x, currentX);
+          const maxX = Math.max(selectionStart.x, currentX);
+          const minY = Math.min(selectionStart.y, currentY);
+          const maxY = Math.max(selectionStart.y, currentY);
+          
+          // Inclure tous les types de personnages et notes dans la sélection
           return (
-            char.type === 'pnj' &&
-            char.x >= Math.min(selectionStart.x, x) &&
-            char.x <= Math.max(selectionStart.x, x) &&
-            char.y >= Math.min(selectionStart.y, y) &&
-            char.y <= Math.max(selectionStart.y, y)
-          )
-            ? index
-            : null;
+            char.x >= minX &&
+            char.x <= maxX &&
+            char.y >= minY &&
+            char.y <= maxY
+          ) ? index : null;
         })
         .filter((index) => index !== null) as number[];
-      setSelectedCharacters(selected);
+      
+      setSelectedCharacters(selectedChars);
     };
-  } else if (isDragging) {
-    const dx = e.clientX - dragStart.x;
-    const dy = e.clientY - dragStart.y;
-    setOffset((prev) => ({ x: prev.x - dx, y: prev.y - dy }));
-    setDragStart({ x: e.clientX, y: e.clientY });
-  } else if (isDrawing && fogMode) {
+    return;
+  }
+
+  // Mode dessin normal (sans brouillard)
+  if (isDrawing && drawMode && !fogMode) {
     const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return; // Ensure canvasRef.current is not null
+    if (!rect) return;
 
     const containerWidth = containerRef.current?.clientWidth || rect.width;
     const containerHeight = containerRef.current?.clientHeight || rect.height;
@@ -970,69 +1359,131 @@ const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
       const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
       setCurrentPath((prev) => [...prev, { x, y }]);
     };
-  } else if (isDrawing) {
-      const rect = canvasRef.current?.getBoundingClientRect();
-      if (!rect) return; // Ensure canvasRef.current is not null
-
-      const containerWidth = containerRef.current?.clientWidth || rect.width;
-      const containerHeight = containerRef.current?.clientHeight || rect.height;
-      const image = new Image();
-      image.src = backgroundImage;
-      image.onload = () => {
-        const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
-        const scaledWidth = image.width * scale * zoom;
-        const scaledHeight = image.height * scale * zoom;
-        const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
-        const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
-        setCurrentPath((prev) => [...prev, { x, y }]);
-      };
+    return;
   }
 };
 
 
 const handleCanvasMouseUp = async () => {
-  setIsDragging(false);
-  if (isDrawing && fogMode) {
-    setIsDrawing(false);
-
-    // Vérifie si roomId est une chaîne ou un nombre valide et si currentPath n'est pas vide
-    if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && currentPath.length > 0) {
-      const start = currentPath[0];
-      const end = currentPath[currentPath.length - 1];
-      const newFogRectangles = [...fogRectangles, { start, end }];
-      const fogDocRef = doc(db, 'cartes', String(roomId), 'fog', 'fogData');
-      const fogDoc = await getDoc(fogDocRef);
-      if (fogDoc.exists()) {
-        await updateDoc(fogDocRef, {
-          rectangles: newFogRectangles
+  // 🎯 FIN DU DRAG & DROP NOTE - Priorité élevée
+  if (isDraggingNote && draggedNoteIndex !== null) {
+    const draggedNote = notes[draggedNoteIndex];
+    
+    // Vérifier si la position a vraiment changé
+    const hasChanged = draggedNote.x !== draggedNoteOriginalPos.x || 
+                      draggedNote.y !== draggedNoteOriginalPos.y;
+    
+    if (hasChanged && roomId && draggedNote?.id) {
+      try {
+        // Sauvegarder la nouvelle position en Firebase
+        await updateDoc(doc(db, 'cartes', String(roomId), 'text', draggedNote.id), {
+          x: draggedNote.x,
+          y: draggedNote.y
         });
-      } else {
-        await setDoc(fogDocRef, {
-          rectangles: newFogRectangles
-        });
+        console.log(`Note déplacée vers (${Math.round(draggedNote.x)}, ${Math.round(draggedNote.y)})`);
+      } catch (error) {
+        console.error("Erreur lors de la sauvegarde du déplacement de la note:", error);
+        // Remettre à la position originale en cas d'erreur
+        setNotes(prev => prev.map((note, index) => {
+          if (index === draggedNoteIndex) {
+            return { ...note, x: draggedNoteOriginalPos.x, y: draggedNoteOriginalPos.y };
+          }
+          return note;
+        }));
       }
-      setFogRectangles(newFogRectangles);
-      setCurrentPath([]);
-    } else {
-      console.error("Erreur: roomId n'est pas une chaîne valide ou currentPath est vide.");
     }
-  } else if (isDrawing) {
+    
+    // Nettoyer les états de drag
+    setIsDraggingNote(false);
+    setDraggedNoteIndex(null);
+    setDraggedNoteOriginalPos({ x: 0, y: 0 });
+    return;
+  }
+
+  // 🎯 FIN DU DRAG & DROP PERSONNAGE(S) - Priorité élevée
+  if (isDraggingCharacter && draggedCharacterIndex !== null && draggedCharactersOriginalPositions.length > 0) {
+    try {
+      // Sauvegarder toutes les nouvelles positions en Firebase
+      const updatePromises = draggedCharactersOriginalPositions.map(async (originalPos) => {
+        const currentChar = characters[originalPos.index];
+        const hasChanged = currentChar.x !== originalPos.x || currentChar.y !== originalPos.y;
+        
+        if (hasChanged && roomId && currentChar?.id) {
+          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', currentChar.id), {
+            x: currentChar.x,
+            y: currentChar.y
+          });
+          return `${currentChar.name}: (${Math.round(currentChar.x)}, ${Math.round(currentChar.y)})`;
+        }
+        return null;
+      });
+      
+      const results = await Promise.all(updatePromises);
+      const movedCharacters = results.filter(result => result !== null);
+      
+      if (movedCharacters.length > 0) {
+        console.log(`Personnages déplacés: ${movedCharacters.join(', ')}`);
+      }
+    } catch (error) {
+      console.error("Erreur lors de la sauvegarde du déplacement:", error);
+      // Remettre aux positions originales en cas d'erreur
+      setCharacters(prev => prev.map((char, index) => {
+        const originalPos = draggedCharactersOriginalPositions.find(pos => pos.index === index);
+        if (originalPos) {
+          return { ...char, x: originalPos.x, y: originalPos.y };
+        }
+        return char;
+      }));
+    }
+    
+    // Nettoyer les états de drag
+    setIsDraggingCharacter(false);
+    setDraggedCharacterIndex(null);
+
+    setDraggedCharactersOriginalPositions([]);
+    return;
+  }
+
+  // 🎯 FIN DE SÉLECTION PAR ZONE
+  if (isSelectingArea) {
+    setIsSelectingArea(false);
+    setSelectionStart(null);
+    setSelectionEnd(null);
+    return;
+  }
+
+  // Fin du déplacement de carte
+  setIsDragging(false);
+
+  // 🎯 NOUVEAU : Fin du placement continu de brouillard
+  if (isFogDragging && fogMode) {
+    setIsFogDragging(false);
+    setIsFogAddMode(true); // Réinitialiser au mode ajout par défaut
+    setLastFogCell(null);
+    return;
+  }
+
+  // 🎯 Fin du mode dessin normal - Sauvegarder le tracé
+  if (isDrawing && !fogMode && drawMode) {
     setIsDrawing(false);
 
-    // Vérifie si roomId est une chaîne ou un nombre valide et si currentPath n'est pas vide
     if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && currentPath.length > 0) {
-      await addDoc(collection(db, 'cartes', String(roomId), 'drawings'), {
-        paths: currentPath
-      });
-      setDrawings(prev => [...prev, currentPath]);
-      setCurrentPath([]);
+      try {
+        await addDoc(collection(db, 'cartes', String(roomId), 'drawings'), {
+          paths: currentPath
+        });
+        setDrawings(prev => [...prev, currentPath]);
+        setCurrentPath([]);
+        console.log(`Tracé sauvegardé avec ${currentPath.length} points`);
+      } catch (error) {
+        console.error("Erreur lors de la sauvegarde du tracé:", error);
+        setCurrentPath([]);
+      }
     } else {
       console.error("Erreur: roomId n'est pas une chaîne valide ou currentPath est vide.");
+      setCurrentPath([]);
     }
-  }
-  if (isSelecting) {
-    setIsSelecting(false);
-    setSelectionStart(null);
+    return;
   }
 };
 
@@ -1098,9 +1549,6 @@ const handleDeleteCharacter = async () => {
     }
   };
   
-  const handleMoveCharacter = () => {
-    setIsMoving(true)
-  }
 
   const handleEditCharacter = () => {
     if (selectedCharacterIndex !== null) {  // Ensure index is not null
@@ -1117,9 +1565,7 @@ const handleEditNote = () => {
 };
 
 
-  const handleMoveNote = () => {
-    setIsMoving(true)
-  }
+
 
   const handleCharacterEditSubmit = async () => {
     if (editingCharacter && selectedCharacterIndex !== null && roomId) {
@@ -1237,22 +1683,6 @@ const handleNoteSubmit = async () => {
   }
 };
 
-const handleNoteEditSubmit = async () => {
-    if (editingNote && selectedNoteIndex !== null && roomId) {
-        const noteToUpdate = notes[selectedNoteIndex];
-        if (roomId && typeof noteToUpdate?.id === 'string') {
-            await updateDoc(doc(db, 'cartes', roomId, 'text', noteToUpdate.id), {
-                content: editingNote.text,
-                color: editingNote.color
-            });
-            setEditingNote(null);
-            setNoteDialogOpen(false);
-            setSelectedNoteIndex(null);
-        } else {
-            console.error("Erreur: roomId ou noteToUpdate.id n'est pas une chaîne valide.");
-        }
-    }
-};
 
   const toggleDrawMode = () => {
     setDrawMode(!drawMode)
@@ -1300,80 +1730,25 @@ const handleNoteEditSubmit = async () => {
     }
   
     try {
-      const fogRef = collection(db, 'cartes', String(roomId), 'fog');
-      const snapshot = await getDocs(fogRef);
-  
-      if (snapshot.empty) {
-        return;
-      }
-  
-      const deletePromises = snapshot.docs.map((doc) => deleteDoc(doc.ref));
-      await Promise.all(deletePromises);
-      setFogPaths([]);
-      setFogRectangles([]);
+      // Effacer toute la grille de brouillard
+      setFogGrid(new Map());
+      
+      // Supprimer de Firebase
+      const fogDocRef = doc(db, 'cartes', String(roomId), 'fog', 'fogData');
+      await setDoc(fogDocRef, { grid: {} }, { merge: true });
     } catch (error) {
       console.error('Error clearing fog:', error);
     }
   };
   
-  const toggleVisibility = async () => {
-    if (selectedCharacterIndex !== null && roomId) {
-      const charToUpdate = characters[selectedCharacterIndex];
-      if (charToUpdate?.id) {
-        const newVisibility = charToUpdate.visibility === 'visible' ? 'hidden' : 'visible';
-        try {
-          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToUpdate.id), {
-            visibility: newVisibility,
-          });
-          setCharacters((prevCharacters) =>
-            prevCharacters.map((character, index) =>
-              index === selectedCharacterIndex ? { ...character, visibility: newVisibility } : character
-            )
-          );
-        } catch (error) {
-          console.error("Erreur lors de la mise à jour de la visibilité du personnage :", error);
-        }
-      } else {
-        console.error("Erreur: ID du personnage non valide.");
-      }
-    }
-  };
+
   
 
 
-  useEffect(() => {
-    if (roomId) {
-      const settingsRef = doc(db, 'cartes', String(roomId), 'settings', 'general');
-      onSnapshot(settingsRef, (settingsDoc) => {
-        if (settingsDoc.exists()) {
-          const data = settingsDoc.data();
-          setShadowOpacity(data.ombre ? 1 : 0.5);
-        }
-      });
-    }
-  }, [roomId]);
+  // 🎯 SUPPRIMÉ : useEffect pour shadowOpacity
   
 
-const toggleDungeonMode = async () => {
-  if (roomId) {
-    const settingsRef = doc(db, 'cartes', String(roomId), 'settings', 'general');
-    const newDungeonMode = shadowOpacity !== 1;
-    await updateDoc(settingsRef, { donjon: newDungeonMode });
-    setShadowOpacity(newDungeonMode ? 1 : 0.5);
-  }
-};
-
-useEffect(() => {
-  if (roomId) {
-    const settingsRef = doc(db, 'cartes', String(roomId), 'settings', 'general');
-    onSnapshot(settingsRef, (settingsDoc) => {
-      if (settingsDoc.exists()) {
-        const data = settingsDoc.data();
-        setShadowOpacity(data.donjon ? 1 : 0.5);
-      }
-    });
-  }
-}, [roomId]);
+  // 🎯 SUPPRIMÉ : Mode donjon et fonctions associées
 
   const toggleFogMode = () => {
     setFogMode(!fogMode);
@@ -1381,108 +1756,59 @@ useEffect(() => {
     setSelectedNoteIndex(null);
   };
 
-  const toggleRevealMode = () => {
-    setRevealMode(!revealMode);
-    setSelectedCharacterIndex(null);
-    setSelectedNoteIndex(null);
+  // 🎯 NOUVELLE FONCTION : Gérer le changement du mode brouillard complet
+  const handleFullMapFogChange = async (newValue: boolean) => {
+    setFullMapFog(newValue);
+    
+    // Sauvegarder dans Firebase pour synchronisation
+    if (roomId) {
+      try {
+        const fogDocRef = doc(db, 'cartes', String(roomId), 'fog', 'fogData');
+        await setDoc(fogDocRef, { fullMapFog: newValue }, { merge: true });
+      } catch (error) {
+        console.error('Erreur lors de la sauvegarde du mode brouillard complet:', error);
+      }
+    }
   };
 
-  const updateCharacterVisibilityInFog = async () => {
-    if (!roomId) return;
-  
-    const charactersRef = collection(db, 'cartes', String(roomId), 'characters');
-    const snapshot = await getDocs(charactersRef);
-  
-    snapshot.forEach(async (doc) => {
-      const data = doc.data();
-      const charX = data.x;
-      const charY = data.y;
-  
-      const isInFog = fogSquares.some(square => 
-        charX >= square.x - squareSize / 2 &&
-        charX <= squareSize / 2 &&
-        charY >= square.y - squareSize / 2 &&
-        charY <= squareSize / 2
-      );
-  
-      if (isInFog && data.visibility === 'visible') {
-        await updateDoc(doc.ref, { visibility: 'hidden' });
-      }
-    });
-  };
-  
-  useEffect(() => {
-    updateCharacterVisibilityInFog();
-  }, [fogSquares]);
+  // 🎯 SUPPRIMÉ : toggleRevealMode (ancien système)
+
+
   
 
   const handleDeleteSelectedCharacters = async () => {
-    if (selectedCharacters.length > 0 && roomId) {
-      const deletePromises = selectedCharacters.map(async (index) => {
-        const charToDelete = characters[index];
-        if (charToDelete?.id) {
-          await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', charToDelete.id));
-        }
-      });
-  
-      await Promise.all(deletePromises);
-      setCharacters(characters.filter((_, index) => !selectedCharacters.includes(index)));
-      setSelectedCharacters([]);
-    }
-  };
-  
-  const handleToggleVisibilitySelectedCharacters = async (visibility: 'visible' | 'hidden') => {
-    console.log("hdhdh");
-    if (selectedCharacters.length > 0 && roomId) {
-      const updatePromises = selectedCharacters.map(async (index) => {
-        const charToUpdate = characters[index];
-        if (charToUpdate?.id) {
-          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToUpdate.id), {
-            visibility: visibility
-          });
-        }
-      });
-  
-      await Promise.all(updatePromises);
-      setCharacters(characters.map((character, index) => 
-        selectedCharacters.includes(index) ? { ...character, visibility: visibility } : character
-      ));
-      setSelectedCharacters([]);
-    }
-  };
-
-  const toggleClearFogMode = () => {
-    setClearFogMode(!clearFogMode);
-    setSelectedCharacterIndex(null);
-    setSelectedNoteIndex(null);
-  };
-
-  const handleDeleteFog = async () => {
-    if (selectedFogIndex !== null && roomId) {
-      const fogToDelete = fogRectangles[selectedFogIndex];
-      const newFogRectangles = fogRectangles.filter((_, index) => index !== selectedFogIndex);
-      const fogDocRef = doc(db, 'cartes', String(roomId), 'fog', 'fogData');
-      const fogDoc = await getDoc(fogDocRef);
-      if (fogDoc.exists()) {
-        await updateDoc(fogDocRef, {
-          rectangles: newFogRectangles
+    if (selectedCharacters.length > 0 && roomId && isMJ) {
+      // Filtrer pour ne supprimer que les personnages non-joueurs
+      const nonPlayerIndices = selectedCharacters.filter(index => 
+        characters[index]?.type !== 'joueurs'
+      );
+      
+      if (nonPlayerIndices.length > 0) {
+        const deletePromises = nonPlayerIndices.map(async (index) => {
+          const charToDelete = characters[index];
+          if (charToDelete?.id) {
+            await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', charToDelete.id));
+          }
         });
-      } else {
-        await setDoc(fogDocRef, {
-          rectangles: newFogRectangles
-        });
+    
+        await Promise.all(deletePromises);
+        setCharacters(characters.filter((_, index) => !nonPlayerIndices.includes(index)));
       }
-      setFogRectangles(newFogRectangles);
-      setSelectedFogIndex(null);
+      
+      setSelectedCharacters([]);
     }
   };
+  
+
+
+  // 🎯 SUPPRIMÉ : Anciennes fonctions de brouillard (toggleClearFogMode, handleDeleteFog)
   
 
   if (loading) {
     return <div>Chargement...</div>
   }
 
-  if (!userId || !roomId) {
+  if (!userId) {
     return <div>Veuillez vous connecter pour accéder à la carte</div>
   }
 
@@ -1498,6 +1824,14 @@ useEffect(() => {
     {/* Toolbar: conditionally rendered */}
     {toolbarVisible && (
       <div className="flex flex-col gap-6 w-64 rounded-lg  p-6 bg-[var(--bg-dark)] self-center text-white">
+        {/* 🎯 Indicateur de statut */}
+        <div className="text-center text-sm space-y-1 border-b border-gray-600 pb-3">
+          <div className="text-gray-300">{isMJ ? '🎲 Maître du Jeu' : '👤 Joueur'}</div>
+          <div className="text-xs text-gray-400">
+            Drag personnage = Déplacer | Drag zone vide = Sélectionner
+          </div>
+        </div>
+        
         <div className='flex flex-row gap-6 justify-center'>
         <Button className="button-primary " onClick={() => handleZoom(-0.1)}>
           <Minus className="w-4 h-4" />
@@ -1517,6 +1851,18 @@ useEffect(() => {
           />
           <Label htmlFor="grid-switch">Quadrillage</Label>
         </div>
+
+        {isMJ && (
+          <div className="flex items-center space-x-2">
+            <Switch
+              className="bg-primary"
+              id="full-fog-switch"
+              checked={fullMapFog}
+              onCheckedChange={handleFullMapFogChange}
+            />
+            <Label htmlFor="full-fog-switch">Brouillard sur toute la carte</Label>
+          </div>
+        )}
 
         <div className="flex items-center space-x-2">
           <Label htmlFor="visibilityRadiusSlider">Rayon de visibilité</Label>
@@ -1549,13 +1895,14 @@ useEffect(() => {
 
     
 
-          {isMJ && (
-           <Button onClick={() => setIsSelecting(!isSelecting)}>
-           <SquareDashedMousePointer className="w-4 h-4 mr-2" />
-             {isSelecting ? 'Quitter sélection' : 'Sélectionner'
-             }
-           </Button>
-        )}
+          {/* 🎯 Bouton pour basculer mode déplacement carte */}
+        <Button 
+          onClick={() => setIsSelecting(!isSelecting)} 
+          className={!isSelecting ? 'bg-green-600' : ''}
+        >
+          <Move className="w-4 h-4 mr-2" />
+          {!isSelecting ? 'Mode Sélection' : 'Déplacer la carte'}
+        </Button>
 
 
         {isMJ && (
@@ -1585,11 +1932,32 @@ useEffect(() => {
             </Button>
         )}
 
-{isMJ && (
-    <Button onClick={toggleFogMode}>
-    {fogMode ? <Eraser className="w-4 h-4 mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
-    {fogMode ? 'Quitter le brouillard' : 'Brouillard'}
-  </Button>
+        {isMJ && (
+          <div className="flex flex-col gap-2">
+            <Button 
+              onClick={toggleFogMode}
+              className={fogMode ? 'bg-orange-600 hover:bg-orange-700 border-orange-400' : 'bg-gray-600 hover:bg-gray-700'}
+            >
+              {fogMode ? <Eraser className="w-4 h-4 mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
+              {fogMode ? '🌫️ Mode Brouillard ACTIF' : 'Activer le brouillard'}
+            </Button>
+            {fogMode && (
+              <div className="text-xs text-yellow-300 bg-gray-800 p-2 rounded border border-yellow-500">
+                <div className="font-medium mb-1">💡 Mode Brouillard :</div>
+                <div>• Cliquer sur zone vide → Ajouter</div>
+                <div>• Cliquer sur zone brouillée → Supprimer</div>
+                <div>• Faire glisser pour zones continues</div>
+              </div>
+            )}
+            <Button onClick={() => setShowFogGrid(!showFogGrid)} className={showFogGrid ? 'bg-yellow-600' : ''}>
+              <Grid className="w-4 h-4 mr-2" />
+              {showFogGrid ? 'Masquer grille' : 'Afficher grille'}
+            </Button>
+            <Button onClick={clearFog} className="bg-red-600 hover:bg-red-700">
+              <X className="w-4 h-4 mr-2" />
+              Supprimer tout le brouillard
+            </Button>
+          </div>
         )}
 
 
@@ -1599,12 +1967,7 @@ useEffect(() => {
 
        
 
-        {isMJ && (
-           <Button onClick={toggleDungeonMode}>
-           <Eclipse  className="w-4 h-4 mr-2" />
-             {shadowOpacity === 1 ? 'Quitter mode Donjon' : 'Mode donjon'}
-           </Button>
-        )}
+                  {/* 🎯 SUPPRIMÉ : Mode donjon (remplacé par fog of war) */}
 
 
        
@@ -1618,8 +1981,14 @@ useEffect(() => {
   
       <div
     ref={containerRef}
-    className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${isSelecting ? 'cursor-crosshair' : 'cursor-move'} relative`}
-    style={{ height: '100vh' }}
+    className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${
+      isDraggingCharacter || isDraggingNote ? 'cursor-grabbing' : 
+      !isSelecting ? 'cursor-move' : 'cursor-default'
+    } relative`}
+    style={{ 
+      height: '100vh',
+      userSelect: isDraggingCharacter || isDraggingNote ? 'none' : 'auto'
+    }}
     onMouseDown={handleCanvasMouseDown}
     onMouseMove={handleCanvasMouseMove}
     onMouseUp={handleCanvasMouseUp}
@@ -1647,9 +2016,6 @@ useEffect(() => {
     <Button className="button-primary">{characters[selectedCharacterIndex].name}</Button>
     {isMJ || characters[selectedCharacterIndex].id === persoId ? (
       <>
-        <Button onClick={handleMoveCharacter}>
-          <Move className="w-4 h-4 mr-2" /> Déplacer
-        </Button>
         {characters[selectedCharacterIndex].type === 'joueurs' && (
           <Button onClick={() => {
             setSelectedCharacterForSheet(characters[selectedCharacterIndex].id);
@@ -1658,6 +2024,7 @@ useEffect(() => {
             <User className="w-4 h-4 mr-2 button-secondary" /> Voir fiche
           </Button>
         )}
+        {/* Boutons pour les personnages non-joueurs (MJ seulement) */}
         {isMJ && characters[selectedCharacterIndex]?.type !== 'joueurs' && (
           <>
             <Button onClick={() => {
@@ -1669,18 +2036,17 @@ useEffect(() => {
             <Button onClick={handleEditCharacter}>
               <Edit className="w-4 h-4 mr-2" /> Modifier
             </Button>
-            <Button onClick={toggleVisibility}>
-              {characters[selectedCharacterIndex].visibility === 'visible' ? (
-                <EyeOff className="w-4 h-4 mr-2" />
-              ) : (
-                <Eye className="w-4 h-4 mr-2" />
-              )}
-              {characters[selectedCharacterIndex].visibility === 'visible' ? 'Masquer' : 'Afficher'}
-            </Button>
             <Button className="button-primary" onClick={handleAttack}>
               <Edit className="w-4 h-4 mr-2" /> Attaquer
             </Button>
           </>
+        )}
+        
+        {/* Bouton modifier pour les personnages joueurs (MJ seulement) */}
+        {characters[selectedCharacterIndex]?.type === 'joueurs' && isMJ && (
+          <Button onClick={handleEditCharacter}>
+            <Edit className="w-4 h-4 mr-2" /> Modifier
+          </Button>
         )}
       </>
     ) : (
@@ -1703,32 +2069,26 @@ useEffect(() => {
   </div>
 )}
 
-{selectedCharacters.length > 0 && (
-  <div className="absolute bottom-3 flex left-1/2 space-x-2 items-center">
-      <Button onClick={() => handleToggleVisibilitySelectedCharacters('hidden')}>
-      <EyeOff className="w-4 h-4 mr-2" /> Rendre caché
-    </Button>
-    <Button onClick={() => handleToggleVisibilitySelectedCharacters('visible')}>
-      <Eye className="w-4 h-4 mr-2" /> Rendre visible
-    </Button>
-    <Button onClick={() => setIsMoving(true)}>
-      <Move className="w-4 h-4 mr-2" /> Déplacer
-    </Button>
-    <Button onClick={handleDeleteSelectedCharacters}>
-      <X className="w-4 h-4 mr-2" /> Supprimer
-    </Button>
-   
-  
-  </div>
+{selectedCharacters.length > 0 && isMJ && (
+  // Afficher le bouton seulement si au moins un personnage non-joueur est sélectionné
+  (() => {
+    const hasNonPlayerCharacter = selectedCharacters.some(index => 
+      characters[index]?.type !== 'joueurs'
+    );
+    return hasNonPlayerCharacter;
+  })() && (
+    <div className="absolute bottom-3 flex left-1/2 space-x-2 items-center">
+      <Button onClick={handleDeleteSelectedCharacters}>
+        <X className="w-4 h-4 mr-2" /> Supprimer
+      </Button>
+    </div>
+  )
 )}
 
       {selectedNoteIndex !== null  && (
         <div className="absolute bottom-3 flex left-1/2 space-x-2">
           <Button onClick={handleDeleteNote}>
             <X className="w-4 h-4 mr-2" /> Supprimer
-          </Button>
-          <Button onClick={handleMoveNote}>
-            <Move className="w-4 h-4 mr-2" /> Déplacer
           </Button>
           <Button onClick={handleEditNote}>
             <Edit className="w-4 h-4 mr-2" /> Modifier
@@ -1738,7 +2098,7 @@ useEffect(() => {
   
 {isMJ && selectedFogIndex !== null && (
   <div className="absolute bottom-3 flex left-1/2 space-x-2 items-center">
-    <Button onClick={handleDeleteFog}>
+                    <Button onClick={clearFog}>
       <X className="w-4 h-4 mr-2" /> Supprimer le brouillard
     </Button>
   </div>
@@ -1967,6 +2327,106 @@ useEffect(() => {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog pour ajouter une nouvelle note */}
+      <Dialog open={addNoteDialogOpen} onOpenChange={setAddNoteDialogOpen}>
+        <DialogContent className="bg-[rgb(36,36,36)] max-w-md text-[#c0a080]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-center mb-4">📝 Créer une note</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            {/* Texte de la note */}
+            <div className="space-y-2">
+              <Label htmlFor="newNoteText" className="text-lg font-medium">Texte de la note</Label>
+              <textarea
+                id="newNoteText"
+                value={newNote.text}
+                onChange={(e) => setNewNote({ ...newNote, text: e.target.value })}
+                className="w-full h-24 p-3 bg-[rgb(50,50,50)] border border-gray-600 rounded-lg text-white resize-none focus:ring-2 focus:ring-[#c0a080] focus:border-[#c0a080]"
+                placeholder="Entrez votre note ici..."
+              />
+            </div>
+
+            {/* Couleur */}
+            <div className="space-y-2">
+              <Label htmlFor="newNoteColor" className="text-lg font-medium">Couleur du texte</Label>
+              <div className="flex items-center space-x-3">
+                <input
+                  id="newNoteColor"
+                  type="color"
+                  value={newNote.color}
+                  onChange={(e) => setNewNote({ ...newNote, color: e.target.value })}
+                  className="w-12 h-12 rounded-lg border-2 border-gray-600 cursor-pointer"
+                />
+                <div className="flex space-x-2">
+                  {/* Couleurs prédéfinies */}
+                  {['#ffff00', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff'].map(color => (
+                    <button
+                      key={color}
+                      onClick={() => setNewNote({ ...newNote, color })}
+                      className={`w-8 h-8 rounded-full border-2 ${newNote.color === color ? 'border-white' : 'border-gray-600'} transition-all hover:scale-110`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Taille de police */}
+            <div className="space-y-2">
+              <Label htmlFor="newNoteFontSize" className="text-lg font-medium">Taille du texte</Label>
+              <div className="space-y-2">
+                <input
+                  id="newNoteFontSize"
+                  type="range"
+                  min="12"
+                  max="48"
+                  value={newNote.fontSize}
+                  onChange={(e) => setNewNote({ ...newNote, fontSize: parseInt(e.target.value) })}
+                  className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                />
+                <div className="flex justify-between text-sm text-gray-400">
+                  <span>Petit (12px)</span>
+                  <span className="font-medium" style={{ color: newNote.color, fontSize: `${Math.min(newNote.fontSize, 24)}px` }}>
+                    Aperçu ({newNote.fontSize}px)
+                  </span>
+                  <span>Grand (48px)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Aperçu de la note */}
+            <div className="bg-[rgb(50,50,50)] p-4 rounded-lg border border-gray-600">
+              <Label className="text-sm text-gray-400 mb-2 block">Aperçu :</Label>
+              <div 
+                style={{ 
+                  color: newNote.color, 
+                  fontSize: `${Math.min(newNote.fontSize, 24)}px`,
+                  lineHeight: '1.4'
+                }}
+                className="font-medium"
+              >
+                {newNote.text || 'Votre texte apparaîtra ici...'}
+              </div>
+            </div>
+          </div>
+          <DialogFooter className="flex space-x-3">
+            <Button 
+              variant="outline" 
+              onClick={() => setAddNoteDialogOpen(false)}
+              className="px-6 py-2 border-gray-600 text-gray-300 hover:bg-gray-700"
+            >
+              Annuler
+            </Button>
+            <Button 
+              onClick={handleNoteSubmitNew}
+              disabled={!newNote.text.trim()}
+              className="px-6 py-2 bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              ✨ Créer la note
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={characterDialogOpen} onOpenChange={setCharacterDialogOpen}>
   <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">

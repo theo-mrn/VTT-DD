@@ -1,16 +1,9 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { Aclonica } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider"
-import { ModeToggle } from "@/components/toggledarkmode"
 import { CompetencesProvider } from "@/contexts/CompetencesContext"
-
-
-const Aclonica_init = Aclonica({
-  subsets: ["latin"],
-  weight: ["400"],
-});
+import { GameProvider } from '@/contexts/GameContext';
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
@@ -48,10 +41,11 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <CompetencesProvider>
-         
-            {children}
-          </CompetencesProvider>
+          <GameProvider>
+            <CompetencesProvider>
+              {children}
+            </CompetencesProvider>
+          </GameProvider>
         </ThemeProvider>
       </body>
     </html>

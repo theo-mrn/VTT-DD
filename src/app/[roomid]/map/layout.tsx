@@ -1,6 +1,8 @@
 "use client";
 
 import { ReactNode, useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import { useGame } from "@/contexts/GameContext";
 import Sidebar from "@/components/Sidebar";
 import GMDashboard from "@/components/MJcombat";
 import Component from "@/components/fiche";
@@ -12,30 +14,24 @@ import InfoComponent from "@/components/info";
 import RollRequest from '@/components/Rollrequest';
 import { Button } from "@/components/ui/button";
 
-import { auth, db, getDoc, doc, onAuthStateChanged, collection, onSnapshot } from "@/lib/firebase";
+import { auth, db, onAuthStateChanged, collection, onSnapshot } from "@/lib/firebase";
 
 type LayoutProps = {
   children: ReactNode;
 };
 
 export default function Layout({ children }: LayoutProps) {
+  const params = useParams();
+  const roomId = params.roomid as string;
+  const { isMJ } = useGame();
+  
   const [activeTab, setActiveTab] = useState<string>("");
-  const [isMJ, setIsMJ] = useState(false);
   const [showRollRequest, setShowRollRequest] = useState(false);
-  const [roomId, setRoomId] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const uid = user.uid;
-        const userDocRef = doc(db, `users/${uid}`);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-          setIsMJ(userData.perso === "MJ");
-          setRoomId(userData.room_id);
-        }
-      }
+    const unsubscribeAuth = onAuthStateChanged(auth, async () => {
+      // Juste vérifier que l'utilisateur est connecté
+      // Le statut MJ et roomId viennent du contexte et des paramètres
     });
 
     return () => unsubscribeAuth();
