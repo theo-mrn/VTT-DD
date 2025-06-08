@@ -48,6 +48,7 @@ interface GameContextType {
   setIsMJ: (isMJ: boolean) => void;
   setPersoId: (persoId: string | null) => void;
   setPlayerData: (playerData: PlayerData | null) => void;
+  loadCharacterData: (roomId: string, persoId: string) => Promise<void>;
   
   // Actions d'authentification
   refreshUserData: () => Promise<void>;
@@ -65,6 +66,53 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserData | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Fonction pour charger les données du personnage depuis Firebase
+  const loadCharacterData = useCallback(async (roomId: string, persoId: string) => {
+    try {
+      const charRef = doc(db, `cartes/${roomId}/characters/${persoId}`);
+      const charSnap = await getDoc(charRef);
+
+      if (charSnap.exists()) {
+        const charData = charSnap.data();
+        
+        // Créer l'objet PlayerData avec toutes les valeurs nécessaires
+        const playerDataObj: PlayerData = {
+          id: persoId,
+          Nomperso: charData.Nomperso || "Utilisateur",
+          imageURL: charData.imageURL,
+          imageURL2: charData.imageURL2,
+          type: charData.type,
+          niveau: charData.niveau,
+          PV: charData.PV_F || charData.PV,
+          Defense: charData.Defense_F || charData.Defense,
+          Contact: charData.Contact_F || charData.Contact,
+          Distance: charData.Distance_F || charData.Distance,
+          Magie: charData.Magie_F || charData.Magie,
+          INIT: charData.INIT_F || charData.INIT,
+          FOR: charData.FOR_F || charData.FOR,
+          DEX: charData.DEX_F || charData.DEX,
+          CON: charData.CON_F || charData.CON,
+          SAG: charData.SAG_F || charData.SAG,
+          INT: charData.INT_F || charData.INT,
+          CHA: charData.CHA_F || charData.CHA,
+          x: charData.x,
+          y: charData.y,
+          visibility: charData.visibility,
+          visibilityRadius: charData.visibilityRadius,
+        };
+
+        setPlayerData(playerDataObj);
+        console.log("Character data loaded in context:", playerDataObj);
+      } else {
+        console.log("No character document found!");
+        setPlayerData(null);
+      }
+    } catch (error) {
+      console.error("Error loading character data:", error);
+      setPlayerData(null);
+    }
+  }, []);
 
   // Fonction pour récupérer le roomId de l'utilisateur
   const getRoomId = useCallback(async (authUser: { uid: string }): Promise<string | null> => {
@@ -149,6 +197,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setIsMJ, 
       setPersoId, 
       setPlayerData,
+      loadCharacterData,
       
       // Actions d'authentification
       refreshUserData

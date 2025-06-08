@@ -2,16 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Aclonica&display=swap');
-
-.aclonica-regular {
-  font-family: "Aclonica", sans-serif;
-  font-weight: 400;
-  font-style: normal;
+/* Custom Font Classes */
+.font-body {
+  font-family: var(--font-body), serif;
 }
 
-body {
-  font-family: "Aclonica", sans-serif;
+.font-title {
+  font-family: var(--font-title), serif;
 }
 
 /* Theme Variables */
@@ -144,5 +141,10 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-body), serif;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-title), serif;
   }
 }

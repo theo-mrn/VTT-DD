@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer"
-import { Plus, Minus, Dices, ChevronRight, Sword } from "lucide-react"
+import { Plus, Minus, Dice1, ChevronRight, Sword } from "lucide-react"
 import { auth, db, doc, getDoc, onSnapshot, updateDoc, deleteDoc, collection, onAuthStateChanged, writeBatch } from "@/lib/firebase" // Ajoutez writeBatch ici
 import { Dialog, DialogTrigger, DialogPortal, DialogOverlay, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
@@ -370,7 +370,7 @@ export function GMDashboard() {
     <div className="p-4 bg-[var(--bg-dark)]">
       <div className="flex justify-between mb-4">
         <Button className="button-primary" onClick={rerollInitiative} disabled={isRollingInitiative}>
-          <Dices className="mr-2 h-4 w-4" />
+          <Dice1 className="mr-2 h-4 w-4" />
           Relancer l'initiative
         </Button>
         <Button className="button-secondary" onClick={nextCharacter}>
