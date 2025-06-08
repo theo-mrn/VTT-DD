@@ -10,11 +10,24 @@ import { Separator } from '@/components/ui/separator'
 import { ChevronLeft, ChevronRight, Dice6 } from 'lucide-react'
 import Image from 'next/image'
 import { db, auth, storage } from '@/lib/firebase'
-import { doc, setDoc, addDoc, collection, getDoc } from 'firebase/firestore'
+import { doc, addDoc, collection, getDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
 
+
+// Types
+type RaceData = {
+  description: string;
+  image?: string;
+  modificateurs?: Record<string, number>;
+}
+
+type ProfileData = {
+  description: string;
+  image?: string;
+  hitDie: string;
+}
 
 // Load JSON data from public directory
 async function fetchJson(path: string) {
@@ -28,9 +41,8 @@ async function fetchJson(path: string) {
 export default function CharacterCreationPage() {
     const router = useRouter()
   const [step, setStep] = useState(0)
-  const [raceData, setRaceData] = useState<any>({})
-  const [profileData, setProfileData] = useState<any>({})
-  const [currentRaceCapabilities, setCurrentRaceCapabilities] = useState<any[]>([])
+  const [raceData, setRaceData] = useState<Record<string, RaceData>>({})
+  const [profileData, setProfileData] = useState<Record<string, ProfileData>>({})
   const [userId, setUserId] = useState<string | null>(null)
   const [roomId, setRoomId] = useState<string | null>(null)
   const [character, setCharacter] = useState({
@@ -119,25 +131,7 @@ export default function CharacterCreationPage() {
     loadData()
   }, [])
 
-  useEffect(() => {
-    const raceNames = Object.keys(raceData)
-    const currentRaceName = raceNames[raceIndex]
 
-    if (!currentRaceName) return
-
-    const formattedRaceName = currentRaceName.toLowerCase().replace(/\s+/g, '_')
-
-    async function loadRaceCapabilities() {
-      try {
-        const capabilities = await fetchJson(`/tabs/capacite_${formattedRaceName}.json`)
-        setCurrentRaceCapabilities(Object.values(capabilities))
-      } catch (error) {
-        console.error("Error loading race capabilities:", error)
-        setCurrentRaceCapabilities([])
-      }
-    }
-    loadRaceCapabilities()
-  }, [raceData, raceIndex])
 
   const handleCreateCharacter = async () => {
     if (!userId || !roomId) {
