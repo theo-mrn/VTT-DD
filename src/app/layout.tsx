@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider"
 import { CompetencesProvider } from "@/contexts/CompetencesContext"
 import { GameProvider } from '@/contexts/GameContext';
+import { Toaster } from "@/components/ui/sonner"
 
 
 import { IM_Fell_English } from 'next/font/google';
@@ -52,6 +52,7 @@ export default function RootLayout({
         >
           <GameProvider>
             <CompetencesProvider>
+              <Toaster />
               {children}
             </CompetencesProvider>
           </GameProvider>

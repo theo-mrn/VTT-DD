@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { X, Plus, Minus, Move, Edit, Pencil, Eraser, CircleUserRound, Baseline, ChevronRight, ChevronLeft, User, Grid } from 'lucide-react'
-import { auth, db, onAuthStateChanged, doc, getDoc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
+import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,9 +19,16 @@ import CharacterSheet from '@/components/CharacterSheet'; // Importez le composa
 export default function Component() {
   const params = useParams();
   const roomId = params.roomid as string;
-  const { isMJ, persoId, playerData, setIsMJ, setPersoId, setPlayerData } = useGame();
+  const { isMJ, persoId } = useGame();
   
-  // Debug log to check context values
+  // Debug logs pour vérifier la restauration du contexte
+  useEffect(() => {
+    console.log('=== MAP COMPONENT DEBUG ===');
+    console.log('roomId:', roomId);
+    console.log('isMJ:', isMJ);
+    console.log('persoId:', persoId);
+    console.log('==========================');
+  }, [roomId, isMJ, persoId]);
   
   const [combatOpen, setCombatOpen] = useState(false);
   const [attackerId, setAttackerId] = useState<string | null>(null);
@@ -112,17 +119,12 @@ export default function Component() {
       if (user) {
         setUserId(user.uid);
         INITializeFirebaseListeners(roomId);
-        
-        // If context is empty, try to restore player data from Firebase
-        if (!persoId && !isMJ) {
-          await restorePlayerDataFromFirebase(user.uid);
-        }
       } else {
         setUserId(null);
       }
     });
     return () => unsubscribe();
-  }, [roomId, persoId, isMJ]);
+  }, [roomId]);
   
 
   type Character = {
@@ -211,42 +213,6 @@ useEffect(() => {
 
 
   // Firebase Functions
-  
-  const restorePlayerDataFromFirebase = async (uid: string) => {
-    try {
-      const userRef = doc(db, 'users', uid);
-      const userDoc = await getDoc(userRef);
-      
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        
-        if (userData.role === 'MJ') {
-          setIsMJ(true);
-          setPersoId(null);
-          setPlayerData(null);
-        } else if (userData.persoId) {
-          // Get full character data
-          const characterRef = doc(db, `cartes/${roomId}/characters`, userData.persoId);
-          const characterDoc = await getDoc(characterRef);
-          
-          if (characterDoc.exists()) {
-            const characterData = characterDoc.data();
-            const fullCharacterData = { 
-              id: userData.persoId, 
-              Nomperso: characterData.Nomperso || userData.perso,
-              ...characterData 
-            };
-            
-            setIsMJ(false);
-            setPersoId(userData.persoId);
-            setPlayerData(fullCharacterData);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error restoring player data:', error);
-    }
-  };
   
   const handleAttack = () => {
     if (persoId && selectedCharacterIndex !== null) {
@@ -1409,8 +1375,7 @@ const handleCanvasMouseUp = async () => {
         return null;
       });
       
-      const results = await Promise.all(updatePromises);
-      const movedCharacters = results.filter(result => result !== null);
+      await Promise.all(updatePromises);
     } catch (error) {
       console.error("Erreur lors de la sauvegarde du déplacement:", error);
       // Remettre aux positions originales en cas d'erreur
@@ -1791,9 +1756,11 @@ const handleNoteSubmit = async () => {
     return <div>Veuillez vous connecter pour accéder à la carte</div>
   }
 
-  return (
+    return (
     <div className="flex flex-col">
-<div className="flex flex-row-reverse right-0">
+
+
+      <div className="flex flex-row-reverse right-0">
   <div className="flex flex-row h-full absolute z-50 ">
     {/* Toggle button for toolbar visibility */}
     <Button onClick={() => setToolbarVisible(!toolbarVisible)} className="self-center">
