@@ -14,6 +14,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
 import { AlertTitle } from "@/components/ui/alert"
 
+
 interface Room {
   id: string;
   title: string;
@@ -57,6 +58,7 @@ const fetchCreatorInfo = async (creatorId: string) => {
 }
 
 const fetchRoomByCode = async (code: string): Promise<Room | null> => {
+  if (!code || code.trim() === '') return null
   const roomDoc = await getDoc(doc(db, 'Salle', code))
   if (roomDoc.exists()) {
     return { id: roomDoc.id, ...roomDoc.data() } as Room
@@ -99,7 +101,7 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
 
     try {
       await updateDoc(doc(db, 'users', user.uid), { room_id: room.id })
-      router.push(`/${room.id}`)
+      router.push(`/${room.id}/map`)
     } catch (error) {
       console.error("Error updating room_id:", error)
     }
@@ -115,7 +117,7 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
       </div>
       <hr className="border-t border-[#3a3a3a] my-2" />
       <div className="flex flex-col items-center mt-4">
-        <img src={room.imageUrl} alt={`Image de la salle ${room.title}`} className="w-3/5 h-80 rounded-lg object-cover border border-[#3a3a3a] mb-6" />
+        <img src={room.imageUrl || '/placeholder.svg'} alt={`Image de la salle ${room.title}`} className="w-3/5 h-80 rounded-lg object-cover border border-[#3a3a3a] mb-6" />
         <p className="text-lg text-[#a0a0a0]">{room.description}</p>
         <div className="flex items-center space-x-3 mt-4">
           <Users className="h-5 w-5 text-[#c0a0a0]" />
@@ -219,6 +221,11 @@ export default function Component() {
   };
 
   const handleJoinRoom = async (code: string) => {
+    if (!code || code.trim() === '') {
+      setShowAlert(true)
+      setTimeout(() => setShowAlert(false), 2000)
+      return
+    }
     const room = await fetchRoomByCode(code)
     if (room) {
       setSelectedRoom(room)
@@ -254,7 +261,7 @@ export default function Component() {
 
     setNewRoom({ title: '', description: '', maxPlayers: 4, isPublic: true })
     setImageFile(null)
-    router.push(`/${code}`)
+    router.push(`/${code}/map`)
   }
 
   const handleEditRoom = () => {

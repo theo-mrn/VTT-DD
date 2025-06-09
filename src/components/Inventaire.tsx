@@ -32,6 +32,11 @@ interface InventoryManagementProps {
   roomId: string;
 }
 
+interface ItemDescription {
+  name: string;
+  description: string;
+}
+
 const predefinedItems: Record<string, string[]> = {
   'armes-contact': ['Épée à une main', 'Épée à deux mains', 'Épée longue', 'Katana', 'Rapière', 'Hache', 'Marteau'],
   'armes-distance': ['Arc léger', 'Arc lourd', 'Arbalète', 'Couteaux de lancer'],
@@ -56,8 +61,9 @@ const categoryIcons: Record<string, JSX.Element> = {
 export default function InventoryManagement({ playerName, roomId }: InventoryManagementProps) {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const [dialogSearchTerm, setDialogSearchTerm] = useState<string>('');
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState<boolean>(false);
-  const [currentCategory, setCurrentCategory] = useState<string>('');
+  const [currentCategory, setCurrentCategory] = useState<string>('all');
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState<boolean>(false);
   const [isBonusDialogOpen, setIsBonusDialogOpen] = useState<boolean>(false);
   const [isDiceDialogOpen, setIsDiceDialogOpen] = useState<boolean>(false);
@@ -69,8 +75,36 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
   const [diceFaces, setDiceFaces] = useState<number>(6);
   const [bonuses, setBonuses] = useState<Bonus[]>([]);
   const [bonusesMap, setBonusesMap] = useState<Record<string, Bonus[]>>({});
+  const [itemDescriptions, setItemDescriptions] = useState<Record<string, ItemDescription>>({});
 
   const inventoryRef = collection(db, `Inventaire/${roomId}/${playerName}`);
+
+  // Charger les descriptions des objets depuis Items.json
+  useEffect(() => {
+    const loadItemDescriptions = async () => {
+      try {
+        const response = await fetch('/tabs/Items.json');
+        const data = await response.json();
+        
+        const descriptions: Record<string, ItemDescription> = {};
+        
+        // Parcourir les données et créer un mapping nom -> description
+        for (let i = 1; i <= 21; i++) {
+          const name = data[`Affichage${i}`];
+          const description = data[`rang${i}`];
+          if (name && description) {
+            descriptions[name.toLowerCase()] = { name, description };
+          }
+        }
+        
+        setItemDescriptions(descriptions);
+      } catch (error) {
+        console.error('Erreur lors du chargement des descriptions:', error);
+      }
+    };
+
+    loadItemDescriptions();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onSnapshot(inventoryRef, (snapshot) => {
@@ -127,6 +161,7 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
   }, [inventory, roomId, playerName]);
 
   const handleAddItem = async (item: string) => {
+    try {
     const existingItem = inventory.find(i => i.message === item && i.category === currentCategory);
     if (existingItem) {
       const itemRef = doc(inventoryRef, existingItem.id);
@@ -141,6 +176,35 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
         visibility: 'public',
         weight: 1
       });
+      }
+      // Fermer le modal après l'ajout réussi
+      setIsAddItemDialogOpen(false);
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout de l\'objet:', error);
+    }
+  };
+
+  const handleAddPredefinedItem = async (item: string, category: string) => {
+    try {
+      const existingItem = inventory.find(i => i.message === item && i.category === category);
+      if (existingItem) {
+        const itemRef = doc(inventoryRef, existingItem.id);
+        await updateDoc(itemRef, { quantity: existingItem.quantity + 1 });
+      } else {
+        await addDoc(inventoryRef, {
+          message: item,
+          category: category,
+          quantity: 1,
+          bonusTypes: {},
+          diceSelection: category.includes('armes') ? `1d6` : null,
+          visibility: 'public',
+          weight: 1
+        });
+      }
+      // Fermer le modal après l'ajout réussi
+      setIsAddItemDialogOpen(false);
+    } catch (error) {
+      console.error('Erreur lors de l\'ajout de l\'objet:', error);
     }
   };
 
@@ -266,48 +330,188 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                 <Plus className="mr-2 h-4 w-4" /> Ajouter
               </Button>
             </DialogTrigger>
-            <DialogContent className="modal-content">
-              <DialogHeader>
-                <DialogTitle className="modal-title">Ajouter un objet</DialogTitle>
+            <DialogContent className="!max-w-[95vw] !w-[1400px] !max-h-[90vh] !min-h-[600px] overflow-hidden flex flex-col" style={{ width: '1400px', maxWidth: '95vw', height: '90vh', maxHeight: '90vh' }}>
+              <DialogHeader className="flex-shrink-0 pb-4 border-b">
+                <DialogTitle className="text-xl flex items-center gap-2 text-[var(--accent-brown)]">
+                  <Plus className="w-5 h-5" />
+                  Ajouter un objet
+                </DialogTitle>
               </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <Select onValueChange={(value) => setCurrentCategory(value)}>
-                  <SelectTrigger className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--accent-brown)]">
-                    <SelectValue placeholder="Catégorie" />
+              
+              <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+                {/* Barre de recherche et filtres */}
+                <div className="flex-shrink-0 py-4 space-y-4 border-b border-[var(--border-color)]">
+                  <div className="relative w-full">
+                    <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-[var(--text-primary)]" />
+                    <Input
+                      placeholder="Rechercher un objet..."
+                      value={dialogSearchTerm}
+                      onChange={(e) => setDialogSearchTerm(e.target.value)}
+                      className="w-full pl-16 h-14 text-lg input-field bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]"
+                    />
+                  </div>
+                  
+                  <Select value={currentCategory} onValueChange={setCurrentCategory}>
+                    <SelectTrigger className="w-full h-14 text-lg bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--accent-brown)]">
+                      <SelectValue placeholder="Toutes catégories" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[var(--bg-card)] border border-[var(--border-color)]">
+                      <SelectItem value="all">Toutes catégories</SelectItem>
+                      {Object.keys(predefinedItems).map((category) => (
+                        <SelectItem key={category} value={category}>
+                          <div className="flex items-center gap-2">
+                            {categoryIcons[category]}
+                            {category}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-8 flex-1 min-h-0 overflow-hidden">
+                  {/* Objets prédéfinis */}
+                  <div className="flex-[3] overflow-hidden flex flex-col">
+                    <h3 className="font-semibold mb-4 text-[var(--accent-brown)] flex items-center gap-2 text-lg flex-shrink-0">
+                      <Search className="w-5 h-5" />
+                      Objets prédéfinis
+                    </h3>
+                    
+                    <div className="overflow-y-auto flex-1 pr-3">
+                      <div className="space-y-6">
+                        {Object.entries(predefinedItems)
+                          .filter(([categoryKey]) => currentCategory === 'all' || !currentCategory || currentCategory === categoryKey)
+                          .map(([categoryKey, items]) => {
+                            const filteredItems = items.filter(item => {
+                              const searchLower = dialogSearchTerm.toLowerCase();
+                              const itemDescription = itemDescriptions[item.toLowerCase()];
+                              return item.toLowerCase().includes(searchLower) || 
+                                     (itemDescription && itemDescription.description.toLowerCase().includes(searchLower));
+                            });
+                            
+                            if (filteredItems.length === 0) return null;
+
+                            return (
+                              <div key={categoryKey} className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-5">
+                                <div className="flex items-center gap-3 mb-4 pb-3 border-b border-[var(--border-color)]">
+                                  {categoryIcons[categoryKey]}
+                                  <h4 className="font-semibold text-[var(--accent-brown)] text-lg">{categoryKey}</h4>
+                                  <span className="ml-auto text-sm text-[var(--text-primary)] bg-[var(--bg-dark)] px-2 py-1 rounded">
+                                    {filteredItems.length} objet{filteredItems.length > 1 ? 's' : ''}
+                                  </span>
+                                </div>
+                                
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                                  {filteredItems.map(item => {
+                                    const itemDescription = itemDescriptions[item.toLowerCase()];
+                                    return (
+                                      <div
+                                        key={item}
+                                        className="bg-[var(--bg-dark)] rounded-lg p-4 hover:bg-[var(--bg-darker)] transition-all duration-200 cursor-pointer border border-[var(--border-color)] hover:shadow-lg"
+                                        onClick={() => handleAddPredefinedItem(item, categoryKey)}
+                                      >
+                                        <div className="flex items-start flex-col gap-2">
+                                          <div className="flex items-center justify-between w-full">
+                                            <h5 className="font-semibold text-[var(--text-primary)] text-sm">{item}</h5>
+                                            <Plus className="w-4 h-4 text-[var(--accent-brown)] flex-shrink-0" />
+                                          </div>
+                                          {itemDescription && (
+                                            <p className="text-xs text-[var(--text-primary)] opacity-70 line-clamp-2 leading-relaxed">
+                                              {itemDescription.description}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        
+                        {Object.entries(predefinedItems)
+                          .filter(([categoryKey]) => currentCategory === 'all' || !currentCategory || currentCategory === categoryKey)
+                          .every(([, items]) => 
+                            items.filter(item => {
+                              const searchLower = dialogSearchTerm.toLowerCase();
+                              const itemDescription = itemDescriptions[item.toLowerCase()];
+                              return item.toLowerCase().includes(searchLower) || 
+                                     (itemDescription && itemDescription.description.toLowerCase().includes(searchLower));
+                            }).length === 0
+                          ) && (
+                          <div className="text-center py-16">
+                            <Search className="w-16 h-16 mx-auto text-[var(--text-primary)] opacity-50 mb-4" />
+                            <h4 className="text-[var(--text-primary)] font-semibold mb-3 text-lg">Aucun objet trouvé</h4>
+                            <p className="text-[var(--text-primary)] opacity-70">
+                              Modifiez votre recherche ou créez un objet personnalisé
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Séparateur */}
+                  <div className="w-px bg-[var(--border-color)] flex-shrink-0"></div>
+                  
+                  {/* Objet personnalisé */}
+                  <div className="flex-1 min-w-0 flex flex-col">
+                    <h3 className="font-semibold mb-4 text-[var(--accent-brown)] flex items-center gap-2 text-lg flex-shrink-0">
+                      <Plus className="w-5 h-5" />
+                      Créer un objet personnalisé
+                    </h3>
+                    
+                    <div className="space-y-4 flex-1">
+                      <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-5">
+                        <div className="space-y-4">
+                          <div>
+                                                         <Label className="text-[var(--text-primary)] text-sm font-medium mb-2 block">Nom de l&apos;objet</Label>
+                            <Input
+                              value={newItemName}
+                              onChange={(e) => setNewItemName(e.target.value)}
+                              className="h-10 input-field"
+                              placeholder="Ex: Épée enchantée"
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label className="text-[var(--text-primary)] text-sm font-medium mb-2 block">Catégorie</Label>
+                            <Select value={currentCategory} onValueChange={setCurrentCategory}>
+                              <SelectTrigger className="h-10 bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--accent-brown)]">
+                                <SelectValue placeholder="Choisir une catégorie..." />
                   </SelectTrigger>
                   <SelectContent className="bg-[var(--bg-card)] border border-[var(--border-color)]">
                     {Object.keys(predefinedItems).map((category) => (
                       <SelectItem key={category} value={category}>
+                                    <div className="flex items-center gap-2">
+                                      {categoryIcons[category]}
                         {category}
+                                    </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                {currentCategory && (
-                  <div className="grid grid-cols-2 gap-2">
-                    {predefinedItems[currentCategory].map((item) => (
+                          </div>
+                          
                       <Button
-                        key={item}
-                        onClick={() => handleAddItem(item)}
-                        className="button-primary"
-                      >
-                        {item}
-                      </Button>
-                    ))}
-                    {currentCategory === 'autre' && (
-                      <Input
-                        placeholder="Autre objet"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            handleAddItem((e.target as HTMLInputElement).value);
-                            (e.target as HTMLInputElement).value = '';
-                          }
-                        }}
-                        className="input-field"
-                      />
-                    )}
+                            onClick={() => {
+                              if (newItemName && currentCategory && currentCategory !== 'all') {
+                                handleAddItem(newItemName);
+                                setNewItemName('');
+                                setIsAddItemDialogOpen(false);
+                              }
+                            }}
+                            disabled={!newItemName || !currentCategory || currentCategory === 'all'}
+                            className="w-full h-11 font-medium button-primary"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                                                         Créer l&apos;objet personnalisé
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
             </DialogContent>
           </Dialog>

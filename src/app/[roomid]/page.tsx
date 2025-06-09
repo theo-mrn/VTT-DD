@@ -1,3 +1,6 @@
-export default function Page() {
-  return <div>Hello World</div>;
+import { redirect } from 'next/navigation';
+
+export default async function Page({ params }: { params: Promise<{ roomid: string }> }) {
+  const { roomid } = await params;
+  redirect(`/${roomid}/map`);
 }

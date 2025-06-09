@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { db, auth, onAuthStateChanged, getDoc, setDoc, doc, collection, getDocs, deleteDoc } from '@/lib/firebase';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 type Competence = {
   titre: string;
@@ -34,8 +35,12 @@ type CustomCompetence = {
   competenceType: string;
 };
 
-export default function CharacterProfile() {
-    const router = useRouter();
+interface CharacterProfileProps {
+  onClose?: () => void;
+}
+
+export default function CharacterProfile({ onClose }: CharacterProfileProps = {}) {
+  const router = useRouter();
   const [, setProfile] = useState<string | null>(null);
   const [, setRace] = useState<string | null>(null);
   const [voies, setVoies] = useState<Voie[]>([]);
@@ -141,8 +146,8 @@ export default function CharacterProfile() {
   };
 
   const loadCurrentVoies = async (characterData: Record<string, string | number>) => {
-      const loadedVoies: Voie[] = [];
-
+    const loadedVoies: Voie[] = [];
+    
     // Load voies from character data
     for (let i = 1; i <= 10; i++) { // Support up to 10 voies
       const voieFile = characterData[`Voie${i}`];
@@ -183,8 +188,8 @@ export default function CharacterProfile() {
       if (response.ok) {
         const data = await response.json();
         const competences = Object.keys(data)
-            .filter((key) => key.startsWith('Affichage'))
-            .map((key, index) => ({
+          .filter((key) => key.startsWith('Affichage'))
+          .map((key, index) => ({
             titre: data[`Affichage${index + 1}`] || '',
             description: (data[`rang${index + 1}`] || '').replace(/<br>/g, '\n'),
             type: data[`type${index + 1}`] || 'other',
@@ -304,7 +309,7 @@ export default function CharacterProfile() {
     }
 
     await setDoc(characterRef, voiesData, { merge: true });
-    alert('Les données ont été sauvegardées avec succès.');
+    toast.success('Les données ont été sauvegardées avec succès.');
     router.push(`/${roomId}/map`);
   };
 
@@ -502,12 +507,24 @@ export default function CharacterProfile() {
   return (
     <div className="flex flex-col items-center bg-[var(--bg-dark)] text-[var(--text-primary)] min-h-screen p-4">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2 text-[var(--accent-brown)]">Gestion des Voies</h1>
-        <p className="text-[var(--text-secondary)]">Gérez vos voies de compétences : ajoutez, supprimez ou modifiez vos voies.</p>
+        <div className="flex justify-between items-center w-full max-w-5xl mb-4">
+          <div>
+            <h1 className="text-3xl font-bold mb-2 text-[var(--accent-brown)]">Gestion des Voies</h1>
+            <p className="text-[var(--text-secondary)]">Gérez vos voies de compétences : ajoutez, supprimez ou modifiez vos voies.</p>
+          </div>
+          {onClose && (
+            <Button 
+              onClick={onClose}
+              className="button-secondary"
+            >
+              ← Retour aux Compétences
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6 max-w-5xl w-full">
-      {voies.map((voie, index) => (
+        {voies.map((voie, index) => (
           <Card key={index} className="card relative">
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
@@ -525,10 +542,10 @@ export default function CharacterProfile() {
                 </Button>
               </div>
 
-          </CardHeader>
-          <CardContent>
+            </CardHeader>
+            <CardContent>
               <ul className="space-y-2">
-              {voie.competences.map((competence, compIndex) => (
+                {voie.competences.map((competence, compIndex) => (
                   <li 
                     key={compIndex}
                     className={`group flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${
@@ -578,11 +595,11 @@ export default function CharacterProfile() {
                       )}
                     </div>
                   </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      ))}
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        ))}
 
         {/* Add new voie card */}
         <Card 
@@ -787,8 +804,8 @@ export default function CharacterProfile() {
             </div>
           )}
         </DialogContent>
-      </Dialog>
-      
+              </Dialog>
+
         {/* Competence Selection Dialog */}
         <Dialog open={isCompetenceDialogOpen} onOpenChange={setIsCompetenceDialogOpen}>
           <DialogContent className="p-6 rounded-lg fixed left-0 right-0 m-auto w-full h-[90vh] max-w-7xl max-h-screen overflow-hidden z-50">
@@ -1098,8 +1115,8 @@ export default function CharacterProfile() {
         <div className="flex justify-center mt-8">
           <Button onClick={saveCharacterData} className="button-primary w-48 h-12 text-lg">
             Sauvegarder et Continuer
-        </Button>
-      </div>
+          </Button>
+        </div>
     </div>
   );
 }

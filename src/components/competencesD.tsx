@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PlusCircle, MinusCircle, Info, Star } from "lucide-react";
-import { db, getDoc, doc, setDoc, updateDoc } from "@/lib/firebase";
+import { db, getDoc, doc, setDoc, updateDoc, collection, getDocs } from "@/lib/firebase";
 
 // Type definitions
 interface Competence {
@@ -40,6 +40,16 @@ interface BonusData {
   category: string;
 }
 
+interface CustomCompetence {
+  slotIndex: number;
+  voieIndex: number;
+  sourceVoie: string;
+  sourceRank: number;
+  competenceName: string;
+  competenceDescription: string;
+  competenceType: string;
+}
+
 const statOptions = ["FOR", "DEX", "CON", "INT", "SAG", "CHA", "PV", "PV_Max","Contact","Distance","Magie", "Defense"];
 
 interface CompetencesDisplayProps {
@@ -56,6 +66,7 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
 });
   const [detailsOpenCompetenceId, setDetailsOpenCompetenceId] = useState<string | null>(null);
   const [bonusOpenCompetenceId, setBonusOpenCompetenceId] = useState<string | null>(null);
+  const [customCompetences, setCustomCompetences] = useState<CustomCompetence[]>([]);
   
 
   useEffect(() => {
@@ -66,6 +77,33 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
     loadCompetences();
   }, [roomId, characterId]);
 
+  const loadCustomCompetences = async (roomId: string, characterId: string) => {
+    try {
+      const customCompetencesRef = collection(db, `cartes/${roomId}/characters/${characterId}/customCompetences`);
+      const customCompetencesSnapshot = await getDocs(customCompetencesRef);
+      
+      const customComps: CustomCompetence[] = [];
+      customCompetencesSnapshot.forEach((doc) => {
+        const data = doc.data();
+        customComps.push({
+          slotIndex: data.slotIndex,
+          voieIndex: data.voieIndex,
+          sourceVoie: data.sourceVoie,
+          sourceRank: data.sourceRank,
+          competenceName: data.competenceName,
+          competenceDescription: data.competenceDescription,
+          competenceType: data.competenceType,
+        });
+      });
+      
+      setCustomCompetences(customComps);
+      return customComps;
+    } catch (error) {
+      console.error('Error loading custom competences:', error);
+      return [];
+    }
+  };
+
   const fetchCharacterSkills = async (roomId: string, characterId: string) => {
     try {
       const characterRef = doc(db, `cartes/${roomId}/characters/${characterId}`);
@@ -73,36 +111,54 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
 
       if (characterDoc.exists()) {
         const characterData = characterDoc.data();
-        const skillLevels = [characterData.v1, characterData.v2, characterData.v3, characterData.v4, characterData.v5, characterData.v6];
-
         const skills: Competence[] = [];
-        for (let i = 1; i <= 6; i++) {
+        
+        // Load custom competences first
+        const customComps = await loadCustomCompetences(roomId, characterId);
+        
+        // Dynamically find all available voies (up to 10)
+        for (let i = 1; i <= 10; i++) {
           const voieFile = characterData[`Voie${i}`];
-          const voieLevel = skillLevels[i - 1];
+          const voieLevel = characterData[`v${i}`] || 0;
 
-          if (voieFile && voieLevel > 0) {
-            const skillData = await fetch(`/tabs/${voieFile}`).then((res) => res.json());
+          if (voieFile && voieFile.trim() !== '' && voieLevel > 0) {
+            try {
+              const skillData = await fetch(`/tabs/${voieFile}`).then((res) => res.json());
 
-            for (let j = 1; j <= voieLevel; j++) {
-              const skillName = skillData[`Affichage${j}`];
-              const skillDescription = skillData[`rang${j}`];
-              const skillType = skillData[`type${j}`];
+              for (let j = 1; j <= voieLevel; j++) {
+                let skillName = skillData[`Affichage${j}`];
+                let skillDescription = skillData[`rang${j}`];
+                let skillType = skillData[`type${j}`];
 
-              if (skillName && skillDescription && skillType) {
-                const skillId = `${voieFile}-${j}`;
+                // Check if this competence has been customized
+                const customComp = customComps.find(cc => 
+                  cc.voieIndex === i - 1 && cc.slotIndex === j - 1
+                );
                 
-                // Récupérer les bonus associés depuis Firestore
-                const bonusData = await fetchBonusData(roomId, characterData.Nomperso, skillId);
+                if (customComp) {
+                  skillName = `🔄 ${customComp.competenceName}`;
+                  skillDescription = `${customComp.competenceDescription}<br><br><em>📍 Depuis: ${customComp.sourceVoie} (rang ${customComp.sourceRank})</em>`;
+                  skillType = customComp.competenceType;
+                }
 
-                skills.push({
-                  id: skillId,
-                  name: skillName,
-                  description: skillDescription,
+                if (skillName && skillDescription && skillType) {
+                  const skillId = `${voieFile}-${j}`;
+                  
+                  // Récupérer les bonus associés depuis Firestore
+                  const bonusData = await fetchBonusData(roomId, characterData.Nomperso, skillId);
+
+                  skills.push({
+                    id: skillId,
+                    name: skillName,
+                    description: skillDescription,
                     bonuses: bonusData,
-                  isActive: bonusData.active || false,
-                  type: skillType as Competence["type"],
-                });
+                    isActive: bonusData.active || false,
+                    type: skillType as Competence["type"],
+                  });
+                }
               }
+            } catch (error) {
+              console.error(`Error loading voie ${voieFile}:`, error);
             }
           }
         }

@@ -56,16 +56,77 @@ interface GameContextType {
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
+// Clés pour le localStorage
+const STORAGE_KEYS = {
+  IS_MJ: 'game_isMJ',
+  PERSO_ID: 'game_persoId',
+  PLAYER_DATA: 'game_playerData',
+};
+
+// Fonctions utilitaires pour le localStorage
+const saveToLocalStorage = (key: string, value: unknown) => {
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+  } catch (error) {
+    console.error('Error saving to localStorage:', error);
+  }
+};
+
+const loadFromLocalStorage = (key: string) => {
+  try {
+    if (typeof window !== 'undefined') {
+      const item = localStorage.getItem(key);
+      return item ? JSON.parse(item) : null;
+    }
+  } catch (error) {
+    console.error('Error loading from localStorage:', error);
+  }
+  return null;
+};
+
+const clearLocalStorage = () => {
+  try {
+    if (typeof window !== 'undefined') {
+      Object.values(STORAGE_KEYS).forEach(key => {
+        localStorage.removeItem(key);
+      });
+    }
+  } catch (error) {
+    console.error('Error clearing localStorage:', error);
+  }
+};
+
 export function GameProvider({ children }: { children: ReactNode }) {
-  // États du jeu
-  const [isMJ, setIsMJ] = useState(false);
-  const [persoId, setPersoId] = useState<string | null>(null);
-  const [playerData, setPlayerData] = useState<PlayerData | null>(null);
+  // États du jeu avec restauration immédiate depuis localStorage
+  const [isMJ, setIsMJState] = useState(() => loadFromLocalStorage(STORAGE_KEYS.IS_MJ) || false);
+  const [persoId, setPersoIdState] = useState<string | null>(() => loadFromLocalStorage(STORAGE_KEYS.PERSO_ID));
+  const [playerData, setPlayerDataState] = useState<PlayerData | null>(() => loadFromLocalStorage(STORAGE_KEYS.PLAYER_DATA));
   
   // États d'authentification
   const [user, setUser] = useState<UserData | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Wrappers pour sauvegarder dans localStorage
+  const setIsMJ = useCallback((value: boolean) => {
+    setIsMJState(value);
+    saveToLocalStorage(STORAGE_KEYS.IS_MJ, value);
+    console.log('isMJ updated and saved:', value);
+  }, []);
+
+  const setPersoId = useCallback((value: string | null) => {
+    setPersoIdState(value);
+    saveToLocalStorage(STORAGE_KEYS.PERSO_ID, value);
+    console.log('persoId updated and saved:', value);
+  }, []);
+
+  const setPlayerData = useCallback((value: PlayerData | null) => {
+    setPlayerDataState(value);
+    saveToLocalStorage(STORAGE_KEYS.PLAYER_DATA, value);
+    console.log('playerData updated and saved:', value);
+  }, []);
 
   // Fonction pour charger les données du personnage depuis Firebase
   const loadCharacterData = useCallback(async (roomId: string, persoId: string) => {
@@ -112,7 +173,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       console.error("Error loading character data:", error);
       setPlayerData(null);
     }
-  }, []);
+  }, [setPlayerData]);
 
   // Fonction pour récupérer le roomId de l'utilisateur
   const getRoomId = useCallback(async (authUser: { uid: string }): Promise<string | null> => {
@@ -129,6 +190,100 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Fonction pour restaurer les données du joueur depuis Firebase
+  const restorePlayerDataFromFirebase = useCallback(async (uid: string) => {
+    try {
+      console.log('🔍 Restoring player data from Firebase for uid:', uid);
+      const userRef = doc(db, 'users', uid);
+      const userDoc = await getDoc(userRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        console.log('📊 User data from Firebase:', userData);
+        console.log('🎭 Role:', userData.role);
+        console.log('👤 PersoId:', userData.persoId);
+        console.log('🏠 RoomId:', userData.room_id);
+        
+        // Logique corrigée : Si l'utilisateur a un persoId, il est forcément un joueur, pas un MJ
+        if (userData.persoId && userData.room_id) {
+          console.log('✅ User has persoId, treating as PLAYER regardless of role field');
+          
+          // Récupérer les données complètes du personnage
+          console.log('📥 Loading character data for persoId:', userData.persoId);
+          const characterRef = doc(db, `cartes/${userData.room_id}/characters`, userData.persoId);
+          const characterDoc = await getDoc(characterRef);
+          
+          if (characterDoc.exists()) {
+            const characterData = characterDoc.data();
+            console.log('🧙‍♂️ Character data loaded:', characterData);
+            
+            const fullCharacterData: PlayerData = { 
+              id: userData.persoId, 
+              Nomperso: characterData.Nomperso || userData.perso,
+              imageURL: characterData.imageURL,
+              imageURL2: characterData.imageURL2,
+              type: characterData.type,
+              niveau: characterData.niveau,
+              PV: characterData.PV_F || characterData.PV,
+              Defense: characterData.Defense_F || characterData.Defense,
+              Contact: characterData.Contact_F || characterData.Contact,
+              Distance: characterData.Distance_F || characterData.Distance,
+              Magie: characterData.Magie_F || characterData.Magie,
+              INIT: characterData.INIT_F || characterData.INIT,
+              FOR: characterData.FOR_F || characterData.FOR,
+              DEX: characterData.DEX_F || characterData.DEX,
+              CON: characterData.CON_F || characterData.CON,
+              SAG: characterData.SAG_F || characterData.SAG,
+              INT: characterData.INT_F || characterData.INT,
+              CHA: characterData.CHA_F || characterData.CHA,
+              x: characterData.x,
+              y: characterData.y,
+              visibility: characterData.visibility,
+              visibilityRadius: characterData.visibilityRadius,
+            };
+            
+            // L'utilisateur est un JOUEUR (pas un MJ) car il a un personnage
+            setIsMJ(false);
+            setPersoId(userData.persoId);
+            setPlayerData(fullCharacterData);
+            console.log("🎉 Player data restored from Firebase:", fullCharacterData);
+            console.log("🎯 Set as PLAYER (isMJ = false)");
+          } else {
+            console.log("❌ Character document not found for persoId:", userData.persoId);
+            // Si le personnage n'existe pas, on ne peut pas être sûr du rôle
+            setIsMJ(false);
+            setPersoId(null);
+            setPlayerData(null);
+          }
+        } else if (userData.role === 'MJ') {
+          console.log('✅ User has MJ role and no persoId, treating as MJ');
+          setIsMJ(true);
+          setPersoId(null);
+          setPlayerData(null);
+          console.log("🎭 User restored as MJ");
+        } else {
+          console.log('⚠️ User has no persoId and no MJ role - unclear state');
+          console.log('🔧 Defaulting to non-MJ state');
+          setIsMJ(false);
+          setPersoId(null);
+          setPlayerData(null);
+        }
+      } else {
+        console.log("❌ User document not found in Firebase");
+        // Par défaut, pas de MJ
+        setIsMJ(false);
+        setPersoId(null);
+        setPlayerData(null);
+      }
+    } catch (error) {
+      console.error('💥 Error restoring player data from Firebase:', error);
+      // En cas d'erreur, état par défaut
+      setIsMJ(false);
+      setPersoId(null);
+      setPlayerData(null);
+    }
+  }, [setIsMJ, setPersoId, setPlayerData]);
+
   // Fonction pour rafraîchir les données utilisateur
   const refreshUserData = useCallback(async () => {
     const currentUser = auth.currentUser;
@@ -138,12 +293,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   }, [getRoomId]);
 
-  // Gestion de l'authentification - optimisée pour éviter les appels répétés
+  // Debug: Log des changements d'état
+  useEffect(() => {
+    console.log('Game Context State:', { isMJ, persoId, playerData: playerData?.Nomperso });
+  }, [isMJ, persoId, playerData]);
+
+  // Gestion de l'authentification avec restauration automatique
   useEffect(() => {
     let mounted = true;
     
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
       if (!mounted) return;
+      
+      console.log('Auth state changed:', authUser?.uid);
       
       if (authUser) {
         try {
@@ -151,6 +313,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
           if (mounted) {
             setUser({ uid: authUser.uid, roomId });
             setIsAuthenticated(true);
+            
+            // Restaurer automatiquement les données du joueur depuis Firebase
+            // Cela va mettre à jour localStorage aussi
+            await restorePlayerDataFromFirebase(authUser.uid);
           }
         } catch (error) {
           console.error("Error during authentication:", error);
@@ -163,10 +329,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (mounted) {
           setUser(null);
           setIsAuthenticated(false);
-          // Reset game state when user logs out
+          // Reset game state when user logs out et clear localStorage
           setIsMJ(false);
           setPersoId(null);
           setPlayerData(null);
+          clearLocalStorage();
+          console.log('User logged out, context and localStorage cleared');
         }
       }
       
@@ -179,7 +347,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       mounted = false;
       unsubscribe();
     };
-  }, [getRoomId]);
+  }, [getRoomId, restorePlayerDataFromFirebase, setIsMJ, setPersoId, setPlayerData]);
 
   return (
     <GameContext.Provider value={{ 
