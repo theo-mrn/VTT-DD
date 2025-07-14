@@ -10,133 +10,15 @@ import Login06 from '@/components/ui/login-3'
 import { useRouter } from 'next/navigation'
 import { onAuthStateChanged } from 'firebase/auth'
 import { auth } from '../../lib/firebase'
-import { Features } from '@/components/blocks/features-7'
+import { Features1 } from '@/components/blocks/features1'
+import { Features2 } from '@/components/blocks/features2'
+import { Features3 } from '@/components/blocks/features3'
+
 
 const aclonica = Aclonica({
     weight: '400',
     subsets: ['latin'],
 })
-
-export function HeroSection() {
-    const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false)
-    const [isUserLoggedIn, setIsUserLoggedIn] = React.useState<boolean | null>(null)
-    const router = useRouter()
-
-    React.useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setIsUserLoggedIn(!!user)
-        })
-        return () => unsubscribe()
-    }, [])
-
-    const handleStartAdventure = () => {
-        if (isUserLoggedIn) {
-            router.push('/Salle')
-        } else {
-            setIsAuthModalOpen(true)
-        }
-    }
-
-    return (
-        <>
-            <HeroHeader onOpenAuth={() => setIsAuthModalOpen(true)} />
-            <main className="overflow-x-hidden">
-                <section>
-                    <div className="py-24 md:pb-32 lg:pb-36 lg:pt-72">
-                        <div className="relative z-10 mx-auto flex max-w-7xl flex-col px-6 lg:block lg:px-12">
-                            <div className="mx-auto max-w-lg text-center lg:ml-0 lg:max-w-full lg:text-left">
-                                <h1 className={cn("mt-8 max-w-2xl text-balance text-5xl md:text-6xl lg:mt-16 xl:text-7xl", aclonica.className)}>Votre table virtuelle ultime</h1>
-                                <p className={cn("mt-8 max-w-2xl text-balance text-lg", aclonica.className)}>Créez des aventures épiques avec votre groupe. Plateforme VTT simple et intuitive.</p>
-
-                                <div className="mt-12 flex flex-col items-center justify-center gap-2 sm:flex-row lg:justify-start">
-                                    <Button
-                                        onClick={handleStartAdventure}
-                                        disabled={isUserLoggedIn === null}
-                                        size="lg"
-                                        className={cn("h-12 rounded-full pl-5 pr-3 text-base", aclonica.className)}>
-                                        <span className="text-nowrap">
-                                            {isUserLoggedIn === null ? 'Chargement...' : "Commencer l&apos;aventure"}
-                                        </span>
-                                        <ChevronRight className="ml-1" />
-                                    </Button>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="aspect-[2/3] absolute inset-5 overflow-hidden rounded-3xl border border-black/10 sm:aspect-video lg:rounded-[3rem] dark:border-white/5">
-                            <div
-                                className="size-full"
-                                style={{
-                                    backgroundImage: "url('/images/index9.webp')",
-                                    backgroundSize: 'cover',
-                                    backgroundPosition: 'center',
-                                    maskImage: "url('/test.gif')",
-                                    maskSize: 'cover',
-                                    maskPosition: 'center',
-                                    WebkitMaskImage: "url('/test.gif')",
-                                    opacity: 0.75,
-                                }}
-                            ></div>
-                        </div>
-                    </div>
-                </section>
-                
-                <section>
-                    <div className="lg:pt-64 lg:pb-16">
-                        <div className="aspect-[2/3] relative mx-5 overflow-hidden rounded-3xl border border-black/10 sm:aspect-video lg:rounded-[3rem] dark:border-white/5">
-                            <div className="size-full bg-background/95 backdrop-blur-xl">
-                                <Features />
-                            </div>
-                        </div>
-                    </div>
-                </section>
-                
-                {/* Troisième carte avec le composant Features */}
-                <section>
-                    <div className="lg:pb-16">
-                        <div className="aspect-[2/3] relative mx-5 overflow-hidden rounded-3xl border border-black/10 sm:aspect-video lg:rounded-[3rem] dark:border-white/5">
-                            <div className="size-full bg-background/95 backdrop-blur-xl">
-                                <Features />
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <section>
-                    <div className="lg:pb-16">
-                        <div className="aspect-[2/3] relative mx-5 overflow-hidden rounded-3xl border border-black/10 sm:aspect-video lg:rounded-[3rem] dark:border-white/5">
-                            <div className="size-full bg-background/95 backdrop-blur-xl">
-                                <Features />
-                            </div>
-                        </div>
-                    </div>
-                </section>
-            </main>
-            
-            {/* Modal d'authentification */}
-            {isAuthModalOpen && (
-                <div className="fixed inset-0 z-50">
-                    <div 
-                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-                        onClick={() => setIsAuthModalOpen(false)}
-                    />
-                    <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
-                        <div className="relative">
-                            <button
-                                onClick={() => setIsAuthModalOpen(false)}
-                                className="absolute -top-4 -right-4 z-20 bg-zinc-900 rounded-xl p-2 shadow-lg hover:bg-zinc-800 text-white"
-                            >
-                                <X className="h-4 w-4" />
-                            </button>
-                            <Login06 />
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
-    )
-}
-
-
 
 const HeroHeader = ({ onOpenAuth }: { onOpenAuth: () => void }) => {
     const [menuState, setMenuState] = React.useState(false)
@@ -198,5 +80,124 @@ const Logo = () => {
         <div>
             <h1 className={aclonica.className}>YNER</h1>
         </div>
+    )
+}
+
+export function HeroSection() {
+    const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false)
+    const [isUserLoggedIn, setIsUserLoggedIn] = React.useState<boolean | null>(null)
+    const router = useRouter()
+
+    React.useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setIsUserLoggedIn(!!user)
+        })
+        return () => unsubscribe()
+    }, [])
+
+    const handleStartAdventure = () => {
+        if (isUserLoggedIn) {
+            router.push('/Salle')
+        } else {
+            setIsAuthModalOpen(true)
+        }
+    }
+
+    return (
+        <>
+            <HeroHeader onOpenAuth={() => setIsAuthModalOpen(true)} />
+            <main className="overflow-x-hidden">
+                <section>
+                    <div className="py-24 md:pb-32 lg:pb-36 lg:pt-72">
+                        <div className="relative z-10 mx-auto flex max-w-7xl flex-col px-6 lg:block lg:px-12">
+                            <div className="mx-auto max-w-lg text-center lg:ml-0 lg:max-w-full lg:text-left">
+                                <h1 className={cn("mt-8 max-w-2xl text-balance text-5xl md:text-6xl lg:mt-16 xl:text-7xl", aclonica.className)}>Votre table virtuelle ultime</h1>
+                                <p className={cn("mt-8 max-w-2xl text-balance text-lg", aclonica.className)}>Créez des aventures épiques avec votre groupe. Plateforme VTT simple et intuitive.</p>
+
+                                <div className="mt-12 flex flex-col items-center justify-center gap-2 sm:flex-row lg:justify-start">
+                                    <Button
+                                        onClick={handleStartAdventure}
+                                        disabled={isUserLoggedIn === null}
+                                        size="lg"
+                                        className={cn("h-12 rounded-full pl-5 pr-3 text-base", aclonica.className)}>
+                                        <span className="text-nowrap">
+                                            {isUserLoggedIn === null ? 'Chargement...' : "Commencer l'aventure"}
+                                        </span>
+                                        <ChevronRight className="ml-1" />
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="aspect-[2/3] absolute inset-5 overflow-hidden rounded-3xl border border-black/10 sm:aspect-video lg:rounded-[3rem] dark:border-white/5">
+                            <div
+                                className="size-full"
+                                style={{
+                                    backgroundImage: "url('/images/index9.webp')",
+                                    backgroundSize: 'cover',
+                                    backgroundPosition: 'center',
+                                    maskImage: "url('/test.gif')",
+                                    maskSize: 'cover',
+                                    maskPosition: 'center',
+                                    WebkitMaskImage: "url('/test.gif')",
+                                    opacity: 0.75,
+                                }}
+                            ></div>
+                        </div>
+                    </div>
+                </section>
+                
+                <section>
+                    <div className="lg:pt-64 lg:pb-16">
+                        <div className="aspect-[2/3] relative mx-5 overflow-hidden rounded-3xl border border-black/10 sm:aspect-video lg:rounded-[3rem] dark:border-white/5">
+                            <div className="size-full bg-background/95 backdrop-blur-xl">
+                                <Features1 />
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                {/* Troisième carte avec le composant Features */}
+                <section>
+                    <div className="lg:pb-16">
+                        <div className="aspect-[2/3] relative mx-5 overflow-hidden rounded-3xl border border-black/10 sm:aspect-video lg:rounded-[3rem] dark:border-white/5">
+                            <div className="size-full bg-background/95 backdrop-blur-xl">
+                                <Features2 />
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <div className="lg:pb-16">
+                        <div className="aspect-[2/3] relative mx-5 overflow-hidden rounded-3xl border border-black/10 sm:aspect-video lg:rounded-[3rem] dark:border-white/5">
+                            <div className="size-full bg-background/95 backdrop-blur-xl">
+                                <Features3 />
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </main>
+            
+            {/* Modal d'authentification */}
+            {isAuthModalOpen && (
+                <div className="fixed inset-0 z-50">
+                    <div 
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => setIsAuthModalOpen(false)}
+                    />
+                    <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
+                        <div className="relative">
+                            <button
+                                onClick={() => setIsAuthModalOpen(false)}
+                                className="absolute -top-4 -right-4 z-20 bg-zinc-900 rounded-xl p-2 shadow-lg hover:bg-zinc-800 text-white"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                            <Login06 />
+                        </div>
+                    </div>
+                </div>
+            )}
+        </>
     )
 }

@@ -8,11 +8,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
-import { ArrowLeft, Users, Trash } from 'lucide-react'
+import { ArrowLeft, Users, Trash, Plus, Search, Play, Settings, Eye, Gamepad2 } from 'lucide-react'
 import { auth, db, collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, storage } from '@/lib/firebase'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
 import { AlertTitle } from "@/components/ui/alert"
+import { cn } from '@/lib/utils'
 
 
 interface Room {
@@ -34,16 +35,20 @@ function DialogDeleteConfirmation({ onConfirm }: { onConfirm: () => void }) {
 
   return (
     <>
-      <dialog ref={dialogRef} className="p-4 text-center bg-[#2a2a2a] rounded-md">
-        <h2 className="text-xl font-semibold text-[#c0a0a0] mb-4">Confirmer la suppression</h2>
-        <p className="text-[#a0a0a0] mb-6">Êtes-vous sûr de vouloir supprimer cette salle ? Cette action est irréversible.</p>
+      <dialog ref={dialogRef} className="p-6 text-center bg-card border border-border rounded-xl backdrop-blur-sm">
+        <h2 className="text-xl font-semibold text-foreground mb-4">Confirmer la suppression</h2>
+        <p className="text-muted-foreground mb-6">Êtes-vous sûr de vouloir supprimer cette salle ? Cette action est irréversible.</p>
         <div className="flex space-x-4 justify-center">
-          <Button onClick={() => { onConfirm(); closeDialog() }} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">Confirmer</Button>
-          <Button variant="outline" onClick={closeDialog} className="text-[#d4d4d4] border border-[#5c6bc0] hover:bg-[#5c6bc0]">Annuler</Button>
+          <Button onClick={() => { onConfirm(); closeDialog() }} variant="destructive" className="px-6">
+            Confirmer
+          </Button>
+          <Button variant="outline" onClick={closeDialog}>
+            Annuler
+          </Button>
         </div>
       </dialog>
-      <Button variant="ghost" onClick={openDialog} className="text-red-600 hover:bg-[#5c5c5c]">
-        <Trash className="h-5 w-5" /> Supprimer
+      <Button variant="ghost" size="sm" onClick={openDialog} className="text-destructive hover:text-destructive hover:bg-destructive/10">
+        <Trash className="h-4 w-4 mr-2" /> Supprimer
       </Button>
     </>
   )
@@ -108,38 +113,122 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
   }
 
   return (
-    <div className="flex w-full h-screen bg-[#2a2a2a] text-[#d4d4d4] p-6 flex-col">
-      <div className="flex items-center space-x-4 mb-6">
-        <Button variant="ghost" onClick={onBack}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Retour
-        </Button>
-        <h1 className="text-4xl font-bold text-[#c0a0a0]">{room.title}</h1>
-      </div>
-      <hr className="border-t border-[#3a3a3a] my-2" />
-      <div className="flex flex-col items-center mt-4">
-        <img src={room.imageUrl || '/placeholder.svg'} alt={`Image de la salle ${room.title}`} className="w-3/5 h-80 rounded-lg object-cover border border-[#3a3a3a] mb-6" />
-        <p className="text-lg text-[#a0a0a0]">{room.description}</p>
-        <div className="flex items-center space-x-3 mt-4">
-          <Users className="h-5 w-5 text-[#c0a0a0]" />
-          <span>Joueurs : {room.maxPlayers}</span>
-        </div>
-        <div className="flex space-x-4 mt-4">
-          <Button onClick={handleJoin} className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f] transition duration-300">Rejoindre la partie</Button>
-          {room.creatorId === auth.currentUser?.uid && (
-            <>
-              <Button variant="outline" onClick={onEdit} className="text-[#d4d4d4] border border-[#5c6bc0] hover:bg-[#5c6bc0]">Modifier</Button>
-              <DialogDeleteConfirmation onConfirm={handleDeleteRoom} />
-            </>
-          )}
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <div className="border-b border-border/40 bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={onBack} className="gap-2">
+              <ArrowLeft className="h-4 w-4" /> Retour
+            </Button>
+            <div className="h-6 w-px bg-border" />
+            <h1 className="text-2xl font-bold text-foreground">{room.title}</h1>
+          </div>
         </div>
       </div>
-      <hr className="border-t border-[#3a3a3a] my-2" />
-      {creatorInfo && (
-        <div className="flex items-center mt-4">
-          <img src={creatorInfo.pp} alt={`Image de ${creatorInfo.name}`} className="w-20 h-20 rounded-full mr-2" />
-          <span className="text-[#a0a0a0]">Créer par<br></br> {creatorInfo.name}</span>
+
+      {/* Main Content */}
+      <div className="container mx-auto px-6 py-8">
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Image principale */}
+          <div className="lg:col-span-2">
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 rounded-2xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm"></div>
+              <div className="relative aspect-video rounded-xl overflow-hidden border border-border">
+                <img 
+                  src={room.imageUrl || '/placeholder.svg'} 
+                  alt={`Image de la salle ${room.title}`} 
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                />
+              </div>
+            </div>
+            
+            {/* Description */}
+            <Card className="mt-6">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold mb-3 text-foreground">Description</h3>
+                <p className="text-muted-foreground leading-relaxed">{room.description}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sidebar avec infos et actions */}
+          <div className="space-y-6">
+            {/* Infos de la salle */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Gamepad2 className="h-5 w-5" />
+                  Informations
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Joueurs max</span>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" />
+                    <span className="font-medium">{room.maxPlayers}</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-muted-foreground">Visibilité</span>
+                  <span className={cn("px-2 py-1 rounded-full text-xs font-medium", 
+                    room.isPublic ? "bg-green-500/10 text-green-500" : "bg-orange-500/10 text-orange-500"
+                  )}>
+                    {room.isPublic ? "Publique" : "Privée"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Actions */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Actions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button onClick={handleJoin} className="w-full gap-2" size="lg">
+                  <Play className="h-4 w-4" />
+                  Rejoindre la partie
+                </Button>
+                {room.creatorId === auth.currentUser?.uid && (
+                  <div className="space-y-2">
+                    <Button variant="outline" onClick={onEdit} className="w-full gap-2">
+                      <Settings className="h-4 w-4" />
+                      Modifier
+                    </Button>
+                    <DialogDeleteConfirmation onConfirm={handleDeleteRoom} />
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Créateur */}
+            {creatorInfo && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Créateur</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <img 
+                        src={creatorInfo.pp} 
+                        alt={`Image de ${creatorInfo.name}`} 
+                        className="w-12 h-12 rounded-full border-2 border-border" 
+                      />
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">{creatorInfo.name}</p>
+                      <p className="text-sm text-muted-foreground">Maître de jeu</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
-      )}
+      </div>
     </div>
   )
 }
@@ -342,159 +431,276 @@ export default function Component() {
   }
 
   return (
-    <div className="container mx-auto p-4 min-h-screen bg-[#1c1c1c] text-[#d4d4d4] relative">
+    <div className="min-h-screen bg-background">
+      {/* Header moderne */}
+      <div className="border-b border-border/40 bg-card/50 backdrop-blur-sm">
+        <div className="container mx-auto px-6 py-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              Trouvez une partie
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Rejoignez une aventure ou créez votre propre monde
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Alert moderne */}
       {showAlert && (
-        <div className="absolute top-0 left-0 right-0 bg-red-600 text-white p-4 text-center z-50">
-          <AlertTitle>Aucune salle trouvée</AlertTitle>
-          Le code que vous avez entré ne correspond à aucune salle existante.
+        <div className="fixed top-4 right-4 bg-destructive text-destructive-foreground p-4 rounded-lg shadow-lg z-50 border border-destructive/20">
+          <AlertTitle className="mb-1">Aucune salle trouvée</AlertTitle>
+          <p className="text-sm opacity-90">Le code entré ne correspond à aucune salle existante.</p>
         </div>
       )}
-      <h1 className="text-3xl font-bold mb-6 text-[#c0a0a0]">Trouvez une partie</h1>
       
-      <Tabs defaultValue="rejoindre" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="rejoindre">Rejoindre</TabsTrigger>
-          <TabsTrigger value="creer">Créer</TabsTrigger>
-          <TabsTrigger value="mes-salles">Mes parties</TabsTrigger>
-        </TabsList>
+      <div className="container mx-auto px-6 py-8">
+        <Tabs defaultValue="rejoindre" className="w-full max-w-6xl mx-auto">
+          <TabsList className="grid w-full grid-cols-3 h-12 bg-muted/50">
+            <TabsTrigger value="rejoindre" className="gap-2">
+              <Search className="h-4 w-4" />
+              Rejoindre
+            </TabsTrigger>
+            <TabsTrigger value="creer" className="gap-2">
+              <Plus className="h-4 w-4" />
+              Créer
+            </TabsTrigger>
+            <TabsTrigger value="mes-salles" className="gap-2">
+              <Eye className="h-4 w-4" />
+              Mes parties
+            </TabsTrigger>
+          </TabsList>
         
-        <TabsContent value="rejoindre">
-          <Card className="bg-[#2a2a2a] text-[#d4d4d4] border border-[#3a3a3a]">
-            <CardHeader>
-              <CardTitle className="text-[#c0a0a0]">Rejoindre une partie</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold text-[#a0a0a0]">Entrez un code</h3>
-                  <div className="flex space-x-2">
+          <TabsContent value="rejoindre" className="mt-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Rejoindre par code */}
+              <Card className="relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Search className="h-5 w-5" />
+                    Entrez un code
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
                     <Input
                       type="text"
                       placeholder="Code à 6 chiffres"
                       value={roomCode}
                       onChange={(e) => setRoomCode(e.target.value)}
                       maxLength={6}
-                      className="text-2xl font-bold tracking-wider bg-[#1c1c1c] text-[#d4d4d4]"
+                      className="text-xl font-mono tracking-wider text-center h-12"
                     />
-                    <Button onClick={() => handleJoinRoom(roomCode)} size="lg" className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]">
+                    <Button 
+                      onClick={() => handleJoinRoom(roomCode)} 
+                      size="lg" 
+                      className="w-full gap-2"
+                    >
+                      <Play className="h-4 w-4" />
                       Rejoindre
                     </Button>
                   </div>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-2 text-[#a0a0a0]">Salles publiques</h3>
-                  <ul className="space-y-2">
-                    {publicRooms.map((room) => (
-                      <li key={room.id} className="flex justify-between items-center bg-[#2a2a2a] p-2 rounded border border-[#3a3a3a]">
-                        <span className="text-[#d4d4d4]">{room.title}</span>
-                        <Button onClick={() => handleJoinRoom(room.id)} variant="outline" size="sm" className="text-[#d4d4d4] border border-[#5c6bc0] hover:bg-[#5c6bc0]">
-                          Rejoindre
-                        </Button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+                </CardContent>
+              </Card>
+
+              {/* Salles publiques */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Salles publiques
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3 max-h-80 overflow-y-auto">
+                    {publicRooms.length > 0 ? (
+                      publicRooms.map((room) => (
+                        <div key={room.id} className="group relative">
+                          <div className="absolute bg-gradient-to-r from-primary/20 to-primary/10 rounded-lg opacity-0 group-hover:opacity-100 transition duration-300" />
+                          <div className="relative flex items-center justify-between p-3 bg-card border border-border rounded-lg hover:shadow-md transition-all duration-200">
+                            <div className="flex items-center gap-3">
+                              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                              <span className="font-medium">{room.title}</span>
+                            </div>
+                            <Button 
+                              onClick={() => handleJoinRoom(room.id)} 
+                              variant="outline" 
+                              size="sm"
+                              className="gap-2"
+                            >
+                              <Play className="h-3 w-3" />
+                              Rejoindre
+                            </Button>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-8">
+                        <Users className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">Aucune salle publique disponible</p>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
         
-        <TabsContent value="creer">
-          <Card className="bg-[#2a2a2a] text-[#d4d4d4] border border-[#3a3a3a]">
-            <CardHeader>
-              <CardTitle className="text-[#c0a0a0]">Créer une partie</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleCreateRoom} className="space-y-4">
-                <div>
-                  <label htmlFor="title" className="block text-sm font-medium text-[#a0a0a0]">Titre</label>
-                  <Input
-                    type="text"
-                    id="title"
-                    name="title"
-                    value={newRoom.title}
-                    onChange={handleInputChange}
-                    required
-                    className="bg-[#1c1c1c] text-[#d4d4d4]"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="description" className="block text-sm font-medium text-[#a0a0a0]">Description</label>
-                  <Textarea
-                    id="description"
-                    name="description"
-                    value={newRoom.description}
-                    onChange={handleInputChange}
-                    required
-                    className="bg-[#1c1c1c] text-[#d4d4d4]"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="image" className="block text-sm font-medium text-[#a0a0a0]">Image de la salle</label>
-                  <Input
-                    type="file"
-                    id="image"
-                    onChange={handleFileChange}
-                    required
-                    className="bg-[#1c1c1c] text-[#d4d4d4]"
-                  />
-                </div>
-                <div>
-                  <label htmlFor="maxPlayers" className="block text-sm font-medium text-[#a0a0a0]">Nombre maximum de joueurs</label>
-                  <Input
-                    type="number"
-                    id="maxPlayers"
-                    name="maxPlayers"
-                    value={newRoom.maxPlayers}
-                    onChange={handleInputChange}
-                    min="1"
-                    required
-                    className="bg-[#1c1c1c] text-[#d4d4d4]"
-                  />
-                </div>
-                <div className="flex items-center space-x-2">
-                  <label className="block text-sm font-medium text-[#a0a0a0]">Salle publique</label>
-                  <Switch
-                    id="isPublic"
-                    checked={newRoom.isPublic}
-                    onCheckedChange={handleToggleChange}
-                    className="text-[#d4d4d4]"
-                  />
-                </div>
-                <Button type="submit" className="w-full bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f]">
-                  Créer la salle
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
+          <TabsContent value="creer" className="mt-6">
+            <Card className="max-w-2xl mx-auto">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Plus className="h-5 w-5" />
+                  Créer une nouvelle partie
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleCreateRoom} className="space-y-6">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label htmlFor="title" className="text-sm font-medium text-foreground">Titre *</label>
+                      <Input
+                        type="text"
+                        id="title"
+                        name="title"
+                        value={newRoom.title}
+                        onChange={handleInputChange}
+                        placeholder="Ma super aventure"
+                        required
+                        className="h-11"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="maxPlayers" className="text-sm font-medium text-foreground">Joueurs max *</label>
+                      <Input
+                        type="number"
+                        id="maxPlayers"
+                        name="maxPlayers"
+                        value={newRoom.maxPlayers}
+                        onChange={handleInputChange}
+                        min="1"
+                        max="12"
+                        required
+                        className="h-11"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label htmlFor="description" className="text-sm font-medium text-foreground">Description *</label>
+                    <Textarea
+                      id="description"
+                      name="description"
+                      value={newRoom.description}
+                      onChange={handleInputChange}
+                      placeholder="Décrivez votre aventure, le style de jeu, l'ambiance..."
+                      rows={4}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label htmlFor="image" className="text-sm font-medium text-foreground">Image de la salle *</label>
+                    <Input
+                      type="file"
+                      id="image"
+                      onChange={handleFileChange}
+                      accept="image/*"
+                      required
+                      className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-muted file:text-muted-foreground hover:file:bg-muted/80"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-foreground">Salle publique</label>
+                      <p className="text-xs text-muted-foreground">
+                        Les salles publiques apparaissent dans la liste pour tous les joueurs
+                      </p>
+                    </div>
+                    <Switch
+                      id="isPublic"
+                      checked={newRoom.isPublic}
+                      onCheckedChange={handleToggleChange}
+                    />
+                  </div>
+                  
+                  <Button type="submit" className="w-full gap-2 h-11" size="lg">
+                    <Plus className="h-4 w-4" />
+                    Créer la salle
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
         
-        <TabsContent value="mes-salles">
-          <Card className="bg-[#2a2a2a] text-[#d4d4d4] border border-[#3a3a3a]">
-            <CardHeader>
-              <CardTitle className="text-[#c0a0a0]">Mes parties</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div>
+          <TabsContent value="mes-salles" className="mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="h-5 w-5" />
+                  Mes parties
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                 {userRooms.length > 0 ? (
-                  <ul className="space-y-2">
+                  <div className="grid gap-4">
                     {userRooms.map((room) => (
-                      <li key={room.id} className="flex justify-between items-center bg-black p-2 rounded  border border-[#3a3a3a]">
-                        <span>{room.title}</span>
-                        <Button onClick={() => setSelectedRoom(room)} variant="outline" size="sm" className="text-[#d4d4d4] border border-[#5c6bc0] hover:bg-[#5c6bc0]">
-                          Voir
-                        </Button>
-                      </li>
+                      <div key={room.id} className="group relative">
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm" />
+                        <Card className="relative border-border/50 hover:border-primary/30 transition-all duration-300">
+                          <CardContent className="p-4">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-4">
+                                <div>
+                                  <h3 className="font-semibold text-foreground">{room.title}</h3>
+                                  <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                                    <span className="flex items-center gap-1">
+                                      <Users className="h-3 w-3" />
+                                      {room.maxPlayers} joueurs
+                                    </span>
+                                    <span className={cn("px-2 py-0.5 rounded-full text-xs", 
+                                      room.isPublic ? "bg-green-500/10 text-green-500" : "bg-orange-500/10 text-orange-500"
+                                    )}>
+                                      {room.isPublic ? "Publique" : "Privée"}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <Button 
+                                onClick={() => setSelectedRoom(room)} 
+                                variant="outline" 
+                                size="sm"
+                                className="gap-2"
+                              >
+                                <Eye className="h-3 w-3" />
+                                Voir
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 ) : (
-                  <p className="text-[#a0a0a0]">Vous n&apos;avez pas encore de salles. Rejoignez ou créez une salle pour commencer.</p>
+                  <div className="text-center py-12">
+                    <Gamepad2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Aucune partie trouvée</h3>
+                    <p className="text-muted-foreground mb-4">
+                      Vous n&apos;avez pas encore de salles. Rejoignez ou créez une salle pour commencer.
+                    </p>
+                    <Button variant="outline" className="gap-2">
+                      <Plus className="h-4 w-4" />
+                      Créer ma première salle
+                    </Button>
+                  </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
     </div>
   )
 }
