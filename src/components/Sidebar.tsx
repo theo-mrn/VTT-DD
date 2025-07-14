@@ -1,19 +1,11 @@
 // Sidebar.tsx
 "use client";
 
-import { Swords, BookOpen, FileText, Edit, Dice5, List, Search } from "lucide-react"; 
+import { Swords, BookOpen, FileText, Edit, Dice5, List, Search ,ChartColumn} from "lucide-react"; 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useCompetences } from "@/contexts/CompetencesContext";
 import debounce from 'lodash/debounce';
-import {
-  CommandDialog,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+
 import {
   Dialog,
   DialogContent,
@@ -77,6 +69,7 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
         const results = searchCompetences(term);
         searchResultsRef.current(results);
       } catch (error) {
+        console.error(error);
         searchResultsRef.current([]);
       } finally {
         isSearchingRef.current(false);
@@ -137,11 +130,15 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
         <button onClick={() => handleIconClick("DiceRoller")} className="p-2">
           <Dice5 className={`h-6 w-6 ${activeTab === "DiceRoller" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button>
+        
         <button onClick={() => handleIconClick("Competences")} className="p-2">
           <List className={`h-6 w-6 ${activeTab === "Competences" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button>
         <button onClick={() => handleIconClick("infoComponent")} className="p-2">
           <BookOpen className={`h-6 w-6 ${activeTab === "infoComponent" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
+        </button>
+        <button onClick={() => handleIconClick("Statistiques")} className="p-2">
+          <ChartColumn className={`h-6 w-6 ${activeTab === "Statistiques" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button>
       </aside>
 
