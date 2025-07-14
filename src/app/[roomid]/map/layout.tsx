@@ -13,7 +13,7 @@ import OverlayComponent from "@/components/overlay";
 import InfoComponent from "@/components/info";
 import RollRequest from '@/components/Rollrequest';
 import { Button } from "@/components/ui/button";
-
+import { Statistiques } from "@/components/Statistiques";
 import { auth, db, onAuthStateChanged, collection, onSnapshot } from "@/lib/firebase";
 
 type LayoutProps = {
@@ -70,6 +70,8 @@ export default function Layout({ children }: LayoutProps) {
         return <Competences />;
       case "infoComponent":
         return <InfoComponent />;
+      case "Statistiques":
+          return <Statistiques />;
       default:
         return null;
     }
