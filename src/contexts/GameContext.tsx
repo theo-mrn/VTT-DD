@@ -43,6 +43,7 @@ interface GameContextType {
   user: UserData | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isHydrated: boolean;
   
   // Actions
   setIsMJ: (isMJ: boolean) => void;
@@ -99,15 +100,16 @@ const clearLocalStorage = () => {
 };
 
 export function GameProvider({ children }: { children: ReactNode }) {
-  // États du jeu avec restauration immédiate depuis localStorage
-  const [isMJ, setIsMJState] = useState(() => loadFromLocalStorage(STORAGE_KEYS.IS_MJ) || false);
-  const [persoId, setPersoIdState] = useState<string | null>(() => loadFromLocalStorage(STORAGE_KEYS.PERSO_ID));
-  const [playerData, setPlayerDataState] = useState<PlayerData | null>(() => loadFromLocalStorage(STORAGE_KEYS.PLAYER_DATA));
+  // États du jeu - initialisation sans localStorage pour éviter les problèmes d'hydratation
+  const [isMJ, setIsMJState] = useState(false);
+  const [persoId, setPersoIdState] = useState<string | null>(null);
+  const [playerData, setPlayerDataState] = useState<PlayerData | null>(null);
   
   // États d'authentification
   const [user, setUser] = useState<UserData | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   // Wrappers pour sauvegarder dans localStorage
   const setIsMJ = useCallback((value: boolean) => {
@@ -204,9 +206,54 @@ export function GameProvider({ children }: { children: ReactNode }) {
         console.log('👤 PersoId:', userData.persoId);
         console.log('🏠 RoomId:', userData.room_id);
         
-        // Logique corrigée : Si l'utilisateur a un persoId, il est forcément un joueur, pas un MJ
-        if (userData.persoId && userData.room_id) {
-          console.log('✅ User has persoId, treating as PLAYER regardless of role field');
+        // Logique corrigée : Prioriser le champ 'role' pour déterminer si l'utilisateur est MJ
+        if (userData.role === 'MJ') {
+          console.log('✅ User has MJ role, treating as MJ');
+          setIsMJ(true);
+          setPersoId(userData.persoId || null);
+          setPlayerData(null);
+          console.log("🎭 User restored as MJ");
+          
+          // Si le MJ a aussi un persoId, charger les données du personnage pour référence
+          if (userData.persoId && userData.room_id) {
+            console.log('📥 Loading MJ character data for reference:', userData.persoId);
+            const characterRef = doc(db, `cartes/${userData.room_id}/characters`, userData.persoId);
+            const characterDoc = await getDoc(characterRef);
+            
+            if (characterDoc.exists()) {
+              const characterData = characterDoc.data();
+              console.log('🧙‍♂️ MJ character data loaded for reference:', characterData);
+              
+              const fullCharacterData: PlayerData = { 
+                id: userData.persoId, 
+                Nomperso: characterData.Nomperso || userData.perso,
+                imageURL: characterData.imageURL,
+                imageURL2: characterData.imageURL2,
+                type: characterData.type,
+                niveau: characterData.niveau,
+                PV: characterData.PV_F || characterData.PV,
+                Defense: characterData.Defense_F || characterData.Defense,
+                Contact: characterData.Contact_F || characterData.Contact,
+                Distance: characterData.Distance_F || characterData.Distance,
+                Magie: characterData.Magie_F || characterData.Magie,
+                INIT: characterData.INIT_F || characterData.INIT,
+                FOR: characterData.FOR_F || characterData.FOR,
+                DEX: characterData.DEX_F || characterData.DEX,
+                CON: characterData.CON_F || characterData.CON,
+                SAG: characterData.SAG_F || characterData.SAG,
+                INT: characterData.INT_F || characterData.INT,
+                CHA: characterData.CHA_F || characterData.CHA,
+                x: characterData.x,
+                y: characterData.y,
+                visibility: characterData.visibility,
+                visibilityRadius: characterData.visibilityRadius,
+              };
+              
+              setPlayerData(fullCharacterData);
+            }
+          }
+        } else if (userData.persoId && userData.room_id) {
+          console.log('✅ User has persoId and no MJ role, treating as PLAYER');
           
           // Récupérer les données complètes du personnage
           console.log('📥 Loading character data for persoId:', userData.persoId);
@@ -242,7 +289,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
               visibilityRadius: characterData.visibilityRadius,
             };
             
-            // L'utilisateur est un JOUEUR (pas un MJ) car il a un personnage
+            // L'utilisateur est un JOUEUR (pas un MJ)
             setIsMJ(false);
             setPersoId(userData.persoId);
             setPlayerData(fullCharacterData);
@@ -255,12 +302,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
             setPersoId(null);
             setPlayerData(null);
           }
-        } else if (userData.role === 'MJ') {
-          console.log('✅ User has MJ role and no persoId, treating as MJ');
-          setIsMJ(true);
-          setPersoId(null);
-          setPlayerData(null);
-          console.log("🎭 User restored as MJ");
         } else {
           console.log('⚠️ User has no persoId and no MJ role - unclear state');
           console.log('🔧 Defaulting to non-MJ state');
@@ -293,10 +334,25 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   }, [getRoomId]);
 
+  // Effet pour l'hydratation - charger depuis localStorage après le montage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedIsMJ = loadFromLocalStorage(STORAGE_KEYS.IS_MJ);
+      const savedPersoId = loadFromLocalStorage(STORAGE_KEYS.PERSO_ID);
+      const savedPlayerData = loadFromLocalStorage(STORAGE_KEYS.PLAYER_DATA);
+      
+      if (savedIsMJ !== null) setIsMJState(savedIsMJ);
+      if (savedPersoId !== null) setPersoIdState(savedPersoId);
+      if (savedPlayerData !== null) setPlayerDataState(savedPlayerData);
+      
+      setIsHydrated(true);
+    }
+  }, []);
+
   // Debug: Log des changements d'état
   useEffect(() => {
-    console.log('Game Context State:', { isMJ, persoId, playerData: playerData?.Nomperso });
-  }, [isMJ, persoId, playerData]);
+    console.log('Game Context State:', { isMJ, persoId, playerData: playerData?.Nomperso, isHydrated });
+  }, [isMJ, persoId, playerData, isHydrated]);
 
   // Gestion de l'authentification avec restauration automatique
   useEffect(() => {
@@ -360,6 +416,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       user,
       isAuthenticated,
       isLoading,
+      isHydrated,
       
       // Actions
       setIsMJ, 
