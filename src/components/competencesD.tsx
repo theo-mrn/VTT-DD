@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, MinusCircle, Info, Star } from "lucide-react";
+import { PlusCircle, MinusCircle, Info, Star, RefreshCw } from "lucide-react";
 import { db, getDoc, doc, setDoc, updateDoc, collection, getDocs } from "@/lib/firebase";
 
 // Type definitions
@@ -66,7 +66,7 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
 });
   const [detailsOpenCompetenceId, setDetailsOpenCompetenceId] = useState<string | null>(null);
   const [bonusOpenCompetenceId, setBonusOpenCompetenceId] = useState<string | null>(null);
-  const [customCompetences, setCustomCompetences] = useState<CustomCompetence[]>([]);
+  // Removed unused state for custom competences to satisfy linter
   
 
   useEffect(() => {
@@ -96,7 +96,6 @@ export default function CompetencesDisplay({ roomId, characterId }: CompetencesD
         });
       });
       
-      setCustomCompetences(customComps);
       return customComps;
     } catch (error) {
       console.error('Error loading custom competences:', error);
@@ -342,7 +341,19 @@ const handleAddBonus = async () => {
             >
               <CardContent className="flex flex-col p-4 text-[var(--text-primary)]">
                 <div className="flex justify-between items-center">
-                  <span className="font-semibold text-[var(--accent-brown)]">{competence.name}</span>
+                  <span className="font-semibold text-[var(--accent-brown)] flex items-center gap-2">
+                    {(() => {
+                      const name = competence.name || "";
+                      const isCustomized = name.startsWith("🔄 ");
+                      const cleanName = isCustomized ? name.slice(2).trim() : name;
+                      return (
+                        <>
+                          {isCustomized && <RefreshCw className="h-4 w-4 text-[var(--accent-brown)]" />}
+                          <span>{cleanName}</span>
+                        </>
+                      );
+                    })()}
+                  </span>
                   <div className="flex space-x-2">
                     <Dialog open={detailsOpenCompetenceId === competence.id} onOpenChange={(isOpen) => setDetailsOpenCompetenceId(isOpen ? competence.id : null)}>
                       <DialogTrigger asChild>
@@ -365,7 +376,19 @@ const handleAddBonus = async () => {
                         onEscapeKeyDown={(e) => e.stopPropagation()}
                       >
                         <DialogHeader>
-                          <DialogTitle className="modal-title">{selectedCompetence?.name}</DialogTitle>
+                          <DialogTitle className="modal-title flex items-center gap-2">
+                            {(() => {
+                              const name = selectedCompetence?.name || "";
+                              const isCustomized = name.startsWith("🔄 ");
+                              const cleanName = isCustomized ? name.slice(2).trim() : name;
+                              return (
+                                <>
+                                  {isCustomized && <RefreshCw className="h-4 w-4" />}
+                                  <span>{cleanName}</span>
+                                </>
+                              );
+                            })()}
+                          </DialogTitle>
                           <DialogDescription className="modal-text" dangerouslySetInnerHTML={{ __html: selectedCompetence?.description || "" }}/>
                         </DialogHeader>
                         <DialogFooter>
@@ -399,7 +422,20 @@ const handleAddBonus = async () => {
                         onEscapeKeyDown={(e) => e.stopPropagation()}
                       >
                         <DialogHeader>
-                          <DialogTitle className="modal-title">Gérer les bonus pour {selectedCompetence?.name}</DialogTitle>
+                          <DialogTitle className="modal-title flex items-center gap-2">
+                            {(() => {
+                              const name = selectedCompetence?.name || "";
+                              const isCustomized = name.startsWith("🔄 ");
+                              const cleanName = isCustomized ? name.slice(2).trim() : name;
+                              return (
+                                <>
+                                  <span>Gérer les bonus pour</span>
+                                  {isCustomized && <RefreshCw className="h-4 w-4" />}
+                                  <span>{cleanName}</span>
+                                </>
+                              );
+                            })()}
+                          </DialogTitle>
                         </DialogHeader>
                         <div className="py-4">
                           <div className="grid gap-4">

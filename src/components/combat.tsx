@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useGame } from '@/contexts/GameContext'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Sword, Shield, Wand2, Target, Cog, X } from 'lucide-react'
+import { Sword,  Wand2, Target, Cog, X } from 'lucide-react'
 import { auth, db, doc, getDoc, onAuthStateChanged, collection, getDocs, setDoc } from '@/lib/firebase'
 
 type DiceRoll = {
@@ -29,6 +30,7 @@ type CombatPageProps = {
 
 
 export default function CombatPage({ attackerId, targetId, onClose }: CombatPageProps) {
+  const { isMJ } = useGame();
   const [attackResult, setAttackResult] = useState<string>("")
   const [damageRoll, setDamageRoll] = useState<number[]>([])
   const [showDamage, setShowDamage] = useState(false)
@@ -84,7 +86,8 @@ export default function CombatPage({ attackerId, targetId, onClose }: CombatPage
               const settingsDoc = await getDoc(doc(db, `cartes/${fetchedRoomId}/settings/general`))
               if (settingsDoc.exists()) {
                 const currentTurn = settingsDoc.data().tour_joueur
-                setIsPlayerTurn(currentTurn === attackerId)
+                // Le MJ peut attaquer avec n'importe quel personnage, sinon seul le personnage actif peut attaquer
+                setIsPlayerTurn(isMJ || currentTurn === attackerId)
               }
             } else {
               console.warn("room_id non trouvé pour l'utilisateur")

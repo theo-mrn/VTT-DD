@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { X, Plus, Minus, Move, Edit, Pencil, Eraser, CircleUserRound, Baseline, ChevronRight, ChevronLeft, User, Grid } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, ChevronRight, ChevronLeft, User, Grid } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -33,6 +33,7 @@ export default function Component() {
   const [combatOpen, setCombatOpen] = useState(false);
   const [attackerId, setAttackerId] = useState<string | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
+  const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
   const [backgroundImage, setBackgroundImage] = useState('/placeholder.svg?height=600&width=800')
   const [showGrid, setShowGrid] = useState(false)
   const [zoom, setZoom] = useState(1.4)
@@ -64,7 +65,6 @@ export default function Component() {
   
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  const [isMoving, setIsMoving] = useState(false)
   
   // 🎯 NOUVEAUX ÉTATS pour le drag & drop des personnages
   const [isDraggingCharacter, setIsDraggingCharacter] = useState(false)
@@ -104,7 +104,6 @@ export default function Component() {
   const [lastFogCell, setLastFogCell] = useState<string | null>(null); // Dernière cellule touchée pour éviter les doublons
   const [isFogAddMode, setIsFogAddMode] = useState(true); // Pour savoir si on ajoute (true) ou supprime (false) du brouillard
   const [fullMapFog, setFullMapFog] = useState(false); // Pour couvrir toute la carte de brouillard
-  const [isSelecting, setIsSelecting] = useState(true);
   const [selectionStart, setSelectionStart] = useState<Point | null>(null);
   const [selectionEnd, setSelectionEnd] = useState<Point | null>(null);
   const [isSelectingArea, setIsSelectingArea] = useState(false);
@@ -112,6 +111,7 @@ export default function Component() {
   const [selectedFogIndex, setSelectedFogIndex] = useState<number | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
+  const [mouseButton, setMouseButton] = useState<number | null>(null); // Pour tracker quel bouton de souris est pressé
 
 
   useEffect(() => {
@@ -215,14 +215,47 @@ useEffect(() => {
   // Firebase Functions
   
   const handleAttack = () => {
-    if (persoId && selectedCharacterIndex !== null) {
+    console.log('=== HANDLE ATTACK DEBUG ===');
+    console.log('persoId:', persoId);
+    console.log('selectedCharacterIndex:', selectedCharacterIndex);
+    console.log('activePlayerId:', activePlayerId);
+    console.log('isMJ:', isMJ);
+    
+    if (selectedCharacterIndex !== null) {
       const targetCharacter = characters[selectedCharacterIndex];
-      if (targetCharacter && targetCharacter.id) {  // Add null check
-        setAttackerId(persoId);           // L'attaquant est l'utilisateur actuel
-        setTargetId(targetCharacter.id);   // La cible est le personnage sélectionné
-        setCombatOpen(true);               // Ouvrir le composant de combat
+      console.log('targetCharacter:', targetCharacter);
+      
+      if (targetCharacter && targetCharacter.id) {
+        console.log('Setting combat parameters...');
+        
+        if (isMJ) {
+          // Pour le MJ : l'attaquant est le personnage actif (en rouge)
+          if (activePlayerId) {
+            setAttackerId(activePlayerId);
+            setTargetId(targetCharacter.id);
+            setCombatOpen(true);
+            console.log('MJ attacking with activePlayer:', activePlayerId, 'against:', targetCharacter.id);
+          } else {
+            console.log('No active player ID for MJ attack');
+          }
+        } else {
+          // Pour les joueurs : l'attaquant est leur personnage
+          if (persoId) {
+            setAttackerId(persoId);
+            setTargetId(targetCharacter.id);
+            setCombatOpen(true);
+            console.log('Player attacking with:', persoId, 'against:', targetCharacter.id);
+          } else {
+            console.log('No persoId for player attack');
+          }
+        }
+      } else {
+        console.log('Target character has no ID');
       }
+    } else {
+      console.log('No character selected');
     }
+    console.log('=========================');
   };
 
 
@@ -231,6 +264,14 @@ useEffect(() => {
     onSnapshot(fondRef, (doc) => {
       if (doc.exists() && doc.data().url) {
         setBackgroundImage(doc.data().url);
+      }
+    });
+
+    // Écouter le personnage actif (tour_joueur)
+    const settingsRef = doc(db, 'cartes', room.toString(), 'settings', 'general');
+    onSnapshot(settingsRef, (doc) => {
+      if (doc.exists() && doc.data().tour_joueur) {
+        setActivePlayerId(doc.data().tour_joueur);
       }
     });
     // Charger les personnages
@@ -751,19 +792,39 @@ onSnapshot(charactersRef, (snapshot) => {
             lineWidth = 4;
           } else {
             // Couleur normale selon le type
-            borderColor = char.id === persoId 
-              ? 'rgba(255, 0, 0, 0.8)'           // Red for the player's character
-              : char.type === 'joueurs' 
-              ? 'rgba(0, 0, 255, 0.8)'           // Blue for other 'joueurs' type characters
-              : 'rgba(255, 165, 0, 0.8)';        // Orange for other characters (e.g., NPCs)
+            if (isMJ) {
+              // MJ : voit le personnage actif en rouge vif
+              borderColor = char.id === activePlayerId 
+                ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour le personnage actif (dont c'est le tour)
+                : char.type === 'joueurs' 
+                ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les personnages joueurs
+                : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
+            } else {
+              // Joueur : voit SEULEMENT son personnage en rouge
+              borderColor = char.id === persoId 
+                ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour SON personnage
+                : char.type === 'joueurs' 
+                ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les autres personnages joueurs
+                : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
+            }
           }
         } else {
           // Couleur normale selon le type
-          borderColor = char.id === persoId 
-            ? 'rgba(255, 0, 0, 0.8)'           // Red for the player's character
-            : char.type === 'joueurs' 
-            ? 'rgba(0, 0, 255, 0.8)'           // Blue for other 'joueurs' type characters
-            : 'rgba(255, 165, 0, 0.8)';        // Orange for other characters (e.g., NPCs)
+          if (isMJ) {
+            // MJ : voit le personnage actif en rouge vif
+            borderColor = char.id === activePlayerId 
+              ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour le personnage actif (dont c'est le tour)
+              : char.type === 'joueurs' 
+              ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les personnages joueurs
+              : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
+          } else {
+            // Joueur : voit SEULEMENT son personnage en rouge
+            borderColor = char.id === persoId 
+              ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour SON personnage
+              : char.type === 'joueurs' 
+              ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les autres personnages joueurs
+              : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
+          }
         }
           
         ctx.strokeStyle = borderColor;
@@ -996,8 +1057,15 @@ const handleNoteSubmitNew = async () => {
 
 
 const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
+  // Empêcher le menu contextuel sur clic droit
+  e.preventDefault();
+  
   const rect = canvasRef.current?.getBoundingClientRect();
   if (!rect) return;
+  
+  // Stocker quel bouton de souris est pressé (0 = gauche, 2 = droit)
+  setMouseButton(e.button);
+  
   const containerWidth = containerRef.current?.getBoundingClientRect().width || rect.width;
   const containerHeight = containerRef.current?.getBoundingClientRect().height || rect.height;
   const image = new Image();
@@ -1009,185 +1077,146 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
     const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
     const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
 
-    // Gérer le double-clic pour ouvrir les fiches de personnage
-    if (e.detail === 2) {
+    // CLIC DROIT (button = 2) : DÉPLACEMENT DE LA CARTE
+    if (e.button === 2) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX, y: e.clientY });
+      return;
+    }
+
+    // CLIC GAUCHE (button = 0) : SÉLECTION ET INTERACTIONS
+    if (e.button === 0) {
+      // Gérer le double-clic pour ouvrir les fiches de personnage
+      if (e.detail === 2) {
+        const clickedCharIndex = characters.findIndex(char => {
+          const charX = (char.x / image.width) * scaledWidth - offset.x;
+          const charY = (char.y / image.height) * scaledHeight - offset.y;
+          return Math.abs(charX - e.clientX + rect.left) < 20 * zoom && Math.abs(charY - e.clientY + rect.top) < 20 * zoom;
+        });
+
+        if (clickedCharIndex !== -1 && characters[clickedCharIndex].type === "joueurs") {
+          const character = characters[clickedCharIndex];
+          setSelectedCharacterForSheet(character.id);
+          setShowCharacterSheet(true);
+          return;
+        }
+      }
+
+      // 🎯 NOUVEAU Mode brouillard - priorité élevée (placement continu)
+      if (fogMode) {
+        setIsFogDragging(true);
+        const firstCellKey = getCellKey(clickX, clickY);
+        const isCurrentlyFogged = fogGrid.has(firstCellKey);
+        
+        // Décider si on ajoute ou supprime selon l'état actuel de la première cellule
+        // Si la cellule est dans le brouillard, on supprime (addMode = false)
+        // Si la cellule n'est pas dans le brouillard, on ajoute (addMode = true)
+        const addMode = !isCurrentlyFogged;
+        
+        setLastFogCell(null); // Réinitialiser pour permettre la première modification
+        await addFogCellIfNew(clickX, clickY, addMode);
+        
+        // Stocker le mode pour le drag (utiliser une variable spécifique)
+        setIsFogAddMode(addMode);
+        return;
+      }
+
+      // Mode dessin - priorité élevée
+      if (drawMode) {
+        setIsDrawing(true);
+        setCurrentPath([{ x: clickX, y: clickY }]);
+        return;
+      }
+
+      // 🎯 MODE SÉLECTION PAR DÉFAUT - Nouveau comportement principal
+      // Vérifier si on clique sur un élément existant
       const clickedCharIndex = characters.findIndex(char => {
         const charX = (char.x / image.width) * scaledWidth - offset.x;
         const charY = (char.y / image.height) * scaledHeight - offset.y;
         return Math.abs(charX - e.clientX + rect.left) < 20 * zoom && Math.abs(charY - e.clientY + rect.top) < 20 * zoom;
       });
-
-      if (clickedCharIndex !== -1 && characters[clickedCharIndex].type === "joueurs") {
-        const character = characters[clickedCharIndex];
-        setSelectedCharacterForSheet(character.id);
-        setShowCharacterSheet(true);
-        return;
-      }
-    }
-
-    // 🎯 NOUVEAU Mode brouillard - priorité élevée (placement continu)
-    if (fogMode) {
-      setIsFogDragging(true);
-      const firstCellKey = getCellKey(clickX, clickY);
-      const isCurrentlyFogged = fogGrid.has(firstCellKey);
       
-      // Décider si on ajoute ou supprime selon l'état actuel de la première cellule
-      // Si la cellule est dans le brouillard, on supprime (addMode = false)
-      // Si la cellule n'est pas dans le brouillard, on ajoute (addMode = true)
-      const addMode = !isCurrentlyFogged;
+      const clickedNoteIndex = notes.findIndex(note => {
+        const noteX = (note.x / image.width) * scaledWidth - offset.x;
+        const noteY = (note.y / image.height) * scaledHeight - offset.y;
+        return Math.abs(noteX - e.clientX + rect.left) < 50 * zoom && Math.abs(noteY - e.clientY + rect.top) < 20 * zoom;
+      });
       
-      setLastFogCell(null); // Réinitialiser pour permettre la première modification
-      await addFogCellIfNew(clickX, clickY, addMode);
-      
-      // Stocker le mode pour le drag (utiliser une variable spécifique)
-      setIsFogAddMode(addMode);
-      return;
-    }
+      // 🎯 NOUVEAU : Vérifier si on clique sur une cellule de brouillard
+      const clickedFogIndex = isCellInFog(clickX, clickY) ? 0 : -1;
 
-    // Mode dessin - priorité élevée
-    if (drawMode) {
-      setIsDrawing(true);
-      setCurrentPath([{ x: clickX, y: clickY }]);
-      return;
-    }
-
-    // Mode déplacement - priorité élevée
-    if (isMoving) {
-      if (selectedCharacterIndex !== null) {
-        const charToMove = characters[selectedCharacterIndex];
-        if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && typeof charToMove?.id === 'string' && charToMove.id.trim()) {
-          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToMove.id), {
-            x: clickX,
-            y: clickY
-          });
-        } else {
-          console.error("Erreur: roomId ou charToMove.id n'est pas une chaîne valide.");
-        }
-      } else if (selectedNoteIndex !== null) {
-        const noteToMove = notes[selectedNoteIndex];
-        if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && typeof noteToMove?.id === 'string' && noteToMove.id.trim()) {
-          await updateDoc(doc(db, 'cartes', String(roomId), 'text', noteToMove.id), {
-            x: clickX,
-            y: clickY
-          });
-        } else {
-          console.error("Erreur: roomId ou noteToMove.id n'est pas une chaîne valide.");
-        }
-      } else if (selectedCharacters.length > 0) {
-        const updatePromises = selectedCharacters.map(async (index) => {
-          const charToMove = characters[index];
-          if (charToMove?.id) {
-            const deltaX = charToMove.x - characters[selectedCharacters[0]].x;
-            const deltaY = charToMove.y - characters[selectedCharacters[0]].y;
-            await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToMove.id), {
-              x: clickX + deltaX,
-              y: clickY + deltaY
-            });
+      // Si on clique sur un élément, le sélectionner
+      if (clickedCharIndex !== -1) {
+        // Si Ctrl/Cmd est pressé, ajouter à la sélection multiple
+        if (e.ctrlKey || e.metaKey) {
+          if (selectedCharacters.includes(clickedCharIndex)) {
+            setSelectedCharacters(prev => prev.filter(index => index !== clickedCharIndex));
+          } else {
+            setSelectedCharacters(prev => [...prev, clickedCharIndex]);
           }
-        });
-        await Promise.all(updatePromises);
-        setSelectedCharacters([]);
-      }
-      setIsMoving(false);
-      setSelectedCharacterIndex(null);
-      setSelectedNoteIndex(null);
-      return;
-    }
-
-    // 🎯 MODE SÉLECTION PAR DÉFAUT - Nouveau comportement principal
-    // Vérifier si on clique sur un élément existant
-    const clickedCharIndex = characters.findIndex(char => {
-      const charX = (char.x / image.width) * scaledWidth - offset.x;
-      const charY = (char.y / image.height) * scaledHeight - offset.y;
-      return Math.abs(charX - e.clientX + rect.left) < 20 * zoom && Math.abs(charY - e.clientY + rect.top) < 20 * zoom;
-    });
-    
-    const clickedNoteIndex = notes.findIndex(note => {
-      const noteX = (note.x / image.width) * scaledWidth - offset.x;
-      const noteY = (note.y / image.height) * scaledHeight - offset.y;
-      return Math.abs(noteX - e.clientX + rect.left) < 50 * zoom && Math.abs(noteY - e.clientY + rect.top) < 20 * zoom;
-    });
-    
-    // 🎯 NOUVEAU : Vérifier si on clique sur une cellule de brouillard
-    const clickedFogIndex = isCellInFog(clickX, clickY) ? 0 : -1;
-
-    // Si on clique sur un élément, le sélectionner
-    if (clickedCharIndex !== -1) {
-      // Si Ctrl/Cmd est pressé, ajouter à la sélection multiple
-      if (e.ctrlKey || e.metaKey) {
-        if (selectedCharacters.includes(clickedCharIndex)) {
-          setSelectedCharacters(prev => prev.filter(index => index !== clickedCharIndex));
         } else {
-          setSelectedCharacters(prev => [...prev, clickedCharIndex]);
-        }
-      } else {
-        // 🎯 NOUVEAU : Commencer le drag & drop du personnage ou groupe
-        const isAlreadySelected = selectedCharacters.includes(clickedCharIndex);
-        const charactersToMove = isAlreadySelected && selectedCharacters.length > 1 
-          ? selectedCharacters 
-          : [clickedCharIndex];
-        
-        // Vérifier les permissions de déplacement pour tous les personnages à déplacer
-        const canMoveAllCharacters = charactersToMove.every(index => {
-          const character = characters[index];
-          // MJ peut déplacer tous les personnages
-          if (isMJ) return true;
-          // Joueur peut seulement déplacer son propre personnage (type joueurs)
-          return character.type === 'joueurs' && character.id === persoId;
-        });
-        
-        if (!canMoveAllCharacters) {
-          // Si l'utilisateur n'a pas le droit de déplacer au moins un des personnages, 
-          // on ne fait que sélectionner sans initier le drag
+          // 🎯 NOUVEAU : Commencer le drag & drop du personnage ou groupe
+          const isAlreadySelected = selectedCharacters.includes(clickedCharIndex);
+          const charactersToMove = isAlreadySelected && selectedCharacters.length > 1 
+            ? selectedCharacters 
+            : [clickedCharIndex];
+          
+          // Vérifier les permissions de déplacement pour tous les personnages à déplacer
+          const canMoveAllCharacters = charactersToMove.every(index => {
+            const character = characters[index];
+            // MJ peut déplacer tous les personnages
+            if (isMJ) return true;
+            // Joueur peut seulement déplacer son propre personnage (type joueurs)
+            return character.type === 'joueurs' && character.id === persoId;
+          });
+          
+          if (!canMoveAllCharacters) {
+            // Si l'utilisateur n'a pas le droit de déplacer au moins un des personnages, 
+            // on ne fait que sélectionner sans initier le drag
+            if (!isAlreadySelected) {
+              setSelectedCharacterIndex(clickedCharIndex);
+              setSelectedCharacters([clickedCharIndex]);
+            }
+            return;
+          }
+          
           if (!isAlreadySelected) {
             setSelectedCharacterIndex(clickedCharIndex);
             setSelectedCharacters([clickedCharIndex]);
           }
-          return;
+          
+          // Préparer le drag des personnages (seulement si autorisé)
+          setIsDraggingCharacter(true);
+          setDraggedCharacterIndex(clickedCharIndex);
+          
+          // Sauvegarder les positions originales de tous les personnages à déplacer
+          const originalPositions = charactersToMove.map(index => ({
+            index,
+            x: characters[index].x,
+            y: characters[index].y
+          }));
+          setDraggedCharactersOriginalPositions(originalPositions);
         }
+        setSelectedNoteIndex(null);
+        setSelectedFogIndex(null);
+      } else if (clickedNoteIndex !== -1) {
+        setSelectedNoteIndex(clickedNoteIndex);
+        setSelectedCharacterIndex(null);
+        setSelectedFogIndex(null);
+        setSelectedCharacters([]);
         
-        if (!isAlreadySelected) {
-          setSelectedCharacterIndex(clickedCharIndex);
-          setSelectedCharacters([clickedCharIndex]);
-        }
-        
-        // Préparer le drag des personnages (seulement si autorisé)
-        setIsDraggingCharacter(true);
-        setDraggedCharacterIndex(clickedCharIndex);
-        
-        // Sauvegarder les positions originales de tous les personnages à déplacer
-        const originalPositions = charactersToMove.map(index => ({
-          index,
-          x: characters[index].x,
-          y: characters[index].y
-        }));
-        setDraggedCharactersOriginalPositions(originalPositions);
-        
-        // Calculer l'offset entre la position du personnage cliqué et le clic
-
-      }
-      setSelectedNoteIndex(null);
-      setSelectedFogIndex(null);
-    } else if (clickedNoteIndex !== -1) {
-      setSelectedNoteIndex(clickedNoteIndex);
-      setSelectedCharacterIndex(null);
-      setSelectedFogIndex(null);
-      setSelectedCharacters([]);
-      
-      // 🎯 NOUVEAU : Commencer le drag & drop de la note
-      const note = notes[clickedNoteIndex];
-      setIsDraggingNote(true);
-      setDraggedNoteIndex(clickedNoteIndex);
-      setDraggedNoteOriginalPos({ x: note.x, y: note.y });
-    } else if (clickedFogIndex !== -1) {
-      setSelectedFogIndex(clickedFogIndex);
-      setSelectedCharacterIndex(null);
-      setSelectedNoteIndex(null);
-      setSelectedCharacters([]);
-    } else {
-      // 🎯 COMPORTEMENT SELON LE MODE
-      if (isSelecting) {
-        // Mode sélection : Commencer une sélection par zone
+        // 🎯 NOUVEAU : Commencer le drag & drop de la note
+        const note = notes[clickedNoteIndex];
+        setIsDraggingNote(true);
+        setDraggedNoteIndex(clickedNoteIndex);
+        setDraggedNoteOriginalPos({ x: note.x, y: note.y });
+      } else if (clickedFogIndex !== -1) {
+        setSelectedFogIndex(clickedFogIndex);
+        setSelectedCharacterIndex(null);
+        setSelectedNoteIndex(null);
+        setSelectedCharacters([]);
+      } else {
+        // Clic sur zone vide : Commencer une sélection par zone
         setSelectedCharacterIndex(null);
         setSelectedNoteIndex(null);
         setSelectedFogIndex(null);
@@ -1195,12 +1224,8 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
         
         setSelectionStart({ x: clickX, y: clickY });
         setIsSelectingArea(true);
-      } else {
-        // Mode déplacement carte : Commencer le drag de la carte
-        setIsDragging(true);
-        setDragStart({ x: e.clientX, y: e.clientY });
       }
-    }
+    } // Fin du clic gauche
   };
 };
 
@@ -1226,8 +1251,8 @@ const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
       return;
     }
 
-    // 🎯 DÉPLACEMENT DE CARTE - Priorité élevée si mode déplacement activé
-    if (isDragging && !isSelecting) {
+    // 🎯 DÉPLACEMENT DE CARTE - Priorité élevée (clic droit)
+    if (isDragging && mouseButton === 2) {
       const dx = e.clientX - dragStart.x;
       const dy = e.clientY - dragStart.y;
       setOffset((prev) => ({ x: prev.x - dx, y: prev.y - dy }));
@@ -1323,6 +1348,10 @@ const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
 
 
 const handleCanvasMouseUp = async () => {
+  // Réinitialiser le bouton de souris
+  const currentMouseButton = mouseButton;
+  setMouseButton(null);
+
   // 🎯 FIN DU DRAG & DROP NOTE - Priorité élevée
   if (isDraggingNote && draggedNoteIndex !== null) {
     const draggedNote = notes[draggedNoteIndex];
@@ -1404,8 +1433,10 @@ const handleCanvasMouseUp = async () => {
     return;
   }
 
-  // Fin du déplacement de carte
-  setIsDragging(false);
+  // Fin du déplacement de carte (clic droit)
+  if (currentMouseButton === 2) {
+    setIsDragging(false);
+  }
 
   // 🎯 NOUVEAU : Fin du placement continu de brouillard
   if (isFogDragging && fogMode) {
@@ -1771,12 +1802,7 @@ const handleNoteSubmit = async () => {
     {toolbarVisible && (
       <div className="flex flex-col gap-6 w-64 rounded-lg  p-6 bg-[var(--bg-dark)] self-center text-white">
         {/* 🎯 Indicateur de statut */}
-        <div className="text-center text-sm space-y-1 border-b border-gray-600 pb-3">
-          <div className="text-gray-300">{isMJ ? '🎲 Maître du Jeu' : '👤 Joueur'}</div>
-          <div className="text-xs text-gray-400">
-            Drag personnage = Déplacer | Drag zone vide = Sélectionner
-          </div>
-        </div>
+       
         
         <div className='flex flex-row gap-6 justify-center'>
         <Button className="button-primary " onClick={() => handleZoom(-0.1)}>
@@ -1841,14 +1867,7 @@ const handleNoteSubmit = async () => {
 
     
 
-          {/* 🎯 Bouton pour basculer mode déplacement carte */}
-        <Button 
-          onClick={() => setIsSelecting(!isSelecting)} 
-          className={!isSelecting ? 'bg-green-600' : ''}
-        >
-          <Move className="w-4 h-4 mr-2" />
-          {!isSelecting ? 'Mode Sélection' : 'Déplacer la carte'}
-        </Button>
+
 
 
         {isMJ && (
@@ -1927,9 +1946,9 @@ const handleNoteSubmit = async () => {
   
       <div
     ref={containerRef}
-    className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${
+          className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${
       isDraggingCharacter || isDraggingNote ? 'cursor-grabbing' : 
-      !isSelecting ? 'cursor-move' : 'cursor-default'
+      isDragging ? 'cursor-move' : 'cursor-default'
     } relative`}
     style={{ 
       height: '100vh',
@@ -1939,6 +1958,7 @@ const handleNoteSubmit = async () => {
     onMouseMove={handleCanvasMouseMove}
     onMouseUp={handleCanvasMouseUp}
     onMouseLeave={handleCanvasMouseUp}
+    onContextMenu={(e) => e.preventDefault()} // Empêcher le menu contextuel
 >
     <canvas
         ref={canvasRef}
@@ -1973,6 +1993,30 @@ const handleNoteSubmit = async () => {
         {/* Boutons pour les personnages non-joueurs (MJ seulement) */}
         {isMJ && characters[selectedCharacterIndex]?.type !== 'joueurs' && (
           <>
+            <Button onClick={async () => {
+              const character = characters[selectedCharacterIndex];
+              const newVisibility = character.visibility === 'visible' ? 'hidden' : 'visible';
+              
+              if (character.id && roomId) {
+                try {
+                  await updateDoc(doc(db, 'cartes', String(roomId), 'characters', character.id), {
+                    visibility: newVisibility
+                  });
+                  
+                  setCharacters(prevCharacters => 
+                    prevCharacters.map((char, index) => 
+                      index === selectedCharacterIndex 
+                        ? { ...char, visibility: newVisibility }
+                        : char
+                    )
+                  );
+                } catch (error) {
+                  console.error("Erreur lors du changement de visibilité :", error);
+                }
+              }
+            }}>
+              {characters[selectedCharacterIndex].visibility === 'visible' ? '👁️' : '👁️‍🗨️'} {characters[selectedCharacterIndex].visibility === 'visible' ? 'Cacher' : 'Montrer'}
+            </Button>
             <Button onClick={() => {
               setCharacterToDelete(characters[selectedCharacterIndex]);
               setConfirmDeleteOpen(true);
@@ -1982,10 +2026,14 @@ const handleNoteSubmit = async () => {
             <Button onClick={handleEditCharacter}>
               <Edit className="w-4 h-4 mr-2" /> Modifier
             </Button>
-            <Button className="button-primary" onClick={handleAttack}>
-              <Edit className="w-4 h-4 mr-2" /> Attaquer
-            </Button>
           </>
+        )}
+        
+        {/* Bouton Attaquer pour TOUS les personnages (MJ seulement) */}
+        {isMJ && (
+          <Button className="button-primary" onClick={handleAttack}>
+            <Edit className="w-4 h-4 mr-2" /> Attaquer
+          </Button>
         )}
         
         {/* Bouton modifier pour les personnages joueurs (MJ seulement) */}
@@ -1996,8 +2044,21 @@ const handleNoteSubmit = async () => {
         )}
       </>
     ) : (
-      characters[selectedCharacterIndex].id !== persoId && (
+      (isMJ || characters[selectedCharacterIndex].id !== persoId) && (
         <>
+          {(() => {
+            console.log('=== BUTTON DISPLAY DEBUG ===');
+            console.log('persoId:', persoId);
+            console.log('activePlayerId:', activePlayerId);
+            console.log('selectedCharacter:', characters[selectedCharacterIndex]);
+            console.log('selectedCharacter.id:', characters[selectedCharacterIndex]?.id);
+            console.log('selectedCharacter.type:', characters[selectedCharacterIndex]?.type);
+            console.log('selectedCharacter.id !== persoId:', characters[selectedCharacterIndex]?.id !== persoId);
+            console.log('isMJ:', isMJ);
+            console.log('Overall condition:', isMJ || characters[selectedCharacterIndex]?.id !== persoId);
+            console.log('=========================');
+            return null;
+          })()}
           <Button className="button-primary" onClick={handleAttack}>
             <Edit className="w-4 h-4 mr-2" /> Attaquer
           </Button>
@@ -2015,8 +2076,8 @@ const handleNoteSubmit = async () => {
   </div>
 )}
 
-{selectedCharacters.length > 0 && isMJ && (
-  // Afficher le bouton seulement si au moins un personnage non-joueur est sélectionné
+{selectedCharacters.length > 1 && isMJ && (
+  // Afficher le bouton seulement si plusieurs personnages non-joueurs sont sélectionnés
   (() => {
     const hasNonPlayerCharacter = selectedCharacters.some(index => 
       characters[index]?.type !== 'joueurs'
@@ -2025,7 +2086,7 @@ const handleNoteSubmit = async () => {
   })() && (
     <div className="absolute bottom-3 flex left-1/2 space-x-2 items-center">
       <Button onClick={handleDeleteSelectedCharacters}>
-        <X className="w-4 h-4 mr-2" /> Supprimer
+        <X className="w-4 h-4 mr-2" /> Supprimer la sélection
       </Button>
     </div>
   )
