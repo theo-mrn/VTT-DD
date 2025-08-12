@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useEffect, useState } from 'react'
+import { RefreshCw } from 'lucide-react'
 import { auth, db, getDoc, onAuthStateChanged, doc, collection, getDocs, updateDoc } from '@/lib/firebase'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -334,7 +335,7 @@ export default function Competences() {
                             onClick={() => setShowChangeComponent(true)}
                             className="button-primary"
                         >
-                            🔧 Gérer les Voies
+                        Gérer les Voies
                         </Button>
                     </div>
                     <div id="tabContent" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl w-full">
@@ -360,7 +361,15 @@ export default function Competences() {
                                                     } cursor-pointer hover:text-[var(--text-primary)]`}
                                                     onClick={() => handleSkillClick(skillName, skillDescription, i + 1, `v${voieNumber}`)}
                                                 >
-                                                    {skillName}
+                                                    <span className="inline-flex items-center gap-2">
+                                                        {skillName?.startsWith('🔄 ')
+                                                            ? <>
+                                                                <RefreshCw className="h-4 w-4" />
+                                                                <span>{skillName.slice(2).trim()}</span>
+                                                              </>
+                                                            : <span>{skillName}</span>
+                                                        }
+                                                    </span>
                                                 </div>
                                             )
                                         })}

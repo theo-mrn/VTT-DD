@@ -76,7 +76,7 @@ export default function CharacterSelection() {
       const fullCharacterData = character;
       
       // Set context values avec toutes les données du personnage
-      setIsMJ(false);
+      // Note: Ne pas modifier isMJ ici - laissez le contexte gérer la logique basée sur la base de données
       setPersoId(character.id);
       setPlayerData(fullCharacterData);
       
@@ -89,7 +89,8 @@ export default function CharacterSelection() {
       const userRef = doc(db, 'users', user.uid)
       await setDoc(userRef, { 
         perso: character.Nomperso, 
-        persoId: character.id
+        persoId: character.id,
+        role: null  // Supprimer le rôle MJ quand on sélectionne un personnage
       }, { merge: true })
 
       if (user.roomId) {
@@ -121,7 +122,8 @@ export default function CharacterSelection() {
       
       await setDoc(userRef, { 
         perso: 'MJ',
-        role: 'MJ'
+        role: 'MJ',
+        persoId: null  // Supprimer le persoId quand on devient MJ
       }, { merge: true })
 
       if (user.roomId) {

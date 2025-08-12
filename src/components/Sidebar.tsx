@@ -4,6 +4,7 @@
 import { Swords, BookOpen, FileText, Edit, Dice5, List, Search ,ChartColumn} from "lucide-react"; 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useCompetences } from "@/contexts/CompetencesContext";
+import { useGame } from "@/contexts/GameContext";
 import debounce from 'lodash/debounce';
 
 import {
@@ -29,6 +30,7 @@ type Competence = {
 };
 
 export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarProps) {
+  const { isHydrated } = useGame();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<Competence[]>([]);
@@ -116,7 +118,7 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
         >
           <Search className="h-6 w-6 text-[#d4d4d4] hover:text-[#c0a080]" />
         </button>
-        {isMJ && (
+        {isHydrated && isMJ && (
           <button onClick={() => handleIconClick("GMDashboard")} className="p-2">
             <Swords className={`h-6 w-6 ${activeTab === "GMDashboard" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
           </button>

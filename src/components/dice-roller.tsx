@@ -4,13 +4,11 @@ import React, { useState, useEffect } from "react";
 import { DiceRoll } from "@dice-roller/rpg-dice-roller";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dice1, RotateCcw, History, Trash2, Shield } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { useGame } from '@/contexts/GameContext';
 import { NumberTicker } from "@/components/magicui/number-ticker";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -51,7 +49,7 @@ export function DiceRoller() {
   const [isPrivate, setIsPrivate] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
-  const [showHistory, setShowHistory] = useState(true);
+  const [showHistory] = useState(true);
   
   // États utilisateur et personnage - récupérés directement de Firebase
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -61,7 +59,7 @@ export function DiceRoller() {
   const [userAvatar, setUserAvatar] = useState<string | undefined>(undefined);
   const [characterName, setCharacterName] = useState("Utilisateur");
   const [characterModifiers, setCharacterModifiers] = useState<{ [key: string]: number }>({});
-  const [rawCharacterValues, setRawCharacterValues] = useState<{ [key: string]: number }>({});
+
 
   // Effet pour afficher les détails 1 seconde après le résultat
   useEffect(() => {
@@ -81,9 +79,7 @@ export function DiceRoller() {
     return characterModifiers;
   };
 
-  const getRawCharacterValues = () => {
-    return rawCharacterValues;
-  };
+
 
   // Fonction pour charger les données du personnage depuis Firebase
   const fetchCharacterInfo = async (roomId: string, persoId: string) => {
@@ -110,18 +106,7 @@ export function DiceRoller() {
           Magie: charData.Magie_F || charData.Magie || 0,
           Defense: charData.Defense_F || charData.Defense || 0,
         });
-        setRawCharacterValues({
-          CON: charData.CON_F || charData.CON || 0,
-          DEX: charData.DEX_F || charData.DEX || 0,
-          FOR: charData.FOR_F || charData.FOR || 0,
-          SAG: charData.SAG_F || charData.SAG || 0,
-          INT: charData.INT_F || charData.INT || 0,
-          CHA: charData.CHA_F || charData.CHA || 0,
-          Contact: charData.Contact_F || charData.Contact || 0,
-          Distance: charData.Distance_F || charData.Distance || 0,
-          Magie: charData.Magie_F || charData.Magie || 0,
-          Defense: charData.Defense_F || charData.Defense || 0,
-        });
+
         console.log("Fetched character info:", charData);
         return charData;
       } else {
@@ -617,12 +602,13 @@ export function DiceRoller() {
 
         <AnimatePresence>
           {showHistory && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="space-y-2 max-h-64 overflow-y-auto"
-            >
+            <div className="overflow-y-auto">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="space-y-2"
+              >
               {getFilteredRolls().length === 0 ? (
                 <div className="text-center text-[var(--text-secondary)] py-8">
                   Aucun lancer dans l&apos;historique
@@ -670,7 +656,8 @@ export function DiceRoller() {
                   </motion.div>
                 ))
               )}
-            </motion.div>
+              </motion.div>
+            </div>
           )}
         </AnimatePresence>
       </div>

@@ -135,6 +135,73 @@
   @apply text-[var(--text-primary)] mb-4;
 }
 
+/* Bento Grid Styles - Style bento dynamique */
+.bento-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (min-width: 640px) {
+  .bento-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+  }
+}
+
+/* Bento card sizes - Style bento véritable */
+.bento-small {
+  grid-column: span 1;
+  min-height: 180px;
+}
+
+.bento-medium {
+  grid-column: span 1;
+  min-height: 240px;
+}
+
+.bento-tall {
+  grid-column: span 1;
+  min-height: 320px;
+}
+
+/* Cartes qui prennent toute la largeur sur tous les écrans */
+.bento-wide {
+  grid-column: 1 / -1; /* Prend toute la largeur disponible */
+  min-height: 280px;
+}
+
+.bento-large {
+  grid-column: 1 / -1; /* Prend toute la largeur disponible */
+  min-height: 380px;
+}
+
+/* Ajustements pour les grandes cartes sur écran large */
+@media (min-width: 640px) {
+  .bento-wide {
+    min-height: 250px;
+  }
+  
+  .bento-large {
+    min-height: 350px;
+  }
+}
+
+/* Text utilities */
+.line-clamp-6 {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.hyphens-auto {
+  hyphens: auto;
+  word-break: break-word;
+}
+
 @layer base {
   * {
     @apply border-border;
