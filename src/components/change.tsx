@@ -685,9 +685,19 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
                   <option value="Samourai">Samourai</option>
                   <option value="Guerrier">Guerrier</option>
                   <option value="Barde">Barde</option>
+                  <option value="Barbare">Barbare</option>
+                  <option value="Chevalier">Chevalier</option>
+                  <option value="Druide">Druide</option>
+                  <option value="Ensorceleur">Ensorceleur</option>
+                  <option value="Forgesort">Forgesort</option>
+                  <option value="Guerrier">Guerrier</option>
+                  <option value="Invocateur">Invocateur</option>
                   <option value="Moine">Moine</option>
+                  <option value="Psionique">Psionique</option>
                   <option value="Pretre">Prêtre</option>
                   <option value="Rodeur">Rôdeur</option>
+                  <option value="Voleur">Voleur</option>
+
                 </select>
               </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
