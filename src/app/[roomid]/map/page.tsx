@@ -8,12 +8,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, ChevronRight, ChevronLeft, User, Grid } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, ChevronRight, ChevronLeft, User, Grid, Music } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import CharacterSheet from '@/components/CharacterSheet'; // Importez le composant de fiche de personnage
+import FloatingMusic from '@/components/FloatingMusic'; // Lecteur musical flottant
 
 
 export default function Component() {
@@ -2690,6 +2691,9 @@ const handleNoteSubmit = async () => {
           }}
         />
       )}
+
+      {/* Lecteur Musical Flottant */}
+      <FloatingMusic roomId={roomId} />
     </div>
   ); 
 }
