@@ -148,7 +148,7 @@ export default function InfoComponent() {
                 <p className="text-sm text-stone-400">Informations générales.</p>
               </div>
               <Image
-                src="/images/info.png"
+                src="/images/information.png"
                 alt="Information image"
                 width={100}
                 height={100}
