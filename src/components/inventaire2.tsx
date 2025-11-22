@@ -641,12 +641,13 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
 
               {/* Items de l'inventaire */}
               {filteredInventory.map(item => (
-                <Tooltip key={item.id}>
-                  <Card 
-                    className="relative group hover:shadow-lg transition-all duration-200 bg-[var(--bg-card)] border-[var(--border-color)] overflow-hidden aspect-square"
-                  >
-                    <CardContent className="p-4 flex flex-col items-center justify-center h-full">
-                      <DropdownMenu>
+                <Card 
+                  key={item.id}
+                  className="relative group hover:shadow-lg transition-all duration-200 bg-[var(--bg-card)] border-[var(--border-color)] overflow-hidden aspect-square"
+                >
+                  <CardContent className="p-4 flex flex-col items-center justify-center h-full">
+                    <DropdownMenu modal={false}>
+                      <Tooltip>
                         <TooltipTrigger asChild>
                           <DropdownMenuTrigger asChild>
                             {/* Icône de la catégorie avec badge de quantité - cliquable */}
@@ -665,74 +666,80 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                             </div>
                           </DropdownMenuTrigger>
                         </TooltipTrigger>
-                         <DropdownMenuContent className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
-                           <DropdownMenuItem onSelect={() => {
-                             setCurrentItem(item);
-                             setNewItemName(item.message);
-                             setIsRenameDialogOpen(true);
-                           }}>
-                             Renommer
-                           </DropdownMenuItem>
-                           <DropdownMenuItem onSelect={() => { 
-                             setCurrentItem(item); 
-                             setIsBonusDialogOpen(true);
-                           }}>
-                             Gérer les bonus
-                           </DropdownMenuItem>
-                           {itemsWithBonus.has(item.id) && (
-                             <DropdownMenuItem onSelect={() => handleToggleBonusActive(item.id)}>
-                               {bonusActiveMap[item.id] === false ? 'Activer le bonus' : 'Désactiver le bonus'}
-                             </DropdownMenuItem>
-                           )}
-                           <DropdownMenuItem onSelect={() => { 
-                             setCurrentItem(item); 
-                             if (item.diceSelection) {
-                               const [count, faces] = item.diceSelection.split('d').map(Number);
-                               setDiceCount(count || 1);
-                               setDiceFaces(faces || 6);
-                             }
-                             setIsDiceDialogOpen(true);
-                           }}>
-                             Modifier les dés
-                           </DropdownMenuItem>
-                           <DropdownMenuItem onSelect={() => handleDeleteItem(item.id)} className="text-red-500">
-                             Supprimer
-                           </DropdownMenuItem>
-                         </DropdownMenuContent>
-                      </DropdownMenu>
-                    </CardContent>
-                  </Card>
-                  <TooltipContent className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
-                    <div className="space-y-1">
-                      <p className="font-semibold">{item.message}</p>
-                      {item.diceSelection && (
-                        <p className="text-xs font-bold text-green-700 font-mono"> {item.diceSelection}</p>
-                      )}
-                        {itemsWithBonus.has(item.id) && (
-                          <div className="text-xs">
-                            {bonusActiveMap[item.id] === false ? (
-                              <p className="text-gray-500 font-semibold italic">Bonus inactif</p>
-                            ) : bonusesMap[item.id] && bonusesMap[item.id].length > 0 ? (
-                              <>
-                                <p className="text-black">Bonus actifs:</p>
-                                {bonusesMap[item.id].map((bonus, index) => (
-                                  <span key={index} className="text-blue-700 font-bold">
-                                    {bonus.type} +{bonus.value}{index < bonusesMap[item.id].length - 1 ? ', ' : ''}
-                                  </span>
-                                ))}
-                              </>
-                            ) : null}
+                        <TooltipContent className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
+                          <div className="space-y-1">
+                            <p className="font-semibold">{item.message}</p>
+                            {item.diceSelection && (
+                              <p className="text-xs font-bold text-green-700 font-mono"> {item.diceSelection}</p>
+                            )}
+                              {itemsWithBonus.has(item.id) && (
+                                <div className="text-xs">
+                                  {bonusActiveMap[item.id] === false ? (
+                                    <p className="text-gray-500 font-semibold italic">Bonus inactif</p>
+                                  ) : bonusesMap[item.id] && bonusesMap[item.id].length > 0 ? (
+                                    <>
+                                      <p className="text-black">Bonus actifs:</p>
+                                      {bonusesMap[item.id].map((bonus, index) => (
+                                        <span key={index} className="text-blue-700 font-bold">
+                                          {bonus.type} +{bonus.value}{index < bonusesMap[item.id].length - 1 ? ', ' : ''}
+                                        </span>
+                                      ))}
+                                    </>
+                                  ) : null}
+                                </div>
+                              )}
                           </div>
+                        </TooltipContent>
+                      </Tooltip>
+                      <DropdownMenuContent className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
+                        <DropdownMenuItem onSelect={() => {
+                          setCurrentItem(item);
+                          setNewItemName(item.message);
+                          setIsRenameDialogOpen(true);
+                        }}>
+                          Renommer
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => { 
+                          setCurrentItem(item); 
+                          setIsBonusDialogOpen(true);
+                        }}>
+                          Gérer les bonus
+                        </DropdownMenuItem>
+                        {itemsWithBonus.has(item.id) && (
+                          <DropdownMenuItem onSelect={() => handleToggleBonusActive(item.id)}>
+                            {bonusActiveMap[item.id] === false ? 'Activer le bonus' : 'Désactiver le bonus'}
+                          </DropdownMenuItem>
                         )}
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
+                        <DropdownMenuItem onSelect={() => { 
+                          setCurrentItem(item); 
+                          if (item.diceSelection) {
+                            const [count, faces] = item.diceSelection.split('d').map(Number);
+                            setDiceCount(count || 1);
+                            setDiceFaces(faces || 6);
+                          }
+                          setIsDiceDialogOpen(true);
+                        }}>
+                          Modifier les dés
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleDeleteItem(item.id)} className="text-red-500">
+                          Supprimer
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </CardContent>
+                </Card>
               ))}
           </div>
         </TooltipProvider>
 
         {/* Dialogs identiques à l'original */}
-        <Dialog open={isRenameDialogOpen} onOpenChange={setIsRenameDialogOpen}>
+        <Dialog open={isRenameDialogOpen} onOpenChange={(open) => {
+          setIsRenameDialogOpen(open);
+          if (!open) {
+            setCurrentItem(null);
+            setNewItemName('');
+          }
+        }}>
           <DialogContent className="modal-content">
             <DialogHeader>
               <DialogTitle className="modal-title">Renommer {currentItem?.message}</DialogTitle>
@@ -749,7 +756,14 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isBonusDialogOpen} onOpenChange={setIsBonusDialogOpen}>
+        <Dialog open={isBonusDialogOpen} onOpenChange={(open) => {
+          setIsBonusDialogOpen(open);
+          if (!open) {
+            setCurrentItem(null);
+            setBonusType('');
+            setBonusValue('');
+          }
+        }}>
           <DialogContent className="modal-content">
             <DialogHeader>
               <DialogTitle className="modal-title">Gérer les bonus de {currentItem?.message}</DialogTitle>
@@ -781,7 +795,14 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
           </DialogContent>
         </Dialog>
 
-        <Dialog open={isDiceDialogOpen} onOpenChange={setIsDiceDialogOpen}>
+        <Dialog open={isDiceDialogOpen} onOpenChange={(open) => {
+          setIsDiceDialogOpen(open);
+          if (!open) {
+            setCurrentItem(null);
+            setDiceCount(1);
+            setDiceFaces(6);
+          }
+        }}>
           <DialogContent className="modal-content">
             <DialogHeader>
               <DialogTitle className="modal-title">Modifier les dés pour {currentItem?.message}</DialogTitle>
