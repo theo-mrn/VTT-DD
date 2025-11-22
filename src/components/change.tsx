@@ -6,9 +6,32 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { db, auth, onAuthStateChanged, getDoc, setDoc, doc, collection, getDocs, deleteDoc } from '@/lib/firebase';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, Check, ChevronsUpDown, Info, GripVertical } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+  DragOverEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 type Competence = {
   titre: string;
@@ -39,6 +62,130 @@ interface CharacterProfileProps {
   onClose?: () => void;
 }
 
+// Sortable Voie Card Component
+function SortableVoieCard({ 
+  voie, 
+  index, 
+  onRemove, 
+  onCompetenceClick, 
+  onVoieClick, 
+  onResetCompetence 
+}: {
+  voie: Voie;
+  index: number;
+  onRemove: (index: number) => void;
+  onCompetenceClick: (voieIndex: number, compIndex: number) => void;
+  onVoieClick: (index: number) => void;
+  onResetCompetence: (voieIndex: number, compIndex: number) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+    isOver,
+  } = useSortable({ id: `voie-${index}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.3 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <Card className={`card relative transition-all duration-200 ${
+        isDragging ? 'shadow-2xl scale-105 ring-2 ring-[var(--accent-brown)]' : ''
+      } ${
+        isOver ? 'ring-4 ring-[var(--accent-brown)] ring-opacity-50 scale-105 bg-[var(--accent-brown)] bg-opacity-10' : ''
+      }`}>
+        <CardHeader className="pb-2">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center gap-2 flex-1">
+              <div
+                {...listeners}
+                className="cursor-grab active:cursor-grabbing hover:bg-[var(--bg-card)] p-1 rounded transition-all hover:scale-110"
+                title="⋮⋮ Glisser pour réorganiser"
+              >
+                <GripVertical className="w-5 h-5 text-[var(--accent-brown)]" />
+              </div>
+              <CardTitle className="text-[var(--accent-brown)]">{voie.nom}</CardTitle>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove(index);
+              }}
+              className="button-cancel"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-2">
+            {voie.competences.map((competence, compIndex) => (
+              <li 
+                key={compIndex}
+                className={`group flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${
+                  competence.isCustom 
+                    ? 'border-[var(--accent-brown)] bg-[var(--bg-card)]' 
+                    : 'border-[var(--border-color)] hover:border-[var(--accent-brown)]'
+                }`}
+                onClick={() => onCompetenceClick(index, compIndex)}
+              >
+                <div className="flex-1">
+                  <span className={`${competence.isCustom ? 'text-[var(--accent-brown)]' : 'text-[var(--text-secondary)]'}`}>
+                    {competence.titre}
+                    {competence.isCustom && ' 🔄'}
+                  </span>
+                  {competence.isCustom && competence.originalVoie && (
+                    <div className="text-xs text-[var(--text-secondary)] mt-1">
+                      Depuis: {competence.originalVoie} (rang {competence.originalRank})
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="button-primary p-1 h-6 w-6"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onVoieClick(index);
+                    }}
+                    title="Voir détails de la voie"
+                  >
+                    <Info />
+                  </Button>
+                  {competence.isCustom && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="button-cancel p-1 h-6 w-6"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onResetCompetence(index, compIndex);
+                      }}
+                      title="Rétablir compétence originale"
+                    >
+                      ↺
+                    </Button>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 export default function CharacterProfile({ onClose }: CharacterProfileProps = {}) {
   const router = useRouter();
   const [, setProfile] = useState<string | null>(null);
@@ -50,7 +197,15 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
   const [selectedCompetenceIndex, setSelectedCompetenceIndex] = useState<number | null>(null);
   const [replacementVoies, setReplacementVoies] = useState<Voie[]>([]);
   const [selectedReplacement, setSelectedReplacement] = useState<Voie | null>(null);
-  const [selectedProfile, setSelectedProfile] = useState<string>('Samourai');
+  const [selectedProfile, setSelectedProfile] = useState<string>('');
+  const [profileSearchTerm, setProfileSearchTerm] = useState<string>('');
+  const [isProfileInputFocused, setIsProfileInputFocused] = useState(false);
+  const [selectedRace, setSelectedRace] = useState<string>('');
+  const [raceSearchTerm, setRaceSearchTerm] = useState<string>('');
+  const [isRaceInputFocused, setIsRaceInputFocused] = useState(false);
+  const [selectedPrestige, setSelectedPrestige] = useState<string>('');
+  const [prestigeSearchTerm, setPrestigeSearchTerm] = useState<string>('');
+  const [isPrestigeInputFocused, setIsPrestigeInputFocused] = useState(false);
   const [isDetailsPanelOpen, setIsDetailsPanelOpen] = useState(false);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [persoId, setPersoId] = useState<string | null>(null);
@@ -58,8 +213,56 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
   const [customCompetences, setCustomCompetences] = useState<CustomCompetence[]>([]);
   const [isCompetenceDialogOpen, setIsCompetenceDialogOpen] = useState(false);
   const [selectedCompetenceSlot, setSelectedCompetenceSlot] = useState<{voieIndex: number, competenceIndex: number} | null>(null);
-  const [allAvailableCompetences, setAllAvailableCompetences] = useState<{category: string, voies: {voie: string, competences: Competence[]}[]}[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedVoieForCompetence, setSelectedVoieForCompetence] = useState<Voie | null>(null);
+  const [isCompetenceDetailsPanelOpen, setIsCompetenceDetailsPanelOpen] = useState(false);
+  const [competenceReplacementVoies, setCompetenceReplacementVoies] = useState<Voie[]>([]);
+  const [selectedProfileForCompetence, setSelectedProfileForCompetence] = useState<string>('');
+  const [profileForCompetenceSearchTerm, setProfileForCompetenceSearchTerm] = useState<string>('');
+  const [isProfileForCompetenceInputFocused, setIsProfileForCompetenceInputFocused] = useState(false);
+  const [selectedRaceForCompetence, setSelectedRaceForCompetence] = useState<string>('');
+  const [raceForCompetenceSearchTerm, setRaceForCompetenceSearchTerm] = useState<string>('');
+  const [isRaceForCompetenceInputFocused, setIsRaceForCompetenceInputFocused] = useState(false);
+  const [selectedPrestigeForCompetence, setSelectedPrestigeForCompetence] = useState<string>('');
+  const [prestigeForCompetenceSearchTerm, setPrestigeForCompetenceSearchTerm] = useState<string>('');
+  const [isPrestigeForCompetenceInputFocused, setIsPrestigeForCompetenceInputFocused] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setVoies((items) => {
+        const oldIndex = items.findIndex((_, idx) => `voie-${idx}` === active.id);
+        const newIndex = items.findIndex((_, idx) => `voie-${idx}` === over.id);
+        
+        return arrayMove(items, oldIndex, newIndex);
+      });
+    }
+    
+    setActiveId(null);
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
+  };
+
+  const activeVoie = activeId ? voies[parseInt(activeId.split('-')[1])] : null;
 
   useEffect(() => {
     const fetchCharacterData = async () => {
@@ -81,11 +284,11 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
             setRace(data.Race);
             setProfile(data.Profile);
             
-            // Load current voies from character data
-            await loadCurrentVoies(data);
+            // Load custom competences FIRST
+            const customComps = await loadCustomCompetences(room_id, persoId);
             
-            // Load custom competences
-            await loadCustomCompetences(room_id, persoId);
+            // Then load current voies with custom competences applied
+            await loadCurrentVoies(data, customComps);
           }
         }
       }
@@ -101,7 +304,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     });
   }, []);
 
-  const loadCustomCompetences = async (roomId: string, persoId: string) => {
+  const loadCustomCompetences = async (roomId: string, persoId: string): Promise<CustomCompetence[]> => {
     try {
       const customCompetencesRef = collection(db, `cartes/${roomId}/characters/${persoId}/customCompetences`);
       const customCompetencesSnapshot = await getDocs(customCompetencesRef);
@@ -121,15 +324,17 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
       });
       
       setCustomCompetences(customComps);
+      return customComps;
     } catch (error) {
       console.error('Error loading custom competences:', error);
+      return [];
     }
   };
 
-  const applyCustomCompetences = (voies: Voie[]) => {
+  const applyCustomCompetences = (voies: Voie[], customComps: CustomCompetence[]) => {
     const updatedVoies = [...voies];
     
-    customCompetences.forEach((customComp) => {
+    customComps.forEach((customComp) => {
       if (updatedVoies[customComp.voieIndex] && updatedVoies[customComp.voieIndex].competences[customComp.slotIndex]) {
         updatedVoies[customComp.voieIndex].competences[customComp.slotIndex] = {
           titre: customComp.competenceName,
@@ -145,7 +350,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     return updatedVoies;
   };
 
-  const loadCurrentVoies = async (characterData: Record<string, string | number>) => {
+  const loadCurrentVoies = async (characterData: Record<string, string | number>, customComps: CustomCompetence[] = []) => {
     const loadedVoies: Voie[] = [];
     
     // Load voies from character data
@@ -178,7 +383,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     }
     
     // Apply custom competences after loading voies
-    const voiesWithCustomCompetences = applyCustomCompetences(loadedVoies);
+    const voiesWithCustomCompetences = applyCustomCompetences(loadedVoies, customComps);
     setVoies(voiesWithCustomCompetences);
   };
 
@@ -219,26 +424,55 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     setIsDetailsPanelOpen(true);
   };
 
-  const fetchReplacementVoies = async (type: string) => {
+  const fetchReplacementVoies = async (type: string, profileName?: string, raceName?: string, prestigeClassName?: string) => {
     const replacementData: Voie[] = [];
-    let items: string[] = [];
 
     if (type === 'profiles') {
+      // Load all profile voies if no specific profile is selected
+      if (!profileName) {
+        for (const profile of profiles) {
       for (let i = 1; i <= 5; i++) {
-        const voie = await loadVoieFromFile(`${selectedProfile}${i}.json`);
+            const voie = await loadVoieFromFile(`${profile.value}${i}.json`);
         if (voie) replacementData.push(voie);
+          }
+        }
+      } else {
+        // Load specific profile
+        for (let i = 1; i <= 5; i++) {
+          const voie = await loadVoieFromFile(`${profileName}${i}.json`);
+          if (voie) replacementData.push(voie);
+        }
       }
     } else if (type === 'races') {
-      items = ['Humain', 'Elfe', 'Nain', 'Orc', 'Halfelin'];
-      for (const raceName of items) {
+      // Load all race voies if no specific race is selected
+      if (!raceName) {
+        for (const race of races) {
+          const voie = await loadVoieFromFile(`${race.value}.json`);
+          if (voie) replacementData.push(voie);
+        }
+      } else {
+        // Load specific race
         const voie = await loadVoieFromFile(`${raceName}.json`);
         if (voie) replacementData.push(voie);
       }
+    } else if (type === 'prestiges') {
+      // Load all prestige voies if no specific class is selected
+      if (!prestigeClassName) {
+        for (const prestigeClass of prestigeClasses) {
+          for (let i = 1; i <= prestigeClass.count; i++) {
+            const voie = await loadVoieFromFile(`prestige_${prestigeClass.value}${i}.json`);
+            if (voie) replacementData.push(voie);
+          }
+      }
     } else {
-      items = ['Prestige1', 'Prestige2', 'Prestige3'];
-      for (const prestigeName of items) {
-        const voie = await loadVoieFromFile(`${prestigeName}.json`);
+        // Load specific prestige class
+        const selectedClass = prestigeClasses.find(pc => pc.value === prestigeClassName);
+        if (selectedClass) {
+          for (let i = 1; i <= selectedClass.count; i++) {
+            const voie = await loadVoieFromFile(`prestige_${prestigeClassName}${i}.json`);
         if (voie) replacementData.push(voie);
+          }
+        }
       }
     }
 
@@ -251,10 +485,113 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     fetchReplacementVoies('profiles');
   };
 
-  const handleProfileChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedProfile(e.target.value);
+
+  const profiles = [
+    { value: 'Samourai', label: 'Samourai' },
+    { value: 'Guerrier', label: 'Guerrier' },
+    { value: 'Barde', label: 'Barde' },
+    { value: 'Barbare', label: 'Barbare' },
+    { value: 'Chevalier', label: 'Chevalier' },
+    { value: 'Druide', label: 'Druide' },
+    { value: 'Ensorceleur', label: 'Ensorceleur' },
+    { value: 'Forgesort', label: 'Forgesort' },
+    { value: 'Invocateur', label: 'Invocateur' },
+    { value: 'Moine', label: 'Moine' },
+    { value: 'Necromencien', label: 'Nécromancien' },
+    { value: 'Psionique', label: 'Psionique' },
+    { value: 'Pretre', label: 'Prêtre' },
+    { value: 'Rodeur', label: 'Rôdeur' },
+    { value: 'Voleur', label: 'Voleur' },
+  ];
+
+  const races = [
+    { value: 'Humain', label: 'Humain' },
+    { value: 'Elfe', label: 'Elfe' },
+    { value: 'Elfenoir', label: 'Elfe Noir' },
+    { value: 'Elfesylvain', label: 'Elfe Sylvain' },
+    { value: 'Nain', label: 'Nain' },
+    { value: 'Halfelin', label: 'Halfelin' },
+    { value: 'Orque', label: 'Orque' },
+    { value: 'Minotaure', label: 'Minotaure' },
+    { value: 'Drakonide', label: 'Drakonide' },
+    { value: 'Wolfer', label: 'Wolfer' },
+    { value: 'Ogre', label: 'Ogre' },
+    { value: 'Frouin', label: 'Frouin' },
+    { value: 'Ame-forgee', label: 'Âme Forgée' },
+  ];
+
+  const prestigeClasses = [
+    { value: 'voleur', label: 'Voleur', count: 3 },
+    { value: 'rodeur', label: 'Rôdeur', count: 3 },
+    { value: 'pretre', label: 'Prêtre', count: 3 },
+    { value: 'moine', label: 'Moine', count: 3 },
+    { value: 'guerrier', label: 'Guerrier', count: 2 },
+    { value: 'forgesort', label: 'Forgesort', count: 3 },
+    { value: 'ensorceleur', label: 'Ensorceleur', count: 2 },
+    { value: 'druide', label: 'Druide', count: 2 },
+    { value: 'chevalier', label: 'Chevalier', count: 3 },
+    { value: 'barde', label: 'Barde', count: 3 },
+    { value: 'barbare', label: 'Barbare', count: 2 },
+    { value: 'arquebusier', label: 'Arquebusier', count: 3 },
+    { value: 'necromencien', label: 'Nécromancien', count: 2 },
+  ];
+
+  const handleProfileChange = (newProfile: string, profileLabel: string) => {
+    setSelectedProfile(newProfile);
+    setProfileSearchTerm(profileLabel);
+    setIsProfileInputFocused(false);
+    if (newProfile) {
+      fetchReplacementVoies('profiles', newProfile);
+    }
+  };
+
+  const clearProfileFilter = () => {
+    setSelectedProfile('');
+    setProfileSearchTerm('');
     fetchReplacementVoies('profiles');
   };
+
+  const handleRaceChange = (newRace: string, raceLabel: string) => {
+    setSelectedRace(newRace);
+    setRaceSearchTerm(raceLabel);
+    setIsRaceInputFocused(false);
+    if (newRace) {
+      fetchReplacementVoies('races', undefined, newRace);
+    }
+  };
+
+  const clearRaceFilter = () => {
+    setSelectedRace('');
+    setRaceSearchTerm('');
+    fetchReplacementVoies('races');
+  };
+
+  const handlePrestigeChange = (newPrestige: string, prestigeLabel: string) => {
+    setSelectedPrestige(newPrestige);
+    setPrestigeSearchTerm(prestigeLabel);
+    setIsPrestigeInputFocused(false);
+    if (newPrestige) {
+      fetchReplacementVoies('prestiges', undefined, undefined, newPrestige);
+    }
+  };
+
+  const clearPrestigeFilter = () => {
+    setSelectedPrestige('');
+    setPrestigeSearchTerm('');
+    fetchReplacementVoies('prestiges');
+  };
+
+  const filteredProfiles = profiles.filter(profile => 
+    profile.label.toLowerCase().includes(profileSearchTerm.toLowerCase())
+  );
+
+  const filteredRaces = races.filter(race => 
+    race.label.toLowerCase().includes(raceSearchTerm.toLowerCase())
+  );
+
+  const filteredPrestigeClasses = prestigeClasses.filter(prestige => 
+    prestige.label.toLowerCase().includes(prestigeSearchTerm.toLowerCase())
+  );
 
   const applyReplacement = () => {
     if (selectedReplacement && selectedVoieIndex !== null) {
@@ -296,6 +633,21 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     if (!roomId || !persoId) return;
 
     const characterRef = doc(db, `cartes/${roomId}/characters/${persoId}`);
+    
+    // Get current character data from Firestore to compare
+    const currentCharacterData = await getDoc(characterRef);
+    const currentVoies: Record<string, string> = {};
+    
+    if (currentCharacterData.exists()) {
+      const data = currentCharacterData.data();
+      for (let i = 1; i <= 10; i++) {
+        const voieFile = data[`Voie${i}`];
+        if (voieFile) {
+          currentVoies[`Voie${i}`] = voieFile as string;
+        }
+      }
+    }
+
     const voiesData = voies.reduce((acc, voie, index) => {
       acc[`Voie${index + 1}`] = voie.fichier;
       acc[`v${index + 1}`] = 0;
@@ -309,166 +661,222 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     }
 
     await setDoc(characterRef, voiesData, { merge: true });
+    
+    // Clean up custom competences automatically
+    await cleanupCustomCompetencesForChangedVoies(currentVoies);
+    
     toast.success('Les données ont été sauvegardées avec succès.');
+    
+    // Si onClose est fourni, on retourne aux compétences
+    // Sinon, on redirige vers la map
+    if (onClose) {
+      onClose();
+    } else {
     router.push(`/${roomId}/map`);
+    }
   };
 
-  const loadAllAvailableCompetences = async () => {
-    const groupedCompetences: {category: string, voies: {voie: string, competences: Competence[]}[]}[] = [];
-    
-    // Load from all profile voies
-    const profiles = ['Samourai', 'Guerrier', 'Barde', 'Moine', 'Pretre', 'Rodeur', 'Voleur', 'Psionique', 'Necromencien'];
-    for (const profile of profiles) {
-      const profileVoies: {voie: string, competences: Competence[]}[] = [];
-      for (let i = 1; i <= 5; i++) {
-        const voie = await loadVoieFromFile(`${profile}${i}.json`);
-        if (voie) {
-          profileVoies.push({
-            voie: `${profile} ${i}`,
-            competences: voie.competences
-          });
+  const cleanupCustomCompetencesForChangedVoies = async (previousVoies: Record<string, string>) => {
+    if (!roomId || !persoId) return;
+
+    try {
+      const customCompetencesRef = collection(db, `cartes/${roomId}/characters/${persoId}/customCompetences`);
+      const customCompetencesSnapshot = await getDocs(customCompetencesRef);
+      
+      const deletePromises: Promise<void>[] = [];
+      
+      customCompetencesSnapshot.forEach((docSnapshot) => {
+        const data = docSnapshot.data();
+        const voieIndex = data.voieIndex;
+        
+        // Delete if:
+        // 1. Voie index is beyond current voies length (voie removed)
+        // 2. Voie at this index has changed (different file)
+        if (voieIndex >= voies.length) {
+          // Voie was removed
+          deletePromises.push(deleteDoc(docSnapshot.ref));
+        } else {
+          const currentVoieFile = voies[voieIndex]?.fichier;
+          const previousVoieFile = previousVoies[`Voie${voieIndex + 1}`];
+          
+          // If the voie file has changed, delete the custom competence
+          if (currentVoieFile !== previousVoieFile) {
+            deletePromises.push(deleteDoc(docSnapshot.ref));
+          }
         }
-      }
-      if (profileVoies.length > 0) {
-        groupedCompetences.push({
-          category: profile,
-          voies: profileVoies
-        });
-      }
-    }
-    
-    // Load from race voies
-    const races = ['Humain', 'Elfe', 'Nain', 'Halfelin', 'Orque', 'Wolfer', 'Ogre', 'Minotaure'];
-    const raceVoies: {voie: string, competences: Competence[]}[] = [];
-    for (const race of races) {
-      const voie = await loadVoieFromFile(`${race}.json`);
-      if (voie) {
-        raceVoies.push({
-          voie: race,
-          competences: voie.competences
-        });
-      }
-    }
-    if (raceVoies.length > 0) {
-      groupedCompetences.push({
-        category: 'Races',
-        voies: raceVoies
       });
-    }
-    
-    // Load from prestige voies - organized by class
-    const prestigeClasses = [
-      { name: 'Voleur', count: 3 },
-      { name: 'Rodeur', count: 3 },
-      { name: 'Pretre', count: 3 },
-      { name: 'Moine', count: 3 },
-      { name: 'Guerrier', count: 2 },
-      { name: 'Forgesort', count: 3 },
-      { name: 'Ensorceleur', count: 2 },
-      { name: 'Druide', count: 2 },
-      { name: 'Chevalier', count: 3 },
-      { name: 'Barde', count: 3 },
-      { name: 'Barbare', count: 2 },
-      { name: 'Arquebusier', count: 3 },
-      { name: 'Necromencien', count: 2 }
-    ];
-    
-    for (const prestigeClass of prestigeClasses) {
-      const prestigeVoies: {voie: string, competences: Competence[]}[] = [];
-      for (let i = 1; i <= prestigeClass.count; i++) {
-        const voie = await loadVoieFromFile(`prestige_${prestigeClass.name.toLowerCase()}${i}.json`);
-        if (voie) {
-          prestigeVoies.push({
-            voie: `${prestigeClass.name} ${i}`,
-            competences: voie.competences
-          });
-        }
+      
+      await Promise.all(deletePromises);
+      
+      if (deletePromises.length > 0) {
+        console.log(`Cleaned up ${deletePromises.length} custom competence(s) due to voie changes`);
       }
-      if (prestigeVoies.length > 0) {
-        groupedCompetences.push({
-          category: `Prestige ${prestigeClass.name}`,
-          voies: prestigeVoies
-        });
-      }
-    }
-    
-    setAllAvailableCompetences(groupedCompetences);
-  };
-
-  const handleCompetenceClick = (voieIndex: number, competenceIndex: number) => {
-    setSelectedCompetenceSlot({ voieIndex, competenceIndex });
-    setIsCompetenceDialogOpen(true);
-    if (allAvailableCompetences.length === 0) {
-      loadAllAvailableCompetences();
+    } catch (error) {
+      console.error('Error cleaning up custom competences:', error);
     }
   };
 
-  const replaceCompetence = async (sourceVoie: string, sourceRank: number, competence: Competence) => {
-    if (!selectedCompetenceSlot || !roomId || !persoId) return;
+  const selectCompetenceFromVoie = async (competenceIndex: number) => {
+    if (!selectedVoieForCompetence || !selectedCompetenceSlot || !roomId || !persoId) return;
 
+    const competence = selectedVoieForCompetence.competences[competenceIndex];
     const customCompetence: CustomCompetence = {
       slotIndex: selectedCompetenceSlot.competenceIndex,
       voieIndex: selectedCompetenceSlot.voieIndex,
-      sourceVoie,
-      sourceRank,
+      sourceVoie: selectedVoieForCompetence.fichier,
+      sourceRank: competenceIndex + 1,
       competenceName: competence.titre,
       competenceDescription: competence.description,
       competenceType: competence.type,
     };
 
     try {
-      // Save to Firestore
       const customCompRef = doc(db, `cartes/${roomId}/characters/${persoId}/customCompetences`, 
         `${selectedCompetenceSlot.voieIndex}-${selectedCompetenceSlot.competenceIndex}`);
       await setDoc(customCompRef, customCompetence);
 
-      // Update local state
       const updatedCustomCompetences = customCompetences.filter(
         cc => !(cc.voieIndex === selectedCompetenceSlot.voieIndex && cc.slotIndex === selectedCompetenceSlot.competenceIndex)
       );
       updatedCustomCompetences.push(customCompetence);
       setCustomCompetences(updatedCustomCompetences);
 
-      // Apply custom competences to current voies - create a fresh copy
       const voiesCopy = voies.map(voie => ({
         ...voie,
         competences: voie.competences.map(comp => ({ ...comp }))
       }));
 
-      // Apply the new custom competence immediately
-      if (voiesCopy[selectedCompetenceSlot.voieIndex] && 
-          voiesCopy[selectedCompetenceSlot.voieIndex].competences[selectedCompetenceSlot.competenceIndex]) {
-        voiesCopy[selectedCompetenceSlot.voieIndex].competences[selectedCompetenceSlot.competenceIndex] = {
-          titre: customCompetence.competenceName,
-          description: customCompetence.competenceDescription,
-          type: customCompetence.competenceType,
-          isCustom: true,
-          originalVoie: customCompetence.sourceVoie,
-          originalRank: customCompetence.sourceRank,
-        };
-      }
+      const finalVoies = applyCustomCompetences(voiesCopy, updatedCustomCompetences);
 
-      // Apply all other custom competences
-      updatedCustomCompetences.forEach((customComp) => {
-        if (voiesCopy[customComp.voieIndex] && voiesCopy[customComp.voieIndex].competences[customComp.slotIndex]) {
-          voiesCopy[customComp.voieIndex].competences[customComp.slotIndex] = {
-            titre: customComp.competenceName,
-            description: customComp.competenceDescription,
-            type: customComp.competenceType,
-            isCustom: true,
-            originalVoie: customComp.sourceVoie,
-            originalRank: customComp.sourceRank,
-          };
-        }
-      });
-
-      setVoies(voiesCopy);
+      setVoies(finalVoies);
       setIsCompetenceDialogOpen(false);
+      setIsCompetenceDetailsPanelOpen(false);
       setSelectedCompetenceSlot(null);
+      setSelectedVoieForCompetence(null);
+      toast.success('Compétence remplacée avec succès.');
     } catch (error) {
       console.error('Error saving custom competence:', error);
+      toast.error('Erreur lors du remplacement de la compétence.');
     }
   };
+
+  const handleCompetenceClick = (voieIndex: number, competenceIndex: number) => {
+    setSelectedCompetenceSlot({ voieIndex, competenceIndex });
+    setIsCompetenceDialogOpen(true);
+    // Load all voies by default (profils)
+    fetchCompetenceReplacementVoies('profiles');
+  };
+
+  const fetchCompetenceReplacementVoies = async (type: string, profileName?: string, raceName?: string, prestigeClassName?: string) => {
+    const replacementData: Voie[] = [];
+
+    if (type === 'profiles') {
+      if (!profileName) {
+        for (const profile of profiles) {
+          for (let i = 1; i <= 5; i++) {
+            const voie = await loadVoieFromFile(`${profile.value}${i}.json`);
+            if (voie) replacementData.push(voie);
+          }
+        }
+      } else {
+        for (let i = 1; i <= 5; i++) {
+          const voie = await loadVoieFromFile(`${profileName}${i}.json`);
+          if (voie) replacementData.push(voie);
+        }
+      }
+    } else if (type === 'races') {
+      if (!raceName) {
+        for (const race of races) {
+          const voie = await loadVoieFromFile(`${race.value}.json`);
+          if (voie) replacementData.push(voie);
+        }
+      } else {
+        const voie = await loadVoieFromFile(`${raceName}.json`);
+        if (voie) replacementData.push(voie);
+      }
+    } else if (type === 'prestiges') {
+      if (!prestigeClassName) {
+    for (const prestigeClass of prestigeClasses) {
+      for (let i = 1; i <= prestigeClass.count; i++) {
+            const voie = await loadVoieFromFile(`prestige_${prestigeClass.value}${i}.json`);
+            if (voie) replacementData.push(voie);
+          }
+        }
+      } else {
+        const selectedClass = prestigeClasses.find(pc => pc.value === prestigeClassName);
+        if (selectedClass) {
+          for (let i = 1; i <= selectedClass.count; i++) {
+            const voie = await loadVoieFromFile(`prestige_${prestigeClassName}${i}.json`);
+            if (voie) replacementData.push(voie);
+          }
+        }
+      }
+    }
+
+    setCompetenceReplacementVoies(replacementData);
+  };
+
+  const handleVoieSelectForCompetence = (voie: Voie) => {
+    setSelectedVoieForCompetence(voie);
+    setIsCompetenceDetailsPanelOpen(true);
+  };
+
+  const handleProfileForCompetenceChange = (newProfile: string, profileLabel: string) => {
+    setSelectedProfileForCompetence(newProfile);
+    setProfileForCompetenceSearchTerm(profileLabel);
+    setIsProfileForCompetenceInputFocused(false);
+    if (newProfile) {
+      fetchCompetenceReplacementVoies('profiles', newProfile);
+    }
+  };
+
+  const clearProfileForCompetenceFilter = () => {
+    setSelectedProfileForCompetence('');
+    setProfileForCompetenceSearchTerm('');
+    fetchCompetenceReplacementVoies('profiles');
+  };
+
+  const handleRaceForCompetenceChange = (newRace: string, raceLabel: string) => {
+    setSelectedRaceForCompetence(newRace);
+    setRaceForCompetenceSearchTerm(raceLabel);
+    setIsRaceForCompetenceInputFocused(false);
+    if (newRace) {
+      fetchCompetenceReplacementVoies('races', undefined, newRace);
+    }
+  };
+
+  const clearRaceForCompetenceFilter = () => {
+    setSelectedRaceForCompetence('');
+    setRaceForCompetenceSearchTerm('');
+    fetchCompetenceReplacementVoies('races');
+  };
+
+  const handlePrestigeForCompetenceChange = (newPrestige: string, prestigeLabel: string) => {
+    setSelectedPrestigeForCompetence(newPrestige);
+    setPrestigeForCompetenceSearchTerm(prestigeLabel);
+    setIsPrestigeForCompetenceInputFocused(false);
+    if (newPrestige) {
+      fetchCompetenceReplacementVoies('prestiges', undefined, undefined, newPrestige);
+    }
+  };
+
+  const clearPrestigeForCompetenceFilter = () => {
+    setSelectedPrestigeForCompetence('');
+    setPrestigeForCompetenceSearchTerm('');
+    fetchCompetenceReplacementVoies('prestiges');
+  };
+
+  const filteredProfilesForCompetence = profiles.filter(profile => 
+    profile.label.toLowerCase().includes(profileForCompetenceSearchTerm.toLowerCase())
+  );
+
+  const filteredRacesForCompetence = races.filter(race => 
+    race.label.toLowerCase().includes(raceForCompetenceSearchTerm.toLowerCase())
+  );
+
+  const filteredPrestigeClassesForCompetence = prestigeClasses.filter(prestige => 
+    prestige.label.toLowerCase().includes(prestigeForCompetenceSearchTerm.toLowerCase())
+  );
 
   const resetCompetence = async (voieIndex: number, competenceIndex: number) => {
     if (!roomId || !persoId) return;
@@ -485,11 +893,11 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
       );
       setCustomCompetences(updatedCustomCompetences);
 
-      // Reload original voies
+      // Reload original voies with updated custom competences
       const characterRef = doc(db, `cartes/${roomId}/characters/${persoId}`);
       const characterData = await getDoc(characterRef);
       if (characterData.exists()) {
-        await loadCurrentVoies(characterData.data());
+        await loadCurrentVoies(characterData.data(), updatedCustomCompetences);
       }
     } catch (error) {
       console.error('Error resetting competence:', error);
@@ -523,95 +931,80 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
         </div>
       </div>
 
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        onDragCancel={handleDragCancel}
+      >
+        <SortableContext
+          items={voies.map((_, idx) => `voie-${idx}`)}
+          strategy={rectSortingStrategy}
+        >
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6 max-w-5xl w-full">
         {voies.map((voie, index) => (
-          <Card key={index} className="card relative">
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-start">
-                <CardTitle className="text-[var(--accent-brown)]">{voie.nom}</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeVoie(index);
-                  }}
-                  className="button-cancel"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
+              <SortableVoieCard
+                key={`voie-${index}`}
+                voie={voie}
+                index={index}
+                onRemove={removeVoie}
+                onCompetenceClick={handleCompetenceClick}
+                onVoieClick={handleVoieClick}
+                onResetCompetence={resetCompetence}
+              />
+            ))}
 
+            {/* Add new voie card */}
+            <Card 
+              className="card border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-brown)] cursor-pointer transition-colors"
+              onClick={addNewVoie}
+            >
+              <CardContent className="flex flex-col items-center justify-center h-full min-h-[200px]">
+                <Plus className="w-12 h-12 text-[var(--text-secondary)] mb-2" />
+                <span className="text-[var(--text-secondary)] font-medium">Ajouter une voie</span>
+              </CardContent>
+            </Card>
+              </div>
+        </SortableContext>
+        
+        <DragOverlay dropAnimation={null}>
+          {activeVoie ? (
+            <Card className="card shadow-2xl opacity-90 ring-4 ring-[var(--accent-brown)] rotate-3 scale-105">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <GripVertical className="w-5 h-5 text-[var(--accent-brown)]" />
+                  <CardTitle className="text-[var(--accent-brown)]">{activeVoie.nom}</CardTitle>
+                </div>
             </CardHeader>
             <CardContent>
               <ul className="space-y-2">
-                {voie.competences.map((competence, compIndex) => (
+                  {activeVoie.competences.slice(0, 3).map((competence, compIndex) => (
                   <li 
                     key={compIndex}
-                    className={`group flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${
+                      className={`p-2 rounded border ${
                       competence.isCustom 
                         ? 'border-[var(--accent-brown)] bg-[var(--bg-card)]' 
-                        : 'border-[var(--border-color)] hover:border-[var(--accent-brown)]'
+                          : 'border-[var(--border-color)]'
                     }`}
-                    onClick={() => handleCompetenceClick(index, compIndex)}
                   >
-                    <div className="flex-1">
-                      <span className={`${competence.isCustom ? 'text-[var(--accent-brown)]' : 'text-[var(--text-secondary)]'}`}>
+                      <span className={`text-sm ${competence.isCustom ? 'text-[var(--accent-brown)]' : 'text-[var(--text-secondary)]'}`}>
                         {competence.titre}
                         {competence.isCustom && ' 🔄'}
                       </span>
-                      {competence.isCustom && competence.originalVoie && (
-                        <div className="text-xs text-[var(--text-secondary)] mt-1">
-                          Depuis: {competence.originalVoie} (rang {competence.originalRank})
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="button-primary p-1 h-6 w-6"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleVoieClick(index);
-                        }}
-                        title="Voir détails de la voie"
-                      >
-                        👁️
-                      </Button>
-                      {competence.isCustom && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="button-cancel p-1 h-6 w-6"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            resetCompetence(index, compIndex);
-                          }}
-                          title="Rétablir compétence originale"
-                        >
-                          ↺
-                        </Button>
-                      )}
-                    </div>
                   </li>
                 ))}
+                  {activeVoie.competences.length > 3 && (
+                    <li className="text-xs text-[var(--text-secondary)] text-center">
+                      +{activeVoie.competences.length - 3} compétences...
+                    </li>
+                  )}
               </ul>
             </CardContent>
           </Card>
-        ))}
-
-        {/* Add new voie card */}
-        <Card 
-          className="card border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-brown)] cursor-pointer transition-colors"
-          onClick={addNewVoie}
-        >
-          <CardContent className="flex flex-col items-center justify-center h-full min-h-[200px]">
-            <Plus className="w-12 h-12 text-[var(--text-secondary)] mb-2" />
-            <span className="text-[var(--text-secondary)] font-medium">Ajouter une voie</span>
-          </CardContent>
-        </Card>
-      </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {/* Side panel for voie details */}
       {isPanelOpen && selectedVoieIndex !== null && (
@@ -667,7 +1060,10 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
             </Button>
           </div>
           
-          <Tabs defaultValue="profiles" onValueChange={(type) => fetchReplacementVoies(type)}>
+          <Tabs defaultValue="profiles" onValueChange={(type) => {
+            // Load all voies when switching tabs
+            fetchReplacementVoies(type);
+          }}>
             <TabsList>
               <TabsTrigger value="profiles">Profils</TabsTrigger>
               <TabsTrigger value="races">Races</TabsTrigger>
@@ -675,30 +1071,59 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
             </TabsList>
             
             <TabsContent value="profiles">
-              <div className="mb-4">
-                <label className="block font-semibold mb-2 text-[var(--text-primary)]">Sélectionner un profil</label>
-                <select
-                  value={selectedProfile}
-                  onChange={handleProfileChange}
-                  className="p-2 border border-[var(--border-color)] rounded w-full bg-[var(--bg-dark)] text-[var(--text-primary)]"
-                >
-                  <option value="Samourai">Samourai</option>
-                  <option value="Guerrier">Guerrier</option>
-                  <option value="Barde">Barde</option>
-                  <option value="Barbare">Barbare</option>
-                  <option value="Chevalier">Chevalier</option>
-                  <option value="Druide">Druide</option>
-                  <option value="Ensorceleur">Ensorceleur</option>
-                  <option value="Forgesort">Forgesort</option>
-                  <option value="Guerrier">Guerrier</option>
-                  <option value="Invocateur">Invocateur</option>
-                  <option value="Moine">Moine</option>
-                  <option value="Psionique">Psionique</option>
-                  <option value="Pretre">Prêtre</option>
-                  <option value="Rodeur">Rôdeur</option>
-                  <option value="Voleur">Voleur</option>
-
-                </select>
+              <div className="mb-4 relative">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block font-semibold text-[var(--text-primary)]">Filtrer par profil</label>
+                  {selectedProfile && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearProfileFilter}
+                      className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Effacer filtre
+                    </Button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={profileSearchTerm}
+                    onChange={(e) => setProfileSearchTerm(e.target.value)}
+                    onFocus={() => setIsProfileInputFocused(true)}
+                    onBlur={() => setTimeout(() => setIsProfileInputFocused(false), 200)}
+                    placeholder={selectedProfile ? `Filtré par: ${profiles.find(p => p.value === selectedProfile)?.label}` : "Filtrer par profil..."}
+                    className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
+                  />
+                  {isProfileInputFocused && (
+                    <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
+                      {filteredProfiles.length > 0 ? (
+                        filteredProfiles.map((profile) => (
+                          <div
+                            key={profile.value}
+                            onClick={() => handleProfileChange(profile.value, profile.label)}
+                            className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4 text-[var(--accent-brown)]",
+                                selectedProfile === profile.value ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <span className="text-[var(--text-primary)]">
+                              {profile.label} <span className="text-[var(--text-secondary)] text-xs">(5 voies)</span>
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
+                          Aucun profil trouvé.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {replacementVoies.map((voie, index) => (
@@ -723,6 +1148,58 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
             </TabsContent>
             
             <TabsContent value="races">
+              <div className="mb-4 relative">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block font-semibold text-[var(--text-primary)]">Filtrer par race</label>
+                  {selectedRace && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearRaceFilter}
+                      className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Effacer filtre
+                    </Button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={raceSearchTerm}
+                    onChange={(e) => setRaceSearchTerm(e.target.value)}
+                    onFocus={() => setIsRaceInputFocused(true)}
+                    onBlur={() => setTimeout(() => setIsRaceInputFocused(false), 200)}
+                    placeholder={selectedRace ? `Filtré par: ${races.find(r => r.value === selectedRace)?.label}` : "Filtrer par race..."}
+                    className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
+                  />
+                  {isRaceInputFocused && (
+                    <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
+                      {filteredRaces.length > 0 ? (
+                        filteredRaces.map((race) => (
+                          <div
+                            key={race.value}
+                            onClick={() => handleRaceChange(race.value, race.label)}
+                            className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4 text-[var(--accent-brown)]",
+                                selectedRace === race.value ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <span className="text-[var(--text-primary)]">{race.label}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
+                          Aucune race trouvée.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {replacementVoies.map((voie, index) => (
                   <Card
@@ -746,6 +1223,60 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
             </TabsContent>
             
             <TabsContent value="prestiges">
+              <div className="mb-4 relative">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block font-semibold text-[var(--text-primary)]">Filtrer par classe de prestige</label>
+                  {selectedPrestige && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearPrestigeFilter}
+                      className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Effacer filtre
+                    </Button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={prestigeSearchTerm}
+                    onChange={(e) => setPrestigeSearchTerm(e.target.value)}
+                    onFocus={() => setIsPrestigeInputFocused(true)}
+                    onBlur={() => setTimeout(() => setIsPrestigeInputFocused(false), 200)}
+                    placeholder={selectedPrestige ? `Filtré par: ${prestigeClasses.find(p => p.value === selectedPrestige)?.label}` : "Filtrer par classe..."}
+                    className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
+                  />
+                  {isPrestigeInputFocused && (
+                    <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
+                      {filteredPrestigeClasses.length > 0 ? (
+                        filteredPrestigeClasses.map((prestige) => (
+                          <div
+                            key={prestige.value}
+                            onClick={() => handlePrestigeChange(prestige.value, prestige.label)}
+                            className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4 text-[var(--accent-brown)]",
+                                selectedPrestige === prestige.value ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <span className="text-[var(--text-primary)]">
+                              {prestige.label} <span className="text-[var(--text-secondary)] text-xs">({prestige.count} voies)</span>
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
+                          Aucun prestige trouvé.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {replacementVoies.map((voie, index) => (
                   <Card
@@ -818,306 +1349,302 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
 
         {/* Competence Selection Dialog */}
         <Dialog open={isCompetenceDialogOpen} onOpenChange={setIsCompetenceDialogOpen}>
-          <DialogContent className="p-6 rounded-lg fixed left-0 right-0 m-auto w-full h-[90vh] max-w-7xl max-h-screen overflow-hidden z-50">
+          <DialogContent className="p-6 rounded-lg fixed left-0 right-0 m-auto w-full h-[80vh] max-w-6xl max-h-screen overflow-y-auto z-50">
             <div className="flex justify-between items-center mb-4">
               <DialogTitle className="modal-title">
-                Choisir une nouvelle compétence
+                Choisir une compétence de remplacement
                 {selectedCompetenceSlot && (
                   <span className="text-sm text-[var(--text-secondary)] block">
-                    Pour remplacer la compétence n°{selectedCompetenceSlot.competenceIndex + 1} de la voie {selectedCompetenceSlot.voieIndex + 1}
+                    Compétence n°{selectedCompetenceSlot.competenceIndex + 1} de la voie "{voies[selectedCompetenceSlot.voieIndex]?.nom}"
                   </span>
                 )}
               </DialogTitle>
-              <Button variant="ghost" onClick={() => setIsCompetenceDialogOpen(false)} className="button-cancel">
+              <Button variant="ghost" onClick={() => {
+                setIsCompetenceDialogOpen(false);
+                setIsCompetenceDetailsPanelOpen(false);
+                setSelectedVoieForCompetence(null);
+              }} className="button-cancel">
                 <X className="w-6 h-6" />
               </Button>
             </div>
             
-            {/* Search Bar */}
-            <div className="mb-4">
+            <Tabs defaultValue="profiles" onValueChange={(type) => {
+              fetchCompetenceReplacementVoies(type);
+            }}>
+              <TabsList>
+                <TabsTrigger value="profiles">Profils</TabsTrigger>
+                <TabsTrigger value="races">Races</TabsTrigger>
+                <TabsTrigger value="prestiges">Prestiges</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="profiles">
+                <div className="mb-4 relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block font-semibold text-[var(--text-primary)]">Filtrer par profil</label>
+                    {selectedProfileForCompetence && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearProfileForCompetenceFilter}
+                        className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Effacer filtre
+                      </Button>
+                    )}
+                  </div>
+                  <div className="relative">
               <input
                 type="text"
-                placeholder="Rechercher une compétence..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)]"
-              />
-            </div>
-            
-            {/* Competences Grid */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="space-y-8">
-                {/* PROFILS SECTION */}
-                {(() => {
-                  const profileGroups = allAvailableCompetences.filter(group => 
-                    !group.category.startsWith('Prestige') && group.category !== 'Races'
-                  );
-                  
-                  if (profileGroups.length === 0) return null;
-                  
-                  return (
-                    <div className="space-y-4">
-                      <h1 className="text-2xl font-bold text-[var(--accent-brown)] border-b-2 border-[var(--accent-brown)] pb-2 mb-4">
-                        🗡️ PROFILS
-                      </h1>
-                      
-                      <div className="space-y-6">
-                        {profileGroups
-                          .filter((categoryGroup) => {
-                            if (!searchTerm) return true;
-                            return categoryGroup.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                   categoryGroup.voies.some(voie => 
-                                     voie.voie.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                     voie.competences.some((comp: Competence) => 
-                                       comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                       comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                       comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                     )
-                                   );
-                          })
-                          .map((categoryGroup, categoryIndex) => (
-                            <div key={categoryIndex} className="space-y-3">
-                              <h2 className="text-lg font-semibold text-[var(--accent-brown)] pl-4 border-l-4 border-[var(--accent-brown)]">
-                                {categoryGroup.category}
-                              </h2>
-                              
-                              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                                {categoryGroup.voies
-                                  .filter((voie) => {
-                                    if (!searchTerm) return true;
-                                    return voie.voie.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                           voie.competences.some((comp: Competence) => 
-                                             comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                             comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                             comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                           );
-                                  })
-                                  .map((voie, voieIndex) => {
-                                    const filteredCompetences = searchTerm 
-                                      ? voie.competences.filter((comp: Competence) => 
-                                          comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                          comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                          comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                        )
-                                      : voie.competences;
-                                    
-                                    if (searchTerm && filteredCompetences.length === 0) return null;
-                                    
-                                    return (
-                                      <Card key={voieIndex} className="card h-fit border-l-2 border-l-blue-500">
-                                        <CardHeader className="pb-2">
-                                          <CardTitle className="text-[var(--accent-brown)] text-sm">
-                                            {voie.voie}
-                                          </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-2">
-                                          {filteredCompetences.map((competence: Competence, compIndex: number) => {
-                                            const originalIndex = voie.competences.indexOf(competence);
-                                            const filename = `${categoryGroup.category}${voie.voie.split(' ')[1]}.json`;
-                                            
-                                            return (
-                                              <div
-                                                key={compIndex}
-                                                className="p-2 border border-[var(--border-color)] rounded cursor-pointer hover:border-[var(--accent-brown)] hover:bg-[var(--bg-card)] transition-all duration-200"
-                                                onClick={() => replaceCompetence(filename, originalIndex + 1, competence)}
-                                              >
-                                                <div className="font-semibold text-[var(--text-primary)] text-xs mb-1">
-                                                  Rang {originalIndex + 1}: {competence.titre}
+                      value={profileForCompetenceSearchTerm}
+                      onChange={(e) => setProfileForCompetenceSearchTerm(e.target.value)}
+                      onFocus={() => setIsProfileForCompetenceInputFocused(true)}
+                      onBlur={() => setTimeout(() => setIsProfileForCompetenceInputFocused(false), 200)}
+                      placeholder={selectedProfileForCompetence ? `Filtré par: ${profiles.find(p => p.value === selectedProfileForCompetence)?.label}` : "Filtrer par profil..."}
+                      className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
+                    />
+                    {isProfileForCompetenceInputFocused && (
+                      <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
+                        {filteredProfilesForCompetence.length > 0 ? (
+                          filteredProfilesForCompetence.map((profile) => (
+                            <div
+                              key={profile.value}
+                              onClick={() => handleProfileForCompetenceChange(profile.value, profile.label)}
+                              className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4 text-[var(--accent-brown)]",
+                                  selectedProfileForCompetence === profile.value ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <span className="text-[var(--text-primary)]">
+                                {profile.label} <span className="text-[var(--text-secondary)] text-xs">(5 voies)</span>
+                              </span>
                                                 </div>
-                                                <div className="text-xs text-[var(--text-secondary)] line-clamp-2 mb-1">
-                                                  {competence.description.replace(/<br>/g, ' ').replace(/<[^>]*>/g, '').substring(0, 60)}...
+                          ))
+                        ) : (
+                          <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
+                            Aucun profil trouvé.
                                                 </div>
-                                                <div className="text-xs text-[var(--accent-brown)]">
-                                                  {competence.type}
+                        )}
                                                 </div>
+                    )}
                                               </div>
-                                            );
-                                          })}
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {competenceReplacementVoies.map((voie, index) => (
+                    <Card
+                      key={index}
+                      className="card cursor-pointer hover:border-[var(--accent-brown)] transition-colors"
+                      onClick={() => handleVoieSelectForCompetence(voie)}
+                    >
+                      <CardHeader>
+                        <CardTitle className="text-[var(--accent-brown)]">{voie.nom}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="list-disc pl-5 space-y-1">
+                          {voie.competences.map((competence, compIndex) => (
+                            <li key={compIndex} className="text-sm text-[var(--text-secondary)]">{competence.titre}</li>
+                          ))}
+                        </ul>
                                         </CardContent>
                                       </Card>
-                                    );
-                                  })
-                                  .filter(Boolean)}
-                              </div>
-                            </div>
                           ))}
                       </div>
-                    </div>
-                  );
-                })()}
-
-                {/* RACES SECTION */}
-                {(() => {
-                  const raceGroups = allAvailableCompetences.filter(group => group.category === 'Races');
-                  
-                  if (raceGroups.length === 0) return null;
-                  
-                  return (
-                    <div className="space-y-4">
-                      <h1 className="text-2xl font-bold text-[var(--accent-brown)] border-b-2 border-[var(--accent-brown)] pb-2 mb-4">
-                        🧙‍♂️ RACES
-                      </h1>
-                      
-                      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        {raceGroups[0].voies
-                          .filter((voie) => {
-                            if (!searchTerm) return true;
-                            return voie.voie.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                   voie.competences.some((comp: Competence) => 
-                                     comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                     comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                     comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                   );
-                          })
-                          .map((voie, voieIndex) => {
-                            const filteredCompetences = searchTerm 
-                              ? voie.competences.filter((comp: Competence) => 
-                                  comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                )
-                              : voie.competences;
-                            
-                            if (searchTerm && filteredCompetences.length === 0) return null;
-                            
-                            return (
-                              <Card key={voieIndex} className="card h-fit border-l-2 border-l-green-500">
-                                <CardHeader className="pb-2">
-                                  <CardTitle className="text-[var(--accent-brown)] text-sm">
-                                    {voie.voie}
-                                  </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                  {filteredCompetences.map((competence: Competence, compIndex: number) => {
-                                    const originalIndex = voie.competences.indexOf(competence);
-                                    const filename = `${voie.voie}.json`;
-                                    
-                                    return (
-                                      <div
-                                        key={compIndex}
-                                        className="p-2 border border-[var(--border-color)] rounded cursor-pointer hover:border-[var(--accent-brown)] hover:bg-[var(--bg-card)] transition-all duration-200"
-                                        onClick={() => replaceCompetence(filename, originalIndex + 1, competence)}
-                                      >
-                                        <div className="font-semibold text-[var(--text-primary)] text-xs mb-1">
-                                          Rang {originalIndex + 1}: {competence.titre}
+              </TabsContent>
+              
+              <TabsContent value="races">
+                <div className="mb-4 relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block font-semibold text-[var(--text-primary)]">Filtrer par race</label>
+                    {selectedRaceForCompetence && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearRaceForCompetenceFilter}
+                        className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Effacer filtre
+                      </Button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={raceForCompetenceSearchTerm}
+                      onChange={(e) => setRaceForCompetenceSearchTerm(e.target.value)}
+                      onFocus={() => setIsRaceForCompetenceInputFocused(true)}
+                      onBlur={() => setTimeout(() => setIsRaceForCompetenceInputFocused(false), 200)}
+                      placeholder={selectedRaceForCompetence ? `Filtré par: ${races.find(r => r.value === selectedRaceForCompetence)?.label}` : "Filtrer par race..."}
+                      className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
+                    />
+                    {isRaceForCompetenceInputFocused && (
+                      <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
+                        {filteredRacesForCompetence.length > 0 ? (
+                          filteredRacesForCompetence.map((race) => (
+                            <div
+                              key={race.value}
+                              onClick={() => handleRaceForCompetenceChange(race.value, race.label)}
+                              className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4 text-[var(--accent-brown)]",
+                                  selectedRaceForCompetence === race.value ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <span className="text-[var(--text-primary)]">{race.label}</span>
                                         </div>
-                                        <div className="text-xs text-[var(--text-secondary)] line-clamp-2 mb-1">
-                                          {competence.description.replace(/<br>/g, ' ').replace(/<[^>]*>/g, '').substring(0, 60)}...
+                          ))
+                        ) : (
+                          <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
+                            Aucune race trouvée.
                                         </div>
-                                        <div className="text-xs text-[var(--accent-brown)]">
-                                          {competence.type}
+                        )}
                                         </div>
+                    )}
                                       </div>
-                                    );
-                                  })}
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {competenceReplacementVoies.map((voie, index) => (
+                    <Card
+                      key={index}
+                      className="card cursor-pointer hover:border-[var(--accent-brown)] transition-colors"
+                      onClick={() => handleVoieSelectForCompetence(voie)}
+                    >
+                      <CardHeader>
+                        <CardTitle className="text-[var(--accent-brown)]">{voie.nom}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="list-disc pl-5 space-y-1">
+                          {voie.competences.map((competence, compIndex) => (
+                            <li key={compIndex} className="text-sm text-[var(--text-secondary)]">{competence.titre}</li>
+                          ))}
+                        </ul>
                                 </CardContent>
                               </Card>
-                            );
-                          })
-                          .filter(Boolean)}
+                  ))}
                       </div>
-                    </div>
-                  );
-                })()}
-
-                {/* PRESTIGES SECTION */}
-                {(() => {
-                  const prestigeGroups = allAvailableCompetences.filter(group => group.category.startsWith('Prestige'));
-                  
-                  if (prestigeGroups.length === 0) return null;
-                  
-                  return (
-                    <div className="space-y-4">
-                      <h1 className="text-2xl font-bold text-[var(--accent-brown)] border-b-2 border-[var(--accent-brown)] pb-2 mb-4">
-                        🏆 PRESTIGES
-                      </h1>
-                      
-                      <div className="space-y-6">
-                        {prestigeGroups
-                          .filter((categoryGroup) => {
-                            if (!searchTerm) return true;
-                            return categoryGroup.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                   categoryGroup.voies.some(voie => 
-                                     voie.voie.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                     voie.competences.some((comp: Competence) => 
-                                       comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                       comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                       comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                     )
-                                   );
-                          })
-                          .map((categoryGroup, categoryIndex) => (
-                            <div key={categoryIndex} className="space-y-3">
-                              <h2 className="text-lg font-semibold text-[var(--accent-brown)] pl-4 border-l-4 border-[var(--accent-brown)]">
-                                {categoryGroup.category}
-                              </h2>
-                              
-                              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                                {categoryGroup.voies
-                                  .filter((voie) => {
-                                    if (!searchTerm) return true;
-                                    return voie.voie.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                           voie.competences.some((comp: Competence) => 
-                                             comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                             comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                             comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                           );
-                                  })
-                                  .map((voie, voieIndex) => {
-                                    const filteredCompetences = searchTerm 
-                                      ? voie.competences.filter((comp: Competence) => 
-                                          comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                          comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                          comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                        )
-                                      : voie.competences;
-                                    
-                                    if (searchTerm && filteredCompetences.length === 0) return null;
-                                    
-                                    return (
-                                      <Card key={voieIndex} className="card h-fit border-l-2 border-l-purple-500">
-                                        <CardHeader className="pb-2">
-                                          <CardTitle className="text-[var(--accent-brown)] text-sm">
-                                            {voie.voie}
-                                          </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-2">
-                                          {filteredCompetences.map((competence: Competence, compIndex: number) => {
-                                            const originalIndex = voie.competences.indexOf(competence);
-                                            const filename = `prestige_${categoryGroup.category.replace('Prestige ', '').toLowerCase()}${voie.voie.split(' ')[1]}.json`;
-                                            
-                                            return (
-                                              <div
-                                                key={compIndex}
-                                                className="p-2 border border-[var(--border-color)] rounded cursor-pointer hover:border-[var(--accent-brown)] hover:bg-[var(--bg-card)] transition-all duration-200"
-                                                onClick={() => replaceCompetence(filename, originalIndex + 1, competence)}
-                                              >
-                                                <div className="font-semibold text-[var(--text-primary)] text-xs mb-1">
-                                                  Rang {originalIndex + 1}: {competence.titre}
+              </TabsContent>
+              
+              <TabsContent value="prestiges">
+                <div className="mb-4 relative">
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block font-semibold text-[var(--text-primary)]">Filtrer par classe de prestige</label>
+                    {selectedPrestigeForCompetence && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={clearPrestigeForCompetenceFilter}
+                        className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Effacer filtre
+                      </Button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={prestigeForCompetenceSearchTerm}
+                      onChange={(e) => setPrestigeForCompetenceSearchTerm(e.target.value)}
+                      onFocus={() => setIsPrestigeForCompetenceInputFocused(true)}
+                      onBlur={() => setTimeout(() => setIsPrestigeForCompetenceInputFocused(false), 200)}
+                      placeholder={selectedPrestigeForCompetence ? `Filtré par: ${prestigeClasses.find(p => p.value === selectedPrestigeForCompetence)?.label}` : "Filtrer par classe..."}
+                      className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
+                    />
+                    {isPrestigeForCompetenceInputFocused && (
+                      <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
+                        {filteredPrestigeClassesForCompetence.length > 0 ? (
+                          filteredPrestigeClassesForCompetence.map((prestige) => (
+                            <div
+                              key={prestige.value}
+                              onClick={() => handlePrestigeForCompetenceChange(prestige.value, prestige.label)}
+                              className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4 text-[var(--accent-brown)]",
+                                  selectedPrestigeForCompetence === prestige.value ? "opacity-100" : "opacity-0"
+                                )}
+                              />
+                              <span className="text-[var(--text-primary)]">
+                                {prestige.label} <span className="text-[var(--text-secondary)] text-xs">({prestige.count} voies)</span>
+                              </span>
                                                 </div>
-                                                <div className="text-xs text-[var(--text-secondary)] line-clamp-2 mb-1">
-                                                  {competence.description.replace(/<br>/g, ' ').replace(/<[^>]*>/g, '').substring(0, 60)}...
+                          ))
+                        ) : (
+                          <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
+                            Aucun prestige trouvé.
                                                 </div>
-                                                <div className="text-xs text-[var(--accent-brown)]">
-                                                  {competence.type}
+                        )}
                                                 </div>
+                    )}
                                               </div>
-                                            );
-                                          })}
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {competenceReplacementVoies.map((voie, index) => (
+                    <Card
+                      key={index}
+                      className="card cursor-pointer hover:border-[var(--accent-brown)] transition-colors"
+                      onClick={() => handleVoieSelectForCompetence(voie)}
+                    >
+                      <CardHeader>
+                        <CardTitle className="text-[var(--accent-brown)]">{voie.nom}</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="list-disc pl-5 space-y-1">
+                          {voie.competences.map((competence, compIndex) => (
+                            <li key={compIndex} className="text-sm text-[var(--text-secondary)]">{competence.titre}</li>
+                          ))}
+                        </ul>
                                         </CardContent>
                                       </Card>
-                                    );
-                                  })
-                                  .filter(Boolean)}
+                  ))}
                               </div>
+              </TabsContent>
+            </Tabs>
+
+            {/* Details panel for selected voie to pick competence */}
+            {isCompetenceDetailsPanelOpen && selectedVoieForCompetence && (
+              <div className="fixed top-0 right-0 bg-[var(--bg-dark)] border-l border-[var(--border-color)] shadow-lg p-6 w-80 h-full z-50 overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-[var(--accent-brown)]">{selectedVoieForCompetence.nom}</h2>
+                  <Button variant="ghost" onClick={() => setIsCompetenceDetailsPanelOpen(false)} className="button-cancel">
+                    <X className="w-6 h-6" />
+                  </Button>
                             </div>
-                          ))}
+                
+                <p className="text-sm text-[var(--text-secondary)] mb-4">
+                  Choisissez la compétence à utiliser comme remplacement :
+                </p>
+
+                <div className="space-y-2">
+                  {selectedVoieForCompetence.competences.map((competence, index) => (
+                    <div 
+                      key={index}
+                      onClick={() => selectCompetenceFromVoie(index)}
+                      className="p-3 border border-[var(--border-color)] rounded cursor-pointer hover:border-[var(--accent-brown)] hover:bg-[var(--bg-card)] transition-all"
+                    >
+                      <h3 className="font-semibold mb-1 text-[var(--accent-brown)]">
+                        Rang {index + 1}: {competence.titre}
+                      </h3>
+                      <div 
+                        className="text-xs text-[var(--text-secondary)] line-clamp-3"
+                        dangerouslySetInnerHTML={{ 
+                          __html: competence.description.substring(0, 150) + '...'
+                        }}
+                      />
+                      <div className="text-xs text-[var(--accent-brown)] mt-1">
+                        Type: {competence.type}
                       </div>
                     </div>
-                  );
-                })()}
+                  ))}
               </div>
             </div>
+            )}
           </DialogContent>
         </Dialog>
         

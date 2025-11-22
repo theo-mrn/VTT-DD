@@ -3,6 +3,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider"
 import { CompetencesProvider } from "@/contexts/CompetencesContext"
 import { GameProvider } from '@/contexts/GameContext';
+import { CharacterProvider } from '@/contexts/CharacterContext';
 import { Toaster } from "@/components/ui/sonner"
 
 
@@ -51,10 +52,12 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <GameProvider>
-            <CompetencesProvider>
-              <Toaster />
-              {children}
-            </CompetencesProvider>
+            <CharacterProvider>
+              <CompetencesProvider>
+                <Toaster />
+                {children}
+              </CompetencesProvider>
+            </CharacterProvider>
           </GameProvider>
         </ThemeProvider>
       </body>

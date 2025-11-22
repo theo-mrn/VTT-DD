@@ -10,6 +10,7 @@ import MedievalNotes from "@/components/Notes";
 import { DiceRoller } from "@/components/dice-roller";
 import Competences from "@/components/competences";
 import OverlayComponent from "@/components/overlay";
+import QuestOverlay from "@/components/questOverlay";
 import InfoComponent from "@/components/info";
 import RollRequest from '@/components/Rollrequest';
 import { Button } from "@/components/ui/button";
@@ -83,6 +84,8 @@ export default function Layout({ children }: LayoutProps) {
 
   const getPanelWidth = () => {
     switch (activeTab) {
+      case "Component":
+        return "w-[1400px]"; // Fiche de personnage élargie
       case "Competences":
         return "w-[1200px]";
         case "GMDashboard":
@@ -101,6 +104,8 @@ export default function Layout({ children }: LayoutProps) {
       <div className="absolute left-0 z-10">
         <OverlayComponent />
       </div>
+
+      <QuestOverlay />
 
       {activeTab && (
         <aside

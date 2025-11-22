@@ -1,8 +1,9 @@
-import {HeroSection} from "@/components/blocks/hero-section-5"
+'use client'
+import HeroDemo from "@/components/blocks/testhero"
 
 
 export default function TestPage (){
     return <div>
-        <HeroSection />
+        <HeroDemo />
     </div>
 }

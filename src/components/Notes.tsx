@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { X, Tag, Search, Book, MapPin, User, Plus, Upload, MoreVertical, Edit, Trash2, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { X, Tag, Search, Book, MapPin, User, Plus, Upload, MoreVertical, Edit, Trash2, Loader2, ChevronDown, ChevronUp, Scroll, CheckCircle2, Circle, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,11 +83,18 @@ function useTags({
   };
 }
 
+interface SubQuest {
+  id: string;
+  title: string;
+  description: string;
+  status: "not-started" | "in-progress" | "completed";
+}
+
 interface Note {
   id: string;
   title: string;
   content: string;
-  type: "character" | "location" | "item" | "other";
+  type: "character" | "location" | "item" | "quest" | "other";
   tags: Tag[];
   createdAt: Date;
   updatedAt: Date;
@@ -99,6 +106,10 @@ interface Note {
   region?: string;
   // Champs spécifiques aux objets
   itemType?: string;
+  // Champs spécifiques aux quêtes
+  questType?: "principale" | "annexe";
+  questStatus?: "not-started" | "in-progress" | "completed";
+  subQuests?: SubQuest[];
 }
 
 interface TagsInputProps {
@@ -216,7 +227,7 @@ function ImageUpload({ image, onImageChange }: { image?: string; onImageChange: 
   );
 }
 
-function NoteCard({ note, onEdit, onDelete, className = "", index = 0 }: { note: Note; onEdit: (note: Note) => void; onDelete: (noteId: string) => void; className?: string; index?: number }) {
+function NoteCard({ note, onEdit, onDelete, onUpdateSubQuest, className = "", index = 0 }: { note: Note; onEdit: (note: Note) => void; onDelete: (noteId: string) => void; onUpdateSubQuest: (noteId: string, subQuestId: string) => void; className?: string; index?: number }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isContentTruncated, setIsContentTruncated] = useState(false);
   const contentRef = React.useRef<HTMLDivElement>(null);
@@ -312,6 +323,8 @@ function NoteCard({ note, onEdit, onDelete, className = "", index = 0 }: { note:
                 ? "bg-green-500/10 border-green-500/30 text-green-400"
                 : note.type === "item"
                 ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                : note.type === "quest"
+                ? "bg-orange-500/10 border-orange-500/30 text-orange-400"
                 : "bg-purple-500/10 border-purple-500/30 text-purple-400";
               return (
                 <div className={cn(
@@ -321,6 +334,7 @@ function NoteCard({ note, onEdit, onDelete, className = "", index = 0 }: { note:
                   {note.type === "character" && <User className="h-4 w-4" />}
                   {note.type === "location" && <MapPin className="h-4 w-4" />}
                   {note.type === "item" && <Book className="h-4 w-4" />}
+                  {note.type === "quest" && <Scroll className="h-4 w-4" />}
                   {note.type === "other" && <Tag className="h-4 w-4" />}
                 </div>
               );
@@ -349,7 +363,7 @@ function NoteCard({ note, onEdit, onDelete, className = "", index = 0 }: { note:
         </div>
 
         {/* Méta-informations sous le titre */}
-        {(note.type === "character" || note.type === "location" || note.type === "item") && (
+        {(note.type === "character" || note.type === "location" || note.type === "item" || note.type === "quest") && (
           <div className="text-[10px] sm:text-xs text-[var(--text-primary)] mb-3 opacity-75 flex flex-wrap gap-2">
             {note.type === "character" && note.race && (
               <span className="bg-blue-900/20 px-2 py-1 rounded text-blue-300">Race: {note.race}</span>
@@ -362,6 +376,35 @@ function NoteCard({ note, onEdit, onDelete, className = "", index = 0 }: { note:
             )}
             {note.type === "item" && note.itemType && (
               <span className="bg-amber-900/20 px-2 py-1 rounded text-amber-300">Type: {note.itemType}</span>
+            )}
+            {note.type === "quest" && note.questType && (
+              <span className={cn(
+                "px-2 py-1 rounded flex items-center gap-1 font-semibold",
+                note.questType === "principale" ? "bg-purple-900/30 text-purple-300 border border-purple-500/30" :
+                "bg-blue-900/20 text-blue-300"
+              )}>
+                {note.questType === "principale" ? " Quête Principale" : " Quête Annexe"}
+              </span>
+            )}
+            {note.type === "quest" && note.questStatus && (
+              <span className={cn(
+                "px-2 py-1 rounded flex items-center gap-1",
+                note.questStatus === "completed" ? "bg-green-900/20 text-green-300" :
+                note.questStatus === "in-progress" ? "bg-yellow-900/20 text-yellow-300" :
+                "bg-gray-900/20 text-gray-300"
+              )}>
+                {note.questStatus === "completed" && <CheckCircle2 className="h-3 w-3" />}
+                {note.questStatus === "in-progress" && <Clock className="h-3 w-3" />}
+                {note.questStatus === "not-started" && <Circle className="h-3 w-3" />}
+                {note.questStatus === "completed" ? "Terminée" : 
+                 note.questStatus === "in-progress" ? "En cours" : 
+                 "Non commencée"}
+              </span>
+            )}
+            {note.type === "quest" && note.subQuests && note.subQuests.length > 0 && (
+              <span className="bg-orange-900/20 px-2 py-1 rounded text-orange-300">
+                {note.subQuests.filter(sq => sq.status === "completed").length}/{note.subQuests.length} sous-quêtes
+              </span>
             )}
           </div>
         )}
@@ -409,6 +452,42 @@ function NoteCard({ note, onEdit, onDelete, className = "", index = 0 }: { note:
           </div>
         </div>
 
+        {/* Sous-quêtes */}
+        {note.type === "quest" && note.subQuests && note.subQuests.length > 0 && (
+          <div className="mb-3 space-y-2">
+            <h4 className="text-xs font-semibold text-[var(--accent-brown)] mb-2">Sous-quêtes :</h4>
+            {note.subQuests.map((subQuest) => (
+              <div key={subQuest.id} className="bg-[var(--bg-medium)]/50 rounded-lg p-2 border border-[var(--border-color)]/30">
+                <div className="flex items-start gap-2">
+                  <button 
+                    className="mt-0.5 cursor-pointer hover:scale-110 transition-transform focus:outline-none"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onUpdateSubQuest(note.id, subQuest.id);
+                    }}
+                    title="Changer le statut"
+                  >
+                    {subQuest.status === "completed" && <CheckCircle2 className="h-4 w-4 text-green-400" />}
+                    {subQuest.status === "in-progress" && <Clock className="h-4 w-4 text-yellow-400" />}
+                    {subQuest.status === "not-started" && <Circle className="h-4 w-4 text-gray-400" />}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className={cn(
+                      "text-sm font-medium",
+                      subQuest.status === "completed" ? "line-through opacity-60" : ""
+                    )}>
+                      {subQuest.title}
+                    </p>
+                    {subQuest.description && (
+                      <p className="text-xs text-[var(--text-primary)] opacity-75 mt-1">{subQuest.description}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* Tags */}
         {note.tags.length > 0 && (
           <div className="flex flex-wrap gap-1 mb-3 flex-shrink-0">
@@ -453,7 +532,7 @@ function NoteEditor({
 }) {
   const [title, setTitle] = useState(note?.title || "");
   const [content, setContent] = useState(note?.content || "");
-  const [type, setType] = useState<"character" | "location" | "item" | "other">(note?.type || "character");
+  const [type, setType] = useState<"character" | "location" | "item" | "quest" | "other">(note?.type || "character");
   const [tags, setTags] = useState<Tag[]>(note?.tags || []);
   const [image, setImage] = useState<string | undefined>(note?.image);
   
@@ -466,6 +545,11 @@ function NoteEditor({
   
   // Champs spécifiques aux objets
   const [itemType, setItemType] = useState(note?.itemType || "");
+  
+  // Champs spécifiques aux quêtes
+  const [questType, setQuestType] = useState<"principale" | "annexe">(note?.questType || "principale");
+  const [questStatus, setQuestStatus] = useState<"not-started" | "in-progress" | "completed">(note?.questStatus || "not-started");
+  const [subQuests, setSubQuests] = useState<SubQuest[]>(note?.subQuests || []);
 
   const handleSave = () => {
     if (!title.trim()) return;
@@ -483,6 +567,7 @@ function NoteEditor({
       ...(type === "character" && { race, class: characterClass }),
       ...(type === "location" && { region }),
       ...(type === "item" && { itemType }),
+      ...(type === "quest" && { questType, questStatus, subQuests }),
     };
     
     onSave(updatedNote);
@@ -501,7 +586,7 @@ function NoteEditor({
     
       <div className="space-y-2">
         <label className="text-sm font-medium">Type</label>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             type="button"
             variant={type === "character" ? "default" : "outline"}
@@ -528,6 +613,15 @@ function NoteEditor({
             className="flex gap-2"
           >
             <Book className="h-4 w-4" /> Objet
+          </Button>
+          <Button
+            type="button"
+            variant={type === "quest" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setType("quest")}
+            className="flex gap-2"
+          >
+            <Scroll className="h-4 w-4" /> Quête
           </Button>
           <Button
             type="button"
@@ -582,6 +676,170 @@ function NoteEditor({
             onChange={(e) => setItemType(e.target.value)} 
             placeholder="Arme, Armure, Potion..."
           />
+        </div>
+      )}
+
+      {type === "quest" && (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Type de quête</label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={questType === "principale" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setQuestType("principale")}
+                className="flex gap-2"
+              >
+                Principale
+              </Button>
+              <Button
+                type="button"
+                variant={questType === "annexe" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setQuestType("annexe")}
+                className="flex gap-2"
+              >
+                Annexe
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Statut de la quête</label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant={questStatus === "not-started" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setQuestStatus("not-started")}
+                className="flex gap-2"
+              >
+                <Circle className="h-4 w-4" /> Non commencée
+              </Button>
+              <Button
+                type="button"
+                variant={questStatus === "in-progress" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setQuestStatus("in-progress")}
+                className="flex gap-2"
+              >
+                <Clock className="h-4 w-4" /> En cours
+              </Button>
+              <Button
+                type="button"
+                variant={questStatus === "completed" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setQuestStatus("completed")}
+                className="flex gap-2"
+              >
+                <CheckCircle2 className="h-4 w-4" /> Terminée
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <label className="text-sm font-medium">Sous-quêtes</label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSubQuests([...subQuests, {
+                    id: Date.now().toString(),
+                    title: "",
+                    description: "",
+                    status: "not-started"
+                  }]);
+                }}
+                className="flex gap-2"
+              >
+                <Plus className="h-4 w-4" /> Ajouter
+              </Button>
+            </div>
+            {subQuests.length > 0 && (
+              <div className="space-y-3">
+                {subQuests.map((subQuest, index) => (
+                  <Card key={subQuest.id} className="p-3">
+                    <div className="space-y-2">
+                      <div className="flex gap-2 items-start">
+                        <Input
+                          placeholder="Titre de la sous-quête"
+                          value={subQuest.title}
+                          onChange={(e) => {
+                            const newSubQuests = [...subQuests];
+                            newSubQuests[index].title = e.target.value;
+                            setSubQuests(newSubQuests);
+                          }}
+                          className="flex-1"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setSubQuests(subQuests.filter((_, i) => i !== index));
+                          }}
+                          className="h-10 w-10 p-0"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      <Textarea
+                        placeholder="Description de la sous-quête"
+                        value={subQuest.description}
+                        onChange={(e) => {
+                          const newSubQuests = [...subQuests];
+                          newSubQuests[index].description = e.target.value;
+                          setSubQuests(newSubQuests);
+                        }}
+                        className="min-h-[60px]"
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant={subQuest.status === "not-started" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            const newSubQuests = [...subQuests];
+                            newSubQuests[index].status = "not-started";
+                            setSubQuests(newSubQuests);
+                          }}
+                        >
+                          <Circle className="h-3 w-3 mr-1" /> Non commencée
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={subQuest.status === "in-progress" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            const newSubQuests = [...subQuests];
+                            newSubQuests[index].status = "in-progress";
+                            setSubQuests(newSubQuests);
+                          }}
+                        >
+                          <Clock className="h-3 w-3 mr-1" /> En cours
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={subQuest.status === "completed" ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => {
+                            const newSubQuests = [...subQuests];
+                            newSubQuests[index].status = "completed";
+                            setSubQuests(newSubQuests);
+                          }}
+                        >
+                          <CheckCircle2 className="h-3 w-3 mr-1" /> Terminée
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -669,6 +927,9 @@ export default function Notes() {
               class: data.class,
               region: data.region,
               itemType: data.itemType,
+              questType: data.questType,
+              questStatus: data.questStatus,
+              subQuests: data.subQuests,
               createdAt: data.createdAt?.toDate() || new Date(),
               updatedAt: data.updatedAt?.toDate() || new Date(),
             } as Note;
@@ -694,7 +955,7 @@ export default function Notes() {
   });
   
   type FirestoreNoteUpdate = Partial<Pick<Note,
-    'title' | 'content' | 'type' | 'tags' | 'image' | 'race' | 'class' | 'region' | 'itemType'
+    'title' | 'content' | 'type' | 'tags' | 'image' | 'race' | 'class' | 'region' | 'itemType' | 'questType' | 'questStatus' | 'subQuests'
   >> & { updatedAt: Date; createdAt?: Date };
 
   const handleSaveNote = async (updatedNote: Note) => {
@@ -728,6 +989,15 @@ export default function Notes() {
       if (updatedNote.itemType !== undefined) {
         noteData.itemType = updatedNote.itemType;
       }
+      if (updatedNote.questType !== undefined) {
+        noteData.questType = updatedNote.questType;
+      }
+      if (updatedNote.questStatus !== undefined) {
+        noteData.questStatus = updatedNote.questStatus;
+      }
+      if (updatedNote.subQuests !== undefined) {
+        noteData.subQuests = updatedNote.subQuests;
+      }
 
       if (editingNote) {
         const noteDocRef = doc(db, 'Notes', roomId, character, updatedNote.id);
@@ -755,6 +1025,37 @@ export default function Notes() {
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
       setError("Erreur lors de la suppression de la note");
+    }
+  };
+
+  const handleUpdateSubQuest = async (noteId: string, subQuestId: string) => {
+    if (!roomId || !character) return;
+    
+    try {
+      const note = notes.find(n => n.id === noteId);
+      if (!note || !note.subQuests) return;
+
+      const updatedSubQuests = note.subQuests.map(sq => {
+        if (sq.id === subQuestId) {
+          // Cycle des statuts : not-started → in-progress → completed → not-started
+          let newStatus: "not-started" | "in-progress" | "completed";
+          if (sq.status === "not-started") {
+            newStatus = "in-progress";
+          } else if (sq.status === "in-progress") {
+            newStatus = "completed";
+          } else {
+            newStatus = "not-started";
+          }
+          return { ...sq, status: newStatus };
+        }
+        return sq;
+      });
+
+      const noteDocRef = doc(db, 'Notes', roomId, character, noteId);
+      await updateDoc(noteDocRef, { subQuests: updatedSubQuests });
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour de la sous-quête:', error);
+      setError("Erreur lors de la mise à jour de la sous-quête");
     }
   };
 
@@ -812,7 +1113,7 @@ export default function Notes() {
         <>
           <div className="flex gap-3 mb-4">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[var(--text-primary)] opacity-60" />
+              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[var(--text-primary)] opacity-60" />
               <Input
                 placeholder="Rechercher des notes..."
                 value={searchTerm}
@@ -828,6 +1129,7 @@ export default function Notes() {
               <TabsTrigger value="characters" className="text-xs px-3 py-1">Personnages</TabsTrigger>
               <TabsTrigger value="locations" className="text-xs px-3 py-1">Lieux</TabsTrigger>
               <TabsTrigger value="items" className="text-xs px-3 py-1">Objets</TabsTrigger>
+              <TabsTrigger value="quests" className="text-xs px-3 py-1">Quêtes</TabsTrigger>
             </TabsList>
             
             <TabsContent value="all" className="mt-0">
@@ -840,6 +1142,7 @@ export default function Notes() {
                         note={note}
                         onEdit={setEditingNote}
                         onDelete={handleDeleteNote}
+                        onUpdateSubQuest={handleUpdateSubQuest}
                         index={index}
                       />
                     ))
@@ -868,6 +1171,7 @@ export default function Notes() {
                           note={note}
                           onEdit={setEditingNote}
                           onDelete={handleDeleteNote}
+                          onUpdateSubQuest={handleUpdateSubQuest}
                           index={index}
                         />
                       ))
@@ -896,6 +1200,7 @@ export default function Notes() {
                           note={note}
                           onEdit={setEditingNote}
                           onDelete={handleDeleteNote}
+                          onUpdateSubQuest={handleUpdateSubQuest}
                           index={index}
                         />
                       ))
@@ -924,6 +1229,7 @@ export default function Notes() {
                           note={note}
                           onEdit={setEditingNote}
                           onDelete={handleDeleteNote}
+                          onUpdateSubQuest={handleUpdateSubQuest}
                           index={index}
                         />
                       ))
@@ -934,6 +1240,35 @@ export default function Notes() {
                       className="col-span-full text-center py-12"
                     >
                       <p className="text-[var(--text-primary)]">Aucune note d&apos;objet trouvée.</p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="quests" className="mt-0">
+              <div className="bento-grid">
+                <AnimatePresence>
+                  {filteredNotes.filter((note: Note) => note.type === "quest").length > 0 ? (
+                    filteredNotes
+                      .filter((note: Note) => note.type === "quest")
+                      .map((note: Note, index: number) => (
+                        <NoteCard
+                          key={note.id}
+                          note={note}
+                          onEdit={setEditingNote}
+                          onDelete={handleDeleteNote}
+                          onUpdateSubQuest={handleUpdateSubQuest}
+                          index={index}
+                        />
+                      ))
+                  ) : (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="col-span-full text-center py-12"
+                    >
+                      <p className="text-[var(--text-primary)]">Aucune quête trouvée.</p>
                     </motion.div>
                   )}
                 </AnimatePresence>

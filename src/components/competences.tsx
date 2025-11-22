@@ -294,7 +294,19 @@ export default function Competences() {
     }
 
     if (showChangeComponent) {
-        return <ChangeComponent onClose={() => setShowChangeComponent(false)} />
+        return <ChangeComponent onClose={async () => {
+            setShowChangeComponent(false)
+            // Recharger les données du personnage depuis Firestore
+            if (selectedCharacter && roomID) {
+                // Recharger le personnage depuis Firestore pour avoir les données à jour
+                const characterRef = doc(db, `cartes/${roomID}/characters/${selectedCharacter.id}`)
+                const characterDoc = await getDoc(characterRef)
+                if (characterDoc.exists()) {
+                    const updatedCharacter = { id: selectedCharacter.id, ...characterDoc.data() } as Character
+                    await selectCharacter(updatedCharacter)
+                }
+            }
+        }} />
     }
 
     return (
