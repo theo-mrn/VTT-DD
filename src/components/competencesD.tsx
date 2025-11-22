@@ -1,343 +1,178 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, MinusCircle, Info, Star, RefreshCw } from "lucide-react";
-import { db, getDoc, doc, setDoc, updateDoc, collection, getDocs } from "@/lib/firebase";
+import { PlusCircle, MinusCircle, Info, Star, RefreshCw, Search, X } from "lucide-react";
+import { db, getDoc, doc, setDoc, updateDoc } from "@/lib/firebase";
+import { useCharacter, Competence, BonusData } from "@/contexts/CharacterContext";
 
-// Type definitions
-interface Competence {
-  id: string;
-  name: string;
-  description: string;
-  bonuses: Partial<BonusData>;
-  isActive: boolean;
-  type: "passive" | "limitée" | "other";
-}
-
-interface BonusData {
-  CHA: number;
-  CON: number;
-  DEX: number;
-  Defense: number;
-  FOR: number;
-  INIT: number;
-  INT: number;
-  Contact: number;
-  Distance: number;
-  Magie: number;
-  PV: number;
-  PV_Max:number;
-  SAG: number;
-  active: boolean;
-  category: string;
-}
-
-interface CustomCompetence {
-  slotIndex: number;
-  voieIndex: number;
-  sourceVoie: string;
-  sourceRank: number;
-  competenceName: string;
-  competenceDescription: string;
-  competenceType: string;
-}
-
-const statOptions = ["FOR", "DEX", "CON", "INT", "SAG", "CHA", "PV", "PV_Max","Contact","Distance","Magie", "Defense"];
+const statOptions = ["FOR", "DEX", "CON", "INT", "SAG", "CHA", "PV", "PV_Max", "Contact", "Distance", "Magie", "Defense"];
 
 interface CompetencesDisplayProps {
   roomId: string;
   characterId: string;
+  canEdit?: boolean;
 }
 
-export default function CompetencesDisplay({ roomId, characterId }: CompetencesDisplayProps) {
-  const [competences, setCompetences] = useState<Competence[]>([]);
+export default function CompetencesDisplay({ roomId, characterId, canEdit = false }: CompetencesDisplayProps) {
+  const { competences, refreshCompetences, selectedCharacter } = useCharacter();
   const [selectedCompetence, setSelectedCompetence] = useState<Competence | null>(null);
   const [newBonus, setNewBonus] = useState<{ stat: keyof BonusData | undefined; value: number }>({
-  stat: undefined,
-  value: 0,
-});
+    stat: undefined,
+    value: 0,
+  });
   const [detailsOpenCompetenceId, setDetailsOpenCompetenceId] = useState<string | null>(null);
   const [bonusOpenCompetenceId, setBonusOpenCompetenceId] = useState<string | null>(null);
-  // Removed unused state for custom competences to satisfy linter
-  
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
-  useEffect(() => {
-    const loadCompetences = async () => {
-      await fetchCharacterSkills(roomId, characterId);
-    };
-
-    loadCompetences();
-  }, [roomId, characterId]);
-
-  const loadCustomCompetences = async (roomId: string, characterId: string) => {
-    try {
-      const customCompetencesRef = collection(db, `cartes/${roomId}/characters/${characterId}/customCompetences`);
-      const customCompetencesSnapshot = await getDocs(customCompetencesRef);
-      
-      const customComps: CustomCompetence[] = [];
-      customCompetencesSnapshot.forEach((doc) => {
-        const data = doc.data();
-        customComps.push({
-          slotIndex: data.slotIndex,
-          voieIndex: data.voieIndex,
-          sourceVoie: data.sourceVoie,
-          sourceRank: data.sourceRank,
-          competenceName: data.competenceName,
-          competenceDescription: data.competenceDescription,
-          competenceType: data.competenceType,
-        });
-      });
-      
-      return customComps;
-    } catch (error) {
-      console.error('Error loading custom competences:', error);
-      return [];
-    }
-  };
-
-  const fetchCharacterSkills = async (roomId: string, characterId: string) => {
-    try {
-      const characterRef = doc(db, `cartes/${roomId}/characters/${characterId}`);
-      const characterDoc = await getDoc(characterRef);
-
-      if (characterDoc.exists()) {
-        const characterData = characterDoc.data();
-        const skills: Competence[] = [];
-        
-        // Load custom competences first
-        const customComps = await loadCustomCompetences(roomId, characterId);
-        
-        // Dynamically find all available voies (up to 10)
-        for (let i = 1; i <= 10; i++) {
-          const voieFile = characterData[`Voie${i}`];
-          const voieLevel = characterData[`v${i}`] || 0;
-
-          if (voieFile && voieFile.trim() !== '' && voieLevel > 0) {
-            try {
-              const skillData = await fetch(`/tabs/${voieFile}`).then((res) => res.json());
-
-              for (let j = 1; j <= voieLevel; j++) {
-                let skillName = skillData[`Affichage${j}`];
-                let skillDescription = skillData[`rang${j}`];
-                let skillType = skillData[`type${j}`];
-
-                // Check if this competence has been customized
-                const customComp = customComps.find(cc => 
-                  cc.voieIndex === i - 1 && cc.slotIndex === j - 1
-                );
-                
-                if (customComp) {
-                  skillName = `🔄 ${customComp.competenceName}`;
-                  skillDescription = `${customComp.competenceDescription}<br><br><em>📍 Depuis: ${customComp.sourceVoie} (rang ${customComp.sourceRank})</em>`;
-                  skillType = customComp.competenceType;
-                }
-
-                if (skillName && skillDescription && skillType) {
-                  const skillId = `${voieFile}-${j}`;
-                  
-                  // Récupérer les bonus associés depuis Firestore
-                  const bonusData = await fetchBonusData(roomId, characterData.Nomperso, skillId);
-
-                  skills.push({
-                    id: skillId,
-                    name: skillName,
-                    description: skillDescription,
-                    bonuses: bonusData,
-                    isActive: bonusData.active || false,
-                    type: skillType as Competence["type"],
-                  });
-                }
-              }
-            } catch (error) {
-              console.error(`Error loading voie ${voieFile}:`, error);
-            }
-          }
-        }
-        setCompetences(skills);
-      } else {
-        console.error("Character document not found in Firestore.");
-      }
-    } catch (error) {
-      console.error("Error fetching character skills:", error);
-    }
-  };
-
-  const fetchBonusData = async (roomId: string, characterName: string, competenceId: string) => {
-    const bonusRef = doc(db, `Bonus/${roomId}/${characterName}/${competenceId}`);
-    const bonusDoc = await getDoc(bonusRef);
-
-    if (bonusDoc.exists()) {
-      const bonusData = bonusDoc.data() as BonusData;
-      return {
-        CHA: bonusData.CHA || 0,
-        CON: bonusData.CON || 0,
-        Contact: bonusData.Contact || 0,
-        DEX: bonusData.DEX || 0,
-        Defense: bonusData.Defense || 0,
-        Distance: bonusData.Distance || 0,
-        FOR: bonusData.FOR || 0,
-        INIT: bonusData.INIT || 0,
-        INT: bonusData.INT || 0,
-        Magie: bonusData.Magie || 0,
-        PV: bonusData.PV || 0,
-        PV_Max: bonusData.PV_Max || 0,
-        SAG: bonusData.SAG || 0,
-        active: bonusData.active || false,
-      };
-    } else {
-      return {}; // Si aucun bonus n'existe
-    }
-  };
-
-  
-
-const handleRemoveBonus = async (stat: string) => {
-  if (selectedCompetence) {
-    const updatedCompetences = competences.map((comp) =>
-      comp.id === selectedCompetence.id
-        ? { ...comp, bonuses: { ...comp.bonuses, [stat]: 0 } }
-        : comp
-    );
-
-    setCompetences(updatedCompetences);
-    setSelectedCompetence(updatedCompetences.find((comp) => comp.id === selectedCompetence.id) || null);
-
-    try {
-      const characterDoc = await getDoc(doc(db, `cartes/${roomId}/characters/${characterId}`));
-      if (characterDoc.exists()) {
-        const { Nomperso } = characterDoc.data();
-        const bonusPath = `Bonus/${roomId}/${Nomperso}/${selectedCompetence.id}`;
+  const handleRemoveBonus = async (stat: string) => {
+    if (selectedCompetence && selectedCharacter) {
+      try {
+        const bonusPath = `Bonus/${roomId}/${selectedCharacter.Nomperso}/${selectedCompetence.id}`;
 
         await updateDoc(doc(db, bonusPath), {
           [stat]: 0,
         });
+        
         console.log("Bonus supprimé avec succès dans Firestore pour", stat);
-      } else {
-        console.error("Document de personnage introuvable pour characterId:", characterId);
+        
+        // Rafraîchir les compétences pour mettre à jour l'affichage
+        await refreshCompetences();
+        
+        // Mettre à jour la compétence sélectionnée
+        const updatedComp = competences.find(c => c.id === selectedCompetence.id);
+        if (updatedComp) {
+          setSelectedCompetence(updatedComp);
+        }
+      } catch (error) {
+        console.error("Erreur lors de la suppression du bonus:", error);
       }
-    } catch (error) {
-      console.error("Erreur lors de la suppression du bonus:", error);
     }
-  }
-};
+  };
 
-const handleAddBonus = async () => {
-  if (selectedCompetence && newBonus.stat && newBonus.value) {
-    const updatedCompetences = competences.map((comp) =>
-      comp.id === selectedCompetence.id
-        ? {
-            ...comp,
-            bonuses: {
-              ...comp.bonuses,
-              [newBonus.stat as string]: (Number(comp.bonuses[newBonus.stat as keyof BonusData]) || 0) + newBonus.value,
-            },
-          }
-        : comp
-    );
+  const handleAddBonus = async () => {
+    if (selectedCompetence && selectedCharacter && newBonus.stat && newBonus.value) {
+      try {
+        const bonusPath = `Bonus/${roomId}/${selectedCharacter.Nomperso}/${selectedCompetence.id}`;
 
-    setCompetences(updatedCompetences);
-    setSelectedCompetence(updatedCompetences.find((comp) => comp.id === selectedCompetence.id) || null);
-    setNewBonus({ stat: undefined, value: 0 });
+        // Récupérer les bonus actuels
+        const bonusDoc = await getDoc(doc(db, bonusPath));
+        const currentBonuses = bonusDoc.exists() ? bonusDoc.data() : {};
 
-    try {
-      const characterDoc = await getDoc(doc(db, `cartes/${roomId}/characters/${characterId}`));
-      if (characterDoc.exists()) {
-        const { Nomperso } = characterDoc.data();
-        const bonusPath = `Bonus/${roomId}/${Nomperso}/${selectedCompetence.id}`;
-
-        const updatedCompetence = updatedCompetences.find((comp) => comp.id === selectedCompetence.id);
+        // Calculer le nouveau bonus
+        const currentValue = currentBonuses[newBonus.stat] || 0;
+        const newValue = Number(currentValue) + Number(newBonus.value);
 
         const bonusData: BonusData = {
-          CHA: updatedCompetence?.bonuses.CHA || 0,
-          CON: updatedCompetence?.bonuses.CON || 0,
-          Contact: updatedCompetence?.bonuses.Contact || 0,
-          DEX: updatedCompetence?.bonuses.DEX || 0,
-          Defense: updatedCompetence?.bonuses.Defense || 0,
-          Distance: updatedCompetence?.bonuses.Distance || 0,
-          FOR: updatedCompetence?.bonuses.FOR || 0,
-          INIT: updatedCompetence?.bonuses.INIT || 0,
-          INT: updatedCompetence?.bonuses.INT || 0,
-          Magie: updatedCompetence?.bonuses.Magie || 0,
-          PV: updatedCompetence?.bonuses.PV || 0,
-          PV_Max: updatedCompetence?.bonuses.PV_Max || 0,
-          SAG: updatedCompetence?.bonuses.SAG || 0,
-          active: updatedCompetence?.isActive || false,
+          CHA: currentBonuses.CHA || 0,
+          CON: currentBonuses.CON || 0,
+          Contact: currentBonuses.Contact || 0,
+          DEX: currentBonuses.DEX || 0,
+          Defense: currentBonuses.Defense || 0,
+          Distance: currentBonuses.Distance || 0,
+          FOR: currentBonuses.FOR || 0,
+          INIT: currentBonuses.INIT || 0,
+          INT: currentBonuses.INT || 0,
+          Magie: currentBonuses.Magie || 0,
+          PV: currentBonuses.PV || 0,
+          PV_Max: currentBonuses.PV_Max || 0,
+          SAG: currentBonuses.SAG || 0,
+          [newBonus.stat]: newValue,
+          active: currentBonuses.active !== undefined ? currentBonuses.active : selectedCompetence.isActive,
           category: "competence",
         };
 
         await setDoc(doc(db, bonusPath), bonusData, { merge: true });
         console.log("Bonus successfully added to Firestore:", bonusData);
-      } else {
-        console.error("Character document not found for characterId:", characterId);
+
+        // Rafraîchir les compétences pour mettre à jour l'affichage
+        await refreshCompetences();
+
+        // Mettre à jour la compétence sélectionnée
+        const updatedComp = competences.find(c => c.id === selectedCompetence.id);
+        if (updatedComp) {
+          setSelectedCompetence(updatedComp);
+        }
+
+        // Réinitialiser le formulaire
+        setNewBonus({ stat: undefined, value: 0 });
+      } catch (error) {
+        console.error("Error saving bonus:", error);
       }
-    } catch (error) {
-      console.error("Error saving bonus:", error);
+    } else {
+      console.error("Invalid bonus data or no competence selected.");
     }
-  } else {
-    console.error("Invalid bonus data or no competence selected.");
-  }
-};
+  };
 
   const toggleCompetenceActive = async (competenceId: string, event: React.MouseEvent) => {
     event.stopPropagation();
 
-    const updatedCompetences = competences.map((comp) =>
-      comp.id === competenceId ? { ...comp, isActive: !comp.isActive } : comp
-    );
-
-    setCompetences(updatedCompetences);
-
-    const updatedCompetence = updatedCompetences.find((comp) => comp.id === competenceId);
+    if (!selectedCharacter) return;
 
     try {
-      const characterDoc = await getDoc(doc(db, `cartes/${roomId}/characters/${characterId}`));
-      if (characterDoc.exists()) {
-        const { Nomperso } = characterDoc.data();
-        const bonusPath = `Bonus/${roomId}/${Nomperso}/${competenceId}`;
-        
-        const bonusDoc = await getDoc(doc(db, bonusPath));
-        if (bonusDoc.exists()) {
-          await updateDoc(doc(db, bonusPath), {
-            active: updatedCompetence?.isActive,
-          });
-          console.log("Active state updated successfully in Firestore.");
-        } else {
-          console.warn("Document not found; creating new document with active state.");
-          await setDoc(doc(db, bonusPath), {
-            active: updatedCompetence?.isActive,
-            category: "competence",
-            ...updatedCompetence?.bonuses,
-          });
-        }
+      const bonusPath = `Bonus/${roomId}/${selectedCharacter.Nomperso}/${competenceId}`;
+
+      const bonusDoc = await getDoc(doc(db, bonusPath));
+      const currentActive = bonusDoc.exists() ? bonusDoc.data()?.active : false;
+      const newActive = !currentActive;
+
+      if (bonusDoc.exists()) {
+        await updateDoc(doc(db, bonusPath), {
+          active: newActive,
+        });
+        console.log("Active state updated successfully in Firestore.");
       } else {
-        console.error("Character document not found for characterId:", characterId);
+        console.warn("Document not found; creating new document with active state.");
+        const comp = competences.find(c => c.id === competenceId);
+        await setDoc(doc(db, bonusPath), {
+          active: newActive,
+          category: "competence",
+          ...comp?.bonuses,
+        });
       }
+
+      // Rafraîchir les compétences pour mettre à jour l'affichage
+      await refreshCompetences();
     } catch (error) {
       console.error("Error updating active state:", error);
     }
   };
 
   const renderCompetences = (type: "all" | "passive" | "limitée") => {
-    const filteredCompetences = type === "all" ? competences : competences.filter((comp) => comp.type === type);
+    // Filtrer par type
+    let filteredCompetences = type === "all" ? competences : competences.filter((comp) => comp.type === type);
+    
+    // Filtrer par recherche
+    if (searchQuery.trim() !== "") {
+      const query = searchQuery.toLowerCase();
+      filteredCompetences = filteredCompetences.filter((comp) => {
+        const name = comp.name.toLowerCase();
+        const description = comp.description.toLowerCase();
+        return name.includes(query) || description.includes(query);
+      });
+    }
 
     return (
-      <ScrollArea className="h-[600px] p-2">
+      <div className="p-2">
         <div className="space-y-2">
-          {filteredCompetences.map((competence) => (
+          {filteredCompetences.length === 0 ? (
+            <div className="text-center py-8 text-[var(--text-secondary)]">
+              {searchQuery ? "Aucune compétence trouvée pour cette recherche" : "Aucune compétence disponible"}
+            </div>
+          ) : (
+            filteredCompetences.map((competence) => (
             <Card
               key={competence.id}
-              className={`card transition-colors duration-200 cursor-pointer ${
+              className={`card transition-colors duration-200 ${canEdit ? 'cursor-pointer' : 'cursor-default'} ${
                 competence.isActive ? "border-[var(--accent-brown)]" : "border-[var(--border-color)]"
               }`}
-              onClick={(e) => toggleCompetenceActive(competence.id, e)}
+              onClick={canEdit ? (e) => toggleCompetenceActive(competence.id, e) : undefined}
             >
               <CardContent className="flex flex-col p-4 text-[var(--text-primary)]">
                 <div className="flex justify-between items-center">
@@ -389,7 +224,7 @@ const handleAddBonus = async () => {
                               );
                             })()}
                           </DialogTitle>
-                          <DialogDescription className="modal-text" dangerouslySetInnerHTML={{ __html: selectedCompetence?.description || "" }}/>
+                          <DialogDescription className="modal-text" dangerouslySetInnerHTML={{ __html: selectedCompetence?.description || "" }} />
                         </DialogHeader>
                         <DialogFooter>
                           <Button variant="ghost" className="button-primary" onClick={(e) => {
@@ -401,7 +236,8 @@ const handleAddBonus = async () => {
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
-                    <Dialog open={bonusOpenCompetenceId === competence.id} onOpenChange={(isOpen) => setBonusOpenCompetenceId(isOpen ? competence.id : null)}>
+                    {canEdit && (
+                      <Dialog open={bonusOpenCompetenceId === competence.id} onOpenChange={(isOpen) => setBonusOpenCompetenceId(isOpen ? competence.id : null)}>
                       <DialogTrigger asChild>
                         <Button
                           variant="ghost"
@@ -501,6 +337,7 @@ const handleAddBonus = async () => {
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
+                    )}
                   </div>
                 </div>
                 {competence.isActive && competence.bonuses && Object.entries(competence.bonuses)
@@ -526,14 +363,49 @@ const handleAddBonus = async () => {
                 )}
               </CardContent>
             </Card>
-          ))}
+          )))}
         </div>
-      </ScrollArea>
+      </div>
     );
   };
 
   return (
     <Card className="card w-full max-w-4xl mx-auto">
+     
+      
+      {/* Barre de recherche */}
+      <div className="p-4 border-b border-[var(--border-color)] bg-[var(--bg-card)]">
+        <div className="relative">
+          <Input
+            type="text"
+            placeholder="Rechercher une compétence..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input-field pl-10 pr-10"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+              title="Effacer la recherche"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        {searchQuery && (
+          <p className="text-xs text-[var(--text-secondary)] mt-2 flex items-center gap-1">
+            <span className="font-semibold text-[var(--accent-brown)]">
+              {competences.filter(c => {
+                const query = searchQuery.toLowerCase();
+                return c.name.toLowerCase().includes(query) || c.description.toLowerCase().includes(query);
+              }).length}
+            </span>
+            compétence(s) trouvée(s)
+          </p>
+        )}
+      </div>
+
       <Tabs defaultValue="all">
         <TabsList className="grid grid-cols-3 bg-[var(--bg-dark)] text-[var(--accent-brown)]">
           <TabsTrigger value="all">Toutes</TabsTrigger>
