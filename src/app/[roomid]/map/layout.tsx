@@ -3,19 +3,20 @@
 import { ReactNode, useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useGame } from "@/contexts/GameContext";
-import Sidebar from "@/components/Sidebar";
+import Sidebar from "@/components/(overlays)/Sidebar";
 import GMDashboard from "@/components/MJcombat";
 import Component from "@/components/fiche";
 import MedievalNotes from "@/components/Notes";
-import { DiceRoller } from "@/components/dice-roller";
+import { DiceRoller } from "@/components/(dices)/dice-roller";
 import Competences from "@/components/competences";
-import OverlayComponent from "@/components/overlay";
-import QuestOverlay from "@/components/questOverlay";
-import InfoComponent from "@/components/info";
-import RollRequest from '@/components/Rollrequest';
+import OverlayComponent from "@/components/(overlays)/overlay";
+import QuestOverlay from "@/components/(overlays)/questOverlay";
+import InfoComponent from "@/components/(infos)/info";
+import RollRequest from '@/components/(dices)/Rollrequest';
 import { Button } from "@/components/ui/button";
 import { Statistiques } from "@/components/Statistiques";
 import { auth, db, onAuthStateChanged, collection, onSnapshot } from "@/lib/firebase";
+import { X } from "lucide-react";
 
 type LayoutProps = {
   children: ReactNode;
@@ -85,15 +86,15 @@ export default function Layout({ children }: LayoutProps) {
   const getPanelWidth = () => {
     switch (activeTab) {
       case "Component":
-        return "w-[1400px]"; // Fiche de personnage élargie
+        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1400px]"; // Fiche de personnage responsive
       case "Competences":
-        return "w-[1200px]";
-        case "GMDashboard":
-          return " bg-white";
+        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[1200px]";
+      case "GMDashboard":
+        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] bg-white";
       case "DiceRoller":
-        return "w-[500px]"; // Optional: Customize for Music tab
+        return "w-full sm:w-[90vw] md:w-[600px] lg:w-[500px]";
       default:
-        return "w-[700px]";
+        return "w-full sm:w-[90vw] md:w-[80vw] lg:w-[700px]";
     }
   };
 
@@ -109,8 +110,16 @@ export default function Layout({ children }: LayoutProps) {
 
       {activeTab && (
         <aside
-          className={`fixed left-20 top-0 h-full ${getPanelWidth()} bg-[#242424] text-black shadow-lg overflow-y-auto transition-transform duration-300 ease-in-out z-20`}
+          className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${getPanelWidth()} bg-[#242424] text-black shadow-lg overflow-y-auto transition-transform duration-300 ease-in-out z-20`}
         >
+          {/* Bouton de fermeture pour mobile/tablette */}
+          <button 
+            onClick={() => setActiveTab("")}
+            className="lg:hidden fixed top-3 right-3 z-30 bg-[#1c1c1c] text-white rounded-full p-2 hover:bg-[#333] transition-colors shadow-lg"
+            aria-label="Fermer le panneau"
+          >
+            <X className="h-5 w-5" />
+          </button>
           {renderActiveTab()}
         </aside>
       )}
@@ -120,12 +129,12 @@ export default function Layout({ children }: LayoutProps) {
       </main>
 
       {showRollRequest && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50">
-          <div className="rounded text-black w-1/3  text-center">
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50 p-4">
+          <div className="rounded text-black w-full xs:w-[95%] sm:w-[80%] md:w-[60%] lg:w-[50%] xl:w-[40%] 2xl:w-1/3 text-center max-h-[90vh] overflow-y-auto">
             <RollRequest />
             <Button
               onClick={() => setShowRollRequest(false)}
-              className="mt-4 items-center justify-center "
+              className="mt-4 items-center justify-center text-xs sm:text-sm"
               variant="default"
             >
               Close

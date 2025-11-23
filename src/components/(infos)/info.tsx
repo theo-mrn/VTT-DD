@@ -3,10 +3,10 @@
 import Image from "next/image";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useState } from "react";
-import Capacites from "@/components/capacites";
+import Capacites from "@/components/(infos)/capacites";
 import Information from "@/components/Information";
-import Component from "@/components/wiki";
-import Images from "@/components/images";
+import Component from "@/components/(infos)/wiki";
+import Images from "@/components/(infos)/images";
 
 export default function InfoComponent() {
   const [isFullScreen, setIsFullScreen] = useState(false);

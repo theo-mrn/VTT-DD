@@ -14,7 +14,7 @@ import Combat from '@/components/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import CharacterSheet from '@/components/CharacterSheet'; // Importez le composant de fiche de personnage
-import FloatingMusic from '@/components/FloatingMusic'; // Lecteur musical flottant
+import FloatingMusic from '@/components/(music)/FloatingMusic'; // Lecteur musical flottant
 
 
 export default function Component() {

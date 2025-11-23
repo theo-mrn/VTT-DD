@@ -127,10 +127,10 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
   }
 
   return (
-    <div className="relative w-52 h-52 flex justify-center items-center">
+    <div className="relative w-40 h-40 sm:w-52 sm:h-52 flex justify-center items-center mx-auto">
       {/* Character Image */}
       <div 
-        className="relative w-40 h-40 rounded-full overflow-hidden shadow-lg cursor-pointer z-10"
+        className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden shadow-lg cursor-pointer z-10"
         onClick={() => setShowCropper(true)}
       >
         <img
@@ -142,16 +142,16 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
 
       {/* Decorative Overlay */}
       <div 
-        className="absolute inset-0 w-56 h-56 bg-center bg-cover z-20 pointer-events-none"
+        className="absolute inset-0 w-44 h-44 sm:w-56 sm:h-56 bg-center bg-cover z-20 pointer-events-none"
         style={{ backgroundImage: `url(${overlayUrl})` }}
       />
 
       {/* Cropper Modal with Token Grid */}
       {showCropper && croppedImageUrl && (
-        <div className="fixed inset-0 z-50 bg-black bg-opacity-80 flex">
+        <div className="fixed inset-0 z-50 bg-black bg-opacity-80 flex flex-col lg:flex-row">
           {/* Left side - Cropper */}
-          <div className="flex-1 flex flex-col justify-center items-center p-4">
-            <div className="relative w-full h-3/4">
+          <div className="flex-1 flex flex-col justify-center items-center p-3 sm:p-4 lg:p-6">
+            <div className="relative w-full h-[50vh] sm:h-[60vh] lg:h-3/4">
               <Cropper
                 image={croppedImageUrl}
                 crop={crop}
@@ -163,7 +163,7 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
               />
             </div>
 
-            <div className="mt-4 w-full max-w-lg">
+            <div className="mt-3 sm:mt-4 w-full max-w-lg px-2">
               <Slider
                 value={[zoom]}
                 min={1}
@@ -173,22 +173,22 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
               />
             </div>
 
-            <div className="mt-6 flex space-x-4">
+            <div className="mt-3 sm:mt-6 flex flex-wrap justify-center gap-2 sm:gap-4">
               <button
                 onClick={handleSaveCroppedImage}
-                className="bg-green-500 text-white px-6 py-2 rounded"
+                className="bg-green-500 text-white px-3 sm:px-6 py-2 rounded text-xs sm:text-sm font-bold"
               >
                 Valider
               </button>
               <button
                 onClick={() => setShowCropper(false)}
-                className="bg-gray-500 text-white px-6 py-2 rounded"
+                className="bg-gray-500 text-white px-3 sm:px-6 py-2 rounded text-xs sm:text-sm font-bold"
               >
                 Annuler
               </button>
               <button
                 onClick={handleResetImage}
-                className="bg-blue-500 text-white px-6 py-2 rounded"
+                className="bg-blue-500 text-white px-3 sm:px-6 py-2 rounded text-xs sm:text-sm font-bold"
               >
                 Réinitialiser
               </button>
@@ -196,13 +196,13 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
           </div>
 
           {/* Right side - Token Grid */}
-          <div className="w-80 bg-white h-full overflow-y-auto">
+          <div className="w-full lg:w-80 bg-white h-[40vh] lg:h-full overflow-y-auto">
             <Card className="h-full border-none rounded-none">
-              <CardHeader>
-                <CardTitle>Sélectionner un Token</CardTitle>
+              <CardHeader className="p-3 sm:p-6">
+                <CardTitle className="text-sm sm:text-base">Sélectionner un Token</CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-2">
+              <CardContent className="p-2 sm:p-4">
+                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 gap-1 sm:gap-2">
                   {tokenList.map((token) => (
                     <button
                       key={token.id}
@@ -214,8 +214,8 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
                         alt={token.name}
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-black bg-opacity-40 flex items-end justify-center p-1">
-                        <span className="text-white text-xs">{token.name}</span>
+                      <div className="absolute inset-0 bg-black bg-opacity-40 flex items-end justify-center p-0.5 sm:p-1">
+                        <span className="text-white text-[10px] sm:text-xs">{token.name}</span>
                       </div>
                     </button>
                   ))}

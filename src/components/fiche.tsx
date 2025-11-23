@@ -97,17 +97,17 @@ export default function Component() {
   }
   
   const RaceAbilitiesModal: React.FC<RaceAbilitiesModalProps> = ({ abilities, onClose }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-[#2a2a2a] p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center">
-        <h2 className="text-xl font-bold text-[#c0a080] mb-4">Capacités Raciales</h2>
-        <div className="space-y-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center max-h-[90vh] overflow-y-auto">
+        <h2 className="text-lg sm:text-xl font-bold text-[#c0a080] mb-4">Capacités Raciales</h2>
+        <div className="space-y-3 sm:space-y-4">
           {abilities.map((ability, index) => (
-            <p key={index} className="text-[#d4d4d4]">{ability}</p>
+            <p key={index} className="text-sm sm:text-base text-[#d4d4d4]">{ability}</p>
           ))}
         </div>
         <button
           onClick={onClose}
-          className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-sm font-bold mt-4"
+          className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-xs sm:text-sm font-bold mt-4"
         >
           Fermer
         </button>
@@ -171,13 +171,13 @@ export default function Component() {
   };
 
   const LevelUpConfirmationModal: React.FC<{ onClose: () => void; updatedCharacter: Character }> = ({ onClose, updatedCharacter }) => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-[#2a2a2a] p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center">
-        <h2 className="text-2xl font-bold text-[#c0a0a0] mb-4">Niveau Augmenté !</h2>
-        <p className="text-[#d4d4d4] mb-4">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center">
+        <h2 className="text-xl sm:text-2xl font-bold text-[#c0a0a0] mb-4">Niveau Augmenté !</h2>
+        <p className="text-sm sm:text-base text-[#d4d4d4] mb-4">
           Félicitations, votre personnage a monté de niveau ! Voici les nouvelles valeurs :
         </p>
-        <div className="grid grid-cols-2 gap-2 text-sm text-[#a0a0a0] mb-4">
+        <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm text-[#a0a0a0] mb-4">
           <div>PV Max: <span className="text-[#d4d4d4] font-bold">{updatedCharacter.PV_Max}</span></div>
           <div>Contact: <span className="text-[#d4d4d4] font-bold">{updatedCharacter.Contact}</span></div>
           <div>Distance: <span className="text-[#d4d4d4] font-bold">{updatedCharacter.Distance}</span></div>
@@ -185,7 +185,7 @@ export default function Component() {
         </div>
         <button
           onClick={onClose}
-          className="bg-[#5c6bc0] text-white px-6 py-2 rounded-lg hover:bg-[#7986cb] transition duration-300 text-sm font-bold"
+          className="bg-[#5c6bc0] text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-[#7986cb] transition duration-300 text-xs sm:text-sm font-bold"
         >
           Fermer
         </button>
@@ -240,41 +240,41 @@ export default function Component() {
 
   return (
     <TooltipProvider>
-    <div className="min-h-screen bg-[#1c1c1c] text-[#d4d4d4] p-4">
-      <div className="max-w-[1350px] mx-auto bg-[#242424] rounded-lg shadow-2xl p-6 space-y-6">
+    <div className="min-h-screen bg-[#1c1c1c] text-[#d4d4d4] p-2 sm:p-4">
+      <div className="max-w-7xl mx-auto bg-[#242424] rounded-lg shadow-2xl p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6">
         
         {/* Boutons discrets en haut à gauche */}
         {selectedCharacter && (selectedCharacter.id === userPersoId || userRole === "MJ") && (
-          <div className="flex gap-2 mb-4">
+          <div className="flex flex-wrap gap-2 mb-4">
             <button
               onClick={handleEdit}
-              className="bg-[#3a3a3a] text-[#c0a080] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1"
+              className="bg-[#3a3a3a] text-[#c0a080] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
               title="Modifier"
             >
               <Edit size={16} />
-              <span className="text-xs">Modifier</span>
+              <span>Modifier</span>
             </button>
             <button
               onClick={openLevelUpModal}
-              className="bg-[#3a3a3a] text-[#5c6bc0] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1"
+              className="bg-[#3a3a3a] text-[#5c6bc0] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
               title="Monter de niveau"
             >
               <TrendingUp size={16} />
-              <span className="text-xs">Niveau +</span>
+              <span>Niveau +</span>
             </button>
           </div>
         )}
 
-        <div className="flex justify-center space-x-2 overflow-x-auto">
+        <div className="flex justify-center gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-[#3a3a3a] scrollbar-track-transparent">
           {characters.map((character) => (
             <button
               key={character.id}
               onClick={() => setSelectedCharacter(character)}
-              className={`px-4 py-2 ${
+              className={`px-3 py-2 sm:px-4 ${
                 selectedCharacter?.id === character.id 
                   ? 'bg-[#d4b48f]' 
                   : 'bg-[#c0a080]'
-              } text-[#1c1c1c] rounded-lg hover:bg-[#d4b48f] transition whitespace-nowrap text-sm font-bold`}
+              } text-[#1c1c1c] rounded-lg hover:bg-[#d4b48f] transition whitespace-nowrap text-xs sm:text-sm font-bold flex-shrink-0`}
             >
               {character.Nomperso}
             </button>
@@ -283,12 +283,12 @@ export default function Component() {
 
         {selectedCharacter && !isEditing && (
           <>
-            {/* Layout principal avec 2 colonnes: infos + inventaire à gauche, compétences à droite */}
-            <div className="flex gap-6">
+            {/* Layout principal avec responsive mobile -> tablette -> desktop */}
+            <div className="flex flex-col xl:flex-row gap-4 md:gap-6">
               {/* Colonne gauche: Infos du personnage + Inventaire */}
-              <div className="flex-1 space-y-6">
-                <div className="flex flex-col md:flex-row space-y-6 md:space-y-0 md:space-x-6">
-                  <div className="flex-shrink-0">
+              <div className="flex-1 space-y-4 md:space-y-6">
+                <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 md:space-x-6">
+                  <div className="flex-shrink-0 mx-auto sm:mx-0">
                     <CharacterImage 
                       imageUrl={selectedCharacter.imageURL} 
                       altText={selectedCharacter.Nomperso} 
@@ -296,10 +296,10 @@ export default function Component() {
                     />
                   </div>
 
-                  <div className="flex-grow space-y-4">
-                    <div className="bg-[#2a2a2a] p-4 rounded-lg border border-[#3a3a3a]">
-                      <h2 className="text-2xl font-bold text-[#c0a0a0] mb-2">{selectedCharacter.Nomperso}</h2>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div className="flex-grow space-y-3 md:space-y-4">
+                    <div className="bg-[#2a2a2a] p-3 md:p-4 rounded-lg border border-[#3a3a3a]">
+                      <h2 className="text-xl md:text-2xl font-bold text-[#c0a0a0] mb-2 text-center sm:text-left">{selectedCharacter.Nomperso}</h2>
+                      <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 text-xs sm:text-sm">
                         <div>Niveau: <span className="text-[#a0a0a0]">{selectedCharacter.niveau}</span></div>
                         <div>Initiative: <span className="text-[#a0a0a0]">{getDisplayValue("INIT")}</span></div>
                         <div>Profil: <span className="text-[#a0a0a0]">{selectedCharacter.Profile}</span></div>
@@ -314,11 +314,11 @@ export default function Component() {
       </span>
     </div>
     <div>Poids: <span className="text-[#a0a0a0]">{selectedCharacter.Poids} Kg</span></div>
-    <div>Dé de Vie: <span className="text-[#a0a0a0]">{selectedCharacter.deVie}</span></div>
+    <div className="xs:col-span-2">Dé de Vie: <span className="text-[#a0a0a0]">{selectedCharacter.deVie}</span></div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 text-center">
+                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center">
                       {[
                         { name: 'FOR', value: getDisplayModifier("FOR") },
                         { name: 'DEX', value: getDisplayModifier("DEX") },
@@ -329,12 +329,12 @@ export default function Component() {
                       ].map((ability) => (
                         <Tooltip key={ability.name}>
                         <TooltipTrigger>
-                          <div className="bg-[#2a2a2a] p-2 rounded-lg border border-[#3a3a3a]">
-                            <div className="text-[#c0a0a0] font-semibold">{ability.name}</div>
-                            <div className={`text-2xl font-bold ${ability.value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          <div className="bg-[#2a2a2a] p-1.5 xs:p-2 sm:p-3 rounded-lg border border-[#3a3a3a]">
+                            <div className="text-[#c0a0a0] font-semibold text-[10px] xs:text-xs sm:text-sm">{ability.name}</div>
+                            <div className={`text-base xs:text-lg sm:text-xl md:text-2xl font-bold leading-tight ${ability.value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
                               {ability.value >= 0 ? '+' : ''}{ability.value}
                             </div>
-                            <div className="text-sm text-[#a0a0a0]">{selectedCharacter ? selectedCharacter[ability.name as keyof Character] : 0}</div>
+                            <div className="text-[9px] xs:text-[10px] sm:text-xs text-[#a0a0a0]">{selectedCharacter ? selectedCharacter[ability.name as keyof Character] : 0}</div>
                           </div>
                         </TooltipTrigger>
                         <TooltipContent>
@@ -348,12 +348,12 @@ export default function Component() {
                   </div>
                 </div>
 
-                <div className="bg-[#2a2a2a] p-4 rounded-lg border border-[#3a3a3a] flex justify-between items-center">
+                <div className="bg-[#2a2a2a] p-2 xs:p-3 sm:p-4 rounded-lg border border-[#3a3a3a] flex flex-col xs:flex-row justify-between items-center gap-2 xs:gap-3">
                   <Tooltip>
                     <TooltipTrigger>
-                      <div className="flex items-center space-x-2">
-                        <Heart className="text-red-500" size={24} />
-                        <span className="text-2xl font-bold text-[#d4d4d4]">
+                      <div className="flex items-center space-x-1.5 xs:space-x-2">
+                        <Heart className="text-red-500" size={18} />
+                        <span className="text-base xs:text-lg sm:text-xl md:text-2xl font-bold text-[#d4d4d4]">
                           {getDisplayValue("PV")} / {getDisplayValue("PV_Max")}
                         </span>
                       </div>
@@ -366,9 +366,9 @@ export default function Component() {
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger>
-                      <div className="flex items-center space-x-2">
-                        <Shield className="text-blue-500" size={24} />
-                        <span className="text-2xl font-bold text-[#d4d4d4]">{getDisplayValue("Defense")}</span>
+                      <div className="flex items-center space-x-1.5 xs:space-x-2">
+                        <Shield className="text-blue-500" size={18} />
+                        <span className="text-base xs:text-lg sm:text-xl md:text-2xl font-bold text-[#d4d4d4]">{getDisplayValue("Defense")}</span>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -379,7 +379,7 @@ export default function Component() {
                   </Tooltip>
                 </div>
 
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4">
                   {[
                     { name: 'Contact', value: getDisplayValue("Contact") },
                     { name: 'Distance', value: getDisplayValue("Distance") },
@@ -387,9 +387,9 @@ export default function Component() {
                   ].map((stat) => (
                     <Tooltip key={stat.name}>
                       <TooltipTrigger>
-                        <div className="bg-[#2a2a2a] p-4 rounded-lg border border-[#3a3a3a] text-center">
-                          <h3 className="text-lg font-semibold text-[#c0a0a0] mb-1">{stat.name}</h3>
-                          <span className="text-2xl font-bold text-[#d4d4d4]">{stat.value}</span>
+                        <div className="bg-[#2a2a2a] p-2 xs:p-3 sm:p-4 rounded-lg border border-[#3a3a3a] text-center">
+                          <h3 className="text-xs xs:text-sm sm:text-base md:text-lg font-semibold text-[#c0a0a0] mb-0.5 sm:mb-1">{stat.name}</h3>
+                          <span className="text-lg xs:text-xl sm:text-2xl font-bold text-[#d4d4d4]">{stat.value}</span>
                         </div>
                       </TooltipTrigger>
                       <TooltipContent>
@@ -409,7 +409,7 @@ export default function Component() {
 
               {/* Colonne droite: Compétences - Visible pour tous, modifiable selon les droits */}
               {roomId && (
-                <div className="w-[600px] flex-shrink-0">
+                <div className="w-full xl:w-[600px] flex-shrink-0">
                   <CompetencesDisplay 
                     roomId={roomId} 
                     characterId={selectedCharacter.id}
@@ -429,101 +429,101 @@ export default function Component() {
 )}
 
         {isEditing && (
-          <div className="bg-[#2a2a2a] p-6 rounded-lg border border-[#3a3a3a]">
-            <h2 className="text-xl font-bold text-[#c0a0a0] mb-4">
+          <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-lg border border-[#3a3a3a]">
+            <h2 className="text-lg sm:text-xl font-bold text-[#c0a0a0] mb-4">
   Modifier {selectedCharacter?.Nomperso || "Personnage"}
 </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
               <div className="space-y-2">
-                <label className="text-sm">PV</label>
+                <label className="text-xs sm:text-sm block">PV</label>
                 <input
                   type="number"
                   value={editForm.PV || ''}
                   onChange={(e) => setEditForm({...editForm, PV: parseInt(e.target.value)})}
-                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white"
+                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm">PV Maximum</label>
+                <label className="text-xs sm:text-sm block">PV Maximum</label>
                 <input
                   type="number"
                   value={editForm.PV_Max || ''}
                   onChange={(e) => setEditForm({...editForm, PV_Max: parseInt(e.target.value)})}
-                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white"
+                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm">Défense</label>
+                <label className="text-xs sm:text-sm block">Défense</label>
                 <input
                   type="number"
                   value={editForm.Defense || ''}
                   onChange={(e) => setEditForm({...editForm, Defense: parseInt(e.target.value)})}
-                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white"
+                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm">Contact</label>
+                <label className="text-xs sm:text-sm block">Contact</label>
                 <input
                   type="number"
                   value={editForm.Contact || ''}
                   onChange={(e) => setEditForm({...editForm, Contact: parseInt(e.target.value)})}
-                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white"
+                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm">Magie</label>
+                <label className="text-xs sm:text-sm block">Magie</label>
                 <input
                   type="number"
                   value={editForm.Magie || ''}
                   onChange={(e) => setEditForm({...editForm, Magie: parseInt(e.target.value)})}
-                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white"
+                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm">Distance</label>
+                <label className="text-xs sm:text-sm block">Distance</label>
                 <input
                   type="number"
                   value={editForm.Distance || ''}
                   onChange={(e) => setEditForm({...editForm, Distance: parseInt(e.target.value)})}
-                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white"
+                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm">Initiative</label>
+                <label className="text-xs sm:text-sm block">Initiative</label>
                 <input
                   type="number"
                   value={editForm.INIT || ''}
                   onChange={(e) => setEditForm({...editForm, INIT: parseInt(e.target.value)})}
-                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white"
+                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
               {['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'].map((stat) => (
                 <div key={stat} className="space-y-2">
-                  <label className="text-sm">{stat}</label>
+                  <label className="text-xs sm:text-sm block">{stat}</label>
                   <input
                     type="number"
                     value={editForm[stat as keyof Character] || ''}
                     onChange={(e) => setEditForm({...editForm, [stat]: parseInt(e.target.value)})}
-                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white"
+                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
                   />
                 </div>
               ))}
             </div>
 
-            <div className="flex justify-end space-x-4">
+            <div className="flex flex-col xs:flex-row justify-end gap-3 xs:gap-4">
               <button
                 onClick={() => setIsEditing(false)}
-                className="bg-gray-600 text-white px-6 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-sm font-bold"
+                className="bg-gray-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-xs sm:text-sm font-bold"
               >
                 Annuler
               </button>
               <button
                 onClick={handleSave}
-                className="bg-[#c0a080] text-[#1c1c1c] px-6 py-2 rounded-lg hover:bg-[#d4b48f] transition duration-300 text-sm font-bold"
+                className="bg-[#c0a080] text-[#1c1c1c] px-4 sm:px-6 py-2 rounded-lg hover:bg-[#d4b48f] transition duration-300 text-xs sm:text-sm font-bold"
               >
                 Sauvegarder
               </button>
@@ -538,31 +538,31 @@ export default function Component() {
   )}
 
         {showLevelUpModal && selectedCharacter && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-[#2a2a2a] p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center">
-              <h2 className="text-xl font-bold text-[#c0a0a0] mb-4">Monter de Niveau</h2>
-              <p className="text-[#d4d4d4] mb-4">Lancez un dé pour augmenter les PV Max.</p>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center">
+              <h2 className="text-lg sm:text-xl font-bold text-[#c0a0a0] mb-4">Monter de Niveau</h2>
+              <p className="text-sm sm:text-base text-[#d4d4d4] mb-4">Lancez un dé pour augmenter les PV Max.</p>
               <button
                 onClick={handleRollDie}
-                className="bg-[#c0a080] text-[#1c1c1c] px-4 py-2 rounded-lg mb-4 hover:bg-[#d4b48f] transition duration-300 text-sm font-bold"
+                className="bg-[#c0a080] text-[#1c1c1c] px-4 py-2 rounded-lg mb-4 hover:bg-[#d4b48f] transition duration-300 text-xs sm:text-sm font-bold"
               >
                 Lancer le Dé
               </button>
               {rollResult !== null && selectedCharacter && (
-                <div className="text-2xl font-bold text-green-500 mb-4">
+                <div className="text-lg sm:text-2xl font-bold text-green-500 mb-4 break-words">
                   {rollResult - getModifier(selectedCharacter.CON || 0)} + CON ({getModifier(selectedCharacter.CON || 0)}) = {rollResult}
                 </div>
               )}
-              <div className="flex justify-center space-x-4">
+              <div className="flex flex-col xs:flex-row justify-center gap-3 xs:gap-4">
                 <button
                   onClick={confirmLevelUp}
-                  className="bg-[#5c6bc0] text-white px-4 py-2 rounded-lg hover:bg-[#7986cb] transition duration-300 text-sm font-bold"
+                  className="bg-[#5c6bc0] text-white px-4 py-2 rounded-lg hover:bg-[#7986cb] transition duration-300 text-xs sm:text-sm font-bold"
                 >
                   Valider
                 </button>
                 <button
                   onClick={closeLevelUpModal}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-sm font-bold"
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-xs sm:text-sm font-bold"
                 >
                   Annuler
                 </button>
