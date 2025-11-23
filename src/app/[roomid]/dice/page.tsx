@@ -1,4 +1,4 @@
-import { DiceRoller } from "@/components/dice-roller";
+import { DiceRoller } from "@/components/(dices)/dice-roller";
 import { NumberTicker } from "@/components/magicui/number-ticker";
 
 export default function DiceRollerPage() {
