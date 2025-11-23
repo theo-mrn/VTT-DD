@@ -453,17 +453,17 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                   </TooltipContent>
                 </Tooltip>
                 <DialogContent className="!max-w-[95vw] !w-[1400px] !max-h-[90vh] !min-h-[600px] overflow-hidden flex flex-col" style={{ width: '1400px', maxWidth: '95vw', height: '90vh', maxHeight: '90vh' }}>
-              <DialogHeader className="flex-shrink-0 pb-4 border-b">
-                <DialogTitle className="text-xl flex items-center gap-2 text-[var(--accent-brown)]">
-                  <Plus className="w-5 h-5" />
+              <DialogHeader className="flex-shrink-0 pb-3 sm:pb-4 border-b">
+                <DialogTitle className="text-base sm:text-xl flex items-center gap-2 text-[var(--accent-brown)]">
+                  <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                   Ajouter un objet
                 </DialogTitle>
               </DialogHeader>
               
               <div className="flex-1 overflow-hidden flex flex-col min-h-0">
                 {/* Barre de recherche et filtres */}
-                <div className="flex-shrink-0 py-4 border-b border-[var(--border-color)]">
-                  <div className="flex gap-4">
+                <div className="flex-shrink-0 py-2 sm:py-4 border-b border-[var(--border-color)]">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
                     <div className="relative w-full">
                       <Input
                         placeholder="Rechercher un objet..."
