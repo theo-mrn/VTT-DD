@@ -1,6 +1,7 @@
 import { Map, Paintbrush, Grid3X3, Eye } from 'lucide-react'
 import { Aclonica } from "next/font/google"
 import { cn } from '@/lib/utils'
+import { ImageGallery } from '@/components/ui/image-gallery'
 
 const aclonica = Aclonica({
     weight: '400',
@@ -15,15 +16,8 @@ export function Features2() {
                     <h2 className={cn("text-4xl font-semibold lg:text-5xl", aclonica.className)}>Table de jeu interactive</h2>
                     <p className={cn("mt-6 text-lg", aclonica.className)}>Explorez des cartes dynamiques avec plus de 74 environnements disponibles. Système de grille, brouillard de guerre et outils collaboratifs intégrés.</p>
                 </div>
-                <div className="relative -mx-4 rounded-3xl p-3 md:-mx-12 lg:col-span-3">
-                    <div className="[perspective:800px]">
-                        <div className="[transform:skewY(-2deg)skewX(-2deg)rotateX(6deg)]">
-                            <div className="aspect-[88/36] relative">
-                                <div className="[background-image:radial-gradient(var(--tw-gradient-stops,at_75%_25%))] to-background z-1 -inset-[4.25rem] absolute from-transparent to-75%"></div>
-                                <img src="/cartes/autre/image2.webp" className="absolute inset-0 z-10 w-full h-full object-cover rounded-xl" alt="Interface de carte interactive" width={2797} height={1137} />
-                            </div>
-                        </div>
-                    </div>
+                <div className="relative rounded-3xl overflow-hidden">
+                    <ImageGallery />
                 </div>
                 <div className="relative mx-auto grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-8 lg:grid-cols-4">
                     <div className="space-y-3">
