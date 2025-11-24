@@ -1,42 +1,61 @@
-import Hero from "@/components/ui/animated-shader-hero";
+'use client'
+import React from 'react'
+import { useRouter } from 'next/navigation'
+import { onAuthStateChanged } from 'firebase/auth'
+import { auth } from '../../lib/firebase'
+import Hero from "@/components/ui/animated-shader-hero"
 
 // Demo Component showing how to use the Hero
 const HeroDemo: React.FC = () => {
+  const [isUserLoggedIn, setIsUserLoggedIn] = React.useState<boolean | null>(null)
+  const router = useRouter()
+
+  React.useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setIsUserLoggedIn(!!user)
+    })
+    return () => unsubscribe()
+  }, [])
+
   const handlePrimaryClick = () => {
-    console.log('Get Started clicked!');
-    // Add your logic here
-  };
+    if (isUserLoggedIn) {
+      router.push('/Salle')
+    } else {
+      // Ouvrir la modal d'authentification
+      console.log('Ouvrir la modal d\'authentification')
+    }
+  }
 
   const handleSecondaryClick = () => {
-    console.log('Explore Features clicked!');
-    // Add your logic here
-  };
+    console.log('S\'identifier clicked')
+    // Ouvrir la modal d'authentification
+  }
 
   return (
     <div className="w-full">
       <Hero
         trustBadge={{
-          text: "Trusted by forward-thinking teams.",
-          icons: ["✨"]
+          text: "Plateforme VTT pour Donjons & Dragons",
+          icons: ["🎲"]
         }}
         headline={{
-          line1: "Launch Your",
-          line2: "Workflow Into Orbit"
+          line1: "Votre table",
+          line2: "virtuelle ultime"
         }}
-        subtitle="Supercharge productivity with AI-powered automation and integrations built for the next generation of teams — fast, seamless, and limitless."
+        subtitle="Créez des aventures épiques avec votre groupe. Plateforme VTT simple et intuitive."
         buttons={{
           primary: {
-            text: "Get Started for Free",
+            text: isUserLoggedIn === null ? "Chargement..." : "Commencer l'aventure",
             onClick: handlePrimaryClick
           },
           secondary: {
-            text: "Explore Features",
+            text: "S'identifier",
             onClick: handleSecondaryClick
           }
         }}
       />
     </div>
-  );
-};
+  )
+}
 
-export default HeroDemo;
+export default HeroDemo

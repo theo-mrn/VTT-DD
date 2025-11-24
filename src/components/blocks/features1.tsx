@@ -1,6 +1,7 @@
 import { User, Dices, Users, Settings } from 'lucide-react'
 import { Aclonica } from "next/font/google"
 import { cn } from '@/lib/utils'
+import { ImageAutoSlider } from '@/components/ui/image-auto-slider'
 
 const aclonica = Aclonica({
     weight: '400',
@@ -17,44 +18,7 @@ export function Features1() {
                 </div>
                 <div className="relative rounded-3xl overflow-hidden">
                     <div className="flex items-center justify-center p-4 min-h-[300px]">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center max-w-4xl w-full">
-                            <div className="flex justify-center">
-                                <div className="relative">
-                                    <img 
-                                        src="/Photos/Nain/Nain235.webp" 
-                                        className="w-48 h-48 md:w-56 md:h-56 object-cover rounded-2xl shadow-xl border-2 border-gray-200 dark:border-gray-700" 
-                                        alt="Portrait de Nain - Guerrier" 
-                                    />
-                                    <div className={cn("absolute -bottom-2 -right-2 text-white text-xs px-2 py-1 rounded-full font-medium", aclonica.className)} style={{backgroundColor: '#C0A080'}}>
-                                        Nain
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex justify-center">
-                                <div className="relative">
-                                    <img 
-                                        src="/Photos/Elfe/Elfe34.webp" 
-                                        className="w-48 h-48 md:w-56 md:h-56 object-cover rounded-2xl shadow-xl border-2 border-gray-200 dark:border-gray-700" 
-                                        alt="Portrait d'Elfe - Archer" 
-                                    />
-                                    <div className={cn("absolute -bottom-2 -right-2 text-white text-xs px-2 py-1 rounded-full font-medium", aclonica.className)} style={{backgroundColor: '#C0A080'}}>
-                                        Elfe
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="flex justify-center">
-                                <div className="relative">
-                                    <img 
-                                        src="/Photos/Humain/Humain1.webp" 
-                                        className="w-48 h-48 md:w-56 md:h-56 object-cover rounded-2xl shadow-xl border-2 border-gray-200 dark:border-gray-700" 
-                                        alt="Portrait d'Humain - Mage" 
-                                    />
-                                    <div className={cn("absolute -bottom-2 -right-2 text-white text-xs px-2 py-1 rounded-full font-medium", aclonica.className)} style={{backgroundColor: '#C0A080'}}>
-                                        Humain
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <ImageAutoSlider />
                     </div>
                 </div>
                 <div className="relative mx-auto grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-8 lg:grid-cols-4">
