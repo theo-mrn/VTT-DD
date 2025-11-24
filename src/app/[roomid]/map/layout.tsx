@@ -93,10 +93,14 @@ export default function Layout({ children }: LayoutProps) {
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] bg-white";
       case "DiceRoller":
         return "w-full sm:w-[90vw] md:w-[600px] lg:w-[500px]";
+      case "NewComponent": // Style livre pour les notes
+        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1200px]";
       default:
         return "w-full sm:w-[90vw] md:w-[80vw] lg:w-[700px]";
     }
   };
+
+  const isBookStyle = activeTab === "NewComponent";
 
   return (
     <div className="relative h-screen bg-[#1c1c1c] text-[#d4d4d4] flex">
@@ -110,19 +114,87 @@ export default function Layout({ children }: LayoutProps) {
 
       {activeTab && (
         <aside
-          className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${getPanelWidth()} bg-[#242424] text-black shadow-lg overflow-y-auto transition-transform duration-300 ease-in-out z-20`}
+          className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${getPanelWidth()} text-black shadow-lg overflow-y-auto z-20
+            ${isBookStyle
+              ? 'bg-transparent animate-[bookOpen_0.6s_ease-out] [perspective:2000px]'
+              : 'bg-[#242424] transition-transform duration-300 ease-in-out'
+            }`}
+          style={isBookStyle ? {
+            transformStyle: 'preserve-3d',
+            animation: 'bookOpen 0.6s ease-out forwards'
+          } : undefined}
         >
+
           {/* Bouton de fermeture pour mobile/tablette */}
-          <button 
+          <button
             onClick={() => setActiveTab("")}
-            className="lg:hidden fixed top-3 right-3 z-30 bg-[#1c1c1c] text-white rounded-full p-2 hover:bg-[#333] transition-colors shadow-lg"
+            className={`lg:hidden fixed top-3 right-3 z-30 rounded-full p-2 transition-colors shadow-lg
+              ${isBookStyle
+                ? 'bg-amber-800 text-amber-50 hover:bg-amber-700'
+                : 'bg-[#1c1c1c] text-white hover:bg-[#333]'
+              }`}
             aria-label="Fermer le panneau"
           >
             <X className="h-5 w-5" />
           </button>
-          {renderActiveTab()}
+
+          <div className={isBookStyle ? 'animate-[fadeIn_0.8s_ease-out_0.3s_both]' : ''}>
+            {renderActiveTab()}
+          </div>
         </aside>
       )}
+
+      {/* Styles pour l'animation de livre */}
+      <style jsx global>{`
+        @keyframes bookOpen {
+          0% {
+            opacity: 0;
+            transform: perspective(2000px) rotateY(-90deg);
+            transform-origin: left center;
+          }
+          50% {
+            opacity: 0.5;
+          }
+          100% {
+            opacity: 1;
+            transform: perspective(2000px) rotateY(0deg);
+            transform-origin: left center;
+          }
+        }
+
+        @keyframes fadeIn {
+          0% {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes pageTurnOut {
+          0% {
+            opacity: 1;
+            transform: perspective(1200px) rotateY(0deg) translateX(0);
+          }
+          100% {
+            opacity: 0;
+            transform: perspective(1200px) rotateY(-30deg) translateX(-50px);
+          }
+        }
+
+        @keyframes pageTurnIn {
+          0% {
+            opacity: 0;
+            transform: perspective(1200px) rotateY(30deg) translateX(50px);
+          }
+          100% {
+            opacity: 1;
+            transform: perspective(1200px) rotateY(0deg) translateX(0);
+          }
+        }
+      `}</style>
 
       <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c]">
         <div className="w-full h-full">{children}</div>

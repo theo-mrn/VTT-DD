@@ -8,13 +8,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, ChevronRight, ChevronLeft, User, Grid, Music } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import CharacterSheet from '@/components/CharacterSheet'; // Importez le composant de fiche de personnage
 import FloatingMusic from '@/components/(music)/FloatingMusic'; // Lecteur musical flottant
+import { Component as RadialMenu } from '@/components/ui/radial-menu'; // Menu radial
 
 
 export default function Component() {
@@ -95,7 +96,6 @@ export default function Component() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [visibilityRadius, setVisibilityRadius] = useState(100);
-  const [toolbarVisible, setToolbarVisible] = useState(false);
   // 🎯 NOUVEAU SYSTÈME DE BROUILLARD PAR QUADRILLAGE
   const [fogMode, setFogMode] = useState(false);
   const [fogGrid, setFogGrid] = useState<Map<string, boolean>>(new Map()); // clé: "x,y", valeur: true = brouillard
@@ -113,6 +113,9 @@ export default function Component() {
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
   const [mouseButton, setMouseButton] = useState<number | null>(null); // Pour tracker quel bouton de souris est pressé
+  const fileInputRef = useRef<HTMLInputElement>(null); // Ref pour l'input de changement de fond
+  const characterInputRef = useRef<HTMLInputElement>(null); // Ref pour l'input d'ajout de personnage
+  const [panMode, setPanMode] = useState(false); // Mode déplacement de carte
 
 
   useEffect(() => {
@@ -215,6 +218,153 @@ useEffect(() => {
 
   // Firebase Functions
   
+  // 🎯 Configuration du menu radial
+  const radialMenuItems = isMJ ? [
+    { id: 1, label: 'Ajouter Personnage', icon: CircleUserRound },
+    { id: 2, label: 'Ajouter Texte', icon: Baseline },
+    { id: 3, label: 'Dessiner', icon: Pencil },
+    { id: 4, label: 'Brouillard', icon: Cloud },
+    { id: 5, label: fullMapFog ? 'Masquer brouillard' : 'Brouillard complet', icon: fullMapFog ? EyeOff : Eye },
+    { id: 6, label: 'Supprimer brouillard', icon: CloudOff },
+    { id: 7, label: showGrid ? 'Masquer grille' : 'Afficher grille', icon: Grid },
+    { id: 8, label: 'Effacer dessins', icon: Trash2 },
+    { id: 9, label: 'Changer fond', icon: ImagePlus },
+    { id: 10, label: 'Déplacer carte', icon: Move },
+  ] : [
+    { id: 1, label: 'Ajouter Texte', icon: Baseline },
+    { id: 2, label: 'Dessiner', icon: Pencil },
+    { id: 3, label: showGrid ? 'Masquer grille' : 'Afficher grille', icon: Grid },
+    { id: 4, label: 'Déplacer carte', icon: Move },
+    { id: 5, label: 'Effacer dessins', icon: Trash2 },
+  ];
+
+  // 🎯 Calculer les IDs des outils actuellement actifs (peut être plusieurs)
+  const getActiveToolIds = (): number[] => {
+    const activeIds: number[] = [];
+    
+    if (isMJ) {
+      // Menu MJ
+      if (drawMode) activeIds.push(3); // Dessiner
+      if (fogMode) activeIds.push(4); // Brouillard
+      if (fullMapFog) activeIds.push(5); // Brouillard complet
+      if (showGrid) activeIds.push(7); // Afficher grille
+      if (panMode) activeIds.push(10); // Déplacer carte
+    } else {
+      // Menu Joueur
+      if (drawMode) activeIds.push(2); // Dessiner
+      if (showGrid) activeIds.push(3); // Afficher grille
+      if (panMode) activeIds.push(4); // Déplacer carte
+    }
+    
+    return activeIds;
+  };
+
+  const togglePanMode = () => {
+    setPanMode(!panMode);
+    // Désélectionner les éléments sélectionnés lors de l'activation
+    if (!panMode) {
+      setSelectedCharacterIndex(null);
+      setSelectedNoteIndex(null);
+    }
+  };
+
+  const handleRadialMenuSelect = (item: { id: number; label: string; icon: any }) => {
+    // 🎯 Désactiver les outils incompatibles avant d'activer le nouveau
+    const desactiverOutilsIncompatibles = (toolId: number) => {
+      if (isMJ) {
+        // Pour le MJ : ID 3 (Dessin), ID 4 (Brouillard), ID 10 (Déplacement) sont incompatibles
+        if (toolId === 3 || toolId === 4 || toolId === 10) {
+          // Désactiver les deux autres
+          if (toolId !== 3 && drawMode) setDrawMode(false);
+          if (toolId !== 4 && fogMode) setFogMode(false);
+          if (toolId !== 10 && panMode) setPanMode(false);
+        }
+      } else {
+        // Pour le joueur : ID 2 (Dessin), ID 4 (Déplacement) sont incompatibles
+        if (toolId === 2 || toolId === 4) {
+          // Désactiver l'autre
+          if (toolId !== 2 && drawMode) setDrawMode(false);
+          if (toolId !== 4 && panMode) setPanMode(false);
+        }
+      }
+    };
+
+    if (isMJ) {
+      // Menu MJ
+      switch (item.id) {
+        case 1:
+          // Ajouter Personnage
+          setDialogOpen(true);
+          break;
+        case 2:
+          // Ajouter Texte
+          handleAddNote();
+          break;
+        case 3:
+          // Dessiner
+          desactiverOutilsIncompatibles(3);
+          toggleDrawMode();
+          break;
+        case 4:
+          // Brouillard (toggle mode)
+          desactiverOutilsIncompatibles(4);
+          toggleFogMode();
+          break;
+        case 5:
+          // Brouillard complet (toggle)
+          handleFullMapFogChange(!fullMapFog);
+          break;
+        case 6:
+          // Supprimer tout le brouillard
+          clearFog();
+          break;
+        case 7:
+          // Toggle grille
+          setShowGrid(!showGrid);
+          break;
+        case 8:
+          // Effacer dessins
+          clearDrawings();
+          break;
+        case 9:
+          // Changer fond
+          fileInputRef.current?.click();
+          break;
+        case 10:
+          // Déplacer carte
+          desactiverOutilsIncompatibles(10);
+          togglePanMode();
+          break;
+      }
+    } else {
+      // Menu Joueur
+      switch (item.id) {
+        case 1:
+          // Ajouter Texte
+          handleAddNote();
+          break;
+        case 2:
+          // Dessiner
+          desactiverOutilsIncompatibles(2);
+          toggleDrawMode();
+          break;
+        case 3:
+          // Toggle grille
+          setShowGrid(!showGrid);
+          break;
+        case 4:
+          // Déplacer carte
+          desactiverOutilsIncompatibles(4);
+          togglePanMode();
+          break;
+        case 5:
+          // Effacer dessins
+          clearDrawings();
+          break;
+      }
+    }
+  };
+
   const handleAttack = () => {
     console.log('=== HANDLE ATTACK DEBUG ===');
     console.log('persoId:', persoId);
@@ -1058,13 +1208,10 @@ const handleNoteSubmitNew = async () => {
 
 
 const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
-  // Empêcher le menu contextuel sur clic droit
-  e.preventDefault();
-  
   const rect = canvasRef.current?.getBoundingClientRect();
   if (!rect) return;
   
-  // Stocker quel bouton de souris est pressé (0 = gauche, 2 = droit)
+  // Stocker quel bouton de souris est pressé (0 = gauche, 1 = milieu, 2 = droit)
   setMouseButton(e.button);
   
   const containerWidth = containerRef.current?.getBoundingClientRect().width || rect.width;
@@ -1078,8 +1225,9 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
     const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
     const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
 
-    // CLIC DROIT (button = 2) : DÉPLACEMENT DE LA CARTE
-    if (e.button === 2) {
+    // CLIC MILIEU (button = 1) : DÉPLACEMENT DE LA CARTE
+    if (e.button === 1) {
+      e.preventDefault();
       setIsDragging(true);
       setDragStart({ x: e.clientX, y: e.clientY });
       return;
@@ -1087,6 +1235,13 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
 
     // CLIC GAUCHE (button = 0) : SÉLECTION ET INTERACTIONS
     if (e.button === 0) {
+      // 🎯 MODE DÉPLACEMENT DE CARTE - Priorité élevée
+      if (panMode) {
+        setIsDragging(true);
+        setDragStart({ x: e.clientX, y: e.clientY });
+        return;
+      }
+
       // Gérer le double-clic pour ouvrir les fiches de personnage
       if (e.detail === 2) {
         const clickedCharIndex = characters.findIndex(char => {
@@ -1252,8 +1407,8 @@ const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
       return;
     }
 
-    // 🎯 DÉPLACEMENT DE CARTE - Priorité élevée (clic droit)
-    if (isDragging && mouseButton === 2) {
+    // 🎯 DÉPLACEMENT DE CARTE - Priorité élevée (clic milieu OU mode pan avec clic gauche)
+    if (isDragging && (mouseButton === 1 || (mouseButton === 0 && panMode))) {
       const dx = e.clientX - dragStart.x;
       const dy = e.clientY - dragStart.y;
       setOffset((prev) => ({ x: prev.x - dx, y: prev.y - dy }));
@@ -1434,8 +1589,8 @@ const handleCanvasMouseUp = async () => {
     return;
   }
 
-  // Fin du déplacement de carte (clic droit)
-  if (currentMouseButton === 2) {
+  // Fin du déplacement de carte (clic milieu OU mode pan avec clic gauche)
+  if (currentMouseButton === 1 || (currentMouseButton === 0 && panMode)) {
     setIsDragging(false);
   }
 
@@ -1789,198 +1944,151 @@ const handleNoteSubmit = async () => {
   }
 
     return (
-    <div className="flex flex-col">
-
-
-      <div className="flex flex-row-reverse right-0">
-  <div className="flex flex-row h-full absolute z-50 ">
-    {/* Toggle button for toolbar visibility */}
-    <Button onClick={() => setToolbarVisible(!toolbarVisible)} className="self-center">
-      {toolbarVisible ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-    </Button>
-
-    {/* Toolbar: conditionally rendered */}
-    {toolbarVisible && (
-      <div className="flex flex-col gap-6 w-64 rounded-lg  p-6 bg-[var(--bg-dark)] self-center text-white">
-        {/* 🎯 Indicateur de statut */}
-       
-        
-        <div className='flex flex-row gap-6 justify-center'>
-        <Button className="button-primary " onClick={() => handleZoom(-0.1)}>
+    <div className="flex flex-col relative">
+      {/* 🎯 Contrôles de zoom flottants en haut à droite */}
+      <div className="absolute top-4 right-4 z-50 flex gap-2">
+        <Button 
+          onClick={() => handleZoom(-0.1)} 
+          className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm"
+          title="Dézoomer"
+        >
           <Minus className="w-4 h-4" />
         </Button>
-        <Button className="button-primary" onClick={() => handleZoom(0.1)}>
+        <Button 
+          onClick={() => handleZoom(0.1)} 
+          className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm"
+          title="Zoomer"
+        >
           <Plus className="w-4 h-4" />
         </Button>
-        </div>
-       
-
-        <div className="flex items-center space-x-2">
-          <Switch
-            className="bg-primary"
-            id="grid-switch"
-            checked={showGrid}
-            onCheckedChange={setShowGrid}
-          />
-          <Label htmlFor="grid-switch">Quadrillage</Label>
-        </div>
-
-        {isMJ && (
-          <div className="flex items-center space-x-2">
-            <Switch
-              className="bg-primary"
-              id="full-fog-switch"
-              checked={fullMapFog}
-              onCheckedChange={handleFullMapFogChange}
-            />
-            <Label htmlFor="full-fog-switch">Brouillard sur toute la carte</Label>
-          </div>
-        )}
-
-        <div className="flex items-center space-x-2">
-          <Label htmlFor="visibilityRadiusSlider">Rayon de visibilité</Label>
-          <input
-            id="visibilityRadiusSlider"
-            type="range"
-            min="10"
-            max="500"
-            value={visibilityRadius}
-            onChange={(e) => {
-              const newRadius = parseInt(e.target.value, 10);
-              setVisibilityRadius(newRadius);
-              if (persoId) {
-                updateDoc(doc(db, 'cartes', String(roomId), 'characters', persoId), {
-                  visibilityRadius: newRadius
-                });
-              }
-            }}
-            className="w-32"
-          />
-        </div>
-
-        {isMJ && (
-          <Input
-            type="file"
-            onChange={handleBackgroundChange}
-            className="w-40"
-          />
-        )}
-
-    
-
-
-
-
-        {isMJ && (
-          <Button onClick={() => setDialogOpen(true)}>
-            <CircleUserRound/>
-            Personnage</Button>
-        )}
-
-<Button onClick={handleAddNote}>
-          <Baseline/>
-          Texte
-          </Button>
-
-
-        <Button onClick={toggleDrawMode}>
-          {drawMode ? <Eraser className="w-4 h-4 mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
-          {drawMode ? 'Quitter dessin' : 'Dessiner'}
-        </Button>
-
-
-        
-
-        {(
-          <Button onClick={clearDrawings}>
-            <X/>
-            Effacer les dessins
-            </Button>
-        )}
-
-        {isMJ && (
-          <div className="flex flex-col gap-2">
-            <Button 
-              onClick={toggleFogMode}
-              className={fogMode ? 'bg-orange-600 hover:bg-orange-700 border-orange-400' : 'bg-gray-600 hover:bg-gray-700'}
-            >
-              {fogMode ? <Eraser className="w-4 h-4 mr-2" /> : <Pencil className="w-4 h-4 mr-2" />}
-              {fogMode ? '🌫️ Mode Brouillard ACTIF' : 'Activer le brouillard'}
-            </Button>
-            {fogMode && (
-              <div className="text-xs text-yellow-300 bg-gray-800 p-2 rounded border border-yellow-500">
-                <div className="font-medium mb-1">💡 Mode Brouillard :</div>
-                <div>• Cliquer sur zone vide → Ajouter</div>
-                <div>• Cliquer sur zone brouillée → Supprimer</div>
-                <div>• Faire glisser pour zones continues</div>
-              </div>
-            )}
-            <Button onClick={() => setShowFogGrid(!showFogGrid)} className={showFogGrid ? 'bg-yellow-600' : ''}>
-              <Grid className="w-4 h-4 mr-2" />
-              {showFogGrid ? 'Masquer grille' : 'Afficher grille'}
-            </Button>
-            <Button onClick={clearFog} className="bg-red-600 hover:bg-red-700">
-              <X className="w-4 h-4 mr-2" />
-              Supprimer tout le brouillard
-            </Button>
-          </div>
-        )}
-
-
-
-      
-
-
-       
-
-                  {/* 🎯 SUPPRIMÉ : Mode donjon (remplacé par fog of war) */}
-
-
-       
-
-
       </div>
-    )}
-  </div>
-</div>
 
-  
-      <div
-    ref={containerRef}
-          className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${
-      isDraggingCharacter || isDraggingNote ? 'cursor-grabbing' : 
-      isDragging ? 'cursor-move' : 'cursor-default'
-    } relative`}
-    style={{ 
-      height: '100vh',
-      userSelect: isDraggingCharacter || isDraggingNote ? 'none' : 'auto'
-    }}
-    onMouseDown={handleCanvasMouseDown}
-    onMouseMove={handleCanvasMouseMove}
-    onMouseUp={handleCanvasMouseUp}
-    onMouseLeave={handleCanvasMouseUp}
-    onContextMenu={(e) => e.preventDefault()} // Empêcher le menu contextuel
->
-    <canvas
-        ref={canvasRef}
-        style={{ width: '100%', height: '100vh' }}
-    />
-    {combatOpen && (
-        <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-10">
-            <div className="text-black p-6 rounded-lg shadow-lg w-1/3 h-2/5">
-            <Combat
-              attackerId={attackerId || ''} 
-              targetId={targetId || ''}
-              onClose={() => setCombatOpen(false)}
-            />
+      {/* 🎯 Indicateurs de mode actif en haut à gauche */}
+      {(drawMode || fogMode || panMode) && (
+        <div className="absolute top-4 left-4 z-50 flex flex-col gap-2">
+          {panMode && (
+            <div className="text-xs text-blue-300 bg-black/70 backdrop-blur-sm p-3 rounded-lg border border-blue-500 shadow-lg">
+              <div className="font-semibold mb-1">🔄 Mode Déplacement</div>
+              <div className="text-gray-300">Cliquez et glissez pour déplacer la carte</div>
             </div>
+          )}
+          {drawMode && (
+            <div className="text-xs text-yellow-300 bg-black/70 backdrop-blur-sm p-3 rounded-lg border border-yellow-500 shadow-lg">
+              <div className="font-semibold mb-1">✏️ Mode Dessin</div>
+              <div className="text-gray-300">Clic gauche pour dessiner</div>
+            </div>
+          )}
+          {fogMode && (
+            <div className="text-xs text-yellow-300 bg-black/70 backdrop-blur-sm p-3 rounded-lg border border-yellow-500 shadow-lg">
+              <div className="font-semibold mb-1">🌫️ Mode Brouillard</div>
+              <div className="text-gray-300">• Zone vide → Ajouter</div>
+              <div className="text-gray-300">• Zone brouillée → Supprimer</div>
+              {isMJ && (
+                <Button 
+                  onClick={() => setShowFogGrid(!showFogGrid)} 
+                  className={`mt-2 text-xs h-7 w-full ${showFogGrid ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+                >
+                  <Grid className="w-3 h-3 mr-1" />
+                  {showFogGrid ? 'Masquer grille' : 'Grille'}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
-    )}
-</div>
+      )}
+
+      {/* Input caché pour le changement de fond */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleBackgroundChange}
+        style={{ display: 'none' }}
+      />
+
+      <RadialMenu 
+        menuItems={radialMenuItems}
+        onSelect={handleRadialMenuSelect}
+        size={280}
+        iconSize={20}
+        activeItemIds={getActiveToolIds()}
+      >
+        <div
+          ref={containerRef}
+          className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${
+            isDraggingCharacter || isDraggingNote ? 'cursor-grabbing' : 
+            isDragging ? 'cursor-move' : 
+            panMode ? 'cursor-grab' :
+            drawMode ? 'cursor-crosshair' :
+            fogMode ? 'cursor-cell' : 'cursor-default'
+          } relative`}
+          style={{ 
+            height: '100vh',
+            userSelect: isDraggingCharacter || isDraggingNote ? 'none' : 'auto'
+          }}
+          onMouseDown={handleCanvasMouseDown}
+          onMouseMove={handleCanvasMouseMove}
+          onMouseUp={handleCanvasMouseUp}
+          onMouseLeave={handleCanvasMouseUp}
+        >
+          <canvas
+            ref={canvasRef}
+            style={{ width: '100%', height: '100vh' }}
+          />
+          {combatOpen && (
+            <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-10">
+              <div className="text-black p-6 rounded-lg shadow-lg w-1/3 h-2/5">
+                <Combat
+                  attackerId={attackerId || ''} 
+                  targetId={targetId || ''}
+                  onClose={() => setCombatOpen(false)}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      </RadialMenu>
 
 {selectedCharacterIndex !== null && (
   <div className="absolute bottom-3 flex left-1/2 space-x-2 items-center">
     <Button className="button-primary">{characters[selectedCharacterIndex].name}</Button>
+    
+    {/* Slider de rayon de visibilité pour les personnages joueurs */}
+    {characters[selectedCharacterIndex].type === 'joueurs' && (isMJ || characters[selectedCharacterIndex].id === persoId) && (
+      <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm px-4 py-2 rounded-lg border border-gray-600">
+        <ScanEye className="w-4 h-4 text-blue-400" />
+        <input
+          type="range"
+          min="10"
+          max="500"
+          value={characters[selectedCharacterIndex].visibilityRadius || visibilityRadius}
+          onChange={(e) => {
+            const newRadius = parseInt(e.target.value, 10);
+            const charId = characters[selectedCharacterIndex].id;
+            if (charId && roomId) {
+              updateDoc(doc(db, 'cartes', String(roomId), 'characters', charId), {
+                visibilityRadius: newRadius
+              });
+              setCharacters(prevCharacters => 
+                prevCharacters.map((char, index) => 
+                  index === selectedCharacterIndex 
+                    ? { ...char, visibilityRadius: newRadius }
+                    : char
+                )
+              );
+            }
+          }}
+          className="w-24 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+        />
+        <span className="text-white text-sm font-medium min-w-[3rem]">
+          {isMJ 
+            ? `${characters[selectedCharacterIndex].visibilityRadius || visibilityRadius}px`
+            : `${Math.round(1 + ((characters[selectedCharacterIndex].visibilityRadius || visibilityRadius) - 10) / 490 * 29)}`
+          }
+        </span>
+      </div>
+    )}
+    
     {isMJ || characters[selectedCharacterIndex].id === persoId ? (
       <>
         {characters[selectedCharacterIndex].type === 'joueurs' && (
@@ -1988,7 +2096,7 @@ const handleNoteSubmit = async () => {
             setSelectedCharacterForSheet(characters[selectedCharacterIndex].id);
             setShowCharacterSheet(true);
           }}>
-            <User className="w-4 h-4 mr-2 button-secondary" /> Voir fiche
+             fiche
           </Button>
         )}
         {/* Boutons pour les personnages non-joueurs (MJ seulement) */}
@@ -2068,7 +2176,7 @@ const handleNoteSubmit = async () => {
               setSelectedCharacterForSheet(characters[selectedCharacterIndex].id);
               setShowCharacterSheet(true);
             }}>
-              <User className="w-4 h-4 mr-2" /> Voir fiche
+               Fiche
             </Button>
           )}
         </>

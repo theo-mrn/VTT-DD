@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { Menu, X, ChevronRight } from 'lucide-react'
-import { useScroll, motion } from 'motion/react'
+import { useScroll, motion } from 'framer-motion'
 import { Aclonica } from "next/font/google"
 import Login06 from '@/components/ui/login-3'
 import { useRouter } from 'next/navigation'
