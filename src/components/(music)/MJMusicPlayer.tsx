@@ -50,8 +50,8 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
   const playerRef = useRef<YouTubePlayer | null>(null);
   const musicStateRef = useRef<string>(`rooms/${roomId}/music`);
   const playlistRef = useRef<string>(`rooms/${roomId}/playlist`);
-  const isInitialLoad = useRef(true);
   const isSyncingFromFirebase = useRef(false);
+  const hasPlayerSyncedOnce = useRef(false);
 
   // Fonction pour extraire l'ID vidéo YouTube d'une URL
   const extractVideoId = (url: string): string | null => {
@@ -209,7 +209,7 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
   const onPlayerReady: YouTubeProps['onReady'] = async (event) => {
     console.log('🎵 Player ready!');
     playerRef.current = event.target;
-    
+
     // Récupérer le titre de la vidéo
     try {
       const videoData = await event.target.getVideoData();
@@ -217,7 +217,7 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
         await updateMusicState({
           videoTitle: videoData.title
         });
-        
+
         // Mettre à jour le titre dans la playlist si c'est un nouveau morceau
         const trackIndex = playlist.findIndex(t => t.videoId === musicState.videoId);
         if (trackIndex !== -1 && playlist[trackIndex].title === 'Chargement...') {
@@ -230,11 +230,35 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
     } catch (error) {
       console.error('Error getting video title:', error);
     }
-    
+
     const volume = isMuted ? 0 : localVolume;
     playerRef.current.setVolume(volume);
     if (!isMuted) {
       playerRef.current.unMute();
+    }
+
+    // Synchroniser immédiatement avec l'état Firebase existant
+    if (musicState.videoId) {
+      isSyncingFromFirebase.current = true;
+
+      // Calculer la position actuelle en tenant compte du temps écoulé
+      const timeSinceUpdate = (Date.now() - musicState.lastUpdate) / 1000;
+      const targetTime = musicState.isPlaying ? musicState.timestamp + timeSinceUpdate : musicState.timestamp;
+
+      // Se positionner au bon moment
+      playerRef.current.seekTo(targetTime, true);
+
+      // Jouer ou mettre en pause selon l'état
+      if (musicState.isPlaying) {
+        playerRef.current.playVideo();
+      } else {
+        playerRef.current.pauseVideo();
+      }
+
+      setTimeout(() => {
+        isSyncingFromFirebase.current = false;
+        hasPlayerSyncedOnce.current = true;
+      }, 1000);
     }
   };
 
@@ -273,15 +297,15 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
   // Synchronisation avec Firebase - Music State
   useEffect(() => {
     const musicRef = dbRef(realtimeDb, musicStateRef.current);
-    
+
     const unsubscribe = onValue(musicRef, (snapshot) => {
       const data = snapshot.val() as MusicState | null;
-      
+
       if (data) {
         setMusicState(data);
 
-        // Vérifier que le player existe ET est prêt avant de synchroniser
-        if (playerRef.current && data.videoId && typeof playerRef.current.playVideo === 'function') {
+        // Ne synchroniser QUE si le player a déjà été synchronisé une fois (évite le reset initial)
+        if (playerRef.current && data.videoId && typeof playerRef.current.playVideo === 'function' && hasPlayerSyncedOnce.current) {
           try {
             isSyncingFromFirebase.current = true;
 
