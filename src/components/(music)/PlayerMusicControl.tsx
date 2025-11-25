@@ -41,6 +41,7 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
   const playerRef = useRef<YouTubePlayer | null>(null);
   const musicStateRef = useRef<string>(`rooms/${roomId}/music`);
   const isSyncingFromFirebase = useRef(false);
+  const hasPlayerSyncedOnce = useRef(false);
 
   const handleVolumeChange = useCallback((value: number[]) => {
     const volume = value[0];
@@ -79,6 +80,30 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
     if (!isMuted) {
       playerRef.current.unMute();
     }
+
+    // Synchroniser immédiatement avec l'état Firebase existant
+    if (musicState.videoId) {
+      isSyncingFromFirebase.current = true;
+
+      // Calculer la position actuelle en tenant compte du temps écoulé
+      const timeSinceUpdate = (Date.now() - musicState.lastUpdate) / 1000;
+      const targetTime = musicState.isPlaying ? musicState.timestamp + timeSinceUpdate : musicState.timestamp;
+
+      // Se positionner au bon moment
+      playerRef.current.seekTo(targetTime, true);
+
+      // Jouer ou mettre en pause selon l'état
+      if (musicState.isPlaying) {
+        playerRef.current.playVideo();
+      } else {
+        playerRef.current.pauseVideo();
+      }
+
+      setTimeout(() => {
+        isSyncingFromFirebase.current = false;
+        hasPlayerSyncedOnce.current = true;
+      }, 1000);
+    }
   };
 
   // Options du lecteur YouTube (invisible)
@@ -98,18 +123,18 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
   // Synchronisation avec Firebase
   useEffect(() => {
     const musicRef = dbRef(realtimeDb, musicStateRef.current);
-    
+
     const unsubscribe = onValue(musicRef, (snapshot) => {
       const data = snapshot.val() as MusicState | null;
-      
+
       if (data) {
         setMusicState(data);
 
-        // Vérifier que le player existe ET est prêt avant de synchroniser
-        if (playerRef.current && data.videoId && typeof playerRef.current.playVideo === 'function') {
+        // Ne synchroniser QUE si le player a déjà été synchronisé une fois (évite le reset initial)
+        if (playerRef.current && data.videoId && typeof playerRef.current.playVideo === 'function' && hasPlayerSyncedOnce.current) {
           try {
             isSyncingFromFirebase.current = true;
-            
+
             if (data.isPlaying) {
               playerRef.current.playVideo();
             } else {
@@ -121,12 +146,12 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
               const timeSinceUpdate = (Date.now() - data.lastUpdate) / 1000;
               const targetTime = data.isPlaying ? data.timestamp + timeSinceUpdate : data.timestamp;
               const adjustedDiff = Math.abs(currentTime - targetTime);
-              
+
               if (adjustedDiff > 1) {
                 playerRef.current.seekTo(targetTime, true);
               }
             }
-            
+
             setTimeout(() => {
               isSyncingFromFirebase.current = false;
             }, 1000);
