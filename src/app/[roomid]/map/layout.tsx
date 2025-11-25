@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Statistiques } from "@/components/Statistiques";
 import { auth, db, onAuthStateChanged, collection, onSnapshot } from "@/lib/firebase";
 import { X } from "lucide-react";
+import FloatingMusic from "@/components/(music)/FloatingMusic";
 
 type LayoutProps = {
   children: ReactNode;
@@ -128,7 +129,7 @@ export default function Layout({ children }: LayoutProps) {
           {/* Bouton de fermeture pour mobile/tablette */}
           <button
             onClick={() => setActiveTab("")}
-            className={`lg:hidden fixed top-3 right-3 z-30 rounded-full p-2 transition-colors shadow-lg
+            className={`lg:hidden fixed top-3 right-3 z-10 rounded-full p-2 transition-colors shadow-lg
               ${isBookStyle
                 ? 'bg-amber-800 text-amber-50 hover:bg-amber-700'
                 : 'bg-[#1c1c1c] text-white hover:bg-[#333]'
@@ -214,6 +215,9 @@ export default function Layout({ children }: LayoutProps) {
           </div>
         </div>
       )}
+
+      {/* Lecteur Musical Flottant */}
+      <FloatingMusic roomId={roomId} />
     </div>
   );
 }
