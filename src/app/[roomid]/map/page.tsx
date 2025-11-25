@@ -6,7 +6,6 @@ import { useGame } from '@/contexts/GameContext'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Switch } from "@/components/ui/switch"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
@@ -138,7 +137,7 @@ export default function Component() {
     x: number;
     y: number;
     image: HTMLImageElement;
-    visibility: 'visible' | 'hidden';
+    visibility: 'visible' | 'hidden' | 'ally';
     visibilityRadius: number;
     type: string;
     PV: number;
@@ -171,7 +170,7 @@ export default function Component() {
     niveau : number;
     name: string;
     image: { src: string } | null;
-    visibility: 'visible' | 'hidden';
+    visibility: 'visible' | 'hidden' | 'ally';
     PV: number;
     Defense: number;
     Contact: number;
@@ -432,7 +431,13 @@ onSnapshot(charactersRef, (snapshot) => {
   snapshot.forEach((doc) => {
     const data = doc.data();
     const img = new Image();
-    img.src = data.imageURL2 || data.imageURL; // Utiliser imageURL2 si disponible, sinon imageURL
+    // Pour les joueurs : utiliser imageURLFinal si disponible, sinon imageURL2, sinon imageURL
+    // Pour les PNJ : utiliser imageURL2 si disponible, sinon imageURL
+    if (data.type === 'joueurs') {
+      img.src = data.imageURLFinal || data.imageURL2 || data.imageURL;
+    } else {
+      img.src = data.imageURL2 || data.imageURL;
+    }
 
     // Ajoutez tous les champs requis
     chars.push({
@@ -581,9 +586,9 @@ onSnapshot(charactersRef, (snapshot) => {
     
     let minOpacity = 1; // Opacité maximale par défaut (brouillard complet)
     
-    // Vérifier la distance à tous les personnages joueurs
+    // Vérifier la distance à tous les personnages joueurs et alliés
     characters.forEach(character => {
-      if (character.type === 'joueurs' && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
+      if ((character.type === 'joueurs' || character.visibility === 'ally') && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
         const cellCenterX = cellX * fogCellSize + fogCellSize / 2;
         const cellCenterY = cellY * fogCellSize + fogCellSize / 2;
         const distance = calculateDistance(character.x, character.y, cellCenterX, cellCenterY);
@@ -758,12 +763,12 @@ onSnapshot(charactersRef, (snapshot) => {
           if (screenX + screenWidth >= 0 && screenX <= containerWidth && 
               screenY + screenHeight >= 0 && screenY <= containerHeight) {
             
-            // Calculer l'opacité selon la distance aux joueurs (même si pas dans fogGrid)
+            // Calculer l'opacité selon la distance aux joueurs et alliés (même si pas dans fogGrid)
             let opacity = 1; // Opacité par défaut pour toute la carte
             
-            // Vérifier la distance à tous les personnages joueurs
+            // Vérifier la distance à tous les personnages joueurs et alliés
             characters.forEach(character => {
-              if (character.type === 'joueurs' && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
+              if ((character.type === 'joueurs' || character.visibility === 'ally') && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
                 const cellCenterX = cellX * fogCellSize + fogCellSize / 2;
                 const cellCenterY = cellY * fogCellSize + fogCellSize / 2;
                 const distance = calculateDistance(character.x, character.y, cellCenterX, cellCenterY);
@@ -828,15 +833,16 @@ onSnapshot(charactersRef, (snapshot) => {
       });
     }
     
-    // 🎯 Optionnel : Dessiner les cercles de visibilité des joueurs (pour debug)
+    // 🎯 Optionnel : Dessiner les cercles de visibilité des joueurs et alliés (pour debug)
     if (isMJ && showFogGrid) {
       characters.forEach(character => {
-        if (character.type === 'joueurs' && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
+        if ((character.type === 'joueurs' || character.visibility === 'ally') && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
           const playerScreenX = (character.x / image.width) * scaledWidth - offset.x;
           const playerScreenY = (character.y / image.height) * scaledHeight - offset.y;
           const radiusScreen = (character.visibilityRadius / image.width) * scaledWidth;
           
-          ctx.strokeStyle = 'rgba(255, 255, 0, 0.3)';
+          // Couleur différente pour les alliés (vert) vs joueurs (jaune)
+          ctx.strokeStyle = character.visibility === 'ally' ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 255, 0, 0.3)';
           ctx.lineWidth = 1;
           ctx.beginPath();
           ctx.arc(playerScreenX, playerScreenY, radiusScreen, 0, 2 * Math.PI);
@@ -905,12 +911,18 @@ onSnapshot(charactersRef, (snapshot) => {
       const y = (char.y / image.height) * scaledHeight - offset.y;
   
       let isVisible = true;
-      if (char.visibility === 'hidden') {
+      
+      // Les alliés sont toujours visibles (même dans le brouillard complet)
+      if (char.visibility === 'ally') {
+        isVisible = true;
+      } 
+      // Les personnages cachés ne sont visibles que pour le MJ ou s'ils sont dans le rayon de vision d'un joueur ou allié
+      else if (char.visibility === 'hidden') {
         isVisible = isMJ || characters.some((player) => {
           const playerX = (player.x / image.width) * scaledWidth - offset.x;
           const playerY = (player.y / image.height) * scaledHeight - offset.y;
           return (
-            player.type === 'joueurs' &&
+            (player.type === 'joueurs' || player.visibility === 'ally') &&
             calculateDistance(x, y, playerX, playerY) <= player.visibilityRadius * zoom
           );
         });
@@ -947,6 +959,8 @@ onSnapshot(charactersRef, (snapshot) => {
               // MJ : voit le personnage actif en rouge vif
               borderColor = char.id === activePlayerId 
                 ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour le personnage actif (dont c'est le tour)
+                : char.visibility === 'ally'
+                ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
                 : char.type === 'joueurs' 
                 ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les personnages joueurs
                 : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
@@ -954,6 +968,8 @@ onSnapshot(charactersRef, (snapshot) => {
               // Joueur : voit SEULEMENT son personnage en rouge
               borderColor = char.id === persoId 
                 ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour SON personnage
+                : char.visibility === 'ally'
+                ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
                 : char.type === 'joueurs' 
                 ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les autres personnages joueurs
                 : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
@@ -965,6 +981,8 @@ onSnapshot(charactersRef, (snapshot) => {
             // MJ : voit le personnage actif en rouge vif
             borderColor = char.id === activePlayerId 
               ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour le personnage actif (dont c'est le tour)
+              : char.visibility === 'ally'
+              ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
               : char.type === 'joueurs' 
               ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les personnages joueurs
               : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
@@ -972,6 +990,8 @@ onSnapshot(charactersRef, (snapshot) => {
             // Joueur : voit SEULEMENT son personnage en rouge
             borderColor = char.id === persoId 
               ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour SON personnage
+              : char.visibility === 'ally'
+              ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
               : char.type === 'joueurs' 
               ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les autres personnages joueurs
               : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
@@ -980,35 +1000,43 @@ onSnapshot(charactersRef, (snapshot) => {
           
         ctx.strokeStyle = borderColor;
         ctx.lineWidth = lineWidth;
+
+        // 🎯 Taille différente pour les personnages joueurs (avec imageURLFinal)
+        const isPlayerCharacter = char.type === 'joueurs';
+        const iconRadius = isPlayerCharacter ? 30 * zoom : 20 * zoom;
+        const borderRadius = isPlayerCharacter ? 32 * zoom : 22 * zoom;
   
         // Draw character border circle
         ctx.beginPath();
-        ctx.arc(x, y, 22 * zoom, 0, 2 * Math.PI);  // Slightly larger than the character icon
+        ctx.arc(x, y, borderRadius, 0, 2 * Math.PI);
         ctx.stroke();
   
         // Draw character icon
         if (char.image) {
           ctx.save();
           ctx.beginPath();
-          ctx.arc(x, y, 20 * zoom, 0, 2 * Math.PI);
+          ctx.arc(x, y, iconRadius, 0, 2 * Math.PI);
           ctx.clip();
-          ctx.drawImage(char.image, x - 20 * zoom, y - 20 * zoom, 40 * zoom, 40 * zoom);
+          ctx.drawImage(char.image, x - iconRadius, y - iconRadius, iconRadius * 2, iconRadius * 2);
           ctx.restore();
         } else {
           ctx.fillStyle = 'red';
           ctx.beginPath();
-          ctx.arc(x, y, 20 * zoom, 0, 2 * Math.PI);
+          ctx.arc(x, y, iconRadius, 0, 2 * Math.PI);
           ctx.fill();
         }
   
         // Draw discreet level badge at the bottom-right of the character icon
         const badgeRadius = 8 * zoom;  // Smaller and more discreet badge
-        const badgeX = x + 16 * zoom;  // Positioning the badge slightly further out
-        const badgeY = y + 16 * zoom;
+        const badgeOffsetMultiplier = isPlayerCharacter ? 24 : 16; // Plus loin pour les personnages joueurs
+        const badgeX = x + badgeOffsetMultiplier * zoom;
+        const badgeY = y + badgeOffsetMultiplier * zoom;
   
-        // Set badge color: Red if it's the player's character, Blue for 'joueurs', Orange for others
+        // Set badge color: Red if it's the player's character, Green for allies, Blue for 'joueurs', Orange for others
         ctx.fillStyle = char.id === persoId 
           ? 'rgba(255, 0, 0, 1)'             // Red for the player's character
+          : char.visibility === 'ally'
+          ? 'rgba(0, 255, 0, 1)'             // Green for allies
           : char.type === 'joueurs' 
           ? 'rgba(0, 0, 255, 1)'             // Blue for 'joueurs'
           : 'rgba(255, 165, 0, 1)';          // Orange for other characters
@@ -1026,19 +1054,21 @@ onSnapshot(charactersRef, (snapshot) => {
   
       // Draw hidden status badge if character is hidden
       if (char.visibility === 'hidden' && isMJ) {
-        const badgeX = x + 16 * zoom; // Positioning the badge at the top-right
-        const badgeY = y - 16 * zoom;
+        const isPlayerCharacter = char.type === 'joueurs';
+        const hiddenBadgeOffsetMultiplier = isPlayerCharacter ? 24 : 16;
+        const badgeX = x + hiddenBadgeOffsetMultiplier * zoom; // Positioning the badge at the top-right
+        const badgeY = y - hiddenBadgeOffsetMultiplier * zoom;
   
         ctx.fillStyle = char.id === persoId 
           ? 'rgba(255, 0, 0, 1)'             // Red for the player's character
           : char.type === 'joueurs' 
           ? 'rgba(0, 0, 255, 1)'             // Blue for 'joueurs'
           : 'rgba(255, 165, 0, 1)';          // Orange for other characters
-  
+
         ctx.beginPath();
         ctx.arc(badgeX, badgeY, 8 * zoom, 0, 2 * Math.PI);
         ctx.fill();
-  
+
         ctx.fillStyle = 'white';
         ctx.font = `${8 * zoom}px Arial`;
         ctx.textAlign = 'center';
@@ -1046,9 +1076,18 @@ onSnapshot(charactersRef, (snapshot) => {
         ctx.fillText('👁️', badgeX, badgeY); // EyeOff symbol
       }
   
-      // Draw visibility radius if character is of type 'joueurs' and is selected
+      // Draw visibility radius if character is of type 'joueurs' or 'ally' and is selected
+      // Note: la taille du cercle de visibilité reste inchangée (basée sur char.visibilityRadius)
       if (char.type === 'joueurs' && index === selectedCharacterIndex) {
         ctx.fillStyle = 'rgba(0, 0, 255, 0.2)'; // Light blue with transparency
+        ctx.beginPath();
+        ctx.arc(x, y, char.visibilityRadius * zoom, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+      
+      // Draw visibility radius for allies when selected (MJ only)
+      if (char.visibility === 'ally' && index === selectedCharacterIndex && isMJ) {
+        ctx.fillStyle = 'rgba(0, 255, 0, 0.2)'; // Light green with transparency
         ctx.beginPath();
         ctx.arc(x, y, char.visibilityRadius * zoom, 0, 2 * Math.PI);
         ctx.fill();
@@ -1110,6 +1149,7 @@ const handleCharacterSubmit = async () => {
                   x: (Math.random() * (canvasRef.current?.width || 0) + offset.x) / zoom,
                   y: (Math.random() * (canvasRef.current?.height || 0) + offset.y) / zoom,
                   visibility: newCharacter.visibility,
+                  visibilityRadius: newCharacter.visibility === 'ally' ? visibilityRadius : 100,
                   PV: newCharacter.PV,
                   niveau : newCharacter.niveau,
                   Defense: newCharacter.Defense,
@@ -1247,7 +1287,8 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
         const clickedCharIndex = characters.findIndex(char => {
           const charX = (char.x / image.width) * scaledWidth - offset.x;
           const charY = (char.y / image.height) * scaledHeight - offset.y;
-          return Math.abs(charX - e.clientX + rect.left) < 20 * zoom && Math.abs(charY - e.clientY + rect.top) < 20 * zoom;
+          const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
+          return Math.abs(charX - e.clientX + rect.left) < clickRadius && Math.abs(charY - e.clientY + rect.top) < clickRadius;
         });
 
         if (clickedCharIndex !== -1 && characters[clickedCharIndex].type === "joueurs") {
@@ -1289,7 +1330,8 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
       const clickedCharIndex = characters.findIndex(char => {
         const charX = (char.x / image.width) * scaledWidth - offset.x;
         const charY = (char.y / image.height) * scaledHeight - offset.y;
-        return Math.abs(charX - e.clientX + rect.left) < 20 * zoom && Math.abs(charY - e.clientY + rect.top) < 20 * zoom;
+        const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
+        return Math.abs(charX - e.clientX + rect.left) < clickRadius && Math.abs(charY - e.clientY + rect.top) < clickRadius;
       });
       
       const clickedNoteIndex = notes.findIndex(note => {
@@ -1322,8 +1364,8 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
             const character = characters[index];
             // MJ peut déplacer tous les personnages
             if (isMJ) return true;
-            // Joueur peut seulement déplacer son propre personnage (type joueurs)
-            return character.type === 'joueurs' && character.id === persoId;
+            // Joueur peut déplacer son propre personnage (type joueurs) ou les alliés
+            return (character.type === 'joueurs' && character.id === persoId) || character.visibility === 'ally';
           });
           
           if (!canMoveAllCharacters) {
@@ -1721,6 +1763,8 @@ const handleEditNote = () => {
             SAG: number;
             INT: number;
             CHA: number;
+            visibility: 'visible' | 'hidden' | 'ally';
+            visibilityRadius: number;
             imageURL2?: string; // Add imageURL2 as an optional field
           } = {
             Nomperso: editingCharacter.name,
@@ -1737,6 +1781,8 @@ const handleEditNote = () => {
             SAG: editingCharacter.SAG,
             INT: editingCharacter.INT,
             CHA: editingCharacter.CHA,
+            visibility: editingCharacter.visibility,
+            visibilityRadius: editingCharacter.visibilityRadius,
           };
           
           // Check if a new image is selected and upload it if necessary
@@ -1945,21 +1991,21 @@ const handleNoteSubmit = async () => {
 
     return (
     <div className="flex flex-col relative">
-      {/* 🎯 Contrôles de zoom flottants en haut à droite */}
-      <div className="absolute top-4 right-4 z-50 flex gap-2">
-        <Button 
-          onClick={() => handleZoom(-0.1)} 
-          className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm"
-          title="Dézoomer"
-        >
-          <Minus className="w-4 h-4" />
-        </Button>
-        <Button 
-          onClick={() => handleZoom(0.1)} 
+      {/* 🎯 Contrôles de zoom flottants au centre à droite */}
+      <div className="absolute top-1/2 right-4 -translate-y-1/2 z-50 flex flex-col gap-2">
+        <Button
+          onClick={() => handleZoom(0.1)}
           className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm"
           title="Zoomer"
         >
           <Plus className="w-4 h-4" />
+        </Button>
+        <Button
+          onClick={() => handleZoom(-0.1)}
+          className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm"
+          title="Dézoomer"
+        >
+          <Minus className="w-4 h-4" />
         </Button>
       </div>
 
@@ -2050,8 +2096,9 @@ const handleNoteSubmit = async () => {
       </RadialMenu>
 
 {selectedCharacterIndex !== null && (
-  <div className="absolute bottom-3 flex left-1/2 space-x-2 items-center">
-    <Button className="button-primary">{characters[selectedCharacterIndex].name}</Button>
+  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
+    <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
+      <Button className="button-primary">{characters[selectedCharacterIndex].name}</Button>
     
     {/* Slider de rayon de visibilité pour les personnages joueurs */}
     {characters[selectedCharacterIndex].type === 'joueurs' && (isMJ || characters[selectedCharacterIndex].id === persoId) && (
@@ -2081,10 +2128,40 @@ const handleNoteSubmit = async () => {
           className="w-24 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
         />
         <span className="text-white text-sm font-medium min-w-[3rem]">
-          {isMJ 
-            ? `${characters[selectedCharacterIndex].visibilityRadius || visibilityRadius}px`
-            : `${Math.round(1 + ((characters[selectedCharacterIndex].visibilityRadius || visibilityRadius) - 10) / 490 * 29)}`
-          }
+          {Math.round(1 + ((characters[selectedCharacterIndex].visibilityRadius || visibilityRadius) - 10) / 490 * 29)}
+        </span>
+      </div>
+    )}
+
+    {/* Slider de rayon de visibilité pour les alliés (MJ uniquement) */}
+    {characters[selectedCharacterIndex].visibility === 'ally' && isMJ && (
+      <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm px-4 py-2 rounded-lg border border-green-600">
+        <ScanEye className="w-4 h-4 text-green-400" />
+        <input
+          type="range"
+          min="10"
+          max="500"
+          value={characters[selectedCharacterIndex].visibilityRadius || visibilityRadius}
+          onChange={(e) => {
+            const newRadius = parseInt(e.target.value, 10);
+            const charId = characters[selectedCharacterIndex].id;
+            if (charId && roomId) {
+              updateDoc(doc(db, 'cartes', String(roomId), 'characters', charId), {
+                visibilityRadius: newRadius
+              });
+              setCharacters(prevCharacters => 
+                prevCharacters.map((char, index) => 
+                  index === selectedCharacterIndex 
+                    ? { ...char, visibilityRadius: newRadius }
+                    : char
+                )
+              );
+            }
+          }}
+          className="w-24 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+        />
+        <span className="text-white text-sm font-medium min-w-[3rem]">
+          {Math.round(1 + ((characters[selectedCharacterIndex].visibilityRadius || visibilityRadius) - 10) / 490 * 29)}
         </span>
       </div>
     )}
@@ -2102,29 +2179,77 @@ const handleNoteSubmit = async () => {
         {/* Boutons pour les personnages non-joueurs (MJ seulement) */}
         {isMJ && characters[selectedCharacterIndex]?.type !== 'joueurs' && (
           <>
-            <Button onClick={async () => {
-              const character = characters[selectedCharacterIndex];
-              const newVisibility = character.visibility === 'visible' ? 'hidden' : 'visible';
-              
-              if (character.id && roomId) {
-                try {
-                  await updateDoc(doc(db, 'cartes', String(roomId), 'characters', character.id), {
-                    visibility: newVisibility
-                  });
-                  
-                  setCharacters(prevCharacters => 
-                    prevCharacters.map((char, index) => 
-                      index === selectedCharacterIndex 
-                        ? { ...char, visibility: newVisibility }
-                        : char
-                    )
-                  );
-                } catch (error) {
-                  console.error("Erreur lors du changement de visibilité :", error);
+            <Button 
+              onClick={async () => {
+                const character = characters[selectedCharacterIndex];
+                if (character.id && roomId) {
+                  try {
+                    await updateDoc(doc(db, 'cartes', String(roomId), 'characters', character.id), {
+                      visibility: 'visible'
+                    });
+                    setCharacters(prevCharacters => 
+                      prevCharacters.map((char, index) => 
+                        index === selectedCharacterIndex 
+                          ? { ...char, visibility: 'visible' }
+                          : char
+                      )
+                    );
+                  } catch (error) {
+                    console.error("Erreur lors du changement de visibilité :", error);
+                  }
                 }
-              }
-            }}>
-              {characters[selectedCharacterIndex].visibility === 'visible' ? '👁️' : '👁️‍🗨️'} {characters[selectedCharacterIndex].visibility === 'visible' ? 'Cacher' : 'Montrer'}
+              }}
+              className={characters[selectedCharacterIndex].visibility === 'visible' ? 'bg-blue-600' : ''}
+            >
+              👁️ Visible
+            </Button>
+            <Button 
+              onClick={async () => {
+                const character = characters[selectedCharacterIndex];
+                if (character.id && roomId) {
+                  try {
+                    await updateDoc(doc(db, 'cartes', String(roomId), 'characters', character.id), {
+                      visibility: 'ally'
+                    });
+                    setCharacters(prevCharacters => 
+                      prevCharacters.map((char, index) => 
+                        index === selectedCharacterIndex 
+                          ? { ...char, visibility: 'ally' }
+                          : char
+                      )
+                    );
+                  } catch (error) {
+                    console.error("Erreur lors du changement de visibilité :", error);
+                  }
+                }
+              }}
+              className={characters[selectedCharacterIndex].visibility === 'ally' ? 'bg-green-600' : ''}
+            >
+              🤝 Allié
+            </Button>
+            <Button 
+              onClick={async () => {
+                const character = characters[selectedCharacterIndex];
+                if (character.id && roomId) {
+                  try {
+                    await updateDoc(doc(db, 'cartes', String(roomId), 'characters', character.id), {
+                      visibility: 'hidden'
+                    });
+                    setCharacters(prevCharacters => 
+                      prevCharacters.map((char, index) => 
+                        index === selectedCharacterIndex 
+                          ? { ...char, visibility: 'hidden' }
+                          : char
+                      )
+                    );
+                  } catch (error) {
+                    console.error("Erreur lors du changement de visibilité :", error);
+                  }
+                }
+              }}
+              className={characters[selectedCharacterIndex].visibility === 'hidden' ? 'bg-gray-600' : ''}
+            >
+              👁️‍🗨️ Caché
             </Button>
             <Button onClick={() => {
               setCharacterToDelete(characters[selectedCharacterIndex]);
@@ -2182,226 +2307,284 @@ const handleNoteSubmit = async () => {
         </>
       )
     )}
+    </div>
   </div>
 )}
 
 {selectedCharacters.length > 1 && isMJ && (
   // Afficher le bouton seulement si plusieurs personnages non-joueurs sont sélectionnés
   (() => {
-    const hasNonPlayerCharacter = selectedCharacters.some(index => 
+    const hasNonPlayerCharacter = selectedCharacters.some(index =>
       characters[index]?.type !== 'joueurs'
     );
     return hasNonPlayerCharacter;
   })() && (
-    <div className="absolute bottom-3 flex left-1/2 space-x-2 items-center">
-      <Button onClick={handleDeleteSelectedCharacters}>
-        <X className="w-4 h-4 mr-2" /> Supprimer la sélection
-      </Button>
+    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
+      <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
+        <Button onClick={handleDeleteSelectedCharacters}>
+          <X className="w-4 h-4 mr-2" /> Supprimer la sélection
+        </Button>
+      </div>
     </div>
   )
 )}
 
       {selectedNoteIndex !== null  && (
-        <div className="absolute bottom-3 flex left-1/2 space-x-2">
-          <Button onClick={handleDeleteNote}>
-            <X className="w-4 h-4 mr-2" /> Supprimer
-          </Button>
-          <Button onClick={handleEditNote}>
-            <Edit className="w-4 h-4 mr-2" /> Modifier
-          </Button>
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
+          <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
+            <Button onClick={handleDeleteNote}>
+              <X className="w-4 h-4 mr-2" /> Supprimer
+            </Button>
+            <Button onClick={handleEditNote}>
+              <Edit className="w-4 h-4 mr-2" /> Modifier
+            </Button>
+          </div>
         </div>
       )}
   
 {isMJ && selectedFogIndex !== null && (
-  <div className="absolute bottom-3 flex left-1/2 space-x-2 items-center">
-                    <Button onClick={clearFog}>
-      <X className="w-4 h-4 mr-2" /> Supprimer le brouillard
-    </Button>
+  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
+    <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
+      <Button onClick={clearFog}>
+        <X className="w-4 h-4 mr-2" /> Supprimer le brouillard
+      </Button>
+    </div>
   </div>
 )}
 
   <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-  <DialogContent className="bg-[rgb(36,36,36)] max-w-3xl text-[#c0a080]">
+  <DialogContent className="bg-[rgb(36,36,36)] max-w-4xl text-[#c0a080]">
     <DialogHeader>
-      <DialogTitle>Ajouter un personnage</DialogTitle>
+      <DialogTitle className="text-base">Ajouter un personnage</DialogTitle>
     </DialogHeader>
-    <ScrollArea className="h-96"> {/* Ajouter ScrollArea ici */}
-      <div className="grid gap-4 py-4">
-        {/* Nombre Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="nombre" className="text-right">Nombre</Label>
-          <Input
-            id="nombre"
-            type="number"
-            value={newCharacter.nombre}
-            onChange={(e) => setNewCharacter({ ...newCharacter, nombre: parseInt(e.target.value) || 1 })}
-            className="col-span-3"
-          />
+    <ScrollArea className="">
+      <div className="space-y-2 py-1">
+        {/* Section Informations générales */}
+        <div className="space-y-1 ml-2">
+          <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Informations</h3>
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label htmlFor="nombre" className="text-xs">Nombre</Label>
+              <Input
+                id="nombre"
+                type="number"
+                value={newCharacter.nombre}
+                onChange={(e) => setNewCharacter({ ...newCharacter, nombre: parseInt(e.target.value) || 1 })}
+                className="h-7 mt-0.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="name" className="text-xs">Nom</Label>
+              <Input
+                id="name"
+                value={newCharacter.name}
+                onChange={(e) => setNewCharacter({ ...newCharacter, name: e.target.value })}
+                className="h-7 mt-0.5"
+              />
+            </div>
+          </div>
+          <div className="mt-2">
+            <Label htmlFor="image" className="text-xs">Image</Label>
+            <Input
+              id="image"
+              type="file"
+              onChange={handleCharacterImageChange}
+              className="h-10 mt-0.5"
+            />
+          </div>
         </div>
-        {/* Name Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="name" className="text-right">Nom</Label>
-          <Input
-            id="name"
-            value={newCharacter.name}
-            onChange={(e) => setNewCharacter({ ...newCharacter, name: e.target.value })}
-            className="col-span-3"
-          />
+
+        {/* Section Statistiques de combat */}
+        <div className="space-y-1">
+          <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Combat</h3>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <Label htmlFor="PV" className="text-xs">PV</Label>
+              <Input
+                id="PV"
+                type="number"
+                value={newCharacter.PV}
+                onChange={(e) => setNewCharacter({ ...newCharacter, PV: parseInt(e.target.value) || 100 })}
+                className="h-7 mt-0.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="niveau" className="text-xs">Niveau</Label>
+              <Input
+                id="niveau"
+                type="number"
+                value={newCharacter.niveau}
+                onChange={(e) => setNewCharacter({ ...newCharacter, niveau: parseInt(e.target.value) || 1 })}
+                className="h-7 mt-0.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="Defense" className="text-xs">Défense</Label>
+              <Input
+                id="Defense"
+                type="number"
+                value={newCharacter.Defense}
+                onChange={(e) => setNewCharacter({ ...newCharacter, Defense: parseInt(e.target.value) || 0 })}
+                className="h-7 mt-0.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="INIT" className="text-xs">Init</Label>
+              <Input
+                id="INIT"
+                type="number"
+                value={newCharacter.INIT}
+                onChange={(e) => setNewCharacter({ ...newCharacter, INIT: parseInt(e.target.value) || 0 })}
+                className="h-7 mt-0.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="Contact" className="text-xs">Contact</Label>
+              <Input
+                id="Contact"
+                type="number"
+                value={newCharacter.Contact}
+                onChange={(e) => setNewCharacter({ ...newCharacter, Contact: parseInt(e.target.value) || 0 })}
+                className="h-7 mt-0.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="Distance" className="text-xs">Distance</Label>
+              <Input
+                id="Distance"
+                type="number"
+                value={newCharacter.Distance}
+                onChange={(e) => setNewCharacter({ ...newCharacter, Distance: parseInt(e.target.value) || 0 })}
+                className="h-7 mt-0.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="Magie" className="text-xs">Magie</Label>
+              <Input
+                id="Magie"
+                type="number"
+                value={newCharacter.Magie}
+                onChange={(e) => setNewCharacter({ ...newCharacter, Magie: parseInt(e.target.value) || 0 })}
+                className="h-7 mt-0.5"
+              />
+            </div>
+          </div>
         </div>
-        {/* Image Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="image" className="text-right">Image</Label>
-          <Input
-            id="image"
-            type="file"
-            onChange={handleCharacterImageChange}
-            className="col-span-3"
-          />
+
+        {/* Section Caractéristiques */}
+        <div className="space-y-1">
+          <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Caractéristiques</h3>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <Label htmlFor="FOR" className="text-xs">FOR</Label>
+              <Input
+                id="FOR"
+                type="number"
+                value={newCharacter.FOR}
+                onChange={(e) => setNewCharacter({ ...newCharacter, FOR: parseInt(e.target.value) || 0 })}
+                className="h-7 mt-0.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="DEX" className="text-xs">DEX</Label>
+              <Input
+                id="DEX"
+                type="number"
+                value={newCharacter.DEX}
+                onChange={(e) => setNewCharacter({ ...newCharacter, DEX: parseInt(e.target.value) || 0 })}
+                className="h-7 mt-0.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="CON" className="text-xs">CON</Label>
+              <Input
+                id="CON"
+                type="number"
+                value={newCharacter.CON}
+                onChange={(e) => setNewCharacter({ ...newCharacter, CON: parseInt(e.target.value) || 0 })}
+                className="h-7 mt-0.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="SAG" className="text-xs">SAG</Label>
+              <Input
+                id="SAG"
+                type="number"
+                value={newCharacter.SAG}
+                onChange={(e) => setNewCharacter({ ...newCharacter, SAG: parseInt(e.target.value) || 0 })}
+                className="h-7 mt-0.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="INT" className="text-xs">INT</Label>
+              <Input
+                id="INT"
+                type="number"
+                value={newCharacter.INT}
+                onChange={(e) => setNewCharacter({ ...newCharacter, INT: parseInt(e.target.value) || 0 })}
+                className="h-7 mt-0.5"
+              />
+            </div>
+            <div>
+              <Label htmlFor="CHA" className="text-xs">CHA</Label>
+              <Input
+                id="CHA"
+                type="number"
+                value={newCharacter.CHA}
+                onChange={(e) => setNewCharacter({ ...newCharacter, CHA: parseInt(e.target.value) || 0 })}
+                className="h-7 mt-0.5"
+              />
+            </div>
+          </div>
         </div>
-        {/* Visibility Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="visibility" className="text-right">Visible </Label>
-          <Switch
-            id="visibility"
-            checked={newCharacter.visibility === 'visible'}
-            onCheckedChange={(visible) => setNewCharacter({ ...newCharacter, visibility: visible ? 'visible' : 'hidden' })}
-          />
-        </div>
-        {/* PV Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="PV" className="text-right">PV</Label>
-          <Input
-            id="PV"
-            type="number"
-            value={newCharacter.PV}
-            onChange={(e) => setNewCharacter({ ...newCharacter, PV: parseInt(e.target.value) || 100 })}
-            className="col-span-3"
-          />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="niveau" className="text-right">niveau</Label>
-          <Input
-            id="niveau"
-            type="number"
-            value={newCharacter.niveau}
-            onChange={(e) => setNewCharacter({ ...newCharacter, niveau: parseInt(e.target.value) || 1 })}
-            className="col-span-3"
-          />
-        </div>
-        {/* Defense Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="Defense" className="text-right">Defense</Label>
-          <Input
-            id="Defense"
-            type="number"
-            value={newCharacter.Defense}
-            onChange={(e) => setNewCharacter({ ...newCharacter, Defense: parseInt(e.target.value) || 0 })}
-            className="col-span-3"
-          />
-        </div>
-        {/* Contact Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="Contact" className="text-right">Contact</Label>
-          <Input
-            id="Contact"
-            type="number"
-            value={newCharacter.Contact}
-            onChange={(e) => setNewCharacter({ ...newCharacter, Contact: parseInt(e.target.value) || 0 })}
-            className="col-span-3"
-          />
-        </div>
-        {/* Distance Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="Distance" className="text-right">Distance</Label>
-          <Input
-            id="Distance"
-            type="number"
-            value={newCharacter.Distance}
-            onChange={(e) => setNewCharacter({ ...newCharacter, Distance: parseInt(e.target.value) || 0 })}
-            className="col-span-3"
-          />
-        </div>
-        {/* Magie Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="Magie" className="text-right">Magie</Label>
-          <Input
-            id="Magie"
-            type="number"
-            value={newCharacter.Magie}
-            onChange={(e) => setNewCharacter({ ...newCharacter, Magie: parseInt(e.target.value) || 0 })}
-            className="col-span-3"
-          />
-        </div>
-        {/* INIT Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="INIT" className="text-right">INIT</Label>
-          <Input
-            id="INIT"
-            type="number"
-            value={newCharacter.INIT}
-            onChange={(e) => setNewCharacter({ ...newCharacter, INIT: parseInt(e.target.value) || 0 })}
-            className="col-span-3"
-          />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="FOR" className="text-right">FOR</Label>
-          <Input
-            id="FOR"
-            type="number"
-            value={newCharacter.FOR}
-            onChange={(e) => setNewCharacter({ ...newCharacter, FOR: parseInt(e.target.value) || 0 })}
-            className="col-span-3"
-          />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="DEX" className="text-right">DEX</Label>
-          <Input
-            id="DEX"
-            type="number"
-            value={newCharacter.DEX}
-            onChange={(e) => setNewCharacter({ ...newCharacter, DEX: parseInt(e.target.value) || 0 })}
-            className="col-span-3"
-          />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="CON" className="text-right">CON</Label>
-          <Input
-            id="CON"
-            type="number"
-            value={newCharacter.CON}
-            onChange={(e) => setNewCharacter({ ...newCharacter, CON: parseInt(e.target.value) || 0 })}
-            className="col-span-3"
-          />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="SAG" className="text-right">SAG</Label>
-          <Input
-            id="SAG"
-            type="number"
-            value={newCharacter.SAG}
-            onChange={(e) => setNewCharacter({ ...newCharacter, SAG: parseInt(e.target.value) || 0 })}
-            className="col-span-3"
-          />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="INT" className="text-right">INT</Label>
-          <Input
-            id="INT"
-            type="number"
-            value={newCharacter.INT}
-            onChange={(e) => setNewCharacter({ ...newCharacter, INT: parseInt(e.target.value) || 0 })}
-            className="col-span-3"
-          />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="CHA" className="text-right">CHA</Label>
-          <Input
-            id="CHA"
-            type="number"
-            value={newCharacter.CHA}
-            onChange={(e) => setNewCharacter({ ...newCharacter, CHA: parseInt(e.target.value) || 0 })}
-            className="col-span-3"
-          />
+
+        {/* Section Visibilité */}
+        <div className="space-y-1">
+          <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Visibilité</h3>
+          <div className="space-y-1.5">
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                onClick={() => setNewCharacter({ ...newCharacter, visibility: 'visible' })}
+                className={`flex-1 h-7 text-xs px-2 ${newCharacter.visibility === 'visible' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+              >
+                👁️ Visible
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setNewCharacter({ ...newCharacter, visibility: 'ally' })}
+                className={`flex-1 h-7 text-xs px-2 ${newCharacter.visibility === 'ally' ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+              >
+                🤝 Allié
+              </Button>
+              <Button
+                type="button"
+                onClick={() => setNewCharacter({ ...newCharacter, visibility: 'hidden' })}
+                className={`flex-1 h-7 text-xs px-2 ${newCharacter.visibility === 'hidden' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+              >
+                👁️‍🗨️ Caché
+              </Button>
+            </div>
+            {newCharacter.visibility === 'ally' && (
+              <div>
+                <Label htmlFor="visibilityRadiusNew" className="text-xs">Rayon de vision</Label>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <input
+                    id="visibilityRadiusNew"
+                    type="range"
+                    min="10"
+                    max="500"
+                    value={visibilityRadius}
+                    onChange={(e) => setVisibilityRadius(parseInt(e.target.value) || 100)}
+                    className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <span className="text-xs text-white font-medium min-w-[2.5rem]">
+                    {Math.round(1 + (visibilityRadius - 10) / 490 * 29)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </ScrollArea>
@@ -2766,6 +2949,69 @@ const handleNoteSubmit = async () => {
             className="col-span-3"
           />
         </div>
+        {/* Visibility Field */}
+        <div className="grid grid-cols-4 items-center gap-4">
+          <Label htmlFor="visibility" className="text-right text-white">Visibilité</Label>
+          <div className="col-span-3 flex gap-2">
+            <Button
+              type="button"
+              onClick={() => {
+                if (editingCharacter) {
+                  setEditingCharacter({ ...editingCharacter, visibility: 'visible' });
+                }
+              }}
+              className={`flex-1 ${editingCharacter?.visibility === 'visible' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+            >
+              👁️ Visible
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (editingCharacter) {
+                  setEditingCharacter({ ...editingCharacter, visibility: 'ally' });
+                }
+              }}
+              className={`flex-1 ${editingCharacter?.visibility === 'ally' ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+            >
+              🤝 Allié
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                if (editingCharacter) {
+                  setEditingCharacter({ ...editingCharacter, visibility: 'hidden' });
+                }
+              }}
+              className={`flex-1 ${editingCharacter?.visibility === 'hidden' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+            >
+              👁️‍🗨️ Caché
+            </Button>
+          </div>
+        </div>
+        {/* Visibility Radius Field - Affiché seulement pour les joueurs et alliés */}
+        {(editingCharacter?.type === 'joueurs' || editingCharacter?.visibility === 'ally') && (
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="visibilityRadius" className="text-right text-white">Rayon de vision</Label>
+            <div className="col-span-3 flex items-center gap-2">
+              <input
+                id="visibilityRadius"
+                type="range"
+                min="10"
+                max="500"
+                value={editingCharacter?.visibilityRadius || 100}
+                onChange={(e) => {
+                  if (editingCharacter) {
+                    setEditingCharacter({ ...editingCharacter, visibilityRadius: parseInt(e.target.value) || 100 });
+                  }
+                }}
+                className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+              />
+              <span className="text-sm text-white font-medium min-w-[3rem]">
+                {Math.round(1 + ((editingCharacter?.visibilityRadius || 100) - 10) / 490 * 29)}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </ScrollArea>
     <DialogFooter>

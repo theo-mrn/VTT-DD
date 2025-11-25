@@ -56,7 +56,7 @@ export default function Component() {
         return {
           id: doc.id,
           name: data.Nomperso || "Joueur",
-          image: data.imageURL || "/placeholder.svg",
+          image: data.imageURLFinal || data.imageURL || "/placeholder.svg",
           health: data.PV || 0,
           maxHealth: data.PV_Max || 100,
           type: data.type
@@ -100,15 +100,15 @@ export default function Component() {
         </button>
 
         {players.map((player) => (
-          <div 
-            key={player.id} 
+          <div
+            key={player.id}
             className="flex flex-col items-center gap-1 group relative"
             onClick={() => setSelectedCharacterId(player.id)}
             onDoubleClick={() => handleDoubleClick(player.id)}
           >
             <div className="relative cursor-pointer">
-              <Avatar className="h-12 w-12 border-2 border-white/20 group-hover:border-white/40 transition-colors">
-                <AvatarImage src={player.image} alt={player.name} />
+              <Avatar className="h-16 w-16 border-2 border-white/20 group-hover:border-white/40 transition-colors">
+                <AvatarImage src={player.image} alt={player.name} className="object-contain" />
                 <AvatarFallback className="bg-primary-foreground text-xs">
                   {player.name[0]}
                 </AvatarFallback>
