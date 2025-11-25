@@ -43,11 +43,28 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
   const isSyncingFromFirebase = useRef(false);
   const hasPlayerSyncedOnce = useRef(false);
 
+  // Charger le volume depuis localStorage après le montage du composant
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('playerMusicVolume');
+      if (saved) {
+        const volume = parseInt(saved, 10);
+        setLocalVolume(volume);
+        setIsMuted(volume === 0);
+      }
+    }
+  }, []);
+
   const handleVolumeChange = useCallback((value: number[]) => {
     const volume = value[0];
     setLocalVolume(volume);
     setIsMuted(volume === 0);
-    
+
+    // Sauvegarder dans localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('playerMusicVolume', volume.toString());
+    }
+
     if (playerRef.current) {
       playerRef.current.setVolume(volume);
       if (volume > 0) {

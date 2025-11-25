@@ -287,12 +287,13 @@ export default function Component() {
             <div className="flex flex-col xl:flex-row gap-4 md:gap-6">
               {/* Colonne gauche: Infos du personnage + Inventaire */}
               <div className="flex-1 space-y-4 md:space-y-6">
+                {/* Image et infos principales */}
                 <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 md:space-x-6">
                   <div className="flex-shrink-0 mx-auto sm:mx-0">
-                    <CharacterImage 
-                      imageUrl={selectedCharacter.imageURL} 
-                      altText={selectedCharacter.Nomperso} 
-                      characterId={selectedCharacter.id} 
+                    <CharacterImage
+                      imageUrl={selectedCharacter.imageURL}
+                      altText={selectedCharacter.Nomperso}
+                      characterId={selectedCharacter.id}
                     />
                   </div>
 
@@ -305,9 +306,9 @@ export default function Component() {
                         <div>Profil: <span className="text-[#a0a0a0]">{selectedCharacter.Profile}</span></div>
                         <div>Taille: <span className="text-[#a0a0a0]">{selectedCharacter.Taille} cm</span></div>
                         <div>
-      Race: 
-      <span 
-        className="text-[#a0a0a0] underline cursor-pointer" 
+      Race:
+      <span
+        className="text-[#a0a0a0] underline cursor-pointer"
         onClick={() => handleRaceClick(selectedCharacter.Race || "")}
       >
         {selectedCharacter.Race}
@@ -317,35 +318,36 @@ export default function Component() {
     <div className="xs:col-span-2">Dé de Vie: <span className="text-[#a0a0a0]">{selectedCharacter.deVie}</span></div>
                       </div>
                     </div>
-
-                    <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center">
-                      {[
-                        { name: 'FOR', value: getDisplayModifier("FOR") },
-                        { name: 'DEX', value: getDisplayModifier("DEX") },
-                        { name: 'CON', value: getDisplayModifier("CON") },
-                        { name: 'INT', value: getDisplayModifier("INT") },
-                        { name: 'SAG', value: getDisplayModifier("SAG") },
-                        { name: 'CHA', value: getDisplayModifier("CHA") },
-                      ].map((ability) => (
-                        <Tooltip key={ability.name}>
-                        <TooltipTrigger>
-                          <div className="bg-[#2a2a2a] p-1.5 xs:p-2 sm:p-3 rounded-lg border border-[#3a3a3a]">
-                            <div className="text-[#c0a0a0] font-semibold text-[10px] xs:text-xs sm:text-sm">{ability.name}</div>
-                            <div className={`text-base xs:text-lg sm:text-xl md:text-2xl font-bold leading-tight ${ability.value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                              {ability.value >= 0 ? '+' : ''}{ability.value}
-                            </div>
-                            <div className="text-[9px] xs:text-[10px] sm:text-xs text-[#a0a0a0]">{selectedCharacter ? selectedCharacter[ability.name as keyof Character] : 0}</div>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Mod de base: {getModifier(selectedCharacter ? selectedCharacter[ability.name as keyof Character] as number : 0)}</p>
-                          <p>Inventaire: {categorizedBonuses ? categorizedBonuses[ability.name].Inventaire : 0}</p>
-                          <p>Compétence: {categorizedBonuses ? categorizedBonuses[ability.name].Competence : 0}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                      ))}
-                    </div>
                   </div>
+                </div>
+
+                {/* Stats sur toute la largeur en dessous - 2 lignes de 3 */}
+                <div className="grid grid-cols-3 gap-3 md:gap-4 text-center">
+                  {[
+                    { name: 'FOR', value: getDisplayModifier("FOR") },
+                    { name: 'DEX', value: getDisplayModifier("DEX") },
+                    { name: 'CON', value: getDisplayModifier("CON") },
+                    { name: 'INT', value: getDisplayModifier("INT") },
+                    { name: 'SAG', value: getDisplayModifier("SAG") },
+                    { name: 'CHA', value: getDisplayModifier("CHA") },
+                  ].map((ability) => (
+                    <Tooltip key={ability.name}>
+                    <TooltipTrigger>
+                      <div className="bg-[#2a2a2a] p-3 sm:p-4 md:p-5 rounded-lg border border-[#3a3a3a]">
+                        <div className="text-[#c0a0a0] font-semibold text-sm sm:text-base">{ability.name}</div>
+                        <div className={`text-xl sm:text-2xl md:text-3xl font-bold leading-tight ${ability.value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                          {ability.value >= 0 ? '+' : ''}{ability.value}
+                        </div>
+                        <div className="text-xs sm:text-sm text-[#a0a0a0]">{selectedCharacter ? selectedCharacter[ability.name as keyof Character] : 0}</div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Mod de base: {getModifier(selectedCharacter ? selectedCharacter[ability.name as keyof Character] as number : 0)}</p>
+                      <p>Inventaire: {categorizedBonuses ? categorizedBonuses[ability.name].Inventaire : 0}</p>
+                      <p>Compétence: {categorizedBonuses ? categorizedBonuses[ability.name].Competence : 0}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  ))}
                 </div>
 
                 <div className="bg-[#2a2a2a] p-2 xs:p-3 sm:p-4 rounded-lg border border-[#3a3a3a] flex flex-col xs:flex-row justify-between items-center gap-2 xs:gap-3">

@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { Heart, Shield, X } from 'lucide-react';
-import { db, doc, getDoc, onSnapshot, collection } from '@/lib/firebase';
+import { auth, db, doc, getDoc, onSnapshot, collection } from '@/lib/firebase';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import CharacterImage from '@/components/CharacterImage';
+import InventoryManagement2 from '@/components/inventaire2';
 
 interface Character {
   id: string;
@@ -55,9 +56,36 @@ interface Bonuses {
   PV_Max: number;
 }
 
+interface UserData {
+  persoId?: string;
+  perso?: string;
+}
+
 export default function CharacterSheet({ characterId, roomId, onClose }: CharacterSheetProps) {
   const [character, setCharacter] = useState<Character | null>(null);
   const [bonuses, setBonuses] = useState<Bonuses | null>(null);
+  const [userPersoId, setUserPersoId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadUserData = async () => {
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          const userDoc = await getDoc(doc(db, 'users', user.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as UserData;
+            setUserPersoId(userData?.persoId || null);
+            setUserRole(userData?.perso || null);
+          }
+        } catch (error) {
+          console.error("Erreur lors de la récupération des données utilisateur:", error);
+        }
+      }
+    };
+
+    loadUserData();
+  }, []);
 
   useEffect(() => {
     const loadCharacter = async () => {
@@ -109,92 +137,134 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
   if (!character) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 overflow-y-auto">
-      <div className="bg-[#242424] rounded-lg shadow-2xl p-6 space-y-6 max-w-4xl w-full relative">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white"
+    <TooltipProvider>
+      <div
+        className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+        onClick={onClose}
+      >
+        <div
+          className="bg-[#242424] rounded-lg shadow-2xl p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto relative"
+          onClick={(e) => e.stopPropagation()}
         >
-          <X size={24} />
-        </button>
+          <button
+            onClick={onClose}
+            className="sticky top-0 right-0 float-right bg-[#2a2a2a] rounded-full p-2 text-gray-400 hover:text-white hover:bg-[#3a3a3a] transition-colors z-10"
+            aria-label="Fermer"
+          >
+            <X size={24} />
+          </button>
 
-        <div className="flex flex-col md:flex-row space-y-6 md:space-y-0 md:space-x-6">
-          <div className="flex-shrink-0 scale-150">
-            <CharacterImage
-              imageUrl={character.imageURL}
-              altText={character.Nomperso}
-              characterId={character.id}
-            />
-          </div>
-
-          <div className="flex-grow space-y-4">
-            <div className="bg-[#2a2a2a] p-4 rounded-lg border border-[#3a3a3a]">
-              <h2 className="text-2xl font-bold text-[#c0a0a0] mb-2">{character.Nomperso}</h2>
-              <div className="grid grid-cols-2 gap-2 text-sm">
-                <div>Niveau: <span className="text-[#a0a0a0]">{character.niveau}</span></div>
-                <div>Race: <span className="text-[#a0a0a0]">{character.Race}</span></div>
-                <div>Profil: <span className="text-[#a0a0a0]">{character.Profile}</span></div>
-                <div>Dé de vie: <span className="text-[#a0a0a0]">{character.deVie}</span></div>
-              </div>
+          <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 md:space-x-6">
+            <div className="flex-shrink-0 mx-auto sm:mx-0">
+              <CharacterImage
+                imageUrl={character.imageURL}
+                altText={character.Nomperso}
+                characterId={character.id}
+              />
             </div>
 
-            <TooltipProvider>
-              <div className="grid grid-cols-3 gap-2 text-center">
-                {[
-                  { name: 'FOR', value: getModifier(character.FOR || 0) },
-                  { name: 'DEX', value: getModifier(character.DEX || 0) },
-                  { name: 'CON', value: getModifier(character.CON || 0) },
-                  { name: 'INT', value: getModifier(character.INT || 0) },
-                  { name: 'SAG', value: getModifier(character.SAG || 0) },
-                  { name: 'CHA', value: getModifier(character.CHA || 0) },
-                ].map((ability) => (
-                  <Tooltip key={ability.name}>
-                    <TooltipTrigger>
-                      <div className="bg-[#2a2a2a] p-2 rounded-lg border border-[#3a3a3a]">
-                        <div className="text-[#c0a0a0] font-semibold">{ability.name}</div>
-                        <div className={`text-2xl font-bold ${ability.value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {ability.value >= 0 ? '+' : ''}{ability.value}
-                        </div>
-                        <div className="text-sm text-[#a0a0a0]">{character[ability.name as keyof Character]}</div>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Valeur de base: {character[ability.name as keyof Character]}</p>
-                      <p>Bonus total: {bonuses ? bonuses[ability.name] || 0 : 0}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                ))}
-              </div>
-            </TooltipProvider>
-
-            <div className="bg-[#2a2a2a] p-4 rounded-lg border border-[#3a3a3a] flex justify-between items-center">
-              <div className="flex items-center space-x-2">
-                <Heart className="text-red-500" size={24} />
-                <span className="text-2xl font-bold text-[#d4d4d4]">
-                  {getDisplayValue("PV")} / {getDisplayValue("PV_Max")}
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Shield className="text-blue-500" size={24} />
-                <span className="text-2xl font-bold text-[#d4d4d4]">{getDisplayValue("Defense")}</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4">
-              {[
-                { name: 'Contact', value: getDisplayValue("Contact") },
-                { name: 'Distance', value: getDisplayValue("Distance") },
-                { name: 'Magie', value: getDisplayValue("Magie") }
-              ].map((stat) => (
-                <div key={stat.name} className="bg-[#2a2a2a] p-4 rounded-lg border border-[#3a3a3a] text-center">
-                  <h3 className="text-lg font-semibold text-[#c0a0a0] mb-1">{stat.name}</h3>
-                  <span className="text-2xl font-bold text-[#d4d4d4]">{stat.value}</span>
+            <div className="flex-grow space-y-3 md:space-y-4">
+              <div className="bg-[#2a2a2a] p-3 md:p-4 rounded-lg border border-[#3a3a3a]">
+                <h2 className="text-xl md:text-2xl font-bold text-[#c0a0a0] mb-2 text-center sm:text-left">{character.Nomperso}</h2>
+                <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 text-xs sm:text-sm">
+                  <div>Niveau: <span className="text-[#a0a0a0]">{character.niveau}</span></div>
+                  <div>Initiative: <span className="text-[#a0a0a0]">{getDisplayValue("INIT")}</span></div>
+                  <div>Profil: <span className="text-[#a0a0a0]">{character.Profile}</span></div>
+                  <div>Taille: <span className="text-[#a0a0a0]">{character.Taille} cm</span></div>
+                  <div>Race: <span className="text-[#a0a0a0]">{character.Race}</span></div>
+                  <div>Poids: <span className="text-[#a0a0a0]">{character.Poids} Kg</span></div>
+                  <div className="xs:col-span-2">Dé de Vie: <span className="text-[#a0a0a0]">{character.deVie}</span></div>
                 </div>
-              ))}
+              </div>
             </div>
           </div>
+
+          {/* Stats sur toute la largeur - 2 lignes de 3 */}
+          <div className="grid grid-cols-3 gap-3 md:gap-4 text-center">
+            {[
+              { name: 'FOR', value: getModifier(character.FOR || 0) },
+              { name: 'DEX', value: getModifier(character.DEX || 0) },
+              { name: 'CON', value: getModifier(character.CON || 0) },
+              { name: 'INT', value: getModifier(character.INT || 0) },
+              { name: 'SAG', value: getModifier(character.SAG || 0) },
+              { name: 'CHA', value: getModifier(character.CHA || 0) },
+            ].map((ability) => (
+              <Tooltip key={ability.name}>
+                <TooltipTrigger>
+                  <div className="bg-[#2a2a2a] p-3 sm:p-4 md:p-5 rounded-lg border border-[#3a3a3a]">
+                    <div className="text-[#c0a0a0] font-semibold text-sm sm:text-base">{ability.name}</div>
+                    <div className={`text-xl sm:text-2xl md:text-3xl font-bold leading-tight ${ability.value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {ability.value >= 0 ? '+' : ''}{ability.value}
+                    </div>
+                    <div className="text-xs sm:text-sm text-[#a0a0a0]">{character[ability.name as keyof Character]}</div>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Valeur de base: {character[ability.name as keyof Character]}</p>
+                  <p>Bonus total: {bonuses ? bonuses[ability.name] || 0 : 0}</p>
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+
+          <div className="bg-[#2a2a2a] p-2 xs:p-3 sm:p-4 rounded-lg border border-[#3a3a3a] flex flex-col xs:flex-row justify-between items-center gap-2 xs:gap-3">
+            <Tooltip>
+              <TooltipTrigger>
+                <div className="flex items-center space-x-1.5 xs:space-x-2">
+                  <Heart className="text-red-500" size={18} />
+                  <span className="text-base xs:text-lg sm:text-xl md:text-2xl font-bold text-[#d4d4d4]">
+                    {getDisplayValue("PV")} / {getDisplayValue("PV_Max")}
+                  </span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Valeur de base: {character.PV} / {character.PV_Max}</p>
+                <p>Bonus total: {bonuses ? bonuses.PV || 0 : 0} / {bonuses ? bonuses.PV_Max || 0 : 0}</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger>
+                <div className="flex items-center space-x-1.5 xs:space-x-2">
+                  <Shield className="text-blue-500" size={18} />
+                  <span className="text-base xs:text-lg sm:text-xl md:text-2xl font-bold text-[#d4d4d4]">{getDisplayValue("Defense")}</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Valeur de base: {character.Defense}</p>
+                <p>Bonus total: {bonuses ? bonuses.Defense || 0 : 0}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4">
+            {[
+              { name: 'Contact', value: getDisplayValue("Contact") },
+              { name: 'Distance', value: getDisplayValue("Distance") },
+              { name: 'Magie', value: getDisplayValue("Magie") }
+            ].map((stat) => (
+              <Tooltip key={stat.name}>
+                <TooltipTrigger>
+                  <div className="bg-[#2a2a2a] p-2 xs:p-3 sm:p-4 rounded-lg border border-[#3a3a3a] text-center">
+                    <h3 className="text-xs xs:text-sm sm:text-base md:text-lg font-semibold text-[#c0a0a0] mb-0.5 sm:mb-1">{stat.name}</h3>
+                    <span className="text-lg xs:text-xl sm:text-2xl font-bold text-[#d4d4d4]">{stat.value}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Valeur de base: {character[stat.name as keyof Character]}</p>
+                  <p>Bonus total: {bonuses ? bonuses[stat.name] || 0 : 0}</p>
+                </TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+
+          {/* Inventaire */}
+          <InventoryManagement2
+            playerName={character.Nomperso}
+            roomId={roomId}
+            canEdit={character.id === userPersoId || userRole === "MJ"}
+          />
         </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 } 
