@@ -53,6 +53,18 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
   const isSyncingFromFirebase = useRef(false);
   const hasPlayerSyncedOnce = useRef(false);
 
+  // Charger le volume depuis localStorage après le montage du composant
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('mjMusicVolume');
+      if (saved) {
+        const volume = parseInt(saved, 10);
+        setLocalVolume(volume);
+        setIsMuted(volume === 0);
+      }
+    }
+  }, []);
+
   // Fonction pour extraire l'ID vidéo YouTube d'une URL
   const extractVideoId = (url: string): string | null => {
     const patterns = [
@@ -180,7 +192,12 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
     const volume = value[0];
     setLocalVolume(volume);
     setIsMuted(volume === 0);
-    
+
+    // Sauvegarder dans localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('mjMusicVolume', volume.toString());
+    }
+
     if (playerRef.current) {
       playerRef.current.setVolume(volume);
       if (volume > 0) {

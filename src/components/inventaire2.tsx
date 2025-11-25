@@ -30,6 +30,7 @@ interface Bonus {
 interface InventoryManagementProps {
   playerName: string;
   roomId: string;
+  canEdit?: boolean;
 }
 
 interface ItemDescription {
@@ -58,7 +59,7 @@ const categoryIcons: Record<string, JSX.Element> = {
   'autre': <ChevronRight className="w-6 h-6 text-[#c0a080]" />,
 };
 
-export default function InventoryManagement({ playerName, roomId }: InventoryManagementProps) {
+export default function InventoryManagement({ playerName, roomId, canEdit = true }: InventoryManagementProps) {
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [dialogSearchTerm, setDialogSearchTerm] = useState<string>('');
@@ -436,22 +437,23 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
         {/* Grille unifiée d'objets */}
         <TooltipProvider delayDuration={100}>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
-              {/* Case Ajouter */}
-              <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DialogTrigger asChild>
-                      <div className="aspect-square flex items-center justify-center">
-                        <div className="w-16 h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all cursor-pointer hover:scale-110">
-                          <Plus className="w-8 h-8 text-[var(--accent-brown)]" />
+              {/* Case Ajouter - affichée seulement si canEdit est true */}
+              {canEdit && (
+                <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <DialogTrigger asChild>
+                        <div className="aspect-square flex items-center justify-center">
+                          <div className="w-16 h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all cursor-pointer hover:scale-110">
+                            <Plus className="w-8 h-8 text-[var(--accent-brown)]" />
+                          </div>
                         </div>
-                      </div>
-                    </DialogTrigger>
-                  </TooltipTrigger>
-                  <TooltipContent className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
-                    <p className="font-semibold">Ajouter un objet</p>
-                  </TooltipContent>
-                </Tooltip>
+                      </DialogTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
+                      <p className="font-semibold">Ajouter un objet</p>
+                    </TooltipContent>
+                  </Tooltip>
                 <DialogContent className="!max-w-[95vw] !w-[1400px] !max-h-[90vh] !min-h-[600px] overflow-hidden flex flex-col" style={{ width: '1400px', maxWidth: '95vw', height: '90vh', maxHeight: '90vh' }}>
               <DialogHeader className="flex-shrink-0 pb-3 sm:pb-4 border-b">
                 <DialogTitle className="text-base sm:text-xl flex items-center gap-2 text-[var(--accent-brown)]">
@@ -637,19 +639,21 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                 </div>
               </div>
             </DialogContent>
-              </Dialog>
+                </Dialog>
+              )}
 
               {/* Items de l'inventaire */}
               {filteredInventory.map(item => (
-                <Card 
+                <Card
                   key={item.id}
                   className="relative group hover:shadow-lg transition-all duration-200 bg-[var(--bg-card)] border-[var(--border-color)] overflow-hidden aspect-square"
                 >
                   <CardContent className="p-4 flex flex-col items-center justify-center h-full">
-                    <DropdownMenu modal={false}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <DropdownMenuTrigger asChild>
+                    {canEdit ? (
+                      <DropdownMenu modal={false}>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <DropdownMenuTrigger asChild>
                             {/* Icône de la catégorie avec badge de quantité - cliquable */}
                             <div className="relative w-16 h-16 cursor-pointer">
                               <div className={`w-16 h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 transition-all ${
@@ -726,6 +730,50 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    ) : (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          {/* Vue en lecture seule - juste l'icône avec le tooltip */}
+                          <div className="relative w-16 h-16">
+                            <div className={`w-16 h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 transition-all ${
+                              bonusesMap[item.id] && bonusesMap[item.id].length > 0
+                                ? 'border-[var(--accent-brown)] shadow-lg shadow-[var(--accent-brown)]/50'
+                                : 'border-[var(--border-color)]'
+                            }`}>
+                              {categoryIcons[item.category]}
+                            </div>
+                            {/* Badge de quantité */}
+                            <div className="absolute -top-1 -right-1 bg-[var(--accent-brown)] text-white rounded-full min-w-[1.5rem] h-6 flex items-center justify-center px-1.5 border-2 border-[var(--bg-card)] font-bold text-xs shadow-lg">
+                              {item.quantity}
+                            </div>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
+                          <div className="space-y-1">
+                            <p className="font-semibold">{item.message}</p>
+                            {item.diceSelection && (
+                              <p className="text-xs font-bold text-green-700 font-mono"> {item.diceSelection}</p>
+                            )}
+                              {itemsWithBonus.has(item.id) && (
+                                <div className="text-xs">
+                                  {bonusActiveMap[item.id] === false ? (
+                                    <p className="text-gray-500 font-semibold italic">Bonus inactif</p>
+                                  ) : bonusesMap[item.id] && bonusesMap[item.id].length > 0 ? (
+                                    <>
+                                      <p className="text-black">Bonus actifs:</p>
+                                      {bonusesMap[item.id].map((bonus, index) => (
+                                        <span key={index} className="text-blue-700 font-bold">
+                                          {bonus.type} +{bonus.value}{index < bonusesMap[item.id].length - 1 ? ', ' : ''}
+                                        </span>
+                                      ))}
+                                    </>
+                                  ) : null}
+                                </div>
+                              )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </CardContent>
                 </Card>
               ))}
