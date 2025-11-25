@@ -10,7 +10,7 @@ import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Shield, Dice1, Swords, Trash2 ,Info} from 'lucide-react';
 import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
-import RollRequest from './(dices)/Rollrequest'; // Importation du composant RollRequest
+import RollRequest from '@/components/(dices)/Rollrequest'; // Importation du composant RollRequest
 import { Select, SelectTrigger, SelectContent, SelectItem } from "@/components/ui/select"; // Assurez-vous d'importer les composants nécessaires
 
 type Roll = {
