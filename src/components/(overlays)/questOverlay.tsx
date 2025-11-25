@@ -195,7 +195,7 @@ export default function QuestOverlay() {
                 className="text-xs text-white hover:bg-white/10"
               >
                 <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-purple-500" />
+                  <div className="h-2 w-2 rounded-full bg-[#c0a080]" />
                   Quêtes principales
                 </div>
               </DropdownMenuCheckboxItem>
@@ -205,7 +205,7 @@ export default function QuestOverlay() {
                 className="text-xs text-white hover:bg-white/10"
               >
                 <div className="flex items-center gap-2">
-                  <div className="h-2 w-2 rounded-full bg-blue-500" />
+                  <div className="h-2 w-2 rounded-full bg-[#5c6bc0]" />
                   Quêtes annexes
                 </div>
               </DropdownMenuCheckboxItem>
@@ -226,7 +226,7 @@ export default function QuestOverlay() {
                       <div className="flex items-center gap-2 max-w-full">
                         <div className={cn(
                           "h-2 w-2 rounded-full flex-shrink-0",
-                          quest.questType === "principale" ? "bg-purple-500" : "bg-blue-500"
+                          quest.questType === "principale" ? "bg-[#c0a080]" : "bg-[#5c6bc0]"
                         )} />
                         <span className="truncate">{quest.title}</span>
                       </div>
@@ -264,10 +264,10 @@ export default function QuestOverlay() {
             className={cn(
               "rounded-lg border backdrop-blur-sm transition-all",
               quest.questType === "principale"
-                ? "bg-purple-900/80 border-purple-500/50 shadow-lg shadow-purple-500/20"
-                : "bg-blue-900/70 border-blue-500/40",
+                ? "bg-[#2a2a2a] border-[#c0a080]/60 shadow-lg shadow-[#c0a080]/20"
+                : "bg-[#2a2a2a] border-[#5c6bc0]/60 shadow-lg shadow-[#5c6bc0]/20",
               isExpanded ? "max-w-md" : "max-w-xs",
-              hasExpandableContent ? "cursor-pointer hover:scale-105" : ""
+              hasExpandableContent ? "cursor-pointer" : ""
             )}
           >
             {/* En-tête de la quête (toujours visible) */}
@@ -280,8 +280,8 @@ export default function QuestOverlay() {
                 className={cn(
                   "flex-shrink-0 h-8 w-8 rounded-full flex items-center justify-center",
                   quest.questType === "principale"
-                    ? "bg-purple-500/30 text-purple-200"
-                    : "bg-blue-500/30 text-blue-200"
+                    ? "bg-[#c0a080]/30 text-[#c0a080]"
+                    : "bg-[#5c6bc0]/30 text-[#5c6bc0]"
                 )}
               >
                 <Scroll className="h-4 w-4" />
@@ -307,8 +307,8 @@ export default function QuestOverlay() {
                         className={cn(
                           "h-full transition-all duration-300 rounded-full",
                           quest.questType === "principale"
-                            ? "bg-purple-300"
-                            : "bg-blue-300"
+                            ? "bg-[#c0a080]"
+                            : "bg-[#5c6bc0]"
                         )}
                         style={{ width: `${progress}%` }}
                       />
