@@ -119,10 +119,10 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
         </button>
 
         <div className="flex flex-col md:flex-row space-y-6 md:space-y-0 md:space-x-6">
-          <div className="flex-shrink-0">
-            <CharacterImage 
-              imageUrl={character.imageURL} 
-              altText={character.Nomperso} 
+          <div className="flex-shrink-0 scale-150">
+            <CharacterImage
+              imageUrl={character.imageURL}
+              altText={character.Nomperso}
               characterId={character.id}
             />
           </div>

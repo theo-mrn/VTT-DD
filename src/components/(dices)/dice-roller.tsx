@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { DiceRoll } from "@dice-roller/rpg-dice-roller";
 import { motion, AnimatePresence } from "framer-motion";
-import { Dice1, RotateCcw, History, Trash2, Shield } from "lucide-react";
+import { Dice1, RotateCcw, History, Trash2, Shield, BarChart3 } from "lucide-react";
 import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { NumberTicker } from "@/components/magicui/number-ticker";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DiceStats } from "./dice-stats";
 
 // Types
 interface RollResult {
@@ -50,6 +51,7 @@ export function DiceRoller() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showHistory] = useState(true);
+  const [showStats, setShowStats] = useState(false);
   
   // États utilisateur et personnage - récupérés directement de Firebase
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -91,7 +93,7 @@ export function DiceRoller() {
         const charData = charSnap.data();
         setCharacterName(charData.Nomperso || "Utilisateur");
         setUserName(charData.Nomperso || "Utilisateur");
-        setUserAvatar(charData.imageURL || undefined);
+        setUserAvatar(charData.imageURLFinal || charData.imageURL || undefined);
 
         // Set the raw values directly without calculating modifiers again (exactement comme campagne.tsx)
         setCharacterModifiers({
@@ -460,13 +462,13 @@ export function DiceRoller() {
               <Label htmlFor="private-switch" className="text-[var(--text-primary)]">Lancer privé</Label>
               <Switch id="private-switch" checked={isPrivate} onCheckedChange={setIsPrivate} />
               {userName && (
-                <div className="flex items-center gap-2 ml-4">
+                <div className="flex items-center gap-3 ml-4">
                   {userAvatar && (
-                    <Avatar className="h-6 w-6">
-                      <AvatarImage src={userAvatar} alt="Avatar" />
+                    <Avatar className="h-16 w-16">
+                      <AvatarImage src={userAvatar} alt="Avatar" className="object-contain" />
                     </Avatar>
                   )}
-                  <span className="text-sm font-medium text-[var(--text-primary)]">{userName}</span>
+                  <span className="text-base font-medium text-[var(--text-primary)]">{userName}</span>
                 </div>
               )}
             </div>
@@ -580,15 +582,31 @@ export function DiceRoller() {
         )}
       </AnimatePresence>
 
-      {/* Historique Firebase uniquement */}
+      {/* Onglets Historique / Statistiques */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold flex items-center gap-2 text-[var(--text-primary)]">
-            <History className="h-5 w-5" />
-            Historique ({getFilteredRolls().length})
-          </h3>
           <div className="flex gap-2">
-            {firebaseRolls.length > 0 && isMJ && (
+            <Button
+              onClick={() => setShowStats(false)}
+              className={`flex items-center gap-2 ${
+                !showStats ? "button-primary" : "button-cancel"
+              }`}
+            >
+              <History className="h-5 w-5" />
+              Historique ({getFilteredRolls().length})
+            </Button>
+            <Button
+              onClick={() => setShowStats(true)}
+              className={`flex items-center gap-2 ${
+                showStats ? "button-primary" : "button-cancel"
+              }`}
+            >
+              <BarChart3 className="h-5 w-5" />
+              Statistiques
+            </Button>
+          </div>
+          <div className="flex gap-2">
+            {firebaseRolls.length > 0 && isMJ && !showStats && (
               <Button
                 onClick={clearFirebaseRolls}
                 className="button-cancel flex items-center gap-1"
@@ -600,64 +618,88 @@ export function DiceRoller() {
           </div>
         </div>
 
-        <AnimatePresence>
-          {showHistory && (
-            <div className="overflow-y-auto">
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="space-y-2"
-              >
-              {getFilteredRolls().length === 0 ? (
-                <div className="text-center text-[var(--text-secondary)] py-8">
-                  Aucun lancer dans l&apos;historique
-                </div>
-              ) : (
-                getFilteredRolls().map((roll, index) => (
+        <AnimatePresence mode="wait">
+          {showStats ? (
+            <motion.div
+              key="stats"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <DiceStats
+                rolls={getFilteredRolls()}
+                currentUserName={characterName}
+                isMJ={isMJ}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="history"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              {showHistory && (
+                <div className="overflow-y-auto">
                   <motion.div
-                    key={roll.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="space-y-2"
                   >
-                    <Card className="card">
-                      <CardContent className="p-3 flex items-center space-x-3">
-                        {roll.userAvatar && (
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={roll.userAvatar} alt="Avatar" />
-                          </Avatar>
-                        )}
-                        <div className="flex-grow">
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-medieval text-[var(--text-primary)]">{roll.userName}</span>
-                            {roll.isPrivate && <Shield className="h-4 w-4 text-[var(--accent-brown)]" />}
-                          </div>
-                          <span className="text-sm font-medium text-[var(--text-primary)]">
-                            {roll.notation}
-                          </span>
-                          <div className="flex items-center gap-1">
-                            <span className="text-lg font-bold text-[var(--text-primary)]">Total: {roll.total}</span>
-                          </div>
-                          <div className="text-xs text-[var(--text-secondary)] font-mono mt-1">
-                            {roll.output}
-                          </div>
-                        </div>
-                        <Button
-                          onClick={() => rerollFromFirebase(roll)}
-                          className="button-secondary opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all"
-                          size="sm"
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                          Relancer
-                        </Button>
-                      </CardContent>
-                    </Card>
+                  {getFilteredRolls().length === 0 ? (
+                    <div className="text-center text-[var(--text-secondary)] py-8">
+                      Aucun lancer dans l&apos;historique
+                    </div>
+                  ) : (
+                    getFilteredRolls().map((roll, index) => (
+                      <motion.div
+                        key={roll.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <Card className="card">
+                          <CardContent className="p-3 flex items-center space-x-3">
+                            {roll.userAvatar && (
+                              <Avatar className="h-16 w-16">
+                                <AvatarImage src={roll.userAvatar} alt="Avatar" className="object-contain" />
+                              </Avatar>
+                            )}
+                            <div className="flex-grow">
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm font-medieval text-[var(--text-primary)]">{roll.userName}</span>
+                                {roll.isPrivate && <Shield className="h-4 w-4 text-[var(--accent-brown)]" />}
+                              </div>
+                              <span className="text-sm font-medium text-[var(--text-primary)]">
+                                {roll.notation}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className="text-lg font-bold text-[var(--text-primary)]">Total: {roll.total}</span>
+                              </div>
+                              <div className="text-xs text-[var(--text-secondary)] font-mono mt-1">
+                                {roll.output}
+                              </div>
+                            </div>
+                            <Button
+                              onClick={() => rerollFromFirebase(roll)}
+                              className="button-secondary opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all"
+                              size="sm"
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                              Relancer
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))
+                  )}
                   </motion.div>
-                ))
+                </div>
               )}
-              </motion.div>
-            </div>
+            </motion.div>
           )}
         </AnimatePresence>
       </div>

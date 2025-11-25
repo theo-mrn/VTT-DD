@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { 
-  auth, 
-  db, 
+import {
+  auth,
+  db,
   onAuthStateChanged,
   doc,
   getDoc,
@@ -12,8 +12,9 @@ import {
   query,
   where
 } from '@/lib/firebase';
-import { Trophy, Shield, Wand2, Target, Users, Crown, Star, Sword, Heart, Zap } from 'lucide-react';
-import CharacterImage from '@/components/CharacterImage';
+import { Trophy, Shield, Wand2, Target, Users, Crown, Star, Sword, Heart, Zap, TrendingUp, Award } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface Character {
   id: string;
@@ -22,6 +23,7 @@ interface Character {
   Profile?: string;
   Race?: string;
   imageURL?: string;
+  imageURLFinal?: string;
   PV?: number;
   PV_Max?: number;
   Defense?: number;
@@ -36,6 +38,20 @@ interface Character {
   INT?: number;
   CHA?: number;
   type?: string;
+  // Stats avec bonus appliqués
+  FOR_Final?: number;
+  DEX_Final?: number;
+  CON_Final?: number;
+  INT_Final?: number;
+  SAG_Final?: number;
+  CHA_Final?: number;
+  PV_Final?: number;
+  PV_Max_Final?: number;
+  Defense_Final?: number;
+  Contact_Final?: number;
+  Magie_Final?: number;
+  Distance_Final?: number;
+  INIT_Final?: number;
 }
 
 interface StatOption {
@@ -51,6 +67,62 @@ export function Statistiques() {
   const [error, setError] = useState<string | null>(null);
   const [selectedStat, setSelectedStat] = useState<keyof Character>('FOR');
 
+  // Fonction pour calculer les stats finales avec les bonus actifs
+  const calculateFinalStats = async (character: Character, roomId: string) => {
+    const bonusCollection = collection(db, `Bonus/${roomId}/${character.Nomperso}`);
+    const bonusSnapshot = await getDocs(bonusCollection);
+
+    // Initialiser les totaux avec les stats de base
+    const totals = {
+      FOR: character.FOR || 0,
+      DEX: character.DEX || 0,
+      CON: character.CON || 0,
+      INT: character.INT || 0,
+      SAG: character.SAG || 0,
+      CHA: character.CHA || 0,
+      PV: character.PV || 0,
+      PV_Max: character.PV_Max || 0,
+      Defense: character.Defense || 0,
+      Contact: character.Contact || 0,
+      Magie: character.Magie || 0,
+      Distance: character.Distance || 0,
+      INIT: character.INIT || 0,
+    };
+
+    // Parcourir tous les bonus et additionner ceux qui sont actifs
+    bonusSnapshot.docs.forEach((bonusDoc) => {
+      const bonusData = bonusDoc.data();
+
+      // Vérifier si le bonus est actif (par défaut true si non spécifié)
+      const isActive = bonusData.active !== false;
+
+      if (isActive) {
+        // Additionner chaque stat si elle existe dans le bonus
+        Object.keys(totals).forEach((stat) => {
+          if (bonusData[stat] && typeof bonusData[stat] === 'number') {
+            totals[stat as keyof typeof totals] += bonusData[stat];
+          }
+        });
+      }
+    });
+
+    return {
+      FOR_Final: totals.FOR,
+      DEX_Final: totals.DEX,
+      CON_Final: totals.CON,
+      INT_Final: totals.INT,
+      SAG_Final: totals.SAG,
+      CHA_Final: totals.CHA,
+      PV_Final: totals.PV,
+      PV_Max_Final: totals.PV_Max,
+      Defense_Final: totals.Defense,
+      Contact_Final: totals.Contact,
+      Magie_Final: totals.Magie,
+      Distance_Final: totals.Distance,
+      INIT_Final: totals.INIT,
+    };
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -61,7 +133,7 @@ export function Statistiques() {
 
       try {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
-        
+
         if (!userDoc.exists()) {
           setError("Données utilisateur non trouvées");
           setLoading(false);
@@ -74,12 +146,21 @@ export function Statistiques() {
         const charactersCollection = collection(db, `cartes/${roomIdValue}/characters`);
         const playerCharactersQuery = query(charactersCollection, where("type", "==", "joueurs"));
         const charactersSnapshot = await getDocs(playerCharactersQuery);
-        
-        const charactersData = charactersSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Character[];
-        
+
+        const charactersData = await Promise.all(
+          charactersSnapshot.docs.map(async (charDoc) => {
+            const charData = { id: charDoc.id, ...charDoc.data() } as Character;
+
+            // Calculer les stats finales avec bonus
+            const finalStats = await calculateFinalStats(charData, roomIdValue);
+
+            return {
+              ...charData,
+              ...finalStats
+            };
+          })
+        );
+
         setCharacters(charactersData);
       } catch (error) {
         console.error("Erreur lors de la récupération des données:", error);
@@ -93,47 +174,75 @@ export function Statistiques() {
   }, []);
 
   const statOptions: StatOption[] = [
-    { key: 'FOR', label: 'Force', icon: <Crown size={16} />, color: '#ef4444' },
-    { key: 'DEX', label: 'Dextérité', icon: <Target size={16} />, color: '#22c55e' },
-    { key: 'CON', label: 'Constitution', icon: <Shield size={16} />, color: '#3b82f6' },
-    { key: 'INT', label: 'Intelligence', icon: <Star size={16} />, color: '#a855f7' },
-    { key: 'SAG', label: 'Sagesse', icon: <Trophy size={16} />, color: '#eab308' },
-    { key: 'CHA', label: 'Charisme', icon: <Users size={16} />, color: '#ec4899' },
-    { key: 'Defense', label: 'Défense', icon: <Shield size={16} />, color: '#06b6d4' },
-    { key: 'INIT', label: 'Initiative', icon: <Zap size={16} />, color: '#f97316' },
-    { key: 'Contact', label: 'Contact', icon: <Sword size={16} />, color: '#f59e0b' },
-    { key: 'Distance', label: 'Distance', icon: <Target size={16} />, color: '#10b981' },
-    { key: 'Magie', label: 'Magie', icon: <Wand2 size={16} />, color: '#8b5cf6' },
-    { key: 'PV_Max', label: 'PV Max', icon: <Heart size={16} />, color: '#f43f5e' }
+    { key: 'FOR', label: 'Force', icon: <Crown size={14} />, color: '#c0a080' },
+    { key: 'DEX', label: 'Dextérité', icon: <Target size={14} />, color: '#c0a080' },
+    { key: 'CON', label: 'Constitution', icon: <Shield size={14} />, color: '#c0a080' },
+    { key: 'INT', label: 'Intelligence', icon: <Star size={14} />, color: '#c0a080' },
+    { key: 'SAG', label: 'Sagesse', icon: <Trophy size={14} />, color: '#c0a080' },
+    { key: 'CHA', label: 'Charisme', icon: <Users size={14} />, color: '#c0a080' },
+    { key: 'Defense', label: 'Défense', icon: <Shield size={14} />, color: '#c0a080' },
+    { key: 'INIT', label: 'Initiative', icon: <Zap size={14} />, color: '#c0a080' },
+    { key: 'Contact', label: 'Contact', icon: <Sword size={14} />, color: '#c0a080' },
+    { key: 'Distance', label: 'Distance', icon: <Target size={14} />, color: '#c0a080' },
+    { key: 'Magie', label: 'Magie', icon: <Wand2 size={14} />, color: '#c0a080' },
+    { key: 'PV_Max', label: 'PV Max', icon: <Heart size={14} />, color: '#c0a080' }
   ];
 
   const getCurrentStat = () => statOptions.find(stat => stat.key === selectedStat) || statOptions[0];
 
+  // Fonction pour obtenir la valeur finale (avec bonus) d'une stat
+  const getFinalStatValue = (char: Character, stat: keyof Character): number => {
+    // Mapper la stat vers sa version _Final
+    const finalStatKey = `${stat}_Final` as keyof Character;
+
+    // Si la stat finale existe, l'utiliser, sinon utiliser la stat de base
+    if (finalStatKey in char && typeof char[finalStatKey] === 'number') {
+      return char[finalStatKey] as number;
+    }
+
+    return (char[stat] as number) || 0;
+  };
+
   const getTopCharacters = (limit: number = 5) => {
     return [...characters]
-      .sort((a, b) => (b[selectedStat] as number || 0) - (a[selectedStat] as number || 0))
+      .sort((a, b) => {
+        const aValue = getFinalStatValue(a, selectedStat);
+        const bValue = getFinalStatValue(b, selectedStat);
+        return bValue - aValue;
+      })
       .slice(0, limit);
   };
 
   const getMaxValue = () => {
-    return Math.max(...characters.map(char => char[selectedStat] as number || 0));
+    return Math.max(...characters.map(char => getFinalStatValue(char, selectedStat)));
   };
 
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#1c1c1c] text-[#d4d4d4] p-4 flex items-center justify-center">
-        Chargement des statistiques...
+      <div className="min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)] p-6 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <TrendingUp className="h-10 w-10 mx-auto mb-3 text-[var(--accent-brown)] animate-pulse" />
+          <p className="text-sm text-[var(--text-secondary)]">Chargement des statistiques...</p>
+        </motion.div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-[#1c1c1c] text-[#d4d4d4] p-4 flex items-center justify-center">
-        <div className="bg-red-500/10 text-red-500 p-4 rounded-lg">
-          {error}
-        </div>
+      <div className="min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)] p-6 flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[var(--bg-card)] text-[var(--text-primary)] p-6 rounded-lg border border-[var(--border-color)] max-w-md"
+        >
+          <p className="text-sm text-[var(--text-secondary)]">{error}</p>
+        </motion.div>
       </div>
     );
   }
@@ -142,133 +251,158 @@ export function Statistiques() {
   const topCharacters = getTopCharacters(5);
   const maxValue = getMaxValue();
 
+  // Médailles pour le podium
+  const getMedalIcon = (index: number) => {
+    switch (index) {
+      case 0:
+        return <Trophy className="h-7 w-7 text-[var(--accent-brown)]" />;
+      case 1:
+        return <Award className="h-7 w-7 text-[var(--text-secondary)]" />;
+      case 2:
+        return <Award className="h-7 w-7 text-[var(--text-secondary)]" style={{ opacity: 0.7 }} />;
+      default:
+        return null;
+    }
+  };
+
   return (
-    <div className="h-full bg-[#1c1c1c] text-[#d4d4d4] p-3">
-      <div className="space-y-4">
-        {/* Header */}
-        <div className="text-center mb-4">
-          <h1 className="text-lg font-bold text-[#c0a0a0] mb-1 flex items-center justify-center gap-2">
-            <Trophy className="text-yellow-500" size={20} />
-            Classements
-          </h1>
-          <p className="text-xs text-[#a0a0a0]">Sélectionnez une statistique</p>
-        </div>
+    <div className="min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)] p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="max-w-7xl mx-auto space-y-4 px-4"
+      >
 
-        {/* Sélecteur de statistique - Grid compact */}
-        <div className="bg-[#242424] rounded-lg p-2 border border-[#3a3a3a]">
-          <div className="grid grid-cols-3 gap-1">
-            {statOptions.map((stat) => (
-              <button
-                key={stat.key}
-                onClick={() => setSelectedStat(stat.key)}
-                className={`p-2 rounded text-xs font-medium transition-all duration-200 flex flex-col items-center gap-1 ${
-                  selectedStat === stat.key
-                    ? 'bg-[#3a3a3a] border border-[#4a4a4a] transform scale-105'
-                    : 'bg-[#2a2a2a] hover:bg-[#333333] border border-transparent'
-                }`}
-              >
-                <div style={{ color: selectedStat === stat.key ? stat.color : '#a0a0a0' }}>
-                  {stat.icon}
-                </div>
-                <span className={`truncate ${selectedStat === stat.key ? 'text-[#d4d4d4]' : 'text-[#a0a0a0]'}`}>
-                  {stat.label}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
 
-        {/* Affichage du classement actuel */}
-        <div className="bg-[#242424] rounded-lg p-3 border border-[#3a3a3a]">
-          <div className="flex items-center gap-2 mb-3">
-            <div style={{ color: currentStat.color }}>
-              {currentStat.icon}
-            </div>
-            <h3 className="text-sm font-bold text-[#c0a0a0]">Top {currentStat.label}</h3>
-          </div>
-          
-          <div className="space-y-2">
-            {topCharacters.length > 0 ? (
-              topCharacters.map((char, index) => {
-                const value = char[selectedStat] as number || 0;
-                const percentage = maxValue > 0 ? (value / maxValue) * 100 : 0;
-                
-                return (
-                  <div key={char.id} className="relative bg-[#2a2a2a] rounded-lg p-2 border border-[#3a3a3a] overflow-hidden">
-                    {/* Barre de progression visuelle */}
-                    <div 
-                      className="absolute inset-0 transition-all duration-500"
-                      style={{ 
-                        backgroundColor: currentStat.color,
-                        opacity: 0.2,
-                        width: `${percentage}%` 
-                      }}
-                    />
-                    
-                    <div className="relative flex items-center gap-2">
-                      {/* Position */}
-                      <div className={`text-lg font-bold w-6 text-center ${
-                        index === 0 ? 'text-yellow-500' : 
-                        index === 1 ? 'text-gray-400' : 
-                        index === 2 ? 'text-amber-600' : 'text-[#a0a0a0]'
-                      }`}>
-                        {index + 1}
-                      </div>
-                      
-                      {/* Avatar */}
-                      <div className="w-8 h-8 rounded-full overflow-hidden bg-[#3a3a3a] flex-shrink-0">
-                        <CharacterImage 
-                          imageUrl={char.imageURL} 
-                          altText={char.Nomperso}
-                          characterId={char.id}
-                        />
-                      </div>
-                      
-                      {/* Infos personnage */}
-                      <div className="flex-grow min-w-0">
-                        <div className="text-sm font-semibold text-[#d4d4d4] truncate">{char.Nomperso}</div>
-                        <div className="text-xs text-[#a0a0a0] truncate">
-                          {char.Race} {char.Profile}
-                        </div>
-                      </div>
-                      
-                      {/* Valeur */}
-                      <div className="text-xl font-bold min-w-[3rem] text-right" style={{ color: currentStat.color }}>
-                        {value}
-                      </div>
-                    </div>
+        {/* Sélecteur de statistique - Grid moderne */}
+        <Card className="card border-[var(--border-color)]">
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+              {statOptions.map((stat) => (
+                <motion.button
+                  key={stat.key}
+                  onClick={() => setSelectedStat(stat.key)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className={`p-3 rounded-md text-xs font-medium transition-all duration-200 flex flex-col items-center gap-1.5 ${
+                    selectedStat === stat.key
+                      ? 'bg-[var(--accent-brown)] text-white shadow-sm'
+                      : 'bg-[var(--bg-darker)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent-brown)]/50 hover:text-[var(--text-primary)]'
+                  }`}
+                >
+                  <div className={selectedStat === stat.key ? 'text-white' : 'text-[var(--accent-brown)]'}>
+                    {stat.icon}
                   </div>
-                );
-              })
-            ) : (
-              <div className="text-center text-[#a0a0a0] py-4 text-sm">
-                Aucun personnage trouvé
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Statistiques rapides */}
-        {topCharacters.length > 0 && (
-          <div className="bg-[#242424] rounded-lg p-3 border border-[#3a3a3a]">
-            <h4 className="text-sm font-bold text-[#c0a0a0] mb-2">Stats Rapides</h4>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="bg-[#2a2a2a] p-2 rounded border border-[#3a3a3a] text-center">
-                <div className="text-lg font-bold" style={{ color: currentStat.color }}>
-                  {Math.max(...characters.map(char => char[selectedStat] as number || 0))}
-                </div>
-                <div className="text-[#a0a0a0]">Maximum</div>
-              </div>
-              <div className="bg-[#2a2a2a] p-2 rounded border border-[#3a3a3a] text-center">
-                <div className="text-lg font-bold" style={{ color: currentStat.color }}>
-                  {characters.length > 0 ? Math.round(characters.reduce((sum, char) => sum + (char[selectedStat] as number || 0), 0) / characters.length) : 0}
-                </div>
-                <div className="text-[#a0a0a0]">Moyenne</div>
-              </div>
+                  <span className="text-[10px] truncate w-full text-center leading-tight">
+                    {stat.label}
+                  </span>
+                </motion.button>
+              ))}
             </div>
-          </div>
-        )}
-      </div>
+          </CardContent>
+        </Card>
+
+        {/* Classement - Full Width */}
+        <Card className="card border-[var(--border-color)]">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-[var(--text-primary)] text-lg font-semibold">
+              <div className="text-[var(--accent-brown)]">
+                {currentStat.icon}
+              </div>
+              Classement - {currentStat.label}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-3">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={selectedStat}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 20 }}
+                transition={{ duration: 0.2 }}
+                className="space-y-3"
+              >
+                {topCharacters.length > 0 ? (
+                  topCharacters.map((char, index) => {
+                    const value = getFinalStatValue(char, selectedStat);
+                    const baseValue = (char[selectedStat] as number) || 0;
+                    const hasBonus = value !== baseValue;
+                    const percentage = maxValue > 0 ? (value / maxValue) * 100 : 0;
+
+                    return (
+                      <motion.div
+                        key={char.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="relative bg-[var(--bg-darker)] rounded-lg p-4 border border-[var(--border-color)] overflow-hidden hover:border-[var(--accent-brown)]/40 transition-all"
+                      >
+                        {/* Barre de progression subtile */}
+                        <motion.div
+                          initial={{ width: 0 }}
+                          animate={{ width: `${percentage}%` }}
+                          transition={{ duration: 0.6, delay: index * 0.05 }}
+                          className="absolute inset-0 opacity-[0.03]"
+                          style={{ background: 'var(--accent-brown)' }}
+                        />
+
+                        <div className="relative flex items-center gap-4">
+                          {/* Position */}
+                          <div className="flex items-center justify-center w-12 h-12 flex-shrink-0">
+                            {index < 3 ? (
+                              getMedalIcon(index)
+                            ) : (
+                              <span className="text-base font-semibold text-[var(--text-secondary)]">
+                                #{index + 1}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Avatar */}
+                          <div className="w-24 h-24 rounded-full overflow-hidden bg-[var(--bg-card)] flex-shrink-0 border-2 border-[var(--border-color)]">
+                            <img
+                              src={char.imageURLFinal || char.imageURL || "/api/placeholder/96/96"}
+                              alt={char.Nomperso}
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+
+                          {/* Infos personnage */}
+                          <div className="flex-grow min-w-0">
+                            <div className="text-base font-semibold text-[var(--text-primary)] truncate">
+                              {char.Nomperso}
+                            </div>
+                            <div className="text-sm text-[var(--text-secondary)] truncate">
+                              {char.Race && char.Profile ? `${char.Race} • ${char.Profile}` : char.Race || char.Profile} • Niv. {char.niveau || 1}
+                            </div>
+                          </div>
+
+                          {/* Valeur */}
+                          <div className="flex flex-col items-end flex-shrink-0">
+                            <div className="text-2xl font-bold text-[var(--accent-brown)]">
+                              {value}
+                            </div>
+                            {hasBonus && (
+                              <div className="text-xs text-[var(--accent-blue)] font-medium">
+                                +{value - baseValue}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center text-[var(--text-secondary)] py-8">
+                    <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">Aucun personnage trouvé</p>
+                  </div>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }
