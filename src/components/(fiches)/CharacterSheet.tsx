@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { Heart, Shield, X } from 'lucide-react';
 import { auth, db, doc, getDoc, onSnapshot, collection } from '@/lib/firebase';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import CharacterImage from '@/components/CharacterImage';
-import InventoryManagement2 from '@/components/inventaire2';
+import CharacterImage from '@/components/(fiches)/CharacterImage';
+import InventoryManagement2 from '@/components/(inventaire)/inventaire2';
 
 interface Character {
   id: string;

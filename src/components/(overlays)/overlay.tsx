@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Sidebar from "@/components/(overlays)/panel";
-import CharacterSheet from "@/components/CharacterSheet";
+import CharacterSheet from "@/components/(fiches)/CharacterSheet";
 import { auth, db, onAuthStateChanged, doc, getDoc, collection, query, where, onSnapshot } from "@/lib/firebase";
 
 type Player = {
