@@ -6,7 +6,6 @@ import PlayerMusicControl from '@/components/(music)/PlayerMusicControl';
 import { useGame } from '@/contexts/GameContext';
 import { Music, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 
 interface FloatingMusicProps {
   roomId: string;
@@ -21,7 +20,7 @@ export default function FloatingMusic({ roomId }: FloatingMusicProps) {
       {/* Bouton flottant pour ouvrir */}
       <Button
         onClick={() => setIsVisible(true)}
-        className={`fixed bottom-4 right-4 z-50 shadow-lg h-12 w-12 rounded-full transition-opacity ${
+        className={`fixed bottom-4 right-4 z-[5] shadow-lg h-12 w-12 rounded-full transition-opacity ${
           isVisible ? 'opacity-0 pointer-events-none' : 'opacity-100'
         }`}
         size="icon"
@@ -31,8 +30,8 @@ export default function FloatingMusic({ roomId }: FloatingMusicProps) {
       </Button>
 
       {/* Panneau de contrôle - Toujours dans le DOM mais caché avec CSS */}
-      <div 
-        className={`fixed bottom-4 right-4 z-50 transition-all duration-300 shadow-2xl rounded-3xl overflow-hidden ${
+      <div
+        className={`fixed bottom-4 right-4 z-[5] transition-all duration-300 shadow-2xl rounded-3xl overflow-hidden ${
           isMJ ? 'w-[90vw] max-w-5xl h-[650px]' : 'w-96'
         } ${
           !isVisible ? 'opacity-0 pointer-events-none scale-95' : 'opacity-100 scale-100'

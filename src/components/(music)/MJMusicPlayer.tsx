@@ -284,24 +284,30 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
         if (playerRef.current && data.videoId && typeof playerRef.current.playVideo === 'function') {
           try {
             isSyncingFromFirebase.current = true;
-            
+
+            // Vérifier à nouveau avant chaque appel
+            if (!playerRef.current) return;
+
             if (data.isPlaying) {
               playerRef.current.playVideo();
             } else {
               playerRef.current.pauseVideo();
             }
 
+            // Vérifier à nouveau avant getCurrentTime
+            if (!playerRef.current) return;
+
             const currentTime = playerRef.current.getCurrentTime();
-            if (typeof currentTime === 'number') {
+            if (typeof currentTime === 'number' && playerRef.current) {
               const timeSinceUpdate = (Date.now() - data.lastUpdate) / 1000;
               const targetTime = data.isPlaying ? data.timestamp + timeSinceUpdate : data.timestamp;
               const adjustedDiff = Math.abs(currentTime - targetTime);
-              
-              if (adjustedDiff > 1) {
+
+              if (adjustedDiff > 1 && playerRef.current) {
                 playerRef.current.seekTo(targetTime, true);
               }
             }
-            
+
             setTimeout(() => {
               isSyncingFromFirebase.current = false;
             }, 1000);

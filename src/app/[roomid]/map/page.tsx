@@ -13,7 +13,6 @@ import Combat from '@/components/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import CharacterSheet from '@/components/CharacterSheet'; // Importez le composant de fiche de personnage
-import FloatingMusic from '@/components/(music)/FloatingMusic'; // Lecteur musical flottant
 import { Component as RadialMenu } from '@/components/ui/radial-menu'; // Menu radial
 
 
@@ -1992,7 +1991,7 @@ const handleNoteSubmit = async () => {
     return (
     <div className="flex flex-col relative">
       {/* 🎯 Contrôles de zoom flottants au centre à droite */}
-      <div className="absolute top-1/2 right-4 -translate-y-1/2 z-50 flex flex-col gap-2">
+      <div className="absolute top-1/2 right-4 -translate-y-1/2 z-10 flex flex-col gap-2">
         <Button
           onClick={() => handleZoom(0.1)}
           className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm"
@@ -3045,9 +3044,6 @@ const handleNoteSubmit = async () => {
           }}
         />
       )}
-
-      {/* Lecteur Musical Flottant */}
-      <FloatingMusic roomId={roomId} />
     </div>
-  ); 
+  );
 }
