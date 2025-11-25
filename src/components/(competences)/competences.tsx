@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import dynamic from 'next/dynamic'
 
-const ChangeComponent = dynamic(() => import('@/components/change'), {
+const ChangeComponent = dynamic(() => import('@/components/(competences)/change'), {
   loading: () => <div className="text-center p-4">Chargement...</div>
 })
 

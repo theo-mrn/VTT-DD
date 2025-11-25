@@ -9,9 +9,9 @@ import {
   updateDoc
 } from '@/lib/firebase';
 import { Heart, Shield, Edit, TrendingUp } from 'lucide-react';
-import InventoryManagement2 from '@/components/inventaire2';
-import CompetencesDisplay from "@/components/competencesD";
-import CharacterImage from '@/components/CharacterImage';
+import InventoryManagement2 from '@/components/(inventaire)/inventaire2';
+import CompetencesDisplay from "@/components/(competences)/competencesD";
+import CharacterImage from '@/components/(fiches)/CharacterImage';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCharacter, Character } from '@/contexts/CharacterContext';
 
