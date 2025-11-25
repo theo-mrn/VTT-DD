@@ -9,10 +9,10 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
-import Combat from '@/components/combat2';  // Importez le composant de combat
+import Combat from '@/components/(combat)/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import CharacterSheet from '@/components/CharacterSheet'; // Importez le composant de fiche de personnage
+import CharacterSheet from '@/components/(fiches)/CharacterSheet'; // Importez le composant de fiche de personnage
 import { Component as RadialMenu } from '@/components/ui/radial-menu'; // Menu radial
 
 

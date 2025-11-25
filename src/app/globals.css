@@ -124,7 +124,7 @@
 }
 
 .modal-content {
-  @apply bg-[var(--bg-card)] p-6 rounded-lg border border-[var(--border-color)] max-w-md w-full;
+  @apply bg-[var(--bg-card)] p-4 rounded-lg border border-[var(--border-color)] max-w-sm w-full;
 }
 
 .modal-title {

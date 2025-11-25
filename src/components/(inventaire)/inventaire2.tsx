@@ -68,8 +68,10 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
   const [isRenameDialogOpen, setIsRenameDialogOpen] = useState<boolean>(false);
   const [isBonusDialogOpen, setIsBonusDialogOpen] = useState<boolean>(false);
   const [isDiceDialogOpen, setIsDiceDialogOpen] = useState<boolean>(false);
+  const [isQuantityDialogOpen, setIsQuantityDialogOpen] = useState<boolean>(false);
   const [currentItem, setCurrentItem] = useState<InventoryItem | null>(null);
   const [newItemName, setNewItemName] = useState<string>('');
+  const [newItemQuantity, setNewItemQuantity] = useState<number>(1);
   const [bonusType, setBonusType] = useState<string>('');
   const [bonusValue, setBonusValue] = useState<string>('');
   const [diceCount, setDiceCount] = useState<number>(1);
@@ -237,6 +239,17 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
       await updateDoc(itemRef, { message: newItemName });
       setIsRenameDialogOpen(false);
       setNewItemName('');
+    }
+  };
+
+  const handleUpdateQuantity = async () => {
+    if (currentItem && newItemQuantity > 0) {
+      const itemRef = doc(inventoryRef, currentItem.id);
+      await updateDoc(itemRef, {
+        quantity: newItemQuantity
+      });
+      setIsQuantityDialogOpen(false);
+      setNewItemQuantity(1);
     }
   };
 
@@ -648,7 +661,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                   key={item.id}
                   className="relative group hover:shadow-lg transition-all duration-200 bg-[var(--bg-card)] border-[var(--border-color)] overflow-hidden aspect-square"
                 >
-                  <CardContent className="p-4 flex flex-col items-center justify-center h-full">
+                  <CardContent className="p-2 flex flex-col items-center justify-center h-full">
                     {canEdit ? (
                       <DropdownMenu modal={false}>
                         <Tooltip>
@@ -703,8 +716,15 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                         }}>
                           Renommer
                         </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => { 
-                          setCurrentItem(item); 
+                        <DropdownMenuItem onSelect={() => {
+                          setCurrentItem(item);
+                          setNewItemQuantity(item.quantity);
+                          setIsQuantityDialogOpen(true);
+                        }}>
+                          Modifier la quantité
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => {
+                          setCurrentItem(item);
                           setIsBonusDialogOpen(true);
                         }}>
                           Gérer les bonus
@@ -788,7 +808,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
             setNewItemName('');
           }
         }}>
-          <DialogContent className="modal-content">
+          <DialogContent className="modal-content max-w-md">
             <DialogHeader>
               <DialogTitle className="modal-title">Renommer {currentItem?.message}</DialogTitle>
             </DialogHeader>
@@ -812,7 +832,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
             setBonusValue('');
           }
         }}>
-          <DialogContent className="modal-content">
+          <DialogContent className="modal-content max-w-lg">
             <DialogHeader>
               <DialogTitle className="modal-title">Gérer les bonus de {currentItem?.message}</DialogTitle>
             </DialogHeader>
@@ -851,7 +871,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
             setDiceFaces(6);
           }
         }}>
-          <DialogContent className="modal-content">
+          <DialogContent className="modal-content max-w-md">
             <DialogHeader>
               <DialogTitle className="modal-title">Modifier les dés pour {currentItem?.message}</DialogTitle>
             </DialogHeader>
@@ -881,6 +901,36 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                 </div>
               </div>
               <Button onClick={handleUpdateDice} className="button-primary">Mettre à jour les dés</Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isQuantityDialogOpen} onOpenChange={(open) => {
+          setIsQuantityDialogOpen(open);
+          if (!open) {
+            setCurrentItem(null);
+            setNewItemQuantity(1);
+          }
+        }}>
+          <DialogContent className="modal-content max-w-md">
+            <DialogHeader>
+              <DialogTitle className="modal-title">Modifier la quantité de {currentItem?.message}</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-4">
+              <div>
+                <Label htmlFor="itemQuantity" className="text-[var(--text-primary)]">Quantité</Label>
+                <Input
+                  id="itemQuantity"
+                  type="number"
+                  value={newItemQuantity}
+                  onChange={(e) => setNewItemQuantity(parseInt(e.target.value))}
+                  min={1}
+                  className="input-field"
+                />
+              </div>
+              <Button onClick={handleUpdateQuantity} className="button-primary">
+                Enregistrer
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
