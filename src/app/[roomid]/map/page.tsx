@@ -114,6 +114,7 @@ export default function Component() {
   const fileInputRef = useRef<HTMLInputElement>(null); // Ref pour l'input de changement de fond
   const characterInputRef = useRef<HTMLInputElement>(null); // Ref pour l'input d'ajout de personnage
   const [panMode, setPanMode] = useState(false); // Mode déplacement de carte
+  const [playerViewMode, setPlayerViewMode] = useState(false); // Mode "Vue Joueur" pour le MJ
 
 
   useEffect(() => {
@@ -211,7 +212,7 @@ useEffect(() => {
     ctx.scale(sizeMultiplier, sizeMultiplier);
     drawMap(ctx, image, containerWidth, containerHeight); // Pass container dimensions
   };
-}, [backgroundImage, showGrid, zoom, offset, characters, notes, selectedCharacterIndex, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isFogDragging]);
+}, [backgroundImage, showGrid, zoom, offset, characters, notes, selectedCharacterIndex, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isFogDragging, playerViewMode, isMJ]);
 
 
   // Firebase Functions
@@ -228,6 +229,7 @@ useEffect(() => {
     { id: 8, label: 'Effacer dessins', icon: Trash2 },
     { id: 9, label: 'Changer fond', icon: ImagePlus },
     { id: 10, label: 'Déplacer carte', icon: Move },
+    { id: 11, label: playerViewMode ? 'Vue MJ' : 'Vue Joueur', icon: playerViewMode ? ScanEye : User },
   ] : [
     { id: 1, label: 'Ajouter Texte', icon: Baseline },
     { id: 2, label: 'Dessiner', icon: Pencil },
@@ -239,7 +241,7 @@ useEffect(() => {
   // 🎯 Calculer les IDs des outils actuellement actifs (peut être plusieurs)
   const getActiveToolIds = (): number[] => {
     const activeIds: number[] = [];
-    
+
     if (isMJ) {
       // Menu MJ
       if (drawMode) activeIds.push(3); // Dessiner
@@ -247,13 +249,14 @@ useEffect(() => {
       if (fullMapFog) activeIds.push(5); // Brouillard complet
       if (showGrid) activeIds.push(7); // Afficher grille
       if (panMode) activeIds.push(10); // Déplacer carte
+      if (playerViewMode) activeIds.push(11); // Vue Joueur
     } else {
       // Menu Joueur
       if (drawMode) activeIds.push(2); // Dessiner
       if (showGrid) activeIds.push(3); // Afficher grille
       if (panMode) activeIds.push(4); // Déplacer carte
     }
-    
+
     return activeIds;
   };
 
@@ -332,6 +335,10 @@ useEffect(() => {
           // Déplacer carte
           desactiverOutilsIncompatibles(10);
           togglePanMode();
+          break;
+        case 11:
+          // Toggle Vue Joueur
+          setPlayerViewMode(!playerViewMode);
           break;
       }
     } else {
@@ -521,6 +528,60 @@ onSnapshot(charactersRef, (snapshot) => {
   
   const calculateDistance = (x1:number, y1:number, x2:number, y2:number) => {
     return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+  };
+
+  // 🎯 NOUVELLE FONCTION : Vérifier si un personnage est visible pour l'utilisateur actuel
+  const isCharacterVisibleToUser = (char: Character): boolean => {
+    // Le MJ en mode normal voit toujours tout
+    const effectiveIsMJ = isMJ && !playerViewMode;
+    if (effectiveIsMJ) return true;
+
+    // Vérifier si le personnage est dans le brouillard
+    const isInFog = fullMapFog || isCellInFog(char.x, char.y);
+
+    // Déterminer la visibilité effective (les PNJ dans le brouillard deviennent cachés)
+    let effectiveVisibility = char.visibility;
+    if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
+      effectiveVisibility = 'hidden';
+    }
+
+    // Les alliés sont toujours visibles
+    if (char.visibility === 'ally') {
+      return true;
+    }
+
+    // Les personnages cachés ne sont visibles que s'ils sont dans le rayon de vision d'un joueur/allié
+    if (effectiveVisibility === 'hidden') {
+      const containerRef_current = containerRef.current;
+      const canvasRef_current = canvasRef.current;
+      if (!containerRef_current || !canvasRef_current) return false;
+
+      const rect = canvasRef_current.getBoundingClientRect();
+      const containerWidth = containerRef_current.clientWidth || rect.width;
+      const containerHeight = containerRef_current.clientHeight || rect.height;
+      const image = new Image();
+      image.src = backgroundImage;
+
+      const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
+      const scaledWidth = image.width * scale * zoom;
+      const scaledHeight = image.height * scale * zoom;
+
+      const charScreenX = (char.x / image.width) * scaledWidth - offset.x;
+      const charScreenY = (char.y / image.height) * scaledHeight - offset.y;
+
+      // Vérifier si dans le rayon de vision d'un joueur ou allié
+      return characters.some((player) => {
+        const playerScreenX = (player.x / image.width) * scaledWidth - offset.x;
+        const playerScreenY = (player.y / image.height) * scaledHeight - offset.y;
+        return (
+          (player.type === 'joueurs' || player.visibility === 'ally') &&
+          calculateDistance(charScreenX, charScreenY, playerScreenX, playerScreenY) <= player.visibilityRadius * zoom
+        );
+      });
+    }
+
+    // Sinon, visible
+    return true;
   };
 
   // 🎯 NOUVELLES FONCTIONS UTILITAIRES POUR LE BROUILLARD
@@ -797,7 +858,10 @@ onSnapshot(charactersRef, (snapshot) => {
             });
             
             if (opacity > 0) {
-              ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+              // 🎯 Pour le MJ : 55% d'opacité, pour les joueurs : 90% d'opacité
+              const effectiveIsMJ = isMJ && !playerViewMode;
+              const finalOpacity = effectiveIsMJ ? opacity * 0.55 : opacity * 0.90;
+              ctx.fillStyle = `rgba(0, 0, 0, ${finalOpacity})`;
               ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
             }
           }
@@ -822,9 +886,12 @@ onSnapshot(charactersRef, (snapshot) => {
             
             // Calculer l'opacité selon la distance aux joueurs
             const opacity = calculateFogOpacity(cellX, cellY);
-            
+
             if (opacity > 0) { // Ne dessiner que si il y a une opacité
-              ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+              // 🎯 Pour le MJ : 55% d'opacité, pour les joueurs : 90% d'opacité
+              const effectiveIsMJ = isMJ && !playerViewMode;
+              const finalOpacity = effectiveIsMJ ? opacity * 0.55 : opacity * 0.90;
+              ctx.fillStyle = `rgba(0, 0, 0, ${finalOpacity})`;
               ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
             }
           }
@@ -833,7 +900,8 @@ onSnapshot(charactersRef, (snapshot) => {
     }
     
     // 🎯 Optionnel : Dessiner les cercles de visibilité des joueurs et alliés (pour debug)
-    if (isMJ && showFogGrid) {
+    // En mode Vue Joueur, le MJ ne voit pas les cercles de debug
+    if (isMJ && !playerViewMode && showFogGrid) {
       characters.forEach(character => {
         if ((character.type === 'joueurs' || character.visibility === 'ally') && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
           const playerScreenX = (character.x / image.width) * scaledWidth - offset.x;
@@ -910,14 +978,26 @@ onSnapshot(charactersRef, (snapshot) => {
       const y = (char.y / image.height) * scaledHeight - offset.y;
   
       let isVisible = true;
-      
+
+      // 🎯 En mode "Vue Joueur", le MJ voit comme un joueur (pas les ennemis cachés)
+      const effectiveIsMJ = isMJ && !playerViewMode;
+
+      // 🎯 Vérifier si le personnage est dans le brouillard
+      const isInFog = fullMapFog || isCellInFog(char.x, char.y);
+
+      // 🎯 Pour les PNJ (non joueurs et non alliés) : s'ils sont dans le brouillard, ils deviennent automatiquement cachés
+      let effectiveVisibility = char.visibility;
+      if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
+        effectiveVisibility = 'hidden';
+      }
+
       // Les alliés sont toujours visibles (même dans le brouillard complet)
       if (char.visibility === 'ally') {
         isVisible = true;
-      } 
-      // Les personnages cachés ne sont visibles que pour le MJ ou s'ils sont dans le rayon de vision d'un joueur ou allié
-      else if (char.visibility === 'hidden') {
-        isVisible = isMJ || characters.some((player) => {
+      }
+      // Les personnages cachés (ou cachés par le brouillard) ne sont visibles que pour le MJ (en mode normal) ou s'ils sont dans le rayon de vision d'un joueur ou allié
+      else if (effectiveVisibility === 'hidden') {
+        isVisible = effectiveIsMJ || characters.some((player) => {
           const playerX = (player.x / image.width) * scaledWidth - offset.x;
           const playerY = (player.y / image.height) * scaledHeight - offset.y;
           return (
@@ -1051,8 +1131,8 @@ onSnapshot(charactersRef, (snapshot) => {
         ctx.fillText(`${char.niveau}`, badgeX, badgeY);
       }
   
-      // Draw hidden status badge if character is hidden
-      if (char.visibility === 'hidden' && isMJ) {
+      // Draw hidden status badge if character is hidden (soit par défaut, soit par le brouillard) - uniquement en mode MJ normal, pas en vue joueur
+      if (effectiveVisibility === 'hidden' && effectiveIsMJ) {
         const isPlayerCharacter = char.type === 'joueurs';
         const hiddenBadgeOffsetMultiplier = isPlayerCharacter ? 24 : 16;
         const badgeX = x + hiddenBadgeOffsetMultiplier * zoom; // Positioning the badge at the top-right
@@ -1325,7 +1405,7 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
       }
 
       // 🎯 MODE SÉLECTION PAR DÉFAUT - Nouveau comportement principal
-      // Vérifier si on clique sur un élément existant
+      // Vérifier si on clique sur un élément existant ET s'il est visible
       const clickedCharIndex = characters.findIndex(char => {
         const charX = (char.x / image.width) * scaledWidth - offset.x;
         const charY = (char.y / image.height) * scaledHeight - offset.y;
@@ -1498,7 +1578,7 @@ const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
       // Mettre à jour la fin de sélection
       setSelectionEnd({ x: currentX, y: currentY });
       
-      // Sélectionner tous les éléments dans la zone
+      // Sélectionner tous les éléments dans la zone (seulement ceux qui sont visibles)
       const selectedChars = characters
         .map((char, index) => {
           // Calculer la zone de sélection
@@ -1506,7 +1586,7 @@ const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
           const maxX = Math.max(selectionStart.x, currentX);
           const minY = Math.min(selectionStart.y, currentY);
           const maxY = Math.max(selectionStart.y, currentY);
-          
+
           // Inclure tous les types de personnages et notes dans la sélection
           return (
             char.x >= minX &&
@@ -1516,7 +1596,7 @@ const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
           ) ? index : null;
         })
         .filter((index) => index !== null) as number[];
-      
+
       setSelectedCharacters(selectedChars);
     };
     return;
@@ -2009,8 +2089,15 @@ const handleNoteSubmit = async () => {
       </div>
 
       {/* 🎯 Indicateurs de mode actif en haut à gauche */}
-      {(drawMode || fogMode || panMode) && (
+      {(drawMode || fogMode || panMode || playerViewMode) && (
         <div className="absolute top-4 left-4 z-50 flex flex-col gap-2">
+          {playerViewMode && isMJ && (
+            <div className="text-xs text-purple-300 bg-black/70 backdrop-blur-sm p-3 rounded-lg border border-purple-500 shadow-lg">
+              <div className="font-semibold mb-1">👁️ Vue Joueur Active</div>
+              <div className="text-gray-300">Vous voyez la carte comme un joueur</div>
+              <div className="text-gray-400 text-[10px] mt-1">Les ennemis cachés ne sont pas visibles</div>
+            </div>
+          )}
           {panMode && (
             <div className="text-xs text-blue-300 bg-black/70 backdrop-blur-sm p-3 rounded-lg border border-blue-500 shadow-lg">
               <div className="font-semibold mb-1">🔄 Mode Déplacement</div>
@@ -2029,8 +2116,8 @@ const handleNoteSubmit = async () => {
               <div className="text-gray-300">• Zone vide → Ajouter</div>
               <div className="text-gray-300">• Zone brouillée → Supprimer</div>
               {isMJ && (
-                <Button 
-                  onClick={() => setShowFogGrid(!showFogGrid)} 
+                <Button
+                  onClick={() => setShowFogGrid(!showFogGrid)}
                   className={`mt-2 text-xs h-7 w-full ${showFogGrid ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-gray-700 hover:bg-gray-600'}`}
                 >
                   <Grid className="w-3 h-3 mr-1" />
@@ -2094,7 +2181,7 @@ const handleNoteSubmit = async () => {
         </div>
       </RadialMenu>
 
-{selectedCharacterIndex !== null && (
+{selectedCharacterIndex !== null && isCharacterVisibleToUser(characters[selectedCharacterIndex]) && (
   <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
     <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
       <Button className="button-primary">{characters[selectedCharacterIndex].name}</Button>
