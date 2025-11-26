@@ -643,45 +643,47 @@ onSnapshot(charactersRef, (snapshot) => {
   // 🎯 NOUVELLE FONCTION : Calculer l'opacité fog of war selon la distance aux joueurs
   const calculateFogOpacity = (cellX: number, cellY: number): number => {
     if (!fogGrid.has(`${cellX},${cellY}`)) return 0; // Pas de brouillard sur cette cellule
-    
+
     let minOpacity = 1; // Opacité maximale par défaut (brouillard complet)
-    
+
+    // Pour mieux coller au cercle de vision, on ajoute une marge
+    // correspondant à la moitié de la diagonale d'une case de brouillard.
+    // Ainsi, toute case qui touche le cercle est considérée comme visible.
+    const cellDiagonalHalf = fogCellSize * Math.SQRT2 * 0.5;
+
     // Vérifier la distance à tous les personnages joueurs et alliés
-    characters.forEach(character => {
+    for (const character of characters) {
       if ((character.type === 'joueurs' || character.visibility === 'ally') && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
         const cellCenterX = cellX * fogCellSize + fogCellSize / 2;
         const cellCenterY = cellY * fogCellSize + fogCellSize / 2;
         const distance = calculateDistance(character.x, character.y, cellCenterX, cellCenterY);
-        
-        // 🎯 Zone d'influence étendue à 2x le rayon de visibilité
-        const extendedRadius = character.visibilityRadius * 2;
-        
+
+        const visibilityRadius = character.visibilityRadius;
+
+        // Rayon effectif pour considérer une case totalement visible
+        const visibleRadiusWithMargin = visibilityRadius + cellDiagonalHalf;
+
+        if (distance <= visibleRadiusWithMargin) {
+          // Dans le cercle (avec marge) : complètement visible (opacité = 0)
+          return 0;
+        }
+
+        // 🎯 En dehors du cercle visible : calculer l'opacité de transition
+        const extendedRadius = visibleRadiusWithMargin + visibilityRadius; // zone de fade d'environ 1x le rayon
+
         if (distance <= extendedRadius) {
-          let opacity;
-          
-          if (distance <= character.visibilityRadius * 0.8) {
-            // Zone très proche : complètement visible (opacité = 0)
-            opacity = 0;
-          } else if (distance <= character.visibilityRadius * 1.2) {
-            // Zone de visibilité : transition douce de 0 à 0.3
-            const normalizedDistance = (distance - character.visibilityRadius * 0.8) / (character.visibilityRadius * 0.4);
-            opacity = normalizedDistance * 0.3;
-          } else if (distance <= character.visibilityRadius * 1.6) {
-            // Zone intermédiaire : transition de 0.3 à 0.7
-            const normalizedDistance = (distance - character.visibilityRadius * 1.2) / (character.visibilityRadius * 0.4);
-            opacity = 0.3 + (normalizedDistance * 0.4);
-          } else {
-            // Zone étendue : transition de 0.7 à 1.0
-            const extendedDistance = (distance - character.visibilityRadius * 1.6) / (character.visibilityRadius * 0.4);
-            opacity = 0.7 + (extendedDistance * 0.3);
-          }
-          
-          opacity = Math.max(0, Math.min(1, opacity));
+          // Transition progressive du brouillard
+          const fadeDistance = distance - visibleRadiusWithMargin;
+          const fadeRange = extendedRadius - visibleRadiusWithMargin;
+          const normalizedFade = fadeDistance / fadeRange;
+
+          // Opacité augmente progressivement de 0 à 1
+          const opacity = Math.min(1, Math.max(0, normalizedFade));
           minOpacity = Math.min(minOpacity, opacity);
         }
       }
-    });
-    
+    }
+
     return minOpacity;
   };
 
@@ -825,37 +827,39 @@ onSnapshot(charactersRef, (snapshot) => {
             
             // Calculer l'opacité selon la distance aux joueurs et alliés (même si pas dans fogGrid)
             let opacity = 1; // Opacité par défaut pour toute la carte
-            
+
             // Vérifier la distance à tous les personnages joueurs et alliés
-            characters.forEach(character => {
+            for (const character of characters) {
               if ((character.type === 'joueurs' || character.visibility === 'ally') && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
                 const cellCenterX = cellX * fogCellSize + fogCellSize / 2;
                 const cellCenterY = cellY * fogCellSize + fogCellSize / 2;
                 const distance = calculateDistance(character.x, character.y, cellCenterX, cellCenterY);
                 
-                const extendedRadius = character.visibilityRadius * 2;
-                
+                const visibilityRadius = character.visibilityRadius;
+                const cellDiagonalHalf = fogCellSize * Math.SQRT2 * 0.5;
+                const visibleRadiusWithMargin = visibilityRadius + cellDiagonalHalf;
+
+                if (distance <= visibleRadiusWithMargin) {
+                  // Dans le cercle (avec marge) : complètement visible (opacité = 0)
+                  opacity = 0;
+                  break; // Sortir de la boucle car la cellule est visible
+                }
+
+                // 🎯 En dehors du cercle visible : calculer l'opacité de transition
+                const extendedRadius = visibleRadiusWithMargin + visibilityRadius;
+
                 if (distance <= extendedRadius) {
-                  let cellOpacity;
-                  
-                  if (distance <= character.visibilityRadius * 0.8) {
-                    cellOpacity = 0;
-                  } else if (distance <= character.visibilityRadius * 1.2) {
-                    const normalizedDistance = (distance - character.visibilityRadius * 0.8) / (character.visibilityRadius * 0.4);
-                    cellOpacity = normalizedDistance * 0.3;
-                  } else if (distance <= character.visibilityRadius * 1.6) {
-                    const normalizedDistance = (distance - character.visibilityRadius * 1.2) / (character.visibilityRadius * 0.4);
-                    cellOpacity = 0.3 + (normalizedDistance * 0.4);
-                  } else {
-                    const extendedDistance = (distance - character.visibilityRadius * 1.6) / (character.visibilityRadius * 0.4);
-                    cellOpacity = 0.7 + (extendedDistance * 0.3);
-                  }
-                  
-                  cellOpacity = Math.max(0, Math.min(1, cellOpacity));
+                  // Transition progressive du brouillard
+                  const fadeDistance = distance - visibleRadiusWithMargin;
+                  const fadeRange = extendedRadius - visibleRadiusWithMargin;
+                  const normalizedFade = fadeDistance / fadeRange;
+
+                  // Opacité augmente progressivement de 0 à 1
+                  const cellOpacity = Math.min(1, Math.max(0, normalizedFade));
                   opacity = Math.min(opacity, cellOpacity);
                 }
               }
-            });
+            }
             
             if (opacity > 0) {
               // 🎯 Pour le MJ : 55% d'opacité, pour les joueurs : 90% d'opacité
@@ -1155,21 +1159,22 @@ onSnapshot(charactersRef, (snapshot) => {
         ctx.fillText('👁️', badgeX, badgeY); // EyeOff symbol
       }
   
-      // Draw visibility radius if character is of type 'joueurs' or 'ally' and is selected
-      // Note: la taille du cercle de visibilité reste inchangée (basée sur char.visibilityRadius)
+      // Draw visibility radius outline for selected characters (no more filled semi-transparent disk)
       if (char.type === 'joueurs' && index === selectedCharacterIndex) {
-        ctx.fillStyle = 'rgba(0, 0, 255, 0.2)'; // Light blue with transparency
+        ctx.strokeStyle = 'rgba(0, 0, 255, 0.9)'; // Bright blue outline
+        ctx.lineWidth = 2 * zoom;
         ctx.beginPath();
         ctx.arc(x, y, char.visibilityRadius * zoom, 0, 2 * Math.PI);
-        ctx.fill();
+        ctx.stroke();
       }
       
-      // Draw visibility radius for allies when selected (MJ only)
+      // Draw visibility radius outline for allies when selected (MJ only)
       if (char.visibility === 'ally' && index === selectedCharacterIndex && isMJ) {
-        ctx.fillStyle = 'rgba(0, 255, 0, 0.2)'; // Light green with transparency
+        ctx.strokeStyle = 'rgba(0, 255, 0, 0.9)'; // Bright green outline
+        ctx.lineWidth = 2 * zoom;
         ctx.beginPath();
         ctx.arc(x, y, char.visibilityRadius * zoom, 0, 2 * Math.PI);
-        ctx.fill();
+        ctx.stroke();
       }
     });
   };
