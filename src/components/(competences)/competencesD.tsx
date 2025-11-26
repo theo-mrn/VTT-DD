@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, MinusCircle, Info, Star, RefreshCw, Search, X } from "lucide-react";
+import { PlusCircle, MinusCircle, Star, RefreshCw, X } from "lucide-react";
 import { db, getDoc, doc, setDoc, updateDoc } from "@/lib/firebase";
 import { useCharacter, Competence, BonusData } from "@/contexts/CharacterContext";
 
@@ -27,9 +27,19 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
     stat: undefined,
     value: 0,
   });
-  const [detailsOpenCompetenceId, setDetailsOpenCompetenceId] = useState<string | null>(null);
   const [bonusOpenCompetenceId, setBonusOpenCompetenceId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
+
+  // Synchroniser la compétence sélectionnée avec les données actuelles
+  useEffect(() => {
+    if (selectedCompetence) {
+      const updatedComp = competences.find(c => c.id === selectedCompetence.id);
+      if (updatedComp) {
+        setSelectedCompetence(updatedComp);
+      }
+    }
+  }, [competences]);
 
   const handleRemoveBonus = async (stat: string) => {
     if (selectedCompetence && selectedCharacter) {
@@ -169,14 +179,26 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
             filteredCompetences.map((competence) => (
             <Card
               key={competence.id}
-              className={`card transition-colors duration-200 ${canEdit ? 'cursor-pointer' : 'cursor-default'} ${
+              className={`card transition-colors duration-200 cursor-pointer ${
                 competence.isActive ? "border-[var(--accent-brown)]" : "border-[var(--border-color)]"
               }`}
-              onClick={canEdit ? (e) => toggleCompetenceActive(competence.id, e) : undefined}
+              onClick={() => {
+                setSelectedCompetence(competence);
+                setIsDetailsDialogOpen(true);
+              }}
             >
               <CardContent className="flex flex-col p-4 text-[var(--text-primary)]">
                 <div className="flex justify-between items-center">
                   <span className="font-semibold text-[var(--accent-brown)] flex items-center gap-2">
+                    {/* Indicateur d'état actif/inactif */}
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        competence.isActive
+                          ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]"
+                          : "bg-gray-400"
+                      }`}
+                      title={competence.isActive ? "Compétence active" : "Compétence inactive"}
+                    />
                     {(() => {
                       const name = competence.name || "";
                       const isCustomized = name.startsWith("🔄 ");
@@ -190,52 +212,6 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
                     })()}
                   </span>
                   <div className="flex space-x-2">
-                    <Dialog open={detailsOpenCompetenceId === competence.id} onOpenChange={(isOpen) => setDetailsOpenCompetenceId(isOpen ? competence.id : null)}>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="button-primary"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedCompetence(competence);
-                          }}
-                        >
-                          <Info className="h-4 w-4 mr-2" />
-                          Détails
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent
-                        className="modal-content"
-                        onPointerDownOutside={(e) => e.stopPropagation()}
-                        onEscapeKeyDown={(e) => e.stopPropagation()}
-                      >
-                        <DialogHeader>
-                          <DialogTitle className="modal-title flex items-center gap-2">
-                            {(() => {
-                              const name = selectedCompetence?.name || "";
-                              const isCustomized = name.startsWith("🔄 ");
-                              const cleanName = isCustomized ? name.slice(2).trim() : name;
-                              return (
-                                <>
-                                  {isCustomized && <RefreshCw className="h-4 w-4" />}
-                                  <span>{cleanName}</span>
-                                </>
-                              );
-                            })()}
-                          </DialogTitle>
-                          <DialogDescription className="modal-text" dangerouslySetInnerHTML={{ __html: selectedCompetence?.description || "" }} />
-                        </DialogHeader>
-                        <DialogFooter>
-                          <Button variant="ghost" className="button-primary" onClick={(e) => {
-                            e.stopPropagation();
-                            setDetailsOpenCompetenceId(null);
-                          }}>
-                            Fermer
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
                     {canEdit && (
                       <Dialog open={bonusOpenCompetenceId === competence.id} onOpenChange={(isOpen) => setBonusOpenCompetenceId(isOpen ? competence.id : null)}>
                       <DialogTrigger asChild>
@@ -370,52 +346,117 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
   };
 
   return (
-    <Card className="card w-full max-w-4xl mx-auto">
-     
-      
-      {/* Barre de recherche */}
-      <div className="p-4 border-b border-[var(--border-color)] bg-[var(--bg-card)]">
-        <div className="relative">
-          <Input
-            type="text"
-            placeholder="Rechercher une compétence..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="input-field pl-10 pr-10"
-          />
+    <>
+      <Card className="card w-full max-w-4xl mx-auto">
+
+
+        {/* Barre de recherche */}
+        <div className="p-4 border-b border-[var(--border-color)] bg-[var(--bg-card)]">
+          <div className="relative">
+            <Input
+              type="text"
+              placeholder="Rechercher une compétence..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="input-field pl-10 pr-10"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                title="Effacer la recherche"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-              title="Effacer la recherche"
-            >
-              <X className="h-4 w-4" />
-            </button>
+            <p className="text-xs text-[var(--text-secondary)] mt-2 flex items-center gap-1">
+              <span className="font-semibold text-[var(--accent-brown)]">
+                {competences.filter(c => {
+                  const query = searchQuery.toLowerCase();
+                  return c.name.toLowerCase().includes(query) || c.description.toLowerCase().includes(query);
+                }).length}
+              </span>
+              compétence(s) trouvée(s)
+            </p>
           )}
         </div>
-        {searchQuery && (
-          <p className="text-xs text-[var(--text-secondary)] mt-2 flex items-center gap-1">
-            <span className="font-semibold text-[var(--accent-brown)]">
-              {competences.filter(c => {
-                const query = searchQuery.toLowerCase();
-                return c.name.toLowerCase().includes(query) || c.description.toLowerCase().includes(query);
-              }).length}
-            </span>
-            compétence(s) trouvée(s)
-          </p>
-        )}
-      </div>
 
-      <Tabs defaultValue="all">
-        <TabsList className="grid grid-cols-3 bg-[var(--bg-dark)] text-[var(--accent-brown)]">
-          <TabsTrigger value="all">Toutes</TabsTrigger>
-          <TabsTrigger value="passive">Passives</TabsTrigger>
-          <TabsTrigger value="limitée">Limitées</TabsTrigger>
-        </TabsList>
-        <TabsContent value="all">{renderCompetences("all")}</TabsContent>
-        <TabsContent value="passive">{renderCompetences("passive")}</TabsContent>
-        <TabsContent value="limitée">{renderCompetences("limitée")}</TabsContent>
-      </Tabs>
-    </Card>
+        <Tabs defaultValue="all">
+          <TabsList className="grid grid-cols-3 bg-[var(--bg-dark)] text-[var(--accent-brown)]">
+            <TabsTrigger value="all">Toutes</TabsTrigger>
+            <TabsTrigger value="passive">Passives</TabsTrigger>
+            <TabsTrigger value="limitée">Limitées</TabsTrigger>
+          </TabsList>
+          <TabsContent value="all">{renderCompetences("all")}</TabsContent>
+          <TabsContent value="passive">{renderCompetences("passive")}</TabsContent>
+          <TabsContent value="limitée">{renderCompetences("limitée")}</TabsContent>
+        </Tabs>
+      </Card>
+
+      {/* Dialog des détails */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="modal-content">
+          <DialogHeader>
+            <DialogTitle className="modal-title flex items-center gap-2">
+              {(() => {
+                const name = selectedCompetence?.name || "";
+                const isCustomized = name.startsWith("🔄 ");
+                const cleanName = isCustomized ? name.slice(2).trim() : name;
+                return (
+                  <>
+                    {isCustomized && <RefreshCw className="h-4 w-4" />}
+                    <span>{cleanName}</span>
+                  </>
+                );
+              })()}
+            </DialogTitle>
+            <DialogDescription className="modal-text" dangerouslySetInnerHTML={{ __html: selectedCompetence?.description || "" }} />
+          </DialogHeader>
+
+          {/* Affichage des bonus actifs */}
+          {selectedCompetence?.bonuses && Object.entries(selectedCompetence.bonuses)
+            .filter(([stat, value]) => stat !== "active" && value !== 0)
+            .length > 0 && (
+            <div className="py-2">
+              <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Bonus accordés :</h4>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(selectedCompetence.bonuses)
+                  .filter(([stat, value]) => stat !== "active" && value !== 0)
+                  .map(([stat, value], index) => {
+                    const numValue = typeof value === 'number' ? value : 0;
+                    return (
+                      <span
+                        key={index}
+                        className="px-2 py-1 rounded-md bg-[var(--bg-card)] text-[var(--accent-brown)] text-sm"
+                      >
+                        {stat} {numValue > 0 ? "+" : ""}{numValue}
+                      </span>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex gap-2">
+            {canEdit && selectedCompetence && (
+              <Button
+                className={selectedCompetence.isActive ? "button-cancel" : "button-primary"}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  await toggleCompetenceActive(selectedCompetence.id, e);
+                }}
+              >
+                {selectedCompetence.isActive ? "Désactiver" : "Activer"}
+              </Button>
+            )}
+            <Button variant="ghost" className="button-primary" onClick={() => setIsDetailsDialogOpen(false)}>
+              Fermer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
