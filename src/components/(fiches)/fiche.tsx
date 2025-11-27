@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { 
-  auth, 
-  db, 
+import {
+  auth,
+  db,
   doc,
   getDoc,
   updateDoc
@@ -11,6 +11,7 @@ import {
 import { Heart, Shield, Edit, TrendingUp } from 'lucide-react';
 import InventoryManagement2 from '@/components/(inventaire)/inventaire2';
 import CompetencesDisplay from "@/components/(competences)/competencesD";
+import Competences from "@/components/(competences)/competences";
 import CharacterImage from '@/components/(fiches)/CharacterImage';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCharacter, Character } from '@/contexts/CharacterContext';
@@ -45,6 +46,7 @@ export default function Component() {
   const [userPersoId, setUserPersoId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [showLevelUpConfirmationModal, setShowLevelUpConfirmationModal] = useState<boolean>(false);
+  const [showCompetencesFullscreen, setShowCompetencesFullscreen] = useState<boolean>(false);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -238,6 +240,16 @@ export default function Component() {
     </div>;
   }
 
+  // Si le gestionnaire de compétences plein écran est ouvert, l'afficher
+  if (showCompetencesFullscreen && selectedCharacter) {
+    return (
+      <Competences
+        preSelectedCharacterId={selectedCharacter.id}
+        onClose={() => setShowCompetencesFullscreen(false)}
+      />
+    );
+  }
+
   return (
     <TooltipProvider>
     <div className="min-h-screen bg-[#1c1c1c] text-[#d4d4d4] p-2 sm:p-4">
@@ -412,10 +424,11 @@ export default function Component() {
               {/* Colonne droite: Compétences - Visible pour tous, modifiable selon les droits */}
               {roomId && (
                 <div className="w-full xl:w-[600px] flex-shrink-0">
-                  <CompetencesDisplay 
-                    roomId={roomId} 
+                  <CompetencesDisplay
+                    roomId={roomId}
                     characterId={selectedCharacter.id}
                     canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
+                    onOpenFullscreen={() => setShowCompetencesFullscreen(true)}
                   />
                 </div>
               )}
