@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, MinusCircle, Star, RefreshCw, X } from "lucide-react";
+import { PlusCircle, MinusCircle, Star, RefreshCw, X, Settings } from "lucide-react";
 import { db, getDoc, doc, setDoc, updateDoc } from "@/lib/firebase";
 import { useCharacter, Competence, BonusData } from "@/contexts/CharacterContext";
 
@@ -18,10 +18,11 @@ interface CompetencesDisplayProps {
   roomId: string;
   characterId: string;
   canEdit?: boolean;
+  onOpenFullscreen?: () => void;
 }
 
-export default function CompetencesDisplay({ roomId, characterId, canEdit = false }: CompetencesDisplayProps) {
-  const { competences, refreshCompetences, selectedCharacter } = useCharacter();
+export default function CompetencesDisplay({ roomId, characterId, canEdit = false, onOpenFullscreen }: CompetencesDisplayProps) {
+  const { competences, refreshCompetences, selectedCharacter, setSelectedCharacter, characters, isLoading } = useCharacter();
   const [selectedCompetence, setSelectedCompetence] = useState<Competence | null>(null);
   const [newBonus, setNewBonus] = useState<{ stat: keyof BonusData | undefined; value: number }>({
     stat: undefined,
@@ -31,6 +32,32 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
 
+  // Synchroniser le personnage sélectionné dans le contexte avec le characterId passé en props
+  useEffect(() => {
+    if (characterId && characters.length > 0) {
+      const character = characters.find(c => c.id === characterId);
+      if (character && selectedCharacter?.id !== characterId) {
+        console.log('🔄 Syncing selected character in context with props:', character.Nomperso);
+        setSelectedCharacter(character);
+      }
+    }
+  }, [characterId, characters, selectedCharacter?.id, setSelectedCharacter]);
+
+  // Écouter les événements de mise à jour des compétences
+  useEffect(() => {
+    const handleCompetencesUpdate = async () => {
+      console.log('🔔 Competences update event received');
+      // Rafraîchir les compétences depuis le contexte
+      await refreshCompetences();
+    };
+
+    window.addEventListener('competences-updated', handleCompetencesUpdate);
+
+    return () => {
+      window.removeEventListener('competences-updated', handleCompetencesUpdate);
+    };
+  }, [refreshCompetences]);
+
   // Synchroniser la compétence sélectionnée avec les données actuelles
   useEffect(() => {
     if (selectedCompetence) {
@@ -39,7 +66,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
         setSelectedCompetence(updatedComp);
       }
     }
-  }, [competences]);
+  }, [competences, selectedCompetence]);
 
   const handleRemoveBonus = async (stat: string) => {
     if (selectedCompetence && selectedCharacter) {
@@ -49,12 +76,12 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
         await updateDoc(doc(db, bonusPath), {
           [stat]: 0,
         });
-        
+
         console.log("Bonus supprimé avec succès dans Firestore pour", stat);
-        
+
         // Rafraîchir les compétences pour mettre à jour l'affichage
         await refreshCompetences();
-        
+
         // Mettre à jour la compétence sélectionnée
         const updatedComp = competences.find(c => c.id === selectedCompetence.id);
         if (updatedComp) {
@@ -157,7 +184,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
   const renderCompetences = (type: "all" | "passive" | "limitée") => {
     // Filtrer par type
     let filteredCompetences = type === "all" ? competences : competences.filter((comp) => comp.type === type);
-    
+
     // Filtrer par recherche
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase();
@@ -177,173 +204,183 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
             </div>
           ) : (
             filteredCompetences.map((competence) => (
-            <Card
-              key={competence.id}
-              className={`card transition-colors duration-200 cursor-pointer ${
-                competence.isActive ? "border-[var(--accent-brown)]" : "border-[var(--border-color)]"
-              }`}
-              onClick={() => {
-                setSelectedCompetence(competence);
-                setIsDetailsDialogOpen(true);
-              }}
-            >
-              <CardContent className="flex flex-col p-4 text-[var(--text-primary)]">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold text-[var(--accent-brown)] flex items-center gap-2">
-                    {/* Indicateur d'état actif/inactif */}
-                    <span
-                      className={`w-2 h-2 rounded-full ${
-                        competence.isActive
+              <Card
+                key={competence.id}
+                className={`card transition-colors duration-200 cursor-pointer ${competence.isActive ? "border-[var(--accent-brown)]" : "border-[var(--border-color)]"
+                  }`}
+                onClick={() => {
+                  setSelectedCompetence(competence);
+                  setIsDetailsDialogOpen(true);
+                }}
+              >
+                <CardContent className="flex flex-col p-4 text-[var(--text-primary)]">
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold text-[var(--accent-brown)] flex items-center gap-2">
+                      {/* Indicateur d'état actif/inactif */}
+                      <span
+                        className={`w-2 h-2 rounded-full ${competence.isActive
                           ? "bg-green-500 shadow-[0_0_6px_rgba(34,197,94,0.6)]"
                           : "bg-gray-400"
-                      }`}
-                      title={competence.isActive ? "Compétence active" : "Compétence inactive"}
-                    />
-                    {(() => {
-                      const name = competence.name || "";
-                      const isCustomized = name.startsWith("🔄 ");
-                      const cleanName = isCustomized ? name.slice(2).trim() : name;
-                      return (
-                        <>
-                          {isCustomized && <RefreshCw className="h-4 w-4 text-[var(--accent-brown)]" />}
-                          <span>{cleanName}</span>
-                        </>
-                      );
-                    })()}
-                  </span>
-                  <div className="flex space-x-2">
-                    {canEdit && (
-                      <Dialog open={bonusOpenCompetenceId === competence.id} onOpenChange={(isOpen) => setBonusOpenCompetenceId(isOpen ? competence.id : null)}>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="button-primary"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedCompetence(competence);
-                          }}
-                        >
-                          <Star className="h-4 w-4 mr-2" />
-                          Bonus
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent
-                        className="modal-content"
-                        onPointerDownOutside={(e) => e.stopPropagation()}
-                        onEscapeKeyDown={(e) => e.stopPropagation()}
-                      >
-                        <DialogHeader>
-                          <DialogTitle className="modal-title flex items-center gap-2">
-                            {(() => {
-                              const name = selectedCompetence?.name || "";
-                              const isCustomized = name.startsWith("🔄 ");
-                              const cleanName = isCustomized ? name.slice(2).trim() : name;
-                              return (
-                                <>
-                                  <span>Gérer les bonus pour</span>
-                                  {isCustomized && <RefreshCw className="h-4 w-4" />}
-                                  <span>{cleanName}</span>
-                                </>
-                              );
-                            })()}
-                          </DialogTitle>
-                        </DialogHeader>
-                        <div className="py-4">
-                          <div className="grid gap-4">
-                            {selectedCompetence?.bonuses &&
-                              Object.entries(selectedCompetence.bonuses)
-                                .filter(([stat, value]) => stat !== "active" && value !== 0)
-                                .map(([stat, value]) => (
-                                  <div key={stat} className="flex justify-between items-center">
-                                    <span>{stat}: {value}</span>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="button-cancel"
-                                      onClick={() => handleRemoveBonus(stat)}
-                                    >
-                                      <MinusCircle className="h-4 w-4 mr-1" />
-                                      Supprimer
-                                    </Button>
-                                  </div>
-                                ))}
-                            <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="stat" className="text-right text-[var(--text-primary)]">
-                                Statistique
-                              </Label>
-                              <Select onValueChange={(value) => setNewBonus({ ...newBonus, stat: value as keyof BonusData })} value={newBonus.stat}>
-                                <SelectTrigger className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--accent-brown)]">
-                                  <SelectValue placeholder="Choisir une statistique" />
-                                </SelectTrigger>
-                                <SelectContent className="bg-[var(--bg-card)] border border-[var(--border-color)]">
-                                  {statOptions.map((stat) => (
-                                    <SelectItem key={stat} value={stat}>
-                                      {stat}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <div className="grid grid-cols-4 items-center gap-4">
-                              <Label htmlFor="value" className="text-right text-[var(--text-primary)]">
-                                Valeur
-                              </Label>
-                              <Input
-                                id="value"
-                                type="number"
-                                value={newBonus.value}
-                                onChange={(e) => setNewBonus({ ...newBonus, value: parseInt(e.target.value) })}
-                                className="input-field col-span-3"
-                              />
-                            </div>
-                          </div>
-                          <Button onClick={handleAddBonus} className="button-primary w-full mt-4">
-                            <PlusCircle className="h-4 w-4 mr-2" />
-                            Ajouter le bonus
-                          </Button>
-                        </div>
-                        <DialogFooter>
-                          <Button variant="ghost" className="button-primary" onClick={(e) => {
-                            e.stopPropagation();
-                            setBonusOpenCompetenceId(null);
-                          }}>
-                            Fermer
-                          </Button>
-                        </DialogFooter>
-                      </DialogContent>
-                    </Dialog>
-                    )}
-                  </div>
-                </div>
-                {competence.isActive && competence.bonuses && Object.entries(competence.bonuses)
-                  .filter(([stat, value]) => stat !== "active" && value !== 0)
-                  .length > 0 && (
-                  <div className="mt-2 ml-4">
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(competence.bonuses)
-                        .filter(([stat, value]) => stat !== "active" && value !== 0)
-                        .map(([stat, value], index) => {
-                          const numValue = typeof value === 'number' ? value : 0;
-                          return (
-                            <span
-                              key={index}
-                              className="px-2 py-1 rounded-md bg-[var(--bg-card)] text-[var(--accent-brown)] text-sm"
+                          }`}
+                        title={competence.isActive ? "Compétence active" : "Compétence inactive"}
+                      />
+                      {(() => {
+                        const name = competence.name || "";
+                        const isCustomized = name.startsWith("🔄 ");
+                        const cleanName = isCustomized ? name.slice(2).trim() : name;
+                        return (
+                          <>
+                            {isCustomized && <RefreshCw className="h-4 w-4 text-[var(--accent-brown)]" />}
+                            <span>{cleanName}</span>
+                          </>
+                        );
+                      })()}
+                    </span>
+                    <div className="flex space-x-2">
+                      {canEdit && (
+                        <Dialog open={bonusOpenCompetenceId === competence.id} onOpenChange={(isOpen) => setBonusOpenCompetenceId(isOpen ? competence.id : null)}>
+                          <DialogTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="button-primary"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedCompetence(competence);
+                              }}
                             >
-                              {stat} {numValue > 0 ? "+" : ""}{numValue}
-                            </span>
-                          );
-                        })}
+                              <Star className="h-4 w-4 mr-2" />
+                              Bonus
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent
+                            className="modal-content"
+                            onPointerDownOutside={(e) => e.stopPropagation()}
+                            onEscapeKeyDown={(e) => e.stopPropagation()}
+                          >
+                            <DialogHeader>
+                              <DialogTitle className="modal-title flex items-center gap-2">
+                                {(() => {
+                                  const name = selectedCompetence?.name || "";
+                                  const isCustomized = name.startsWith("🔄 ");
+                                  const cleanName = isCustomized ? name.slice(2).trim() : name;
+                                  return (
+                                    <>
+                                      <span>Gérer les bonus pour</span>
+                                      {isCustomized && <RefreshCw className="h-4 w-4" />}
+                                      <span>{cleanName}</span>
+                                    </>
+                                  );
+                                })()}
+                              </DialogTitle>
+                            </DialogHeader>
+                            <div className="py-4">
+                              <div className="grid gap-4">
+                                {selectedCompetence?.bonuses &&
+                                  Object.entries(selectedCompetence.bonuses)
+                                    .filter(([stat, value]) => stat !== "active" && value !== 0)
+                                    .map(([stat, value]) => (
+                                      <div key={stat} className="flex justify-between items-center">
+                                        <span>{stat}: {value}</span>
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          className="button-cancel"
+                                          onClick={() => handleRemoveBonus(stat)}
+                                        >
+                                          <MinusCircle className="h-4 w-4 mr-1" />
+                                          Supprimer
+                                        </Button>
+                                      </div>
+                                    ))}
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                  <Label htmlFor="stat" className="text-right text-[var(--text-primary)]">
+                                    Statistique
+                                  </Label>
+                                  <Select onValueChange={(value) => setNewBonus({ ...newBonus, stat: value as keyof BonusData })} value={newBonus.stat}>
+                                    <SelectTrigger className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--accent-brown)]">
+                                      <SelectValue placeholder="Choisir une statistique" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-[var(--bg-card)] border border-[var(--border-color)]">
+                                      {statOptions.map((stat) => (
+                                        <SelectItem key={stat} value={stat}>
+                                          {stat}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="grid grid-cols-4 items-center gap-4">
+                                  <Label htmlFor="value" className="text-right text-[var(--text-primary)]">
+                                    Valeur
+                                  </Label>
+                                  <Input
+                                    id="value"
+                                    type="number"
+                                    value={newBonus.value}
+                                    onChange={(e) => setNewBonus({ ...newBonus, value: parseInt(e.target.value) })}
+                                    className="input-field col-span-3"
+                                  />
+                                </div>
+                              </div>
+                              <Button onClick={handleAddBonus} className="button-primary w-full mt-4">
+                                <PlusCircle className="h-4 w-4 mr-2" />
+                                Ajouter le bonus
+                              </Button>
+                            </div>
+                            <DialogFooter>
+                              <Button variant="ghost" className="button-primary" onClick={(e) => {
+                                e.stopPropagation();
+                                setBonusOpenCompetenceId(null);
+                              }}>
+                                Fermer
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      )}
                     </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          )))}
+                  {competence.isActive && competence.bonuses && Object.entries(competence.bonuses)
+                    .filter(([stat, value]) => stat !== "active" && value !== 0)
+                    .length > 0 && (
+                      <div className="mt-2 ml-4">
+                        <div className="flex flex-wrap gap-2">
+                          {Object.entries(competence.bonuses)
+                            .filter(([stat, value]) => stat !== "active" && value !== 0)
+                            .map(([stat, value], index) => {
+                              const numValue = typeof value === 'number' ? value : 0;
+                              return (
+                                <span
+                                  key={index}
+                                  className="px-2 py-1 rounded-md bg-[var(--bg-card)] text-[var(--accent-brown)] text-sm"
+                                >
+                                  {stat} {numValue > 0 ? "+" : ""}{numValue}
+                                </span>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    )}
+                </CardContent>
+              </Card>
+            )))}
         </div>
       </div>
     );
   };
+
+  // Pas besoin de gérer l'affichage ici, on délègue au parent via onOpenFullscreen
+
+  if (isLoading) {
+    return (
+      <Card className="card w-full max-w-4xl mx-auto">
+        <div className="p-8 text-center text-[var(--text-secondary)]">
+          Chargement des compétences...
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <>
@@ -352,23 +389,32 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
 
         {/* Barre de recherche */}
         <div className="p-4 border-b border-[var(--border-color)] bg-[var(--bg-card)]">
-          <div className="relative">
-            <Input
-              type="text"
-              placeholder="Rechercher une compétence..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-field pl-10 pr-10"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
-                title="Effacer la recherche"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Input
+                type="text"
+                placeholder="Rechercher une compétence..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="input-field pl-10 pr-10"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                  title="Effacer la recherche"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+            <Button
+              onClick={onOpenFullscreen}
+              className="button-primary flex items-center gap-2"
+              title="Gérer les voies de compétences"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
           </div>
           {searchQuery && (
             <p className="text-xs text-[var(--text-secondary)] mt-2 flex items-center gap-1">
@@ -419,25 +465,25 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
           {selectedCompetence?.bonuses && Object.entries(selectedCompetence.bonuses)
             .filter(([stat, value]) => stat !== "active" && value !== 0)
             .length > 0 && (
-            <div className="py-2">
-              <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Bonus accordés :</h4>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(selectedCompetence.bonuses)
-                  .filter(([stat, value]) => stat !== "active" && value !== 0)
-                  .map(([stat, value], index) => {
-                    const numValue = typeof value === 'number' ? value : 0;
-                    return (
-                      <span
-                        key={index}
-                        className="px-2 py-1 rounded-md bg-[var(--bg-card)] text-[var(--accent-brown)] text-sm"
-                      >
-                        {stat} {numValue > 0 ? "+" : ""}{numValue}
-                      </span>
-                    );
-                  })}
+              <div className="py-2">
+                <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Bonus accordés :</h4>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(selectedCompetence.bonuses)
+                    .filter(([stat, value]) => stat !== "active" && value !== 0)
+                    .map(([stat, value], index) => {
+                      const numValue = typeof value === 'number' ? value : 0;
+                      return (
+                        <span
+                          key={index}
+                          className="px-2 py-1 rounded-md bg-[var(--bg-card)] text-[var(--accent-brown)] text-sm"
+                        >
+                          {stat} {numValue > 0 ? "+" : ""}{numValue}
+                        </span>
+                      );
+                    })}
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           <DialogFooter className="flex gap-2">
             {canEdit && selectedCompetence && (

@@ -71,12 +71,7 @@ interface CustomCompetence {
     competenceType: string
 }
 
-interface CompetencesProps {
-    preSelectedCharacterId?: string
-    onClose?: () => void
-}
-
-export default function Competences({ preSelectedCharacterId, onClose }: CompetencesProps) {
+export default function Competences() {
     const [showChangeComponent, setShowChangeComponent] = useState(false)
     const [characters, setCharacters] = useState<Character[]>([])
     const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
@@ -87,7 +82,6 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
     const [isUnlockable, setIsUnlockable] = useState(false)
     const [roomID, setRoomID] = useState<string | null>(null)
     const [userPersoId, setUserPersoId] = useState<string | null>(null)
-    const [refreshTrigger, setRefreshTrigger] = useState(0)
 
     useEffect(() => {
         const loadUser = async () => {
@@ -102,16 +96,16 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
                         setRoomID(roomID)
                         setUserPersoId(persoId)
                         if (roomID) {
-                            await loadCharacters(roomID, persoId)
+                            loadCharacters(roomID)
                         }
                     }
                 }
             })
         }
         loadUser()
-    }, [preSelectedCharacterId])
+    }, [])
 
-    const loadCharacters = async (roomID: string, persoId?: string) => {
+    const loadCharacters = async (roomID: string) => {
         const charactersRef = collection(db, `cartes/${roomID}/characters`)
         const characterDocs = await getDocs(charactersRef)
         const characterList: Character[] = []
@@ -126,14 +120,6 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
         })
 
         setCharacters(characterList)
-
-        // Si un personnage est pré-sélectionné, le sélectionner automatiquement
-        if (preSelectedCharacterId && persoId) {
-            const preSelected = characterList.find(char => char.id === preSelectedCharacterId)
-            if (preSelected) {
-                await selectCharacter(preSelected)
-            }
-        }
     }
 
     const loadCustomCompetences = async (roomId: string, persoId: string) => {
@@ -271,8 +257,7 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
 
     const handleSkillClick = (name: string, description: string, rank: number, voie: string) => {
         const currentRank = Number(selectedCharacter?.[voie as keyof Character] ?? 0)
-        const isAlreadyUnlocked = currentRank >= rank
-        const canUnlock = (rank === 1 || currentRank >= rank - 1) && !isAlreadyUnlocked
+        const canUnlock = rank === 1 || currentRank >= rank - 1
         const isOwnCharacter = selectedCharacter?.id === userPersoId
 
         setSelectedSkill({ name, description: description.replace(/<br>/g, '\n'), rank, voie })
@@ -288,14 +273,6 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
             setSelectedCharacter(updatedCharacterData)
             setModalVisible(false)
             calculateTotalPoints(updatedCharacterData)
-
-            // Émettre un événement pour notifier les autres composants de la mise à jour
-            window.dispatchEvent(new CustomEvent('competences-updated', {
-                detail: {
-                    characterId: selectedCharacter.id,
-                    roomId: roomID
-                }
-            }))
         }
     }
 
@@ -313,14 +290,6 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
             await updateDoc(doc(db, `cartes/${roomID}/characters`, selectedCharacter.id), resetData)
             setSelectedCharacter(resetData as Character)
             calculateTotalPoints(resetData as Character)
-
-            // Émettre un événement pour notifier les autres composants de la mise à jour
-            window.dispatchEvent(new CustomEvent('competences-updated', {
-                detail: {
-                    characterId: selectedCharacter.id,
-                    roomId: roomID
-                }
-            }))
         }
     }
 
@@ -329,23 +298,11 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
             setShowChangeComponent(false)
             // Recharger les données du personnage depuis Firestore
             if (selectedCharacter && roomID) {
-                // Recharger le personnage depuis Firestore pour avoir les données à jour
                 const characterRef = doc(db, `cartes/${roomID}/characters/${selectedCharacter.id}`)
                 const characterDoc = await getDoc(characterRef)
                 if (characterDoc.exists()) {
                     const updatedCharacter = { id: selectedCharacter.id, ...characterDoc.data() } as Character
                     await selectCharacter(updatedCharacter)
-
-                    // Attendre un court instant pour que Firestore se synchronise
-                    await new Promise(resolve => setTimeout(resolve, 100))
-
-                    // Émettre un événement personnalisé pour notifier competencesD de recharger depuis Firestore
-                    window.dispatchEvent(new CustomEvent('competences-updated', {
-                        detail: {
-                            characterId: selectedCharacter.id,
-                            roomId: roomID
-                        }
-                    }))
                 }
             }
         }} />
@@ -353,32 +310,21 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
 
     return (
         <div className="flex flex-col items-center bg-[var(--bg-dark)] text-[var(--text-primary)] min-h-screen p-4">
-            {onClose && (
-                <div className="w-full max-w-5xl mb-4 flex justify-end">
-                    <Button onClick={onClose} className="button-cancel">
-                        Fermer
+            <h1 className="text-2xl font-bold mb-5 text-[var(--accent-brown)]">Choisissez un Personnage</h1>
+            <div className="flex flex-wrap gap-4 mb-8">
+                {characters.map((character) => (
+                    <Button
+                        key={character.id}
+                        onClick={() => selectCharacter(character)}
+                        className={`button-primary ${character.id === userPersoId ? 'ring-2 ring-[var(--accent-brown)]' : ''
+                            }`}
+                        title={character.id === userPersoId ? 'Votre personnage' : 'Personnage d\'un autre joueur (lecture seule)'}
+                    >
+                        {character.Nomperso}
+                        {character.id === userPersoId && ' ⭐'}
                     </Button>
-                </div>
-            )}
-            {!preSelectedCharacterId && (
-                <>
-                    <h1 className="text-2xl font-bold mb-5 text-[var(--accent-brown)]">Choisissez un Personnage</h1>
-                    <div className="flex flex-wrap gap-4 mb-8">
-                        {characters.map((character) => (
-                            <Button
-                                key={character.id}
-                                onClick={() => selectCharacter(character)}
-                                className={`button-primary ${character.id === userPersoId ? 'ring-2 ring-[var(--accent-brown)]' : ''
-                                    }`}
-                                title={character.id === userPersoId ? 'Votre personnage' : 'Personnage d\'un autre joueur (lecture seule)'}
-                            >
-                                {character.Nomperso}
-                                {character.id === userPersoId && ' ⭐'}
-                            </Button>
-                        ))}
-                    </div>
-                </>
-            )}
+                ))}
+            </div>
 
             {selectedCharacter && (
                 <>
@@ -472,11 +418,7 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
                                 className={`button-primary ${!isUnlockable ? 'opacity-50 cursor-not-allowed' : ''
                                     }`}
                             >
-                                {selectedSkill && selectedCharacter &&
-                                    Number(selectedCharacter[selectedSkill.voie as keyof Character] ?? 0) >= selectedSkill.rank
-                                    ? 'Débloqué ✓'
-                                    : 'Déverrouiller'
-                                }
+                                Déverrouiller
                             </Button>
                         </DialogFooter>
                     </DialogContent>

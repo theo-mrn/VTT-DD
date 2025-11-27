@@ -1,7 +1,7 @@
 // Sidebar.tsx
 "use client";
 
-import { Swords, BookOpen, FileText, Edit, Dice5, List, Search ,ChartColumn} from "lucide-react"; 
+import { Swords, BookOpen, FileText, Edit, Dice5, List, Search, ChartColumn, Map } from "lucide-react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useCompetences } from "@/contexts/CompetencesContext";
 import { useGame } from "@/contexts/GameContext";
@@ -36,16 +36,16 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
   const [searchResults, setSearchResults] = useState<Competence[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const { searchCompetences, isLoading, allCompetences } = useCompetences();
-  
+
   // Use ref to ensure we always have the latest setSearchResults
   const searchResultsRef = useRef(setSearchResults);
   searchResultsRef.current = setSearchResults;
-  
+
   const isSearchingRef = useRef(setIsSearching);
   isSearchingRef.current = setIsSearching;
 
   // Debug effect to check data loading
-  useEffect(() => {}, [isLoading, allCompetences, searchResults]);
+  useEffect(() => { }, [isLoading, allCompetences, searchResults]);
 
   // Keyboard shortcut handler
   useEffect(() => {
@@ -111,13 +111,13 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
   return (
     <>
       <aside className="fixed top-1/2 left-0 transform -translate-y-1/2 z-30 bg-[#242424] p-2 sm:p-3 md:p-4 rounded-r-lg shadow-lg flex flex-col items-center space-y-3 sm:space-y-4 md:space-y-6">
-        <button 
-          onClick={() => setIsSearchOpen(true)} 
+        {/* <button
+          onClick={() => setIsSearchOpen(true)}
           className="p-1.5 sm:p-2 hover:bg-[#333] rounded transition-colors"
           title="Rechercher une compétence (Ctrl+K)"
         >
           <Search className="h-5 w-5 sm:h-6 sm:w-6 text-[#d4d4d4] hover:text-[#c0a080]" />
-        </button>
+        </button> */}
         {isHydrated && isMJ && (
           <button onClick={() => handleIconClick("GMDashboard")} className="p-1.5 sm:p-2">
             <Swords className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "GMDashboard" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
@@ -132,15 +132,18 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
         <button onClick={() => handleIconClick("DiceRoller")} className="p-1.5 sm:p-2">
           <Dice5 className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "DiceRoller" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button>
-        
-        <button onClick={() => handleIconClick("Competences")} className="p-1.5 sm:p-2">
+
+        {/* <button onClick={() => handleIconClick("Competences")} className="p-1.5 sm:p-2">
           <List className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Competences" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
-        </button>
+        </button> */}
         <button onClick={() => handleIconClick("infoComponent")} className="p-1.5 sm:p-2">
           <BookOpen className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "infoComponent" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button>
         <button onClick={() => handleIconClick("Statistiques")} className="p-1.5 sm:p-2">
           <ChartColumn className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Statistiques" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
+        </button>
+        <button onClick={() => handleIconClick("Cities")} className="p-1.5 sm:p-2">
+          <Map className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Cities" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button>
       </aside>
 
@@ -149,7 +152,7 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
           <DialogHeader>
             <DialogTitle className="text-base sm:text-lg">Rechercher une compétence</DialogTitle>
           </DialogHeader>
-          
+
           <div className="space-y-3 sm:space-y-4">
             <div className="relative">
               <Search className="absolute left-2 sm:left-3 top-2 sm:top-3 h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
@@ -163,10 +166,10 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
             <ScrollArea className="h-[300px] xs:h-[400px] sm:h-[500px] w-full">
               {searchResults.length === 0 ? (
                 <div className="text-center text-muted-foreground py-6 sm:py-8 text-sm">
-                  {isLoading ? "Chargement des données..." : 
-                   isSearching ? "Recherche en cours..." : 
-                   allCompetences.length === 0 ? "Aucune donnée chargée" :
-                   searchTerm ? "Aucune compétence trouvée." : "Tapez pour rechercher..."}
+                  {isLoading ? "Chargement des données..." :
+                    isSearching ? "Recherche en cours..." :
+                      allCompetences.length === 0 ? "Aucune donnée chargée" :
+                        searchTerm ? "Aucune compétence trouvée." : "Tapez pour rechercher..."}
                 </div>
               ) : (
                 <div className="space-y-2 sm:space-y-3">
@@ -184,10 +187,10 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
                       >
                         <div className="flex flex-col xs:flex-row xs:justify-between xs:items-start mb-2 gap-2">
                           <div className="font-semibold text-sm sm:text-base md:text-lg">
-                            <span 
-                              dangerouslySetInnerHTML={{ 
-                                __html: highlightSearchTerm(competence.titre, searchTerm) 
-                              }} 
+                            <span
+                              dangerouslySetInnerHTML={{
+                                __html: highlightSearchTerm(competence.titre, searchTerm)
+                              }}
                             />
                           </div>
                           {competence.type && (
@@ -202,10 +205,10 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
                           </div>
                         )}
                         <div className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                          <span 
-                            dangerouslySetInnerHTML={{ 
-                              __html: highlightSearchTerm(competence.description, searchTerm) 
-                            }} 
+                          <span
+                            dangerouslySetInnerHTML={{
+                              __html: highlightSearchTerm(competence.description, searchTerm)
+                            }}
                           />
                         </div>
                       </div>

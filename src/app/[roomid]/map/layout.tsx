@@ -15,6 +15,7 @@ import InfoComponent from "@/components/(infos)/info";
 import RollRequest from '@/components/(dices)/Rollrequest';
 import { Button } from "@/components/ui/button";
 import { Statistiques } from "@/components/Statistiques";
+import CitiesManager from "@/components/(worldmap)/CitiesManager";
 import { auth, db, onAuthStateChanged, collection, onSnapshot } from "@/lib/firebase";
 import { X } from "lucide-react";
 import FloatingMusic from "@/components/(music)/FloatingMusic";
@@ -27,7 +28,7 @@ export default function Layout({ children }: LayoutProps) {
   const params = useParams();
   const roomId = params.roomid as string;
   const { isMJ } = useGame();
-  
+
   const [activeTab, setActiveTab] = useState<string>("");
   const [showRollRequest, setShowRollRequest] = useState(false);
 
@@ -74,7 +75,9 @@ export default function Layout({ children }: LayoutProps) {
       case "infoComponent":
         return <InfoComponent />;
       case "Statistiques":
-          return <Statistiques />;
+        return <Statistiques />;
+      case "Cities":
+        return <CitiesManager />;
       default:
         return null;
     }
@@ -96,6 +99,8 @@ export default function Layout({ children }: LayoutProps) {
         return "w-full sm:w-[90vw] md:w-[600px] lg:w-[500px]";
       case "NewComponent": // Style livre pour les notes
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1200px]";
+      case "Cities":
+        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1400px]";
       default:
         return "w-full sm:w-[90vw] md:w-[80vw] lg:w-[700px]";
     }
