@@ -63,19 +63,19 @@ interface CharacterProfileProps {
 }
 
 // Sortable Voie Card Component
-function SortableVoieCard({ 
-  voie, 
-  index, 
-  onRemove, 
-  onCompetenceClick, 
-  onVoieClick, 
-  onResetCompetence 
+function SortableVoieCard({
+  voie,
+  index,
+  onRemove,
+  onCompetenceClick,
+  onVoieClick,
+  onResetCompetence
 }: {
   voie: Voie;
   index: number;
   onRemove: (index: number) => void;
   onCompetenceClick: (voieIndex: number, compIndex: number) => void;
-  onVoieClick: (index: number) => void;
+  onVoieClick: (voieIndex: number, compIndex: number) => void;
   onResetCompetence: (voieIndex: number, compIndex: number) => void;
 }) {
   const {
@@ -96,11 +96,9 @@ function SortableVoieCard({
 
   return (
     <div ref={setNodeRef} style={style} {...attributes}>
-      <Card className={`card relative transition-all duration-200 ${
-        isDragging ? 'shadow-2xl scale-105 ring-2 ring-[var(--accent-brown)]' : ''
-      } ${
-        isOver ? 'ring-4 ring-[var(--accent-brown)] ring-opacity-50 scale-105 bg-[var(--accent-brown)] bg-opacity-10' : ''
-      }`}>
+      <Card className={`card relative transition-all duration-200 ${isDragging ? 'shadow-2xl scale-105 ring-2 ring-[var(--accent-brown)]' : ''
+        } ${isOver ? 'ring-4 ring-[var(--accent-brown)] ring-opacity-50 scale-105 bg-[var(--accent-brown)] bg-opacity-10' : ''
+        }`}>
         <CardHeader className="pb-2">
           <div className="flex justify-between items-start">
             <div className="flex items-center gap-2 flex-1">
@@ -129,13 +127,12 @@ function SortableVoieCard({
         <CardContent>
           <ul className="space-y-2">
             {voie.competences.map((competence, compIndex) => (
-              <li 
+              <li
                 key={compIndex}
-                className={`group flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${
-                  competence.isCustom 
-                    ? 'border-[var(--accent-brown)] bg-[var(--bg-card)]' 
-                    : 'border-[var(--border-color)] hover:border-[var(--accent-brown)]'
-                }`}
+                className={`group flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${competence.isCustom
+                  ? 'border-[var(--accent-brown)] bg-[var(--bg-card)]'
+                  : 'border-[var(--border-color)] hover:border-[var(--accent-brown)]'
+                  }`}
                 onClick={() => onCompetenceClick(index, compIndex)}
               >
                 <div className="flex-1">
@@ -156,7 +153,7 @@ function SortableVoieCard({
                     className="button-primary p-1 h-6 w-6"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onVoieClick(index);
+                      onVoieClick(index, compIndex);
                     }}
                     title="Voir détails de la voie"
                   >
@@ -212,9 +209,10 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
   const [loading, setLoading] = useState(true);
   const [customCompetences, setCustomCompetences] = useState<CustomCompetence[]>([]);
   const [isCompetenceDialogOpen, setIsCompetenceDialogOpen] = useState(false);
-  const [selectedCompetenceSlot, setSelectedCompetenceSlot] = useState<{voieIndex: number, competenceIndex: number} | null>(null);
+  const [selectedCompetenceSlot, setSelectedCompetenceSlot] = useState<{ voieIndex: number, competenceIndex: number } | null>(null);
   const [selectedVoieForCompetence, setSelectedVoieForCompetence] = useState<Voie | null>(null);
-  const [isCompetenceDetailsPanelOpen, setIsCompetenceDetailsPanelOpen] = useState(false);
+  const [isCompetenceDetailModalOpen, setIsCompetenceDetailModalOpen] = useState(false);
+  const [selectedCompetenceFromVoie, setSelectedCompetenceFromVoie] = useState<number | null>(null);
   const [competenceReplacementVoies, setCompetenceReplacementVoies] = useState<Voie[]>([]);
   const [selectedProfileForCompetence, setSelectedProfileForCompetence] = useState<string>('');
   const [profileForCompetenceSearchTerm, setProfileForCompetenceSearchTerm] = useState<string>('');
@@ -250,11 +248,32 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
       setVoies((items) => {
         const oldIndex = items.findIndex((_, idx) => `voie-${idx}` === active.id);
         const newIndex = items.findIndex((_, idx) => `voie-${idx}` === over.id);
-        
+
+        // Update custom competences positions
+        const updatedCustomCompetences = customCompetences.map(cc => {
+          if (cc.voieIndex === oldIndex) {
+            return { ...cc, voieIndex: newIndex };
+          }
+          // If moving down (e.g. 0 -> 2), items between 0 and 2 (exclusive of 0, inclusive of 2) shift up (-1)
+          if (oldIndex < newIndex) {
+            if (cc.voieIndex > oldIndex && cc.voieIndex <= newIndex) {
+              return { ...cc, voieIndex: cc.voieIndex - 1 };
+            }
+          }
+          // If moving up (e.g. 2 -> 0), items between 0 and 2 (inclusive of 0, exclusive of 2) shift down (+1)
+          else if (oldIndex > newIndex) {
+            if (cc.voieIndex >= newIndex && cc.voieIndex < oldIndex) {
+              return { ...cc, voieIndex: cc.voieIndex + 1 };
+            }
+          }
+          return cc;
+        });
+
+        setCustomCompetences(updatedCustomCompetences);
         return arrayMove(items, oldIndex, newIndex);
       });
     }
-    
+
     setActiveId(null);
   };
 
@@ -283,10 +302,10 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
             const data = characterData.data();
             setRace(data.Race);
             setProfile(data.Profile);
-            
+
             // Load custom competences FIRST
             const customComps = await loadCustomCompetences(room_id, persoId);
-            
+
             // Then load current voies with custom competences applied
             await loadCurrentVoies(data, customComps);
           }
@@ -308,7 +327,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     try {
       const customCompetencesRef = collection(db, `cartes/${roomId}/characters/${persoId}/customCompetences`);
       const customCompetencesSnapshot = await getDocs(customCompetencesRef);
-      
+
       const customComps: CustomCompetence[] = [];
       customCompetencesSnapshot.forEach((doc) => {
         const data = doc.data();
@@ -322,7 +341,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
           competenceType: data.competenceType,
         });
       });
-      
+
       setCustomCompetences(customComps);
       return customComps;
     } catch (error) {
@@ -333,7 +352,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
 
   const applyCustomCompetences = (voies: Voie[], customComps: CustomCompetence[]) => {
     const updatedVoies = [...voies];
-    
+
     customComps.forEach((customComp) => {
       if (updatedVoies[customComp.voieIndex] && updatedVoies[customComp.voieIndex].competences[customComp.slotIndex]) {
         updatedVoies[customComp.voieIndex].competences[customComp.slotIndex] = {
@@ -346,17 +365,17 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
         };
       }
     });
-    
+
     return updatedVoies;
   };
 
   const loadCurrentVoies = async (characterData: Record<string, string | number>, customComps: CustomCompetence[] = []) => {
     const loadedVoies: Voie[] = [];
-    
+
     // Load voies from character data
     for (let i = 1; i <= 10; i++) { // Support up to 10 voies
       const voieFile = characterData[`Voie${i}`];
-      
+
       if (voieFile) {
         try {
           const response = await fetch(`/tabs/${voieFile}`);
@@ -369,7 +388,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
                 description: (data[`rang${index + 1}`] || '').replace(/<br>/g, '\n'),
                 type: data[`type${index + 1}`] || 'other',
               }));
-            
+
             loadedVoies.push({
               nom: data.Voie,
               competences,
@@ -381,7 +400,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
         }
       }
     }
-    
+
     // Apply custom competences after loading voies
     const voiesWithCustomCompetences = applyCustomCompetences(loadedVoies, customComps);
     setVoies(voiesWithCustomCompetences);
@@ -399,7 +418,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
             description: (data[`rang${index + 1}`] || '').replace(/<br>/g, '\n'),
             type: data[`type${index + 1}`] || 'other',
           }));
-        
+
         return {
           nom: data.Voie,
           competences,
@@ -412,9 +431,9 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     return null;
   };
 
-  const handleVoieClick = (index: number) => {
-    setSelectedVoieIndex(index);
-    setSelectedCompetenceIndex(0);
+  const handleVoieClick = (voieIndex: number, compIndex: number) => {
+    setSelectedVoieIndex(voieIndex);
+    setSelectedCompetenceIndex(compIndex);
     setIsPanelOpen(true);
   };
 
@@ -431,9 +450,9 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
       // Load all profile voies if no specific profile is selected
       if (!profileName) {
         for (const profile of profiles) {
-      for (let i = 1; i <= 5; i++) {
+          for (let i = 1; i <= 5; i++) {
             const voie = await loadVoieFromFile(`${profile.value}${i}.json`);
-        if (voie) replacementData.push(voie);
+            if (voie) replacementData.push(voie);
           }
         }
       } else {
@@ -463,14 +482,14 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
             const voie = await loadVoieFromFile(`prestige_${prestigeClass.value}${i}.json`);
             if (voie) replacementData.push(voie);
           }
-      }
-    } else {
+        }
+      } else {
         // Load specific prestige class
         const selectedClass = prestigeClasses.find(pc => pc.value === prestigeClassName);
         if (selectedClass) {
           for (let i = 1; i <= selectedClass.count; i++) {
             const voie = await loadVoieFromFile(`prestige_${prestigeClassName}${i}.json`);
-        if (voie) replacementData.push(voie);
+            if (voie) replacementData.push(voie);
           }
         }
       }
@@ -581,15 +600,15 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     fetchReplacementVoies('prestiges');
   };
 
-  const filteredProfiles = profiles.filter(profile => 
+  const filteredProfiles = profiles.filter(profile =>
     profile.label.toLowerCase().includes(profileSearchTerm.toLowerCase())
   );
 
-  const filteredRaces = races.filter(race => 
+  const filteredRaces = races.filter(race =>
     race.label.toLowerCase().includes(raceSearchTerm.toLowerCase())
   );
 
-  const filteredPrestigeClasses = prestigeClasses.filter(prestige => 
+  const filteredPrestigeClasses = prestigeClasses.filter(prestige =>
     prestige.label.toLowerCase().includes(prestigeSearchTerm.toLowerCase())
   );
 
@@ -633,11 +652,12 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     if (!roomId || !persoId) return;
 
     const characterRef = doc(db, `cartes/${roomId}/characters/${persoId}`);
-    
+
     // Get current character data from Firestore to compare
     const currentCharacterData = await getDoc(characterRef);
     const currentVoies: Record<string, string> = {};
-    
+    const currentVValues: Record<string, number> = {};
+
     if (currentCharacterData.exists()) {
       const data = currentCharacterData.data();
       for (let i = 1; i <= 10; i++) {
@@ -645,12 +665,27 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
         if (voieFile) {
           currentVoies[`Voie${i}`] = voieFile as string;
         }
+        // Préserver les valeurs v1, v2, etc.
+        const vValue = data[`v${i}`];
+        if (vValue !== undefined) {
+          currentVValues[`v${i}`] = vValue as number;
+        }
       }
     }
 
     const voiesData = voies.reduce((acc, voie, index) => {
-      acc[`Voie${index + 1}`] = voie.fichier;
-      acc[`v${index + 1}`] = 0;
+      const voieIndex = index + 1;
+      const previousVoieFile = currentVoies[`Voie${voieIndex}`];
+
+      acc[`Voie${voieIndex}`] = voie.fichier;
+
+      // Si la voie a changé, réinitialiser à 0, sinon conserver la valeur actuelle
+      if (previousVoieFile && previousVoieFile !== voie.fichier) {
+        acc[`v${voieIndex}`] = 0;
+      } else {
+        acc[`v${voieIndex}`] = currentVValues[`v${voieIndex}`] || 0;
+      }
+
       return acc;
     }, {} as Record<string, string | number>);
 
@@ -661,18 +696,32 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     }
 
     await setDoc(characterRef, voiesData, { merge: true });
-    
-    // Clean up custom competences automatically
-    await cleanupCustomCompetencesForChangedVoies(currentVoies);
-    
+
+    // Save all current custom competences
+    // First delete all existing ones to avoid ghosts
+    const customCompetencesRef = collection(db, `cartes/${roomId}/characters/${persoId}/customCompetences`);
+    const snapshot = await getDocs(customCompetencesRef);
+    const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+    await Promise.all(deletePromises);
+
+    // Then save current ones
+    const savePromises = customCompetences.map(cc => {
+      const docRef = doc(db, `cartes/${roomId}/characters/${persoId}/customCompetences`, `${cc.voieIndex}-${cc.slotIndex}`);
+      return setDoc(docRef, cc);
+    });
+    await Promise.all(savePromises);
+
     toast.success('Les données ont été sauvegardées avec succès.');
-    
+
+    // Émettre un événement pour notifier les autres composants de la mise à jour
+    window.dispatchEvent(new CustomEvent('competences-updated'));
+
     // Si onClose est fourni, on retourne aux compétences
     // Sinon, on redirige vers la map
     if (onClose) {
       onClose();
     } else {
-    router.push(`/${roomId}/map`);
+      router.push(`/${roomId}/map`);
     }
   };
 
@@ -682,13 +731,13 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     try {
       const customCompetencesRef = collection(db, `cartes/${roomId}/characters/${persoId}/customCompetences`);
       const customCompetencesSnapshot = await getDocs(customCompetencesRef);
-      
+
       const deletePromises: Promise<void>[] = [];
-      
+
       customCompetencesSnapshot.forEach((docSnapshot) => {
         const data = docSnapshot.data();
         const voieIndex = data.voieIndex;
-        
+
         // Delete if:
         // 1. Voie index is beyond current voies length (voie removed)
         // 2. Voie at this index has changed (different file)
@@ -698,16 +747,16 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
         } else {
           const currentVoieFile = voies[voieIndex]?.fichier;
           const previousVoieFile = previousVoies[`Voie${voieIndex + 1}`];
-          
+
           // If the voie file has changed, delete the custom competence
           if (currentVoieFile !== previousVoieFile) {
             deletePromises.push(deleteDoc(docSnapshot.ref));
           }
         }
       });
-      
+
       await Promise.all(deletePromises);
-      
+
       if (deletePromises.length > 0) {
         console.log(`Cleaned up ${deletePromises.length} custom competence(s) due to voie changes`);
       }
@@ -731,7 +780,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     };
 
     try {
-      const customCompRef = doc(db, `cartes/${roomId}/characters/${persoId}/customCompetences`, 
+      const customCompRef = doc(db, `cartes/${roomId}/characters/${persoId}/customCompetences`,
         `${selectedCompetenceSlot.voieIndex}-${selectedCompetenceSlot.competenceIndex}`);
       await setDoc(customCompRef, customCompetence);
 
@@ -750,9 +799,10 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
 
       setVoies(finalVoies);
       setIsCompetenceDialogOpen(false);
-      setIsCompetenceDetailsPanelOpen(false);
+      setIsCompetenceDetailModalOpen(false);
       setSelectedCompetenceSlot(null);
       setSelectedVoieForCompetence(null);
+      setSelectedCompetenceFromVoie(null);
       toast.success('Compétence remplacée avec succès.');
     } catch (error) {
       console.error('Error saving custom competence:', error);
@@ -796,8 +846,8 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
       }
     } else if (type === 'prestiges') {
       if (!prestigeClassName) {
-    for (const prestigeClass of prestigeClasses) {
-      for (let i = 1; i <= prestigeClass.count; i++) {
+        for (const prestigeClass of prestigeClasses) {
+          for (let i = 1; i <= prestigeClass.count; i++) {
             const voie = await loadVoieFromFile(`prestige_${prestigeClass.value}${i}.json`);
             if (voie) replacementData.push(voie);
           }
@@ -814,11 +864,6 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     }
 
     setCompetenceReplacementVoies(replacementData);
-  };
-
-  const handleVoieSelectForCompetence = (voie: Voie) => {
-    setSelectedVoieForCompetence(voie);
-    setIsCompetenceDetailsPanelOpen(true);
   };
 
   const handleProfileForCompetenceChange = (newProfile: string, profileLabel: string) => {
@@ -866,15 +911,15 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
     fetchCompetenceReplacementVoies('prestiges');
   };
 
-  const filteredProfilesForCompetence = profiles.filter(profile => 
+  const filteredProfilesForCompetence = profiles.filter(profile =>
     profile.label.toLowerCase().includes(profileForCompetenceSearchTerm.toLowerCase())
   );
 
-  const filteredRacesForCompetence = races.filter(race => 
+  const filteredRacesForCompetence = races.filter(race =>
     race.label.toLowerCase().includes(raceForCompetenceSearchTerm.toLowerCase())
   );
 
-  const filteredPrestigeClassesForCompetence = prestigeClasses.filter(prestige => 
+  const filteredPrestigeClassesForCompetence = prestigeClasses.filter(prestige =>
     prestige.label.toLowerCase().includes(prestigeForCompetenceSearchTerm.toLowerCase())
   );
 
@@ -883,7 +928,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
 
     try {
       // Remove from Firestore
-      const customCompRef = doc(db, `cartes/${roomId}/characters/${persoId}/customCompetences`, 
+      const customCompRef = doc(db, `cartes/${roomId}/characters/${persoId}/customCompetences`,
         `${voieIndex}-${competenceIndex}`);
       await deleteDoc(customCompRef);
 
@@ -921,7 +966,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
             <p className="text-[var(--text-secondary)]">Gérez vos voies de compétences : ajoutez, supprimez ou modifiez vos voies.</p>
           </div>
           {onClose && (
-            <Button 
+            <Button
               onClick={onClose}
               className="button-secondary"
             >
@@ -942,8 +987,8 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
           items={voies.map((_, idx) => `voie-${idx}`)}
           strategy={rectSortingStrategy}
         >
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6 max-w-5xl w-full">
-        {voies.map((voie, index) => (
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6 max-w-5xl w-full">
+            {voies.map((voie, index) => (
               <SortableVoieCard
                 key={`voie-${index}`}
                 voie={voie}
@@ -956,7 +1001,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
             ))}
 
             {/* Add new voie card */}
-            <Card 
+            <Card
               className="card border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-brown)] cursor-pointer transition-colors"
               onClick={addNewVoie}
             >
@@ -965,9 +1010,9 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
                 <span className="text-[var(--text-secondary)] font-medium">Ajouter une voie</span>
               </CardContent>
             </Card>
-              </div>
+          </div>
         </SortableContext>
-        
+
         <DragOverlay dropAnimation={null}>
           {activeVoie ? (
             <Card className="card shadow-2xl opacity-90 ring-4 ring-[var(--accent-brown)] rotate-3 scale-105">
@@ -976,90 +1021,91 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
                   <GripVertical className="w-5 h-5 text-[var(--accent-brown)]" />
                   <CardTitle className="text-[var(--accent-brown)]">{activeVoie.nom}</CardTitle>
                 </div>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-2">
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2">
                   {activeVoie.competences.slice(0, 3).map((competence, compIndex) => (
-                  <li 
-                    key={compIndex}
-                      className={`p-2 rounded border ${
-                      competence.isCustom 
-                        ? 'border-[var(--accent-brown)] bg-[var(--bg-card)]' 
-                          : 'border-[var(--border-color)]'
-                    }`}
-                  >
+                    <li
+                      key={compIndex}
+                      className={`p-2 rounded border ${competence.isCustom
+                        ? 'border-[var(--accent-brown)] bg-[var(--bg-card)]'
+                        : 'border-[var(--border-color)]'
+                        }`}
+                    >
                       <span className={`text-sm ${competence.isCustom ? 'text-[var(--accent-brown)]' : 'text-[var(--text-secondary)]'}`}>
                         {competence.titre}
                         {competence.isCustom && ' 🔄'}
                       </span>
-                  </li>
-                ))}
+                    </li>
+                  ))}
                   {activeVoie.competences.length > 3 && (
                     <li className="text-xs text-[var(--text-secondary)] text-center">
                       +{activeVoie.competences.length - 3} compétences...
                     </li>
                   )}
-              </ul>
-            </CardContent>
-          </Card>
+                </ul>
+              </CardContent>
+            </Card>
           ) : null}
         </DragOverlay>
       </DndContext>
 
-      {/* Side panel for voie details */}
-      {isPanelOpen && selectedVoieIndex !== null && (
-        <div className="fixed top-0 right-0 bg-[var(--bg-dark)] border-l border-[var(--border-color)] shadow-lg p-6 w-80 h-full z-20 overflow-y-auto">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-[var(--accent-brown)]">{voies[selectedVoieIndex].nom}</h2>
-            <Button variant="ghost" onClick={() => setIsPanelOpen(false)} className="button-cancel">
-              <X className="w-6 h-6" />
-            </Button>
-          </div>
-          
-          <select
-            className="mb-4 p-2 border border-[var(--border-color)] rounded w-full bg-[var(--bg-dark)] text-[var(--text-primary)]"
-            value={selectedCompetenceIndex || 0}
-            onChange={(e) => setSelectedCompetenceIndex(parseInt(e.target.value))}
-          >
-            {voies[selectedVoieIndex].competences.map((competence, index) => (
-              <option key={index} value={index}>
-                {competence.titre}
-              </option>
-            ))}
-          </select>
-          
-          {selectedCompetenceIndex !== null && (
-            <div className="mb-4">
-              <h3 className="font-semibold mb-2 text-[var(--accent-brown)]">
-                {voies[selectedVoieIndex].competences[selectedCompetenceIndex].titre}
-              </h3>
-              <div 
-                className="text-sm text-[var(--text-secondary)]"
-                dangerouslySetInnerHTML={{ 
-                  __html: voies[selectedVoieIndex].competences[selectedCompetenceIndex].description 
-                }}
-              />
-            </div>
+      {/* Modal for voie details */}
+      <Dialog open={isPanelOpen} onOpenChange={setIsPanelOpen}>
+        <DialogContent className="max-w-2xl">
+          {selectedVoieIndex !== null && (
+            <>
+              <DialogTitle className="modal-title mb-4">{voies[selectedVoieIndex].nom}</DialogTitle>
+
+              <div className="mb-4">
+                <label className="block font-semibold text-[var(--text-primary)] mb-2">Sélectionner une compétence</label>
+                <select
+                  className="p-2 border border-[var(--border-color)] rounded w-full bg-[var(--bg-dark)] text-[var(--text-primary)]"
+                  value={selectedCompetenceIndex || 0}
+                  onChange={(e) => setSelectedCompetenceIndex(parseInt(e.target.value))}
+                >
+                  {voies[selectedVoieIndex].competences.map((competence, index) => (
+                    <option key={index} value={index}>
+                      {competence.titre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedCompetenceIndex !== null && (
+                <div className="mb-6">
+                  <h3 className="font-semibold mb-2 text-[var(--accent-brown)]">
+                    {voies[selectedVoieIndex].competences[selectedCompetenceIndex].titre}
+                  </h3>
+                  <div
+                    className="text-sm text-[var(--text-secondary)] p-4 bg-[var(--bg-card)] rounded border border-[var(--border-color)] whitespace-pre-wrap"
+                    dangerouslySetInnerHTML={{
+                      __html: voies[selectedVoieIndex].competences[selectedCompetenceIndex].description
+                    }}
+                  />
+                </div>
+              )}
+
+              <div className="flex justify-end gap-3">
+                <Button variant="ghost" onClick={() => setIsPanelOpen(false)} className="button-cancel">
+                  Fermer
+                </Button>
+                <Button onClick={openDialog} className="button-primary">
+                  Remplacer cette voie
+                </Button>
+              </div>
+            </>
           )}
-          
-          <Button onClick={openDialog} className="button-primary w-full">
-            Remplacer cette voie
-          </Button>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog for selecting replacement voies */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className=" p-6 rounded-lg fixed left-0 right-0 m-auto w-full h-[80vh] max-w-6xl max-h-screen overflow-y-auto z-50">
-          <div className="flex justify-between items-center mb-4">
-            <DialogTitle className="modal-title">
-              {selectedVoieIndex !== null ? 'Choisir une nouvelle voie' : 'Ajouter une voie'}
-            </DialogTitle>
-            <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="button-cancel">
-              <X className="w-6 h-6" />
-            </Button>
-          </div>
-          
+        <DialogContent className="!max-w-[95vw] !w-[95vw] !h-[90vh] p-6 overflow-y-auto">
+          <DialogTitle className="modal-title mb-4">
+            {selectedVoieIndex !== null ? 'Choisir une nouvelle voie' : 'Ajouter une voie'}
+          </DialogTitle>
+
           <Tabs defaultValue="profiles" onValueChange={(type) => {
             // Load all voies when switching tabs
             fetchReplacementVoies(type);
@@ -1069,7 +1115,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
               <TabsTrigger value="races">Races</TabsTrigger>
               <TabsTrigger value="prestiges">Prestiges</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="profiles">
               <div className="mb-4 relative">
                 <div className="flex items-center justify-between mb-2">
@@ -1136,9 +1182,20 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
                       <CardTitle className="text-[var(--accent-brown)]">{voie.nom}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <ul className="list-disc pl-5 space-y-1">
+                      <ul className="space-y-2">
                         {voie.competences.map((competence, compIndex) => (
-                          <li key={compIndex} className="text-sm text-[var(--text-secondary)]">{competence.titre}</li>
+                          <li
+                            key={compIndex}
+                            className="text-sm text-[var(--text-primary)] p-3 rounded cursor-pointer bg-[var(--bg-card)] hover:bg-[var(--accent-brown)] hover:bg-opacity-20 border border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all shadow-sm hover:shadow-md"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedReplacement(voie);
+                              setSelectedCompetenceIndex(compIndex);
+                              setIsDetailsPanelOpen(true);
+                            }}
+                          >
+                            {competence.titre}
+                          </li>
                         ))}
                       </ul>
                     </CardContent>
@@ -1146,7 +1203,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
                 ))}
               </div>
             </TabsContent>
-            
+
             <TabsContent value="races">
               <div className="mb-4 relative">
                 <div className="flex items-center justify-between mb-2">
@@ -1211,9 +1268,20 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
                       <CardTitle className="text-[var(--accent-brown)]">{voie.nom}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <ul className="list-disc pl-5 space-y-1">
+                      <ul className="space-y-2">
                         {voie.competences.map((competence, compIndex) => (
-                          <li key={compIndex} className="text-sm text-[var(--text-secondary)]">{competence.titre}</li>
+                          <li
+                            key={compIndex}
+                            className="text-sm text-[var(--text-primary)] p-3 rounded cursor-pointer bg-[var(--bg-card)] hover:bg-[var(--accent-brown)] hover:bg-opacity-20 border border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all shadow-sm hover:shadow-md"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedReplacement(voie);
+                              setSelectedCompetenceIndex(compIndex);
+                              setIsDetailsPanelOpen(true);
+                            }}
+                          >
+                            {competence.titre}
+                          </li>
                         ))}
                       </ul>
                     </CardContent>
@@ -1221,7 +1289,7 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
                 ))}
               </div>
             </TabsContent>
-            
+
             <TabsContent value="prestiges">
               <div className="mb-4 relative">
                 <div className="flex items-center justify-between mb-2">
@@ -1288,9 +1356,20 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
                       <CardTitle className="text-[var(--accent-brown)]">{voie.nom}</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <ul className="list-disc pl-5 space-y-1">
+                      <ul className="space-y-2">
                         {voie.competences.map((competence, compIndex) => (
-                          <li key={compIndex} className="text-sm text-[var(--text-secondary)]">{competence.titre}</li>
+                          <li
+                            key={compIndex}
+                            className="text-sm text-[var(--text-primary)] p-3 rounded cursor-pointer bg-[var(--bg-card)] hover:bg-[var(--accent-brown)] hover:bg-opacity-20 border border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all shadow-sm hover:shadow-md"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedReplacement(voie);
+                              setSelectedCompetenceIndex(compIndex);
+                              setIsDetailsPanelOpen(true);
+                            }}
+                          >
+                            {competence.titre}
+                          </li>
                         ))}
                       </ul>
                     </CardContent>
@@ -1300,360 +1379,402 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
             </TabsContent>
           </Tabs>
 
-          {/* Details panel for selected replacement */}
-          {isDetailsPanelOpen && selectedReplacement && (
-            <div className="fixed top-0 right-0 bg-[var(--bg-dark)] border-l border-[var(--border-color)] shadow-lg p-6 w-80 h-full z-50 overflow-y-auto">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-[var(--accent-brown)]">{selectedReplacement.nom}</h2>
-                <Button variant="ghost" onClick={() => setIsDetailsPanelOpen(false)} className="button-cancel">
-                  <X className="w-6 h-6" />
-                </Button>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal for replacement voie details */}
+      <Dialog open={isDetailsPanelOpen} onOpenChange={setIsDetailsPanelOpen}>
+        <DialogContent className="max-w-2xl">
+          {selectedReplacement && (
+            <>
+              <DialogTitle className="modal-title mb-4">{selectedReplacement.nom}</DialogTitle>
+
+              <div className="mb-4">
+                <label className="block font-semibold text-[var(--text-primary)] mb-2">Sélectionner une compétence</label>
+                <select
+                  className="p-2 border border-[var(--border-color)] rounded w-full bg-[var(--bg-dark)] text-[var(--text-primary)]"
+                  value={selectedCompetenceIndex || 0}
+                  onChange={(e) => setSelectedCompetenceIndex(parseInt(e.target.value))}
+                >
+                  {selectedReplacement.competences.map((competence, index) => (
+                    <option key={index} value={index}>
+                      {competence.titre}
+                    </option>
+                  ))}
+                </select>
               </div>
-              
-              <select
-                className="mb-4 p-2 border border-[var(--border-color)] rounded w-full bg-[var(--bg-dark)] text-[var(--text-primary)]"
-                value={selectedCompetenceIndex || 0}
-                onChange={(e) => setSelectedCompetenceIndex(parseInt(e.target.value))}
-              >
-                {selectedReplacement.competences.map((competence, index) => (
-                  <option key={index} value={index}>
-                    {competence.titre}
-                  </option>
-                ))}
-              </select>
-              
+
               {selectedCompetenceIndex !== null && (
-                <div className="mb-4">
+                <div className="mb-6">
                   <h3 className="font-semibold mb-2 text-[var(--accent-brown)]">
                     {selectedReplacement.competences[selectedCompetenceIndex].titre}
                   </h3>
-                  <div 
-                    className="text-sm text-[var(--text-secondary)]"
-                    dangerouslySetInnerHTML={{ 
-                      __html: selectedReplacement.competences[selectedCompetenceIndex].description 
+                  <div
+                    className="text-sm text-[var(--text-secondary)] p-4 bg-[var(--bg-card)] rounded border border-[var(--border-color)] whitespace-pre-wrap"
+                    dangerouslySetInnerHTML={{
+                      __html: selectedReplacement.competences[selectedCompetenceIndex].description
                     }}
                   />
                 </div>
               )}
-              
-              <Button 
-                onClick={selectedVoieIndex !== null ? applyReplacement : addVoieFromDialog} 
-                className="button-primary w-full"
-              >
-                {selectedVoieIndex !== null ? 'Remplacer' : 'Ajouter'}
-              </Button>
-            </div>
+
+              <div className="flex justify-end gap-3">
+                <Button variant="ghost" onClick={() => setIsDetailsPanelOpen(false)} className="button-cancel">
+                  Annuler
+                </Button>
+                <Button
+                  onClick={selectedVoieIndex !== null ? applyReplacement : addVoieFromDialog}
+                  className="button-primary"
+                >
+                  {selectedVoieIndex !== null ? 'Remplacer' : 'Ajouter'}
+                </Button>
+              </div>
+            </>
           )}
         </DialogContent>
-              </Dialog>
+      </Dialog>
 
-        {/* Competence Selection Dialog */}
-        <Dialog open={isCompetenceDialogOpen} onOpenChange={setIsCompetenceDialogOpen}>
-          <DialogContent className="p-6 rounded-lg fixed left-0 right-0 m-auto w-full h-[80vh] max-w-6xl max-h-screen overflow-y-auto z-50">
-            <div className="flex justify-between items-center mb-4">
-              <DialogTitle className="modal-title">
-                Choisir une compétence de remplacement
-                {selectedCompetenceSlot && (
-                  <span className="text-sm text-[var(--text-secondary)] block">
-                    Compétence n°{selectedCompetenceSlot.competenceIndex + 1} de la voie "{voies[selectedCompetenceSlot.voieIndex]?.nom}"
-                  </span>
-                )}
-              </DialogTitle>
-              <Button variant="ghost" onClick={() => {
-                setIsCompetenceDialogOpen(false);
-                setIsCompetenceDetailsPanelOpen(false);
-                setSelectedVoieForCompetence(null);
-              }} className="button-cancel">
-                <X className="w-6 h-6" />
-              </Button>
-            </div>
-            
-            <Tabs defaultValue="profiles" onValueChange={(type) => {
-              fetchCompetenceReplacementVoies(type);
-            }}>
-              <TabsList>
-                <TabsTrigger value="profiles">Profils</TabsTrigger>
-                <TabsTrigger value="races">Races</TabsTrigger>
-                <TabsTrigger value="prestiges">Prestiges</TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="profiles">
-                <div className="mb-4 relative">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block font-semibold text-[var(--text-primary)]">Filtrer par profil</label>
-                    {selectedProfileForCompetence && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearProfileForCompetenceFilter}
-                        className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
-                      >
-                        <X className="w-4 h-4 mr-1" />
-                        Effacer filtre
-                      </Button>
-                    )}
-                  </div>
-                  <div className="relative">
-              <input
-                type="text"
-                      value={profileForCompetenceSearchTerm}
-                      onChange={(e) => setProfileForCompetenceSearchTerm(e.target.value)}
-                      onFocus={() => setIsProfileForCompetenceInputFocused(true)}
-                      onBlur={() => setTimeout(() => setIsProfileForCompetenceInputFocused(false), 200)}
-                      placeholder={selectedProfileForCompetence ? `Filtré par: ${profiles.find(p => p.value === selectedProfileForCompetence)?.label}` : "Filtrer par profil..."}
-                      className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
-                    />
-                    {isProfileForCompetenceInputFocused && (
-                      <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
-                        {filteredProfilesForCompetence.length > 0 ? (
-                          filteredProfilesForCompetence.map((profile) => (
-                            <div
-                              key={profile.value}
-                              onClick={() => handleProfileForCompetenceChange(profile.value, profile.label)}
-                              className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4 text-[var(--accent-brown)]",
-                                  selectedProfileForCompetence === profile.value ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <span className="text-[var(--text-primary)]">
-                                {profile.label} <span className="text-[var(--text-secondary)] text-xs">(5 voies)</span>
-                              </span>
-                                                </div>
-                          ))
-                        ) : (
-                          <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
-                            Aucun profil trouvé.
-                                                </div>
-                        )}
-                                                </div>
-                    )}
-                                              </div>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {competenceReplacementVoies.map((voie, index) => (
-                    <Card
-                      key={index}
-                      className="card cursor-pointer hover:border-[var(--accent-brown)] transition-colors"
-                      onClick={() => handleVoieSelectForCompetence(voie)}
-                    >
-                      <CardHeader>
-                        <CardTitle className="text-[var(--accent-brown)]">{voie.nom}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ul className="list-disc pl-5 space-y-1">
-                          {voie.competences.map((competence, compIndex) => (
-                            <li key={compIndex} className="text-sm text-[var(--text-secondary)]">{competence.titre}</li>
-                          ))}
-                        </ul>
-                                        </CardContent>
-                                      </Card>
-                          ))}
-                      </div>
-              </TabsContent>
-              
-              <TabsContent value="races">
-                <div className="mb-4 relative">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block font-semibold text-[var(--text-primary)]">Filtrer par race</label>
-                    {selectedRaceForCompetence && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearRaceForCompetenceFilter}
-                        className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
-                      >
-                        <X className="w-4 h-4 mr-1" />
-                        Effacer filtre
-                      </Button>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={raceForCompetenceSearchTerm}
-                      onChange={(e) => setRaceForCompetenceSearchTerm(e.target.value)}
-                      onFocus={() => setIsRaceForCompetenceInputFocused(true)}
-                      onBlur={() => setTimeout(() => setIsRaceForCompetenceInputFocused(false), 200)}
-                      placeholder={selectedRaceForCompetence ? `Filtré par: ${races.find(r => r.value === selectedRaceForCompetence)?.label}` : "Filtrer par race..."}
-                      className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
-                    />
-                    {isRaceForCompetenceInputFocused && (
-                      <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
-                        {filteredRacesForCompetence.length > 0 ? (
-                          filteredRacesForCompetence.map((race) => (
-                            <div
-                              key={race.value}
-                              onClick={() => handleRaceForCompetenceChange(race.value, race.label)}
-                              className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4 text-[var(--accent-brown)]",
-                                  selectedRaceForCompetence === race.value ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <span className="text-[var(--text-primary)]">{race.label}</span>
-                                        </div>
-                          ))
-                        ) : (
-                          <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
-                            Aucune race trouvée.
-                                        </div>
-                        )}
-                                        </div>
-                    )}
-                                      </div>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {competenceReplacementVoies.map((voie, index) => (
-                    <Card
-                      key={index}
-                      className="card cursor-pointer hover:border-[var(--accent-brown)] transition-colors"
-                      onClick={() => handleVoieSelectForCompetence(voie)}
-                    >
-                      <CardHeader>
-                        <CardTitle className="text-[var(--accent-brown)]">{voie.nom}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ul className="list-disc pl-5 space-y-1">
-                          {voie.competences.map((competence, compIndex) => (
-                            <li key={compIndex} className="text-sm text-[var(--text-secondary)]">{competence.titre}</li>
-                          ))}
-                        </ul>
-                                </CardContent>
-                              </Card>
-                  ))}
-                      </div>
-              </TabsContent>
-              
-              <TabsContent value="prestiges">
-                <div className="mb-4 relative">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block font-semibold text-[var(--text-primary)]">Filtrer par classe de prestige</label>
-                    {selectedPrestigeForCompetence && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearPrestigeForCompetenceFilter}
-                        className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
-                      >
-                        <X className="w-4 h-4 mr-1" />
-                        Effacer filtre
-                      </Button>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={prestigeForCompetenceSearchTerm}
-                      onChange={(e) => setPrestigeForCompetenceSearchTerm(e.target.value)}
-                      onFocus={() => setIsPrestigeForCompetenceInputFocused(true)}
-                      onBlur={() => setTimeout(() => setIsPrestigeForCompetenceInputFocused(false), 200)}
-                      placeholder={selectedPrestigeForCompetence ? `Filtré par: ${prestigeClasses.find(p => p.value === selectedPrestigeForCompetence)?.label}` : "Filtrer par classe..."}
-                      className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
-                    />
-                    {isPrestigeForCompetenceInputFocused && (
-                      <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
-                        {filteredPrestigeClassesForCompetence.length > 0 ? (
-                          filteredPrestigeClassesForCompetence.map((prestige) => (
-                            <div
-                              key={prestige.value}
-                              onClick={() => handlePrestigeForCompetenceChange(prestige.value, prestige.label)}
-                              className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4 text-[var(--accent-brown)]",
-                                  selectedPrestigeForCompetence === prestige.value ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <span className="text-[var(--text-primary)]">
-                                {prestige.label} <span className="text-[var(--text-secondary)] text-xs">({prestige.count} voies)</span>
-                              </span>
-                                                </div>
-                          ))
-                        ) : (
-                          <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
-                            Aucun prestige trouvé.
-                                                </div>
-                        )}
-                                                </div>
-                    )}
-                                              </div>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {competenceReplacementVoies.map((voie, index) => (
-                    <Card
-                      key={index}
-                      className="card cursor-pointer hover:border-[var(--accent-brown)] transition-colors"
-                      onClick={() => handleVoieSelectForCompetence(voie)}
-                    >
-                      <CardHeader>
-                        <CardTitle className="text-[var(--accent-brown)]">{voie.nom}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ul className="list-disc pl-5 space-y-1">
-                          {voie.competences.map((competence, compIndex) => (
-                            <li key={compIndex} className="text-sm text-[var(--text-secondary)]">{competence.titre}</li>
-                          ))}
-                        </ul>
-                                        </CardContent>
-                                      </Card>
-                  ))}
-                              </div>
-              </TabsContent>
-            </Tabs>
-
-            {/* Details panel for selected voie to pick competence */}
-            {isCompetenceDetailsPanelOpen && selectedVoieForCompetence && (
-              <div className="fixed top-0 right-0 bg-[var(--bg-dark)] border-l border-[var(--border-color)] shadow-lg p-6 w-80 h-full z-50 overflow-y-auto">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-[var(--accent-brown)]">{selectedVoieForCompetence.nom}</h2>
-                  <Button variant="ghost" onClick={() => setIsCompetenceDetailsPanelOpen(false)} className="button-cancel">
-                    <X className="w-6 h-6" />
-                  </Button>
-                            </div>
-                
-                <p className="text-sm text-[var(--text-secondary)] mb-4">
-                  Choisissez la compétence à utiliser comme remplacement :
-                </p>
-
-                <div className="space-y-2">
-                  {selectedVoieForCompetence.competences.map((competence, index) => (
-                    <div 
-                      key={index}
-                      onClick={() => selectCompetenceFromVoie(index)}
-                      className="p-3 border border-[var(--border-color)] rounded cursor-pointer hover:border-[var(--accent-brown)] hover:bg-[var(--bg-card)] transition-all"
-                    >
-                      <h3 className="font-semibold mb-1 text-[var(--accent-brown)]">
-                        Rang {index + 1}: {competence.titre}
-                      </h3>
-                      <div 
-                        className="text-xs text-[var(--text-secondary)] line-clamp-3"
-                        dangerouslySetInnerHTML={{ 
-                          __html: competence.description.substring(0, 150) + '...'
-                        }}
-                      />
-                      <div className="text-xs text-[var(--accent-brown)] mt-1">
-                        Type: {competence.type}
-                      </div>
-                    </div>
-                  ))}
-              </div>
-            </div>
+      {/* Competence Selection Dialog */}
+      <Dialog open={isCompetenceDialogOpen} onOpenChange={setIsCompetenceDialogOpen}>
+        <DialogContent className="!max-w-[95vw] !w-[95vw] !h-[90vh] p-6 overflow-y-auto">
+          <DialogTitle className="modal-title mb-4">
+            Choisir une compétence de remplacement
+            {selectedCompetenceSlot && (
+              <span className="text-sm text-[var(--text-secondary)] block">
+                Compétence n°{selectedCompetenceSlot.competenceIndex + 1} de la voie "{voies[selectedCompetenceSlot.voieIndex]?.nom}"
+              </span>
             )}
-          </DialogContent>
-        </Dialog>
-        
-        {/* Save button */}
-        <div className="flex justify-center mt-8">
-          <Button onClick={saveCharacterData} className="button-primary w-48 h-12 text-lg">
-            Sauvegarder et Continuer
-          </Button>
-        </div>
+          </DialogTitle>
+
+          <Tabs defaultValue="profiles" onValueChange={(type) => {
+            fetchCompetenceReplacementVoies(type);
+          }}>
+            <TabsList>
+              <TabsTrigger value="profiles">Profils</TabsTrigger>
+              <TabsTrigger value="races">Races</TabsTrigger>
+              <TabsTrigger value="prestiges">Prestiges</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="profiles">
+              <div className="mb-4 relative">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block font-semibold text-[var(--text-primary)]">Filtrer par profil</label>
+                  {selectedProfileForCompetence && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearProfileForCompetenceFilter}
+                      className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Effacer filtre
+                    </Button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={profileForCompetenceSearchTerm}
+                    onChange={(e) => setProfileForCompetenceSearchTerm(e.target.value)}
+                    onFocus={() => setIsProfileForCompetenceInputFocused(true)}
+                    onBlur={() => setTimeout(() => setIsProfileForCompetenceInputFocused(false), 200)}
+                    placeholder={selectedProfileForCompetence ? `Filtré par: ${profiles.find(p => p.value === selectedProfileForCompetence)?.label}` : "Filtrer par profil..."}
+                    className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
+                  />
+                  {isProfileForCompetenceInputFocused && (
+                    <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
+                      {filteredProfilesForCompetence.length > 0 ? (
+                        filteredProfilesForCompetence.map((profile) => (
+                          <div
+                            key={profile.value}
+                            onClick={() => handleProfileForCompetenceChange(profile.value, profile.label)}
+                            className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4 text-[var(--accent-brown)]",
+                                selectedProfileForCompetence === profile.value ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <span className="text-[var(--text-primary)]">
+                              {profile.label} <span className="text-[var(--text-secondary)] text-xs">(5 voies)</span>
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
+                          Aucun profil trouvé.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {competenceReplacementVoies.map((voie, index) => (
+                  <Card
+                    key={index}
+                    className="card transition-colors"
+                  >
+                    <CardHeader>
+                      <CardTitle className="text-[var(--accent-brown)]">{voie.nom}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-2">
+                        {voie.competences.map((competence, compIndex) => (
+                          <li
+                            key={compIndex}
+                            className="text-sm text-[var(--text-primary)] p-3 rounded cursor-pointer bg-[var(--bg-card)] hover:bg-[var(--accent-brown)] hover:bg-opacity-20 border border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all shadow-sm hover:shadow-md"
+                            onClick={() => {
+                              setSelectedVoieForCompetence(voie);
+                              setSelectedCompetenceFromVoie(compIndex);
+                              setIsCompetenceDetailModalOpen(true);
+                            }}
+                          >
+                            {competence.titre}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="races">
+              <div className="mb-4 relative">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block font-semibold text-[var(--text-primary)]">Filtrer par race</label>
+                  {selectedRaceForCompetence && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearRaceForCompetenceFilter}
+                      className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Effacer filtre
+                    </Button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={raceForCompetenceSearchTerm}
+                    onChange={(e) => setRaceForCompetenceSearchTerm(e.target.value)}
+                    onFocus={() => setIsRaceForCompetenceInputFocused(true)}
+                    onBlur={() => setTimeout(() => setIsRaceForCompetenceInputFocused(false), 200)}
+                    placeholder={selectedRaceForCompetence ? `Filtré par: ${races.find(r => r.value === selectedRaceForCompetence)?.label}` : "Filtrer par race..."}
+                    className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
+                  />
+                  {isRaceForCompetenceInputFocused && (
+                    <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
+                      {filteredRacesForCompetence.length > 0 ? (
+                        filteredRacesForCompetence.map((race) => (
+                          <div
+                            key={race.value}
+                            onClick={() => handleRaceForCompetenceChange(race.value, race.label)}
+                            className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4 text-[var(--accent-brown)]",
+                                selectedRaceForCompetence === race.value ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <span className="text-[var(--text-primary)]">{race.label}</span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
+                          Aucune race trouvée.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {competenceReplacementVoies.map((voie, index) => (
+                  <Card
+                    key={index}
+                    className="card transition-colors"
+                  >
+                    <CardHeader>
+                      <CardTitle className="text-[var(--accent-brown)]">{voie.nom}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-2">
+                        {voie.competences.map((competence, compIndex) => (
+                          <li
+                            key={compIndex}
+                            className="text-sm text-[var(--text-primary)] p-3 rounded cursor-pointer bg-[var(--bg-card)] hover:bg-[var(--accent-brown)] hover:bg-opacity-20 border border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all shadow-sm hover:shadow-md"
+                            onClick={() => {
+                              setSelectedVoieForCompetence(voie);
+                              setSelectedCompetenceFromVoie(compIndex);
+                              setIsCompetenceDetailModalOpen(true);
+                            }}
+                          >
+                            {competence.titre}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="prestiges">
+              <div className="mb-4 relative">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block font-semibold text-[var(--text-primary)]">Filtrer par classe de prestige</label>
+                  {selectedPrestigeForCompetence && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearPrestigeForCompetenceFilter}
+                      className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Effacer filtre
+                    </Button>
+                  )}
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={prestigeForCompetenceSearchTerm}
+                    onChange={(e) => setPrestigeForCompetenceSearchTerm(e.target.value)}
+                    onFocus={() => setIsPrestigeForCompetenceInputFocused(true)}
+                    onBlur={() => setTimeout(() => setIsPrestigeForCompetenceInputFocused(false), 200)}
+                    placeholder={selectedPrestigeForCompetence ? `Filtré par: ${prestigeClasses.find(p => p.value === selectedPrestigeForCompetence)?.label}` : "Filtrer par classe..."}
+                    className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
+                  />
+                  {isPrestigeForCompetenceInputFocused && (
+                    <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
+                      {filteredPrestigeClassesForCompetence.length > 0 ? (
+                        filteredPrestigeClassesForCompetence.map((prestige) => (
+                          <div
+                            key={prestige.value}
+                            onClick={() => handlePrestigeForCompetenceChange(prestige.value, prestige.label)}
+                            className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4 text-[var(--accent-brown)]",
+                                selectedPrestigeForCompetence === prestige.value ? "opacity-100" : "opacity-0"
+                              )}
+                            />
+                            <span className="text-[var(--text-primary)]">
+                              {prestige.label} <span className="text-[var(--text-secondary)] text-xs">({prestige.count} voies)</span>
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
+                          Aucun prestige trouvé.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {competenceReplacementVoies.map((voie, index) => (
+                  <Card
+                    key={index}
+                    className="card transition-colors"
+                  >
+                    <CardHeader>
+                      <CardTitle className="text-[var(--accent-brown)]">{voie.nom}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ul className="space-y-2">
+                        {voie.competences.map((competence, compIndex) => (
+                          <li
+                            key={compIndex}
+                            className="text-sm text-[var(--text-primary)] p-3 rounded cursor-pointer bg-[var(--bg-card)] hover:bg-[var(--accent-brown)] hover:bg-opacity-20 border border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all shadow-sm hover:shadow-md"
+                            onClick={() => {
+                              setSelectedVoieForCompetence(voie);
+                              setSelectedCompetenceFromVoie(compIndex);
+                              setIsCompetenceDetailModalOpen(true);
+                            }}
+                          >
+                            {competence.titre}
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
+
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal for competence details */}
+      <Dialog open={isCompetenceDetailModalOpen} onOpenChange={setIsCompetenceDetailModalOpen}>
+        <DialogContent className="max-w-2xl">
+          {selectedVoieForCompetence && selectedCompetenceFromVoie !== null && (
+            <>
+              <div className="mb-4">
+                <DialogTitle className="modal-title mb-2">
+                  {selectedVoieForCompetence.competences[selectedCompetenceFromVoie].titre}
+                </DialogTitle>
+                <p className="text-sm text-[var(--text-secondary)]">
+                  {selectedVoieForCompetence.nom} - Rang {selectedCompetenceFromVoie + 1}
+                </p>
+              </div>
+
+              <div className="mb-6">
+                <h3 className="font-semibold mb-2 text-[var(--accent-brown)]">Description</h3>
+                <div
+                  className="text-sm text-[var(--text-secondary)] p-4 bg-[var(--bg-card)] rounded border border-[var(--border-color)] whitespace-pre-wrap"
+                  dangerouslySetInnerHTML={{
+                    __html: selectedVoieForCompetence.competences[selectedCompetenceFromVoie].description
+                  }}
+                />
+              </div>
+
+              <div className="mb-6">
+                <h3 className="font-semibold mb-2 text-[var(--accent-brown)]">Type</h3>
+                <p className="text-sm text-[var(--text-secondary)] p-2 bg-[var(--bg-card)] rounded border border-[var(--border-color)]">
+                  {selectedVoieForCompetence.competences[selectedCompetenceFromVoie].type}
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setIsCompetenceDetailModalOpen(false);
+                    setSelectedCompetenceFromVoie(null);
+                  }}
+                  className="button-cancel"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  onClick={() => selectCompetenceFromVoie(selectedCompetenceFromVoie)}
+                  className="button-primary"
+                >
+                  Utiliser cette compétence
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Save button */}
+      <div className="flex justify-center mt-8">
+        <Button onClick={saveCharacterData} className="button-primary w-48 h-12 text-lg">
+          Sauvegarder et Continuer
+        </Button>
+      </div>
     </div>
   );
 }
