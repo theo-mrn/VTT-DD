@@ -31,7 +31,11 @@ interface Quest {
   subQuests?: SubQuest[];
 }
 
-export default function QuestOverlay() {
+interface QuestOverlayProps {
+  isVisible: boolean;
+}
+
+export default function QuestOverlay({ isVisible }: QuestOverlayProps) {
   const [quests, setQuests] = useState<Quest[]>([]);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [character, setCharacter] = useState<string | null>(null);
@@ -111,8 +115,6 @@ export default function QuestOverlay() {
     return () => unsubscribe();
   }, [roomId, character]);
 
-  if (quests.length === 0) return null;
-
   const toggleQuest = (questId: string) => {
     setExpandedQuestId(expandedQuestId === questId ? null : questId);
   };
@@ -169,17 +171,19 @@ export default function QuestOverlay() {
     });
   };
 
+  if (!isVisible) return null;
+
   return (
-    <div className="fixed top-4 right-4 flex flex-col gap-2 max-w-md z-10">
+    <div className="flex flex-col gap-2 max-w-2xl w-full mx-4 animate-slideInFromRight">
       {/* Header avec filtres */}
       <div className="flex items-center justify-between bg-black/70 backdrop-blur-sm rounded-lg border border-white/20 px-3 py-2">
         <div className="flex items-center gap-2">
           {/* Menu de filtres */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="sm" 
+              <Button
+                variant="ghost"
+                size="sm"
                 className="h-6 w-6 p-0 hover:bg-white/10 rounded-full"
               >
                 <Settings className="h-4 w-4 text-white/80" />
@@ -242,6 +246,13 @@ export default function QuestOverlay() {
 
       {/* Liste des quêtes avec scroll */}
       <div className="flex flex-col gap-2 max-h-[calc(100vh-6rem)] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent scroll-smooth">
+        {quests.length === 0 && (
+          <div className="bg-black/50 backdrop-blur-sm rounded-lg border border-white/20 p-6 text-center">
+            <Scroll className="h-12 w-12 text-white/30 mx-auto mb-3" />
+            <p className="text-sm text-white/70 font-semibold mb-2">Aucune quête en cours</p>
+            <p className="text-xs text-white/50">Pour ajouter une quête, rendez-vous dans les Notes</p>
+          </div>
+        )}
         {filteredQuests.length === 0 && quests.length > 0 && (
           <div className="bg-black/50 backdrop-blur-sm rounded-lg border border-white/20 p-4 text-center">
             <EyeOff className="h-8 w-8 text-white/40 mx-auto mb-2" />
