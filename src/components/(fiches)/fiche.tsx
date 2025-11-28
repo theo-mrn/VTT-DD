@@ -8,13 +8,14 @@ import {
   getDoc,
   updateDoc
 } from '@/lib/firebase';
-import { Heart, Shield, Edit, TrendingUp } from 'lucide-react';
+import { Heart, Shield, Edit, TrendingUp, ChartColumn } from 'lucide-react';
 import InventoryManagement2 from '@/components/(inventaire)/inventaire2';
 import CompetencesDisplay from "@/components/(competences)/competencesD";
 import Competences from "@/components/(competences)/competences";
 import CharacterImage from '@/components/(fiches)/CharacterImage';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCharacter, Character } from '@/contexts/CharacterContext';
+import { Statistiques } from '@/components/Statistiques';
 
 interface UserData {
   persoId?: string;
@@ -47,6 +48,7 @@ export default function Component() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [showLevelUpConfirmationModal, setShowLevelUpConfirmationModal] = useState<boolean>(false);
   const [showCompetencesFullscreen, setShowCompetencesFullscreen] = useState<boolean>(false);
+  const [showStatistiques, setShowStatistiques] = useState<boolean>(false);
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -250,6 +252,7 @@ export default function Component() {
     );
   }
 
+
   return (
     <TooltipProvider>
     <div className="min-h-screen bg-[#1c1c1c] text-[#d4d4d4] p-2 sm:p-4">
@@ -273,6 +276,14 @@ export default function Component() {
             >
               <TrendingUp size={16} />
               <span>Niveau +</span>
+            </button>
+            <button
+              onClick={() => setShowStatistiques(true)}
+              className="bg-[#3a3a3a] text-[#c0a080] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
+              title="Voir les statistiques"
+            >
+              <ChartColumn size={16} />
+              <span>Stats</span>
             </button>
           </div>
         )}
@@ -581,6 +592,25 @@ export default function Component() {
                 >
                   Annuler
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showStatistiques && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-[#1c1c1c] rounded-lg border border-[#3a3a3a] max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="sticky top-0 bg-[#1c1c1c] border-b border-[#3a3a3a] p-4 flex justify-between items-center z-10">
+                <h2 className="text-lg sm:text-xl font-bold text-[#c0a080]">Statistiques des Joueurs</h2>
+                <button
+                  onClick={() => setShowStatistiques(false)}
+                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-xs sm:text-sm font-bold"
+                >
+                  Fermer
+                </button>
+              </div>
+              <div className="p-0">
+                <Statistiques />
               </div>
             </div>
           </div>
