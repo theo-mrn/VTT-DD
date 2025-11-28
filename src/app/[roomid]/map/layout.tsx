@@ -284,7 +284,7 @@ export default function Layout({ children }: LayoutProps) {
         <FloatingMusic roomId={roomId} />
       </div>
       {/* Boutons Map, Info et Quêtes en haut au centre */}
-      <div className="fixed top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 z-30">
+      <div className="fixed top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 z-10">
         <button
           onClick={() => handleIconClick("Cities")}
           className={`rounded-lg px-4 py-2 flex items-center gap-2 ${activeTab === "Cities"
