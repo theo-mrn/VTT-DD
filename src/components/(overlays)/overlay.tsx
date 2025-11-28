@@ -77,8 +77,15 @@ export default function Component() {
   // Étape 3 : Affichage des joueurs
   return (
     <>
-      {isSidebarOpen && <Sidebar onClose={() => setIsSidebarOpen(false)} />}
-      
+      {isSidebarOpen && (
+        <>
+          <div className="fixed inset-0 bg-black/50 z-[100]" onClick={() => setIsSidebarOpen(false)} />
+          <div className="sidebar z-[101]">
+            <Sidebar onClose={() => setIsSidebarOpen(false)} />
+          </div>
+        </>
+      )}
+
       {showCharacterSheet && selectedCharacterId && roomId && (
         <CharacterSheet
           characterId={selectedCharacterId}

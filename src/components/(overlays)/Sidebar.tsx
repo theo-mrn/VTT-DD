@@ -1,7 +1,7 @@
 // Sidebar.tsx
 "use client";
 
-import { Swords, BookOpen, FileText, Edit, Dice5, List, Search, ChartColumn, Map } from "lucide-react";
+import { Swords, FileText, Edit, Dice5, List, Search, ChartColumn } from "lucide-react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useCompetences } from "@/contexts/CompetencesContext";
 import { useGame } from "@/contexts/GameContext";
@@ -136,14 +136,8 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
         {/* <button onClick={() => handleIconClick("Competences")} className="p-1.5 sm:p-2">
           <List className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Competences" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button> */}
-        <button onClick={() => handleIconClick("infoComponent")} className="p-1.5 sm:p-2">
-          <BookOpen className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "infoComponent" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
-        </button>
         <button onClick={() => handleIconClick("Statistiques")} className="p-1.5 sm:p-2">
           <ChartColumn className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Statistiques" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
-        </button>
-        <button onClick={() => handleIconClick("Cities")} className="p-1.5 sm:p-2">
-          <Map className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Cities" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button>
       </aside>
 
