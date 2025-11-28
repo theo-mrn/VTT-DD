@@ -77,7 +77,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   };
 
   return (
-    <div className="fixed left-0 top-0 w-80 z-50 bg-[#242424] shadow-lg flex text-[#d4d4d4] flex-col">
+    <div className="fixed left-0 top-0 w-80 z-[101] bg-[#242424] shadow-lg flex text-[#d4d4d4] flex-col h-screen animate-slideInFromLeft">
       <button
         className="absolute top-3 right-3 p-1 text-[#d4d4d4] hover:text-[#c0a080] transition-colors"
         onClick={onClose}

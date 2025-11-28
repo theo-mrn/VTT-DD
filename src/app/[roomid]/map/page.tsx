@@ -20,7 +20,7 @@ export default function Component() {
   const params = useParams();
   const roomId = params.roomid as string;
   const { isMJ, persoId } = useGame();
-  
+
   // Debug logs pour vérifier la restauration du contexte
   useEffect(() => {
     console.log('=== MAP COMPONENT DEBUG ===');
@@ -29,7 +29,7 @@ export default function Component() {
     console.log('persoId:', persoId);
     console.log('==========================');
   }, [roomId, isMJ, persoId]);
-  
+
   const [combatOpen, setCombatOpen] = useState(false);
   const [attackerId, setAttackerId] = useState<string | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
@@ -46,7 +46,7 @@ export default function Component() {
   const [newCharacter, setNewCharacter] = useState<NewCharacter>({
     name: '',
     image: null,
-    niveau :1,
+    niveau: 1,
     visibility: 'hidden',
     PV: 50,
     Defense: 0,
@@ -54,29 +54,29 @@ export default function Component() {
     Distance: 0,
     Magie: 0,
     INIT: 0,
-    nombre: 1, 
+    nombre: 1,
     FOR: 0,
     DEX: 0,
     CON: 0,
     SAG: 0,
     INT: 0,
     CHA: 0,
-});
-  
+  });
+
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
-  
+
   // 🎯 NOUVEAUX ÉTATS pour le drag & drop des personnages
   const [isDraggingCharacter, setIsDraggingCharacter] = useState(false)
   const [draggedCharacterIndex, setDraggedCharacterIndex] = useState<number | null>(null)
 
-  const [draggedCharactersOriginalPositions, setDraggedCharactersOriginalPositions] = useState<{index: number, x: number, y: number}[]>([])
-  
+  const [draggedCharactersOriginalPositions, setDraggedCharactersOriginalPositions] = useState<{ index: number, x: number, y: number }[]>([])
+
   // 🎯 NOUVEAUX ÉTATS pour le drag & drop des notes
   const [isDraggingNote, setIsDraggingNote] = useState(false)
   const [draggedNoteIndex, setDraggedNoteIndex] = useState<number | null>(null)
   const [draggedNoteOriginalPos, setDraggedNoteOriginalPos] = useState({ x: 0, y: 0 })
-  
+
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState<number | null>(null);
   const [selectedNoteIndex, setSelectedNoteIndex] = useState<number | null>(null);
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
@@ -128,10 +128,10 @@ export default function Component() {
     });
     return () => unsubscribe();
   }, [roomId]);
-  
+
 
   type Character = {
-    niveau : number,
+    niveau: number,
     id: string;
     name: string;
     x: number;
@@ -154,7 +154,7 @@ export default function Component() {
     CHA: number;
   };
 
-  
+
   type Text = {
     id: string;
     text: string;
@@ -167,7 +167,7 @@ export default function Component() {
   type Drawing = Path[];
 
   type NewCharacter = {
-    niveau : number;
+    niveau: number;
     name: string;
     image: { src: string } | null;
     visibility: 'visible' | 'hidden' | 'ally';
@@ -177,7 +177,7 @@ export default function Component() {
     Distance: number;
     Magie: number;
     INIT: number;
-    nombre :number
+    nombre: number
     FOR: number;
     DEX: number;
     CON: number;
@@ -197,26 +197,26 @@ export default function Component() {
 
 
 
-useEffect(() => {
-  const canvas = canvasRef.current;
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d')!;
-  const image = new Image();
-  image.src = backgroundImage;
-  const sizeMultiplier = 1.5;
-  image.onload = () => {
-    const containerWidth = containerRef.current?.clientWidth || canvas.width;
-    const containerHeight = containerRef.current?.clientHeight || canvas.height;
-    canvas.width = containerWidth * sizeMultiplier;
-    canvas.height = containerHeight * sizeMultiplier;
-    ctx.scale(sizeMultiplier, sizeMultiplier);
-    drawMap(ctx, image, containerWidth, containerHeight); // Pass container dimensions
-  };
-}, [backgroundImage, showGrid, zoom, offset, characters, notes, selectedCharacterIndex, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isFogDragging, playerViewMode, isMJ]);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d')!;
+    const image = new Image();
+    image.src = backgroundImage;
+    const sizeMultiplier = 1.5;
+    image.onload = () => {
+      const containerWidth = containerRef.current?.clientWidth || canvas.width;
+      const containerHeight = containerRef.current?.clientHeight || canvas.height;
+      canvas.width = containerWidth * sizeMultiplier;
+      canvas.height = containerHeight * sizeMultiplier;
+      ctx.scale(sizeMultiplier, sizeMultiplier);
+      drawMap(ctx, image, containerWidth, containerHeight); // Pass container dimensions
+    };
+  }, [backgroundImage, showGrid, zoom, offset, characters, notes, selectedCharacterIndex, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isFogDragging, playerViewMode, isMJ]);
 
 
   // Firebase Functions
-  
+
   // 🎯 Configuration du menu radial
   const radialMenuItems = isMJ ? [
     { id: 1, label: 'Ajouter Personnage', icon: CircleUserRound },
@@ -376,14 +376,14 @@ useEffect(() => {
     console.log('selectedCharacterIndex:', selectedCharacterIndex);
     console.log('activePlayerId:', activePlayerId);
     console.log('isMJ:', isMJ);
-    
+
     if (selectedCharacterIndex !== null) {
       const targetCharacter = characters[selectedCharacterIndex];
       console.log('targetCharacter:', targetCharacter);
-      
+
       if (targetCharacter && targetCharacter.id) {
         console.log('Setting combat parameters...');
-        
+
         if (isMJ) {
           // Pour le MJ : l'attaquant est le personnage actif (en rouge)
           if (activePlayerId) {
@@ -415,7 +415,7 @@ useEffect(() => {
   };
 
 
-  const INITializeFirebaseListeners = (room:string) => {
+  const INITializeFirebaseListeners = (room: string) => {
     const fondRef = doc(db, 'cartes', room.toString(), 'fond', 'fond1');
     onSnapshot(fondRef, (doc) => {
       if (doc.exists() && doc.data().url) {
@@ -431,48 +431,48 @@ useEffect(() => {
       }
     });
     // Charger les personnages
-const charactersRef = collection(db, 'cartes', room.toString(), 'characters');
-onSnapshot(charactersRef, (snapshot) => {
-  const chars: Character[] = [];
-  snapshot.forEach((doc) => {
-    const data = doc.data();
-    const img = new Image();
-    // Pour les joueurs : utiliser imageURLFinal si disponible, sinon imageURL2, sinon imageURL
-    // Pour les PNJ : utiliser imageURL2 si disponible, sinon imageURL
-    if (data.type === 'joueurs') {
-      img.src = data.imageURLFinal || data.imageURL2 || data.imageURL;
-    } else {
-      img.src = data.imageURL2 || data.imageURL;
-    }
+    const charactersRef = collection(db, 'cartes', room.toString(), 'characters');
+    onSnapshot(charactersRef, (snapshot) => {
+      const chars: Character[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        const img = new Image();
+        // Pour les joueurs : utiliser imageURLFinal si disponible, sinon imageURL2, sinon imageURL
+        // Pour les PNJ : utiliser imageURL2 si disponible, sinon imageURL
+        if (data.type === 'joueurs') {
+          img.src = data.imageURLFinal || data.imageURL2 || data.imageURL;
+        } else {
+          img.src = data.imageURL2 || data.imageURL;
+        }
 
-    // Ajoutez tous les champs requis
-    chars.push({
-      id: doc.id,
-      niveau : data.niveau ||1,
-      name: data.Nomperso || '',
-      x: data.x || 0,
-      y: data.y || 0,
-      image: img,
-      visibility: data.visibility || 'hidden',
-      visibilityRadius: parseFloat(data.visibilityRadius) || 100,
-      type: data.type || 'pnj',
-      PV: data.PV || 10, // Assurez-vous que chaque champ est bien extrait
-      Defense: data.Defense || 5,
-      Contact: data.Contact || 5,
-      Distance: data.Distance || 5,
-      Magie: data.Magie || 5,
-      INIT: data.INIT || 5,
-      FOR: data.FOR || 0,
-      DEX: data.DEX || 0,
-      CON: data.CON || 0,
-      SAG: data.SAG || 0,
-      INT: data.INT || 0,
-      CHA: data.CHA || 0,
+        // Ajoutez tous les champs requis
+        chars.push({
+          id: doc.id,
+          niveau: data.niveau || 1,
+          name: data.Nomperso || '',
+          x: data.x || 0,
+          y: data.y || 0,
+          image: img,
+          visibility: data.visibility || 'hidden',
+          visibilityRadius: parseFloat(data.visibilityRadius) || 100,
+          type: data.type || 'pnj',
+          PV: data.PV || 10, // Assurez-vous que chaque champ est bien extrait
+          Defense: data.Defense || 5,
+          Contact: data.Contact || 5,
+          Distance: data.Distance || 5,
+          Magie: data.Magie || 5,
+          INIT: data.INIT || 5,
+          FOR: data.FOR || 0,
+          DEX: data.DEX || 0,
+          CON: data.CON || 0,
+          SAG: data.SAG || 0,
+          INT: data.INT || 0,
+          CHA: data.CHA || 0,
+        });
+      });
+      setCharacters(chars);
+      setLoading(false);
     });
-  });
-  setCharacters(chars);
-  setLoading(false);
-});
 
     // Charger les notes
     const notesRef = collection(db, 'cartes', room.toString(), 'text');
@@ -490,7 +490,7 @@ onSnapshot(charactersRef, (snapshot) => {
       });
       setNotes(texts);
     });
-  
+
     // Charger les dessins
     const drawingsRef = collection(db, 'cartes', room.toString(), 'drawings');
     onSnapshot(drawingsRef, (snapshot) => {
@@ -517,7 +517,7 @@ onSnapshot(charactersRef, (snapshot) => {
           });
         }
         setFogGrid(gridMap);
-        
+
         // 🎯 CHARGER le mode brouillard complet depuis Firebase
         if (data.fullMapFog !== undefined) {
           setFullMapFog(data.fullMapFog);
@@ -525,8 +525,8 @@ onSnapshot(charactersRef, (snapshot) => {
       }
     });
   };
-  
-  const calculateDistance = (x1:number, y1:number, x2:number, y2:number) => {
+
+  const calculateDistance = (x1: number, y1: number, x2: number, y2: number) => {
     return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
   };
 
@@ -601,7 +601,7 @@ onSnapshot(charactersRef, (snapshot) => {
   const toggleFogCell = async (x: number, y: number, forceState?: boolean) => {
     const key = getCellKey(x, y);
     const newFogGrid = new Map(fogGrid);
-    
+
     if (forceState !== undefined) {
       // Mode forcé (pour le drag continu)
       if (forceState) {
@@ -617,9 +617,9 @@ onSnapshot(charactersRef, (snapshot) => {
         newFogGrid.set(key, true);
       }
     }
-    
+
     setFogGrid(newFogGrid);
-    
+
     // Sauvegarder en Firebase
     if (roomId) {
       const fogDocRef = doc(db, 'cartes', String(roomId), 'fog', 'fogData');
@@ -630,10 +630,10 @@ onSnapshot(charactersRef, (snapshot) => {
 
   const addFogCellIfNew = async (x: number, y: number, addMode: boolean) => {
     const key = getCellKey(x, y);
-    
+
     // Éviter de modifier la même cellule plusieurs fois pendant un drag
     if (lastFogCell === key) return;
-    
+
     setLastFogCell(key);
     await toggleFogCell(x, y, addMode);
   };
@@ -688,18 +688,18 @@ onSnapshot(charactersRef, (snapshot) => {
   };
 
 
-  
+
   const drawMap = (ctx: CanvasRenderingContext2D, image: HTMLImageElement, containerWidth: number, containerHeight: number) => {
     const canvas = ctx.canvas;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
+
     const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
     const scaledWidth = image.width * scale * zoom;
     const scaledHeight = image.height * scale * zoom;
-  
+
     // Draw background image
     ctx.drawImage(image, -offset.x, -offset.y, scaledWidth, scaledHeight);
-  
+
     // Draw grid if enabled
     if (showGrid) {
       ctx.strokeStyle = '#000000';
@@ -718,15 +718,15 @@ onSnapshot(charactersRef, (snapshot) => {
         ctx.stroke();
       }
     }
-  
-  
-  
-        // Draw each note
+
+
+
+    // Draw each note
     notes.forEach((note, index) => {
       const x = (note.x / image.width) * scaledWidth - offset.x;
       const y = (note.y / image.height) * scaledHeight - offset.y;
       ctx.fillStyle = note.color || 'yellow';
-      
+
       // Utiliser la taille de police de la note ou une taille par défaut
       const fontSize = (note.fontSize || 16) * zoom;
       ctx.font = `${fontSize}px Arial`;
@@ -740,7 +740,7 @@ onSnapshot(charactersRef, (snapshot) => {
         ctx.strokeRect(x - padding, y - fontSize, metrics.width + (padding * 2), fontSize + padding);
       }
     });
-  
+
     // Draw each saved drawing path
     ctx.strokeStyle = 'black';
     ctx.lineWidth = 2;
@@ -761,20 +761,20 @@ onSnapshot(charactersRef, (snapshot) => {
         }
       });
     }
-  
-        // 🎯 NOUVEAU SYSTÈME : Dessiner la grille de brouillard par quadrillage
-    
+
+    // 🎯 NOUVEAU SYSTÈME : Dessiner la grille de brouillard par quadrillage
+
     // Afficher la grille de guidage si activée
     if (showFogGrid) {
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
       ctx.lineWidth = 1;
-      
+
       // Calculer les limites visibles de la grille
       const startCellX = Math.floor((-offset.x) / (fogCellSize * zoom)) - 1;
       const endCellX = Math.floor((-offset.x + containerWidth) / (fogCellSize * zoom)) + 1;
       const startCellY = Math.floor((-offset.y) / (fogCellSize * zoom)) - 1;
       const endCellY = Math.floor((-offset.y + containerHeight) / (fogCellSize * zoom)) + 1;
-      
+
       // Dessiner les lignes verticales de la grille
       for (let cellX = startCellX; cellX <= endCellX; cellX++) {
         const x = cellX * fogCellSize;
@@ -784,7 +784,7 @@ onSnapshot(charactersRef, (snapshot) => {
         ctx.lineTo(screenX, containerHeight);
         ctx.stroke();
       }
-      
+
       // Dessiner les lignes horizontales de la grille  
       for (let cellY = startCellY; cellY <= endCellY; cellY++) {
         const y = cellY * fogCellSize;
@@ -795,7 +795,7 @@ onSnapshot(charactersRef, (snapshot) => {
         ctx.stroke();
       }
     }
-    
+
     // 🎯 NOUVEAU FOG OF WAR : Dessiner avec opacité variable selon la distance aux joueurs
     if (fullMapFog) {
       // Mode brouillard sur toute la carte : calculer dynamiquement les cellules visibles
@@ -804,27 +804,27 @@ onSnapshot(charactersRef, (snapshot) => {
       const topLeftImageY = (offset.y / scaledHeight) * image.height;
       const bottomRightImageX = ((offset.x + containerWidth) / scaledWidth) * image.width;
       const bottomRightImageY = ((offset.y + containerHeight) / scaledHeight) * image.height;
-      
+
       // Calculer les cellules nécessaires avec une marge pour être sûr de tout couvrir
       const startCellX = Math.floor(topLeftImageX / fogCellSize) - 2;
       const endCellX = Math.ceil(bottomRightImageX / fogCellSize) + 2;
       const startCellY = Math.floor(topLeftImageY / fogCellSize) - 2;
       const endCellY = Math.ceil(bottomRightImageY / fogCellSize) + 2;
-      
+
       for (let cellX = startCellX; cellX <= endCellX; cellX++) {
         for (let cellY = startCellY; cellY <= endCellY; cellY++) {
           const x = cellX * fogCellSize;
           const y = cellY * fogCellSize;
-          
+
           const screenX = (x / image.width) * scaledWidth - offset.x;
           const screenY = (y / image.height) * scaledHeight - offset.y;
           const screenWidth = (fogCellSize / image.width) * scaledWidth;
           const screenHeight = (fogCellSize / image.height) * scaledHeight;
-          
+
           // Ne dessiner que si la cellule est visible à l'écran
-          if (screenX + screenWidth >= 0 && screenX <= containerWidth && 
-              screenY + screenHeight >= 0 && screenY <= containerHeight) {
-            
+          if (screenX + screenWidth >= 0 && screenX <= containerWidth &&
+            screenY + screenHeight >= 0 && screenY <= containerHeight) {
+
             // Calculer l'opacité selon la distance aux joueurs et alliés (même si pas dans fogGrid)
             let opacity = 1; // Opacité par défaut pour toute la carte
 
@@ -834,7 +834,7 @@ onSnapshot(charactersRef, (snapshot) => {
                 const cellCenterX = cellX * fogCellSize + fogCellSize / 2;
                 const cellCenterY = cellY * fogCellSize + fogCellSize / 2;
                 const distance = calculateDistance(character.x, character.y, cellCenterX, cellCenterY);
-                
+
                 const visibilityRadius = character.visibilityRadius;
                 const cellDiagonalHalf = fogCellSize * Math.SQRT2 * 0.5;
                 const visibleRadiusWithMargin = visibilityRadius + cellDiagonalHalf;
@@ -860,7 +860,7 @@ onSnapshot(charactersRef, (snapshot) => {
                 }
               }
             }
-            
+
             if (opacity > 0) {
               // 🎯 Pour le MJ : 55% d'opacité, pour les joueurs : 90% d'opacité
               const effectiveIsMJ = isMJ && !playerViewMode;
@@ -878,16 +878,16 @@ onSnapshot(charactersRef, (snapshot) => {
           const [cellX, cellY] = key.split(',').map(Number);
           const x = cellX * fogCellSize;
           const y = cellY * fogCellSize;
-          
+
           const screenX = (x / image.width) * scaledWidth - offset.x;
           const screenY = (y / image.height) * scaledHeight - offset.y;
           const screenWidth = (fogCellSize / image.width) * scaledWidth;
           const screenHeight = (fogCellSize / image.height) * scaledHeight;
-          
+
           // Ne dessiner que si la cellule est visible à l'écran
-          if (screenX + screenWidth >= 0 && screenX <= containerWidth && 
-              screenY + screenHeight >= 0 && screenY <= containerHeight) {
-            
+          if (screenX + screenWidth >= 0 && screenX <= containerWidth &&
+            screenY + screenHeight >= 0 && screenY <= containerHeight) {
+
             // Calculer l'opacité selon la distance aux joueurs
             const opacity = calculateFogOpacity(cellX, cellY);
 
@@ -902,7 +902,7 @@ onSnapshot(charactersRef, (snapshot) => {
         }
       });
     }
-    
+
     // 🎯 Optionnel : Dessiner les cercles de visibilité des joueurs et alliés (pour debug)
     // En mode Vue Joueur, le MJ ne voit pas les cercles de debug
     if (isMJ && !playerViewMode && showFogGrid) {
@@ -911,7 +911,7 @@ onSnapshot(charactersRef, (snapshot) => {
           const playerScreenX = (character.x / image.width) * scaledWidth - offset.x;
           const playerScreenY = (character.y / image.height) * scaledHeight - offset.y;
           const radiusScreen = (character.visibilityRadius / image.width) * scaledWidth;
-          
+
           // Couleur différente pour les alliés (vert) vs joueurs (jaune)
           ctx.strokeStyle = character.visibility === 'ally' ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 255, 0, 0.3)';
           ctx.lineWidth = 1;
@@ -921,7 +921,7 @@ onSnapshot(charactersRef, (snapshot) => {
         }
       });
     }
-  
+
     // Draw current path if in drawing mode
     if (currentPath.length > 0) {
       ctx.beginPath();
@@ -943,29 +943,29 @@ onSnapshot(charactersRef, (snapshot) => {
       const startY = (selectionStart.y / image.height) * scaledHeight - offset.y;
       const endX = (selectionEnd.x / image.width) * scaledWidth - offset.x;
       const endY = (selectionEnd.y / image.height) * scaledHeight - offset.y;
-      
+
       // Calculer les dimensions du rectangle
       const rectX = Math.min(startX, endX);
       const rectY = Math.min(startY, endY);
       const rectWidth = Math.abs(endX - startX);
       const rectHeight = Math.abs(endY - startY);
-      
+
       // Fond semi-transparent d'abord
       ctx.fillStyle = 'rgba(0, 150, 255, 0.15)';
       ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
-      
+
       // Bordure en pointillés plus visible
       ctx.strokeStyle = '#0096FF';
       ctx.lineWidth = 3;
       ctx.setLineDash([10, 5]);
       ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
-      
+
       // Bordure solide intérieure pour plus de contraste
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
       ctx.lineWidth = 1;
       ctx.setLineDash([]);
       ctx.strokeRect(rectX + 1, rectY + 1, rectWidth - 2, rectHeight - 2);
-      
+
       // Afficher les dimensions de la zone
       if (rectWidth > 50 && rectHeight > 20) {
         ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -975,12 +975,12 @@ onSnapshot(charactersRef, (snapshot) => {
         ctx.fillText(`${Math.round(rectWidth)}×${Math.round(rectHeight)}`, rectX + 10, rectY + 18);
       }
     }
-  
+
     // Draw each character
     characters.forEach((char, index) => {
       const x = (char.x / image.width) * scaledWidth - offset.x;
       const y = (char.y / image.height) * scaledHeight - offset.y;
-  
+
       let isVisible = true;
 
       // 🎯 En mode "Vue Joueur", le MJ voit comme un joueur (pas les ennemis cachés)
@@ -1010,18 +1010,18 @@ onSnapshot(charactersRef, (snapshot) => {
           );
         });
       }
-  
-  
-  
+
+
+
       if (isVisible) {
         // Set border color based on character type or if it is the player's character
         // Debug logs
-   
-        
+
+
         // 🎯 Couleur spéciale pour les personnages dans la zone de sélection
         let borderColor;
         let lineWidth = 3;
-        
+
         if (selectedCharacters.includes(index)) {
           // Personnage sélectionné
           borderColor = 'rgba(0, 255, 0, 1)';  // Vert vif
@@ -1032,7 +1032,7 @@ onSnapshot(charactersRef, (snapshot) => {
           const maxX = Math.max(selectionStart.x, selectionEnd.x);
           const minY = Math.min(selectionStart.y, selectionEnd.y);
           const maxY = Math.max(selectionStart.y, selectionEnd.y);
-          
+
           if (char.x >= minX && char.x <= maxX && char.y >= minY && char.y <= maxY) {
             borderColor = 'rgba(0, 150, 255, 1)'; // Bleu pour prévisualisation
             lineWidth = 4;
@@ -1040,47 +1040,47 @@ onSnapshot(charactersRef, (snapshot) => {
             // Couleur normale selon le type
             if (isMJ) {
               // MJ : voit le personnage actif en rouge vif
-              borderColor = char.id === activePlayerId 
+              borderColor = char.id === activePlayerId
                 ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour le personnage actif (dont c'est le tour)
                 : char.visibility === 'ally'
-                ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
-                : char.type === 'joueurs' 
-                ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les personnages joueurs
-                : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
+                  ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
+                  : char.type === 'joueurs'
+                    ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les personnages joueurs
+                    : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
             } else {
               // Joueur : voit SEULEMENT son personnage en rouge
-              borderColor = char.id === persoId 
+              borderColor = char.id === persoId
                 ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour SON personnage
                 : char.visibility === 'ally'
-                ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
-                : char.type === 'joueurs' 
-                ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les autres personnages joueurs
-                : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
+                  ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
+                  : char.type === 'joueurs'
+                    ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les autres personnages joueurs
+                    : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
             }
           }
         } else {
           // Couleur normale selon le type
           if (isMJ) {
             // MJ : voit le personnage actif en rouge vif
-            borderColor = char.id === activePlayerId 
+            borderColor = char.id === activePlayerId
               ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour le personnage actif (dont c'est le tour)
               : char.visibility === 'ally'
-              ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
-              : char.type === 'joueurs' 
-              ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les personnages joueurs
-              : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
+                ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
+                : char.type === 'joueurs'
+                  ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les personnages joueurs
+                  : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
           } else {
             // Joueur : voit SEULEMENT son personnage en rouge
-            borderColor = char.id === persoId 
+            borderColor = char.id === persoId
               ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour SON personnage
               : char.visibility === 'ally'
-              ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
-              : char.type === 'joueurs' 
-              ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les autres personnages joueurs
-              : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
+                ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
+                : char.type === 'joueurs'
+                  ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les autres personnages joueurs
+                  : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
           }
         }
-          
+
         ctx.strokeStyle = borderColor;
         ctx.lineWidth = lineWidth;
 
@@ -1088,12 +1088,12 @@ onSnapshot(charactersRef, (snapshot) => {
         const isPlayerCharacter = char.type === 'joueurs';
         const iconRadius = isPlayerCharacter ? 30 * zoom : 20 * zoom;
         const borderRadius = isPlayerCharacter ? 32 * zoom : 22 * zoom;
-  
+
         // Draw character border circle
         ctx.beginPath();
         ctx.arc(x, y, borderRadius, 0, 2 * Math.PI);
         ctx.stroke();
-  
+
         // Draw character icon
         if (char.image) {
           ctx.save();
@@ -1108,25 +1108,25 @@ onSnapshot(charactersRef, (snapshot) => {
           ctx.arc(x, y, iconRadius, 0, 2 * Math.PI);
           ctx.fill();
         }
-  
+
         // Draw discreet level badge at the bottom-right of the character icon
         const badgeRadius = 8 * zoom;  // Smaller and more discreet badge
         const badgeOffsetMultiplier = isPlayerCharacter ? 24 : 16; // Plus loin pour les personnages joueurs
         const badgeX = x + badgeOffsetMultiplier * zoom;
         const badgeY = y + badgeOffsetMultiplier * zoom;
-  
+
         // Set badge color: Red if it's the player's character, Green for allies, Blue for 'joueurs', Orange for others
-        ctx.fillStyle = char.id === persoId 
+        ctx.fillStyle = char.id === persoId
           ? 'rgba(255, 0, 0, 1)'             // Red for the player's character
           : char.visibility === 'ally'
-          ? 'rgba(0, 255, 0, 1)'             // Green for allies
-          : char.type === 'joueurs' 
-          ? 'rgba(0, 0, 255, 1)'             // Blue for 'joueurs'
-          : 'rgba(255, 165, 0, 1)';          // Orange for other characters
+            ? 'rgba(0, 255, 0, 1)'             // Green for allies
+            : char.type === 'joueurs'
+              ? 'rgba(0, 0, 255, 1)'             // Blue for 'joueurs'
+              : 'rgba(255, 165, 0, 1)';          // Orange for other characters
         ctx.beginPath();
         ctx.arc(badgeX, badgeY, badgeRadius, 0, 2 * Math.PI);
         ctx.fill();
-  
+
         // Draw the level number inside the badge
         ctx.fillStyle = 'white';
         ctx.font = `${8 * zoom}px Arial`;  // Smaller font size for the discreet badge
@@ -1134,19 +1134,19 @@ onSnapshot(charactersRef, (snapshot) => {
         ctx.textBaseline = 'middle';
         ctx.fillText(`${char.niveau}`, badgeX, badgeY);
       }
-  
+
       // Draw hidden status badge if character is hidden (soit par défaut, soit par le brouillard) - uniquement en mode MJ normal, pas en vue joueur
       if (effectiveVisibility === 'hidden' && effectiveIsMJ) {
         const isPlayerCharacter = char.type === 'joueurs';
         const hiddenBadgeOffsetMultiplier = isPlayerCharacter ? 24 : 16;
         const badgeX = x + hiddenBadgeOffsetMultiplier * zoom; // Positioning the badge at the top-right
         const badgeY = y - hiddenBadgeOffsetMultiplier * zoom;
-  
-        ctx.fillStyle = char.id === persoId 
+
+        ctx.fillStyle = char.id === persoId
           ? 'rgba(255, 0, 0, 1)'             // Red for the player's character
-          : char.type === 'joueurs' 
-          ? 'rgba(0, 0, 255, 1)'             // Blue for 'joueurs'
-          : 'rgba(255, 165, 0, 1)';          // Orange for other characters
+          : char.type === 'joueurs'
+            ? 'rgba(0, 0, 255, 1)'             // Blue for 'joueurs'
+            : 'rgba(255, 165, 0, 1)';          // Orange for other characters
 
         ctx.beginPath();
         ctx.arc(badgeX, badgeY, 8 * zoom, 0, 2 * Math.PI);
@@ -1158,7 +1158,7 @@ onSnapshot(charactersRef, (snapshot) => {
         ctx.textBaseline = 'middle';
         ctx.fillText('👁️', badgeX, badgeY); // EyeOff symbol
       }
-  
+
       // Draw visibility radius outline for selected characters (no more filled semi-transparent disk)
       if (char.type === 'joueurs' && index === selectedCharacterIndex) {
         ctx.strokeStyle = 'rgba(0, 0, 255, 0.9)'; // Bright blue outline
@@ -1167,7 +1167,7 @@ onSnapshot(charactersRef, (snapshot) => {
         ctx.arc(x, y, char.visibilityRadius * zoom, 0, 2 * Math.PI);
         ctx.stroke();
       }
-      
+
       // Draw visibility radius outline for allies when selected (MJ only)
       if (char.visibility === 'ally' && index === selectedCharacterIndex && isMJ) {
         ctx.strokeStyle = 'rgba(0, 255, 0, 0.9)'; // Bright green outline
@@ -1178,7 +1178,7 @@ onSnapshot(charactersRef, (snapshot) => {
       }
     });
   };
-  
+
 
   const handleBackgroundChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1187,18 +1187,18 @@ onSnapshot(charactersRef, (snapshot) => {
         const storage = getStorage();
         // Create a reference to where the image will be stored in Firebase Storage
         const storageRef = ref(storage, `backgrounds/${roomId}/${file.name}-${Date.now()}`);
-        
+
         // Upload the image file
         await uploadBytes(storageRef, file);
-        
+
         // Get the download URL for the uploaded file
         const downloadURL = await getDownloadURL(storageRef);
-        
+
         // Update Firestore with the download URL instead of the image data
         await updateDoc(doc(db, 'cartes', roomId, 'fond', 'fond1'), {
           url: downloadURL,
         });
-  
+
         // Set the background image locally (optional, if needed for immediate display)
         setBackgroundImage(downloadURL);
       } catch (error) {
@@ -1206,168 +1206,211 @@ onSnapshot(charactersRef, (snapshot) => {
       }
     }
   };
-  
 
-const handleCharacterSubmit = async () => {
-  if (newCharacter.name && newCharacter.image && roomId) {
+
+  const handleCharacterSubmit = async () => {
+    if (newCharacter.name && newCharacter.image && roomId) {
       const storage = getStorage();
       const charactersCollectionRef = collection(db, 'cartes', roomId.toString(), 'characters');
       // Charger l'image dans Firebase Storage
       try {
-          // Créez une référence pour l'image dans le dossier "characters"
-          const imageRef = ref(storage, `characters/${newCharacter.name}-${Date.now()}`);
-          const imageFile = newCharacter.image.src; // Image data URL
-          // Extraire les données de l'image du Data URL
-          const response = await fetch(imageFile);
-          const blob = await response.blob();
-          // Upload l'image dans Firebase Storage
-          await uploadBytes(imageRef, blob);
-          // Obtenez l'URL de téléchargement
-          const imageURL = await getDownloadURL(imageRef);
-          // Créer `nombre` personnages avec les mêmes statistiques et l'URL de l'image téléchargée
-          for (let i = 1; i <= newCharacter.nombre; i++) {
-              const characterName = `${newCharacter.name} ${i}`; // Ajouter un numéro au nom
-              await addDoc(charactersCollectionRef, {
-                  Nomperso: characterName,
-                  imageURL2: imageURL,  // Utiliser imageURL2 pour l'image
-                  x: (Math.random() * (canvasRef.current?.width || 0) + offset.x) / zoom,
-                  y: (Math.random() * (canvasRef.current?.height || 0) + offset.y) / zoom,
-                  visibility: newCharacter.visibility,
-                  visibilityRadius: newCharacter.visibility === 'ally' ? visibilityRadius : 100,
-                  PV: newCharacter.PV,
-                  niveau : newCharacter.niveau,
-                  Defense: newCharacter.Defense,
-                  Contact: newCharacter.Contact,
-                  Distance: newCharacter.Distance,
-                  Magie: newCharacter.Magie,
-                  INIT: newCharacter.INIT,
-                  FOR: newCharacter.FOR,
-                  DEX: newCharacter.DEX,
-                  CON: newCharacter.CON,
-                  SAG: newCharacter.SAG,
-                  INT: newCharacter.INT,
-                  CHA: newCharacter.CHA,
-                  type: "pnj"
-              });
-          }
-
-          // RéINITialiser les champs du formulaire
-          setNewCharacter({
-              name: '',
-              image: null,
-              niveau : 1,
-              visibility: 'visible',
-              PV: 10,
-              Defense: 5,
-              Contact: 5,
-              Distance: 5,
-              Magie: 5,
-              INIT: 5,
-              nombre: 1, // RéINITialiser le champ nombre
-              FOR: 0,
-              DEX: 0,
-              CON: 0,
-              SAG: 0,
-              INT: 0,
-              CHA: 0,
+        // Créez une référence pour l'image dans le dossier "characters"
+        const imageRef = ref(storage, `characters/${newCharacter.name}-${Date.now()}`);
+        const imageFile = newCharacter.image.src; // Image data URL
+        // Extraire les données de l'image du Data URL
+        const response = await fetch(imageFile);
+        const blob = await response.blob();
+        // Upload l'image dans Firebase Storage
+        await uploadBytes(imageRef, blob);
+        // Obtenez l'URL de téléchargement
+        const imageURL = await getDownloadURL(imageRef);
+        // Créer `nombre` personnages avec les mêmes statistiques et l'URL de l'image téléchargée
+        for (let i = 1; i <= newCharacter.nombre; i++) {
+          const characterName = `${newCharacter.name} ${i}`; // Ajouter un numéro au nom
+          await addDoc(charactersCollectionRef, {
+            Nomperso: characterName,
+            imageURL2: imageURL,  // Utiliser imageURL2 pour l'image
+            x: (Math.random() * (canvasRef.current?.width || 0) + offset.x) / zoom,
+            y: (Math.random() * (canvasRef.current?.height || 0) + offset.y) / zoom,
+            visibility: newCharacter.visibility,
+            visibilityRadius: newCharacter.visibility === 'ally' ? visibilityRadius : 100,
+            PV: newCharacter.PV,
+            niveau: newCharacter.niveau,
+            Defense: newCharacter.Defense,
+            Contact: newCharacter.Contact,
+            Distance: newCharacter.Distance,
+            Magie: newCharacter.Magie,
+            INIT: newCharacter.INIT,
+            FOR: newCharacter.FOR,
+            DEX: newCharacter.DEX,
+            CON: newCharacter.CON,
+            SAG: newCharacter.SAG,
+            INT: newCharacter.INT,
+            CHA: newCharacter.CHA,
+            type: "pnj"
           });
-          setDialogOpen(false);
+        }
+
+        // RéINITialiser les champs du formulaire
+        setNewCharacter({
+          name: '',
+          image: null,
+          niveau: 1,
+          visibility: 'visible',
+          PV: 10,
+          Defense: 5,
+          Contact: 5,
+          Distance: 5,
+          Magie: 5,
+          INIT: 5,
+          nombre: 1, // RéINITialiser le champ nombre
+          FOR: 0,
+          DEX: 0,
+          CON: 0,
+          SAG: 0,
+          INT: 0,
+          CHA: 0,
+        });
+        setDialogOpen(false);
 
       } catch (error) {
-          console.error("Erreur lors du chargement de l'image dans Firebase Storage :", error);
+        console.error("Erreur lors du chargement de l'image dans Firebase Storage :", error);
       }
-  }
-};
-
-const handleCharacterImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (file) {
-    try {
-      // Obtenez une référence vers Firebase Storage
-      const storage = getStorage();
-      const imageRef = ref(storage, `characters/${file.name}-${Date.now()}`);
-      // Téléchargez l'image dans Firebase Storage
-      await uploadBytes(imageRef, file);
-      // Obtenez l'URL de téléchargement de l'image
-      const downloadURL = await getDownloadURL(imageRef);
-      // Mettez à jour l'état avec l'URL de téléchargement au lieu du Data URL
-      setNewCharacter((prevCharacter) => ({
-        ...prevCharacter,
-        image: { src: downloadURL } // Stockez uniquement l'URL ici
-      }));
-    } catch (error) {
-      console.error("Erreur lors du chargement de l'image dans Firebase Storage :", error);
     }
-  }
-};
-  
-const handleAddNote = async () => {
-  // Réinitialiser et ouvrir le dialog
-  setNewNote({ text: '', color: '#ffff00', fontSize: 16 });
-  setAddNoteDialogOpen(true);
-};
+  };
 
-const handleNoteSubmitNew = async () => {
-  const roomIdStr = String(roomId);
-
-  if (newNote.text.trim() && typeof roomIdStr === 'string') {
-    try {
-      await addDoc(collection(db, 'cartes', roomIdStr, 'text'), {
-        content: newNote.text,
-        color: newNote.color,
-        fontSize: newNote.fontSize,
-        x: (Math.random() * (canvasRef.current?.width || 0) + offset.x) / zoom,
-        y: (Math.random() * (canvasRef.current?.height || 0) + offset.y) / zoom,
-      });
-      setAddNoteDialogOpen(false);
-      setNewNote({ text: '', color: '#ffff00', fontSize: 16 });
-    } catch (error) {
-      console.error("Erreur lors de l'ajout de la note :", error);
+  const handleCharacterImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        // Obtenez une référence vers Firebase Storage
+        const storage = getStorage();
+        const imageRef = ref(storage, `characters/${file.name}-${Date.now()}`);
+        // Téléchargez l'image dans Firebase Storage
+        await uploadBytes(imageRef, file);
+        // Obtenez l'URL de téléchargement de l'image
+        const downloadURL = await getDownloadURL(imageRef);
+        // Mettez à jour l'état avec l'URL de téléchargement au lieu du Data URL
+        setNewCharacter((prevCharacter) => ({
+          ...prevCharacter,
+          image: { src: downloadURL } // Stockez uniquement l'URL ici
+        }));
+      } catch (error) {
+        console.error("Erreur lors du chargement de l'image dans Firebase Storage :", error);
+      }
     }
-  } else {
-    console.error("Erreur : texte ou roomId manquant ou invalide.");
-  }
-};
+  };
 
+  const handleAddNote = async () => {
+    // Réinitialiser et ouvrir le dialog
+    setNewNote({ text: '', color: '#ffff00', fontSize: 16 });
+    setAddNoteDialogOpen(true);
+  };
 
+  const handleNoteSubmitNew = async () => {
+    const roomIdStr = String(roomId);
 
-const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
-  const rect = canvasRef.current?.getBoundingClientRect();
-  if (!rect) return;
-  
-  // Stocker quel bouton de souris est pressé (0 = gauche, 1 = milieu, 2 = droit)
-  setMouseButton(e.button);
-  
-  const containerWidth = containerRef.current?.getBoundingClientRect().width || rect.width;
-  const containerHeight = containerRef.current?.getBoundingClientRect().height || rect.height;
-  const image = new Image();
-  image.src = backgroundImage;
-  image.onload = async () => {
-    const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
-    const scaledWidth = image.width * scale * zoom;
-    const scaledHeight = image.height * scale * zoom;
-    const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
-    const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
-
-    // CLIC MILIEU (button = 1) : DÉPLACEMENT DE LA CARTE
-    if (e.button === 1) {
-      e.preventDefault();
-      setIsDragging(true);
-      setDragStart({ x: e.clientX, y: e.clientY });
-      return;
+    if (newNote.text.trim() && typeof roomIdStr === 'string') {
+      try {
+        await addDoc(collection(db, 'cartes', roomIdStr, 'text'), {
+          content: newNote.text,
+          color: newNote.color,
+          fontSize: newNote.fontSize,
+          x: (Math.random() * (canvasRef.current?.width || 0) + offset.x) / zoom,
+          y: (Math.random() * (canvasRef.current?.height || 0) + offset.y) / zoom,
+        });
+        setAddNoteDialogOpen(false);
+        setNewNote({ text: '', color: '#ffff00', fontSize: 16 });
+      } catch (error) {
+        console.error("Erreur lors de l'ajout de la note :", error);
+      }
+    } else {
+      console.error("Erreur : texte ou roomId manquant ou invalide.");
     }
+  };
 
-    // CLIC GAUCHE (button = 0) : SÉLECTION ET INTERACTIONS
-    if (e.button === 0) {
-      // 🎯 MODE DÉPLACEMENT DE CARTE - Priorité élevée
-      if (panMode) {
+
+
+  const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    // Stocker quel bouton de souris est pressé (0 = gauche, 1 = milieu, 2 = droit)
+    setMouseButton(e.button);
+
+    const containerWidth = containerRef.current?.getBoundingClientRect().width || rect.width;
+    const containerHeight = containerRef.current?.getBoundingClientRect().height || rect.height;
+    const image = new Image();
+    image.src = backgroundImage;
+    image.onload = async () => {
+      const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
+      const scaledWidth = image.width * scale * zoom;
+      const scaledHeight = image.height * scale * zoom;
+      const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
+      const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
+
+      // CLIC MILIEU (button = 1) : DÉPLACEMENT DE LA CARTE
+      if (e.button === 1) {
+        e.preventDefault();
         setIsDragging(true);
         setDragStart({ x: e.clientX, y: e.clientY });
         return;
       }
 
-      // Gérer le double-clic pour ouvrir les fiches de personnage
-      if (e.detail === 2) {
+      // CLIC GAUCHE (button = 0) : SÉLECTION ET INTERACTIONS
+      if (e.button === 0) {
+        // 🎯 MODE DÉPLACEMENT DE CARTE - Priorité élevée
+        if (panMode) {
+          setIsDragging(true);
+          setDragStart({ x: e.clientX, y: e.clientY });
+          return;
+        }
+
+        // Gérer le double-clic pour ouvrir les fiches de personnage
+        if (e.detail === 2) {
+          const clickedCharIndex = characters.findIndex(char => {
+            const charX = (char.x / image.width) * scaledWidth - offset.x;
+            const charY = (char.y / image.height) * scaledHeight - offset.y;
+            const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
+            return Math.abs(charX - e.clientX + rect.left) < clickRadius && Math.abs(charY - e.clientY + rect.top) < clickRadius;
+          });
+
+          if (clickedCharIndex !== -1 && characters[clickedCharIndex].type === "joueurs") {
+            const character = characters[clickedCharIndex];
+            setSelectedCharacterForSheet(character.id);
+            setShowCharacterSheet(true);
+            return;
+          }
+        }
+
+        // 🎯 NOUVEAU Mode brouillard - priorité élevée (placement continu)
+        if (fogMode) {
+          setIsFogDragging(true);
+          const firstCellKey = getCellKey(clickX, clickY);
+          const isCurrentlyFogged = fogGrid.has(firstCellKey);
+
+          // Décider si on ajoute ou supprime selon l'état actuel de la première cellule
+          // Si la cellule est dans le brouillard, on supprime (addMode = false)
+          // Si la cellule n'est pas dans le brouillard, on ajoute (addMode = true)
+          const addMode = !isCurrentlyFogged;
+
+          setLastFogCell(null); // Réinitialiser pour permettre la première modification
+          await addFogCellIfNew(clickX, clickY, addMode);
+
+          // Stocker le mode pour le drag (utiliser une variable spécifique)
+          setIsFogAddMode(addMode);
+          return;
+        }
+
+        // Mode dessin - priorité élevée
+        if (drawMode) {
+          setIsDrawing(true);
+          setCurrentPath([{ x: clickX, y: clickY }]);
+          return;
+        }
+
+        // 🎯 MODE SÉLECTION PAR DÉFAUT - Nouveau comportement principal
+        // Vérifier si on clique sur un élément existant ET s'il est visible
         const clickedCharIndex = characters.findIndex(char => {
           const charX = (char.x / image.width) * scaledWidth - offset.x;
           const charY = (char.y / image.height) * scaledHeight - offset.y;
@@ -1375,243 +1418,103 @@ const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
           return Math.abs(charX - e.clientX + rect.left) < clickRadius && Math.abs(charY - e.clientY + rect.top) < clickRadius;
         });
 
-        if (clickedCharIndex !== -1 && characters[clickedCharIndex].type === "joueurs") {
-          const character = characters[clickedCharIndex];
-          setSelectedCharacterForSheet(character.id);
-          setShowCharacterSheet(true);
-          return;
-        }
-      }
+        const clickedNoteIndex = notes.findIndex(note => {
+          const noteX = (note.x / image.width) * scaledWidth - offset.x;
+          const noteY = (note.y / image.height) * scaledHeight - offset.y;
+          return Math.abs(noteX - e.clientX + rect.left) < 50 * zoom && Math.abs(noteY - e.clientY + rect.top) < 20 * zoom;
+        });
 
-      // 🎯 NOUVEAU Mode brouillard - priorité élevée (placement continu)
-      if (fogMode) {
-        setIsFogDragging(true);
-        const firstCellKey = getCellKey(clickX, clickY);
-        const isCurrentlyFogged = fogGrid.has(firstCellKey);
-        
-        // Décider si on ajoute ou supprime selon l'état actuel de la première cellule
-        // Si la cellule est dans le brouillard, on supprime (addMode = false)
-        // Si la cellule n'est pas dans le brouillard, on ajoute (addMode = true)
-        const addMode = !isCurrentlyFogged;
-        
-        setLastFogCell(null); // Réinitialiser pour permettre la première modification
-        await addFogCellIfNew(clickX, clickY, addMode);
-        
-        // Stocker le mode pour le drag (utiliser une variable spécifique)
-        setIsFogAddMode(addMode);
-        return;
-      }
+        // 🎯 NOUVEAU : Vérifier si on clique sur une cellule de brouillard
+        const clickedFogIndex = isCellInFog(clickX, clickY) ? 0 : -1;
 
-      // Mode dessin - priorité élevée
-      if (drawMode) {
-        setIsDrawing(true);
-        setCurrentPath([{ x: clickX, y: clickY }]);
-        return;
-      }
-
-      // 🎯 MODE SÉLECTION PAR DÉFAUT - Nouveau comportement principal
-      // Vérifier si on clique sur un élément existant ET s'il est visible
-      const clickedCharIndex = characters.findIndex(char => {
-        const charX = (char.x / image.width) * scaledWidth - offset.x;
-        const charY = (char.y / image.height) * scaledHeight - offset.y;
-        const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
-        return Math.abs(charX - e.clientX + rect.left) < clickRadius && Math.abs(charY - e.clientY + rect.top) < clickRadius;
-      });
-      
-      const clickedNoteIndex = notes.findIndex(note => {
-        const noteX = (note.x / image.width) * scaledWidth - offset.x;
-        const noteY = (note.y / image.height) * scaledHeight - offset.y;
-        return Math.abs(noteX - e.clientX + rect.left) < 50 * zoom && Math.abs(noteY - e.clientY + rect.top) < 20 * zoom;
-      });
-      
-      // 🎯 NOUVEAU : Vérifier si on clique sur une cellule de brouillard
-      const clickedFogIndex = isCellInFog(clickX, clickY) ? 0 : -1;
-
-      // Si on clique sur un élément, le sélectionner
-      if (clickedCharIndex !== -1) {
-        // Si Ctrl/Cmd est pressé, ajouter à la sélection multiple
-        if (e.ctrlKey || e.metaKey) {
-          if (selectedCharacters.includes(clickedCharIndex)) {
-            setSelectedCharacters(prev => prev.filter(index => index !== clickedCharIndex));
+        // Si on clique sur un élément, le sélectionner
+        if (clickedCharIndex !== -1) {
+          // Si Ctrl/Cmd est pressé, ajouter à la sélection multiple
+          if (e.ctrlKey || e.metaKey) {
+            if (selectedCharacters.includes(clickedCharIndex)) {
+              setSelectedCharacters(prev => prev.filter(index => index !== clickedCharIndex));
+            } else {
+              setSelectedCharacters(prev => [...prev, clickedCharIndex]);
+            }
           } else {
-            setSelectedCharacters(prev => [...prev, clickedCharIndex]);
-          }
-        } else {
-          // 🎯 NOUVEAU : Commencer le drag & drop du personnage ou groupe
-          const isAlreadySelected = selectedCharacters.includes(clickedCharIndex);
-          const charactersToMove = isAlreadySelected && selectedCharacters.length > 1 
-            ? selectedCharacters 
-            : [clickedCharIndex];
-          
-          // Vérifier les permissions de déplacement pour tous les personnages à déplacer
-          const canMoveAllCharacters = charactersToMove.every(index => {
-            const character = characters[index];
-            // MJ peut déplacer tous les personnages
-            if (isMJ) return true;
-            // Joueur peut déplacer son propre personnage (type joueurs) ou les alliés
-            return (character.type === 'joueurs' && character.id === persoId) || character.visibility === 'ally';
-          });
-          
-          if (!canMoveAllCharacters) {
-            // Si l'utilisateur n'a pas le droit de déplacer au moins un des personnages, 
-            // on ne fait que sélectionner sans initier le drag
+            // 🎯 NOUVEAU : Commencer le drag & drop du personnage ou groupe
+            const isAlreadySelected = selectedCharacters.includes(clickedCharIndex);
+            const charactersToMove = isAlreadySelected && selectedCharacters.length > 1
+              ? selectedCharacters
+              : [clickedCharIndex];
+
+            // Vérifier les permissions de déplacement pour tous les personnages à déplacer
+            const canMoveAllCharacters = charactersToMove.every(index => {
+              const character = characters[index];
+              // MJ peut déplacer tous les personnages
+              if (isMJ) return true;
+              // Joueur peut déplacer son propre personnage (type joueurs) ou les alliés
+              return (character.type === 'joueurs' && character.id === persoId) || character.visibility === 'ally';
+            });
+
+            if (!canMoveAllCharacters) {
+              // Si l'utilisateur n'a pas le droit de déplacer au moins un des personnages, 
+              // on ne fait que sélectionner sans initier le drag
+              if (!isAlreadySelected) {
+                setSelectedCharacterIndex(clickedCharIndex);
+                setSelectedCharacters([clickedCharIndex]);
+              }
+              return;
+            }
+
             if (!isAlreadySelected) {
               setSelectedCharacterIndex(clickedCharIndex);
               setSelectedCharacters([clickedCharIndex]);
             }
-            return;
+
+            // Préparer le drag des personnages (seulement si autorisé)
+            setIsDraggingCharacter(true);
+            setDraggedCharacterIndex(clickedCharIndex);
+
+            // Sauvegarder les positions originales de tous les personnages à déplacer
+            const originalPositions = charactersToMove.map(index => ({
+              index,
+              x: characters[index].x,
+              y: characters[index].y
+            }));
+            setDraggedCharactersOriginalPositions(originalPositions);
           }
-          
-          if (!isAlreadySelected) {
-            setSelectedCharacterIndex(clickedCharIndex);
-            setSelectedCharacters([clickedCharIndex]);
-          }
-          
-          // Préparer le drag des personnages (seulement si autorisé)
-          setIsDraggingCharacter(true);
-          setDraggedCharacterIndex(clickedCharIndex);
-          
-          // Sauvegarder les positions originales de tous les personnages à déplacer
-          const originalPositions = charactersToMove.map(index => ({
-            index,
-            x: characters[index].x,
-            y: characters[index].y
-          }));
-          setDraggedCharactersOriginalPositions(originalPositions);
+          setSelectedNoteIndex(null);
+          setSelectedFogIndex(null);
+        } else if (clickedNoteIndex !== -1) {
+          setSelectedNoteIndex(clickedNoteIndex);
+          setSelectedCharacterIndex(null);
+          setSelectedFogIndex(null);
+          setSelectedCharacters([]);
+
+          // 🎯 NOUVEAU : Commencer le drag & drop de la note
+          const note = notes[clickedNoteIndex];
+          setIsDraggingNote(true);
+          setDraggedNoteIndex(clickedNoteIndex);
+          setDraggedNoteOriginalPos({ x: note.x, y: note.y });
+        } else if (clickedFogIndex !== -1) {
+          setSelectedFogIndex(clickedFogIndex);
+          setSelectedCharacterIndex(null);
+          setSelectedNoteIndex(null);
+          setSelectedCharacters([]);
+        } else {
+          // Clic sur zone vide : Commencer une sélection par zone
+          setSelectedCharacterIndex(null);
+          setSelectedNoteIndex(null);
+          setSelectedFogIndex(null);
+          setSelectedCharacters([]);
+
+          setSelectionStart({ x: clickX, y: clickY });
+          setIsSelectingArea(true);
         }
-        setSelectedNoteIndex(null);
-        setSelectedFogIndex(null);
-      } else if (clickedNoteIndex !== -1) {
-        setSelectedNoteIndex(clickedNoteIndex);
-        setSelectedCharacterIndex(null);
-        setSelectedFogIndex(null);
-        setSelectedCharacters([]);
-        
-        // 🎯 NOUVEAU : Commencer le drag & drop de la note
-        const note = notes[clickedNoteIndex];
-        setIsDraggingNote(true);
-        setDraggedNoteIndex(clickedNoteIndex);
-        setDraggedNoteOriginalPos({ x: note.x, y: note.y });
-      } else if (clickedFogIndex !== -1) {
-        setSelectedFogIndex(clickedFogIndex);
-        setSelectedCharacterIndex(null);
-        setSelectedNoteIndex(null);
-        setSelectedCharacters([]);
-      } else {
-        // Clic sur zone vide : Commencer une sélection par zone
-        setSelectedCharacterIndex(null);
-        setSelectedNoteIndex(null);
-        setSelectedFogIndex(null);
-        setSelectedCharacters([]);
-        
-        setSelectionStart({ x: clickX, y: clickY });
-        setIsSelectingArea(true);
-      }
-    } // Fin du clic gauche
-  };
-};
-
-
-const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
-  const rect = canvasRef.current?.getBoundingClientRect();
-  if (!rect) return;
-  const containerWidth = containerRef.current?.clientWidth || rect.width;
-  const containerHeight = containerRef.current?.clientHeight || rect.height;
-  const image = new Image();
-  image.src = backgroundImage;
-  image.onload = () => {
-    const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
-    const scaledWidth = image.width * scale * zoom;
-    const scaledHeight = image.height * scale * zoom;
-    const currentX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
-    const currentY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
-
-    // 🎯 PRIORITÉ 0: Placement continu de brouillard pendant le drag
-    if (isFogDragging && fogMode) {
-      const addMode = isFogAddMode; // isFogAddMode stocke si on ajoute (true) ou supprime (false)
-      addFogCellIfNew(currentX, currentY, addMode);
-      return;
-    }
-
-    // 🎯 DÉPLACEMENT DE CARTE - Priorité élevée (clic milieu OU mode pan avec clic gauche)
-    if (isDragging && (mouseButton === 1 || (mouseButton === 0 && panMode))) {
-      const dx = e.clientX - dragStart.x;
-      const dy = e.clientY - dragStart.y;
-      setOffset((prev) => ({ x: prev.x - dx, y: prev.y - dy }));
-      setDragStart({ x: e.clientX, y: e.clientY });
-      return;
-    }
-
-    // 🎯 DRAG & DROP NOTE - Priorité élevée
-    if (isDraggingNote && draggedNoteIndex !== null) {
-      // Mettre à jour temporairement la position de la note
-      setNotes(prev => prev.map((note, index) => {
-        if (index === draggedNoteIndex) {
-          return { ...note, x: currentX, y: currentY };
-        }
-        return note;
-      }));
-      return;
-    }
-
-    // 🎯 DRAG & DROP PERSONNAGE(S) - Priorité élevée
-    if (isDraggingCharacter && draggedCharacterIndex !== null && draggedCharactersOriginalPositions.length > 0) {
-      // Calculer le décalage depuis la position originale du personnage de référence
-      const originalRefChar = draggedCharactersOriginalPositions.find(pos => pos.index === draggedCharacterIndex);
-      if (originalRefChar) {
-        const deltaX = currentX - originalRefChar.x;
-        const deltaY = currentY - originalRefChar.y;
-        
-        // Mettre à jour temporairement la position de tous les personnages sélectionnés
-        setCharacters(prev => prev.map((char, index) => {
-          const originalPos = draggedCharactersOriginalPositions.find(pos => pos.index === index);
-          if (originalPos) {
-            return { 
-              ...char, 
-              x: originalPos.x + deltaX, 
-              y: originalPos.y + deltaY 
-            };
-          }
-          return char;
-        }));
-      }
-      return;
-    }
-
-    // 🎯 SÉLECTION PAR ZONE - Comportement principal
-    if (isSelectingArea && selectionStart) {
-      // Mettre à jour la fin de sélection
-      setSelectionEnd({ x: currentX, y: currentY });
-      
-      // Sélectionner tous les éléments dans la zone (seulement ceux qui sont visibles)
-      const selectedChars = characters
-        .map((char, index) => {
-          // Calculer la zone de sélection
-          const minX = Math.min(selectionStart.x, currentX);
-          const maxX = Math.max(selectionStart.x, currentX);
-          const minY = Math.min(selectionStart.y, currentY);
-          const maxY = Math.max(selectionStart.y, currentY);
-
-          // Inclure tous les types de personnages et notes dans la sélection
-          return (
-            char.x >= minX &&
-            char.x <= maxX &&
-            char.y >= minY &&
-            char.y <= maxY
-          ) ? index : null;
-        })
-        .filter((index) => index !== null) as number[];
-
-      setSelectedCharacters(selectedChars);
+      } // Fin du clic gauche
     };
-    return;
-  }
+  };
 
-  // Mode dessin normal (sans brouillard)
-  if (isDrawing && drawMode && !fogMode) {
+
+  const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return;
-
     const containerWidth = containerRef.current?.clientWidth || rect.width;
     const containerHeight = containerRef.current?.clientHeight || rect.height;
     const image = new Image();
@@ -1620,176 +1523,273 @@ const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
       const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
       const scaledWidth = image.width * scale * zoom;
       const scaledHeight = image.height * scale * zoom;
-      const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
-      const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
-      setCurrentPath((prev) => [...prev, { x, y }]);
-    };
-    return;
-  }
-};
+      const currentX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
+      const currentY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
 
+      // 🎯 PRIORITÉ 0: Placement continu de brouillard pendant le drag
+      if (isFogDragging && fogMode) {
+        const addMode = isFogAddMode; // isFogAddMode stocke si on ajoute (true) ou supprime (false)
+        addFogCellIfNew(currentX, currentY, addMode);
+        return;
+      }
 
-const handleCanvasMouseUp = async () => {
-  // Réinitialiser le bouton de souris
-  const currentMouseButton = mouseButton;
-  setMouseButton(null);
+      // 🎯 DÉPLACEMENT DE CARTE - Priorité élevée (clic milieu OU mode pan avec clic gauche)
+      if (isDragging && (mouseButton === 1 || (mouseButton === 0 && panMode))) {
+        const dx = e.clientX - dragStart.x;
+        const dy = e.clientY - dragStart.y;
+        setOffset((prev) => ({ x: prev.x - dx, y: prev.y - dy }));
+        setDragStart({ x: e.clientX, y: e.clientY });
+        return;
+      }
 
-  // 🎯 FIN DU DRAG & DROP NOTE - Priorité élevée
-  if (isDraggingNote && draggedNoteIndex !== null) {
-    const draggedNote = notes[draggedNoteIndex];
-    
-    // Vérifier si la position a vraiment changé
-    const hasChanged = draggedNote.x !== draggedNoteOriginalPos.x || 
-                      draggedNote.y !== draggedNoteOriginalPos.y;
-    
-    if (hasChanged && roomId && draggedNote?.id) {
-      try {
-        // Sauvegarder la nouvelle position en Firebase
-        await updateDoc(doc(db, 'cartes', String(roomId), 'text', draggedNote.id), {
-          x: draggedNote.x,
-          y: draggedNote.y
-        });
-      } catch (error) {
-        console.error("Erreur lors de la sauvegarde du déplacement de la note:", error);
-        // Remettre à la position originale en cas d'erreur
+      // 🎯 DRAG & DROP NOTE - Priorité élevée
+      if (isDraggingNote && draggedNoteIndex !== null) {
+        // Mettre à jour temporairement la position de la note
         setNotes(prev => prev.map((note, index) => {
           if (index === draggedNoteIndex) {
-            return { ...note, x: draggedNoteOriginalPos.x, y: draggedNoteOriginalPos.y };
+            return { ...note, x: currentX, y: currentY };
           }
           return note;
         }));
+        return;
       }
-    }
-    
-    // Nettoyer les états de drag
-    setIsDraggingNote(false);
-    setDraggedNoteIndex(null);
-    setDraggedNoteOriginalPos({ x: 0, y: 0 });
-    return;
-  }
 
-  // 🎯 FIN DU DRAG & DROP PERSONNAGE(S) - Priorité élevée
-  if (isDraggingCharacter && draggedCharacterIndex !== null && draggedCharactersOriginalPositions.length > 0) {
-    try {
-      // Sauvegarder toutes les nouvelles positions en Firebase
-      const updatePromises = draggedCharactersOriginalPositions.map(async (originalPos) => {
-        const currentChar = characters[originalPos.index];
-        const hasChanged = currentChar.x !== originalPos.x || currentChar.y !== originalPos.y;
-        
-        if (hasChanged && roomId && currentChar?.id) {
-          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', currentChar.id), {
-            x: currentChar.x,
-            y: currentChar.y
+      // 🎯 DRAG & DROP PERSONNAGE(S) - Priorité élevée
+      if (isDraggingCharacter && draggedCharacterIndex !== null && draggedCharactersOriginalPositions.length > 0) {
+        // Calculer le décalage depuis la position originale du personnage de référence
+        const originalRefChar = draggedCharactersOriginalPositions.find(pos => pos.index === draggedCharacterIndex);
+        if (originalRefChar) {
+          const deltaX = currentX - originalRefChar.x;
+          const deltaY = currentY - originalRefChar.y;
+
+          // Mettre à jour temporairement la position de tous les personnages sélectionnés
+          setCharacters(prev => prev.map((char, index) => {
+            const originalPos = draggedCharactersOriginalPositions.find(pos => pos.index === index);
+            if (originalPos) {
+              return {
+                ...char,
+                x: originalPos.x + deltaX,
+                y: originalPos.y + deltaY
+              };
+            }
+            return char;
+          }));
+        }
+        return;
+      }
+
+      // 🎯 SÉLECTION PAR ZONE - Comportement principal
+      if (isSelectingArea && selectionStart) {
+        // Mettre à jour la fin de sélection
+        setSelectionEnd({ x: currentX, y: currentY });
+
+        // Sélectionner tous les éléments dans la zone (seulement ceux qui sont visibles)
+        const selectedChars = characters
+          .map((char, index) => {
+            // Calculer la zone de sélection
+            const minX = Math.min(selectionStart.x, currentX);
+            const maxX = Math.max(selectionStart.x, currentX);
+            const minY = Math.min(selectionStart.y, currentY);
+            const maxY = Math.max(selectionStart.y, currentY);
+
+            // Inclure tous les types de personnages et notes dans la sélection
+            return (
+              char.x >= minX &&
+              char.x <= maxX &&
+              char.y >= minY &&
+              char.y <= maxY
+            ) ? index : null;
+          })
+          .filter((index) => index !== null) as number[];
+
+        setSelectedCharacters(selectedChars);
+      };
+      return;
+    }
+
+    // Mode dessin normal (sans brouillard)
+    if (isDrawing && drawMode && !fogMode) {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return;
+
+      const containerWidth = containerRef.current?.clientWidth || rect.width;
+      const containerHeight = containerRef.current?.clientHeight || rect.height;
+      const image = new Image();
+      image.src = backgroundImage;
+      image.onload = () => {
+        const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
+        const scaledWidth = image.width * scale * zoom;
+        const scaledHeight = image.height * scale * zoom;
+        const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
+        const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
+        setCurrentPath((prev) => [...prev, { x, y }]);
+      };
+      return;
+    }
+  };
+
+
+  const handleCanvasMouseUp = async () => {
+    // Réinitialiser le bouton de souris
+    const currentMouseButton = mouseButton;
+    setMouseButton(null);
+
+    // 🎯 FIN DU DRAG & DROP NOTE - Priorité élevée
+    if (isDraggingNote && draggedNoteIndex !== null) {
+      const draggedNote = notes[draggedNoteIndex];
+
+      // Vérifier si la position a vraiment changé
+      const hasChanged = draggedNote.x !== draggedNoteOriginalPos.x ||
+        draggedNote.y !== draggedNoteOriginalPos.y;
+
+      if (hasChanged && roomId && draggedNote?.id) {
+        try {
+          // Sauvegarder la nouvelle position en Firebase
+          await updateDoc(doc(db, 'cartes', String(roomId), 'text', draggedNote.id), {
+            x: draggedNote.x,
+            y: draggedNote.y
           });
-          return `${currentChar.name}: (${Math.round(currentChar.x)}, ${Math.round(currentChar.y)})`;
+        } catch (error) {
+          console.error("Erreur lors de la sauvegarde du déplacement de la note:", error);
+          // Remettre à la position originale en cas d'erreur
+          setNotes(prev => prev.map((note, index) => {
+            if (index === draggedNoteIndex) {
+              return { ...note, x: draggedNoteOriginalPos.x, y: draggedNoteOriginalPos.y };
+            }
+            return note;
+          }));
         }
-        return null;
-      });
-      
-      await Promise.all(updatePromises);
-    } catch (error) {
-      console.error("Erreur lors de la sauvegarde du déplacement:", error);
-      // Remettre aux positions originales en cas d'erreur
-      setCharacters(prev => prev.map((char, index) => {
-        const originalPos = draggedCharactersOriginalPositions.find(pos => pos.index === index);
-        if (originalPos) {
-          return { ...char, x: originalPos.x, y: originalPos.y };
-        }
-        return char;
-      }));
+      }
+
+      // Nettoyer les états de drag
+      setIsDraggingNote(false);
+      setDraggedNoteIndex(null);
+      setDraggedNoteOriginalPos({ x: 0, y: 0 });
+      return;
     }
-    
-    // Nettoyer les états de drag
-    setIsDraggingCharacter(false);
-    setDraggedCharacterIndex(null);
 
-    setDraggedCharactersOriginalPositions([]);
-    return;
-  }
-
-  // 🎯 FIN DE SÉLECTION PAR ZONE
-  if (isSelectingArea) {
-    setIsSelectingArea(false);
-    setSelectionStart(null);
-    setSelectionEnd(null);
-    return;
-  }
-
-  // Fin du déplacement de carte (clic milieu OU mode pan avec clic gauche)
-  if (currentMouseButton === 1 || (currentMouseButton === 0 && panMode)) {
-    setIsDragging(false);
-  }
-
-  // 🎯 NOUVEAU : Fin du placement continu de brouillard
-  if (isFogDragging && fogMode) {
-    setIsFogDragging(false);
-    setIsFogAddMode(true); // Réinitialiser au mode ajout par défaut
-    setLastFogCell(null);
-    return;
-  }
-
-  // 🎯 Fin du mode dessin normal - Sauvegarder le tracé
-  if (isDrawing && !fogMode && drawMode) {
-    setIsDrawing(false);
-
-    if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && currentPath.length > 0) {
+    // 🎯 FIN DU DRAG & DROP PERSONNAGE(S) - Priorité élevée
+    if (isDraggingCharacter && draggedCharacterIndex !== null && draggedCharactersOriginalPositions.length > 0) {
       try {
-        await addDoc(collection(db, 'cartes', String(roomId), 'drawings'), {
-          paths: currentPath
+        // Sauvegarder toutes les nouvelles positions en Firebase
+        const updatePromises = draggedCharactersOriginalPositions.map(async (originalPos) => {
+          const currentChar = characters[originalPos.index];
+          const hasChanged = currentChar.x !== originalPos.x || currentChar.y !== originalPos.y;
+
+          if (hasChanged && roomId && currentChar?.id) {
+            await updateDoc(doc(db, 'cartes', String(roomId), 'characters', currentChar.id), {
+              x: currentChar.x,
+              y: currentChar.y
+            });
+            return `${currentChar.name}: (${Math.round(currentChar.x)}, ${Math.round(currentChar.y)})`;
+          }
+          return null;
         });
-        setDrawings(prev => [...prev, currentPath]);
-        setCurrentPath([]);
+
+        await Promise.all(updatePromises);
       } catch (error) {
-        console.error("Erreur lors de la sauvegarde du tracé:", error);
+        console.error("Erreur lors de la sauvegarde du déplacement:", error);
+        // Remettre aux positions originales en cas d'erreur
+        setCharacters(prev => prev.map((char, index) => {
+          const originalPos = draggedCharactersOriginalPositions.find(pos => pos.index === index);
+          if (originalPos) {
+            return { ...char, x: originalPos.x, y: originalPos.y };
+          }
+          return char;
+        }));
+      }
+
+      // Nettoyer les états de drag
+      setIsDraggingCharacter(false);
+      setDraggedCharacterIndex(null);
+
+      setDraggedCharactersOriginalPositions([]);
+      return;
+    }
+
+    // 🎯 FIN DE SÉLECTION PAR ZONE
+    if (isSelectingArea) {
+      setIsSelectingArea(false);
+      setSelectionStart(null);
+      setSelectionEnd(null);
+      return;
+    }
+
+    // Fin du déplacement de carte (clic milieu OU mode pan avec clic gauche)
+    if (currentMouseButton === 1 || (currentMouseButton === 0 && panMode)) {
+      setIsDragging(false);
+    }
+
+    // 🎯 NOUVEAU : Fin du placement continu de brouillard
+    if (isFogDragging && fogMode) {
+      setIsFogDragging(false);
+      setIsFogAddMode(true); // Réinitialiser au mode ajout par défaut
+      setLastFogCell(null);
+      return;
+    }
+
+    // 🎯 Fin du mode dessin normal - Sauvegarder le tracé
+    if (isDrawing && !fogMode && drawMode) {
+      setIsDrawing(false);
+
+      if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && currentPath.length > 0) {
+        try {
+          await addDoc(collection(db, 'cartes', String(roomId), 'drawings'), {
+            paths: currentPath
+          });
+          setDrawings(prev => [...prev, currentPath]);
+          setCurrentPath([]);
+        } catch (error) {
+          console.error("Erreur lors de la sauvegarde du tracé:", error);
+          setCurrentPath([]);
+        }
+      } else {
+        console.error("Erreur: roomId n'est pas une chaîne valide ou currentPath est vide.");
         setCurrentPath([]);
       }
-    } else {
-      console.error("Erreur: roomId n'est pas une chaîne valide ou currentPath est vide.");
-      setCurrentPath([]);
+      return;
     }
-    return;
-  }
-};
+  };
 
 
   const handleZoom = (delta: number) => {
     setZoom((prev) => {
-        const newZoom = Math.max(0.1, Math.min(5, prev + delta));
-        const zoomFactor = newZoom / prev;
-        setOffset((prev) => ({
-            x: prev.x * zoomFactor,
-            y: prev.y * zoomFactor
-        }));
-        return newZoom;
+      const newZoom = Math.max(0.1, Math.min(5, prev + delta));
+      const zoomFactor = newZoom / prev;
+      setOffset((prev) => ({
+        x: prev.x * zoomFactor,
+        y: prev.y * zoomFactor
+      }));
+      return newZoom;
     });
-};
+  };
 
 
-const handleDeleteCharacter = async () => {
-  if (characterToDelete && roomId) {
-    if (characterToDelete?.id) {
-      try {
-        await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', characterToDelete.id));
-        setCharacters(characters.filter((char) => char.id !== characterToDelete.id));
-        setSelectedCharacterIndex(null);
-      } catch (error) {
-        console.error("Erreur lors de la suppression du personnage :", error);
+  const handleDeleteCharacter = async () => {
+    if (characterToDelete && roomId) {
+      if (characterToDelete?.id) {
+        try {
+          await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', characterToDelete.id));
+          setCharacters(characters.filter((char) => char.id !== characterToDelete.id));
+          setSelectedCharacterIndex(null);
+        } catch (error) {
+          console.error("Erreur lors de la suppression du personnage :", error);
+        }
+      } else {
+        console.error("ID du personnage introuvable pour la suppression.");
       }
     } else {
-      console.error("ID du personnage introuvable pour la suppression.");
+      console.error("Aucun personnage sélectionné ou roomId invalide.");
     }
-  } else {
-    console.error("Aucun personnage sélectionné ou roomId invalide.");
-  }
-};
-  
+  };
+
   const handleDeleteNote = async () => {
     // Convertir roomId en chaîne de caractères
     const roomIdStr = String(roomId);
     // Vérifie que `selectedNoteIndex` est valide
     if (selectedNoteIndex !== null && typeof roomIdStr === 'string') {
       const noteToDelete = notes[selectedNoteIndex];
-  
+
       // Vérifie que la note a un `id` valide avant de supprimer
       if (typeof noteToDelete?.id === 'string') {
         try {
@@ -1807,21 +1807,21 @@ const handleDeleteCharacter = async () => {
       console.error("Erreur : selectedNoteIndex est invalide ou roomId est manquant.");
     }
   };
-  
+
 
   const handleEditCharacter = () => {
     if (selectedCharacterIndex !== null) {  // Ensure index is not null
-        setEditingCharacter(characters[selectedCharacterIndex]);
-        setCharacterDialogOpen(true);
+      setEditingCharacter(characters[selectedCharacterIndex]);
+      setCharacterDialogOpen(true);
     }
-};
+  };
 
-const handleEditNote = () => {
+  const handleEditNote = () => {
     if (selectedNoteIndex !== null) {  // Ensure index is not null
-        setEditingNote(notes[selectedNoteIndex]);
-        setNoteDialogOpen(true);
+      setEditingNote(notes[selectedNoteIndex]);
+      setNoteDialogOpen(true);
     }
-};
+  };
 
 
 
@@ -1868,7 +1868,7 @@ const handleEditNote = () => {
             visibility: editingCharacter.visibility,
             visibilityRadius: editingCharacter.visibilityRadius,
           };
-          
+
           // Check if a new image is selected and upload it if necessary
           if (editingCharacter.image?.src !== charToUpdate.image.src) {
             const storage = getStorage();
@@ -1877,12 +1877,12 @@ const handleEditNote = () => {
             const blob = await response.blob();
             await uploadBytes(imageRef, blob);
             const imageURL = await getDownloadURL(imageRef);
-          
+
             // Add the image URL to Firestore data
             updatedData.imageURL2 = imageURL;
           }
-          
-  
+
+
           // Vérifiez si une nouvelle image est sélectionnée et téléchargez-la si nécessaire
           if (editingCharacter.image?.src !== charToUpdate.image.src) {
             const storage = getStorage();
@@ -1891,21 +1891,21 @@ const handleEditNote = () => {
             const blob = await response.blob();
             await uploadBytes(imageRef, blob);
             const imageURL = await getDownloadURL(imageRef);
-  
+
             // Ajoutez l'URL de l'image au document Firestore
             updatedData.imageURL2 = imageURL;
           }
-  
+
           // Mise à jour dans Firestore
           await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToUpdate.id), updatedData);
-  
+
           // Mettez à jour le personnage localement
           setCharacters((prevCharacters) =>
             prevCharacters.map((character, index) =>
               index === selectedCharacterIndex ? { ...character, ...updatedData } : character
             )
           );
-  
+
           // Réinitialisez l'état d'édition
           setEditingCharacter(null);
           setCharacterDialogOpen(false);
@@ -1918,31 +1918,31 @@ const handleEditNote = () => {
       }
     }
   };
-  
 
-  
-const handleNoteSubmit = async () => {
-  if (editingNote && roomId && selectedNoteIndex !== null) {  // Vérifie que selectedNoteIndex n'est pas null
-    const noteToUpdate = notes[selectedNoteIndex];
-    if (typeof roomId === 'string' && typeof noteToUpdate?.id === 'string') {
-      try {
-        await updateDoc(doc(db, 'cartes', roomId, 'text', noteToUpdate.id), {
-          content: editingNote.text,
-          color: editingNote.color
-        });
-        setEditingNote(null);
-        setNoteDialogOpen(false);
-        setSelectedNoteIndex(null);
-      } catch (error) {
-        console.error("Erreur lors de la mise à jour de la note :", error);
+
+
+  const handleNoteSubmit = async () => {
+    if (editingNote && roomId && selectedNoteIndex !== null) {  // Vérifie que selectedNoteIndex n'est pas null
+      const noteToUpdate = notes[selectedNoteIndex];
+      if (typeof roomId === 'string' && typeof noteToUpdate?.id === 'string') {
+        try {
+          await updateDoc(doc(db, 'cartes', roomId, 'text', noteToUpdate.id), {
+            content: editingNote.text,
+            color: editingNote.color
+          });
+          setEditingNote(null);
+          setNoteDialogOpen(false);
+          setSelectedNoteIndex(null);
+        } catch (error) {
+          console.error("Erreur lors de la mise à jour de la note :", error);
+        }
+      } else {
+        console.error("Erreur: roomId ou noteToUpdate.id n'est pas une chaîne valide.");
       }
     } else {
-      console.error("Erreur: roomId ou noteToUpdate.id n'est pas une chaîne valide.");
+      console.error("Erreur : 'editingNote', 'roomId', ou 'selectedNoteIndex' est invalide.");
     }
-  } else {
-    console.error("Erreur : 'editingNote', 'roomId', ou 'selectedNoteIndex' est invalide.");
-  }
-};
+  };
 
 
   const toggleDrawMode = () => {
@@ -1956,21 +1956,21 @@ const handleNoteSubmit = async () => {
       console.error("Database instance 'db' is not INITialized.");
       return;
     }
-  
+
     if (!roomId) {
       console.error("Room ID is missing or undefined.");
       return;
     }
-  
+
     try {
       const drawingsRef = collection(db, 'cartes', String(roomId), 'drawings'); // Convert roomId to string
       const snapshot = await getDocs(drawingsRef);
-  
+
       if (snapshot.empty) {
 
         return;
       }
-  
+
       const deletePromises = snapshot.docs.map((doc) => deleteDoc(doc.ref));
       await Promise.all(deletePromises);
 
@@ -1984,16 +1984,16 @@ const handleNoteSubmit = async () => {
       console.error("Database instance 'db' is not initialisée.");
       return;
     }
-  
+
     if (!roomId) {
       console.error("Room ID is missing or undefined.");
       return;
     }
-  
+
     try {
       // Effacer toute la grille de brouillard
       setFogGrid(new Map());
-      
+
       // Supprimer de Firebase
       const fogDocRef = doc(db, 'cartes', String(roomId), 'fog', 'fogData');
       await setDoc(fogDocRef, { grid: {} }, { merge: true });
@@ -2001,13 +2001,13 @@ const handleNoteSubmit = async () => {
       console.error('Error clearing fog:', error);
     }
   };
-  
 
-  
+
+
 
 
   // 🎯 SUPPRIMÉ : useEffect pour shadowOpacity
-  
+
 
   // 🎯 SUPPRIMÉ : Mode donjon et fonctions associées
 
@@ -2020,7 +2020,7 @@ const handleNoteSubmit = async () => {
   // 🎯 NOUVELLE FONCTION : Gérer le changement du mode brouillard complet
   const handleFullMapFogChange = async (newValue: boolean) => {
     setFullMapFog(newValue);
-    
+
     // Sauvegarder dans Firebase pour synchronisation
     if (roomId) {
       try {
@@ -2035,15 +2035,15 @@ const handleNoteSubmit = async () => {
   // 🎯 SUPPRIMÉ : toggleRevealMode (ancien système)
 
 
-  
+
 
   const handleDeleteSelectedCharacters = async () => {
     if (selectedCharacters.length > 0 && roomId && isMJ) {
       // Filtrer pour ne supprimer que les personnages non-joueurs
-      const nonPlayerIndices = selectedCharacters.filter(index => 
+      const nonPlayerIndices = selectedCharacters.filter(index =>
         characters[index]?.type !== 'joueurs'
       );
-      
+
       if (nonPlayerIndices.length > 0) {
         const deletePromises = nonPlayerIndices.map(async (index) => {
           const charToDelete = characters[index];
@@ -2051,19 +2051,19 @@ const handleNoteSubmit = async () => {
             await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', charToDelete.id));
           }
         });
-    
+
         await Promise.all(deletePromises);
         setCharacters(characters.filter((_, index) => !nonPlayerIndices.includes(index)));
       }
-      
+
       setSelectedCharacters([]);
     }
   };
-  
+
 
 
   // 🎯 SUPPRIMÉ : Anciennes fonctions de brouillard (toggleClearFogMode, handleDeleteFog)
-  
+
 
   if (loading) {
     return <div>Chargement...</div>
@@ -2073,10 +2073,10 @@ const handleNoteSubmit = async () => {
     return <div>Veuillez vous connecter pour accéder à la carte</div>
   }
 
-    return (
+  return (
     <div className="flex flex-col relative">
-      {/* 🎯 Contrôles de zoom flottants au centre à droite */}
-      <div className="absolute top-1/2 right-4 -translate-y-1/2 z-10 flex flex-col gap-2">
+      {/* 🎯 Contrôles de zoom flottants en haut à droite */}
+      <div className="absolute top-4 right-4 z-[5] flex flex-col gap-2">
         <Button
           onClick={() => handleZoom(0.1)}
           className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm"
@@ -2143,7 +2143,7 @@ const handleNoteSubmit = async () => {
         style={{ display: 'none' }}
       />
 
-      <RadialMenu 
+      <RadialMenu
         menuItems={radialMenuItems}
         onSelect={handleRadialMenuSelect}
         size={280}
@@ -2152,14 +2152,13 @@ const handleNoteSubmit = async () => {
       >
         <div
           ref={containerRef}
-          className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${
-            isDraggingCharacter || isDraggingNote ? 'cursor-grabbing' : 
-            isDragging ? 'cursor-move' : 
-            panMode ? 'cursor-grab' :
-            drawMode ? 'cursor-crosshair' :
-            fogMode ? 'cursor-cell' : 'cursor-default'
-          } relative`}
-          style={{ 
+          className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${isDraggingCharacter || isDraggingNote ? 'cursor-grabbing' :
+            isDragging ? 'cursor-move' :
+              panMode ? 'cursor-grab' :
+                drawMode ? 'cursor-crosshair' :
+                  fogMode ? 'cursor-cell' : 'cursor-default'
+            } relative`}
+          style={{
             height: '100vh',
             userSelect: isDraggingCharacter || isDraggingNote ? 'none' : 'auto'
           }}
@@ -2176,7 +2175,7 @@ const handleNoteSubmit = async () => {
             <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-10">
               <div className="text-black p-6 rounded-lg shadow-lg w-1/3 h-2/5">
                 <Combat
-                  attackerId={attackerId || ''} 
+                  attackerId={attackerId || ''}
                   targetId={targetId || ''}
                   onClose={() => setCombatOpen(false)}
                 />
@@ -2186,241 +2185,241 @@ const handleNoteSubmit = async () => {
         </div>
       </RadialMenu>
 
-{selectedCharacterIndex !== null && isCharacterVisibleToUser(characters[selectedCharacterIndex]) && (
-  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
-    <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
-      <Button className="button-primary">{characters[selectedCharacterIndex].name}</Button>
-    
-    {/* Slider de rayon de visibilité pour les personnages joueurs */}
-    {characters[selectedCharacterIndex].type === 'joueurs' && (isMJ || characters[selectedCharacterIndex].id === persoId) && (
-      <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm px-4 py-2 rounded-lg border border-gray-600">
-        <ScanEye className="w-4 h-4 text-blue-400" />
-        <input
-          type="range"
-          min="10"
-          max="500"
-          value={characters[selectedCharacterIndex].visibilityRadius || visibilityRadius}
-          onChange={(e) => {
-            const newRadius = parseInt(e.target.value, 10);
-            const charId = characters[selectedCharacterIndex].id;
-            if (charId && roomId) {
-              updateDoc(doc(db, 'cartes', String(roomId), 'characters', charId), {
-                visibilityRadius: newRadius
-              });
-              setCharacters(prevCharacters => 
-                prevCharacters.map((char, index) => 
-                  index === selectedCharacterIndex 
-                    ? { ...char, visibilityRadius: newRadius }
-                    : char
-                )
-              );
-            }
-          }}
-          className="w-24 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-        />
-        <span className="text-white text-sm font-medium min-w-[3rem]">
-          {Math.round(1 + ((characters[selectedCharacterIndex].visibilityRadius || visibilityRadius) - 10) / 490 * 29)}
-        </span>
-      </div>
-    )}
+      {selectedCharacterIndex !== null && isCharacterVisibleToUser(characters[selectedCharacterIndex]) && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
+          <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
+            <Button className="button-primary">{characters[selectedCharacterIndex].name}</Button>
 
-    {/* Slider de rayon de visibilité pour les alliés (MJ uniquement) */}
-    {characters[selectedCharacterIndex].visibility === 'ally' && isMJ && (
-      <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm px-4 py-2 rounded-lg border border-green-600">
-        <ScanEye className="w-4 h-4 text-green-400" />
-        <input
-          type="range"
-          min="10"
-          max="500"
-          value={characters[selectedCharacterIndex].visibilityRadius || visibilityRadius}
-          onChange={(e) => {
-            const newRadius = parseInt(e.target.value, 10);
-            const charId = characters[selectedCharacterIndex].id;
-            if (charId && roomId) {
-              updateDoc(doc(db, 'cartes', String(roomId), 'characters', charId), {
-                visibilityRadius: newRadius
-              });
-              setCharacters(prevCharacters => 
-                prevCharacters.map((char, index) => 
-                  index === selectedCharacterIndex 
-                    ? { ...char, visibilityRadius: newRadius }
-                    : char
-                )
-              );
-            }
-          }}
-          className="w-24 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-        />
-        <span className="text-white text-sm font-medium min-w-[3rem]">
-          {Math.round(1 + ((characters[selectedCharacterIndex].visibilityRadius || visibilityRadius) - 10) / 490 * 29)}
-        </span>
-      </div>
-    )}
-    
-    {isMJ || characters[selectedCharacterIndex].id === persoId ? (
-      <>
-        {characters[selectedCharacterIndex].type === 'joueurs' && (
-          <Button onClick={() => {
-            setSelectedCharacterForSheet(characters[selectedCharacterIndex].id);
-            setShowCharacterSheet(true);
-          }}>
-             fiche
-          </Button>
-        )}
-        {/* Boutons pour les personnages non-joueurs (MJ seulement) */}
-        {isMJ && characters[selectedCharacterIndex]?.type !== 'joueurs' && (
-          <>
-            <Button 
-              onClick={async () => {
-                const character = characters[selectedCharacterIndex];
-                if (character.id && roomId) {
-                  try {
-                    await updateDoc(doc(db, 'cartes', String(roomId), 'characters', character.id), {
-                      visibility: 'visible'
-                    });
-                    setCharacters(prevCharacters => 
-                      prevCharacters.map((char, index) => 
-                        index === selectedCharacterIndex 
-                          ? { ...char, visibility: 'visible' }
-                          : char
-                      )
-                    );
-                  } catch (error) {
-                    console.error("Erreur lors du changement de visibilité :", error);
-                  }
-                }
-              }}
-              className={characters[selectedCharacterIndex].visibility === 'visible' ? 'bg-blue-600' : ''}
-            >
-              👁️ Visible
-            </Button>
-            <Button 
-              onClick={async () => {
-                const character = characters[selectedCharacterIndex];
-                if (character.id && roomId) {
-                  try {
-                    await updateDoc(doc(db, 'cartes', String(roomId), 'characters', character.id), {
-                      visibility: 'ally'
-                    });
-                    setCharacters(prevCharacters => 
-                      prevCharacters.map((char, index) => 
-                        index === selectedCharacterIndex 
-                          ? { ...char, visibility: 'ally' }
-                          : char
-                      )
-                    );
-                  } catch (error) {
-                    console.error("Erreur lors du changement de visibilité :", error);
-                  }
-                }
-              }}
-              className={characters[selectedCharacterIndex].visibility === 'ally' ? 'bg-green-600' : ''}
-            >
-              🤝 Allié
-            </Button>
-            <Button 
-              onClick={async () => {
-                const character = characters[selectedCharacterIndex];
-                if (character.id && roomId) {
-                  try {
-                    await updateDoc(doc(db, 'cartes', String(roomId), 'characters', character.id), {
-                      visibility: 'hidden'
-                    });
-                    setCharacters(prevCharacters => 
-                      prevCharacters.map((char, index) => 
-                        index === selectedCharacterIndex 
-                          ? { ...char, visibility: 'hidden' }
-                          : char
-                      )
-                    );
-                  } catch (error) {
-                    console.error("Erreur lors du changement de visibilité :", error);
-                  }
-                }
-              }}
-              className={characters[selectedCharacterIndex].visibility === 'hidden' ? 'bg-gray-600' : ''}
-            >
-              👁️‍🗨️ Caché
-            </Button>
-            <Button onClick={() => {
-              setCharacterToDelete(characters[selectedCharacterIndex]);
-              setConfirmDeleteOpen(true);
-            }}>
-              <X className="w-4 h-4 mr-2" /> Supprimer
-            </Button>
-            <Button onClick={handleEditCharacter}>
-              <Edit className="w-4 h-4 mr-2" /> Modifier
-            </Button>
-          </>
-        )}
-        
-        {/* Bouton Attaquer pour TOUS les personnages (MJ seulement) */}
-        {isMJ && (
-          <Button className="button-primary" onClick={handleAttack}>
-            <Edit className="w-4 h-4 mr-2" /> Attaquer
-          </Button>
-        )}
-        
-        {/* Bouton modifier pour les personnages joueurs (MJ seulement) */}
-        {characters[selectedCharacterIndex]?.type === 'joueurs' && isMJ && (
-          <Button onClick={handleEditCharacter}>
-            <Edit className="w-4 h-4 mr-2" /> Modifier
-          </Button>
-        )}
-      </>
-    ) : (
-      (isMJ || characters[selectedCharacterIndex].id !== persoId) && (
-        <>
-          {(() => {
-            console.log('=== BUTTON DISPLAY DEBUG ===');
-            console.log('persoId:', persoId);
-            console.log('activePlayerId:', activePlayerId);
-            console.log('selectedCharacter:', characters[selectedCharacterIndex]);
-            console.log('selectedCharacter.id:', characters[selectedCharacterIndex]?.id);
-            console.log('selectedCharacter.type:', characters[selectedCharacterIndex]?.type);
-            console.log('selectedCharacter.id !== persoId:', characters[selectedCharacterIndex]?.id !== persoId);
-            console.log('isMJ:', isMJ);
-            console.log('Overall condition:', isMJ || characters[selectedCharacterIndex]?.id !== persoId);
-            console.log('=========================');
-            return null;
-          })()}
-          <Button className="button-primary" onClick={handleAttack}>
-            <Edit className="w-4 h-4 mr-2" /> Attaquer
-          </Button>
-          {characters[selectedCharacterIndex].type === 'joueurs' && (
-            <Button onClick={() => {
-              setSelectedCharacterForSheet(characters[selectedCharacterIndex].id);
-              setShowCharacterSheet(true);
-            }}>
-               Fiche
-            </Button>
-          )}
-        </>
-      )
-    )}
-    </div>
-  </div>
-)}
+            {/* Slider de rayon de visibilité pour les personnages joueurs */}
+            {characters[selectedCharacterIndex].type === 'joueurs' && (isMJ || characters[selectedCharacterIndex].id === persoId) && (
+              <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm px-4 py-2 rounded-lg border border-gray-600">
+                <ScanEye className="w-4 h-4 text-blue-400" />
+                <input
+                  type="range"
+                  min="10"
+                  max="500"
+                  value={characters[selectedCharacterIndex].visibilityRadius || visibilityRadius}
+                  onChange={(e) => {
+                    const newRadius = parseInt(e.target.value, 10);
+                    const charId = characters[selectedCharacterIndex].id;
+                    if (charId && roomId) {
+                      updateDoc(doc(db, 'cartes', String(roomId), 'characters', charId), {
+                        visibilityRadius: newRadius
+                      });
+                      setCharacters(prevCharacters =>
+                        prevCharacters.map((char, index) =>
+                          index === selectedCharacterIndex
+                            ? { ...char, visibilityRadius: newRadius }
+                            : char
+                        )
+                      );
+                    }
+                  }}
+                  className="w-24 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                />
+                <span className="text-white text-sm font-medium min-w-[3rem]">
+                  {Math.round(1 + ((characters[selectedCharacterIndex].visibilityRadius || visibilityRadius) - 10) / 490 * 29)}
+                </span>
+              </div>
+            )}
 
-{selectedCharacters.length > 1 && isMJ && (
-  // Afficher le bouton seulement si plusieurs personnages non-joueurs sont sélectionnés
-  (() => {
-    const hasNonPlayerCharacter = selectedCharacters.some(index =>
-      characters[index]?.type !== 'joueurs'
-    );
-    return hasNonPlayerCharacter;
-  })() && (
-    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
-      <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
-        <Button onClick={handleDeleteSelectedCharacters}>
-          <X className="w-4 h-4 mr-2" /> Supprimer la sélection
-        </Button>
-      </div>
-    </div>
-  )
-)}
+            {/* Slider de rayon de visibilité pour les alliés (MJ uniquement) */}
+            {characters[selectedCharacterIndex].visibility === 'ally' && isMJ && (
+              <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm px-4 py-2 rounded-lg border border-green-600">
+                <ScanEye className="w-4 h-4 text-green-400" />
+                <input
+                  type="range"
+                  min="10"
+                  max="500"
+                  value={characters[selectedCharacterIndex].visibilityRadius || visibilityRadius}
+                  onChange={(e) => {
+                    const newRadius = parseInt(e.target.value, 10);
+                    const charId = characters[selectedCharacterIndex].id;
+                    if (charId && roomId) {
+                      updateDoc(doc(db, 'cartes', String(roomId), 'characters', charId), {
+                        visibilityRadius: newRadius
+                      });
+                      setCharacters(prevCharacters =>
+                        prevCharacters.map((char, index) =>
+                          index === selectedCharacterIndex
+                            ? { ...char, visibilityRadius: newRadius }
+                            : char
+                        )
+                      );
+                    }
+                  }}
+                  className="w-24 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                />
+                <span className="text-white text-sm font-medium min-w-[3rem]">
+                  {Math.round(1 + ((characters[selectedCharacterIndex].visibilityRadius || visibilityRadius) - 10) / 490 * 29)}
+                </span>
+              </div>
+            )}
 
-      {selectedNoteIndex !== null  && (
+            {isMJ || characters[selectedCharacterIndex].id === persoId ? (
+              <>
+                {characters[selectedCharacterIndex].type === 'joueurs' && (
+                  <Button onClick={() => {
+                    setSelectedCharacterForSheet(characters[selectedCharacterIndex].id);
+                    setShowCharacterSheet(true);
+                  }}>
+                    fiche
+                  </Button>
+                )}
+                {/* Boutons pour les personnages non-joueurs (MJ seulement) */}
+                {isMJ && characters[selectedCharacterIndex]?.type !== 'joueurs' && (
+                  <>
+                    <Button
+                      onClick={async () => {
+                        const character = characters[selectedCharacterIndex];
+                        if (character.id && roomId) {
+                          try {
+                            await updateDoc(doc(db, 'cartes', String(roomId), 'characters', character.id), {
+                              visibility: 'visible'
+                            });
+                            setCharacters(prevCharacters =>
+                              prevCharacters.map((char, index) =>
+                                index === selectedCharacterIndex
+                                  ? { ...char, visibility: 'visible' }
+                                  : char
+                              )
+                            );
+                          } catch (error) {
+                            console.error("Erreur lors du changement de visibilité :", error);
+                          }
+                        }
+                      }}
+                      className={characters[selectedCharacterIndex].visibility === 'visible' ? 'bg-blue-600' : ''}
+                    >
+                      👁️ Visible
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        const character = characters[selectedCharacterIndex];
+                        if (character.id && roomId) {
+                          try {
+                            await updateDoc(doc(db, 'cartes', String(roomId), 'characters', character.id), {
+                              visibility: 'ally'
+                            });
+                            setCharacters(prevCharacters =>
+                              prevCharacters.map((char, index) =>
+                                index === selectedCharacterIndex
+                                  ? { ...char, visibility: 'ally' }
+                                  : char
+                              )
+                            );
+                          } catch (error) {
+                            console.error("Erreur lors du changement de visibilité :", error);
+                          }
+                        }
+                      }}
+                      className={characters[selectedCharacterIndex].visibility === 'ally' ? 'bg-green-600' : ''}
+                    >
+                      🤝 Allié
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        const character = characters[selectedCharacterIndex];
+                        if (character.id && roomId) {
+                          try {
+                            await updateDoc(doc(db, 'cartes', String(roomId), 'characters', character.id), {
+                              visibility: 'hidden'
+                            });
+                            setCharacters(prevCharacters =>
+                              prevCharacters.map((char, index) =>
+                                index === selectedCharacterIndex
+                                  ? { ...char, visibility: 'hidden' }
+                                  : char
+                              )
+                            );
+                          } catch (error) {
+                            console.error("Erreur lors du changement de visibilité :", error);
+                          }
+                        }
+                      }}
+                      className={characters[selectedCharacterIndex].visibility === 'hidden' ? 'bg-gray-600' : ''}
+                    >
+                      👁️‍🗨️ Caché
+                    </Button>
+                    <Button onClick={() => {
+                      setCharacterToDelete(characters[selectedCharacterIndex]);
+                      setConfirmDeleteOpen(true);
+                    }}>
+                      <X className="w-4 h-4 mr-2" /> Supprimer
+                    </Button>
+                    <Button onClick={handleEditCharacter}>
+                      <Edit className="w-4 h-4 mr-2" /> Modifier
+                    </Button>
+                  </>
+                )}
+
+                {/* Bouton Attaquer pour TOUS les personnages (MJ seulement) */}
+                {isMJ && (
+                  <Button className="button-primary" onClick={handleAttack}>
+                    <Edit className="w-4 h-4 mr-2" /> Attaquer
+                  </Button>
+                )}
+
+                {/* Bouton modifier pour les personnages joueurs (MJ seulement) */}
+                {characters[selectedCharacterIndex]?.type === 'joueurs' && isMJ && (
+                  <Button onClick={handleEditCharacter}>
+                    <Edit className="w-4 h-4 mr-2" /> Modifier
+                  </Button>
+                )}
+              </>
+            ) : (
+              (isMJ || characters[selectedCharacterIndex].id !== persoId) && (
+                <>
+                  {(() => {
+                    console.log('=== BUTTON DISPLAY DEBUG ===');
+                    console.log('persoId:', persoId);
+                    console.log('activePlayerId:', activePlayerId);
+                    console.log('selectedCharacter:', characters[selectedCharacterIndex]);
+                    console.log('selectedCharacter.id:', characters[selectedCharacterIndex]?.id);
+                    console.log('selectedCharacter.type:', characters[selectedCharacterIndex]?.type);
+                    console.log('selectedCharacter.id !== persoId:', characters[selectedCharacterIndex]?.id !== persoId);
+                    console.log('isMJ:', isMJ);
+                    console.log('Overall condition:', isMJ || characters[selectedCharacterIndex]?.id !== persoId);
+                    console.log('=========================');
+                    return null;
+                  })()}
+                  <Button className="button-primary" onClick={handleAttack}>
+                    <Edit className="w-4 h-4 mr-2" /> Attaquer
+                  </Button>
+                  {characters[selectedCharacterIndex].type === 'joueurs' && (
+                    <Button onClick={() => {
+                      setSelectedCharacterForSheet(characters[selectedCharacterIndex].id);
+                      setShowCharacterSheet(true);
+                    }}>
+                      Fiche
+                    </Button>
+                  )}
+                </>
+              )
+            )}
+          </div>
+        </div>
+      )}
+
+      {selectedCharacters.length > 1 && isMJ && (
+        // Afficher le bouton seulement si plusieurs personnages non-joueurs sont sélectionnés
+        (() => {
+          const hasNonPlayerCharacter = selectedCharacters.some(index =>
+            characters[index]?.type !== 'joueurs'
+          );
+          return hasNonPlayerCharacter;
+        })() && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
+            <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
+              <Button onClick={handleDeleteSelectedCharacters}>
+                <X className="w-4 h-4 mr-2" /> Supprimer la sélection
+              </Button>
+            </div>
+          </div>
+        )
+      )}
+
+      {selectedNoteIndex !== null && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
           <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
             <Button onClick={handleDeleteNote}>
@@ -2432,258 +2431,258 @@ const handleNoteSubmit = async () => {
           </div>
         </div>
       )}
-  
-{isMJ && selectedFogIndex !== null && (
-  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
-    <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
-      <Button onClick={clearFog}>
-        <X className="w-4 h-4 mr-2" /> Supprimer le brouillard
-      </Button>
-    </div>
-  </div>
-)}
 
-  <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-  <DialogContent className="bg-[rgb(36,36,36)] max-w-4xl text-[#c0a080]">
-    <DialogHeader>
-      <DialogTitle className="text-base">Ajouter un personnage</DialogTitle>
-    </DialogHeader>
-    <ScrollArea className="">
-      <div className="space-y-2 py-1">
-        {/* Section Informations générales */}
-        <div className="space-y-1 ml-2">
-          <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Informations</h3>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <Label htmlFor="nombre" className="text-xs">Nombre</Label>
-              <Input
-                id="nombre"
-                type="number"
-                value={newCharacter.nombre}
-                onChange={(e) => setNewCharacter({ ...newCharacter, nombre: parseInt(e.target.value) || 1 })}
-                className="h-7 mt-0.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="name" className="text-xs">Nom</Label>
-              <Input
-                id="name"
-                value={newCharacter.name}
-                onChange={(e) => setNewCharacter({ ...newCharacter, name: e.target.value })}
-                className="h-7 mt-0.5"
-              />
-            </div>
-          </div>
-          <div className="mt-2">
-            <Label htmlFor="image" className="text-xs">Image</Label>
-            <Input
-              id="image"
-              type="file"
-              onChange={handleCharacterImageChange}
-              className="h-10 mt-0.5"
-            />
+      {isMJ && selectedFogIndex !== null && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
+          <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
+            <Button onClick={clearFog}>
+              <X className="w-4 h-4 mr-2" /> Supprimer le brouillard
+            </Button>
           </div>
         </div>
+      )}
 
-        {/* Section Statistiques de combat */}
-        <div className="space-y-1">
-          <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Combat</h3>
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <Label htmlFor="PV" className="text-xs">PV</Label>
-              <Input
-                id="PV"
-                type="number"
-                value={newCharacter.PV}
-                onChange={(e) => setNewCharacter({ ...newCharacter, PV: parseInt(e.target.value) || 100 })}
-                className="h-7 mt-0.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="niveau" className="text-xs">Niveau</Label>
-              <Input
-                id="niveau"
-                type="number"
-                value={newCharacter.niveau}
-                onChange={(e) => setNewCharacter({ ...newCharacter, niveau: parseInt(e.target.value) || 1 })}
-                className="h-7 mt-0.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="Defense" className="text-xs">Défense</Label>
-              <Input
-                id="Defense"
-                type="number"
-                value={newCharacter.Defense}
-                onChange={(e) => setNewCharacter({ ...newCharacter, Defense: parseInt(e.target.value) || 0 })}
-                className="h-7 mt-0.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="INIT" className="text-xs">Init</Label>
-              <Input
-                id="INIT"
-                type="number"
-                value={newCharacter.INIT}
-                onChange={(e) => setNewCharacter({ ...newCharacter, INIT: parseInt(e.target.value) || 0 })}
-                className="h-7 mt-0.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="Contact" className="text-xs">Contact</Label>
-              <Input
-                id="Contact"
-                type="number"
-                value={newCharacter.Contact}
-                onChange={(e) => setNewCharacter({ ...newCharacter, Contact: parseInt(e.target.value) || 0 })}
-                className="h-7 mt-0.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="Distance" className="text-xs">Distance</Label>
-              <Input
-                id="Distance"
-                type="number"
-                value={newCharacter.Distance}
-                onChange={(e) => setNewCharacter({ ...newCharacter, Distance: parseInt(e.target.value) || 0 })}
-                className="h-7 mt-0.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="Magie" className="text-xs">Magie</Label>
-              <Input
-                id="Magie"
-                type="number"
-                value={newCharacter.Magie}
-                onChange={(e) => setNewCharacter({ ...newCharacter, Magie: parseInt(e.target.value) || 0 })}
-                className="h-7 mt-0.5"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Section Caractéristiques */}
-        <div className="space-y-1">
-          <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Caractéristiques</h3>
-          <div className="grid grid-cols-3 gap-2">
-            <div>
-              <Label htmlFor="FOR" className="text-xs">FOR</Label>
-              <Input
-                id="FOR"
-                type="number"
-                value={newCharacter.FOR}
-                onChange={(e) => setNewCharacter({ ...newCharacter, FOR: parseInt(e.target.value) || 0 })}
-                className="h-7 mt-0.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="DEX" className="text-xs">DEX</Label>
-              <Input
-                id="DEX"
-                type="number"
-                value={newCharacter.DEX}
-                onChange={(e) => setNewCharacter({ ...newCharacter, DEX: parseInt(e.target.value) || 0 })}
-                className="h-7 mt-0.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="CON" className="text-xs">CON</Label>
-              <Input
-                id="CON"
-                type="number"
-                value={newCharacter.CON}
-                onChange={(e) => setNewCharacter({ ...newCharacter, CON: parseInt(e.target.value) || 0 })}
-                className="h-7 mt-0.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="SAG" className="text-xs">SAG</Label>
-              <Input
-                id="SAG"
-                type="number"
-                value={newCharacter.SAG}
-                onChange={(e) => setNewCharacter({ ...newCharacter, SAG: parseInt(e.target.value) || 0 })}
-                className="h-7 mt-0.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="INT" className="text-xs">INT</Label>
-              <Input
-                id="INT"
-                type="number"
-                value={newCharacter.INT}
-                onChange={(e) => setNewCharacter({ ...newCharacter, INT: parseInt(e.target.value) || 0 })}
-                className="h-7 mt-0.5"
-              />
-            </div>
-            <div>
-              <Label htmlFor="CHA" className="text-xs">CHA</Label>
-              <Input
-                id="CHA"
-                type="number"
-                value={newCharacter.CHA}
-                onChange={(e) => setNewCharacter({ ...newCharacter, CHA: parseInt(e.target.value) || 0 })}
-                className="h-7 mt-0.5"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Section Visibilité */}
-        <div className="space-y-1">
-          <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Visibilité</h3>
-          <div className="space-y-1.5">
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                onClick={() => setNewCharacter({ ...newCharacter, visibility: 'visible' })}
-                className={`flex-1 h-7 text-xs px-2 ${newCharacter.visibility === 'visible' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'}`}
-              >
-                👁️ Visible
-              </Button>
-              <Button
-                type="button"
-                onClick={() => setNewCharacter({ ...newCharacter, visibility: 'ally' })}
-                className={`flex-1 h-7 text-xs px-2 ${newCharacter.visibility === 'ally' ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-700 hover:bg-gray-600'}`}
-              >
-                🤝 Allié
-              </Button>
-              <Button
-                type="button"
-                onClick={() => setNewCharacter({ ...newCharacter, visibility: 'hidden' })}
-                className={`flex-1 h-7 text-xs px-2 ${newCharacter.visibility === 'hidden' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-700 hover:bg-gray-600'}`}
-              >
-                👁️‍🗨️ Caché
-              </Button>
-            </div>
-            {newCharacter.visibility === 'ally' && (
-              <div>
-                <Label htmlFor="visibilityRadiusNew" className="text-xs">Rayon de vision</Label>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <input
-                    id="visibilityRadiusNew"
-                    type="range"
-                    min="10"
-                    max="500"
-                    value={visibilityRadius}
-                    onChange={(e) => setVisibilityRadius(parseInt(e.target.value) || 100)}
-                    className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="bg-[rgb(36,36,36)] max-w-4xl text-[#c0a080]">
+          <DialogHeader>
+            <DialogTitle className="text-base">Ajouter un personnage</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="">
+            <div className="space-y-2 py-1">
+              {/* Section Informations générales */}
+              <div className="space-y-1 ml-2">
+                <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Informations</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label htmlFor="nombre" className="text-xs">Nombre</Label>
+                    <Input
+                      id="nombre"
+                      type="number"
+                      value={newCharacter.nombre}
+                      onChange={(e) => setNewCharacter({ ...newCharacter, nombre: parseInt(e.target.value) || 1 })}
+                      className="h-7 mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="name" className="text-xs">Nom</Label>
+                    <Input
+                      id="name"
+                      value={newCharacter.name}
+                      onChange={(e) => setNewCharacter({ ...newCharacter, name: e.target.value })}
+                      className="h-7 mt-0.5"
+                    />
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <Label htmlFor="image" className="text-xs">Image</Label>
+                  <Input
+                    id="image"
+                    type="file"
+                    onChange={handleCharacterImageChange}
+                    className="h-10 mt-0.5"
                   />
-                  <span className="text-xs text-white font-medium min-w-[2.5rem]">
-                    {Math.round(1 + (visibilityRadius - 10) / 490 * 29)}
-                  </span>
                 </div>
               </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </ScrollArea>
-    <DialogFooter>
-      <Button onClick={handleCharacterSubmit}>Ajouter</Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+
+              {/* Section Statistiques de combat */}
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Combat</h3>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <Label htmlFor="PV" className="text-xs">PV</Label>
+                    <Input
+                      id="PV"
+                      type="number"
+                      value={newCharacter.PV}
+                      onChange={(e) => setNewCharacter({ ...newCharacter, PV: parseInt(e.target.value) || 100 })}
+                      className="h-7 mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="niveau" className="text-xs">Niveau</Label>
+                    <Input
+                      id="niveau"
+                      type="number"
+                      value={newCharacter.niveau}
+                      onChange={(e) => setNewCharacter({ ...newCharacter, niveau: parseInt(e.target.value) || 1 })}
+                      className="h-7 mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="Defense" className="text-xs">Défense</Label>
+                    <Input
+                      id="Defense"
+                      type="number"
+                      value={newCharacter.Defense}
+                      onChange={(e) => setNewCharacter({ ...newCharacter, Defense: parseInt(e.target.value) || 0 })}
+                      className="h-7 mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="INIT" className="text-xs">Init</Label>
+                    <Input
+                      id="INIT"
+                      type="number"
+                      value={newCharacter.INIT}
+                      onChange={(e) => setNewCharacter({ ...newCharacter, INIT: parseInt(e.target.value) || 0 })}
+                      className="h-7 mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="Contact" className="text-xs">Contact</Label>
+                    <Input
+                      id="Contact"
+                      type="number"
+                      value={newCharacter.Contact}
+                      onChange={(e) => setNewCharacter({ ...newCharacter, Contact: parseInt(e.target.value) || 0 })}
+                      className="h-7 mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="Distance" className="text-xs">Distance</Label>
+                    <Input
+                      id="Distance"
+                      type="number"
+                      value={newCharacter.Distance}
+                      onChange={(e) => setNewCharacter({ ...newCharacter, Distance: parseInt(e.target.value) || 0 })}
+                      className="h-7 mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="Magie" className="text-xs">Magie</Label>
+                    <Input
+                      id="Magie"
+                      type="number"
+                      value={newCharacter.Magie}
+                      onChange={(e) => setNewCharacter({ ...newCharacter, Magie: parseInt(e.target.value) || 0 })}
+                      className="h-7 mt-0.5"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section Caractéristiques */}
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Caractéristiques</h3>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <Label htmlFor="FOR" className="text-xs">FOR</Label>
+                    <Input
+                      id="FOR"
+                      type="number"
+                      value={newCharacter.FOR}
+                      onChange={(e) => setNewCharacter({ ...newCharacter, FOR: parseInt(e.target.value) || 0 })}
+                      className="h-7 mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="DEX" className="text-xs">DEX</Label>
+                    <Input
+                      id="DEX"
+                      type="number"
+                      value={newCharacter.DEX}
+                      onChange={(e) => setNewCharacter({ ...newCharacter, DEX: parseInt(e.target.value) || 0 })}
+                      className="h-7 mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="CON" className="text-xs">CON</Label>
+                    <Input
+                      id="CON"
+                      type="number"
+                      value={newCharacter.CON}
+                      onChange={(e) => setNewCharacter({ ...newCharacter, CON: parseInt(e.target.value) || 0 })}
+                      className="h-7 mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="SAG" className="text-xs">SAG</Label>
+                    <Input
+                      id="SAG"
+                      type="number"
+                      value={newCharacter.SAG}
+                      onChange={(e) => setNewCharacter({ ...newCharacter, SAG: parseInt(e.target.value) || 0 })}
+                      className="h-7 mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="INT" className="text-xs">INT</Label>
+                    <Input
+                      id="INT"
+                      type="number"
+                      value={newCharacter.INT}
+                      onChange={(e) => setNewCharacter({ ...newCharacter, INT: parseInt(e.target.value) || 0 })}
+                      className="h-7 mt-0.5"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="CHA" className="text-xs">CHA</Label>
+                    <Input
+                      id="CHA"
+                      type="number"
+                      value={newCharacter.CHA}
+                      onChange={(e) => setNewCharacter({ ...newCharacter, CHA: parseInt(e.target.value) || 0 })}
+                      className="h-7 mt-0.5"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Section Visibilité */}
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Visibilité</h3>
+                <div className="space-y-1.5">
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      onClick={() => setNewCharacter({ ...newCharacter, visibility: 'visible' })}
+                      className={`flex-1 h-7 text-xs px-2 ${newCharacter.visibility === 'visible' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+                    >
+                      👁️ Visible
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => setNewCharacter({ ...newCharacter, visibility: 'ally' })}
+                      className={`flex-1 h-7 text-xs px-2 ${newCharacter.visibility === 'ally' ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+                    >
+                      🤝 Allié
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => setNewCharacter({ ...newCharacter, visibility: 'hidden' })}
+                      className={`flex-1 h-7 text-xs px-2 ${newCharacter.visibility === 'hidden' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+                    >
+                      👁️‍🗨️ Caché
+                    </Button>
+                  </div>
+                  {newCharacter.visibility === 'ally' && (
+                    <div>
+                      <Label htmlFor="visibilityRadiusNew" className="text-xs">Rayon de vision</Label>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <input
+                          id="visibilityRadiusNew"
+                          type="range"
+                          min="10"
+                          max="500"
+                          value={visibilityRadius}
+                          onChange={(e) => setVisibilityRadius(parseInt(e.target.value) || 100)}
+                          className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                        />
+                        <span className="text-xs text-white font-medium min-w-[2.5rem]">
+                          {Math.round(1 + (visibilityRadius - 10) / 490 * 29)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+          <DialogFooter>
+            <Button onClick={handleCharacterSubmit}>Ajouter</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen}>
         <DialogContent className="bg-[rgb(36,36,36)] max-w-3xl text-[#c0a080]">
@@ -2787,9 +2786,9 @@ const handleNoteSubmit = async () => {
             {/* Aperçu de la note */}
             <div className="bg-[rgb(50,50,50)] p-4 rounded-lg border border-gray-600">
               <Label className="text-sm text-gray-400 mb-2 block">Aperçu :</Label>
-              <div 
-                style={{ 
-                  color: newNote.color, 
+              <div
+                style={{
+                  color: newNote.color,
                   fontSize: `${Math.min(newNote.fontSize, 24)}px`,
                   lineHeight: '1.4'
                 }}
@@ -2800,14 +2799,14 @@ const handleNoteSubmit = async () => {
             </div>
           </div>
           <DialogFooter className="flex space-x-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => setAddNoteDialogOpen(false)}
               className="px-6 py-2 border-gray-600 text-gray-300 hover:bg-gray-700"
             >
               Annuler
             </Button>
-            <Button 
+            <Button
               onClick={handleNoteSubmitNew}
               disabled={!newNote.text.trim()}
               className="px-6 py-2 bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2819,312 +2818,312 @@ const handleNoteSubmit = async () => {
       </Dialog>
 
       <Dialog open={characterDialogOpen} onOpenChange={setCharacterDialogOpen}>
-  <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">
-    <DialogHeader>
-      <DialogTitle>Modifier le personnage</DialogTitle>
-    </DialogHeader>
-    <ScrollArea className="h-96"> {/* Ajouter ScrollArea ici */}
-      <div className="grid gap-4 py-4">
-        {/* Nom Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="characterName" className="text-right text-white">Nom</Label>
-          <Input
-            id="characterName"
-            value={editingCharacter?.name || ''}
-            onChange={(e) => {
-              if (editingCharacter) { // Vérifie que `editingCharacter` n'est pas null
-                setEditingCharacter({ ...editingCharacter, name: e.target.value });
-              }
-            }}
-            className="col-span-3"
-          />
-        </div>
-        {/* Image Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="characterImage" className="text-right text-white">Image</Label>
-          <Input
-            id="characterImage"
-            type="file"
-            onChange={(e) => {
-              const file = e.target.files ? e.target.files[0] : null;
-              if (file) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                  const img = new Image();
-                  img.onload = () => {
+        <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Modifier le personnage</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="h-96"> {/* Ajouter ScrollArea ici */}
+            <div className="grid gap-4 py-4">
+              {/* Nom Field */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="characterName" className="text-right text-white">Nom</Label>
+                <Input
+                  id="characterName"
+                  value={editingCharacter?.name || ''}
+                  onChange={(e) => {
                     if (editingCharacter) { // Vérifie que `editingCharacter` n'est pas null
-                      setEditingCharacter({ ...editingCharacter, image: img });
+                      setEditingCharacter({ ...editingCharacter, name: e.target.value });
                     }
-                  };
-                  if (typeof e.target?.result === 'string') {
-                    img.src = e.target.result;
-                  }
-                };
-                reader.readAsDataURL(file);
-              }
-            }}
-            className="col-span-3"
-          />
-        </div>
-        {/* PV Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="PV" className="text-right text-white">PV</Label>
-          <Input
-            id="PV"
-            type="number"
-            value={editingCharacter?.PV || 0}
-            onChange={(e) => {
-              if (editingCharacter) {
-                setEditingCharacter({ ...editingCharacter, PV: parseInt(e.target.value) || 0 });
-              }
-            }}
-            className="col-span-3"
-          />
-        </div>
-        {/* niveau Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="niveau" className="text-right text-white">Niveau</Label>
-          <Input
-            id="niveau"
-            type="number"
-            value={editingCharacter?.niveau || 1}
-            onChange={(e) => {
-              if (editingCharacter) {
-                setEditingCharacter({ ...editingCharacter, niveau: parseInt(e.target.value) || 1 });
-              }
-            }}
-            className="col-span-3"
-          />
-        </div>
-        {/* Contact Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="Contact" className="text-right text-white">Contact</Label>
-          <Input
-            id="Contact"
-            type="number"
-            value={editingCharacter?.Contact || 0}
-            onChange={(e) => {
-              if (editingCharacter) {
-                setEditingCharacter({ ...editingCharacter, Contact: parseInt(e.target.value) || 0 });
-              }
-            }}
-            className="col-span-3"
-          />
-        </div>
-        {/* Distance Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="Distance" className="text-right text-white">Distance</Label>
-          <Input
-            id="Distance"
-            type="number"
-            value={editingCharacter?.Distance || 0}
-            onChange={(e) => {
-              if (editingCharacter) {
-                setEditingCharacter({ ...editingCharacter, Distance: parseInt(e.target.value) || 0 });
-              }
-            }}
-            className="col-span-3"
-          />
-        </div>
-        {/* Distance Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="Magie" className="text-right text-white">Magie</Label>
-          <Input
-            id="Magie"
-            type="number"
-            value={editingCharacter?.Magie || 0}
-            onChange={(e) => {
-              if (editingCharacter) {
-                setEditingCharacter({ ...editingCharacter, Magie: parseInt(e.target.value) || 0 });
-              }
-            }}
-            className="col-span-3"
-          />
-        </div>
-        {/* INIT Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="INIT" className="text-right text-white">INIT</Label>
-          <Input
-            id="INIT"
-            type="number"
-            value={editingCharacter?.INIT || 0}
-            onChange={(e) => {
-              if (editingCharacter) {
-                setEditingCharacter({ ...editingCharacter, INIT: parseInt(e.target.value) || 0 });
-              }
-            }}
-            className="col-span-3"
-          />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="FOR" className="text-right text-white">FOR</Label>
-          <Input
-            id="FOR"
-            type="number"
-            value={editingCharacter?.FOR || 0}
-            onChange={(e) => {
-              if (editingCharacter) {
-                setEditingCharacter({ ...editingCharacter, FOR: parseInt(e.target.value) || 0 });
-              }
-            }}
-            className="col-span-3"
-          />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="DEX" className="text-right text-white">DEX</Label>
-          <Input
-            id="DEX"
-            type="number"
-            value={editingCharacter?.DEX || 0}
-            onChange={(e) => {
-              if (editingCharacter) {
-                setEditingCharacter({ ...editingCharacter, DEX: parseInt(e.target.value) || 0 });
-              }
-            }}
-            className="col-span-3"
-          />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="CON" className="text-right text-white">CON</Label>
-          <Input
-            id="CON"
-            type="number"
-            value={editingCharacter?.CON || 0}
-            onChange={(e) => {
-              if (editingCharacter) {
-                setEditingCharacter({ ...editingCharacter, CON: parseInt(e.target.value) || 0 });
-              }
-            }}
-            className="col-span-3"
-          />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="SAG" className="text-right text-white">SAG</Label>
-          <Input
-            id="SAG"
-            type="number"
-            value={editingCharacter?.SAG || 0}
-            onChange={(e) => {
-              if (editingCharacter) {
-                setEditingCharacter({ ...editingCharacter, SAG: parseInt(e.target.value) || 0 });
-              }
-            }}
-            className="col-span-3"
-          />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="INT" className="text-right text-white">INT</Label>
-          <Input
-            id="INT"
-            type="number"
-            value={editingCharacter?.INT || 0}
-            onChange={(e) => {
-              if (editingCharacter) {
-                setEditingCharacter({ ...editingCharacter, INT: parseInt(e.target.value) || 0 });
-              }
-            }}
-            className="col-span-3"
-          />
-        </div>
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="CHA" className="text-right text-white">CHA</Label>
-          <Input
-            id="CHA"
-            type="number"
-            value={editingCharacter?.CHA || 0}
-            onChange={(e) => {
-              if (editingCharacter) {
-                setEditingCharacter({ ...editingCharacter, CHA: parseInt(e.target.value) || 0 });
-              }
-            }}
-            className="col-span-3"
-          />
-        </div>
-        {/* Visibility Field */}
-        <div className="grid grid-cols-4 items-center gap-4">
-          <Label htmlFor="visibility" className="text-right text-white">Visibilité</Label>
-          <div className="col-span-3 flex gap-2">
-            <Button
-              type="button"
-              onClick={() => {
-                if (editingCharacter) {
-                  setEditingCharacter({ ...editingCharacter, visibility: 'visible' });
-                }
-              }}
-              className={`flex-1 ${editingCharacter?.visibility === 'visible' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'}`}
-            >
-              👁️ Visible
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                if (editingCharacter) {
-                  setEditingCharacter({ ...editingCharacter, visibility: 'ally' });
-                }
-              }}
-              className={`flex-1 ${editingCharacter?.visibility === 'ally' ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-700 hover:bg-gray-600'}`}
-            >
-              🤝 Allié
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                if (editingCharacter) {
-                  setEditingCharacter({ ...editingCharacter, visibility: 'hidden' });
-                }
-              }}
-              className={`flex-1 ${editingCharacter?.visibility === 'hidden' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-700 hover:bg-gray-600'}`}
-            >
-              👁️‍🗨️ Caché
-            </Button>
-          </div>
-        </div>
-        {/* Visibility Radius Field - Affiché seulement pour les joueurs et alliés */}
-        {(editingCharacter?.type === 'joueurs' || editingCharacter?.visibility === 'ally') && (
-          <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="visibilityRadius" className="text-right text-white">Rayon de vision</Label>
-            <div className="col-span-3 flex items-center gap-2">
-              <input
-                id="visibilityRadius"
-                type="range"
-                min="10"
-                max="500"
-                value={editingCharacter?.visibilityRadius || 100}
-                onChange={(e) => {
-                  if (editingCharacter) {
-                    setEditingCharacter({ ...editingCharacter, visibilityRadius: parseInt(e.target.value) || 100 });
-                  }
-                }}
-                className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-              />
-              <span className="text-sm text-white font-medium min-w-[3rem]">
-                {Math.round(1 + ((editingCharacter?.visibilityRadius || 100) - 10) / 490 * 29)}
-              </span>
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              {/* Image Field */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="characterImage" className="text-right text-white">Image</Label>
+                <Input
+                  id="characterImage"
+                  type="file"
+                  onChange={(e) => {
+                    const file = e.target.files ? e.target.files[0] : null;
+                    if (file) {
+                      const reader = new FileReader();
+                      reader.onload = (e) => {
+                        const img = new Image();
+                        img.onload = () => {
+                          if (editingCharacter) { // Vérifie que `editingCharacter` n'est pas null
+                            setEditingCharacter({ ...editingCharacter, image: img });
+                          }
+                        };
+                        if (typeof e.target?.result === 'string') {
+                          img.src = e.target.result;
+                        }
+                      };
+                      reader.readAsDataURL(file);
+                    }
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              {/* PV Field */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="PV" className="text-right text-white">PV</Label>
+                <Input
+                  id="PV"
+                  type="number"
+                  value={editingCharacter?.PV || 0}
+                  onChange={(e) => {
+                    if (editingCharacter) {
+                      setEditingCharacter({ ...editingCharacter, PV: parseInt(e.target.value) || 0 });
+                    }
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              {/* niveau Field */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="niveau" className="text-right text-white">Niveau</Label>
+                <Input
+                  id="niveau"
+                  type="number"
+                  value={editingCharacter?.niveau || 1}
+                  onChange={(e) => {
+                    if (editingCharacter) {
+                      setEditingCharacter({ ...editingCharacter, niveau: parseInt(e.target.value) || 1 });
+                    }
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              {/* Contact Field */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="Contact" className="text-right text-white">Contact</Label>
+                <Input
+                  id="Contact"
+                  type="number"
+                  value={editingCharacter?.Contact || 0}
+                  onChange={(e) => {
+                    if (editingCharacter) {
+                      setEditingCharacter({ ...editingCharacter, Contact: parseInt(e.target.value) || 0 });
+                    }
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              {/* Distance Field */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="Distance" className="text-right text-white">Distance</Label>
+                <Input
+                  id="Distance"
+                  type="number"
+                  value={editingCharacter?.Distance || 0}
+                  onChange={(e) => {
+                    if (editingCharacter) {
+                      setEditingCharacter({ ...editingCharacter, Distance: parseInt(e.target.value) || 0 });
+                    }
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              {/* Distance Field */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="Magie" className="text-right text-white">Magie</Label>
+                <Input
+                  id="Magie"
+                  type="number"
+                  value={editingCharacter?.Magie || 0}
+                  onChange={(e) => {
+                    if (editingCharacter) {
+                      setEditingCharacter({ ...editingCharacter, Magie: parseInt(e.target.value) || 0 });
+                    }
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              {/* INIT Field */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="INIT" className="text-right text-white">INIT</Label>
+                <Input
+                  id="INIT"
+                  type="number"
+                  value={editingCharacter?.INIT || 0}
+                  onChange={(e) => {
+                    if (editingCharacter) {
+                      setEditingCharacter({ ...editingCharacter, INIT: parseInt(e.target.value) || 0 });
+                    }
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="FOR" className="text-right text-white">FOR</Label>
+                <Input
+                  id="FOR"
+                  type="number"
+                  value={editingCharacter?.FOR || 0}
+                  onChange={(e) => {
+                    if (editingCharacter) {
+                      setEditingCharacter({ ...editingCharacter, FOR: parseInt(e.target.value) || 0 });
+                    }
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="DEX" className="text-right text-white">DEX</Label>
+                <Input
+                  id="DEX"
+                  type="number"
+                  value={editingCharacter?.DEX || 0}
+                  onChange={(e) => {
+                    if (editingCharacter) {
+                      setEditingCharacter({ ...editingCharacter, DEX: parseInt(e.target.value) || 0 });
+                    }
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="CON" className="text-right text-white">CON</Label>
+                <Input
+                  id="CON"
+                  type="number"
+                  value={editingCharacter?.CON || 0}
+                  onChange={(e) => {
+                    if (editingCharacter) {
+                      setEditingCharacter({ ...editingCharacter, CON: parseInt(e.target.value) || 0 });
+                    }
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="SAG" className="text-right text-white">SAG</Label>
+                <Input
+                  id="SAG"
+                  type="number"
+                  value={editingCharacter?.SAG || 0}
+                  onChange={(e) => {
+                    if (editingCharacter) {
+                      setEditingCharacter({ ...editingCharacter, SAG: parseInt(e.target.value) || 0 });
+                    }
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="INT" className="text-right text-white">INT</Label>
+                <Input
+                  id="INT"
+                  type="number"
+                  value={editingCharacter?.INT || 0}
+                  onChange={(e) => {
+                    if (editingCharacter) {
+                      setEditingCharacter({ ...editingCharacter, INT: parseInt(e.target.value) || 0 });
+                    }
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="CHA" className="text-right text-white">CHA</Label>
+                <Input
+                  id="CHA"
+                  type="number"
+                  value={editingCharacter?.CHA || 0}
+                  onChange={(e) => {
+                    if (editingCharacter) {
+                      setEditingCharacter({ ...editingCharacter, CHA: parseInt(e.target.value) || 0 });
+                    }
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              {/* Visibility Field */}
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="visibility" className="text-right text-white">Visibilité</Label>
+                <div className="col-span-3 flex gap-2">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      if (editingCharacter) {
+                        setEditingCharacter({ ...editingCharacter, visibility: 'visible' });
+                      }
+                    }}
+                    className={`flex-1 ${editingCharacter?.visibility === 'visible' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+                  >
+                    👁️ Visible
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      if (editingCharacter) {
+                        setEditingCharacter({ ...editingCharacter, visibility: 'ally' });
+                      }
+                    }}
+                    className={`flex-1 ${editingCharacter?.visibility === 'ally' ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+                  >
+                    🤝 Allié
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      if (editingCharacter) {
+                        setEditingCharacter({ ...editingCharacter, visibility: 'hidden' });
+                      }
+                    }}
+                    className={`flex-1 ${editingCharacter?.visibility === 'hidden' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-700 hover:bg-gray-600'}`}
+                  >
+                    👁️‍🗨️ Caché
+                  </Button>
+                </div>
+              </div>
+              {/* Visibility Radius Field - Affiché seulement pour les joueurs et alliés */}
+              {(editingCharacter?.type === 'joueurs' || editingCharacter?.visibility === 'ally') && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="visibilityRadius" className="text-right text-white">Rayon de vision</Label>
+                  <div className="col-span-3 flex items-center gap-2">
+                    <input
+                      id="visibilityRadius"
+                      type="range"
+                      min="10"
+                      max="500"
+                      value={editingCharacter?.visibilityRadius || 100}
+                      onChange={(e) => {
+                        if (editingCharacter) {
+                          setEditingCharacter({ ...editingCharacter, visibilityRadius: parseInt(e.target.value) || 100 });
+                        }
+                      }}
+                      className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                    />
+                    <span className="text-sm text-white font-medium min-w-[3rem]">
+                      {Math.round(1 + ((editingCharacter?.visibilityRadius || 100) - 10) / 490 * 29)}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
-      </div>
-    </ScrollArea>
-    <DialogFooter>
-      <Button onClick={handleCharacterEditSubmit}>Modifier</Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+          </ScrollArea>
+          <DialogFooter>
+            <Button onClick={handleCharacterEditSubmit}>Modifier</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-<Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-  <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">
-    <DialogHeader>
-      <DialogTitle>Confirmer la suppression</DialogTitle>
-    </DialogHeader>
-    <div className="grid gap-4 py-4">
-      <p>Êtes-vous sûr de vouloir supprimer le personnage {characterToDelete?.name} ? Cette action est irréversible.</p>
-    </div>
-    <DialogFooter>
-      <Button onClick={() => setConfirmDeleteOpen(false)}>Annuler</Button>
-      <Button onClick={() => { handleDeleteCharacter(); setConfirmDeleteOpen(false); }}>Supprimer</Button>
-    </DialogFooter>
-  </DialogContent>
-</Dialog>
+      <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Confirmer la suppression</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <p>Êtes-vous sûr de vouloir supprimer le personnage {characterToDelete?.name} ? Cette action est irréversible.</p>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setConfirmDeleteOpen(false)}>Annuler</Button>
+            <Button onClick={() => { handleDeleteCharacter(); setConfirmDeleteOpen(false); }}>Supprimer</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {showCharacterSheet && selectedCharacterForSheet && roomId && (
         <CharacterSheet
