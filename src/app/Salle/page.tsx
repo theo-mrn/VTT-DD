@@ -135,14 +135,14 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
             <div className="relative group">
               <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 rounded-2xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm"></div>
               <div className="relative aspect-video rounded-xl overflow-hidden border border-border">
-                <img 
-                  src={room.imageUrl || '/placeholder.svg'} 
-                  alt={`Image de la salle ${room.title}`} 
-                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" 
+                <img
+                  src={room.imageUrl || '/placeholder.svg'}
+                  alt={`Image de la salle ${room.title}`}
+                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                 />
               </div>
             </div>
-            
+
             {/* Description */}
             <Card className="mt-6">
               <CardContent className="p-6">
@@ -172,7 +172,7 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Visibilité</span>
-                  <span className={cn("px-2 py-1 rounded-full text-xs font-medium", 
+                  <span className={cn("px-2 py-1 rounded-full text-xs font-medium",
                     room.isPublic ? "bg-green-500/10 text-green-500" : "bg-orange-500/10 text-orange-500"
                   )}>
                     {room.isPublic ? "Publique" : "Privée"}
@@ -212,10 +212,10 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
                 <CardContent>
                   <div className="flex items-center gap-3">
                     <div className="relative">
-                      <img 
-                        src={creatorInfo.pp} 
-                        alt={`Image de ${creatorInfo.name}`} 
-                        className="w-12 h-12 rounded-full border-2 border-border" 
+                      <img
+                        src={creatorInfo.pp}
+                        alt={`Image de ${creatorInfo.name}`}
+                        className="w-12 h-12 rounded-full border-2 border-border"
                       />
                     </div>
                     <div>
@@ -296,16 +296,16 @@ export default function Component() {
   }, [userId])
 
   const generateRoomCode = async (): Promise<string> => {
-    let code: string = ""; 
+    let code: string = "";
     let exists = true;
-    
+
     while (exists) {
       code = Math.floor(100000 + Math.random() * 900000).toString();
       const docRef = doc(db, 'Salle', code);
       const docSnap = await getDoc(docRef);
       exists = docSnap.exists();
     }
-  
+
     return code;
   };
 
@@ -361,15 +361,15 @@ export default function Component() {
 
   const handleSaveRoom = async () => {
     if (!selectedRoom || !userId) return
-  
-    const updatedRoomData: Partial<Room> = { 
+
+    const updatedRoomData: Partial<Room> = {
       title: newRoom.title,
       description: newRoom.description,
       maxPlayers: newRoom.maxPlayers,
       isPublic: newRoom.isPublic,
       creatorId: selectedRoom.creatorId,
     }
-  
+
     if (imageFile) {
       const imageRef = ref(storage, `Salle/${selectedRoom.id}/room-image`)
       await uploadBytes(imageRef, imageFile)
@@ -453,7 +453,7 @@ export default function Component() {
           <p className="text-sm opacity-90">Le code entré ne correspond à aucune salle existante.</p>
         </div>
       )}
-      
+
       <div className="container mx-auto px-6 py-8">
         <Tabs defaultValue="rejoindre" className="w-full max-w-6xl mx-auto">
           <TabsList className="grid w-full grid-cols-3 h-12 bg-muted/50">
@@ -470,12 +470,12 @@ export default function Component() {
               Mes parties
             </TabsTrigger>
           </TabsList>
-        
+
           <TabsContent value="rejoindre" className="mt-6">
             <div className="grid md:grid-cols-2 gap-6">
               {/* Rejoindre par code */}
               <Card className="relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Search className="h-5 w-5" />
@@ -492,9 +492,9 @@ export default function Component() {
                       maxLength={6}
                       className="text-xl font-mono tracking-wider text-center h-12"
                     />
-                    <Button 
-                      onClick={() => handleJoinRoom(roomCode)} 
-                      size="lg" 
+                    <Button
+                      onClick={() => handleJoinRoom(roomCode)}
+                      size="lg"
                       className="w-full gap-2"
                     >
                       <Play className="h-4 w-4" />
@@ -523,9 +523,9 @@ export default function Component() {
                               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                               <span className="font-medium">{room.title}</span>
                             </div>
-                            <Button 
-                              onClick={() => handleJoinRoom(room.id)} 
-                              variant="outline" 
+                            <Button
+                              onClick={() => handleJoinRoom(room.id)}
+                              variant="outline"
                               size="sm"
                               className="gap-2"
                             >
@@ -546,7 +546,7 @@ export default function Component() {
               </Card>
             </div>
           </TabsContent>
-        
+
           <TabsContent value="creer" className="mt-6">
             <Card className="max-w-2xl mx-auto">
               <CardHeader>
@@ -586,7 +586,7 @@ export default function Component() {
                       />
                     </div>
                   </div>
-                  
+
                   <div className="space-y-2">
                     <label htmlFor="description" className="text-sm font-medium text-foreground">Description *</label>
                     <Textarea
@@ -599,7 +599,7 @@ export default function Component() {
                       required
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <label htmlFor="image" className="text-sm font-medium text-foreground">Image de la salle *</label>
                     <Input
@@ -611,7 +611,7 @@ export default function Component() {
                       className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-muted file:text-muted-foreground hover:file:bg-muted/80"
                     />
                   </div>
-                  
+
                   <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
                     <div className="space-y-1">
                       <label className="text-sm font-medium text-foreground">Salle publique</label>
@@ -625,7 +625,7 @@ export default function Component() {
                       onCheckedChange={handleToggleChange}
                     />
                   </div>
-                  
+
                   <Button type="submit" className="w-full gap-2 h-11" size="lg">
                     <Plus className="h-4 w-4" />
                     Créer la salle
@@ -634,7 +634,7 @@ export default function Component() {
               </CardContent>
             </Card>
           </TabsContent>
-        
+
           <TabsContent value="mes-salles" className="mt-6">
             <Card>
               <CardHeader>
@@ -660,7 +660,7 @@ export default function Component() {
                                       <Users className="h-3 w-3" />
                                       {room.maxPlayers} joueurs
                                     </span>
-                                    <span className={cn("px-2 py-0.5 rounded-full text-xs", 
+                                    <span className={cn("px-2 py-0.5 rounded-full text-xs",
                                       room.isPublic ? "bg-green-500/10 text-green-500" : "bg-orange-500/10 text-orange-500"
                                     )}>
                                       {room.isPublic ? "Publique" : "Privée"}
@@ -668,9 +668,9 @@ export default function Component() {
                                   </div>
                                 </div>
                               </div>
-                              <Button 
-                                onClick={() => setSelectedRoom(room)} 
-                                variant="outline" 
+                              <Button
+                                onClick={() => setSelectedRoom(room)}
+                                variant="outline"
                                 size="sm"
                                 className="gap-2"
                               >

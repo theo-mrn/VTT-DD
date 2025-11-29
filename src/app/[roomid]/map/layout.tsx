@@ -16,6 +16,7 @@ import RollRequest from '@/components/(dices)/Rollrequest';
 import { Button } from "@/components/ui/button";
 import { Statistiques } from "@/components/Statistiques";
 import CitiesManager from "@/components/(worldmap)/CitiesManager";
+import Chat from "@/components/(chat)/Chat";
 import { auth, db, onAuthStateChanged, collection, onSnapshot } from "@/lib/firebase";
 import { X, Map, BookOpen, Scroll } from "lucide-react";
 import FloatingMusic from "@/components/(music)/FloatingMusic";
@@ -53,7 +54,7 @@ export default function Layout({ children }: LayoutProps) {
 
   const [activeTab, setActiveTab] = useState<string>("");
   const [showRollRequest, setShowRollRequest] = useState(false);
-  const [showQuestOverlay, setShowQuestOverlay] = useState(true);
+  const [showQuestOverlay, setShowQuestOverlay] = useState(false);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async () => {
@@ -101,6 +102,8 @@ export default function Layout({ children }: LayoutProps) {
         return <Statistiques />;
       case "Cities":
         return <CitiesManager />;
+      case "Chat":
+        return <Chat />;
       default:
         return null;
     }
@@ -124,6 +127,8 @@ export default function Layout({ children }: LayoutProps) {
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1200px]";
       case "Cities":
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1400px]";
+      case "Chat":
+        return "w-full sm:w-[90vw] md:w-[500px] lg:w-[600px]";
       default:
         return "w-full sm:w-[90vw] md:w-[80vw] lg:w-[700px]";
     }
@@ -156,7 +161,8 @@ export default function Layout({ children }: LayoutProps) {
 
       {activeTab && activeTab !== "Cities" && activeTab !== "infoComponent" && (
         <aside
-          className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${getPanelWidth()} text-black shadow-lg overflow-y-auto z-20
+          className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${getPanelWidth()} text-black shadow-lg z-20
+            ${activeTab === 'Chat' ? 'overflow-hidden' : 'overflow-y-auto'}
             ${isBookStyle
               ? 'bg-transparent animate-[bookOpen_0.6s_ease-out] [perspective:2000px]'
               : 'bg-[#242424] transition-transform duration-300 ease-in-out'
@@ -180,7 +186,7 @@ export default function Layout({ children }: LayoutProps) {
             <X className="h-5 w-5" />
           </button>
 
-          <div className={isBookStyle ? 'animate-[fadeIn_0.8s_ease-out_0.3s_both]' : ''}>
+          <div className={activeTab === 'Chat' ? 'h-full' : (isBookStyle ? 'animate-[fadeIn_0.8s_ease-out_0.3s_both]' : '')}>
             {renderActiveTab()}
           </div>
         </aside>
