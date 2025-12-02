@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Trash2, Edit2, Plus, ZoomIn, ZoomOut, Maximize2, Upload, Grid3x3, Eye, EyeOff } from "lucide-react";
+import { Trash2, Edit2, Plus, ZoomIn, ZoomOut, Maximize2, Upload, Grid3x3, Eye, EyeOff, Map as MapIcon, X } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 interface City {
     id: string;
@@ -484,40 +486,84 @@ export default function CitiesManager() {
     };
 
     return (
-        <div className="relative h-full p-4">
-            {/* Canvas */}
-            <div className="h-full flex flex-col">
-                <div className="flex items-center justify-between mb-2">
-                    <h2 className="text-lg font-semibold text-white">
-                        Plan des villes ({cities.length})
-                        {isMJ && cities.length > 0 && (
-                            <span className="text-sm text-gray-400 ml-2">
-                                ({cities.filter(c => c.visibleToPlayers).length} visibles / {cities.filter(c => !c.visibleToPlayers).length} masquées)
+        <div className="relative h-full w-full overflow-hidden bg-[#0a0a0a] group">
+            {/* Canvas Layer */}
+            <div ref={containerRef} className="absolute inset-0 z-0">
+                <canvas
+                    ref={canvasRef}
+                    onClick={handleCanvasClick}
+                    onMouseDown={handleMouseDown}
+                    onMouseMove={handleMouseMove}
+                    onMouseUp={handleMouseUp}
+                    onMouseLeave={handleMouseUp}
+                    onWheel={handleWheel}
+                    className={cn(
+                        "w-full h-full block touch-none",
+                        isPanning ? "cursor-grabbing" : draggingCity ? "cursor-move" : "cursor-pointer"
+                    )}
+                />
+            </div>
+
+            {/* UI Layer - Top Bar */}
+            <div className="absolute top-0 left-0 right-0 z-10 p-4 pointer-events-none">
+                <div className="flex items-start justify-between max-w-7xl mx-auto">
+                    {/* Title & Stats */}
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="pointer-events-auto bg-black/60 backdrop-blur-md border border-white/10 rounded-xl px-4 py-2 shadow-2xl"
+                    >
+                        <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                            <MapIcon className="w-5 h-5 text-[#c0a080]" />
+                            Plan des villes
+                            <span className="text-xs font-normal text-white/50 bg-white/10 px-2 py-0.5 rounded-full ml-2">
+                                {cities.length}
                             </span>
+                        </h2>
+                        {isMJ && cities.length > 0 && (
+                            <div className="text-xs text-gray-400 mt-1 flex gap-2">
+                                <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {cities.filter(c => c.visibleToPlayers).length}</span>
+                                <span className="flex items-center gap-1"><EyeOff className="w-3 h-3" /> {cities.filter(c => !c.visibleToPlayers).length}</span>
+                            </div>
                         )}
-                    </h2>
-                    <div className="flex gap-2">
-                        <Button onClick={() => setViewScale((s) => Math.min(5, s * 1.2))} size="sm" variant="outline" className="border-[#c0a080] text-[#c0a080] hover:bg-[#c0a080] hover:text-black">
-                            <ZoomIn className="h-4 w-4" />
-                        </Button>
-                        <Button onClick={() => setViewScale((s) => Math.max(0.1, s / 1.2))} size="sm" variant="outline" className="border-[#c0a080] text-[#c0a080] hover:bg-[#c0a080] hover:text-black">
-                            <ZoomOut className="h-4 w-4" />
-                        </Button>
-                        <Button onClick={resetView} size="sm" variant="outline" className="border-[#c0a080] text-[#c0a080] hover:bg-[#c0a080] hover:text-black">
-                            <Maximize2 className="h-4 w-4" />
-                        </Button>
+                    </motion.div>
+
+                    {/* Toolbar */}
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.1 }}
+                        className="pointer-events-auto flex gap-2 bg-black/60 backdrop-blur-md border border-white/10 rounded-xl p-2 shadow-2xl"
+                    >
+                        <div className="flex items-center gap-1 border-r border-white/10 pr-2 mr-1">
+                            <Button onClick={() => setViewScale((s) => Math.min(5, s * 1.2))} size="icon" variant="ghost" className="h-8 w-8 text-white/70 hover:text-[#c0a080] hover:bg-white/5">
+                                <ZoomIn className="h-4 w-4" />
+                            </Button>
+                            <Button onClick={() => setViewScale((s) => Math.max(0.1, s / 1.2))} size="icon" variant="ghost" className="h-8 w-8 text-white/70 hover:text-[#c0a080] hover:bg-white/5">
+                                <ZoomOut className="h-4 w-4" />
+                            </Button>
+                            <Button onClick={resetView} size="icon" variant="ghost" className="h-8 w-8 text-white/70 hover:text-[#c0a080] hover:bg-white/5">
+                                <Maximize2 className="h-4 w-4" />
+                            </Button>
+                        </div>
+
                         <Button
                             onClick={handleToggleGrid}
-                            size="sm"
-                            variant={showGrid ? "default" : "outline"}
-                            className={showGrid ? "bg-[#c0a080] text-black hover:bg-[#d4b594]" : "border-[#c0a080] text-[#c0a080] hover:bg-[#c0a080] hover:text-black"}
+                            size="icon"
+                            variant="ghost"
+                            className={cn(
+                                "h-8 w-8 transition-colors",
+                                showGrid ? "text-[#c0a080] bg-[#c0a080]/10" : "text-white/70 hover:text-[#c0a080] hover:bg-white/5"
+                            )}
                             title={showGrid ? "Masquer la grille" : "Afficher la grille"}
                         >
                             <Grid3x3 className="h-4 w-4" />
                         </Button>
+
                         {isMJ && (
                             <>
-                                <Button onClick={() => fileInputRef.current?.click()} size="sm" variant="outline" className="border-[#c0a080] text-[#c0a080] hover:bg-[#c0a080] hover:text-black">
+                                <div className="w-px h-8 bg-white/10 mx-1" />
+                                <Button onClick={() => fileInputRef.current?.click()} size="icon" variant="ghost" className="h-8 w-8 text-white/70 hover:text-[#c0a080] hover:bg-white/5" title="Changer le fond">
                                     <Upload className="h-4 w-4" />
                                 </Button>
                                 <input
@@ -527,164 +573,239 @@ export default function CitiesManager() {
                                     onChange={handleImageUpload}
                                     className="hidden"
                                 />
-                                <Button onClick={handleAddCity} size="sm" className="bg-[#c0a080] text-black hover:bg-[#d4b594]">
-                                    <Plus className="h-4 w-4 mr-2" />
+                                <Button onClick={handleAddCity} size="sm" className="bg-[#c0a080] text-black hover:bg-[#d4b594] ml-2 font-medium shadow-lg shadow-[#c0a080]/20">
+                                    <Plus className="h-4 w-4 mr-1.5" />
                                     Ajouter
                                 </Button>
                             </>
                         )}
-                    </div>
-                </div>
-
-                <div ref={containerRef} className="flex-1 min-h-0 relative">
-                    <canvas
-                        ref={canvasRef}
-                        onClick={handleCanvasClick}
-                        onMouseDown={handleMouseDown}
-                        onMouseMove={handleMouseMove}
-                        onMouseUp={handleMouseUp}
-                        onMouseLeave={handleMouseUp}
-                        onWheel={handleWheel}
-                        className={`w-full h-full border border-gray-700 rounded-lg bg-[#1a1a1a] ${isPanning ? "cursor-grabbing" : draggingCity ? "cursor-move" : "cursor-pointer"
-                            }`}
-                    />
-
-                    {/* Popup ville sélectionnée */}
-                    {selectedCity && (
-                        <div className="absolute top-4 right-4 p-4 bg-[#2a2a2a] border border-[#c0a080] rounded-lg shadow-lg max-w-sm">
-                            <div className="flex items-start justify-between mb-2">
-                                <div className="flex items-center gap-2">
-                                    <span className="text-3xl">{selectedCity.icon}</span>
-                                    <h4 className="font-semibold text-white">{selectedCity.name}</h4>
-                                </div>
-                                <div className="flex gap-1">
-                                    {isMJ && (
-                                        <>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => handleToggleVisibility(selectedCity)}
-                                                title={selectedCity.visibleToPlayers ? "Masquer aux joueurs" : "Montrer aux joueurs"}
-                                                className="text-[#c0a080] hover:bg-[#c0a080] hover:text-black"
-                                            >
-                                                {selectedCity.visibleToPlayers ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-                                            </Button>
-                                            <Button size="sm" variant="ghost" onClick={() => handleEdit(selectedCity)} className="text-[#c0a080] hover:bg-[#c0a080] hover:text-black">
-                                                <Edit2 className="h-4 w-4" />
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => handleDelete(selectedCity.id)}
-                                                className="text-red-500 hover:bg-red-500 hover:text-white"
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </Button>
-                                        </>
-                                    )}
-                                    <Button size="sm" variant="ghost" onClick={() => setSelectedCity(null)} className="text-[#c0a080] hover:bg-[#c0a080] hover:text-black">
-                                        ✕
-                                    </Button>
-                                </div>
-                            </div>
-                            {selectedCity.description && (
-                                <p className="text-sm text-gray-400">{selectedCity.description}</p>
-                            )}
-                        </div>
-                    )}
+                    </motion.div>
                 </div>
             </div>
 
+            {/* Selected City Card */}
+            <AnimatePresence>
+                {selectedCity && (
+                    <motion.div
+                        initial={{ opacity: 0, x: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, x: 0, scale: 1 }}
+                        exit={{ opacity: 0, x: 20, scale: 0.95 }}
+                        className="absolute top-24 right-4 z-20 w-80 pointer-events-none"
+                    >
+                        <div className="pointer-events-auto bg-black/80 backdrop-blur-xl border border-[#c0a080]/30 rounded-xl overflow-hidden shadow-2xl">
+                            {/* Header Color Strip */}
+                            <div className="h-2 w-full" style={{ backgroundColor: selectedCity.color || '#c0a080' }} />
+
+                            <div className="p-5">
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <div
+                                            className="w-12 h-12 rounded-lg bg-white/5 flex items-center justify-center text-3xl border border-white/10 shadow-inner"
+                                            style={{ color: selectedCity.color || '#c0a080' }}
+                                        >
+                                            {selectedCity.icon}
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-lg text-white leading-tight">{selectedCity.name}</h4>
+                                            <div className="text-xs text-white/40 font-mono mt-0.5">
+                                                X: {Math.round(selectedCity.x)} • Y: {Math.round(selectedCity.y)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        onClick={() => setSelectedCity(null)}
+                                        className="h-6 w-6 text-white/40 hover:text-white -mr-2 -mt-2"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
+
+                                {selectedCity.description && (
+                                    <div className="bg-white/5 rounded-lg p-3 mb-4 border border-white/5">
+                                        <p className="text-sm text-gray-300 leading-relaxed">{selectedCity.description}</p>
+                                    </div>
+                                )}
+
+                                {isMJ && (
+                                    <div className="flex gap-2 pt-2 border-t border-white/10">
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleToggleVisibility(selectedCity)}
+                                            className={cn(
+                                                "flex-1 h-8 text-xs font-medium border border-white/10",
+                                                selectedCity.visibleToPlayers
+                                                    ? "text-green-400 hover:text-green-300 hover:bg-green-400/10"
+                                                    : "text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                                            )}
+                                        >
+                                            {selectedCity.visibleToPlayers ? (
+                                                <><Eye className="h-3 w-3 mr-1.5" /> Visible</>
+                                            ) : (
+                                                <><EyeOff className="h-3 w-3 mr-1.5" /> Masqué</>
+                                            )}
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleEdit(selectedCity)}
+                                            className="h-8 w-8 px-0 text-white/70 hover:text-white hover:bg-white/10 border border-white/10"
+                                        >
+                                            <Edit2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleDelete(selectedCity.id)}
+                                            className="h-8 w-8 px-0 text-red-400 hover:text-red-300 hover:bg-red-400/10 border border-white/10"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Hint for navigation */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                <div className="bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/5 text-[10px] text-white/40 font-medium uppercase tracking-wider">
+                    {isPanning ? "Glisser pour déplacer" : "Molette pour zoomer • Clic molette pour déplacer"}
+                </div>
+            </div>
+
+
             {/* Formulaire */}
             <Dialog open={showForm} onOpenChange={setShowForm}>
-                <DialogContent>
+                <DialogContent className="bg-[#111] border border-white/10 text-white sm:max-w-[425px] shadow-2xl">
                     <DialogHeader>
-                        <DialogTitle>{editingId ? "Modifier" : "Nouvelle"} ville</DialogTitle>
+                        <DialogTitle className="text-xl font-bold flex items-center gap-2">
+                            {editingId ? <Edit2 className="w-5 h-5 text-[#c0a080]" /> : <Plus className="w-5 h-5 text-[#c0a080]" />}
+                            {editingId ? "Modifier la ville" : "Nouvelle ville"}
+                        </DialogTitle>
                     </DialogHeader>
-                    <div className="space-y-4">
+                    <div className="space-y-5 mt-2">
                         <div className="space-y-2">
-                            <Label htmlFor="name">Nom *</Label>
+                            <Label htmlFor="name" className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Nom de la ville</Label>
                             <Input
                                 id="name"
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                placeholder="Nom de la ville"
+                                placeholder="Ex: Minas Tirith"
+                                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-[#c0a080]/50 focus:ring-[#c0a080]/20"
                             />
                         </div>
+
                         <div className="space-y-2">
-                            <Label htmlFor="description">Description</Label>
+                            <Label htmlFor="description" className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Description</Label>
                             <Textarea
                                 id="description"
                                 value={formData.description}
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                placeholder="Description..."
+                                placeholder="Une brève description..."
                                 rows={3}
+                                className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-[#c0a080]/50 focus:ring-[#c0a080]/20 resize-none"
                             />
                         </div>
-                        <div className="space-y-2">
-                            <Label>Icône</Label>
-                            <div className="flex gap-2">
-                                {ICONS.map((icon) => (
-                                    <Button
-                                        key={icon}
-                                        type="button"
-                                        variant={formData.icon === icon ? "default" : "outline"}
-                                        size="sm"
-                                        onClick={() => setFormData({ ...formData, icon })}
-                                        className="text-xl"
-                                    >
-                                        {icon}
-                                    </Button>
-                                ))}
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Icône</Label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {ICONS.map((icon) => (
+                                        <button
+                                            key={icon}
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, icon })}
+                                            className={cn(
+                                                "h-10 rounded-md flex items-center justify-center text-xl transition-all border",
+                                                formData.icon === icon
+                                                    ? "bg-[#c0a080] border-[#c0a080] text-black scale-105 shadow-lg shadow-[#c0a080]/20"
+                                                    : "bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:border-white/20"
+                                            )}
+                                        >
+                                            {icon}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Couleur</Label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {COLORS.map((color) => (
+                                        <button
+                                            key={color}
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, color })}
+                                            className={cn(
+                                                "h-10 rounded-md transition-all border relative overflow-hidden",
+                                                formData.color === color
+                                                    ? "border-white scale-105 shadow-lg"
+                                                    : "border-transparent opacity-70 hover:opacity-100"
+                                            )}
+                                            style={{ backgroundColor: color }}
+                                        >
+                                            {formData.color === color && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                                    <div className="w-2 h-2 bg-white rounded-full shadow-sm" />
+                                                </div>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         </div>
-                        <div className="space-y-2">
-                            <Label>Couleur</Label>
+
+                        <div className="space-y-2 pt-2 border-t border-white/10">
+                            <Label className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Visibilité</Label>
                             <div className="flex gap-2">
-                                {COLORS.map((color) => (
-                                    <Button
-                                        key={color}
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => setFormData({ ...formData, color })}
-                                        className={`w-10 h-10 p-0 ${formData.color === color ? "ring-2 ring-white" : ""}`}
-                                        style={{ backgroundColor: color }}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                        <div className="space-y-2">
-                            <Label>Visibilité</Label>
-                            <div className="flex items-center gap-2">
-                                <Button
+                                <button
                                     type="button"
-                                    variant={formData.visibleToPlayers ? "default" : "outline"}
-                                    size="sm"
                                     onClick={() => setFormData({ ...formData, visibleToPlayers: true })}
-                                    className="flex-1"
+                                    className={cn(
+                                        "flex-1 flex items-center justify-center gap-2 h-9 rounded-md text-sm font-medium transition-colors border",
+                                        formData.visibleToPlayers
+                                            ? "bg-green-500/20 border-green-500/50 text-green-400"
+                                            : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
+                                    )}
                                 >
-                                    <Eye className="h-4 w-4 mr-2" />
-                                    Visible aux joueurs
-                                </Button>
-                                <Button
+                                    <Eye className="h-4 w-4" />
+                                    Visible
+                                </button>
+                                <button
                                     type="button"
-                                    variant={!formData.visibleToPlayers ? "default" : "outline"}
-                                    size="sm"
                                     onClick={() => setFormData({ ...formData, visibleToPlayers: false })}
-                                    className="flex-1"
+                                    className={cn(
+                                        "flex-1 flex items-center justify-center gap-2 h-9 rounded-md text-sm font-medium transition-colors border",
+                                        !formData.visibleToPlayers
+                                            ? "bg-red-500/20 border-red-500/50 text-red-400"
+                                            : "bg-white/5 border-white/10 text-white/40 hover:bg-white/10"
+                                    )}
                                 >
-                                    <EyeOff className="h-4 w-4 mr-2" />
-                                    Masqué (MJ seulement)
-                                </Button>
+                                    <EyeOff className="h-4 w-4" />
+                                    Masqué
+                                </button>
                             </div>
                         </div>
-                        <div className="flex gap-2">
-                            <Button onClick={() => setShowForm(false)} variant="outline" className="flex-1">
+
+                        <div className="flex gap-3 pt-4">
+                            <Button
+                                onClick={() => setShowForm(false)}
+                                variant="ghost"
+                                className="flex-1 text-white/60 hover:text-white hover:bg-white/5"
+                            >
                                 Annuler
                             </Button>
-                            <Button onClick={handleSave} disabled={!formData.name.trim()} className="flex-1">
-                                {editingId ? "Modifier" : "Créer"}
+                            <Button
+                                onClick={handleSave}
+                                disabled={!formData.name.trim()}
+                                className="flex-1 bg-[#c0a080] text-black hover:bg-[#d4b594] font-semibold"
+                            >
+                                {editingId ? "Enregistrer" : "Créer la ville"}
                             </Button>
                         </div>
                     </div>
