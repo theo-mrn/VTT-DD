@@ -47,6 +47,8 @@ export default function CombatPage({ attackerId, targetId, onClose }: CombatPage
   const [initialRollResult, setInitialRollResult] = useState<number | null>(null)
   const [roomId, setRoomId] = useState<string | null>(null)
 
+  const [targetDefense, setTargetDefense] = useState<number>(10)
+
   useEffect(() => {
     const fetchData = async () => {
       onAuthStateChanged(auth, async (user) => {
@@ -61,12 +63,18 @@ export default function CombatPage({ attackerId, targetId, onClose }: CombatPage
             if (attackerDoc.exists()) {
               const nomperso = attackerDoc.data().Nomperso || ""
               await loadWeapons(fetchedRoomId, nomperso)
-              
+
               setAttacks({
                 contact: attackerDoc.data().Contact_F || attackerDoc.data().Contact || null,
                 distance: attackerDoc.data().Distance_F || attackerDoc.data().Distance || null,
                 magie: attackerDoc.data().Magie_F || attackerDoc.data().Magie || null
               })
+            }
+
+            // Fetch target defense
+            const targetDoc = await getDoc(doc(db, `cartes/${fetchedRoomId}/characters/${targetId}`))
+            if (targetDoc.exists()) {
+              setTargetDefense(targetDoc.data().Defense || 10)
             }
           }
         }
@@ -102,7 +110,7 @@ export default function CombatPage({ attackerId, targetId, onClose }: CombatPage
     }
 
     fetchData()
-  }, [attackerId])
+  }, [attackerId, targetId])
 
   const rollDice = ({ numDice, numFaces, modifier = 0 }: CustomRoll) => {
     const rolls = Array.from({ length: numDice }, () => Math.floor(Math.random() * numFaces) + 1)
@@ -162,7 +170,11 @@ export default function CombatPage({ attackerId, targetId, onClose }: CombatPage
       const weapon: CustomRoll = selectedWeapon.name === "Autre" ? customDamage : { ...selectedWeapon, modifier: 0 }
       const { total } = rollDice(weapon)
       setDamageResult(`Dégâts totaux: ${total}`)
-      sendAttackReport("Success", initialRollResult, total, roomId)
+
+      const isSuccess = (initialRollResult || 0) > targetDefense
+      const resultStatus = isSuccess ? "Success" : "Failure"
+
+      sendAttackReport(resultStatus, initialRollResult, total, roomId)
     }
   }
 
@@ -175,8 +187,8 @@ export default function CombatPage({ attackerId, targetId, onClose }: CombatPage
         className="w-full max-w-md"
       >
         <Card className="card relative !bg-[var(--bg-card)] hover:!bg-[var(--bg-card)] hover:!opacity-100 transition-none">
-          <Button 
-            onClick={onClose} 
+          <Button
+            onClick={onClose}
             variant="ghost"
             className="absolute top-3 right-3 p-2 hover:bg-accent hover:text-accent-foreground hover:opacity-100"
             size="sm"
@@ -193,29 +205,29 @@ export default function CombatPage({ attackerId, targetId, onClose }: CombatPage
             <AnimatePresence>
               <motion.div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
-                  <Button 
-                    onClick={() => handleAttack('magic')} 
+                  <Button
+                    onClick={() => handleAttack('magic')}
                     className="flex items-center gap-2 !bg-primary !text-primary-foreground hover:!bg-primary/80 hover:!opacity-100"
                   >
                     <Wand2 className="w-4 h-4" />
                     Magie
                   </Button>
-                  <Button 
-                    onClick={() => handleAttack('distance')} 
+                  <Button
+                    onClick={() => handleAttack('distance')}
                     className="flex items-center gap-2 !bg-primary !text-primary-foreground hover:!bg-primary/80 hover:!opacity-100"
                   >
                     <Target className="w-4 h-4" />
                     Distance
                   </Button>
-                  <Button 
-                    onClick={() => handleAttack('contact')} 
+                  <Button
+                    onClick={() => handleAttack('contact')}
                     className="flex items-center gap-2 !bg-primary !text-primary-foreground hover:!bg-primary/80 hover:!opacity-100"
                   >
                     <Sword className="w-4 h-4" />
                     Contact
                   </Button>
-                  <Button 
-                    onClick={() => handleAttack('custom')} 
+                  <Button
+                    onClick={() => handleAttack('custom')}
                     variant="outline"
                     className="flex items-center gap-2 hover:!bg-accent hover:!text-accent-foreground hover:!opacity-100"
                   >
