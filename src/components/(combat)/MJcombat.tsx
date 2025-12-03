@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer"
-import { Plus, Minus, Dice1, ChevronRight, Sword, Skull, Shield, Heart } from "lucide-react"
+import { Plus, Minus, Dice1, ChevronRight, Sword, Skull, Shield, Heart, X } from "lucide-react"
 import { auth, db, doc, getDoc, onSnapshot, updateDoc, deleteDoc, collection, onAuthStateChanged, writeBatch } from "@/lib/firebase"
 import { Dialog, DialogTrigger, DialogPortal, DialogOverlay, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
@@ -57,7 +57,9 @@ export function GMDashboard() {
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null)
   const [isRollingInitiative, setIsRollingInitiative] = useState(false)
+
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null)
+  const [viewedCharacter, setViewedCharacter] = useState<Character | null>(null)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -107,7 +109,7 @@ export function GMDashboard() {
             return {
               id: doc.id,
               name: data.Nomperso || "absente",
-              avatar: data.imageURL || `/placeholder.svg?height=40&width=40&text=${data.Nomperso ? data.Nomperso[0] : "?"}`,
+              avatar: data.imageURLFinal || data.imageURL || `/placeholder.svg?height=40&width=40&text=${data.Nomperso ? data.Nomperso[0] : "?"}`,
               pv: data.PV ?? 0,
               init: data.INIT ?? 0,
               initDetails: data.initDetails || "0",
@@ -345,16 +347,16 @@ export function GMDashboard() {
       <div className="flex justify-between items-center bg-[var(--bg-card)] p-4 rounded-xl border border-[var(--border-color)] shadow-sm">
         <div className="flex items-center gap-3">
           <Sword className="h-6 w-6 text-[var(--accent-brown)]" />
-          <h1 className="text-2xl font-bold tracking-tight">Combat Tracker</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Combat </h1>
         </div>
         <div className="flex gap-3">
           <Button variant="outline" onClick={rerollInitiative} disabled={isRollingInitiative} className="border-[var(--border-color)] hover:bg-[var(--bg-darker)]">
             <Dice1 className="mr-2 h-4 w-4" />
-            Reroll Init
+            Relancer Init
           </Button>
           <Button className="button-primary" onClick={nextCharacter}>
             <ChevronRight className="mr-2 h-4 w-4" />
-            Next Turn
+            Suivant
           </Button>
         </div>
       </div>
@@ -374,7 +376,11 @@ export function GMDashboard() {
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-3">
                 {characters.slice(1).map((char, index) => (
-                  <div key={char.id} className="flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-colors group">
+                  <div
+                    key={char.id}
+                    className="flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-colors group cursor-pointer"
+                    onClick={() => setViewedCharacter(char)}
+                  >
                     <div className="font-mono text-lg font-bold text-[var(--text-secondary)] w-6 text-center">
                       {index + 2}
                     </div>
@@ -389,7 +395,7 @@ export function GMDashboard() {
                         <span className="flex items-center gap-1"><Dice1 className="h-3 w-3" /> {char.initDetails}</span>
                       </div>
                     </div>
-                    <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8" onClick={() => openDrawer(char)}>
+                    <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8" onClick={(e) => { e.stopPropagation(); openDrawer(char); }}>
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
@@ -406,6 +412,79 @@ export function GMDashboard() {
 
         {/* Right Column: Target & Active Character */}
         <div className="lg:col-span-7 flex flex-col gap-4 min-h-0">
+
+          {/* Viewed Character Panel (if selected) */}
+          {viewedCharacter && (
+            <Card className="h-fit flex flex-col border-blue-500/50 border-2 bg-[var(--bg-card)] shadow-lg overflow-hidden relative">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2 h-6 w-6 z-10 hover:bg-red-500/20 hover:text-red-500"
+                onClick={() => setViewedCharacter(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              <CardHeader className="pb-2 bg-blue-950/10">
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16 border-2 border-blue-500/50 shadow-md">
+                    <AvatarImage src={viewedCharacter.avatar} alt={viewedCharacter.name} className="object-cover" />
+                    <AvatarFallback className="text-xl bg-[var(--bg-darker)]">{viewedCharacter.name[0]}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h2 className="text-xl font-bold text-[var(--text-primary)]">{viewedCharacter.name}</h2>
+                        </div>
+                        <div className="flex gap-2 mt-1">
+                          <Badge variant="outline" className="text-[var(--text-secondary)] border-blue-500/30">
+                            {viewedCharacter.type.toUpperCase()}
+                          </Badge>
+                          <Badge className="bg-blue-900/50 text-blue-200 hover:bg-blue-900/70">
+                            INIT: {viewedCharacter.currentInit}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="text-right pr-8">
+                        <div className="flex items-center justify-end gap-3">
+                          <div className="flex flex-col items-center">
+                            <span className="text-xs text-[var(--text-secondary)] font-bold uppercase">DEF</span>
+                            <span className="text-xl font-bold text-[var(--text-primary)]">{viewedCharacter.Defense}</span>
+                          </div>
+                          <div className="h-8 w-px bg-[var(--border-color)]"></div>
+                          <div className="flex flex-col items-end">
+                            <div className="flex items-center gap-1 text-xl font-bold text-[var(--text-primary)]">
+                              <Heart className="h-5 w-5 text-red-500 fill-red-500" />
+                              {viewedCharacter.pv}
+                            </div>
+                            <Button variant="link" className="text-blue-400 p-0 h-auto text-xs" onClick={() => openDrawer(viewedCharacter)}>
+                              Ajuster PV
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-4 pb-4">
+                <div className="grid grid-cols-6 gap-2">
+                  {viewedCharacter.stats && Object.entries(viewedCharacter.stats).map(([stat, value]) => {
+                    const mod = Math.floor(((value as number) - 10) / 2)
+                    const modString = mod >= 0 ? `+${mod}` : `${mod}`
+                    return (
+                      <div key={stat} className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded p-1 text-center">
+                        <div className="text-[9px] uppercase tracking-wider text-[var(--text-secondary)] font-bold">{stat}</div>
+                        <div className="font-mono font-bold text-sm text-[var(--text-primary)]">
+                          {value} <span className="text-[10px] text-[var(--text-secondary)]">({modString})</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Target Panel (if exists) */}
           {(() => {
