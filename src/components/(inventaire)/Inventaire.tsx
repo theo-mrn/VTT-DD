@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -48,7 +48,7 @@ const predefinedItems: Record<string, string[]> = {
 };
 
 const statAttributes = ["CON", "SAG", "DEX", "FOR", "CHA", "INT", "PV", "Defense", "INIT", "Contact", "Distance", "Magie"];
-const categoryIcons: Record<string, JSX.Element> = {
+const categoryIcons: Record<string, React.ReactNode> = {
   'armes-contact': <Sword className="w-4 h-4 text-[#c0a080]" />,
   'armes-distance': <Target className="w-4 h-4 text-[#c0a080]" />,
   'armures': <Shield className="w-4 h-4 text-[#c0a080]" />,
@@ -85,9 +85,9 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
       try {
         const response = await fetch('/tabs/Items.json');
         const data = await response.json();
-        
+
         const descriptions: Record<string, ItemDescription> = {};
-        
+
         // Parcourir les données et créer un mapping nom -> description
         for (let i = 1; i <= 21; i++) {
           const name = data[`Affichage${i}`];
@@ -96,7 +96,7 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
             descriptions[name.toLowerCase()] = { name, description };
           }
         }
-        
+
         setItemDescriptions(descriptions);
       } catch (error) {
         console.error('Erreur lors du chargement des descriptions:', error);
@@ -162,20 +162,20 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
 
   const handleAddItem = async (item: string) => {
     try {
-    const existingItem = inventory.find(i => i.message === item && i.category === currentCategory);
-    if (existingItem) {
-      const itemRef = doc(inventoryRef, existingItem.id);
-      await updateDoc(itemRef, { quantity: existingItem.quantity + 1 });
-    } else {
-      await addDoc(inventoryRef, {
-        message: item,
-        category: currentCategory,
-        quantity: 1,
-        bonusTypes: {},
-        diceSelection: currentCategory.includes('armes') ? `1d6` : null,
-        visibility: 'public',
-        weight: 1
-      });
+      const existingItem = inventory.find(i => i.message === item && i.category === currentCategory);
+      if (existingItem) {
+        const itemRef = doc(inventoryRef, existingItem.id);
+        await updateDoc(itemRef, { quantity: existingItem.quantity + 1 });
+      } else {
+        await addDoc(inventoryRef, {
+          message: item,
+          category: currentCategory,
+          quantity: 1,
+          bonusTypes: {},
+          diceSelection: currentCategory.includes('armes') ? `1d6` : null,
+          visibility: 'public',
+          weight: 1
+        });
       }
       // Fermer le modal après l'ajout réussi
       setIsAddItemDialogOpen(false);
@@ -222,23 +222,23 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
   };
 
   const handleAddBonus = async () => {
-    console.log("Current item:", currentItem); 
-    console.log("Bonus type:", bonusType); 
-    console.log("Bonus value:", bonusValue); 
+    console.log("Current item:", currentItem);
+    console.log("Bonus type:", bonusType);
+    console.log("Bonus value:", bonusValue);
     if (currentItem && bonusType && bonusValue) {
-        const itemRef = doc(db, `Bonus/${roomId}/${playerName}/${currentItem.id}`);
-        await setDoc(itemRef, { 
-            [bonusType]: parseInt(bonusValue),
-            active: true,
-            category: 'Inventaire'
-        }, { merge: true });
-        setBonusType('');
-        setBonusValue('');
-        setIsBonusDialogOpen(false);
+      const itemRef = doc(db, `Bonus/${roomId}/${playerName}/${currentItem.id}`);
+      await setDoc(itemRef, {
+        [bonusType]: parseInt(bonusValue),
+        active: true,
+        category: 'Inventaire'
+      }, { merge: true });
+      setBonusType('');
+      setBonusValue('');
+      setIsBonusDialogOpen(false);
     } else {
-        console.log("Missing data for bonus.");
+      console.log("Missing data for bonus.");
     }
-};
+  };
 
   const handleToggleBonusActive = async (itemId: string | undefined) => {
     try {
@@ -282,7 +282,7 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
       ))}
     </div>
   );
-  
+
 
   const handleDeleteBonus = async (bonusType: string) => {
     if (currentItem) {
@@ -337,7 +337,7 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                   Ajouter un objet
                 </DialogTitle>
               </DialogHeader>
-              
+
               <div className="flex-1 overflow-hidden flex flex-col min-h-0">
                 {/* Barre de recherche et filtres */}
                 <div className="flex-shrink-0 py-4 space-y-4 border-b border-[var(--border-color)]">
@@ -350,7 +350,7 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                       className="w-full pl-16 h-14 text-lg input-field bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]"
                     />
                   </div>
-                  
+
                   <Select value={currentCategory} onValueChange={setCurrentCategory}>
                     <SelectTrigger className="w-full h-14 text-lg bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--accent-brown)]">
                       <SelectValue placeholder="Toutes catégories" />
@@ -376,7 +376,7 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                       <Search className="w-5 h-5" />
                       Objets prédéfinis
                     </h3>
-                    
+
                     <div className="overflow-y-auto flex-1 pr-3">
                       <div className="space-y-6">
                         {Object.entries(predefinedItems)
@@ -385,10 +385,10 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                             const filteredItems = items.filter(item => {
                               const searchLower = dialogSearchTerm.toLowerCase();
                               const itemDescription = itemDescriptions[item.toLowerCase()];
-                              return item.toLowerCase().includes(searchLower) || 
-                                     (itemDescription && itemDescription.description.toLowerCase().includes(searchLower));
+                              return item.toLowerCase().includes(searchLower) ||
+                                (itemDescription && itemDescription.description.toLowerCase().includes(searchLower));
                             });
-                            
+
                             if (filteredItems.length === 0) return null;
 
                             return (
@@ -400,7 +400,7 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                                     {filteredItems.length} objet{filteredItems.length > 1 ? 's' : ''}
                                   </span>
                                 </div>
-                                
+
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                                   {filteredItems.map(item => {
                                     const itemDescription = itemDescriptions[item.toLowerCase()];
@@ -428,44 +428,44 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                               </div>
                             );
                           })}
-                        
+
                         {Object.entries(predefinedItems)
                           .filter(([categoryKey]) => currentCategory === 'all' || !currentCategory || currentCategory === categoryKey)
-                          .every(([, items]) => 
+                          .every(([, items]) =>
                             items.filter(item => {
                               const searchLower = dialogSearchTerm.toLowerCase();
                               const itemDescription = itemDescriptions[item.toLowerCase()];
-                              return item.toLowerCase().includes(searchLower) || 
-                                     (itemDescription && itemDescription.description.toLowerCase().includes(searchLower));
+                              return item.toLowerCase().includes(searchLower) ||
+                                (itemDescription && itemDescription.description.toLowerCase().includes(searchLower));
                             }).length === 0
                           ) && (
-                          <div className="text-center py-16">
-                            <Search className="w-16 h-16 mx-auto text-[var(--text-primary)] opacity-50 mb-4" />
-                            <h4 className="text-[var(--text-primary)] font-semibold mb-3 text-lg">Aucun objet trouvé</h4>
-                            <p className="text-[var(--text-primary)] opacity-70">
-                              Modifiez votre recherche ou créez un objet personnalisé
-                            </p>
-                          </div>
-                        )}
+                            <div className="text-center py-16">
+                              <Search className="w-16 h-16 mx-auto text-[var(--text-primary)] opacity-50 mb-4" />
+                              <h4 className="text-[var(--text-primary)] font-semibold mb-3 text-lg">Aucun objet trouvé</h4>
+                              <p className="text-[var(--text-primary)] opacity-70">
+                                Modifiez votre recherche ou créez un objet personnalisé
+                              </p>
+                            </div>
+                          )}
                       </div>
                     </div>
                   </div>
-                  
+
                   {/* Séparateur */}
                   <div className="w-px bg-[var(--border-color)] flex-shrink-0"></div>
-                  
+
                   {/* Objet personnalisé */}
                   <div className="flex-1 min-w-0 flex flex-col">
                     <h3 className="font-semibold mb-4 text-[var(--accent-brown)] flex items-center gap-2 text-lg flex-shrink-0">
                       <Plus className="w-5 h-5" />
                       Créer un objet personnalisé
                     </h3>
-                    
+
                     <div className="space-y-4 flex-1">
                       <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-5">
                         <div className="space-y-4">
                           <div>
-                                                         <Label className="text-[var(--text-primary)] text-sm font-medium mb-2 block">Nom de l&apos;objet</Label>
+                            <Label className="text-[var(--text-primary)] text-sm font-medium mb-2 block">Nom de l&apos;objet</Label>
                             <Input
                               value={newItemName}
                               onChange={(e) => setNewItemName(e.target.value)}
@@ -473,27 +473,27 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                               placeholder="Ex: Épée enchantée"
                             />
                           </div>
-                          
+
                           <div>
                             <Label className="text-[var(--text-primary)] text-sm font-medium mb-2 block">Catégorie</Label>
                             <Select value={currentCategory} onValueChange={setCurrentCategory}>
                               <SelectTrigger className="h-10 bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--accent-brown)]">
                                 <SelectValue placeholder="Choisir une catégorie..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[var(--bg-card)] border border-[var(--border-color)]">
-                    {Object.keys(predefinedItems).map((category) => (
-                      <SelectItem key={category} value={category}>
+                              </SelectTrigger>
+                              <SelectContent className="bg-[var(--bg-card)] border border-[var(--border-color)]">
+                                {Object.keys(predefinedItems).map((category) => (
+                                  <SelectItem key={category} value={category}>
                                     <div className="flex items-center gap-2">
                                       {categoryIcons[category]}
-                        {category}
+                                      {category}
                                     </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                          
-                      <Button
+
+                          <Button
                             onClick={() => {
                               if (newItemName && currentCategory && currentCategory !== 'all') {
                                 handleAddItem(newItemName);
@@ -505,7 +505,7 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                             className="w-full h-11 font-medium button-primary"
                           >
                             <Plus className="w-4 h-4 mr-2" />
-                                                         Créer l&apos;objet personnalisé
+                            Créer l&apos;objet personnalisé
                           </Button>
                         </div>
                       </div>
@@ -542,8 +542,8 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                             <DropdownMenuItem onSelect={() => setIsRenameDialogOpen(true)}>
                               Renommer
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => { 
-                              setCurrentItem(item); 
+                            <DropdownMenuItem onSelect={() => {
+                              setCurrentItem(item);
                               setIsBonusDialogOpen(true);
                             }}>
                               Gérer les bonus
@@ -551,8 +551,8 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
                             <DropdownMenuItem onSelect={() => handleToggleBonusActive(item.id)}>
                               Activer/Désactiver le bonus
                             </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => { 
-                              setCurrentItem(item); 
+                            <DropdownMenuItem onSelect={() => {
+                              setCurrentItem(item);
                               setIsDiceDialogOpen(true);
                             }}>
                               Modifier les dés

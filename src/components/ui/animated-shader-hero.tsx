@@ -27,7 +27,7 @@ interface HeroProps {
 // Reusable Shader Background Hook
 const useShaderBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number | undefined>(undefined);
   const rendererRef = useRef<WebGLRenderer | null>(null);
   const pointersRef = useRef<PointerHandler | null>(null);
 
@@ -148,7 +148,7 @@ void main(){gl_Position=position;}`;
     init() {
       const gl = this.gl;
       const program = this.program!;
-      
+
       this.buffer = gl.createBuffer();
       gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
       gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.vertices), gl.STATIC_DRAW);
@@ -168,14 +168,14 @@ void main(){gl_Position=position;}`;
     render(now = 0) {
       const gl = this.gl;
       const program = this.program;
-      
+
       if (!program || gl.getProgramParameter(program, gl.DELETE_STATUS)) return;
 
       gl.clearColor(0, 0, 0, 1);
       gl.clear(gl.COLOR_BUFFER_BIT);
       gl.useProgram(program);
       gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-      
+
       gl.uniform2f((program as any).resolution, this.canvas.width, this.canvas.height);
       gl.uniform1f((program as any).time, now * 1e-3);
       gl.uniform2f((program as any).move, ...this.mouseMove);
@@ -196,8 +196,8 @@ void main(){gl_Position=position;}`;
 
     constructor(element: HTMLCanvasElement, scale: number) {
       this.scale = scale;
-      
-      const map = (element: HTMLCanvasElement, scale: number, x: number, y: number): [number, number] => 
+
+      const map = (element: HTMLCanvasElement, scale: number, x: number, y: number): [number, number] =>
         [x * scale, element.height - y * scale];
 
       element.addEventListener('pointerdown', (e) => {
@@ -246,8 +246,8 @@ void main(){gl_Position=position;}`;
     }
 
     get coords() {
-      return this.pointers.size > 0 
-        ? Array.from(this.pointers.values()).flat() 
+      return this.pointers.size > 0
+        ? Array.from(this.pointers.values()).flat()
         : [0, 0];
     }
 
@@ -258,13 +258,13 @@ void main(){gl_Position=position;}`;
 
   const resize = () => {
     if (!canvasRef.current) return;
-    
+
     const canvas = canvasRef.current;
     const dpr = Math.max(1, 0.5 * window.devicePixelRatio);
-    
+
     canvas.width = window.innerWidth * dpr;
     canvas.height = window.innerHeight * dpr;
-    
+
     if (rendererRef.current) {
       rendererRef.current.updateScale(dpr);
     }
@@ -272,7 +272,7 @@ void main(){gl_Position=position;}`;
 
   const loop = (now: number) => {
     if (!rendererRef.current || !pointersRef.current) return;
-    
+
     rendererRef.current.updateMouse(pointersRef.current.first);
     rendererRef.current.updatePointerCount(pointersRef.current.count);
     rendererRef.current.updatePointerCoords(pointersRef.current.coords);
@@ -286,23 +286,23 @@ void main(){gl_Position=position;}`;
 
     const canvas = canvasRef.current;
     const dpr = Math.max(1, 0.5 * window.devicePixelRatio);
-    
+
     rendererRef.current = new WebGLRenderer(canvas, dpr);
     pointersRef.current = new PointerHandler(canvas, dpr);
-    
+
     rendererRef.current.setup();
     rendererRef.current.init();
-    
+
     resize();
-    
+
     if (rendererRef.current.test(defaultShaderSource) === null) {
       rendererRef.current.updateShader(defaultShaderSource);
     }
-    
+
     loop(0);
-    
+
     window.addEventListener('resize', resize);
-    
+
     return () => {
       window.removeEventListener('resize', resize);
       if (animationFrameRef.current) {
@@ -388,13 +388,13 @@ const Hero: React.FC<HeroProps> = ({
           animation: gradient-shift 3s ease infinite;
         }
       `}</style>
-      
+
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full object-contain touch-none"
         style={{ background: 'black' }}
       />
-      
+
       {/* Hero Content Overlay */}
       <div className="absolute inset-0 z-10 flex flex-col items-center justify-center text-white">
         {/* Trust Badge */}
@@ -425,19 +425,19 @@ const Hero: React.FC<HeroProps> = ({
               {headline.line2}
             </h1>
           </div>
-          
+
           {/* Subtitle with Animation */}
           <div className="max-w-3xl mx-auto animate-fade-in-up animation-delay-600">
             <p className="text-lg md:text-xl lg:text-2xl text-orange-100/90 font-light leading-relaxed">
               {subtitle}
             </p>
           </div>
-          
+
           {/* CTA Buttons with Animation */}
           {buttons && (
             <div className="flex flex-col sm:flex-row gap-4 justify-center mt-10 animate-fade-in-up animation-delay-800">
               {buttons.primary && (
-                <button 
+                <button
                   onClick={buttons.primary.onClick}
                   className="px-8 py-4 bg-gradient-to-r from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-black rounded-full font-semibold text-lg transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-orange-500/25"
                 >
@@ -445,7 +445,7 @@ const Hero: React.FC<HeroProps> = ({
                 </button>
               )}
               {buttons.secondary && (
-                <button 
+                <button
                   onClick={buttons.secondary.onClick}
                   className="px-8 py-4 bg-orange-500/10 hover:bg-orange-500/20 border border-orange-300/30 hover:border-orange-300/50 text-orange-100 rounded-full font-semibold text-lg transition-all duration-300 hover:scale-105 backdrop-blur-sm"
                 >

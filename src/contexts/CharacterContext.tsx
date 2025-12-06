@@ -43,6 +43,7 @@ export interface Character {
   theme_background?: string;
   theme_secondary_color?: string;
   layout?: Layout[];
+  [key: string]: any;
 }
 
 export interface Bonuses {

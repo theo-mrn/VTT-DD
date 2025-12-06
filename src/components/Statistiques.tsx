@@ -284,11 +284,10 @@ export function Statistiques() {
                   onClick={() => setSelectedStat(stat.key)}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className={`p-3 rounded-md text-xs font-medium transition-all duration-200 flex flex-col items-center gap-1.5 ${
-                    selectedStat === stat.key
+                  className={`p-3 rounded-md text-xs font-medium transition-all duration-200 flex flex-col items-center gap-1.5 ${selectedStat === stat.key
                       ? 'bg-[var(--accent-brown)] text-white shadow-sm'
                       : 'bg-[var(--bg-darker)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent-brown)]/50 hover:text-[var(--text-primary)]'
-                  }`}
+                    }`}
                 >
                   <div className={selectedStat === stat.key ? 'text-white' : 'text-[var(--accent-brown)]'}>
                     {stat.icon}
