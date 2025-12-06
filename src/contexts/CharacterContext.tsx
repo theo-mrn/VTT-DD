@@ -1,17 +1,18 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo, useRef } from 'react';
-import { 
-  db, 
-  collection, 
+import {
+  db,
+  collection,
   doc,
-  onSnapshot, 
+  onSnapshot,
   updateDoc,
   setDoc,
   getDoc,
   getDocs,
 } from '@/lib/firebase';
 import { useGame } from './GameContext';
+import { Layout } from 'react-grid-layout';
 
 // ==================== TYPES ====================
 
@@ -39,6 +40,9 @@ export interface Character {
   CHA?: number;
   type?: string;
   deVie?: string;
+  theme_background?: string;
+  theme_secondary_color?: string;
+  layout?: Layout[];
 }
 
 export interface Bonuses {
@@ -109,23 +113,23 @@ interface CharacterContextType {
   characters: Character[];
   selectedCharacter: Character | null;
   setSelectedCharacter: (character: Character | null) => void;
-  
+
   // Bonus
   bonuses: Bonuses | null;
   categorizedBonuses: CategorizedBonuses | null;
-  
+
   // Compétences
   competences: Competence[];
   refreshCompetences: () => Promise<void>;
-  
+
   // Utilitaires
   getModifier: (value: number) => number;
   getDisplayModifier: (stat: keyof Character) => number;
   getDisplayValue: (stat: keyof Character) => number;
-  
+
   // Édition
   updateCharacter: (characterId: string, updates: Partial<Character>) => Promise<void>;
-  
+
   // État
   isLoading: boolean;
   roomId: string | null;
@@ -145,7 +149,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
-  
+
   // Cache des compétences par personnage pour éviter les rechargements
   const competencesCache = useRef<Map<string, Competence[]>>(new Map());
 
@@ -159,7 +163,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     const baseValue = selectedCharacter ? parseInt(selectedCharacter[stat] as any || "0") : 0;
     const bonusValue = bonuses ? bonuses[stat] || 0 : 0;
     const finalValue = getModifier(baseValue) + bonusValue;
-    
+
     // Enregistrer la valeur finale dans la base de données (async, sans bloquer)
     if (selectedCharacter && roomId) {
       const finalStatKey = `${stat}_F`;
@@ -171,7 +175,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
           console.error(`Erreur lors de la sauvegarde de ${finalStatKey}:`, error);
         });
     }
-    
+
     return finalValue;
   }, [selectedCharacter, bonuses, roomId, getModifier]);
 
@@ -179,7 +183,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     const baseValue = selectedCharacter ? parseInt(selectedCharacter[stat] as any || "0") : 0;
     const bonusValue = bonuses ? bonuses[stat] || 0 : 0;
     const finalValue = baseValue + bonusValue;
-    
+
     // Enregistrer la valeur finale dans la base de données (async, sans bloquer)
     if (selectedCharacter && roomId) {
       const finalStatKey = `${stat}_F`;
@@ -191,7 +195,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
           console.error(`Erreur lors de la sauvegarde de ${finalStatKey}:`, error);
         });
     }
-    
+
     return finalValue;
   }, [selectedCharacter, bonuses, roomId]);
 
@@ -204,13 +208,13 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     }
 
     setRoomId(user.roomId);
-    
+
     // Écouter les changements des personnages en temps réel
     const charactersRef = collection(db, `cartes/${user.roomId}/characters`);
-    
+
     const unsubscribe = onSnapshot(charactersRef, (snapshot) => {
       const charactersData: Character[] = [];
-      
+
       snapshot.forEach((doc) => {
         const data = doc.data();
         if (data.type === "joueurs") {
@@ -220,9 +224,9 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
           } as Character);
         }
       });
-      
+
       setCharacters(charactersData);
-      
+
       // Sélectionner automatiquement le premier personnage si aucun n'est sélectionné
       setSelectedCharacterId(prevId => {
         if (!prevId && charactersData.length > 0) {
@@ -231,7 +235,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
         }
         return prevId;
       });
-      
+
       setIsLoading(false);
     }, (error) => {
       console.error("Erreur lors de l'écoute des personnages:", error);
@@ -264,7 +268,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     }
 
     const bonusesRef = collection(db, `Bonus/${roomId}/${selectedCharacter.Nomperso}`);
-    
+
     const unsubscribe = onSnapshot(bonusesRef, (snapshot) => {
       const totalBonuses: Bonuses = {
         CHA: 0, CON: 0, Contact: 0, DEX: 0, Defense: 0, Distance: 0,
@@ -318,7 +322,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     try {
       const customCompetencesRef = collection(db, `cartes/${roomId}/characters/${characterId}/customCompetences`);
       const customCompetencesSnapshot = await getDocs(customCompetencesRef);
-      
+
       const customComps: CustomCompetence[] = [];
       customCompetencesSnapshot.forEach((doc) => {
         const data = doc.data();
@@ -332,7 +336,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
           competenceType: data.competenceType,
         });
       });
-      
+
       return customComps;
     } catch (error) {
       console.error('Error loading custom competences:', error);
@@ -375,7 +379,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     }
 
     const characterCacheKey = `${roomId}-${selectedCharacter.id}`;
-    
+
     // 1. Vérifier le cache et afficher immédiatement si disponible
     const cachedCompetences = competencesCache.current.get(characterCacheKey);
     if (cachedCompetences) {
@@ -394,10 +398,10 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
         if (characterDoc.exists()) {
           const characterData = characterDoc.data();
           const skills: Competence[] = [];
-          
+
           // Load custom competences first
           const customComps = await loadCustomCompetences(roomId, selectedCharacter.id);
-          
+
           // Dynamically find all available voies (up to 10)
           for (let i = 1; i <= 10; i++) {
             const voieFile = characterData[`Voie${i}`];
@@ -413,10 +417,10 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
                   let skillType = skillData[`type${j}`];
 
                   // Check if this competence has been customized
-                  const customComp = customComps.find(cc => 
+                  const customComp = customComps.find(cc =>
                     cc.voieIndex === i - 1 && cc.slotIndex === j - 1
                   );
-                  
+
                   if (customComp) {
                     skillName = `🔄 ${customComp.competenceName}`;
                     skillDescription = `${customComp.competenceDescription}<br><br><em>📍 Depuis: ${customComp.sourceVoie} (rang ${customComp.sourceRank})</em>`;
@@ -425,7 +429,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
 
                   if (skillName && skillDescription && skillType) {
                     const skillId = `${voieFile}-${j}`;
-                    
+
                     // Récupérer les bonus associés depuis Firestore
                     const bonusData = await fetchBonusData(roomId, characterData.Nomperso, skillId);
 
@@ -444,9 +448,9 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
               }
             }
           }
-          
+
           console.log("✅ Loaded", skills.length, "fresh competences for", selectedCharacter.Nomperso);
-          
+
           // 3. Mettre à jour le cache et l'état
           competencesCache.current.set(characterCacheKey, skills);
           setCompetences(skills);
@@ -469,12 +473,12 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
   // Fonction exposée pour forcer le rechargement manuel si nécessaire
   const refreshCompetences = useCallback(async () => {
     if (!roomId || !selectedCharacter) return;
-    
+
     const characterCacheKey = `${roomId}-${selectedCharacter.id}`;
-    
+
     // Déclencher un rechargement en forçant une mise à jour
     console.log("🔄 Manual refresh requested for:", selectedCharacter.Nomperso);
-    
+
     try {
       const characterRef = doc(db, `cartes/${roomId}/characters/${selectedCharacter.id}`);
       const characterDoc = await getDoc(characterRef);
@@ -482,9 +486,9 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
       if (characterDoc.exists()) {
         const characterData = characterDoc.data();
         const skills: Competence[] = [];
-        
+
         const customComps = await loadCustomCompetences(roomId, selectedCharacter.id);
-        
+
         for (let i = 1; i <= 10; i++) {
           const voieFile = characterData[`Voie${i}`];
           const voieLevel = characterData[`v${i}`] || 0;
@@ -498,10 +502,10 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
                 let skillDescription = skillData[`rang${j}`];
                 let skillType = skillData[`type${j}`];
 
-                const customComp = customComps.find(cc => 
+                const customComp = customComps.find(cc =>
                   cc.voieIndex === i - 1 && cc.slotIndex === j - 1
                 );
-                
+
                 if (customComp) {
                   skillName = `🔄 ${customComp.competenceName}`;
                   skillDescription = `${customComp.competenceDescription}<br><br><em>📍 Depuis: ${customComp.sourceVoie} (rang ${customComp.sourceRank})</em>`;
@@ -527,7 +531,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
             }
           }
         }
-        
+
         // Mettre à jour le cache et l'état
         competencesCache.current.set(characterCacheKey, skills);
         setCompetences(skills);
@@ -542,7 +546,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
 
   const updateCharacter = useCallback(async (characterId: string, updates: Partial<Character>) => {
     if (!roomId) return;
-    
+
     try {
       await updateDoc(doc(db, `cartes/${roomId}/characters`, characterId), updates);
       console.log("Character updated successfully");
