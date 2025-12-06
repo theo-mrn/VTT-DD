@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,7 +50,7 @@ const predefinedItems: Record<string, string[]> = {
 };
 
 const statAttributes = ["CON", "SAG", "DEX", "FOR", "CHA", "INT", "PV", "Defense", "INIT", "Contact", "Distance", "Magie"];
-const categoryIcons: Record<string, JSX.Element> = {
+const categoryIcons: Record<string, React.ReactNode> = {
   'armes-contact': <Sword className="w-6 h-6 text-[#c0a080]" />,
   'armes-distance': <Target className="w-6 h-6 text-[#c0a080]" />,
   'armures': <Shield className="w-6 h-6 text-[#c0a080]" />,
