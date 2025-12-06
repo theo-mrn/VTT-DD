@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Cropper from 'react-easy-crop';
 import { doc, updateDoc, getDoc, db, auth, onAuthStateChanged } from '@/lib/firebase';
 import { getCroppedImg, createCompositeImage } from '@/lib/cropImageHelper';
@@ -158,52 +159,54 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
   }
 
   return (
-    <div className="relative w-40 h-40 sm:w-48 sm:h-48 flex justify-center items-center mx-auto group">
-      {finalImageUrl ? (
-        /* Display composite final image */
-        <div
-          className="relative w-full h-full cursor-pointer shadow-2xl transition-all duration-300"
-          onClick={() => setShowCropper(true)}
-        >
-          <img
-            src={finalImageUrl}
-            alt={altText || "Character Image"}
-            className="w-full h-full object-contain"
-          />
-          {/* Hover overlay */}
-          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-full">
-            <ImageIcon className="text-[#c0a0a0]" size={32} />
-          </div>
-        </div>
-      ) : (
-        /* Fallback: Display character image with overlay (for backwards compatibility) */
-        <>
+    <div className="relative w-full h-full flex justify-center items-center mx-auto group min-h-0 min-w-0">
+      <div className="relative max-w-full max-h-full aspect-square w-full h-full flex items-center justify-center">
+        {finalImageUrl ? (
+          /* Display composite final image */
           <div
-            className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden shadow-2xl cursor-pointer z-10 border-2 border-[#3a3a3a] hover:border-[#c0a0a0] transition-all duration-300"
+            className="relative w-full h-full cursor-pointer transition-all duration-300"
             onClick={() => setShowCropper(true)}
           >
             <img
-              src={croppedImageUrl}
+              src={finalImageUrl}
               alt={altText || "Character Image"}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
             />
             {/* Hover overlay */}
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-full">
               <ImageIcon className="text-[#c0a0a0]" size={32} />
             </div>
           </div>
+        ) : (
+          /* Fallback: Display character image with overlay (for backwards compatibility) */
+          <>
+            <div
+              className="relative w-[80%] h-[80%] rounded-full overflow-hidden cursor-pointer z-10 hover:border-[#c0a0a0] transition-all duration-300"
+              onClick={() => setShowCropper(true)}
+            >
+              <img
+                src={croppedImageUrl}
+                alt={altText || "Character Image"}
+                className="w-full h-full object-cover"
+              />
+              {/* Hover overlay */}
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                <ImageIcon className="text-[#c0a0a0]" size={32} />
+              </div>
+            </div>
 
-          {/* Decorative Overlay */}
-          <div
-            className="absolute inset-0 w-40 h-40 sm:w-48 sm:h-48 bg-center bg-cover z-20 pointer-events-none"
-            style={{ backgroundImage: `url(${overlayUrl})` }}
-          />
-        </>
-      )}
+            {/* Decorative Overlay */}
+            <div
+              className="absolute inset-0 w-full h-full bg-center bg-cover z-20 pointer-events-none"
+              style={{ backgroundImage: `url(${overlayUrl})` }}
+            />
+          </>
+        )}
+      </div>
 
       {/* Cropper Modal with Token Grid */}
-      {showCropper && croppedImageUrl && (
-        <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-sm flex flex-col lg:flex-row">
+      {showCropper && croppedImageUrl && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex flex-col lg:flex-row">
           {/* Left side - Cropper */}
           <div className="flex-1 flex flex-col justify-center items-center p-3 sm:p-4 lg:p-6 bg-[#1a1a1a]">
             <div className="w-full max-w-3xl mb-4">
@@ -330,7 +333,8 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
