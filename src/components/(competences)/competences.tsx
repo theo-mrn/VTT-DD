@@ -128,7 +128,7 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
         setCharacters(characterList)
 
         // Si un personnage est pré-sélectionné, le sélectionner automatiquement
-        if (preSelectedCharacterId && persoId) {
+        if (preSelectedCharacterId) {
             const preSelected = characterList.find(char => char.id === preSelectedCharacterId)
             if (preSelected) {
                 await selectCharacter(preSelected)

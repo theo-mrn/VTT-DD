@@ -6,9 +6,13 @@ import {
   db,
   doc,
   getDoc,
-  updateDoc
+  updateDoc,
+  storage,
+  ref,
+  uploadBytes,
+  getDownloadURL
 } from '@/lib/firebase';
-import { Heart, Shield, Edit, TrendingUp, ChartColumn } from 'lucide-react';
+import { Heart, Shield, Edit, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
 import InventoryManagement2 from '@/components/(inventaire)/inventaire2';
 import CompetencesDisplay from "@/components/(competences)/competencesD";
 import Competences from "@/components/(competences)/competences";
@@ -16,11 +20,73 @@ import CharacterImage from '@/components/(fiches)/CharacterImage';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCharacter, Character } from '@/contexts/CharacterContext';
 import { Statistiques } from '@/components/Statistiques';
+import { WidgetAvatar, WidgetDetails, WidgetStats, WidgetVitals, WidgetCombatStats } from './FicheWidgets';
+import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
+import { LayoutDashboard, RotateCcw, Settings } from 'lucide-react';
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
+
+const DEFAULT_LAYOUT: Layout[] = [
+  { i: 'avatar', x: 0, y: 0, w: 2, h: 4, minW: 2, minH: 3 },
+  { i: 'details', x: 2, y: 0, w: 4, h: 4, minW: 3, minH: 3 },
+  { i: 'vitals', x: 6, y: 0, w: 6, h: 2, minW: 4, minH: 2 },
+  { i: 'combat_stats', x: 6, y: 6, w: 6, h: 2, minW: 4, minH: 2 },
+  { i: 'stats', x: 0, y: 12, w: 6, h: 5, minW: 4, minH: 3 },
+  { i: 'inventory', x: 6, y: 12, w: 6, h: 5, minW: 4, minH: 4 },
+  { i: 'skills', x: 0, y: 17, w: 12, h: 8, minW: 6, minH: 6 }
+];
 
 interface UserData {
   persoId?: string;
   perso?: string;
 }
+
+interface WidgetControlsProps {
+  id: string;
+  updateWidgetDim: (id: string, type: 'w' | 'h', value: number | 'inc' | 'dec') => void;
+  widthMode?: 'presets' | 'incremental';
+}
+
+const WidgetControls: React.FC<WidgetControlsProps> = ({ id, updateWidgetDim, widthMode = 'presets' }) => (
+  <div className="absolute -top-9 right-0 z-50 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none pr-1">
+    <div className="flex bg-[#2a2a2a] border border-[#3a3a3a] rounded-t-lg shadow-xl text-xs overflow-hidden pointer-events-auto">
+      <div className="flex border-r border-[#3a3a3a]">
+        {widthMode === 'incremental' ? (
+          <>
+            <button onClick={() => updateWidgetDim(id, 'w', 'dec')} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] border-r border-[#3a3a3a] transition-colors" title="Réduire largeur">
+              <ChevronLeft size={14} />
+            </button>
+            <button onClick={() => updateWidgetDim(id, 'w', 'inc')} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] transition-colors" title="Augmenter largeur">
+              <ChevronRight size={14} />
+            </button>
+          </>
+        ) : (
+          <>
+            <button onClick={() => updateWidgetDim(id, 'w', 4)} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] border-r border-[#3a3a3a] transition-colors" title="Largeur 1/3">1/3</button>
+            <button onClick={() => updateWidgetDim(id, 'w', 6)} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] border-r border-[#3a3a3a] transition-colors" title="Largeur 1/2">1/2</button>
+            <button onClick={() => updateWidgetDim(id, 'w', 8)} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] border-r border-[#3a3a3a] transition-colors" title="Largeur 2/3">2/3</button>
+            <button onClick={() => updateWidgetDim(id, 'w', 12)} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] transition-colors" title="Pleine largeur">Full</button>
+          </>
+        )}
+      </div>
+      <div className="flex border-l border-[#3a3a3a]">
+        <button onClick={() => updateWidgetDim(id, 'h', 'dec')} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] border-r border-[#3a3a3a] transition-colors" title="Réduire hauteur">
+          <ChevronUp size={14} />
+        </button>
+        <button onClick={() => updateWidgetDim(id, 'h', 'inc')} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] transition-colors" title="Augmenter hauteur">
+          <ChevronDown size={14} />
+        </button>
+      </div>
+      <div className="flex border-l border-[#3a3a3a]">
+        <div className="drag-handle px-3 py-1.5 cursor-grab active:cursor-grabbing text-[#a0a0a0] hover:text-[#d4d4d4] hover:bg-[#3a3a3a] flex items-center transition-colors">
+          <Upload size={14} className="rotate-45" />
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 export default function Component() {
   const {
@@ -39,7 +105,12 @@ export default function Component() {
 
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [isCustomizing, setIsCustomizing] = useState<boolean>(false);
+  const [uploading, setUploading] = useState<boolean>(false);
   const [editForm, setEditForm] = useState<Partial<Character>>({});
+  const [customizationForm, setCustomizationForm] = useState<Partial<Character>>({});
+  const [bgType, setBgType] = useState<'color' | 'image'>('color');
+  const [blockType, setBlockType] = useState<'color' | 'image'>('color');
   const [showLevelUpModal, setShowLevelUpModal] = useState<boolean>(false);
   const [rollResult, setRollResult] = useState<number | null>(null);
   const [isRaceModalOpen, setIsRaceModalOpen] = useState(false);
@@ -49,6 +120,61 @@ export default function Component() {
   const [showLevelUpConfirmationModal, setShowLevelUpConfirmationModal] = useState<boolean>(false);
   const [showCompetencesFullscreen, setShowCompetencesFullscreen] = useState<boolean>(false);
   const [showStatistiques, setShowStatistiques] = useState<boolean>(false);
+
+  // Layout State
+  const [layout, setLayout] = useState<Layout[]>(DEFAULT_LAYOUT);
+  const [isLayoutEditing, setIsLayoutEditing] = useState(false);
+
+  useEffect(() => {
+    if (selectedCharacter?.layout && selectedCharacter.layout.length > 0) {
+      setLayout(selectedCharacter.layout);
+    } else {
+      setLayout(DEFAULT_LAYOUT);
+    }
+  }, [selectedCharacter]);
+
+  const onLayoutChange = (currentLayout: Layout[]) => {
+    setLayout(currentLayout);
+  };
+
+  const handleSaveLayout = async () => {
+    if (!selectedCharacter) return;
+    try {
+      // Sanitize layout to remove undefined values which Firebase rejects
+      const sanitizedLayout = layout.map(l => ({
+        i: l.i,
+        x: l.x,
+        y: l.y,
+        w: l.w,
+        h: l.h,
+        minW: l.minW ?? null,
+        maxW: l.maxW ?? null,
+        minH: l.minH ?? null,
+        maxH: l.maxH ?? null,
+        static: l.static ?? false
+      }));
+
+      // Remove nulls if necessary, but null is valid in Firestore. 
+      // safer to just keep essential fields
+      const cleanLayout = JSON.parse(JSON.stringify(sanitizedLayout));
+
+      await updateCharacter(selectedCharacter.id, {
+        layout: cleanLayout,
+        ...customizationForm
+      });
+      setIsLayoutEditing(false);
+    } catch (error) {
+      console.error("Error saving layout and customization:", error);
+      alert("Erreur lors de la sauvegarde: " + (error as Error).message);
+    }
+  };
+
+  const handleResetLayout = async () => {
+    setLayout(DEFAULT_LAYOUT);
+    if (!selectedCharacter) return;
+    // Optional: save the reset immediately or wait for user to click save?
+    // Let's reset purely visual first. User can save new defaults.
+  };
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -60,7 +186,7 @@ export default function Component() {
 
       try {
         const userDoc = await getDoc(doc(db, 'users', user.uid));
-        
+
         if (userDoc.exists()) {
           const userData = userDoc.data() as UserData;
           setUserPersoId(userData?.persoId || null);
@@ -73,6 +199,64 @@ export default function Component() {
     };
 
     loadUserData();
+  }, []);
+
+  const updateWidgetDim = (id: string, type: 'w' | 'h', value: number | 'inc' | 'dec') => {
+    setLayout(prevLayout => {
+      return prevLayout.map(item => {
+        if (item.i === id) {
+          let newItem = { ...item };
+          const minW = newItem.minW || 2;
+          const minH = newItem.minH || 2;
+
+          if (value === 'inc') {
+            if (type === 'w') newItem.w = Math.min((newItem.w || 1) + 1, 12);
+            if (type === 'h') newItem.h = (newItem.h || 1) + 1;
+          } else if (value === 'dec') {
+            if (type === 'w') newItem.w = Math.max((newItem.w || 1) - 1, minW);
+            if (type === 'h') newItem.h = Math.max((newItem.h || 1) - 1, minH);
+          } else if (typeof value === 'number') {
+            if (type === 'w') newItem.w = Math.max(value, minW);
+            // Handle explicit height if ever needed, though mostly unused logic currently
+          }
+          return newItem;
+        }
+        return item;
+      });
+    });
+  };
+
+  const handleInventoryResize = React.useCallback((height: number) => {
+    setLayout(prevLayout => {
+      // Trouver l'élément inventaire
+      const invItem = prevLayout.find(l => l.i === 'inventory');
+      if (!invItem) return prevLayout;
+
+      // Calculer le nombre de rangées (h) nécessaire
+      // rowHeight = 40, margin = 20
+      // height = (h * rowHeight) + ((h - 1) * margin)
+      // height + margin = h * (rowHeight + margin)
+      // h = (height + margin) / (rowHeight + margin)
+
+      // On ajoute un peu de padding pour éviter les scrollbars parasites
+      const totalHeight = height + 16;
+      const rowHeight = 40;
+      const margin = 20;
+
+      const newH = Math.ceil((totalHeight + margin) / (rowHeight + margin));
+
+      // Respecter minH et ne mettre à jour que si ça change
+      const finalH = Math.max(newH, invItem.minH || 4);
+
+      if (invItem.h === finalH) return prevLayout;
+
+      return prevLayout.map(item => {
+        if (item.i === 'inventory') {
+          return { ...item, h: finalH };
+        }
+        return item;
+      });
+    });
   }, []);
 
   const handleEdit = () => {
@@ -95,11 +279,51 @@ export default function Component() {
     setIsEditing(true);
   };
 
+  const handleEditModeToggle = () => {
+    if (!isLayoutEditing) {
+      // Entering edit mode: init customization form
+      if (selectedCharacter) {
+        setCustomizationForm({
+          theme_background: selectedCharacter.theme_background || '#1c1c1c',
+          theme_secondary_color: selectedCharacter.theme_secondary_color || '#242424',
+        });
+        setBgType(selectedCharacter.theme_background?.startsWith('http') ? 'image' : 'color');
+        setBlockType(selectedCharacter.theme_secondary_color?.startsWith('http') ? 'image' : 'color');
+      }
+    }
+    setIsLayoutEditing(!isLayoutEditing);
+  };
+
+
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'background' | 'block') => {
+    if (!e.target.files || e.target.files.length === 0 || !selectedCharacter) return;
+    const file = e.target.files[0];
+    setUploading(true);
+    try {
+      const storageRef = ref(storage, `backgrounds/${selectedCharacter.id}_${target}_${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const url = await getDownloadURL(storageRef);
+      if (target === 'background') {
+        setCustomizationForm(prev => ({ ...prev, theme_background: url }));
+      } else {
+        setCustomizationForm(prev => ({ ...prev, theme_secondary_color: url }));
+      }
+    } catch (error) {
+      console.error("Error uploading image: ", error);
+      alert("Erreur lors de l'upload de l'image");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+
+
   interface RaceAbilitiesModalProps {
     abilities: string[];
     onClose: () => void;
   }
-  
+
   const RaceAbilitiesModal: React.FC<RaceAbilitiesModalProps> = ({ abilities, onClose }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center max-h-[90vh] overflow-y-auto">
@@ -126,20 +350,20 @@ export default function Component() {
       setIsRaceModalOpen(true);
       return;
     }
-  
+
     try {
       const response = await fetch('/tabs/capacites.json');
       if (!response.ok) {
         throw new Error("Erreur lors du chargement des capacités.");
       }
-  
+
       const abilitiesData: Record<string, string[]> = await response.json();
-      const abilities = abilitiesData[race.toLowerCase()] 
-          ? Object.values(abilitiesData[race.toLowerCase()]) 
-          : ["Aucune capacité raciale trouvée."];
-      
+      const abilities = abilitiesData[race.toLowerCase()]
+        ? Object.values(abilitiesData[race.toLowerCase()])
+        : ["Aucune capacité raciale trouvée."];
+
       setSelectedRaceAbilities(abilities);
-      
+
       setIsRaceModalOpen(true);
     } catch (error) {
       console.error("Erreur lors du chargement des capacités:", error);
@@ -152,7 +376,7 @@ export default function Component() {
     if (!selectedCharacter) return;
     try {
       await updateCharacter(selectedCharacter.id, editForm);
-      
+
       setIsEditing(false);
     } catch (error) {
       console.error("Erreur lors de la sauvegarde:", error);
@@ -196,26 +420,26 @@ export default function Component() {
       </div>
     </div>
   );
-  
+
   const confirmLevelUp = async () => {
     if (rollResult == null || !selectedCharacter) {
       alert("Veuillez lancer le dé avant de valider.");
       return;
     }
-  
+
     const newPV_Max = (parseInt(selectedCharacter.PV_Max as any) || 0) + rollResult;
     const updates = {
       PV_Max: newPV_Max,
-      PV: newPV_Max, 
+      PV: newPV_Max,
       Contact: (parseInt(selectedCharacter.Contact as any) || 0) + 1,
       Distance: (parseInt(selectedCharacter.Distance as any) || 0) + 1,
       Magie: (parseInt(selectedCharacter.Magie as any) || 0) + 1,
       niveau: (selectedCharacter.niveau || 0) + 1,
     };
-  
+
     try {
       await updateCharacter(selectedCharacter.id, updates);
-      
+
       setShowLevelUpModal(false);
       setShowLevelUpConfirmationModal(true);
     } catch (error) {
@@ -223,7 +447,7 @@ export default function Component() {
       alert("Erreur lors de l'augmentation de niveau");
     }
   };
-  
+
   const closeLevelUpModal = () => {
     setShowLevelUpModal(false);
   };
@@ -253,370 +477,404 @@ export default function Component() {
   }
 
 
+  const mainStyle: React.CSSProperties = selectedCharacter?.theme_background
+    ? (selectedCharacter.theme_background.startsWith('http')
+      ? { backgroundImage: `url(${selectedCharacter.theme_background})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }
+      : { backgroundColor: selectedCharacter.theme_background })
+    : {};
+
+  const boxStyle: React.CSSProperties = selectedCharacter?.theme_secondary_color
+    ? (selectedCharacter.theme_secondary_color.startsWith('http')
+      ? { backgroundImage: `url(${selectedCharacter.theme_secondary_color})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }
+      : { backgroundColor: selectedCharacter.theme_secondary_color })
+    : {};
+
   return (
     <TooltipProvider>
-    <div className="min-h-screen bg-[#1c1c1c] text-[#d4d4d4] p-2 sm:p-4">
-      <div className="max-w-7xl mx-auto bg-[#242424] rounded-lg shadow-2xl p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6">
-        
-        {/* Boutons discrets en haut à gauche */}
-        {selectedCharacter && (selectedCharacter.id === userPersoId || userRole === "MJ") && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            <button
-              onClick={handleEdit}
-              className="bg-[#3a3a3a] text-[#c0a080] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
-              title="Modifier"
-            >
-              <Edit size={16} />
-              <span>Modifier</span>
-            </button>
-            <button
-              onClick={openLevelUpModal}
-              className="bg-[#3a3a3a] text-[#5c6bc0] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
-              title="Monter de niveau"
-            >
-              <TrendingUp size={16} />
-              <span>Niveau +</span>
-            </button>
-            <button
-              onClick={() => setShowStatistiques(true)}
-              className="bg-[#3a3a3a] text-[#c0a080] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
-              title="Voir les statistiques"
-            >
-              <ChartColumn size={16} />
-              <span>Stats</span>
-            </button>
-          </div>
-        )}
-
-        <div className="flex justify-center gap-2 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-[#3a3a3a] scrollbar-track-transparent">
-          {characters.map((character) => (
-            <button
-              key={character.id}
-              onClick={() => setSelectedCharacter(character)}
-              className={`px-3 py-2 sm:px-4 ${
-                selectedCharacter?.id === character.id 
-                  ? 'bg-[#d4b48f]' 
-                  : 'bg-[#c0a080]'
-              } text-[#1c1c1c] rounded-lg hover:bg-[#d4b48f] transition whitespace-nowrap text-xs sm:text-sm font-bold flex-shrink-0`}
-            >
-              {character.Nomperso}
-            </button>
-          ))}
-        </div>
-
-        {selectedCharacter && !isEditing && (
-          <>
-            {/* Layout principal avec responsive mobile -> tablette -> desktop */}
-            <div className="flex flex-col xl:flex-row gap-4 md:gap-6">
-              {/* Colonne gauche: Infos du personnage + Inventaire */}
-              <div className="flex-1 space-y-4 md:space-y-6">
-                {/* Image et infos principales */}
-                <div className="flex flex-col sm:flex-row space-y-4 sm:space-y-0 sm:space-x-4 md:space-x-6">
-                  <div className="flex-shrink-0 mx-auto sm:mx-0">
-                    <CharacterImage
-                      imageUrl={selectedCharacter.imageURL}
-                      altText={selectedCharacter.Nomperso}
-                      characterId={selectedCharacter.id}
-                    />
-                  </div>
-
-                  <div className="flex-grow space-y-3 md:space-y-4">
-                    <div className="bg-[#2a2a2a] p-3 md:p-4 rounded-lg border border-[#3a3a3a]">
-                      <h2 className="text-xl md:text-2xl font-bold text-[#c0a0a0] mb-2 text-center sm:text-left">{selectedCharacter.Nomperso}</h2>
-                      <div className="grid grid-cols-1 xs:grid-cols-2 gap-2 text-xs sm:text-sm">
-                        <div>Niveau: <span className="text-[#a0a0a0]">{selectedCharacter.niveau}</span></div>
-                        <div>Initiative: <span className="text-[#a0a0a0]">{getDisplayValue("INIT")}</span></div>
-                        <div>Profil: <span className="text-[#a0a0a0]">{selectedCharacter.Profile}</span></div>
-                        <div>Taille: <span className="text-[#a0a0a0]">{selectedCharacter.Taille} cm</span></div>
-                        <div>
-      Race:
-      <span
-        className="text-[#a0a0a0] underline cursor-pointer"
-        onClick={() => handleRaceClick(selectedCharacter.Race || "")}
-      >
-        {selectedCharacter.Race}
-      </span>
-    </div>
-    <div>Poids: <span className="text-[#a0a0a0]">{selectedCharacter.Poids} Kg</span></div>
-    <div className="xs:col-span-2">Dé de Vie: <span className="text-[#a0a0a0]">{selectedCharacter.deVie}</span></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Stats sur toute la largeur en dessous - 2 lignes de 3 */}
-                <div className="grid grid-cols-3 gap-3 md:gap-4 text-center">
-                  {[
-                    { name: 'FOR', value: getDisplayModifier("FOR") },
-                    { name: 'DEX', value: getDisplayModifier("DEX") },
-                    { name: 'CON', value: getDisplayModifier("CON") },
-                    { name: 'INT', value: getDisplayModifier("INT") },
-                    { name: 'SAG', value: getDisplayModifier("SAG") },
-                    { name: 'CHA', value: getDisplayModifier("CHA") },
-                  ].map((ability) => (
-                    <Tooltip key={ability.name}>
-                    <TooltipTrigger>
-                      <div className="bg-[#2a2a2a] p-3 sm:p-4 md:p-5 rounded-lg border border-[#3a3a3a]">
-                        <div className="text-[#c0a0a0] font-semibold text-sm sm:text-base">{ability.name}</div>
-                        <div className={`text-xl sm:text-2xl md:text-3xl font-bold leading-tight ${ability.value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                          {ability.value >= 0 ? '+' : ''}{ability.value}
-                        </div>
-                        <div className="text-xs sm:text-sm text-[#a0a0a0]">{selectedCharacter ? selectedCharacter[ability.name as keyof Character] : 0}</div>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Mod de base: {getModifier(selectedCharacter ? selectedCharacter[ability.name as keyof Character] as number : 0)}</p>
-                      <p>Inventaire: {categorizedBonuses ? categorizedBonuses[ability.name].Inventaire : 0}</p>
-                      <p>Compétence: {categorizedBonuses ? categorizedBonuses[ability.name].Competence : 0}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  ))}
-                </div>
-
-                <div className="bg-[#2a2a2a] p-2 xs:p-3 sm:p-4 rounded-lg border border-[#3a3a3a] flex flex-col xs:flex-row justify-between items-center gap-2 xs:gap-3">
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <div className="flex items-center space-x-1.5 xs:space-x-2">
-                        <Heart className="text-red-500" size={18} />
-                        <span className="text-base xs:text-lg sm:text-xl md:text-2xl font-bold text-[#d4d4d4]">
-                          {getDisplayValue("PV")} / {getDisplayValue("PV_Max")}
-                        </span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Base: {selectedCharacter ? selectedCharacter.PV : 0}</p>
-                      <p>Inventaire: {categorizedBonuses ? categorizedBonuses.PV.Inventaire : 0}</p>
-                      <p>Compétence: {categorizedBonuses ? categorizedBonuses.PV.Competence : 0}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <div className="flex items-center space-x-1.5 xs:space-x-2">
-                        <Shield className="text-blue-500" size={18} />
-                        <span className="text-base xs:text-lg sm:text-xl md:text-2xl font-bold text-[#d4d4d4]">{getDisplayValue("Defense")}</span>
-                      </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Base: {selectedCharacter ? selectedCharacter.Defense : 0}</p>
-                      <p>Inventaire: {categorizedBonuses ? categorizedBonuses.Defense.Inventaire : 0}</p>
-                      <p>Compétence: {categorizedBonuses ? categorizedBonuses.Defense.Competence : 0}</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-
-                <div className="grid grid-cols-3 gap-2 sm:gap-3 md:gap-4">
-                  {[
-                    { name: 'Contact', value: getDisplayValue("Contact") },
-                    { name: 'Distance', value: getDisplayValue("Distance") },
-                    { name: 'Magie', value: getDisplayValue("Magie") }
-                  ].map((stat) => (
-                    <Tooltip key={stat.name}>
-                      <TooltipTrigger>
-                        <div className="bg-[#2a2a2a] p-2 xs:p-3 sm:p-4 rounded-lg border border-[#3a3a3a] text-center">
-                          <h3 className="text-xs xs:text-sm sm:text-base md:text-lg font-semibold text-[#c0a0a0] mb-0.5 sm:mb-1">{stat.name}</h3>
-                          <span className="text-lg xs:text-xl sm:text-2xl font-bold text-[#d4d4d4]">{stat.value}</span>
-                        </div>
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>Base: {selectedCharacter ? selectedCharacter[stat.name as keyof Character] : 0}</p>
-                        <p>Inventaire: {categorizedBonuses ? categorizedBonuses[stat.name].Inventaire : 0}</p>
-                        <p>Compétence: {categorizedBonuses ? categorizedBonuses[stat.name].Competence : 0}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  ))}
-                </div>
-
-                {/* Inventaire dans la colonne gauche */}
-                {(selectedCharacter.id === userPersoId || userRole === "MJ") && roomId && (
-                  <InventoryManagement2 playerName={selectedCharacter.Nomperso} roomId={roomId} />
-                )}
-              </div>
-
-              {/* Colonne droite: Compétences - Visible pour tous, modifiable selon les droits */}
-              {roomId && (
-                <div className="w-full xl:w-[600px] flex-shrink-0">
-                  <CompetencesDisplay
-                    roomId={roomId}
-                    characterId={selectedCharacter.id}
-                    canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
-                    onOpenFullscreen={() => setShowCompetencesFullscreen(true)}
-                  />
-                </div>
-              )}
-            </div>
-          </>
-        )}
-
-{showLevelUpConfirmationModal && selectedCharacter && (
-  <LevelUpConfirmationModal 
-    onClose={() => setShowLevelUpConfirmationModal(false)} 
-    updatedCharacter={selectedCharacter} 
-  />
-)}
-
-        {isEditing && (
-          <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-lg border border-[#3a3a3a]">
-            <h2 className="text-lg sm:text-xl font-bold text-[#c0a0a0] mb-4">
-  Modifier {selectedCharacter?.Nomperso || "Personnage"}
-</h2>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
-              <div className="space-y-2">
-                <label className="text-xs sm:text-sm block">PV</label>
-                <input
-                  type="number"
-                  value={editForm.PV || ''}
-                  onChange={(e) => setEditForm({...editForm, PV: parseInt(e.target.value)})}
-                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs sm:text-sm block">PV Maximum</label>
-                <input
-                  type="number"
-                  value={editForm.PV_Max || ''}
-                  onChange={(e) => setEditForm({...editForm, PV_Max: parseInt(e.target.value)})}
-                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs sm:text-sm block">Défense</label>
-                <input
-                  type="number"
-                  value={editForm.Defense || ''}
-                  onChange={(e) => setEditForm({...editForm, Defense: parseInt(e.target.value)})}
-                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs sm:text-sm block">Contact</label>
-                <input
-                  type="number"
-                  value={editForm.Contact || ''}
-                  onChange={(e) => setEditForm({...editForm, Contact: parseInt(e.target.value)})}
-                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs sm:text-sm block">Magie</label>
-                <input
-                  type="number"
-                  value={editForm.Magie || ''}
-                  onChange={(e) => setEditForm({...editForm, Magie: parseInt(e.target.value)})}
-                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs sm:text-sm block">Distance</label>
-                <input
-                  type="number"
-                  value={editForm.Distance || ''}
-                  onChange={(e) => setEditForm({...editForm, Distance: parseInt(e.target.value)})}
-                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs sm:text-sm block">Initiative</label>
-                <input
-                  type="number"
-                  value={editForm.INIT || ''}
-                  onChange={(e) => setEditForm({...editForm, INIT: parseInt(e.target.value)})}
-                  className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
-              {['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'].map((stat) => (
-                <div key={stat} className="space-y-2">
-                  <label className="text-xs sm:text-sm block">{stat}</label>
-                  <input
-                    type="number"
-                    value={editForm[stat as keyof Character] || ''}
-                    onChange={(e) => setEditForm({...editForm, [stat]: parseInt(e.target.value)})}
-                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="flex flex-col xs:flex-row justify-end gap-3 xs:gap-4">
+      <div className="min-h-screen bg-[#1c1c1c] text-[#d4d4d4] p-2 sm:p-4">
+        {/* Barre de personnages séparée */}
+        <div className="max-w-7xl mx-auto mb-6 bg-[#242424] p-2 rounded-lg shadow-md flex items-center justify-between gap-4">
+          <div className="flex-1 flex gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-[#3a3a3a] scrollbar-track-transparent">
+            {characters.map((character) => (
               <button
-                onClick={() => setIsEditing(false)}
-                className="bg-gray-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-xs sm:text-sm font-bold"
+                key={character.id}
+                onClick={() => setSelectedCharacter(character)}
+                className={`px-3 py-2 sm:px-4 ${selectedCharacter?.id === character.id
+                  ? 'bg-[#d4b48f]'
+                  : 'bg-[#c0a080]'
+                  } text-[#1c1c1c] rounded-lg hover:bg-[#d4b48f] transition whitespace-nowrap text-xs sm:text-sm font-bold flex-shrink-0`}
               >
-                Annuler
+                {character.Nomperso}
+              </button>
+            ))}
+          </div>
+
+          {selectedCharacter && (selectedCharacter.id === userPersoId || userRole === "MJ") && (
+            <div className="flex flex-wrap gap-2 shrink-0">
+              <button
+                onClick={handleEdit}
+                className="bg-[#3a3a3a] text-[#c0a080] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
+                title="Modifier"
+              >
+                <Edit size={16} />
+                <span className="hidden sm:inline">Modifier</span>
               </button>
               <button
-                onClick={handleSave}
-                className="bg-[#c0a080] text-[#1c1c1c] px-4 sm:px-6 py-2 rounded-lg hover:bg-[#d4b48f] transition duration-300 text-xs sm:text-sm font-bold"
+                onClick={openLevelUpModal}
+                className="bg-[#3a3a3a] text-[#5c6bc0] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
+                title="Monter de niveau"
+              >
+                <TrendingUp size={16} />
+                <span className="hidden sm:inline">Niveau +</span>
+              </button>
+              <button
+                onClick={() => setShowStatistiques(true)}
+                className="bg-[#3a3a3a] text-[#c0a080] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
+                title="Voir les statistiques"
+              >
+                <ChartColumn size={16} />
+                <span className="hidden sm:inline">Stats</span>
+              </button>
+              <button
+                onClick={handleEditModeToggle}
+                className={`p-2 rounded-lg transition duration-200 flex items-center gap-1 text-xs sm:text-sm ${isLayoutEditing ? 'bg-[#c0a080] text-[#1c1c1c]' : 'bg-[#3a3a3a] text-[#80c0a0] hover:bg-[#4a4a4a]'}`}
+                title="Mode Édition (Style & Disposition)"
+              >
+                <Settings size={16} />
+                <span className="hidden sm:inline">Édition</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {isLayoutEditing && (
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 bg-[#2a2a2a] p-2 sm:p-4 rounded-lg border border-[#3a3a3a]">
+
+            {/* Zone de style discrète */}
+            <div className="flex items-center gap-4 text-xs sm:text-sm overflow-x-auto w-full md:w-auto">
+              {/* Fond */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-[#a0a0a0] font-semibold">Fond:</span>
+                <div className="flex items-center gap-1 bg-[#1c1c1c] p-1 rounded border border-[#3a3a3a]">
+                  <input
+                    type="color"
+                    value={customizationForm.theme_background && !customizationForm.theme_background.startsWith('http') ? customizationForm.theme_background : '#000000'}
+                    onChange={(e) => setCustomizationForm({ ...customizationForm, theme_background: e.target.value })}
+                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
+                    title="Couleur de fond"
+                  />
+                  <label className="cursor-pointer hover:text-white text-[#a0a0a0]">
+                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'background')} />
+                    <Upload size={14} />
+                  </label>
+                </div>
+              </div>
+
+              {/* Blocs */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-[#a0a0a0] font-semibold">Blocs:</span>
+                <div className="flex items-center gap-1 bg-[#1c1c1c] p-1 rounded border border-[#3a3a3a]">
+                  <input
+                    type="color"
+                    value={customizationForm.theme_secondary_color && !customizationForm.theme_secondary_color.startsWith('http') ? customizationForm.theme_secondary_color : '#242424'}
+                    onChange={(e) => setCustomizationForm({ ...customizationForm, theme_secondary_color: e.target.value })}
+                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
+                    title="Couleur des blocs"
+                  />
+                  <label className="cursor-pointer hover:text-white text-[#a0a0a0]">
+                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'block')} />
+                    <Upload size={14} />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+              <button
+                onClick={handleResetLayout}
+                className="bg-red-900/50 text-red-200 border border-red-900 px-3 py-1.5 rounded hover:bg-red-900/80 transition text-xs font-bold flex items-center gap-1"
+              >
+                <RotateCcw size={14} />
+              </button>
+              <button
+                onClick={handleSaveLayout}
+                className="bg-[#c0a080] text-[#1c1c1c] px-4 py-1.5 rounded hover:bg-[#d4b48f] transition text-xs font-bold"
               >
                 Sauvegarder
               </button>
             </div>
           </div>
         )}
-          {isRaceModalOpen && (
-    <RaceAbilitiesModal 
-      abilities={selectedRaceAbilities} 
-      onClose={() => setIsRaceModalOpen(false)} 
-    />
-  )}
 
-        {showLevelUpModal && selectedCharacter && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center">
-              <h2 className="text-lg sm:text-xl font-bold text-[#c0a0a0] mb-4">Monter de Niveau</h2>
-              <p className="text-sm sm:text-base text-[#d4d4d4] mb-4">Lancez un dé pour augmenter les PV Max.</p>
-              <button
-                onClick={handleRollDie}
-                className="bg-[#c0a080] text-[#1c1c1c] px-4 py-2 rounded-lg mb-4 hover:bg-[#d4b48f] transition duration-300 text-xs sm:text-sm font-bold"
+        <div className="max-w-7xl mx-auto bg-[#242424] rounded-lg shadow-2xl p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6" style={mainStyle}>
+          {selectedCharacter && !isEditing && (
+            isLayoutEditing ? (
+              <ResponsiveGridLayout
+                className="layout"
+                layouts={{ lg: layout, md: layout, sm: layout, xs: layout, xxs: layout }}
+                breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+                cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                rowHeight={40}
+                margin={[20, 20]}
+                containerPadding={[0, 0]}
+                onLayoutChange={onLayoutChange}
+                isDraggable={true}
+                isResizable={false}
+                draggableHandle=".drag-handle"
               >
-                Lancer le Dé
-              </button>
-              {rollResult !== null && selectedCharacter && (
-                <div className="text-lg sm:text-2xl font-bold text-green-500 mb-4 break-words">
-                  {rollResult - getModifier(selectedCharacter.CON || 0)} + CON ({getModifier(selectedCharacter.CON || 0)}) = {rollResult}
+                <div key="avatar" className="relative group hover:z-[100]">
+                  <WidgetControls id="avatar" updateWidgetDim={updateWidgetDim} widthMode="incremental" />
+                  <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                    <WidgetAvatar style={boxStyle} />
+                  </div>
                 </div>
-              )}
-              <div className="flex flex-col xs:flex-row justify-center gap-3 xs:gap-4">
+                <div key="details" className="relative group hover:z-[100]">
+                  <WidgetControls id="details" updateWidgetDim={updateWidgetDim} widthMode="incremental" />
+                  <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                    <WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} />
+                  </div>
+                </div>
+                <div key="stats" className="relative group hover:z-[100]">
+                  <WidgetControls id="stats" updateWidgetDim={updateWidgetDim} widthMode="presets" />
+                  <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                    <WidgetStats style={boxStyle} />
+                  </div>
+                </div>
+                <div key="vitals" className="relative group hover:z-[100]">
+                  <WidgetControls id="vitals" updateWidgetDim={updateWidgetDim} widthMode="presets" />
+                  <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                    <WidgetVitals style={boxStyle} />
+                  </div>
+                </div>
+                <div key="combat_stats" className="relative group hover:z-[100]">
+                  <WidgetControls id="combat_stats" updateWidgetDim={updateWidgetDim} widthMode="presets" />
+                  <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                    <WidgetCombatStats style={boxStyle} />
+                  </div>
+                </div>
+                <div key="inventory" className="relative group hover:z-[100]">
+                  <WidgetControls id="inventory" updateWidgetDim={updateWidgetDim} widthMode="presets" />
+                  <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                    <InventoryManagement2 playerName={selectedCharacter.Nomperso} roomId={roomId!} onHeightChange={handleInventoryResize} />
+                  </div>
+                </div>
+                <div key="skills" className="relative group hover:z-[100]">
+                  <WidgetControls id="skills" updateWidgetDim={updateWidgetDim} widthMode="presets" />
+                  <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                    <CompetencesDisplay
+                      roomId={roomId!}
+                      characterId={selectedCharacter.id}
+                      canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
+                      onOpenFullscreen={() => setShowCompetencesFullscreen(true)}
+                    />
+                  </div>
+                </div>
+              </ResponsiveGridLayout>
+            ) : (
+              <ResponsiveGridLayout
+                className="layout"
+                layouts={{ lg: layout }}
+                breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+                cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                rowHeight={40}
+                margin={[20, 20]}
+                containerPadding={[0, 0]}
+                isDraggable={false}
+                isResizable={false}
+              >
+                <div key="avatar" className="overflow-hidden h-full"><WidgetAvatar style={boxStyle} /></div>
+                <div key="details" className="overflow-hidden h-full"><WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} /></div>
+                <div key="stats" className="overflow-hidden h-full"><WidgetStats style={boxStyle} /></div>
+                <div key="vitals" className="overflow-hidden h-full"><WidgetVitals style={boxStyle} /></div>
+                <div key="combat_stats" className="overflow-hidden h-full"><WidgetCombatStats style={boxStyle} /></div>
+                <div key="inventory" className="overflow-hidden h-full"><InventoryManagement2 playerName={selectedCharacter.Nomperso} roomId={roomId!} onHeightChange={handleInventoryResize} /></div>
+                <div key="skills" className="overflow-hidden h-full">
+                  <CompetencesDisplay
+                    roomId={roomId!}
+                    characterId={selectedCharacter.id}
+                    canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
+                    onOpenFullscreen={() => setShowCompetencesFullscreen(true)}
+                  />
+                </div>
+              </ResponsiveGridLayout>
+            )
+          )}
+
+
+          {showLevelUpConfirmationModal && selectedCharacter && (
+            <LevelUpConfirmationModal
+              onClose={() => setShowLevelUpConfirmationModal(false)}
+              updatedCharacter={selectedCharacter}
+            />
+          )}
+
+          {isEditing && (
+            <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-lg border border-[#3a3a3a]">
+              <h2 className="text-lg sm:text-xl font-bold text-[#c0a0a0] mb-4">
+                Modifier {selectedCharacter?.Nomperso || "Personnage"}
+              </h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
+                <div className="space-y-2">
+                  <label className="text-xs sm:text-sm block">PV</label>
+                  <input
+                    type="number"
+                    value={editForm.PV || ''}
+                    onChange={(e) => setEditForm({ ...editForm, PV: parseInt(e.target.value) })}
+                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs sm:text-sm block">PV Maximum</label>
+                  <input
+                    type="number"
+                    value={editForm.PV_Max || ''}
+                    onChange={(e) => setEditForm({ ...editForm, PV_Max: parseInt(e.target.value) })}
+                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs sm:text-sm block">Défense</label>
+                  <input
+                    type="number"
+                    value={editForm.Defense || ''}
+                    onChange={(e) => setEditForm({ ...editForm, Defense: parseInt(e.target.value) })}
+                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs sm:text-sm block">Contact</label>
+                  <input
+                    type="number"
+                    value={editForm.Contact || ''}
+                    onChange={(e) => setEditForm({ ...editForm, Contact: parseInt(e.target.value) })}
+                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs sm:text-sm block">Magie</label>
+                  <input
+                    type="number"
+                    value={editForm.Magie || ''}
+                    onChange={(e) => setEditForm({ ...editForm, Magie: parseInt(e.target.value) })}
+                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs sm:text-sm block">Distance</label>
+                  <input
+                    type="number"
+                    value={editForm.Distance || ''}
+                    onChange={(e) => setEditForm({ ...editForm, Distance: parseInt(e.target.value) })}
+                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs sm:text-sm block">Initiative</label>
+                  <input
+                    type="number"
+                    value={editForm.INIT || ''}
+                    onChange={(e) => setEditForm({ ...editForm, INIT: parseInt(e.target.value) })}
+                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+                {['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'].map((stat) => (
+                  <div key={stat} className="space-y-2">
+                    <label className="text-xs sm:text-sm block">{stat}</label>
+                    <input
+                      type="number"
+                      value={(editForm[stat as keyof Character] as number) || ''}
+                      onChange={(e) => setEditForm({ ...editForm, [stat]: parseInt(e.target.value) })}
+                      className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                    />
+                  </div>
+                ))}
+              </div>
+
+
+
+
+              <div className="flex flex-col xs:flex-row justify-end gap-3 xs:gap-4">
                 <button
-                  onClick={confirmLevelUp}
-                  className="bg-[#5c6bc0] text-white px-4 py-2 rounded-lg hover:bg-[#7986cb] transition duration-300 text-xs sm:text-sm font-bold"
-                >
-                  Valider
-                </button>
-                <button
-                  onClick={closeLevelUpModal}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-xs sm:text-sm font-bold"
+                  onClick={() => setIsEditing(false)}
+                  className="bg-gray-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-xs sm:text-sm font-bold"
                 >
                   Annuler
                 </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {showStatistiques && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-[#1c1c1c] rounded-lg border border-[#3a3a3a] max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-[#1c1c1c] border-b border-[#3a3a3a] p-4 flex justify-between items-center z-10">
-                <h2 className="text-lg sm:text-xl font-bold text-[#c0a080]">Statistiques des Joueurs</h2>
                 <button
-                  onClick={() => setShowStatistiques(false)}
-                  className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-xs sm:text-sm font-bold"
+                  onClick={handleSave}
+                  className="bg-[#c0a080] text-[#1c1c1c] px-4 sm:px-6 py-2 rounded-lg hover:bg-[#d4b48f] transition duration-300 text-xs sm:text-sm font-bold"
                 >
-                  Fermer
+                  Sauvegarder
                 </button>
               </div>
-              <div className="p-0">
-                <Statistiques />
+            </div>
+          )}
+
+          {isRaceModalOpen && (
+            <RaceAbilitiesModal
+              abilities={selectedRaceAbilities}
+              onClose={() => setIsRaceModalOpen(false)}
+            />
+          )}
+
+          {showLevelUpModal && selectedCharacter && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center">
+                <h2 className="text-lg sm:text-xl font-bold text-[#c0a0a0] mb-4">Monter de Niveau</h2>
+                <p className="text-sm sm:text-base text-[#d4d4d4] mb-4">Lancez un dé pour augmenter les PV Max.</p>
+                <button
+                  onClick={handleRollDie}
+                  className="bg-[#c0a080] text-[#1c1c1c] px-4 py-2 rounded-lg mb-4 hover:bg-[#d4b48f] transition duration-300 text-xs sm:text-sm font-bold"
+                >
+                  Lancer le Dé
+                </button>
+                {rollResult !== null && selectedCharacter && (
+                  <div className="text-lg sm:text-2xl font-bold text-green-500 mb-4 break-words">
+                    {rollResult - getModifier(selectedCharacter.CON || 0)} + CON ({getModifier(selectedCharacter.CON || 0)}) = {rollResult}
+                  </div>
+                )}
+                <div className="flex flex-col xs:flex-row justify-center gap-3 xs:gap-4">
+                  <button
+                    onClick={confirmLevelUp}
+                    className="bg-[#5c6bc0] text-white px-4 py-2 rounded-lg hover:bg-[#7986cb] transition duration-300 text-xs sm:text-sm font-bold"
+                  >
+                    Valider
+                  </button>
+                  <button
+                    onClick={closeLevelUpModal}
+                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-xs sm:text-sm font-bold"
+                  >
+                    Annuler
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+
+          {showStatistiques && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="bg-[#1c1c1c] rounded-lg border border-[#3a3a3a] max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="sticky top-0 bg-[#1c1c1c] border-b border-[#3a3a3a] p-4 flex justify-between items-center z-10">
+                  <h2 className="text-lg sm:text-xl font-bold text-[#c0a080]">Statistiques des Joueurs</h2>
+                  <button
+                    onClick={() => setShowStatistiques(false)}
+                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-xs sm:text-sm font-bold"
+                  >
+                    Fermer
+                  </button>
+                </div>
+                <div className="p-0">
+                  <Statistiques />
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  </TooltipProvider>
+    </TooltipProvider >
   );
 }
