@@ -412,20 +412,15 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
       }
     }), [inventory, searchTerm, sortBy]);
 
-  useEffect(() => {
-    if (onHeightChange && containerRef.current) {
-      // Obtenir la hauteur réelle du contenu
-      const height = containerRef.current.scrollHeight;
-      onHeightChange(height);
-    }
-  }, [filteredInventory, onHeightChange, searchTerm, predefinedItems, currentCategory]); // Dépendances qui affectent la hauteur
+
 
   return (
-    <div ref={containerRef} className="h-full bg-[#242424]">
-      <Card className="card w-full max-w-7xl mx-auto h-full !bg-[#242424]">
+    <div ref={containerRef} className="h-full bg-[#242424] flex flex-col">
+      <Card className="card w-full max-w-7xl mx-auto h-full !bg-[#242424] flex flex-col border-none shadow-none">
 
-        <CardContent>
-          <div className="flex items-center gap-3 mb-6">
+        {/* Header fixe avec recherche et tri */}
+        <div className="p-6 pb-2 flex-shrink-0">
+          <div className="flex items-center gap-3">
             <div className="relative w-full">
               <Search className="absolute right-4 top-3 h-4 w-4 text-[var(--text-primary)]" />
               <Input
@@ -457,10 +452,12 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
               </SelectContent>
             </Select>
           </div>
+        </div>
 
+        <CardContent className="flex-1 overflow-y-auto min-h-0 p-6 pt-2 custom-scrollbar">
           {/* Grille unifiée d'objets */}
           <TooltipProvider delayDuration={100}>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-4">
               {/* Case Ajouter - affichée seulement si canEdit est true */}
               {canEdit && (
                 <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
