@@ -18,9 +18,10 @@ interface CompetencesDisplayProps {
   characterId: string;
   canEdit?: boolean;
   onOpenFullscreen?: () => void;
+  onHeightChange?: (height: number) => void;
 }
 
-export default function CompetencesDisplay({ roomId, characterId, canEdit = false, onOpenFullscreen }: CompetencesDisplayProps) {
+export default function CompetencesDisplay({ roomId, characterId, canEdit = false, onOpenFullscreen, onHeightChange }: CompetencesDisplayProps) {
   const { competences, refreshCompetences, selectedCharacter, setSelectedCharacter, characters, isLoading } = useCharacter();
   const [selectedCompetence, setSelectedCompetence] = useState<Competence | null>(null);
   const [newBonus, setNewBonus] = useState<{ stat: keyof BonusData | undefined; value: number }>({
@@ -31,6 +32,30 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
+  const containerRef = useState<{ current: HTMLDivElement | null }>({ current: null })[0]; // Using a stable ref object
+
+  useEffect(() => {
+    if (onHeightChange && containerRef.current) {
+      // Use a ResizeObserver for more robust size tracking
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          // Add a small buffer to prevent cutting off borders
+          onHeightChange(entry.contentRect.height + 4);
+        }
+      });
+
+      observer.observe(containerRef.current);
+
+      return () => observer.disconnect();
+    }
+  }, [onHeightChange, competences, activeTab, searchQuery]); // Depend on data changes layout
+
+  // Fallback measurement
+  useEffect(() => {
+    if (onHeightChange && containerRef.current) {
+      onHeightChange(containerRef.current.scrollHeight);
+    }
+  }, [competences, activeTab, searchQuery, onHeightChange]);
 
   useEffect(() => {
     if (characterId && characters.length > 0) {
@@ -61,6 +86,9 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
     }
   }, [competences, selectedCompetence]);
 
+  // ... (handlers omitted for brevity) ... 
+
+  // Re-declare handlers to fix component structure in tool replacement
   const handleRemoveBonus = async (stat: string) => {
     if (selectedCompetence && selectedCharacter) {
       try {
@@ -235,7 +263,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
 
   return (
     <>
-      <div className="w-full bg-[#1c1c1c] rounded-lg border border-[#333] flex flex-col">
+      <div ref={(el) => { containerRef.current = el }} className="w-full bg-[#1c1c1c] rounded-lg border border-[#333] flex flex-col items-stretch">
         {/* Header Compact */}
         <div className="p-3 border-b border-[#333] flex flex-col sm:flex-row gap-3 items-center justify-between bg-[#242424]">
           <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -289,8 +317,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
           </div>
         </div>
 
-        {/* Content Section */}
-        <div className="bg-[#1c1c1c] p-3 min-h-[300px]">
+        <div className="bg-[#1c1c1c] p-3 flex-1">
           {renderCompetences(activeTab as "all" | "passive" | "limitée")}
         </div>
       </div>
