@@ -266,17 +266,17 @@ export function Statistiques() {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)] p-6">
+    <div className="min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)] p-2 sm:p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-7xl mx-auto space-y-4 px-4"
+        className="max-w-7xl mx-auto space-y-2 px-2"
       >
 
 
         {/* Sélecteur de statistique - Grid moderne */}
         <Card className="card border-[var(--border-color)]">
-          <CardContent className="pt-4">
+          <CardContent className="p-2">
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
               {statOptions.map((stat) => (
                 <motion.button
@@ -284,9 +284,9 @@ export function Statistiques() {
                   onClick={() => setSelectedStat(stat.key)}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className={`p-3 rounded-md text-xs font-medium transition-all duration-200 flex flex-col items-center gap-1.5 ${selectedStat === stat.key
-                      ? 'bg-[var(--accent-brown)] text-white shadow-sm'
-                      : 'bg-[var(--bg-darker)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent-brown)]/50 hover:text-[var(--text-primary)]'
+                  className={`p-2 rounded-md text-xs font-medium transition-all duration-200 flex flex-col items-center gap-1 ${selectedStat === stat.key
+                    ? 'bg-[var(--accent-brown)] text-white shadow-sm'
+                    : 'bg-[var(--bg-darker)] border border-[var(--border-color)] text-[var(--text-secondary)] hover:border-[var(--accent-brown)]/50 hover:text-[var(--text-primary)]'
                     }`}
                 >
                   <div className={selectedStat === stat.key ? 'text-white' : 'text-[var(--accent-brown)]'}>
@@ -334,7 +334,7 @@ export function Statistiques() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="relative bg-[var(--bg-darker)] rounded-lg p-4 border border-[var(--border-color)] overflow-hidden hover:border-[var(--accent-brown)]/40 transition-all"
+                        className="relative bg-[var(--bg-darker)] rounded-lg p-2 border border-[var(--border-color)] overflow-hidden hover:border-[var(--accent-brown)]/40 transition-all"
                       >
                         {/* Barre de progression subtile */}
                         <motion.div
@@ -345,22 +345,24 @@ export function Statistiques() {
                           style={{ background: 'var(--accent-brown)' }}
                         />
 
-                        <div className="relative flex items-center gap-4">
+                        <div className="relative flex items-center gap-3">
                           {/* Position */}
-                          <div className="flex items-center justify-center w-12 h-12 flex-shrink-0">
+                          <div className="flex items-center justify-center w-8 h-8 flex-shrink-0">
                             {index < 3 ? (
-                              getMedalIcon(index)
+                              <div className="transform scale-75">
+                                {getMedalIcon(index)}
+                              </div>
                             ) : (
-                              <span className="text-base font-semibold text-[var(--text-secondary)]">
+                              <span className="text-sm font-semibold text-[var(--text-secondary)]">
                                 #{index + 1}
                               </span>
                             )}
                           </div>
 
                           {/* Avatar */}
-                          <div className="w-24 h-24 rounded-full overflow-hidden bg-[var(--bg-card)] flex-shrink-0 border-2 border-[var(--border-color)]">
+                          <div className="w-12 h-12 rounded-full overflow-hidden bg-[var(--bg-card)] flex-shrink-0 border border-[var(--border-color)]">
                             <img
-                              src={char.imageURLFinal || char.imageURL || "/api/placeholder/96/96"}
+                              src={char.imageURLFinal || char.imageURL || "/api/placeholder/48/48"}
                               alt={char.Nomperso}
                               className="w-full h-full object-contain"
                             />
@@ -368,21 +370,21 @@ export function Statistiques() {
 
                           {/* Infos personnage */}
                           <div className="flex-grow min-w-0">
-                            <div className="text-base font-semibold text-[var(--text-primary)] truncate">
+                            <div className="text-sm font-semibold text-[var(--text-primary)] truncate">
                               {char.Nomperso}
                             </div>
-                            <div className="text-sm text-[var(--text-secondary)] truncate">
+                            <div className="text-xs text-[var(--text-secondary)] truncate">
                               {char.Race && char.Profile ? `${char.Race} • ${char.Profile}` : char.Race || char.Profile} • Niv. {char.niveau || 1}
                             </div>
                           </div>
 
                           {/* Valeur */}
-                          <div className="flex flex-col items-end flex-shrink-0">
-                            <div className="text-2xl font-bold text-[var(--accent-brown)]">
+                          <div className="flex flex-col items-end flex-shrink-0 pr-2">
+                            <div className="text-lg font-bold text-[var(--accent-brown)]">
                               {value}
                             </div>
                             {hasBonus && (
-                              <div className="text-xs text-[var(--accent-blue)] font-medium">
+                              <div className="text-[10px] text-[var(--accent-blue)] font-medium">
                                 +{value - baseValue}
                               </div>
                             )}

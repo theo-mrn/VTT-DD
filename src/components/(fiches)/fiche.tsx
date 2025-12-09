@@ -171,6 +171,12 @@ export default function Component() {
 
   const handleResetLayout = async () => {
     setLayout(DEFAULT_LAYOUT);
+    setCustomizationForm({
+      theme_background: '#1c1c1c',
+      theme_secondary_color: '#242424',
+    });
+    setBgType('color');
+    setBlockType('color');
     if (!selectedCharacter) return;
     // Optional: save the reset immediately or wait for user to click save?
     // Let's reset purely visual first. User can save new defaults.
@@ -226,32 +232,25 @@ export default function Component() {
     });
   };
 
-  const handleInventoryResize = React.useCallback((height: number) => {
+
+
+
+  const handleWidgetResize = React.useCallback((id: string, height: number) => {
     setLayout(prevLayout => {
-      // Trouver l'élément inventaire
-      const invItem = prevLayout.find(l => l.i === 'inventory');
-      if (!invItem) return prevLayout;
+      const widgetItem = prevLayout.find(l => l.i === id);
+      if (!widgetItem) return prevLayout;
 
-      // Calculer le nombre de rangées (h) nécessaire
-      // rowHeight = 40, margin = 20
-      // height = (h * rowHeight) + ((h - 1) * margin)
-      // height + margin = h * (rowHeight + margin)
-      // h = (height + margin) / (rowHeight + margin)
-
-      // On ajoute un peu de padding pour éviter les scrollbars parasites
-      const totalHeight = height + 16;
       const rowHeight = 40;
       const margin = 20;
+      const totalHeight = height + 20; // Padding safety
 
       const newH = Math.ceil((totalHeight + margin) / (rowHeight + margin));
+      const finalH = Math.max(newH, widgetItem.minH || 2);
 
-      // Respecter minH et ne mettre à jour que si ça change
-      const finalH = Math.max(newH, invItem.minH || 4);
-
-      if (invItem.h === finalH) return prevLayout;
+      if (widgetItem.h === finalH) return prevLayout;
 
       return prevLayout.map(item => {
-        if (item.i === 'inventory') {
+        if (item.i === id) {
           return { ...item, h: finalH };
         }
         return item;
@@ -477,16 +476,19 @@ export default function Component() {
   }
 
 
-  const mainStyle: React.CSSProperties = selectedCharacter?.theme_background
-    ? (selectedCharacter.theme_background.startsWith('http')
-      ? { backgroundImage: `url(${selectedCharacter.theme_background})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }
-      : { backgroundColor: selectedCharacter.theme_background })
+  const bgValue = (isLayoutEditing ? customizationForm.theme_background : selectedCharacter?.theme_background) || '';
+  const secondaryValue = (isLayoutEditing ? customizationForm.theme_secondary_color : selectedCharacter?.theme_secondary_color) || '';
+
+  const mainStyle: React.CSSProperties = bgValue
+    ? (bgValue.startsWith('http')
+      ? { backgroundImage: `url(${bgValue})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }
+      : { backgroundColor: bgValue })
     : {};
 
-  const boxStyle: React.CSSProperties = selectedCharacter?.theme_secondary_color
-    ? (selectedCharacter.theme_secondary_color.startsWith('http')
-      ? { backgroundImage: `url(${selectedCharacter.theme_secondary_color})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }
-      : { backgroundColor: selectedCharacter.theme_secondary_color })
+  const boxStyle: React.CSSProperties = secondaryValue
+    ? (secondaryValue.startsWith('http')
+      ? { backgroundImage: `url(${secondaryValue})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }
+      : { backgroundColor: secondaryValue })
     : {};
 
   return (
@@ -509,24 +511,29 @@ export default function Component() {
             ))}
           </div>
 
-          {selectedCharacter && (selectedCharacter.id === userPersoId || userRole === "MJ") && (
+          {selectedCharacter && (
             <div className="flex flex-wrap gap-2 shrink-0">
-              <button
-                onClick={handleEdit}
-                className="bg-[#3a3a3a] text-[#c0a080] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
-                title="Modifier"
-              >
-                <Edit size={16} />
-                <span className="hidden sm:inline">Modifier</span>
-              </button>
-              <button
-                onClick={openLevelUpModal}
-                className="bg-[#3a3a3a] text-[#5c6bc0] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
-                title="Monter de niveau"
-              >
-                <TrendingUp size={16} />
-                <span className="hidden sm:inline">Niveau +</span>
-              </button>
+              {(selectedCharacter.id === userPersoId || userRole === "MJ") && (
+                <>
+                  <button
+                    onClick={handleEdit}
+                    className="bg-[#3a3a3a] text-[#c0a080] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
+                    title="Modifier"
+                  >
+                    <Edit size={16} />
+                    <span className="hidden sm:inline">Modifier</span>
+                  </button>
+                  <button
+                    onClick={openLevelUpModal}
+                    className="bg-[#3a3a3a] text-[#5c6bc0] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
+                    title="Monter de niveau"
+                  >
+                    <TrendingUp size={16} />
+                    <span className="hidden sm:inline">Niveau +</span>
+                  </button>
+                </>
+              )}
+
               <button
                 onClick={() => setShowStatistiques(true)}
                 className="bg-[#3a3a3a] text-[#c0a080] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
@@ -535,14 +542,17 @@ export default function Component() {
                 <ChartColumn size={16} />
                 <span className="hidden sm:inline">Stats</span>
               </button>
-              <button
-                onClick={handleEditModeToggle}
-                className={`p-2 rounded-lg transition duration-200 flex items-center gap-1 text-xs sm:text-sm ${isLayoutEditing ? 'bg-[#c0a080] text-[#1c1c1c]' : 'bg-[#3a3a3a] text-[#80c0a0] hover:bg-[#4a4a4a]'}`}
-                title="Mode Édition (Style & Disposition)"
-              >
-                <Settings size={16} />
-                <span className="hidden sm:inline">Édition</span>
-              </button>
+
+              {(selectedCharacter.id === userPersoId || userRole === "MJ") && (
+                <button
+                  onClick={handleEditModeToggle}
+                  className={`p-2 rounded-lg transition duration-200 flex items-center gap-1 text-xs sm:text-sm ${isLayoutEditing ? 'bg-[#c0a080] text-[#1c1c1c]' : 'bg-[#3a3a3a] text-[#80c0a0] hover:bg-[#4a4a4a]'}`}
+                  title="Mode Édition (Style & Disposition)"
+                >
+                  <Settings size={16} />
+                  <span className="hidden sm:inline">Édition</span>
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -655,7 +665,11 @@ export default function Component() {
                 <div key="inventory" className="relative group hover:z-[100]">
                   <WidgetControls id="inventory" updateWidgetDim={updateWidgetDim} widthMode="presets" />
                   <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
-                    <InventoryManagement2 playerName={selectedCharacter.Nomperso} roomId={roomId!} onHeightChange={handleInventoryResize} />
+                    <InventoryManagement2
+                      playerName={selectedCharacter.Nomperso}
+                      roomId={roomId!}
+                      canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
+                    />
                   </div>
                 </div>
                 <div key="skills" className="relative group hover:z-[100]">
@@ -666,6 +680,7 @@ export default function Component() {
                       characterId={selectedCharacter.id}
                       canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
                       onOpenFullscreen={() => setShowCompetencesFullscreen(true)}
+                      onHeightChange={(h) => handleWidgetResize('skills', h)}
                     />
                   </div>
                 </div>
@@ -687,13 +702,20 @@ export default function Component() {
                 <div key="stats" className="overflow-hidden h-full"><WidgetStats style={boxStyle} /></div>
                 <div key="vitals" className="overflow-hidden h-full"><WidgetVitals style={boxStyle} /></div>
                 <div key="combat_stats" className="overflow-hidden h-full"><WidgetCombatStats style={boxStyle} /></div>
-                <div key="inventory" className="overflow-hidden h-full"><InventoryManagement2 playerName={selectedCharacter.Nomperso} roomId={roomId!} onHeightChange={handleInventoryResize} /></div>
+                <div key="inventory" className="overflow-hidden h-full">
+                  <InventoryManagement2
+                    playerName={selectedCharacter.Nomperso}
+                    roomId={roomId!}
+                    canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
+                  />
+                </div>
                 <div key="skills" className="overflow-hidden h-full">
                   <CompetencesDisplay
                     roomId={roomId!}
                     characterId={selectedCharacter.id}
                     canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
                     onOpenFullscreen={() => setShowCompetencesFullscreen(true)}
+                    onHeightChange={(h) => handleWidgetResize('skills', h)}
                   />
                 </div>
               </ResponsiveGridLayout>
