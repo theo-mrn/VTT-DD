@@ -169,17 +169,17 @@ export default function Component() {
     }
   };
 
-  const handleResetLayout = async () => {
+  const handleResetPositions = async () => {
     setLayout(DEFAULT_LAYOUT);
+  };
+
+  const handleResetColors = async () => {
     setCustomizationForm({
       theme_background: '#1c1c1c',
       theme_secondary_color: '#242424',
     });
     setBgType('color');
     setBlockType('color');
-    if (!selectedCharacter) return;
-    // Optional: save the reset immediately or wait for user to click save?
-    // Let's reset purely visual first. User can save new defaults.
   };
 
   useEffect(() => {
@@ -601,10 +601,20 @@ export default function Component() {
 
             <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
               <button
-                onClick={handleResetLayout}
-                className="bg-red-900/50 text-red-200 border border-red-900 px-3 py-1.5 rounded hover:bg-red-900/80 transition text-xs font-bold flex items-center gap-1"
+                onClick={handleResetColors}
+                className="bg-red-900/50 text-red-200 border border-red-900 px-2 py-1.5 rounded hover:bg-red-900/80 transition text-xs font-bold flex items-center gap-1"
+                title="Réinitialiser le style"
               >
-                <RotateCcw size={14} />
+                <Palette size={14} />
+                <RotateCcw size={12} />
+              </button>
+              <button
+                onClick={handleResetPositions}
+                className="bg-red-900/50 text-red-200 border border-red-900 px-2 py-1.5 rounded hover:bg-red-900/80 transition text-xs font-bold flex items-center gap-1"
+                title="Réinitialiser la disposition"
+              >
+                <LayoutDashboard size={14} />
+                <RotateCcw size={12} />
               </button>
               <button
                 onClick={handleSaveLayout}
