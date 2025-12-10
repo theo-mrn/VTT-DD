@@ -52,7 +52,7 @@ export function DiceRoller() {
   const [error, setError] = useState("");
   const [showHistory] = useState(true);
   const [showStats, setShowStats] = useState(false);
-  
+
   // États utilisateur et personnage - récupérés directement de Firebase
   const [roomId, setRoomId] = useState<string | null>(null);
   const [persoId, setPersoId] = useState<string | null>(null);
@@ -131,7 +131,7 @@ export function DiceRoller() {
             setRoomId(data.room_id);
             setPersoId(data.persoId);
             setIsMJ(data.perso === "MJ");
-            
+
             if (data.perso === "MJ") {
               setUserName("MJ");
               setUserAvatar(undefined);
@@ -175,16 +175,16 @@ export function DiceRoller() {
       console.log("CharacterModifiers not available for:", notation);
       return notation;
     }
-    
+
     let processedNotation = notation;
 
     // Remplacer chaque caractéristique trouvée
     const characteristicsRegex = /(CON|FOR|DEX|CHA|INT|SAG|Contact|Distance|Magie|Defense)/gi;
-    
+
     processedNotation = processedNotation.replace(characteristicsRegex, (match) => {
       const key = match.toUpperCase();
       let value = 0;
-      
+
       if (["CON", "FOR", "DEX", "CHA", "INT", "SAG"].includes(key)) {
         // Calculate modifier here instead of using pre-calculated value (exactement comme campagne.tsx)
         const rawValue = characterModifiers[key] || 0;
@@ -198,7 +198,7 @@ export function DiceRoller() {
       } else if (key === "DEFENSE") {
         value = characterModifiers.Defense || 0;
       }
-      
+
       console.log(`Replaced ${match} with ${value}`);
       return value.toString();
     });
@@ -213,15 +213,15 @@ export function DiceRoller() {
     // Regex pour capturer les dés de base (ex: 2d6, 1d20)
     const basicDiceRegex = /(\d+)d(\d+)/i;
     const match = notation.match(basicDiceRegex);
-    
+
     if (match) {
       const diceCount = parseInt(match[1]);
       const diceFaces = parseInt(match[2]);
-      
+
       // Extraire le modificateur (tout ce qui vient après les dés de base)
       const modifierPart = notation.replace(basicDiceRegex, '').trim();
       let modifier = 0;
-      
+
       if (modifierPart) {
         // Évaluer l'expression mathématique simple
         try {
@@ -231,10 +231,10 @@ export function DiceRoller() {
           modifier = 0;
         }
       }
-      
+
       return { diceCount, diceFaces, modifier };
     }
-    
+
     return null;
   };
 
@@ -244,15 +244,15 @@ export function DiceRoller() {
       const details: string[] = [];
       let totalDiceSum = 0;
       let hasModifiers = false;
-             const keptDice: number[] = [];
-       const allDice: number[] = [];
-      
+      const keptDice: number[] = [];
+      const allDice: number[] = [];
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       roll.rolls.forEach((rollGroup: any) => {
         if (rollGroup.rolls && rollGroup.rolls.length > 0) {
           // Vérifier s'il y a des modificateurs (keep highest, keep lowest, etc.)
           hasModifiers = rollGroup.modifiers && rollGroup.modifiers.length > 0;
-          
+
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           rollGroup.rolls.forEach((die: any) => {
             const value = die.value || die.result || die;
@@ -262,7 +262,7 @@ export function DiceRoller() {
               totalDiceSum += value;
             }
           });
-          
+
           if (hasModifiers) {
             // Afficher tous les dés lancés et indiquer lesquels sont gardés
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -271,7 +271,7 @@ export function DiceRoller() {
               const isKept = !die.discarded;
               return isKept ? `**${value}**` : `~~${value}~~`;
             }).join(', ');
-            
+
             details.push(`[${diceDisplay}]`);
           } else {
             // Pas de modificateurs, afficher simplement les résultats
@@ -279,13 +279,13 @@ export function DiceRoller() {
           }
         }
       });
-      
+
       // Calculer le modificateur numérique
       const modifier = roll.total - totalDiceSum;
-      
+
       // Construire l'affichage détaillé
       let result = `${originalNotation} → ${processedNotation}: ${details.join(' + ')}`;
-      
+
       if (hasModifiers && keptDice.length < allDice.length) {
         // Pour les modificateurs comme kh, kl, etc.
         result += ` = [${keptDice.join(', ')}] = ${roll.total}`;
@@ -302,7 +302,7 @@ export function DiceRoller() {
         // Pas de modificateur
         result += ` = ${roll.total}`;
       }
-      
+
       return result;
     } catch {
       // En cas d'erreur, retourner un format de base
@@ -347,23 +347,23 @@ export function DiceRoller() {
     try {
       // Petit délai pour l'animation
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       // Remplacer les caractéristiques dans la notation
       const processedNotation = replaceCharacteristics(originalNotation);
-      
+
       // Vérifier si des caractéristiques n'ont pas pu être remplacées (sauf "d" qui est normal)
       if (processedNotation === originalNotation && originalNotation.match(/\b(CON|DEX|FOR|SAG|INT|CHA|Defense|Contact|Distance|Magie|INIT)\b/i)) {
         setError("Caractéristiques non trouvées. Assurez-vous d'être connecté et d'avoir un personnage.");
         setIsLoading(false);
         return;
       }
-      
+
       console.log("About to create DiceRoll with:", processedNotation);
       const roll = new DiceRoll(processedNotation);
-      
+
       // Générer les détails formatés des dés avec le nouveau format
       const diceDetails = formatDiceDetails(roll, originalNotation, processedNotation);
-      
+
       // Créer le résultat pour l'affichage
       const result: RollResult = {
         id: Date.now().toString(),
@@ -381,7 +381,7 @@ export function DiceRoller() {
         const parsedNotation = parseNotation(processedNotation);
         if (parsedNotation) {
           const diceResults = extractDiceResults(roll);
-          
+
           const firebaseRoll: FirebaseRoll = {
             id: crypto.randomUUID(),
             isPrivate,
@@ -391,7 +391,7 @@ export function DiceRoller() {
             results: diceResults,
             total: roll.total,
             userName,
-            userAvatar,
+            ...(userAvatar ? { userAvatar } : {}),
             type: "Dice Roller",
             timestamp: Date.now(),
             notation: originalNotation,
@@ -403,7 +403,7 @@ export function DiceRoller() {
           setFirebaseRolls((prevRolls) => [firebaseRoll, ...prevRolls]);
         }
       }
-      
+
     } catch (err) {
       setError("Notation invalide. Exemples: 1d20, 2d6+3, 4d6kh3, 1d20+CON");
       console.error("Erreur de lancer de dés:", err);
@@ -538,20 +538,20 @@ export function DiceRoller() {
                     </span>
                     {isPrivate && <Shield className="h-5 w-5 text-[var(--accent-brown)]" />}
                   </div>
-                  
+
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ delay: 0.2, type: "spring" }}
                     className="text-6xl font-bold text-[var(--accent-brown)]"
                   >
-                    <NumberTicker 
-                      value={result.total} 
+                    <NumberTicker
+                      value={result.total}
                       className="text-6xl font-bold text-[var(--accent-brown)]"
                       delay={0.5}
                     />
                   </motion.div>
-                  
+
                   <AnimatePresence>
                     {showDetails && (
                       <motion.div
@@ -565,7 +565,7 @@ export function DiceRoller() {
                       </motion.div>
                     )}
                   </AnimatePresence>
-                  
+
                   <div className="flex justify-center gap-2">
                     <Button
                       onClick={() => rollDice(result.notation)}
@@ -588,18 +588,16 @@ export function DiceRoller() {
           <div className="flex gap-2">
             <Button
               onClick={() => setShowStats(false)}
-              className={`flex items-center gap-2 ${
-                !showStats ? "button-primary" : "button-cancel"
-              }`}
+              className={`flex items-center gap-2 ${!showStats ? "button-primary" : "button-cancel"
+                }`}
             >
               <History className="h-5 w-5" />
               Historique ({getFilteredRolls().length})
             </Button>
             <Button
               onClick={() => setShowStats(true)}
-              className={`flex items-center gap-2 ${
-                showStats ? "button-primary" : "button-cancel"
-              }`}
+              className={`flex items-center gap-2 ${showStats ? "button-primary" : "button-cancel"
+                }`}
             >
               <BarChart3 className="h-5 w-5" />
               Statistiques
@@ -649,53 +647,53 @@ export function DiceRoller() {
                     exit={{ opacity: 0 }}
                     className="space-y-2"
                   >
-                  {getFilteredRolls().length === 0 ? (
-                    <div className="text-center text-[var(--text-secondary)] py-8">
-                      Aucun lancer dans l&apos;historique
-                    </div>
-                  ) : (
-                    getFilteredRolls().map((roll, index) => (
-                      <motion.div
-                        key={roll.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                      >
-                        <Card className="card">
-                          <CardContent className="p-3 flex items-center space-x-3">
-                            {roll.userAvatar && (
-                              <Avatar className="h-16 w-16">
-                                <AvatarImage src={roll.userAvatar} alt="Avatar" className="object-contain" />
-                              </Avatar>
-                            )}
-                            <div className="flex-grow">
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm font-medieval text-[var(--text-primary)]">{roll.userName}</span>
-                                {roll.isPrivate && <Shield className="h-4 w-4 text-[var(--accent-brown)]" />}
+                    {getFilteredRolls().length === 0 ? (
+                      <div className="text-center text-[var(--text-secondary)] py-8">
+                        Aucun lancer dans l&apos;historique
+                      </div>
+                    ) : (
+                      getFilteredRolls().map((roll, index) => (
+                        <motion.div
+                          key={roll.id}
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                        >
+                          <Card className="card">
+                            <CardContent className="p-3 flex items-center space-x-3">
+                              {roll.userAvatar && (
+                                <Avatar className="h-16 w-16">
+                                  <AvatarImage src={roll.userAvatar} alt="Avatar" className="object-contain" />
+                                </Avatar>
+                              )}
+                              <div className="flex-grow">
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm font-medieval text-[var(--text-primary)]">{roll.userName}</span>
+                                  {roll.isPrivate && <Shield className="h-4 w-4 text-[var(--accent-brown)]" />}
+                                </div>
+                                <span className="text-sm font-medium text-[var(--text-primary)]">
+                                  {roll.notation}
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-lg font-bold text-[var(--text-primary)]">Total: {roll.total}</span>
+                                </div>
+                                <div className="text-xs text-[var(--text-secondary)] font-mono mt-1">
+                                  {roll.output}
+                                </div>
                               </div>
-                              <span className="text-sm font-medium text-[var(--text-primary)]">
-                                {roll.notation}
-                              </span>
-                              <div className="flex items-center gap-1">
-                                <span className="text-lg font-bold text-[var(--text-primary)]">Total: {roll.total}</span>
-                              </div>
-                              <div className="text-xs text-[var(--text-secondary)] font-mono mt-1">
-                                {roll.output}
-                              </div>
-                            </div>
-                            <Button
-                              onClick={() => rerollFromFirebase(roll)}
-                              className="button-secondary opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all"
-                              size="sm"
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                              Relancer
-                            </Button>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    ))
-                  )}
+                              <Button
+                                onClick={() => rerollFromFirebase(roll)}
+                                className="button-secondary opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all"
+                                size="sm"
+                              >
+                                <RotateCcw className="h-3 w-3" />
+                                Relancer
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      ))
+                    )}
                   </motion.div>
                 </div>
               )}
