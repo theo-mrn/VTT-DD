@@ -311,13 +311,13 @@ export default function Layout({ children }: LayoutProps) {
         >
           <BookOpen className="h-5 w-5" />
         </button>
-        <button
+        {/* <button
           onClick={() => setShowQuestOverlay(!showQuestOverlay)}
           className="rounded-lg px-4 py-2 flex items-center gap-2 bg-[#242424] text-[#d4d4d4] hover:bg-[#333]"
           aria-label={showQuestOverlay ? "Masquer les quêtes" : "Afficher les quêtes"}
         >
           <Scroll className="h-5 w-5" />
-        </button>
+        </button> */}
       </div>
 
     </div>
