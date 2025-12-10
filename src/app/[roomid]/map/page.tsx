@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/(combat)/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -81,13 +81,27 @@ export default function Component() {
   const [selectedNoteIndex, setSelectedNoteIndex] = useState<number | null>(null);
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
+
+  // 🎯 Drawing Selection State
+  const [selectedDrawingIndex, setSelectedDrawingIndex] = useState<number | null>(null);
+  const [isDraggingDrawing, setIsDraggingDrawing] = useState(false);
+  const [draggedDrawingOriginalPoints, setDraggedDrawingOriginalPoints] = useState<Point[]>([]);
+  // 🎯 Drawing Resize State
+  const [draggedHandleIndex, setDraggedHandleIndex] = useState<number | null>(null); // 0, 1, 2, 3...
+  const [isResizingDrawing, setIsResizingDrawing] = useState(false);
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
   const [characterDialogOpen, setCharacterDialogOpen] = useState(false)
   const [addNoteDialogOpen, setAddNoteDialogOpen] = useState(false)
   const [newNote, setNewNote] = useState({ text: '', color: '#ffff00', fontSize: 16 })
   const [isDrawing, setIsDrawing] = useState(false)
   const [drawMode, setDrawMode] = useState(false)
-  const [drawings, setDrawings] = useState<Drawing[]>([]);
+  const [drawings, setDrawings] = useState<SavedDrawing[]>([]);
+
+  // 🎯 Drawing Tools State
+  const [currentTool, setCurrentTool] = useState<'pen' | 'eraser' | 'line' | 'rectangle' | 'circle'>('pen');
+  const [drawingColor, setDrawingColor] = useState('#000000');
+  const [drawingSize, setDrawingSize] = useState(5);
+
   const [currentPath, setCurrentPath] = useState<Point[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true)
@@ -163,8 +177,19 @@ export default function Component() {
     color: string;
     fontSize?: number;
   };
-  type Path = { x: number; y: number };
-  type Drawing = Path[];
+  type Point = { x: number; y: number };
+
+  type SavedDrawing = {
+    id: string;
+    points: Point[];
+    color: string;
+    width: number;
+    type?: 'pen' | 'line' | 'rectangle' | 'circle';
+  };
+
+  // Keep Drawing for backward compatibility if needed, or just use SavedDrawing
+  // We will transition state to SavedDrawing[]
+
 
   type NewCharacter = {
     niveau: number;
@@ -185,7 +210,7 @@ export default function Component() {
     INT: number;
     CHA: number;
   };
-  type Point = { x: number; y: number };
+
 
   type Note = {
     text?: string;
@@ -494,11 +519,20 @@ export default function Component() {
     // Charger les dessins
     const drawingsRef = collection(db, 'cartes', room.toString(), 'drawings');
     onSnapshot(drawingsRef, (snapshot) => {
-      const drws: Drawing[] = [];
+      const drws: SavedDrawing[] = [];
       snapshot.forEach((doc) => {
-        const paths = doc.data().paths;
-        if (paths && Array.isArray(paths)) {
-          drws.push(paths);
+        const data = doc.data();
+        // Support backward compatibility (old "paths" field) and new "points" field
+        const points = data.points || data.paths;
+
+        if (points && Array.isArray(points)) {
+          drws.push({
+            id: doc.id,
+            points: points,
+            color: data.color || '#000000',
+            width: data.width || 5,
+            type: data.type || 'pen',
+          });
         }
       });
       setDrawings(drws);
@@ -596,6 +630,102 @@ export default function Component() {
   const isCellInFog = (x: number, y: number): boolean => {
     const key = getCellKey(x, y);
     return fogGrid.get(key) || false;
+  };
+
+  // 🎯 HELPER: Get Handle Positions for a Drawing
+  const getResizeHandles = (drawing: SavedDrawing): Point[] => {
+    if (!drawing.points || drawing.points.length < 2) return [];
+    const handles: Point[] = [];
+
+    if (drawing.type === 'line') {
+      handles.push(drawing.points[0]); // Start
+      handles.push(drawing.points[1]); // End
+    } else if (drawing.type === 'rectangle') {
+      const p1 = drawing.points[0];
+      const p2 = drawing.points[1];
+      // 0: Top-Left, 1: Top-Right, 2: Bottom-Right, 3: Bottom-Left (assuming p1 is top-left visual, but logic handles raw coords)
+      // Actually let's just use strict logic:
+      // Handle 0: p1
+      // Handle 1: { x: p2.x, y: p1.y }
+      // Handle 2: p2
+      // Handle 3: { x: p1.x, y: p2.y }
+      handles.push(p1);
+      handles.push({ x: p2.x, y: p1.y });
+      handles.push(p2);
+      handles.push({ x: p1.x, y: p2.y });
+    } else if (drawing.type === 'circle') {
+      // Handle at outer radius
+      handles.push(drawing.points[1]);
+    }
+
+    return handles;
+  };
+
+  // 🎯 COLLISION DETECTION HELPER FOR DRAWINGS
+  const isPointOnDrawing = (clickX: number, clickY: number, drawing: SavedDrawing, zoom: number): boolean => {
+    if (!drawing.points || drawing.points.length < 2) return false;
+
+    const strokeWidth = (drawing.width || 5);
+    const deleteDistance = (strokeWidth / 2 + 10 / zoom); // Tolerance
+
+    if (drawing.type === 'line') {
+      const p1 = drawing.points[0];
+      const p2 = drawing.points[1];
+      const A = clickX - p1.x;
+      const B = clickY - p1.y;
+      const C = p2.x - p1.x;
+      const D = p2.y - p1.y;
+      const dot = A * C + B * D;
+      const len_sq = C * C + D * D;
+      let param = -1;
+      if (len_sq !== 0) param = dot / len_sq;
+      let xx, yy;
+      if (param < 0) { xx = p1.x; yy = p1.y; }
+      else if (param > 1) { xx = p2.x; yy = p2.y; }
+      else { xx = p1.x + param * C; yy = p1.y + param * D; }
+      const dist = Math.sqrt(Math.pow(clickX - xx, 2) + Math.pow(clickY - yy, 2));
+      return dist < deleteDistance;
+    } else if (drawing.type === 'rectangle') {
+      const p1 = drawing.points[0];
+      const p2 = drawing.points[1];
+      const minX = Math.min(p1.x, p2.x);
+      const maxX = Math.max(p1.x, p2.x);
+      const minY = Math.min(p1.y, p2.y);
+      const maxY = Math.max(p1.y, p2.y);
+      // Click on edges
+      if (Math.abs(clickX - minX) < deleteDistance && clickY >= minY && clickY <= maxY) return true;
+      if (Math.abs(clickX - maxX) < deleteDistance && clickY >= minY && clickY <= maxY) return true;
+      if (Math.abs(clickY - minY) < deleteDistance && clickX >= minX && clickX <= maxX) return true;
+      if (Math.abs(clickY - maxY) < deleteDistance && clickX >= minX && clickX <= maxX) return true;
+      return false;
+    } else if (drawing.type === 'circle') {
+      const p1 = drawing.points[0];
+      const p2 = drawing.points[1];
+      const radius = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+      const distToCenter = Math.sqrt(Math.pow(clickX - p1.x, 2) + Math.pow(clickY - p1.y, 2));
+      return Math.abs(distToCenter - radius) < deleteDistance;
+    } else {
+      // Pen (Freehand)
+      for (let i = 0; i < drawing.points.length - 1; i++) {
+        const p1 = drawing.points[i];
+        const p2 = drawing.points[i + 1];
+        const A = clickX - p1.x;
+        const B = clickY - p1.y;
+        const C = p2.x - p1.x;
+        const D = p2.y - p1.y;
+        const dot = A * C + B * D;
+        const len_sq = C * C + D * D;
+        let param = -1;
+        if (len_sq !== 0) param = dot / len_sq;
+        let xx, yy;
+        if (param < 0) { xx = p1.x; yy = p1.y; }
+        else if (param > 1) { xx = p2.x; yy = p2.y; }
+        else { xx = p1.x + param * C; yy = p1.y + param * D; }
+        const dist = Math.sqrt(Math.pow(clickX - xx, 2) + Math.pow(clickY - yy, 2));
+        if (dist < deleteDistance) return true;
+      }
+    }
+    return false;
   };
 
   const toggleFogCell = async (x: number, y: number, forceState?: boolean) => {
@@ -740,164 +870,81 @@ export default function Component() {
         ctx.strokeRect(x - padding, y - fontSize, metrics.width + (padding * 2), fontSize + padding);
       }
     });
-
     // Draw each saved drawing path
-    ctx.strokeStyle = 'black';
-    ctx.lineWidth = 2;
     if (drawings && Array.isArray(drawings)) {
-      drawings.forEach(path => {
-        if (path && Array.isArray(path)) {
+      drawings.forEach(drawing => {
+        if (drawing.points && Array.isArray(drawing.points)) {
+          // Common styles
           ctx.beginPath();
-          path.forEach((point, index) => {
-            const x = (point.x / image.width) * scaledWidth - offset.x;
-            const y = (point.y / image.height) * scaledHeight - offset.y;
-            if (index === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.lineTo(x, y);
+          ctx.strokeStyle = drawing.color;
+          ctx.lineWidth = drawing.width * zoom;
+          ctx.lineCap = 'round';
+          ctx.lineJoin = 'round';
+
+          if (drawing.type === 'line') {
+            if (drawing.points.length >= 2) {
+              const p1 = drawing.points[0];
+              const p2 = drawing.points[1];
+              const x1 = (p1.x / image.width) * scaledWidth - offset.x;
+              const y1 = (p1.y / image.height) * scaledHeight - offset.y;
+              const x2 = (p2.x / image.width) * scaledWidth - offset.x;
+              const y2 = (p2.y / image.height) * scaledHeight - offset.y;
+              ctx.moveTo(x1, y1);
+              ctx.lineTo(x2, y2);
             }
-          });
-          ctx.stroke();
-        }
-      });
-    }
+          } else if (drawing.type === 'rectangle') {
+            if (drawing.points.length >= 2) {
+              const p1 = drawing.points[0];
+              const p2 = drawing.points[1]; // Current mouse pos acts as opposite corner
+              const x1 = (p1.x / image.width) * scaledWidth - offset.x;
+              const y1 = (p1.y / image.height) * scaledHeight - offset.y;
+              const x2 = (p2.x / image.width) * scaledWidth - offset.x;
+              const y2 = (p2.y / image.height) * scaledHeight - offset.y;
+              ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+            }
+          } else if (drawing.type === 'circle') {
+            if (drawing.points.length >= 2) {
+              const p1 = drawing.points[0]; // Center
+              const p2 = drawing.points[1]; // Outer radius point
+              const x1 = (p1.x / image.width) * scaledWidth - offset.x;
+              const y1 = (p1.y / image.height) * scaledHeight - offset.y;
+              const x2 = (p2.x / image.width) * scaledWidth - offset.x;
+              const y2 = (p2.y / image.height) * scaledHeight - offset.y;
 
-    // 🎯 NOUVEAU SYSTÈME : Dessiner la grille de brouillard par quadrillage
-
-    // Afficher la grille de guidage si activée
-    if (showFogGrid) {
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-      ctx.lineWidth = 1;
-
-      // Calculer les limites visibles de la grille
-      const startCellX = Math.floor((-offset.x) / (fogCellSize * zoom)) - 1;
-      const endCellX = Math.floor((-offset.x + containerWidth) / (fogCellSize * zoom)) + 1;
-      const startCellY = Math.floor((-offset.y) / (fogCellSize * zoom)) - 1;
-      const endCellY = Math.floor((-offset.y + containerHeight) / (fogCellSize * zoom)) + 1;
-
-      // Dessiner les lignes verticales de la grille
-      for (let cellX = startCellX; cellX <= endCellX; cellX++) {
-        const x = cellX * fogCellSize;
-        const screenX = (x / image.width) * scaledWidth - offset.x;
-        ctx.beginPath();
-        ctx.moveTo(screenX, 0);
-        ctx.lineTo(screenX, containerHeight);
-        ctx.stroke();
-      }
-
-      // Dessiner les lignes horizontales de la grille  
-      for (let cellY = startCellY; cellY <= endCellY; cellY++) {
-        const y = cellY * fogCellSize;
-        const screenY = (y / image.height) * scaledHeight - offset.y;
-        ctx.beginPath();
-        ctx.moveTo(0, screenY);
-        ctx.lineTo(containerWidth, screenY);
-        ctx.stroke();
-      }
-    }
-
-    // 🎯 NOUVEAU FOG OF WAR : Dessiner avec opacité variable selon la distance aux joueurs
-    if (fullMapFog) {
-      // Mode brouillard sur toute la carte : calculer dynamiquement les cellules visibles
-      // Convertir les coordonnées écran en coordonnées image
-      const topLeftImageX = (offset.x / scaledWidth) * image.width;
-      const topLeftImageY = (offset.y / scaledHeight) * image.height;
-      const bottomRightImageX = ((offset.x + containerWidth) / scaledWidth) * image.width;
-      const bottomRightImageY = ((offset.y + containerHeight) / scaledHeight) * image.height;
-
-      // Calculer les cellules nécessaires avec une marge pour être sûr de tout couvrir
-      const startCellX = Math.floor(topLeftImageX / fogCellSize) - 2;
-      const endCellX = Math.ceil(bottomRightImageX / fogCellSize) + 2;
-      const startCellY = Math.floor(topLeftImageY / fogCellSize) - 2;
-      const endCellY = Math.ceil(bottomRightImageY / fogCellSize) + 2;
-
-      for (let cellX = startCellX; cellX <= endCellX; cellX++) {
-        for (let cellY = startCellY; cellY <= endCellY; cellY++) {
-          const x = cellX * fogCellSize;
-          const y = cellY * fogCellSize;
-
-          const screenX = (x / image.width) * scaledWidth - offset.x;
-          const screenY = (y / image.height) * scaledHeight - offset.y;
-          const screenWidth = (fogCellSize / image.width) * scaledWidth;
-          const screenHeight = (fogCellSize / image.height) * scaledHeight;
-
-          // Ne dessiner que si la cellule est visible à l'écran
-          if (screenX + screenWidth >= 0 && screenX <= containerWidth &&
-            screenY + screenHeight >= 0 && screenY <= containerHeight) {
-
-            // Calculer l'opacité selon la distance aux joueurs et alliés (même si pas dans fogGrid)
-            let opacity = 1; // Opacité par défaut pour toute la carte
-
-            // Vérifier la distance à tous les personnages joueurs et alliés
-            for (const character of characters) {
-              if ((character.type === 'joueurs' || character.visibility === 'ally') && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
-                const cellCenterX = cellX * fogCellSize + fogCellSize / 2;
-                const cellCenterY = cellY * fogCellSize + fogCellSize / 2;
-                const distance = calculateDistance(character.x, character.y, cellCenterX, cellCenterY);
-
-                const visibilityRadius = character.visibilityRadius;
-                const cellDiagonalHalf = fogCellSize * Math.SQRT2 * 0.5;
-                const visibleRadiusWithMargin = visibilityRadius + cellDiagonalHalf;
-
-                if (distance <= visibleRadiusWithMargin) {
-                  // Dans le cercle (avec marge) : complètement visible (opacité = 0)
-                  opacity = 0;
-                  break; // Sortir de la boucle car la cellule est visible
-                }
-
-                // 🎯 En dehors du cercle visible : calculer l'opacité de transition
-                const extendedRadius = visibleRadiusWithMargin + visibilityRadius;
-
-                if (distance <= extendedRadius) {
-                  // Transition progressive du brouillard
-                  const fadeDistance = distance - visibleRadiusWithMargin;
-                  const fadeRange = extendedRadius - visibleRadiusWithMargin;
-                  const normalizedFade = fadeDistance / fadeRange;
-
-                  // Opacité augmente progressivement de 0 à 1
-                  const cellOpacity = Math.min(1, Math.max(0, normalizedFade));
-                  opacity = Math.min(opacity, cellOpacity);
-                }
+              const radius = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+              ctx.beginPath();
+              ctx.arc(x1, y1, radius, 0, 2 * Math.PI);
+            }
+          } else {
+            // 'pen' or undefined (default)
+            drawing.points.forEach((point, index) => {
+              const x = (point.x / image.width) * scaledWidth - offset.x;
+              const y = (point.y / image.height) * scaledHeight - offset.y;
+              if (index === 0) {
+                ctx.moveTo(x, y);
+              } else {
+                ctx.lineTo(x, y);
               }
-            }
-
-            if (opacity > 0) {
-              // 🎯 Pour le MJ : 55% d'opacité, pour les joueurs : 90% d'opacité
-              const effectiveIsMJ = isMJ && !playerViewMode;
-              const finalOpacity = effectiveIsMJ ? opacity * 0.55 : opacity * 0.90;
-              ctx.fillStyle = `rgba(0, 0, 0, ${finalOpacity})`;
-              ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
-            }
+            });
           }
-        }
-      }
-    } else {
-      // Mode brouillard classique : seulement les cellules du fogGrid
-      fogGrid.forEach((isFogged, key) => {
-        if (isFogged) {
-          const [cellX, cellY] = key.split(',').map(Number);
-          const x = cellX * fogCellSize;
-          const y = cellY * fogCellSize;
+          ctx.stroke();
 
-          const screenX = (x / image.width) * scaledWidth - offset.x;
-          const screenY = (y / image.height) * scaledHeight - offset.y;
-          const screenWidth = (fogCellSize / image.width) * scaledWidth;
-          const screenHeight = (fogCellSize / image.height) * scaledHeight;
+          // 🎯 Draw Resize Handles if Selected
+          if (selectedDrawingIndex === drawings.indexOf(drawing)) {
+            const handles = getResizeHandles(drawing);
+            ctx.fillStyle = '#ffffff';
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2;
 
-          // Ne dessiner que si la cellule est visible à l'écran
-          if (screenX + screenWidth >= 0 && screenX <= containerWidth &&
-            screenY + screenHeight >= 0 && screenY <= containerHeight) {
+            handles.forEach((handle, i) => {
+              const handleX = (handle.x / image.width) * scaledWidth - offset.x;
+              const handleY = (handle.y / image.height) * scaledHeight - offset.y;
 
-            // Calculer l'opacité selon la distance aux joueurs
-            const opacity = calculateFogOpacity(cellX, cellY);
-
-            if (opacity > 0) { // Ne dessiner que si il y a une opacité
-              // 🎯 Pour le MJ : 55% d'opacité, pour les joueurs : 90% d'opacité
-              const effectiveIsMJ = isMJ && !playerViewMode;
-              const finalOpacity = effectiveIsMJ ? opacity * 0.55 : opacity * 0.90;
-              ctx.fillStyle = `rgba(0, 0, 0, ${finalOpacity})`;
-              ctx.fillRect(screenX, screenY, screenWidth, screenHeight);
-            }
+              ctx.beginPath();
+              ctx.arc(handleX, handleY, 6, 0, 2 * Math.PI);
+              ctx.fill();
+              ctx.stroke();
+            });
           }
         }
       });
@@ -925,15 +972,57 @@ export default function Component() {
     // Draw current path if in drawing mode
     if (currentPath.length > 0) {
       ctx.beginPath();
-      currentPath.forEach((point, index) => {
-        const x = (point.x / image.width) * scaledWidth - offset.x;
-        const y = (point.y / image.height) * scaledHeight - offset.y;
-        if (index === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
+      // Use current settings
+      ctx.strokeStyle = currentTool === 'eraser' ? 'rgba(255,0,0,0.5)' : drawingColor; // Red for eraser preview
+      ctx.lineWidth = drawingSize * zoom;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      if (currentTool === 'line') {
+        if (currentPath.length >= 2) {
+          const p1 = currentPath[0];
+          const p2 = currentPath[currentPath.length - 1]; // Use last point
+          const x1 = (p1.x / image.width) * scaledWidth - offset.x;
+          const y1 = (p1.y / image.height) * scaledHeight - offset.y;
+          const x2 = (p2.x / image.width) * scaledWidth - offset.x;
+          const y2 = (p2.y / image.height) * scaledHeight - offset.y;
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y2);
         }
-      });
+      } else if (currentTool === 'rectangle') {
+        if (currentPath.length >= 2) {
+          const p1 = currentPath[0];
+          const p2 = currentPath[currentPath.length - 1];
+          const x1 = (p1.x / image.width) * scaledWidth - offset.x;
+          const y1 = (p1.y / image.height) * scaledHeight - offset.y;
+          const x2 = (p2.x / image.width) * scaledWidth - offset.x;
+          const y2 = (p2.y / image.height) * scaledHeight - offset.y;
+          ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+        }
+      } else if (currentTool === 'circle') {
+        if (currentPath.length >= 2) {
+          const p1 = currentPath[0];
+          const p2 = currentPath[currentPath.length - 1];
+          const x1 = (p1.x / image.width) * scaledWidth - offset.x;
+          const y1 = (p1.y / image.height) * scaledHeight - offset.y;
+          const x2 = (p2.x / image.width) * scaledWidth - offset.x;
+          const y2 = (p2.y / image.height) * scaledHeight - offset.x;
+          const radius = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+          ctx.beginPath();
+          ctx.arc(x1, y1, radius, 0, 2 * Math.PI);
+        }
+      } else {
+        // Pen
+        currentPath.forEach((point, index) => {
+          const x = (point.x / image.width) * scaledWidth - offset.x;
+          const y = (point.y / image.height) * scaledHeight - offset.y;
+          if (index === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        });
+      }
       ctx.stroke();
     }
 
@@ -1405,7 +1494,27 @@ export default function Component() {
         // Mode dessin - priorité élevée
         if (drawMode) {
           setIsDrawing(true);
-          setCurrentPath([{ x: clickX, y: clickY }]);
+
+          if (currentTool === 'eraser') {
+            // Eraser Logic (Vector Eraser - Delete whole stroke)
+            const eraserRadius = (drawingSize * zoom) / 2 + 5; // A bit of tolerance
+
+            // Check collision with any drawing
+            const drawingIndexToDelete = drawings.findIndex(drawing => isPointOnDrawing(clickX, clickY, drawing, zoom));
+
+            if (drawingIndexToDelete !== -1 && roomId) {
+              const drawingToDelete = drawings[drawingIndexToDelete];
+              // Delete from Firebase
+              deleteDoc(doc(db, 'cartes', String(roomId), 'drawings', drawingToDelete.id));
+              // Optimistic UI update
+              const newDrawings = [...drawings];
+              newDrawings.splice(drawingIndexToDelete, 1);
+              setDrawings(newDrawings);
+            }
+          } else {
+            // Pen Mode
+            setCurrentPath([{ x: clickX, y: clickY }]);
+          }
           return;
         }
 
@@ -1426,6 +1535,30 @@ export default function Component() {
 
         // 🎯 NOUVEAU : Vérifier si on clique sur une cellule de brouillard
         const clickedFogIndex = isCellInFog(clickX, clickY) ? 0 : -1;
+
+        // 🎯 NOUVEAU : Vérifier si on clique sur un dessin (pour sélection)
+        const clickedDrawingIndex = drawings.findIndex(drawing => isPointOnDrawing(clickX, clickY, drawing, zoom));
+
+        // 🎯 NOUVEAU : Vérifier si on clique sur une poignée de redimensionnement
+        let clickedHandleIndex = -1;
+        if (selectedDrawingIndex !== null) {
+          const drawing = drawings[selectedDrawingIndex];
+          const handles = getResizeHandles(drawing);
+
+          clickedHandleIndex = handles.findIndex(handle => {
+            const handleX = (handle.x / image.width) * scaledWidth - offset.x;
+            const handleY = (handle.y / image.height) * scaledHeight - offset.y;
+            // Mouse check logic (screen coords vs handles)
+            const dist = Math.sqrt(Math.pow(e.clientX - rect.left - handleX, 2) + Math.pow(e.clientY - rect.top - handleY, 2));
+            return dist < 10;
+          });
+
+          if (clickedHandleIndex !== -1) {
+            setIsResizingDrawing(true);
+            setDraggedHandleIndex(clickedHandleIndex);
+            return; // Stop event here, we are resizing
+          }
+        }
 
         // Si on clique sur un élément, le sélectionner
         if (clickedCharIndex !== -1) {
@@ -1492,17 +1625,34 @@ export default function Component() {
           setIsDraggingNote(true);
           setDraggedNoteIndex(clickedNoteIndex);
           setDraggedNoteOriginalPos({ x: note.x, y: note.y });
+          setSelectedDrawingIndex(null); // Clear drawing selection
+        } else if (clickedDrawingIndex !== -1) {
+          // 🎯 SELECTION DESSIN
+          setSelectedDrawingIndex(clickedDrawingIndex);
+          setSelectedCharacterIndex(null);
+          setSelectedNoteIndex(null);
+          setSelectedFogIndex(null);
+          setSelectedCharacters([]);
+
+          setIsDraggingDrawing(true);
+          setDragStart({ x: e.clientX, y: e.clientY });
+          // Clone points to avoid reference issues
+          const pointsCopy = drawings[clickedDrawingIndex].points.map(p => ({ ...p }));
+          setDraggedDrawingOriginalPoints(pointsCopy);
+
         } else if (clickedFogIndex !== -1) {
           setSelectedFogIndex(clickedFogIndex);
           setSelectedCharacterIndex(null);
           setSelectedNoteIndex(null);
           setSelectedCharacters([]);
+          setSelectedDrawingIndex(null);
         } else {
           // Clic sur zone vide : Commencer une sélection par zone
           setSelectedCharacterIndex(null);
           setSelectedNoteIndex(null);
           setSelectedFogIndex(null);
           setSelectedCharacters([]);
+          setSelectedDrawingIndex(null);
 
           setSelectionStart({ x: clickX, y: clickY });
           setIsSelectingArea(true);
@@ -1539,6 +1689,75 @@ export default function Component() {
         const dy = e.clientY - dragStart.y;
         setOffset((prev) => ({ x: prev.x - dx, y: prev.y - dy }));
         setDragStart({ x: e.clientX, y: e.clientY });
+        return;
+      }
+
+      // 🎯 RESIZE DESSIN
+      if (isResizingDrawing && selectedDrawingIndex !== null && draggedHandleIndex !== null) {
+        // Update logic
+        setDrawings(prev => prev.map((drawing, index) => {
+          if (index === selectedDrawingIndex) {
+            const newPoints = [...drawing.points];
+            const p1 = newPoints[0]; // Start
+            const p2 = newPoints[1]; // End (or radius point)
+
+            if (drawing.type === 'line') {
+              if (draggedHandleIndex === 0) newPoints[0] = { x: currentX, y: currentY };
+              if (draggedHandleIndex === 1) newPoints[1] = { x: currentX, y: currentY };
+            } else if (drawing.type === 'rectangle') {
+              // 0: p1, 1: TR, 2: p2, 3: BL
+              if (draggedHandleIndex === 0) {
+                newPoints[0] = { x: currentX, y: currentY };
+              } else if (draggedHandleIndex === 1) {
+                // Move Top-Right: change p2.x and p1.y
+                newPoints[1] = { ...p2, x: currentX };
+                newPoints[0] = { ...p1, y: currentY };
+              } else if (draggedHandleIndex === 2) {
+                newPoints[1] = { x: currentX, y: currentY };
+              } else if (draggedHandleIndex === 3) {
+                // Move Bottom-Left: change p1.x and p2.y
+                newPoints[0] = { ...p1, x: currentX };
+                newPoints[1] = { ...p2, y: currentY };
+              }
+            } else if (drawing.type === 'circle') {
+              // Handle 0 is usually center but we didn't add it to handles list for resize, only move
+              // handles list has only 1 item for circle in my getResizeHandles?
+              // Let's check getResizeHandles: "handles.push(drawing.points[1]);" -> Index 0 in the handles array
+
+              if (draggedHandleIndex === 0) {
+                // This is the outer radius handle
+                newPoints[1] = { x: currentX, y: currentY };
+              }
+            }
+            return { ...drawing, points: newPoints };
+          }
+          return drawing;
+        }));
+        return;
+      }
+
+      // 🎯 DRAG & DROP DESSIN - Priorité élevée
+      if (isDraggingDrawing && selectedDrawingIndex !== null) {
+        const dx = currentX - dragStart.x;
+        // Note: dragStart is in SCREEN coordinates, currentX is in IMAGE coordinates. This is a mix.
+        // Let's use image coordinates delta.
+
+        const startX = (dragStart.x - rect.left + offset.x) / scaledWidth * image.width;
+        const startY = (dragStart.y - rect.top + offset.y) / scaledHeight * image.height;
+        const deltaX = currentX - startX;
+        const deltaY = currentY - startY;
+
+        // Mettre à jour les points du dessin localement
+        setDrawings(prev => prev.map((drawing, index) => {
+          if (index === selectedDrawingIndex) {
+            const newPoints = draggedDrawingOriginalPoints.map(p => ({
+              x: p.x + deltaX,
+              y: p.y + deltaY
+            }));
+            return { ...drawing, points: newPoints };
+          }
+          return drawing;
+        }));
         return;
       }
 
@@ -1622,7 +1841,35 @@ export default function Component() {
         const scaledHeight = image.height * scale * zoom;
         const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
         const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
-        setCurrentPath((prev) => [...prev, { x, y }]);
+
+        if (currentTool === 'eraser') {
+          // Eraser Drag Logic 
+          const drawingIndexToDelete = drawings.findIndex(drawing => isPointOnDrawing(x, y, drawing, zoom));
+
+          if (drawingIndexToDelete !== -1 && roomId) {
+            const drawingToDelete = drawings[drawingIndexToDelete];
+            deleteDoc(doc(db, 'cartes', String(roomId), 'drawings', drawingToDelete.id));
+            const newDrawings = [...drawings];
+            newDrawings.splice(drawingIndexToDelete, 1);
+            setDrawings(newDrawings);
+            // If we erased the selected drawing, deselect it
+            if (selectedDrawingIndex === drawingIndexToDelete) {
+              setSelectedDrawingIndex(null);
+            }
+          }
+        } else {
+          // Drawing Logic
+          if (currentTool === 'pen') {
+            setCurrentPath((prev) => [...prev, { x, y }]);
+          } else {
+            // Shapes: We only strictly need the start point and the current point
+            // But we need to keep the start point.
+            // currentPath[0] is start point.
+            if (currentPath.length > 0) {
+              setCurrentPath([currentPath[0], { x, y }]);
+            }
+          }
+        }
       };
       return;
     }
@@ -1633,6 +1880,47 @@ export default function Component() {
     // Réinitialiser le bouton de souris
     const currentMouseButton = mouseButton;
     setMouseButton(null);
+
+    // 🎯 FIN RESIZE DESSIN
+    if (isResizingDrawing && selectedDrawingIndex !== null) {
+      const drawing = drawings[selectedDrawingIndex];
+      if (roomId) {
+        try {
+          await updateDoc(doc(db, 'cartes', String(roomId), 'drawings', drawing.id), {
+            points: drawing.points
+          });
+        } catch (error) {
+          console.error("Error saving resize:", error);
+        }
+      }
+      setIsResizingDrawing(false);
+      setDraggedHandleIndex(null);
+      return;
+    }
+
+    // 🎯 FIN DU DRAG & DROP DESSIN
+    if (isDraggingDrawing && selectedDrawingIndex !== null) {
+      const drawing = drawings[selectedDrawingIndex];
+      // Check if actually moved
+      const originalPoints = draggedDrawingOriginalPoints;
+      // Simple check on first point (assuming rigid body)
+      if (drawing.points && originalPoints && drawing.points.length > 0 && originalPoints.length > 0 &&
+        (drawing.points[0].x !== originalPoints[0].x || drawing.points[0].y !== originalPoints[0].y)) {
+
+        if (roomId) {
+          try {
+            await updateDoc(doc(db, 'cartes', String(roomId), 'drawings', drawing.id), {
+              points: drawing.points
+            });
+          } catch (error) {
+            console.error("Error updating drawing position:", error);
+            // Revert ?
+          }
+        }
+      }
+      setIsDraggingDrawing(false);
+      return;
+    }
 
     // 🎯 FIN DU DRAG & DROP NOTE - Priorité élevée
     if (isDraggingNote && draggedNoteIndex !== null) {
@@ -1734,10 +2022,14 @@ export default function Component() {
 
       if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && currentPath.length > 0) {
         try {
-          await addDoc(collection(db, 'cartes', String(roomId), 'drawings'), {
-            paths: currentPath
-          });
-          setDrawings(prev => [...prev, currentPath]);
+          const newDrawingData = {
+            points: currentPath,
+            color: drawingColor,
+            width: drawingSize,
+            type: currentTool === 'eraser' ? 'pen' : currentTool // Should not happen but fallback
+          };
+          const docRef = await addDoc(collection(db, 'cartes', String(roomId), 'drawings'), newDrawingData);
+          setDrawings(prev => [...prev, { ...newDrawingData, id: docRef.id }]);
           setCurrentPath([]);
         } catch (error) {
           console.error("Erreur lors de la sauvegarde du tracé:", error);
@@ -2134,6 +2426,128 @@ export default function Component() {
         </div>
       )}
 
+      {/* 🎯 Drawing Toolbar */}
+      {drawMode && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2">
+          <div className="flex items-center gap-4 bg-zinc-900/90 backdrop-blur-md p-3 rounded-xl border border-zinc-700 shadow-2xl">
+            {/* Tools */}
+            <div className="flex bg-zinc-800 rounded-lg p-1 border border-zinc-600">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`w-8 h-8 rounded-md ${currentTool === 'pen' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+                onClick={() => setCurrentTool('pen')}
+                title="Crayon"
+              >
+                <Pencil className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`w-8 h-8 rounded-md ${currentTool === 'line' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+                onClick={() => setCurrentTool('line')}
+                title="Ligne"
+              >
+                <Slash className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`w-8 h-8 rounded-md ${currentTool === 'rectangle' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+                onClick={() => setCurrentTool('rectangle')}
+                title="Rectangle"
+              >
+                <Square className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`w-8 h-8 rounded-md ${currentTool === 'circle' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+                onClick={() => setCurrentTool('circle')}
+                title="Cercle"
+              >
+                <CircleIcon className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`w-8 h-8 rounded-md ${currentTool === 'eraser' ? 'bg-red-600 text-white' : 'text-zinc-400 hover:text-white'}`}
+                onClick={() => setCurrentTool('eraser')}
+                title="Gomme (supprime le trait entier)"
+              >
+                <Eraser className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="w-px h-8 bg-zinc-700" />
+
+            {/* Colors */}
+            <div className="flex items-center gap-2">
+              {['#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'].map((color) => (
+                <button
+                  key={color}
+                  className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${drawingColor === color ? 'border-white scale-110 shadow-lg' : 'border-transparent'}`}
+                  style={{ backgroundColor: color }}
+                  onClick={() => {
+                    setDrawingColor(color);
+                    setCurrentTool('pen');
+                  }}
+                />
+              ))}
+              <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-zinc-600 hover:border-white transition-colors">
+                <input
+                  type="color"
+                  value={drawingColor}
+                  onChange={(e) => {
+                    setDrawingColor(e.target.value);
+                    setCurrentTool('pen');
+                  }}
+                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 m-0 border-0 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            <div className="w-px h-8 bg-zinc-700" />
+
+            {/* Size */}
+            <div className="flex items-center gap-2">
+              <span className="text-zinc-400 text-xs font-medium">Taille</span>
+              <input
+                type="range"
+                min="1"
+                max="20"
+                value={drawingSize}
+                onChange={(e) => setDrawingSize(parseInt(e.target.value))}
+                className="w-24 h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+              />
+              <span className="text-white text-xs w-4">{drawingSize}</span>
+            </div>
+
+            <div className="w-px h-8 bg-zinc-700" />
+
+            {/* Actions */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
+              onClick={() => {
+                if (confirm('Voulez-vous vraiment effacer tous les dessins ?')) {
+                  clearDrawings();
+                }
+              }}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Tout
+            </Button>
+          </div>
+
+          {/* Instructions overlay */}
+          <div className="text-[10px] text-zinc-400 bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm border border-white/10">
+            {currentTool === 'pen' ? 'Clic gauche pour dessiner' : 'Clic ou glisser sur un trait pour effacer'}
+          </div>
+        </div>
+      )}
+
       {/* Input caché pour le changement de fond */}
       <input
         ref={fileInputRef}
@@ -2184,6 +2598,34 @@ export default function Component() {
           )}
         </div>
       </RadialMenu>
+
+      {selectedDrawingIndex !== null && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
+          <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600 shadow-xl z-50">
+            <span className="text-white text-sm font-medium pr-2">Dessin sélectionné</span>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (selectedDrawingIndex !== null && roomId) {
+                  const drawing = drawings[selectedDrawingIndex];
+                  deleteDoc(doc(db, 'cartes', String(roomId), 'drawings', drawing.id));
+                  // Optimistic update
+                  setDrawings(prev => prev.filter((_, i) => i !== selectedDrawingIndex));
+                  setSelectedDrawingIndex(null);
+                }
+              }}
+            >
+              <Trash2 className="w-4 h-4 mr-2" /> Supprimer
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setSelectedDrawingIndex(null)}
+            >
+              Fermer
+            </Button>
+          </div>
+        </div>
+      )}
 
       {selectedCharacterIndex !== null && isCharacterVisibleToUser(characters[selectedCharacterIndex]) && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
