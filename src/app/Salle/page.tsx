@@ -105,10 +105,18 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
     }
 
     try {
-      await updateDoc(doc(db, 'users', user.uid), { room_id: room.id })
+      const userRoomListRef = doc(db, `users/${user.uid}/rooms`, room.id)
+      const userRef = doc(db, 'users', user.uid)
+
+      // 1. Ajouter d'abord la salle à la liste "Mes parties"
+      await setDoc(userRoomListRef, { id: room.id }, { merge: true })
+
+      // 2. Mettre à jour la salle actuelle de l'utilisateur
+      await setDoc(userRef, { room_id: room.id }, { merge: true })
+
       router.push(`/${room.id}/map`)
     } catch (error) {
-      console.error("Error updating room_id:", error)
+      console.error("Error joining room:", error)
     }
   }
 
@@ -229,7 +237,7 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
           </div>
         </div>
       </div>
-    </div>
+    </div >
   )
 }
 

@@ -5,7 +5,9 @@
       "CON": 2,
       "CHA": -2
     },
-    "image": "/images/races/ame-forgee.webp"
+    "image": "/images/races/ame-forgee.webp",
+    "tailleMoyenne": 185,
+    "poidsMoyen": 120
   },
   "elfe": {
     "description": "Les elfes sont des créatures élégantes et gracieuses, vivant en harmonie avec la nature. Ils sont connus pour leur agilité et leur maîtrise de la magie, ainsi que pour leur longévité et leur sagesse.",
@@ -13,7 +15,9 @@
       "FOR": -2,
       "CHA": 2
     },
-    "image": "/images/races/Elfe.webp"
+    "image": "/images/races/Elfe.webp",
+    "tailleMoyenne": 175,
+    "poidsMoyen": 60
   },
   "elfe_noir": {
     "description": "Les elfes noirs, ou drows, vivent dans les profondeurs souterraines et sont souvent associés à la magie noire et à la cruauté.",
@@ -21,7 +25,9 @@
       "FOR": -2,
       "DEX": 2
     },
-    "image": "/images/races/Elfenoir.jpg"
+    "image": "/images/races/Elfenoir.jpg",
+    "tailleMoyenne": 170,
+    "poidsMoyen": 55
   },
   "elfe_sylvain": {
     "description": "Les elfes sylvains sont des habitants des forêts, en harmonie avec la nature. Ils sont agiles et se déplacent silencieusement dans les bois.",
@@ -29,12 +35,16 @@
       "FOR": -2,
       "DEX": 2
     },
-    "image": "/images/races/Elfesylvain.webp"
+    "image": "/images/races/Elfesylvain.webp",
+    "tailleMoyenne": 170,
+    "poidsMoyen": 58
   },
   "humain": {
     "description": "Les humains sont des êtres polyvalents et adaptables, présents dans le monde entier. Leur diversité culturelle et leur capacité à s'adapter en font des individus remarquables.",
     "modificateurs": {},
-    "image": "/images/races/Humain.webp"
+    "image": "/images/races/Humain.webp",
+    "tailleMoyenne": 175,
+    "poidsMoyen": 75
   },
   "nain": {
     "description": "Les nains sont des mineurs et forgerons habiles, vivant dans des citadelles souterraines. Ils sont robustes et endurants.",
@@ -42,16 +52,20 @@
       "DEX": -2,
       "CON": 2
     },
-    "image": "/images/races/Nain.webp"
+    "image": "/images/races/Nain.webp",
+    "tailleMoyenne": 135,
+    "poidsMoyen": 70
   },
   "minotaure": {
     "description": "Le minotaure est une créature mi-homme mi-taureau. Il est connu pour son sens de l’orientation et ses explosions de rage. Les minotaures, les mâles en particuliers, sont des solitaires. Ils chassent dans les grandes plaines désertiques et vivent dans des grottes ou des souterrains.",
     "modificateurs": {
       "FOR": 4,
       "INT": -4,
-      "CHA":-2
+      "CHA": -2
     },
-    "image": "/images/races/Minotaure.webp"
+    "image": "/images/races/Minotaure.webp",
+    "tailleMoyenne": 210,
+    "poidsMoyen": 150
   },
   "halfelin": {
     "description": "Les halfelins sont une race de petite taille, souvent joyeux et farceurs. Ce sont des individus curieux et sociables.",
@@ -59,7 +73,9 @@
       "FOR": -2,
       "DEX": 2
     },
-    "image": "/images/races/Halfelin.webp"
+    "image": "/images/races/Halfelin.webp",
+    "tailleMoyenne": 90,
+    "poidsMoyen": 15
   },
   "orque": {
     "description": "Les orques sont des guerriers puissants et belliqueux, vivant en tribus ou en sociétés militaires organisées.",
@@ -68,7 +84,9 @@
       "INT": -2,
       "CHA": -2
     },
-    "image": "/images/races/Orc.Webp"
+    "image": "/images/races/Orc.Webp",
+    "tailleMoyenne": 190,
+    "poidsMoyen": 100
   },
   "drakonide": {
     "description": "Les drakonides possèdent des traits reptiliens et des ailes puissantes. Ils sont souvent vus comme des gardiens des anciennes connaissances des dragons.",
@@ -76,6 +94,8 @@
       "FOR": 2,
       "SAG": -2
     },
-    "image": "/images/races/Drakonide.webp"
+    "image": "/images/races/Drakonide.webp",
+    "tailleMoyenne": 195,
+    "poidsMoyen": 110
   }
 }

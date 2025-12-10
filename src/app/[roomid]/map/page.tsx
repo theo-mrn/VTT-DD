@@ -1195,9 +1195,9 @@ export default function Component() {
         const downloadURL = await getDownloadURL(storageRef);
 
         // Update Firestore with the download URL instead of the image data
-        await updateDoc(doc(db, 'cartes', roomId, 'fond', 'fond1'), {
+        await setDoc(doc(db, 'cartes', roomId, 'fond', 'fond1'), {
           url: downloadURL,
-        });
+        }, { merge: true });
 
         // Set the background image locally (optional, if needed for immediate display)
         setBackgroundImage(downloadURL);
