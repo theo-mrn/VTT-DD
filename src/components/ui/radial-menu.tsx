@@ -278,9 +278,9 @@ export const Component = ({
                           className={
                             isToolActive
                               ? 'fill-[#c0a080] dark:fill-[#d4b48f]' // Couleur primaire si l'outil est actif
-                              : isActive 
-                              ? 'fill-neutral-200 dark:fill-neutral-700'
-                              : 'fill-neutral-100 dark:fill-neutral-800'
+                              : isActive
+                                ? 'fill-neutral-200 dark:fill-neutral-700'
+                                : 'fill-neutral-100 dark:fill-neutral-800'
                           }
                           initial={false}
                           transition={wedgeTransition}
@@ -297,8 +297,8 @@ export const Component = ({
                             isToolActive
                               ? 'fill-[#c0a080] dark:fill-[#d4b48f]' // Couleur primaire si l'outil est actif
                               : isActive
-                              ? 'fill-neutral-200 dark:fill-neutral-700'
-                              : 'fill-neutral-100 dark:fill-neutral-800'
+                                ? 'fill-neutral-200 dark:fill-neutral-700'
+                                : 'fill-neutral-100 dark:fill-neutral-800'
                           )}
                           initial={false}
                           transition={wedgeTransition}
@@ -316,7 +316,8 @@ export const Component = ({
                                 el as HTMLElement | null;
                             }}
                             onFocus={() => setActiveIndex(index)}
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               onSelect?.(item);
                             }}
                             aria-label={item.label}
@@ -324,14 +325,14 @@ export const Component = ({
                               'size-full flex items-center justify-center rounded-full outline-none',
                               isToolActive
                                 ? 'text-[#1c1c1c] dark:text-[#1c1c1c]' // Texte foncé si l'outil est actif (contraste avec couleur primaire)
-                                : isActive 
-                                ? 'text-neutral-900 dark:text-neutral-50'
-                                : 'text-neutral-600 dark:text-neutral-400'
+                                : isActive
+                                  ? 'text-neutral-900 dark:text-neutral-50'
+                                  : 'text-neutral-600 dark:text-neutral-400'
                             )}
                           >
                             <Icon
-                              style={{ 
-                                height: iconSize, 
+                              style={{
+                                height: iconSize,
                                 width: iconSize,
                                 strokeWidth: isToolActive ? 2.5 : 2 // Plus épais si actif
                               }}
@@ -348,7 +349,7 @@ export const Component = ({
                     r={centerRadius}
                     className="fill-neutral-100 dark:fill-neutral-950 stroke-1 opacity-50 stroke-neutral-400 dark:stroke-neutral-600"
                   />
-                  
+
                   {/* Label au centre avec animation */}
                   <AnimatePresence mode="wait">
                     {hoveredLabel ? (
@@ -374,7 +375,7 @@ export const Component = ({
                           textAnchor="middle"
                           dominantBaseline="middle"
                           className="fill-neutral-900 dark:fill-neutral-50 font-semibold pointer-events-none select-none"
-                          style={{ 
+                          style={{
                             fontSize: hoveredLabel.length > 15 ? '11px' : '13px',
                             letterSpacing: '0.3px'
                           }}
@@ -410,7 +411,7 @@ export const Component = ({
                           className="pointer-events-none"
                         >
                           <div className="flex items-center justify-center w-full h-full">
-                            <XIcon 
+                            <XIcon
                               className="text-neutral-700 dark:text-neutral-300"
                               style={{ width: centerRadius * 0.35, height: centerRadius * 0.35 }}
                             />
@@ -419,8 +420,8 @@ export const Component = ({
                       </motion.g>
                     )}
                   </AnimatePresence>
-                  
-                 
+
+
                 </svg>
               </ContextMenu.Popup>
             </ContextMenu.Positioner>

@@ -35,9 +35,12 @@ type CustomCompetence = {
 };
 
 export default function CharacterProfile() {
-    const router = useRouter();
-  const [, setProfile] = useState<string | null>(null);
-  const [, setRace] = useState<string | null>(null);
+  const router = useRouter();
+  const [persoName, setPersoName] = useState<string | null>(null);
+  const [currentProfile, setCurrentProfile] = useState<string | null>(null); // Renamed to avoid hitting setProfile definition conflict if any? No, just good practice. OR keep it simple.
+  // Actually, let's stick to simple names.
+  const [profile, setProfile] = useState<string | null>(null);
+  const [race, setRace] = useState<string | null>(null);
   const [voies, setVoies] = useState<Voie[]>([]);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -52,8 +55,8 @@ export default function CharacterProfile() {
   const [loading, setLoading] = useState(true);
   const [customCompetences, setCustomCompetences] = useState<CustomCompetence[]>([]);
   const [isCompetenceDialogOpen, setIsCompetenceDialogOpen] = useState(false);
-  const [selectedCompetenceSlot, setSelectedCompetenceSlot] = useState<{voieIndex: number, competenceIndex: number} | null>(null);
-  const [allAvailableCompetences, setAllAvailableCompetences] = useState<{category: string, voies: {voie: string, competences: Competence[]}[]}[]>([]);
+  const [selectedCompetenceSlot, setSelectedCompetenceSlot] = useState<{ voieIndex: number, competenceIndex: number } | null>(null);
+  const [allAvailableCompetences, setAllAvailableCompetences] = useState<{ category: string, voies: { voie: string, competences: Competence[] }[] }[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
@@ -75,10 +78,13 @@ export default function CharacterProfile() {
             const data = characterData.data();
             setRace(data.Race);
             setProfile(data.Profile);
-            
+            setPersoName(data.Nomperso); // Add state for name
+
+            console.log("Character Data Loaded:", data); // Debug
+
             // Load current voies from character data
             await loadCurrentVoies(data);
-            
+
             // Load custom competences
             await loadCustomCompetences(room_id, persoId);
           }
@@ -100,7 +106,7 @@ export default function CharacterProfile() {
     try {
       const customCompetencesRef = collection(db, `cartes/${roomId}/characters/${persoId}/customCompetences`);
       const customCompetencesSnapshot = await getDocs(customCompetencesRef);
-      
+
       const customComps: CustomCompetence[] = [];
       customCompetencesSnapshot.forEach((doc) => {
         const data = doc.data();
@@ -114,7 +120,7 @@ export default function CharacterProfile() {
           competenceType: data.competenceType,
         });
       });
-      
+
       setCustomCompetences(customComps);
     } catch (error) {
       console.error('Error loading custom competences:', error);
@@ -123,7 +129,7 @@ export default function CharacterProfile() {
 
   const applyCustomCompetences = (voies: Voie[]) => {
     const updatedVoies = [...voies];
-    
+
     customCompetences.forEach((customComp) => {
       if (updatedVoies[customComp.voieIndex] && updatedVoies[customComp.voieIndex].competences[customComp.slotIndex]) {
         updatedVoies[customComp.voieIndex].competences[customComp.slotIndex] = {
@@ -136,42 +142,70 @@ export default function CharacterProfile() {
         };
       }
     });
-    
+
     return updatedVoies;
   };
 
   const loadCurrentVoies = async (characterData: Record<string, string | number>) => {
-      const loadedVoies: Voie[] = [];
+    let loadedVoies: Voie[] = [];
 
-    // Load voies from character data
-    for (let i = 1; i <= 10; i++) { // Support up to 10 voies
+    // 1. Try to load saved voies from character data
+    for (let i = 1; i <= 10; i++) {
       const voieFile = characterData[`Voie${i}`];
-      
-      if (voieFile) {
-        try {
-          const response = await fetch(`/tabs/${voieFile}`);
-          if (response.ok) {
-            const data = await response.json();
-            const competences = Object.keys(data)
-              .filter((key) => key.startsWith('Affichage'))
-              .map((key, index) => ({
-                titre: data[`Affichage${index + 1}`] || '',
-                description: (data[`rang${index + 1}`] || '').replace(/<br>/g, '\n'),
-                type: data[`type${index + 1}`] || 'other',
-              }));
-            
-            loadedVoies.push({
-              nom: data.Voie,
-              competences,
-              fichier: voieFile as string
-            });
-          }
-        } catch (error) {
-          console.error(`Error loading voie ${voieFile}:`, error);
-        }
+      if (voieFile && typeof voieFile === 'string' && voieFile.trim() !== '') {
+        const voie = await loadVoieFromFile(voieFile);
+        if (voie) loadedVoies.push(voie);
       }
     }
-    
+
+    // 2. If no voies were loaded (either none saved, or all empty), load defaults
+    if (loadedVoies.length === 0) {
+      console.log("No saved voies found, loading defaults...");
+      const race = characterData.Race as string;
+      const profile = characterData.Profile as string;
+
+      if (race && profile) {
+        // Mapping for Race files
+        const raceFileMapping: Record<string, string> = {
+          ame_forgee: 'Ame-forgee.json',
+          elfe_noir: 'Elfenoir.json',
+          elfe_sylvain: 'Elfesylvain.json',
+        };
+
+        const getRaceFile = (raceKey: string) => {
+          if (raceFileMapping[raceKey]) return raceFileMapping[raceKey];
+          return raceKey.charAt(0).toUpperCase() + raceKey.slice(1) + '.json';
+        };
+
+        // Mapping for Profile files (handling typos in filenames)
+        const profileMapping: Record<string, string> = {
+          necromancien: 'Necromencien', // Handle typo in filenames
+        };
+
+        const getProfilePrefix = (profileKey: string) => {
+          const keyLower = profileKey.toLowerCase();
+          if (profileMapping[keyLower]) return profileMapping[keyLower];
+
+          // Fallback: capitalize first letter
+          return profileKey.charAt(0).toUpperCase() + profileKey.slice(1).toLowerCase();
+        };
+
+        const profilePrefix = getProfilePrefix(profile);
+
+        // Load 5 Profile Voies
+        for (let i = 1; i <= 5; i++) {
+          const file = `${profilePrefix}${i}.json`;
+          const voie = await loadVoieFromFile(file);
+          if (voie) loadedVoies.push(voie);
+        }
+
+        // Load Race Voie
+        const raceFile = getRaceFile(race);
+        const voie = await loadVoieFromFile(raceFile);
+        if (voie) loadedVoies.push(voie);
+      }
+    }
+
     // Apply custom competences after loading voies
     const voiesWithCustomCompetences = applyCustomCompetences(loadedVoies);
     setVoies(voiesWithCustomCompetences);
@@ -183,13 +217,13 @@ export default function CharacterProfile() {
       if (response.ok) {
         const data = await response.json();
         const competences = Object.keys(data)
-            .filter((key) => key.startsWith('Affichage'))
-            .map((key, index) => ({
+          .filter((key) => key.startsWith('Affichage'))
+          .map((key, index) => ({
             titre: data[`Affichage${index + 1}`] || '',
             description: (data[`rang${index + 1}`] || '').replace(/<br>/g, '\n'),
             type: data[`type${index + 1}`] || 'other',
           }));
-        
+
         return {
           nom: data.Voie,
           competences,
@@ -309,12 +343,12 @@ export default function CharacterProfile() {
   };
 
   const loadAllAvailableCompetences = async () => {
-    const groupedCompetences: {category: string, voies: {voie: string, competences: Competence[]}[]}[] = [];
-    
+    const groupedCompetences: { category: string, voies: { voie: string, competences: Competence[] }[] }[] = [];
+
     // Load from all profile voies
     const profiles = ['Samourai', 'Guerrier', 'Barde', 'Moine', 'Pretre', 'Rodeur', 'Voleur', 'Psionique', 'Necromencien'];
     for (const profile of profiles) {
-      const profileVoies: {voie: string, competences: Competence[]}[] = [];
+      const profileVoies: { voie: string, competences: Competence[] }[] = [];
       for (let i = 1; i <= 5; i++) {
         const voie = await loadVoieFromFile(`${profile}${i}.json`);
         if (voie) {
@@ -331,10 +365,10 @@ export default function CharacterProfile() {
         });
       }
     }
-    
+
     // Load from race voies
     const races = ['Humain', 'Elfe', 'Nain', 'Halfelin', 'Orque', 'Wolfer', 'Ogre', 'Minotaure'];
-    const raceVoies: {voie: string, competences: Competence[]}[] = [];
+    const raceVoies: { voie: string, competences: Competence[] }[] = [];
     for (const race of races) {
       const voie = await loadVoieFromFile(`${race}.json`);
       if (voie) {
@@ -350,7 +384,7 @@ export default function CharacterProfile() {
         voies: raceVoies
       });
     }
-    
+
     // Load from prestige voies - organized by class
     const prestigeClasses = [
       { name: 'Voleur', count: 3 },
@@ -367,9 +401,9 @@ export default function CharacterProfile() {
       { name: 'Arquebusier', count: 3 },
       { name: 'Necromencien', count: 2 }
     ];
-    
+
     for (const prestigeClass of prestigeClasses) {
-      const prestigeVoies: {voie: string, competences: Competence[]}[] = [];
+      const prestigeVoies: { voie: string, competences: Competence[] }[] = [];
       for (let i = 1; i <= prestigeClass.count; i++) {
         const voie = await loadVoieFromFile(`prestige_${prestigeClass.name.toLowerCase()}${i}.json`);
         if (voie) {
@@ -386,7 +420,7 @@ export default function CharacterProfile() {
         });
       }
     }
-    
+
     setAllAvailableCompetences(groupedCompetences);
   };
 
@@ -413,7 +447,7 @@ export default function CharacterProfile() {
 
     try {
       // Save to Firestore
-      const customCompRef = doc(db, `cartes/${roomId}/characters/${persoId}/customCompetences`, 
+      const customCompRef = doc(db, `cartes/${roomId}/characters/${persoId}/customCompetences`,
         `${selectedCompetenceSlot.voieIndex}-${selectedCompetenceSlot.competenceIndex}`);
       await setDoc(customCompRef, customCompetence);
 
@@ -431,8 +465,8 @@ export default function CharacterProfile() {
       }));
 
       // Apply the new custom competence immediately
-      if (voiesCopy[selectedCompetenceSlot.voieIndex] && 
-          voiesCopy[selectedCompetenceSlot.voieIndex].competences[selectedCompetenceSlot.competenceIndex]) {
+      if (voiesCopy[selectedCompetenceSlot.voieIndex] &&
+        voiesCopy[selectedCompetenceSlot.voieIndex].competences[selectedCompetenceSlot.competenceIndex]) {
         voiesCopy[selectedCompetenceSlot.voieIndex].competences[selectedCompetenceSlot.competenceIndex] = {
           titre: customCompetence.competenceName,
           description: customCompetence.competenceDescription,
@@ -470,7 +504,7 @@ export default function CharacterProfile() {
 
     try {
       // Remove from Firestore
-      const customCompRef = doc(db, `cartes/${roomId}/characters/${persoId}/customCompetences`, 
+      const customCompRef = doc(db, `cartes/${roomId}/characters/${persoId}/customCompetences`,
         `${voieIndex}-${competenceIndex}`);
       await deleteDoc(customCompRef);
 
@@ -501,13 +535,19 @@ export default function CharacterProfile() {
 
   return (
     <div className="flex flex-col items-center bg-[var(--bg-dark)] text-[var(--text-primary)] min-h-screen p-4">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2 text-[var(--accent-brown)]">Gestion des Voies</h1>
-        <p className="text-[var(--text-secondary)]">Gérez vos voies de compétences : ajoutez, supprimez ou modifiez vos voies.</p>
+      <div className="mb-6 w-full !max-w-[95vw]">
+        <h1 className="text-3xl font-bold mb-2 text-[var(--accent-brown)] text-center">Gestion des Voies</h1>
+        {persoName && (
+          <div className="text-center mb-4">
+            <h2 className="text-2xl font-semibold text-[var(--text-primary)]">{persoName}</h2>
+            <p className="text-[var(--text-secondary)]">{profile} - {race}</p>
+          </div>
+        )}
+        <p className="text-[var(--text-secondary)] text-center">Gérez vos voies de compétences : ajoutez, supprimez ou modifiez vos voies.</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6 max-w-5xl w-full">
-      {voies.map((voie, index) => (
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-6 !max-w-[95vw] w-full">
+        {voies.map((voie, index) => (
           <Card key={index} className="card relative">
             <CardHeader className="pb-2">
               <div className="flex justify-between items-start">
@@ -525,17 +565,16 @@ export default function CharacterProfile() {
                 </Button>
               </div>
 
-          </CardHeader>
-          <CardContent>
+            </CardHeader>
+            <CardContent>
               <ul className="space-y-2">
-              {voie.competences.map((competence, compIndex) => (
-                  <li 
+                {voie.competences.map((competence, compIndex) => (
+                  <li
                     key={compIndex}
-                    className={`group flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${
-                      competence.isCustom 
-                        ? 'border-[var(--accent-brown)] bg-[var(--bg-card)]' 
-                        : 'border-[var(--border-color)] hover:border-[var(--accent-brown)]'
-                    }`}
+                    className={`group flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${competence.isCustom
+                      ? 'border-[var(--accent-brown)] bg-[var(--bg-card)]'
+                      : 'border-[var(--border-color)] hover:border-[var(--accent-brown)]'
+                      }`}
                     onClick={() => handleCompetenceClick(index, compIndex)}
                   >
                     <div className="flex-1">
@@ -578,14 +617,14 @@ export default function CharacterProfile() {
                       )}
                     </div>
                   </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
-      ))}
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        ))}
 
         {/* Add new voie card */}
-        <Card 
+        <Card
           className="card border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-brown)] cursor-pointer transition-colors"
           onClick={addNewVoie}
         >
@@ -605,7 +644,7 @@ export default function CharacterProfile() {
               <X className="w-6 h-6" />
             </Button>
           </div>
-          
+
           <select
             className="mb-4 p-2 border border-[var(--border-color)] rounded w-full bg-[var(--bg-dark)] text-[var(--text-primary)]"
             value={selectedCompetenceIndex || 0}
@@ -617,21 +656,21 @@ export default function CharacterProfile() {
               </option>
             ))}
           </select>
-          
+
           {selectedCompetenceIndex !== null && (
             <div className="mb-4">
               <h3 className="font-semibold mb-2 text-[var(--accent-brown)]">
                 {voies[selectedVoieIndex].competences[selectedCompetenceIndex].titre}
               </h3>
-              <div 
+              <div
                 className="text-sm text-[var(--text-secondary)]"
-                dangerouslySetInnerHTML={{ 
-                  __html: voies[selectedVoieIndex].competences[selectedCompetenceIndex].description 
+                dangerouslySetInnerHTML={{
+                  __html: voies[selectedVoieIndex].competences[selectedCompetenceIndex].description
                 }}
               />
             </div>
           )}
-          
+
           <Button onClick={openDialog} className="button-primary w-full">
             Remplacer cette voie
           </Button>
@@ -640,23 +679,20 @@ export default function CharacterProfile() {
 
       {/* Dialog for selecting replacement voies */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className=" p-6 rounded-lg fixed left-0 right-0 m-auto w-full h-[80vh] max-w-6xl max-h-screen overflow-y-auto z-50">
-          <div className="flex justify-between items-center mb-4">
+        <DialogContent className="!max-w-[95vw] !w-[95vw] !h-[90vh] p-6 overflow-y-auto z-50">
+          <div className="mb-4">
             <DialogTitle className="modal-title">
               {selectedVoieIndex !== null ? 'Choisir une nouvelle voie' : 'Ajouter une voie'}
             </DialogTitle>
-            <Button variant="ghost" onClick={() => setIsDialogOpen(false)} className="button-cancel">
-              <X className="w-6 h-6" />
-            </Button>
           </div>
-          
+
           <Tabs defaultValue="profiles" onValueChange={(type) => fetchReplacementVoies(type)}>
             <TabsList>
               <TabsTrigger value="profiles">Profils</TabsTrigger>
               <TabsTrigger value="races">Races</TabsTrigger>
               <TabsTrigger value="prestiges">Prestiges</TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="profiles">
               <div className="mb-4">
                 <label className="block font-semibold mb-2 text-[var(--text-primary)]">Sélectionner un profil</label>
@@ -694,7 +730,7 @@ export default function CharacterProfile() {
                 ))}
               </div>
             </TabsContent>
-            
+
             <TabsContent value="races">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {replacementVoies.map((voie, index) => (
@@ -717,7 +753,7 @@ export default function CharacterProfile() {
                 ))}
               </div>
             </TabsContent>
-            
+
             <TabsContent value="prestiges">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {replacementVoies.map((voie, index) => (
@@ -751,7 +787,7 @@ export default function CharacterProfile() {
                   <X className="w-6 h-6" />
                 </Button>
               </div>
-              
+
               <select
                 className="mb-4 p-2 border border-[var(--border-color)] rounded w-full bg-[var(--bg-dark)] text-[var(--text-primary)]"
                 value={selectedCompetenceIndex || 0}
@@ -763,23 +799,23 @@ export default function CharacterProfile() {
                   </option>
                 ))}
               </select>
-              
+
               {selectedCompetenceIndex !== null && (
                 <div className="mb-4">
                   <h3 className="font-semibold mb-2 text-[var(--accent-brown)]">
                     {selectedReplacement.competences[selectedCompetenceIndex].titre}
                   </h3>
-                  <div 
+                  <div
                     className="text-sm text-[var(--text-secondary)]"
-                    dangerouslySetInnerHTML={{ 
-                      __html: selectedReplacement.competences[selectedCompetenceIndex].description 
+                    dangerouslySetInnerHTML={{
+                      __html: selectedReplacement.competences[selectedCompetenceIndex].description
                     }}
                   />
                 </div>
               )}
-              
-              <Button 
-                onClick={selectedVoieIndex !== null ? applyReplacement : addVoieFromDialog} 
+
+              <Button
+                onClick={selectedVoieIndex !== null ? applyReplacement : addVoieFromDialog}
                 className="button-primary w-full"
               >
                 {selectedVoieIndex !== null ? 'Remplacer' : 'Ajouter'}
@@ -788,318 +824,315 @@ export default function CharacterProfile() {
           )}
         </DialogContent>
       </Dialog>
-      
-        {/* Competence Selection Dialog */}
-        <Dialog open={isCompetenceDialogOpen} onOpenChange={setIsCompetenceDialogOpen}>
-          <DialogContent className="p-6 rounded-lg fixed left-0 right-0 m-auto w-full h-[90vh] max-w-7xl max-h-screen overflow-hidden z-50">
-            <div className="flex justify-between items-center mb-4">
-              <DialogTitle className="modal-title">
-                Choisir une nouvelle compétence
-                {selectedCompetenceSlot && (
-                  <span className="text-sm text-[var(--text-secondary)] block">
-                    Pour remplacer la compétence n°{selectedCompetenceSlot.competenceIndex + 1} de la voie {selectedCompetenceSlot.voieIndex + 1}
-                  </span>
-                )}
-              </DialogTitle>
-              <Button variant="ghost" onClick={() => setIsCompetenceDialogOpen(false)} className="button-cancel">
-                <X className="w-6 h-6" />
-              </Button>
-            </div>
-            
-            {/* Search Bar */}
-            <div className="mb-4">
-              <input
-                type="text"
-                placeholder="Rechercher une compétence..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)]"
-              />
-            </div>
-            
-            {/* Competences Grid */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="space-y-8">
-                {/* PROFILS SECTION */}
-                {(() => {
-                  const profileGroups = allAvailableCompetences.filter(group => 
-                    !group.category.startsWith('Prestige') && group.category !== 'Races'
-                  );
-                  
-                  if (profileGroups.length === 0) return null;
-                  
-                  return (
-                    <div className="space-y-4">
-                      <h1 className="text-2xl font-bold text-[var(--accent-brown)] border-b-2 border-[var(--accent-brown)] pb-2 mb-4">
-                        🗡️ PROFILS
-                      </h1>
-                      
-                      <div className="space-y-6">
-                        {profileGroups
-                          .filter((categoryGroup) => {
-                            if (!searchTerm) return true;
-                            return categoryGroup.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                   categoryGroup.voies.some(voie => 
-                                     voie.voie.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                     voie.competences.some((comp: Competence) => 
-                                       comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                       comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                       comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                     )
-                                   );
-                          })
-                          .map((categoryGroup, categoryIndex) => (
-                            <div key={categoryIndex} className="space-y-3">
-                              <h2 className="text-lg font-semibold text-[var(--accent-brown)] pl-4 border-l-4 border-[var(--accent-brown)]">
-                                {categoryGroup.category}
-                              </h2>
-                              
-                              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                                {categoryGroup.voies
-                                  .filter((voie) => {
-                                    if (!searchTerm) return true;
-                                    return voie.voie.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                           voie.competences.some((comp: Competence) => 
-                                             comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                             comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                             comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                           );
-                                  })
-                                  .map((voie, voieIndex) => {
-                                    const filteredCompetences = searchTerm 
-                                      ? voie.competences.filter((comp: Competence) => 
-                                          comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                          comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                          comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                        )
-                                      : voie.competences;
-                                    
-                                    if (searchTerm && filteredCompetences.length === 0) return null;
-                                    
-                                    return (
-                                      <Card key={voieIndex} className="card h-fit border-l-2 border-l-blue-500">
-                                        <CardHeader className="pb-2">
-                                          <CardTitle className="text-[var(--accent-brown)] text-sm">
-                                            {voie.voie}
-                                          </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-2">
-                                          {filteredCompetences.map((competence: Competence, compIndex: number) => {
-                                            const originalIndex = voie.competences.indexOf(competence);
-                                            const filename = `${categoryGroup.category}${voie.voie.split(' ')[1]}.json`;
-                                            
-                                            return (
-                                              <div
-                                                key={compIndex}
-                                                className="p-2 border border-[var(--border-color)] rounded cursor-pointer hover:border-[var(--accent-brown)] hover:bg-[var(--bg-card)] transition-all duration-200"
-                                                onClick={() => replaceCompetence(filename, originalIndex + 1, competence)}
-                                              >
-                                                <div className="font-semibold text-[var(--text-primary)] text-xs mb-1">
-                                                  Rang {originalIndex + 1}: {competence.titre}
-                                                </div>
-                                                <div className="text-xs text-[var(--text-secondary)] line-clamp-2 mb-1">
-                                                  {competence.description.replace(/<br>/g, ' ').replace(/<[^>]*>/g, '').substring(0, 60)}...
-                                                </div>
-                                                <div className="text-xs text-[var(--accent-brown)]">
-                                                  {competence.type}
-                                                </div>
-                                              </div>
-                                            );
-                                          })}
-                                        </CardContent>
-                                      </Card>
-                                    );
-                                  })
-                                  .filter(Boolean)}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  );
-                })()}
 
-                {/* RACES SECTION */}
-                {(() => {
-                  const raceGroups = allAvailableCompetences.filter(group => group.category === 'Races');
-                  
-                  if (raceGroups.length === 0) return null;
-                  
-                  return (
-                    <div className="space-y-4">
-                      <h1 className="text-2xl font-bold text-[var(--accent-brown)] border-b-2 border-[var(--accent-brown)] pb-2 mb-4">
-                        🧙‍♂️ RACES
-                      </h1>
-                      
-                      <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                        {raceGroups[0].voies
-                          .filter((voie) => {
-                            if (!searchTerm) return true;
-                            return voie.voie.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                   voie.competences.some((comp: Competence) => 
-                                     comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                     comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                     comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                   );
-                          })
-                          .map((voie, voieIndex) => {
-                            const filteredCompetences = searchTerm 
-                              ? voie.competences.filter((comp: Competence) => 
-                                  comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                  comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                )
-                              : voie.competences;
-                            
-                            if (searchTerm && filteredCompetences.length === 0) return null;
-                            
-                            return (
-                              <Card key={voieIndex} className="card h-fit border-l-2 border-l-green-500">
-                                <CardHeader className="pb-2">
-                                  <CardTitle className="text-[var(--accent-brown)] text-sm">
-                                    {voie.voie}
-                                  </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-2">
-                                  {filteredCompetences.map((competence: Competence, compIndex: number) => {
-                                    const originalIndex = voie.competences.indexOf(competence);
-                                    const filename = `${voie.voie}.json`;
-                                    
-                                    return (
-                                      <div
-                                        key={compIndex}
-                                        className="p-2 border border-[var(--border-color)] rounded cursor-pointer hover:border-[var(--accent-brown)] hover:bg-[var(--bg-card)] transition-all duration-200"
-                                        onClick={() => replaceCompetence(filename, originalIndex + 1, competence)}
-                                      >
-                                        <div className="font-semibold text-[var(--text-primary)] text-xs mb-1">
-                                          Rang {originalIndex + 1}: {competence.titre}
-                                        </div>
-                                        <div className="text-xs text-[var(--text-secondary)] line-clamp-2 mb-1">
-                                          {competence.description.replace(/<br>/g, ' ').replace(/<[^>]*>/g, '').substring(0, 60)}...
-                                        </div>
-                                        <div className="text-xs text-[var(--accent-brown)]">
-                                          {competence.type}
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </CardContent>
-                              </Card>
+      {/* Competence Selection Dialog */}
+      <Dialog open={isCompetenceDialogOpen} onOpenChange={setIsCompetenceDialogOpen}>
+        <DialogContent className="!max-w-[95vw] !w-[95vw] !h-[90vh] p-6 overflow-y-auto z-50">
+          <div className="flex justify-between items-center mb-4">
+            <DialogTitle className="modal-title">
+              Choisir une nouvelle compétence
+              {selectedCompetenceSlot && (
+                <span className="text-sm text-[var(--text-secondary)] block">
+                  Pour remplacer la compétence n°{selectedCompetenceSlot.competenceIndex + 1} de la voie {selectedCompetenceSlot.voieIndex + 1}
+                </span>
+              )}
+            </DialogTitle>
+          </div>
+
+          {/* Search Bar */}
+          <div className="mb-4">
+            <input
+              type="text"
+              placeholder="Rechercher une compétence..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)]"
+            />
+          </div>
+
+          {/* Competences Grid */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="space-y-8">
+              {/* PROFILS SECTION */}
+              {(() => {
+                const profileGroups = allAvailableCompetences.filter(group =>
+                  !group.category.startsWith('Prestige') && group.category !== 'Races'
+                );
+
+                if (profileGroups.length === 0) return null;
+
+                return (
+                  <div className="space-y-4">
+                    <h1 className="text-2xl font-bold text-[var(--accent-brown)] border-b-2 border-[var(--accent-brown)] pb-2 mb-4">
+                      🗡️ PROFILS
+                    </h1>
+
+                    <div className="space-y-6">
+                      {profileGroups
+                        .filter((categoryGroup) => {
+                          if (!searchTerm) return true;
+                          return categoryGroup.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            categoryGroup.voies.some(voie =>
+                              voie.voie.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              voie.competences.some((comp: Competence) =>
+                                comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                comp.type.toLowerCase().includes(searchTerm.toLowerCase())
+                              )
                             );
-                          })
-                          .filter(Boolean)}
-                      </div>
-                    </div>
-                  );
-                })()}
+                        })
+                        .map((categoryGroup, categoryIndex) => (
+                          <div key={categoryIndex} className="space-y-3">
+                            <h2 className="text-lg font-semibold text-[var(--accent-brown)] pl-4 border-l-4 border-[var(--accent-brown)]">
+                              {categoryGroup.category}
+                            </h2>
 
-                {/* PRESTIGES SECTION */}
-                {(() => {
-                  const prestigeGroups = allAvailableCompetences.filter(group => group.category.startsWith('Prestige'));
-                  
-                  if (prestigeGroups.length === 0) return null;
-                  
-                  return (
-                    <div className="space-y-4">
-                      <h1 className="text-2xl font-bold text-[var(--accent-brown)] border-b-2 border-[var(--accent-brown)] pb-2 mb-4">
-                        🏆 PRESTIGES
-                      </h1>
-                      
-                      <div className="space-y-6">
-                        {prestigeGroups
-                          .filter((categoryGroup) => {
-                            if (!searchTerm) return true;
-                            return categoryGroup.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                   categoryGroup.voies.some(voie => 
-                                     voie.voie.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                     voie.competences.some((comp: Competence) => 
-                                       comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                       comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                       comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                     )
-                                   );
-                          })
-                          .map((categoryGroup, categoryIndex) => (
-                            <div key={categoryIndex} className="space-y-3">
-                              <h2 className="text-lg font-semibold text-[var(--accent-brown)] pl-4 border-l-4 border-[var(--accent-brown)]">
-                                {categoryGroup.category}
-                              </h2>
-                              
-                              <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-                                {categoryGroup.voies
-                                  .filter((voie) => {
-                                    if (!searchTerm) return true;
-                                    return voie.voie.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                           voie.competences.some((comp: Competence) => 
-                                             comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                             comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                             comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                           );
-                                  })
-                                  .map((voie, voieIndex) => {
-                                    const filteredCompetences = searchTerm 
-                                      ? voie.competences.filter((comp: Competence) => 
-                                          comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                          comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                          comp.type.toLowerCase().includes(searchTerm.toLowerCase())
-                                        )
-                                      : voie.competences;
-                                    
-                                    if (searchTerm && filteredCompetences.length === 0) return null;
-                                    
-                                    return (
-                                      <Card key={voieIndex} className="card h-fit border-l-2 border-l-purple-500">
-                                        <CardHeader className="pb-2">
-                                          <CardTitle className="text-[var(--accent-brown)] text-sm">
-                                            {voie.voie}
-                                          </CardTitle>
-                                        </CardHeader>
-                                        <CardContent className="space-y-2">
-                                          {filteredCompetences.map((competence: Competence, compIndex: number) => {
-                                            const originalIndex = voie.competences.indexOf(competence);
-                                            const filename = `prestige_${categoryGroup.category.replace('Prestige ', '').toLowerCase()}${voie.voie.split(' ')[1]}.json`;
-                                            
-                                            return (
-                                              <div
-                                                key={compIndex}
-                                                className="p-2 border border-[var(--border-color)] rounded cursor-pointer hover:border-[var(--accent-brown)] hover:bg-[var(--bg-card)] transition-all duration-200"
-                                                onClick={() => replaceCompetence(filename, originalIndex + 1, competence)}
-                                              >
-                                                <div className="font-semibold text-[var(--text-primary)] text-xs mb-1">
-                                                  Rang {originalIndex + 1}: {competence.titre}
-                                                </div>
-                                                <div className="text-xs text-[var(--text-secondary)] line-clamp-2 mb-1">
-                                                  {competence.description.replace(/<br>/g, ' ').replace(/<[^>]*>/g, '').substring(0, 60)}...
-                                                </div>
-                                                <div className="text-xs text-[var(--accent-brown)]">
-                                                  {competence.type}
-                                                </div>
-                                              </div>
-                                            );
-                                          })}
-                                        </CardContent>
-                                      </Card>
+                            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                              {categoryGroup.voies
+                                .filter((voie) => {
+                                  if (!searchTerm) return true;
+                                  return voie.voie.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                    voie.competences.some((comp: Competence) =>
+                                      comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                      comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                      comp.type.toLowerCase().includes(searchTerm.toLowerCase())
                                     );
-                                  })
-                                  .filter(Boolean)}
-                              </div>
+                                })
+                                .map((voie, voieIndex) => {
+                                  const filteredCompetences = searchTerm
+                                    ? voie.competences.filter((comp: Competence) =>
+                                      comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                      comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                      comp.type.toLowerCase().includes(searchTerm.toLowerCase())
+                                    )
+                                    : voie.competences;
+
+                                  if (searchTerm && filteredCompetences.length === 0) return null;
+
+                                  return (
+                                    <Card key={voieIndex} className="card h-fit border-l-2 border-l-blue-500">
+                                      <CardHeader className="pb-2">
+                                        <CardTitle className="text-[var(--accent-brown)] text-sm">
+                                          {voie.voie}
+                                        </CardTitle>
+                                      </CardHeader>
+                                      <CardContent className="space-y-2">
+                                        {filteredCompetences.map((competence: Competence, compIndex: number) => {
+                                          const originalIndex = voie.competences.indexOf(competence);
+                                          const filename = `${categoryGroup.category}${voie.voie.split(' ')[1]}.json`;
+
+                                          return (
+                                            <div
+                                              key={compIndex}
+                                              className="p-2 border border-[var(--border-color)] rounded cursor-pointer hover:border-[var(--accent-brown)] hover:bg-[var(--bg-card)] transition-all duration-200"
+                                              onClick={() => replaceCompetence(filename, originalIndex + 1, competence)}
+                                            >
+                                              <div className="font-semibold text-[var(--text-primary)] text-xs mb-1">
+                                                Rang {originalIndex + 1}: {competence.titre}
+                                              </div>
+                                              <div className="text-xs text-[var(--text-secondary)] line-clamp-2 mb-1">
+                                                {competence.description.replace(/<br>/g, ' ').replace(/<[^>]*>/g, '').substring(0, 60)}...
+                                              </div>
+                                              <div className="text-xs text-[var(--accent-brown)]">
+                                                {competence.type}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </CardContent>
+                                    </Card>
+                                  );
+                                })
+                                .filter(Boolean)}
                             </div>
-                          ))}
-                      </div>
+                          </div>
+                        ))}
                     </div>
-                  );
-                })()}
-              </div>
+                  </div>
+                );
+              })()}
+
+              {/* RACES SECTION */}
+              {(() => {
+                const raceGroups = allAvailableCompetences.filter(group => group.category === 'Races');
+
+                if (raceGroups.length === 0) return null;
+
+                return (
+                  <div className="space-y-4">
+                    <h1 className="text-2xl font-bold text-[var(--accent-brown)] border-b-2 border-[var(--accent-brown)] pb-2 mb-4">
+                      🧙‍♂️ RACES
+                    </h1>
+
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                      {raceGroups[0].voies
+                        .filter((voie) => {
+                          if (!searchTerm) return true;
+                          return voie.voie.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            voie.competences.some((comp: Competence) =>
+                              comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              comp.type.toLowerCase().includes(searchTerm.toLowerCase())
+                            );
+                        })
+                        .map((voie, voieIndex) => {
+                          const filteredCompetences = searchTerm
+                            ? voie.competences.filter((comp: Competence) =>
+                              comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              comp.type.toLowerCase().includes(searchTerm.toLowerCase())
+                            )
+                            : voie.competences;
+
+                          if (searchTerm && filteredCompetences.length === 0) return null;
+
+                          return (
+                            <Card key={voieIndex} className="card h-fit border-l-2 border-l-green-500">
+                              <CardHeader className="pb-2">
+                                <CardTitle className="text-[var(--accent-brown)] text-sm">
+                                  {voie.voie}
+                                </CardTitle>
+                              </CardHeader>
+                              <CardContent className="space-y-2">
+                                {filteredCompetences.map((competence: Competence, compIndex: number) => {
+                                  const originalIndex = voie.competences.indexOf(competence);
+                                  const filename = `${voie.voie}.json`;
+
+                                  return (
+                                    <div
+                                      key={compIndex}
+                                      className="p-2 border border-[var(--border-color)] rounded cursor-pointer hover:border-[var(--accent-brown)] hover:bg-[var(--bg-card)] transition-all duration-200"
+                                      onClick={() => replaceCompetence(filename, originalIndex + 1, competence)}
+                                    >
+                                      <div className="font-semibold text-[var(--text-primary)] text-xs mb-1">
+                                        Rang {originalIndex + 1}: {competence.titre}
+                                      </div>
+                                      <div className="text-xs text-[var(--text-secondary)] line-clamp-2 mb-1">
+                                        {competence.description.replace(/<br>/g, ' ').replace(/<[^>]*>/g, '').substring(0, 60)}...
+                                      </div>
+                                      <div className="text-xs text-[var(--accent-brown)]">
+                                        {competence.type}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </CardContent>
+                            </Card>
+                          );
+                        })
+                        .filter(Boolean)}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* PRESTIGES SECTION */}
+              {(() => {
+                const prestigeGroups = allAvailableCompetences.filter(group => group.category.startsWith('Prestige'));
+
+                if (prestigeGroups.length === 0) return null;
+
+                return (
+                  <div className="space-y-4">
+                    <h1 className="text-2xl font-bold text-[var(--accent-brown)] border-b-2 border-[var(--accent-brown)] pb-2 mb-4">
+                      🏆 PRESTIGES
+                    </h1>
+
+                    <div className="space-y-6">
+                      {prestigeGroups
+                        .filter((categoryGroup) => {
+                          if (!searchTerm) return true;
+                          return categoryGroup.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                            categoryGroup.voies.some(voie =>
+                              voie.voie.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              voie.competences.some((comp: Competence) =>
+                                comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                comp.type.toLowerCase().includes(searchTerm.toLowerCase())
+                              )
+                            );
+                        })
+                        .map((categoryGroup, categoryIndex) => (
+                          <div key={categoryIndex} className="space-y-3">
+                            <h2 className="text-lg font-semibold text-[var(--accent-brown)] pl-4 border-l-4 border-[var(--accent-brown)]">
+                              {categoryGroup.category}
+                            </h2>
+
+                            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                              {categoryGroup.voies
+                                .filter((voie) => {
+                                  if (!searchTerm) return true;
+                                  return voie.voie.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                    voie.competences.some((comp: Competence) =>
+                                      comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                      comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                      comp.type.toLowerCase().includes(searchTerm.toLowerCase())
+                                    );
+                                })
+                                .map((voie, voieIndex) => {
+                                  const filteredCompetences = searchTerm
+                                    ? voie.competences.filter((comp: Competence) =>
+                                      comp.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                      comp.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                                      comp.type.toLowerCase().includes(searchTerm.toLowerCase())
+                                    )
+                                    : voie.competences;
+
+                                  if (searchTerm && filteredCompetences.length === 0) return null;
+
+                                  return (
+                                    <Card key={voieIndex} className="card h-fit border-l-2 border-l-purple-500">
+                                      <CardHeader className="pb-2">
+                                        <CardTitle className="text-[var(--accent-brown)] text-sm">
+                                          {voie.voie}
+                                        </CardTitle>
+                                      </CardHeader>
+                                      <CardContent className="space-y-2">
+                                        {filteredCompetences.map((competence: Competence, compIndex: number) => {
+                                          const originalIndex = voie.competences.indexOf(competence);
+                                          const filename = `prestige_${categoryGroup.category.replace('Prestige ', '').toLowerCase()}${voie.voie.split(' ')[1]}.json`;
+
+                                          return (
+                                            <div
+                                              key={compIndex}
+                                              className="p-2 border border-[var(--border-color)] rounded cursor-pointer hover:border-[var(--accent-brown)] hover:bg-[var(--bg-card)] transition-all duration-200"
+                                              onClick={() => replaceCompetence(filename, originalIndex + 1, competence)}
+                                            >
+                                              <div className="font-semibold text-[var(--text-primary)] text-xs mb-1">
+                                                Rang {originalIndex + 1}: {competence.titre}
+                                              </div>
+                                              <div className="text-xs text-[var(--text-secondary)] line-clamp-2 mb-1">
+                                                {competence.description.replace(/<br>/g, ' ').replace(/<[^>]*>/g, '').substring(0, 60)}...
+                                              </div>
+                                              <div className="text-xs text-[var(--accent-brown)]">
+                                                {competence.type}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </CardContent>
+                                    </Card>
+                                  );
+                                })
+                                .filter(Boolean)}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
-          </DialogContent>
-        </Dialog>
-        
-        {/* Save button */}
-        <div className="flex justify-center mt-8">
-          <Button onClick={saveCharacterData} className="button-primary w-48 h-12 text-lg">
-            Sauvegarder et Continuer
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Save button */}
+      <div className="flex justify-center mt-8">
+        <Button onClick={saveCharacterData} className="button-primary w-48 h-12 text-lg">
+          Sauvegarder et Continuer
         </Button>
       </div>
-    </div>
+    </div >
   );
 }

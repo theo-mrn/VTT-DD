@@ -10,7 +10,7 @@ import { Separator } from '@/components/ui/separator'
 import { ChevronLeft, ChevronRight, Dice6 } from 'lucide-react'
 import Image from 'next/image'
 import { db, auth, storage } from '@/lib/firebase'
-import { doc, addDoc, collection, getDoc } from 'firebase/firestore'
+import { doc, addDoc, collection, getDoc, setDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
@@ -39,18 +39,27 @@ async function fetchJson(path: string) {
 }
 
 export default function CharacterCreationPage() {
-    const router = useRouter()
+  const router = useRouter()
   const [step, setStep] = useState(0)
   const [raceData, setRaceData] = useState<Record<string, RaceData>>({})
   const [profileData, setProfileData] = useState<Record<string, ProfileData>>({})
   const [userId, setUserId] = useState<string | null>(null)
   const [roomId, setRoomId] = useState<string | null>(null)
+  const [baseStats, setBaseStats] = useState({
+    FOR: 10,
+    DEX: 10,
+    CON: 10,
+    INT: 10,
+    SAG: 10,
+    CHA: 10,
+  })
+
   const [character, setCharacter] = useState({
     Nomperso: '',
     Nomjoueur: '',
     Race: '',
     Profile: '',
-    devie: 'd12',
+    deVie: 'd12',
     FOR: 10,
     DEX: 10,
     CON: 10,
@@ -78,29 +87,62 @@ export default function CharacterCreationPage() {
   const calculateModifier = (value: number) => Math.floor((value - 10) / 2)
 
   const rollStats = () => {
-    const roll = () => Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 3
+    // Helper to generate one stat (3d6)
+    const rollOne = () => Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + Math.floor(Math.random() * 6) + 3
 
-    const FOR = roll()
-    const DEX = roll()
-    const CON = roll()
-    const INT = roll()
-    const SAG = roll()
-    const CHA = roll()
+    let stats: number[] = []
+    let attempts = 0
+    const MAX_ATTEMPTS = 5000
+
+    // Loop until we find a valid set
+    while (attempts < MAX_ATTEMPTS) {
+      stats = [rollOne(), rollOne(), rollOne(), rollOne(), rollOne(), rollOne()]
+
+      const evenCount = stats.filter(n => n % 2 === 0).length
+      // Calculate modifier sum: (val - 10) / 2 rounded down
+      const totalMod = stats.reduce((sum, val) => sum + Math.floor((val - 10) / 2), 0)
+
+      // Criteria: 3 even (implies 3 odd) and Total Modifiers == 6
+      if (evenCount === 3 && totalMod === 6) {
+        break
+      }
+      attempts++
+    }
+
+    // Safety fallback only if really unlucky (should basically never happen with 5000 attempts)
+    if (attempts >= MAX_ATTEMPTS) {
+      // A known valid set: 14 (+2), 14 (+2), 14 (+2), 11 (0), 11 (0), 11 (0) -> Sum +6, 3 even, 3 odd
+      stats = [14, 14, 14, 11, 11, 11]
+    }
+
+    const [FOR, DEX, CON, INT, SAG, CHA] = stats
+
+    // Save base stats
+    setBaseStats({ FOR, DEX, CON, INT, SAG, CHA })
+
+    // Apply racial modifiers
+    const raceMods = raceData[character.Race]?.modificateurs || {}
+    const finalFOR = FOR + (raceMods.FOR || 0)
+    const finalDEX = DEX + (raceMods.DEX || 0)
+    const finalCON = CON + (raceMods.CON || 0)
+    const finalINT = INT + (raceMods.INT || 0)
+    const finalSAG = SAG + (raceMods.SAG || 0)
+    const finalCHA = CHA + (raceMods.CHA || 0)
 
     setCharacter(prev => ({
       ...prev,
-      FOR,
-      DEX,
-      CON,
-      INT,
-      SAG,
-      CHA,
-      Defense: 10 + calculateModifier(DEX),
-      PV: 1 + calculateModifier(CON) + rollDie(parseInt(character.devie.replace('d', ''))),
-      Contact: 1 + calculateModifier(FOR),
-      Distance: 1 + calculateModifier(DEX),
-      Magie: 1 + calculateModifier(CHA),
-      INIT: DEX,
+      FOR: finalFOR,
+      DEX: finalDEX,
+      CON: finalCON,
+      INT: finalINT,
+      SAG: finalSAG,
+      CHA: finalCHA,
+      Defense: 18 + calculateModifier(finalDEX), // Maintained user prefered base 18
+      PV: 1 + calculateModifier(finalCON) + rollDie(parseInt((character as any).deVie.replace('d', ''))),
+      Contact: 1 + calculateModifier(finalFOR),
+      Distance: 1 + calculateModifier(finalDEX),
+      Magie: 1 + calculateModifier(finalCHA),
+      INIT: finalDEX,
     }))
   }
 
@@ -147,6 +189,24 @@ export default function CharacterCreationPage() {
         imageURL = await getDownloadURL(imageRef)
       }
 
+      // Calculate random height and weight based on race
+      const raceInfo = raceData[character.Race];
+      let taille = 175;
+      let poids = 75;
+
+      if (raceInfo) {
+        // +/- 10% variation
+        const heightVar = 0.9 + Math.random() * 0.2; // 0.9 to 1.1
+        const weightVar = 0.9 + Math.random() * 0.2;
+
+        // Use defaults if data missing in json (safety)
+        const avgHeight = (raceInfo as any).tailleMoyenne || 175;
+        const avgWeight = (raceInfo as any).poidsMoyen || 75;
+
+        taille = Math.floor(avgHeight * heightVar);
+        poids = Math.floor(avgWeight * weightVar);
+      }
+
       // Save character data to Firestore with additional fields
       const characterData = {
         ...character,
@@ -154,22 +214,29 @@ export default function CharacterCreationPage() {
         type: 'joueurs',
         visibilityRadius: 150,
         x: 500,
-        y: 500
+        y: 500,
+        PV_Max: character.PV, // Fix key name to PV_Max
+        niveau: 1, // Initialize level to 1
+        Taille: taille,
+        Poids: poids
       }
 
       await addDoc(collection(db, `users/${userId}/characters`), characterData)
 
-      await addDoc(collection(db, `cartes/${roomId}/characters`), characterData)
+      const docRef = await addDoc(collection(db, `cartes/${roomId}/characters`), characterData)
 
-      console.log("Character created successfully")
-      
-      // Redirect to /map after successful creation
+      // Update user's current character ID
+      await setDoc(doc(db, 'users', userId), { persoId: docRef.id }, { merge: true })
+
+      console.log("Character created successfully with ID:", docRef.id)
+
+      // Redirect to /map after successful creation (change page)
       router.push('/change')
     } catch (error) {
       console.error("Error creating character:", error)
     }
   }
-  
+
 
   const nextStep = useCallback(() => setStep(prev => Math.min(prev + 1, 5)), [])
   const prevStep = useCallback(() => setStep(prev => Math.max(prev - 1, 0)), [])
@@ -204,11 +271,24 @@ export default function CharacterCreationPage() {
     }
 
     const selectRace = () => {
+      // Just set the race. Stats will be recalculated based on baseStats + race modifiers in a useEffect or updated manually
       const updatedData = {
         Race: raceNames[raceIndex],
-        ...currentRace.modificateurs,
       }
-      setCharacter(prev => ({ ...prev, ...updatedData }))
+
+      // We need to re-apply modifiers to the current base stats whenever race changes
+      const mods = currentRace.modificateurs || {};
+
+      setCharacter(prev => ({
+        ...prev,
+        ...updatedData,
+        FOR: baseStats.FOR + (mods.FOR || 0),
+        DEX: baseStats.DEX + (mods.DEX || 0),
+        CON: baseStats.CON + (mods.CON || 0),
+        INT: baseStats.INT + (mods.INT || 0),
+        SAG: baseStats.SAG + (mods.SAG || 0),
+        CHA: baseStats.CHA + (mods.CHA || 0),
+      }))
       nextStep()
     }
 
@@ -240,10 +320,10 @@ export default function CharacterCreationPage() {
             <div className="space-y-2">
               <h3 className="text-lg font-semibold">Modificateurs de caractéristiques</h3>
               {Object.entries(currentRace.modificateurs || {}).map(([stat, mod]) => (
-  <p key={stat}>
-    {stat}: {mod as number > 0 ? '+' : ''}{mod as number}
-  </p>
-))}
+                <p key={stat}>
+                  {stat}: {mod as number > 0 ? '+' : ''}{mod as number}
+                </p>
+              ))}
 
             </div>
           </motion.div>
@@ -278,7 +358,7 @@ export default function CharacterCreationPage() {
     const selectProfile = () => {
       const updatedData = {
         Profile: profileNames[profileIndex],
-        devie: currentProfile.hitDie,
+        deVie: currentProfile.hitDie,
       }
       setCharacter(prev => ({ ...prev, ...updatedData }))
       nextStep()
@@ -325,69 +405,91 @@ export default function CharacterCreationPage() {
     )
   }, [profileData, profileIndex, direction])
 
-  const renderStatsSelection = useCallback(() => (
-    <div className="space-y-6">
-      <Button onClick={rollStats} className="w-full" variant="outline">
-        <Dice6 className="mr-2 h-4 w-4" />
-        Lancer les dés pour les caractéristiques
-      </Button>
+  const renderStatsSelection = useCallback(() => {
+    // Calculate global stats for verification
+    const totalBaseMods = ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].reduce((sum, stat) => {
+      const baseVal = baseStats[stat as keyof typeof baseStats]
+      return sum + calculateModifier(baseVal)
+    }, 0)
 
-      <Separator />
+    return (
+      <div className="space-y-6">
+        <Button onClick={rollStats} className="w-full" variant="outline">
+          <Dice6 className="mr-2 h-4 w-4" />
+          Lancer les dés (Règles: 3 pairs/3 impairs, Somme Modificateurs Base = +6)
+        </Button>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-  {['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].map(stat => (
-    <div key={stat} className="space-y-2">
-      <Label>{stat}</Label>
-      <Input 
-        value={character[stat as keyof typeof character] as number} 
-        readOnly 
-        className="text-center font-bold" 
-      />
-      <p className="text-sm text-muted-foreground text-center">
-        Mod: {calculateModifier(character[stat as keyof typeof character] as number)}
-      </p>
-    </div>
-  ))}
-</div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm text-center border-collapse">
+            <thead>
+              <tr className="bg-muted/50 border-b">
+                <th className="p-2">Statistique</th>
+                <th className="p-2 border-l">Base</th>
+                <th className="p-2 text-muted-foreground">Mod. Base</th>
+                <th className="p-2 border-l">Bonus Race</th>
+                <th className="p-2 border-l font-bold">Total</th>
+                <th className="p-2 font-bold text-primary">Mod. Final</th>
+              </tr>
+            </thead>
+            <tbody>
+              {['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].map(stat => {
+                const baseVal = baseStats[stat as keyof typeof baseStats]
+                const baseMod = calculateModifier(baseVal)
+                const raceMod = (raceData[character.Race]?.modificateurs as any)?.[stat] || 0
+                const finalVal = character[stat as keyof typeof character] as number
+                const finalMod = calculateModifier(finalVal)
 
+                return (
+                  <tr key={stat} className="border-b hover:bg-muted/20 transition-colors">
+                    <td className="p-2 font-bold">{stat}</td>
+                    <td className="p-2 border-l">{baseVal}</td>
+                    <td className="p-2 text-muted-foreground">{baseMod > 0 ? '+' : ''}{baseMod}</td>
+                    <td className="p-2 border-l font-medium text-blue-400">
+                      {raceMod !== 0 ? (raceMod > 0 ? `+${raceMod}` : raceMod) : '-'}
+                    </td>
+                    <td className="p-2 border-l font-bold text-lg">{finalVal}</td>
+                    <td className="p-2 font-bold text-primary text-lg">{finalMod > 0 ? '+' : ''}{finalMod}</td>
+                  </tr>
+                )
+              })}
+              <tr className="bg-muted/20 font-semibold text-xs border-t-2 border-primary/20">
+                <td className="p-2 text-right">SOMME MODIFICATEURS:</td>
+                <td className="p-2 border-l" colSpan={2}>Base: {totalBaseMods > 0 ? '+' : ''}{totalBaseMods} (Requis: +6)</td>
+                <td className="p-2 border-l"></td>
+                <td className="p-2 border-l" colSpan={2}></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-      <Separator />
+        <Separator />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Défense et Vitalité</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-3 gap-4">
-            {['Defense', 'PV', 'INIT'].map(stat => (
-              <div key={stat} className="space-y-2">
-                <Label>{stat}</Label>
-                <Input value={character[stat as keyof typeof character]} readOnly className="text-center" />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Compétences de combat</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-3 gap-4">
-            {['Contact', 'Distance', 'Magie'].map(stat => (
-              <div key={stat} className="space-y-2">
-                <Label>{stat}</Label>
-                <Input value={character[stat as keyof typeof character]} readOnly className="text-center" />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+        <div className="flex flex-wrap gap-4 justify-center">
+          <Card className="flex-1 min-w-[200px]">
+            <CardHeader className="py-2"><CardTitle className="text-sm">Défense & Vitalité</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-3 gap-2 text-center text-sm">
+              <div><div className="text-xs text-muted-foreground">DEF</div><div className="font-bold text-lg">{character.Defense}</div></div>
+              <div><div className="text-xs text-muted-foreground">PV</div><div className="font-bold text-lg">{character.PV}</div></div>
+              <div><div className="text-xs text-muted-foreground">INIT</div><div className="font-bold text-lg">{character.INIT}</div></div>
+            </CardContent>
+          </Card>
+          <Card className="flex-1 min-w-[200px]">
+            <CardHeader className="py-2"><CardTitle className="text-sm">Attaque</CardTitle></CardHeader>
+            <CardContent className="grid grid-cols-3 gap-2 text-center text-sm">
+              <div><div className="text-xs text-muted-foreground">Contact</div><div className="font-bold text-lg">+{character.Contact}</div></div>
+              <div><div className="text-xs text-muted-foreground">Distance</div><div className="font-bold text-lg">+{character.Distance}</div></div>
+              <div><div className="text-xs text-muted-foreground">Magie</div><div className="font-bold text-lg">+{character.Magie}</div></div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="flex justify-between pt-6">
+          <Button onClick={prevStep} variant="outline">Précédent</Button>
+          <Button onClick={nextStep} variant="outline">Suivant</Button>
+        </div>
       </div>
-
-      <div className="flex justify-between pt-6">
-        <Button onClick={prevStep} variant="outline">Précédent</Button>
-        <Button onClick={nextStep} variant="outline">Suivant</Button>
-      </div>
-    </div>
-  ), [character])
+    )
+  }, [character, baseStats, raceData])
 
   const renderImageSelection = useCallback(() => (
     <div className="space-y-4">
@@ -421,34 +523,36 @@ export default function CharacterCreationPage() {
   if (!userId) return <p>Loading...</p>
 
   return (
-    <Card className="w-full max-w-4xl mx-auto">
-      <CardHeader>
-        <CardTitle>Création de personnage</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            transition={{ duration: 0.3 }}
-          >
-            {step === 0 && (
-              <div>
-                {renderBasicInfo()}
-                <div className="flex justify-end mt-6">
-                  <Button onClick={nextStep}>Suivant</Button>
+    <div className="flex items-center justify-center min-h-screen py-8 bg-background">
+      <Card className={`w-full mx-auto transition-all duration-300 ${step === 3 ? 'max-w-[95vw]' : 'max-w-4xl'}`}>
+        <CardHeader>
+          <CardTitle>Création de personnage</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, y: 50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              transition={{ duration: 0.3 }}
+            >
+              {step === 0 && (
+                <div>
+                  {renderBasicInfo()}
+                  <div className="flex justify-end mt-6">
+                    <Button onClick={nextStep}>Suivant</Button>
+                  </div>
                 </div>
-              </div>
-            )}
-            {step === 1 && renderRaceSelection()}
-            {step === 2 && renderProfileSelection()}
-            {step === 3 && renderStatsSelection()}
-            {step === 4 && renderImageSelection()}
-          </motion.div>
-        </AnimatePresence>
-      </CardContent>
-    </Card>
+              )}
+              {step === 1 && renderRaceSelection()}
+              {step === 2 && renderProfileSelection()}
+              {step === 3 && renderStatsSelection()}
+              {step === 4 && renderImageSelection()}
+            </motion.div>
+          </AnimatePresence>
+        </CardContent>
+      </Card>
+    </div>
   )
 }
