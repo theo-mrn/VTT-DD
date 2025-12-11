@@ -1,15 +1,15 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { DiceRoll } from "@dice-roller/rpg-dice-roller";
+// import { DiceRoll } from "@dice-roller/rpg-dice-roller"; // Removed unused import
 import { motion, AnimatePresence } from "framer-motion";
 import { Dice1, RotateCcw, History, Trash2, Shield, BarChart3 } from "lucide-react";
-import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy } from "@/lib/firebase";
+import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy, serverTimestamp } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { NumberTicker } from "@/components/magicui/number-ticker";
+// import { NumberTicker } from "@/components/magicui/number-ticker"; // Removed as per user request
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DiceStats } from "./dice-stats";
@@ -208,127 +208,180 @@ export function DiceRoller() {
     return processedNotation;
   };
 
-  // Parser une notation pour extraire les composants
-  const parseNotation = (notation: string) => {
-    // Regex pour capturer les dés de base (ex: 2d6, 1d20)
-    const basicDiceRegex = /(\d+)d(\d+)/i;
-    const match = notation.match(basicDiceRegex);
+  // Parser une notation pour extraire les dés nécessaires
+  // Supports: XdY, XdYkhN, XdYklN
+  const parseDiceRequests = (notation: string) => {
+    const diceRegex = /(\d+)d(\d+)(?:k([hl])(\d+))?/gi;
+    const requests: { type: string, count: number }[] = [];
+    let match;
 
-    if (match) {
-      const diceCount = parseInt(match[1]);
-      const diceFaces = parseInt(match[2]);
+    // We need to clone the regex or reset lastIndex if we were reusing it, but here it's new
+    while ((match = diceRegex.exec(notation)) !== null) {
+      const count = parseInt(match[1]);
+      const faces = parseInt(match[2]);
+      requests.push({ type: `d${faces}`, count });
+    }
 
-      // Extraire le modificateur (tout ce qui vient après les dés de base)
-      const modifierPart = notation.replace(basicDiceRegex, '').trim();
-      let modifier = 0;
+    return requests;
+  };
 
-      if (modifierPart) {
-        // Évaluer l'expression mathématique simple
-        try {
-          const processedModifier = replaceCharacteristics(modifierPart);
-          modifier = eval(processedModifier.replace(/[^0-9+\-*/\s]/g, '')) || 0;
-        } catch {
-          modifier = 0;
+  // Référence pour stocker les promesses de roll en attente
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pendingRollsRef = React.useRef<Map<string, (results: { type: string, value: number }[]) => void>>(new Map());
+
+  // Écouter les résultats des dés 3D
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleRollComplete = (e: any) => {
+      const { rollId, results } = e.detail;
+      const resolve = pendingRollsRef.current.get(rollId);
+      if (resolve) {
+        resolve(results);
+        pendingRollsRef.current.delete(rollId);
+      }
+    };
+
+    window.addEventListener('vtt-3d-roll-complete', handleRollComplete);
+    return () => window.removeEventListener('vtt-3d-roll-complete', handleRollComplete);
+  }, []);
+
+  const perform3DRoll = async (requests: { type: string, count: number }[]): Promise<{ type: string, value: number }[]> => {
+    if (typeof window === 'undefined' || requests.length === 0) return Promise.resolve([]);
+
+    const rollId = crypto.randomUUID();
+    return new Promise((resolve) => {
+      // Set timeout de sécurité (si jamais la 3D plante ou n'est pas chargée)
+      const timeoutId = setTimeout(() => {
+        if (pendingRollsRef.current.has(rollId)) {
+          console.warn("Roll timed out, generating fallback values");
+          // Fallback: générer des valeurs aléatoires locales
+          const fallbackResults: { type: string, value: number }[] = [];
+          requests.forEach(req => {
+            const faces = parseInt(req.type.substring(1));
+            for (let i = 0; i < req.count; i++) {
+              fallbackResults.push({
+                type: req.type,
+                value: Math.floor(Math.random() * faces) + 1
+              });
+            }
+          });
+          pendingRollsRef.current.delete(rollId);
+          resolve(fallbackResults);
+        }
+      }, 10000); // 10 secondes max
+
+      pendingRollsRef.current.set(rollId, (results) => {
+        clearTimeout(timeoutId);
+        resolve(results);
+      });
+
+      // Déclencher l'animation
+      window.dispatchEvent(new CustomEvent('vtt-trigger-3d-roll', {
+        detail: {
+          rollId,
+          requests
+        }
+      }));
+    });
+  };
+
+  // Calculer le résultat final à partir de la notation et des résultats physiques
+  const calculateFinalResult = (notation: string, physicalResults: { type: string, value: number }[]) => {
+    // Copie mutable des résultats pour les consommer
+    const availableResults = [...physicalResults];
+    const detailsParts: string[] = [];
+
+    // 1. Remplacer les dés par leurs valeurs
+    const diceRegex = /(\d+)d(\d+)(?:k([hl])(\d+))?/gi;
+
+    const processedMathString = notation.replace(diceRegex, (match, countStr, facesStr, keepType, keepCountStr) => {
+      const count = parseInt(countStr);
+      const faces = parseInt(facesStr);
+      const dieType = `d${faces}`;
+      const keepCount = keepCountStr ? parseInt(keepCountStr) : 0;
+
+      // Récupérer les N prochains résultats de ce type
+      const rollsForMatches: number[] = [];
+      // On cherche dans availableResults les premiers qui correspondent
+      // Note: availableResults est mélangé temporellement, mais on suppose que DiceThrower a empilé les résultats
+      // Le mieux est de les filtrer et de les enlever
+      // Pour être robuste: on prend les premiers 'count' résultats du type correspondant
+
+      let foundCount = 0;
+      for (let i = 0; i < availableResults.length && foundCount < count; i++) {
+        if (availableResults[i].type === dieType) {
+          rollsForMatches.push(availableResults[i].value);
+          availableResults.splice(i, 1); // Remove used result
+          i--; // Adjust index
+          foundCount++;
         }
       }
 
-      return { diceCount, diceFaces, modifier };
-    }
+      // Si on a pas assez de résultats (fallback), on génère
+      while (rollsForMatches.length < count) {
+        rollsForMatches.push(Math.floor(Math.random() * faces) + 1);
+      }
 
-    return null;
-  };
+      // Appliquer la logique Keep High / Keep Low
+      let total = 0;
+      let usedRolls: { val: number, keep: boolean }[] = rollsForMatches.map(r => ({ val: r, keep: true }));
 
-  // Fonction pour formater les détails des dés avec plus de précision
-  const formatDiceDetails = (roll: DiceRoll, originalNotation: string, processedNotation: string): string => {
-    try {
-      const details: string[] = [];
-      let totalDiceSum = 0;
-      let hasModifiers = false;
-      const keptDice: number[] = [];
-      const allDice: number[] = [];
+      if (keepType) {
+        // Trier pour déterminer qui garder
+        // kh = keep high (descending), kl = keep low (ascending)
+        const sortedIndices = rollsForMatches.map((val, idx) => ({ val, idx }))
+          .sort((a, b) => keepType === 'h' ? b.val - a.val : a.val - b.val);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      roll.rolls.forEach((rollGroup: any) => {
-        if (rollGroup.rolls && rollGroup.rolls.length > 0) {
-          // Vérifier s'il y a des modificateurs (keep highest, keep lowest, etc.)
-          hasModifiers = rollGroup.modifiers && rollGroup.modifiers.length > 0;
+        const indicesToKeep = new Set(sortedIndices.slice(0, keepCount).map(x => x.idx));
 
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          rollGroup.rolls.forEach((die: any) => {
-            const value = die.value || die.result || die;
-            allDice.push(value);
-            if (!die.discarded) {
-              keptDice.push(value);
-              totalDiceSum += value;
-            }
-          });
+        usedRolls = rollsForMatches.map((val, idx) => ({
+          val,
+          keep: indicesToKeep.has(idx)
+        }));
 
-          if (hasModifiers) {
-            // Afficher tous les dés lancés et indiquer lesquels sont gardés
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const diceDisplay = rollGroup.rolls.map((die: any) => {
-              const value = die.value || die.result || die;
-              const isKept = !die.discarded;
-              return isKept ? `**${value}**` : `~~${value}~~`;
-            }).join(', ');
-
-            details.push(`[${diceDisplay}]`);
-          } else {
-            // Pas de modificateurs, afficher simplement les résultats
-            details.push(`[${keptDice.join(', ')}]`);
-          }
-        }
-      });
-
-      // Calculer le modificateur numérique
-      const modifier = roll.total - totalDiceSum;
-
-      // Construire l'affichage détaillé
-      let result = `${originalNotation} → ${processedNotation}: ${details.join(' + ')}`;
-
-      if (hasModifiers && keptDice.length < allDice.length) {
-        // Pour les modificateurs comme kh, kl, etc.
-        result += ` = [${keptDice.join(', ')}] = ${roll.total}`;
-      } else if (modifier !== 0) {
-        // Pour les modificateurs numériques comme +3, -2
-        result += ` = ${totalDiceSum}`;
-        if (modifier > 0) {
-          result += `+${modifier}`;
-        } else {
-          result += `${modifier}`;
-        }
-        result += ` = ${roll.total}`;
+        total = usedRolls.filter(r => r.keep).reduce((sum, r) => sum + r.val, 0);
       } else {
-        // Pas de modificateur
-        result += ` = ${roll.total}`;
+        // Somme simple
+        total = rollsForMatches.reduce((a, b) => a + b, 0);
       }
 
-      return result;
-    } catch {
-      // En cas d'erreur, retourner un format de base
-      return `${originalNotation} → ${processedNotation}: ${roll.output} = ${roll.total}`;
-    }
-  };
+      // Formatter l'affichage: [17, r1]
+      const formattedDice = usedRolls.map(r => r.keep ? `${r.val}` : `r${r.val}`).join(', ');
+      detailsParts.push(`[${formattedDice}]`);
 
-  // Extraire les résultats individuels des dés
-  const extractDiceResults = (roll: DiceRoll): number[] => {
+      return total.toString();
+    });
+
+    // 2. Évaluer l'expression mathématique finale (ex: "12 + 5")
+    let grandTotal = 0;
     try {
-      const results: number[] = [];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      roll.rolls.forEach((rollGroup: any) => {
-        if (rollGroup.rolls && rollGroup.rolls.length > 0) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          rollGroup.rolls.forEach((die: any) => {
-            if (!die.discarded) {
-              results.push(die.value || die.result || die);
-            }
-          });
-        }
-      });
-      return results;
-    } catch {
-      return [];
+      // Sécurisation basique: on ne garde que chiffres et opérateurs
+      const safeExpression = processedMathString.replace(/[^0-9+\-*/().\s]/g, '');
+      // eslint-disable-next-line no-eval
+      grandTotal = eval(safeExpression);
+    } catch (e) {
+      console.error("Error evaluating roll expression", e);
+      grandTotal = 0;
     }
+
+    // 3. Construire la string de détail
+    // On essaie de reconstruire quelque chose qui ressemble à l'input original mais avec les détails
+    // Notation originale -> Processed (vars replaced) -> Output
+    // Ex: 1d6+CON -> 1d6+3 -> [4]+3 = 7
+
+    // Reconstruisons une string de détails 'riche' en remplaçant dans la notation
+    let detailString = notation;
+    let matchIndex = 0;
+    detailString = detailString.replace(diceRegex, () => {
+      const part = detailsParts[matchIndex] || "[?]";
+      matchIndex++;
+      return part;
+    });
+
+    return {
+      total: Math.floor(grandTotal), // Arrondi par sécurité
+      output: `${notation} = ${detailString} = ${grandTotal}`
+    };
   };
 
   // Fonction principale de lancer de dés
@@ -339,73 +392,102 @@ export function DiceRoller() {
       return;
     }
 
-    // Effacer immédiatement le résultat précédent
-    setResult(null);
+    // Afficher une carte provisoire immédiatement
+    setResult({
+      id: "pending",
+      notation: originalNotation,
+      result: "...",
+      total: 0, // Placeholder
+      timestamp: new Date(),
+      output: "Lancement des dés..."
+    });
     setIsLoading(true);
     setError("");
 
     try {
-      // Petit délai pour l'animation
-      await new Promise(resolve => setTimeout(resolve, 500));
-
       // Remplacer les caractéristiques dans la notation
       const processedNotation = replaceCharacteristics(originalNotation);
 
-      // Vérifier si des caractéristiques n'ont pas pu être remplacées (sauf "d" qui est normal)
+      // Vérifier si des caractéristiques n'ont pas pu être remplacées
       if (processedNotation === originalNotation && originalNotation.match(/\b(CON|DEX|FOR|SAG|INT|CHA|Defense|Contact|Distance|Magie|INIT)\b/i)) {
         setError("Caractéristiques non trouvées. Assurez-vous d'être connecté et d'avoir un personnage.");
         setIsLoading(false);
         return;
       }
 
-      console.log("About to create DiceRoll with:", processedNotation);
-      const roll = new DiceRoll(processedNotation);
+      // 1. Identifier les dés à lancer
+      const requests = parseDiceRequests(processedNotation);
 
-      // Générer les détails formatés des dés avec le nouveau format
-      const diceDetails = formatDiceDetails(roll, originalNotation, processedNotation);
+      // 2. Lancer les dés 3D et attendre le résultat physique
+      // (Si aucune dé trouvé ex: "1+2", requests est vide, perform3DRoll retourne direct [])
+      const physicalResults = await perform3DRoll(requests);
+
+      // 3. Calculer le résultat logique BASÉ sur le résultat physique
+      const { total, output } = calculateFinalResult(processedNotation, physicalResults);
 
       // Créer le résultat pour l'affichage
       const result: RollResult = {
         id: Date.now().toString(),
-        notation: originalNotation, // Garder la notation originale avec les caractéristiques
-        result: roll.toString(),
-        total: roll.total,
+        notation: originalNotation,
+        result: total.toString(),
+        total: total,
         timestamp: new Date(),
-        output: diceDetails
+        output: output
       };
 
       setResult(result);
 
-      // Sauvegarder dans Firebase si connecté
       if (roomId && userName) {
-        const parsedNotation = parseNotation(processedNotation);
-        if (parsedNotation) {
-          const diceResults = extractDiceResults(roll);
+        // Note: parseNotation était utilisé pour extraire diceFaces pour les stats firebase
+        // On peut essayer de deviner le "dé principal" pour les stats
+        // Prenons le premier dé de la notation
+        let mainDieFaces = 20;
+        let mainDieCount = 1;
+        if (requests.length > 0) {
+          mainDieFaces = parseInt(requests[0].type.substring(1));
+          mainDieCount = requests[0].count;
+        }
 
-          const firebaseRoll: FirebaseRoll = {
-            id: crypto.randomUUID(),
-            isPrivate,
-            diceCount: parsedNotation.diceCount,
-            diceFaces: parsedNotation.diceFaces,
-            modifier: parsedNotation.modifier,
-            results: diceResults,
-            total: roll.total,
-            userName,
-            ...(userAvatar ? { userAvatar } : {}),
-            type: "Dice Roller",
-            timestamp: Date.now(),
-            notation: originalNotation,
-            output: diceDetails,
-            ...(persoId ? { persoId } : {})
+        // Extraire les valeurs brutes pur les stats (tous les dés mélangés)
+        // On garde la compatibilité avec le format 'results: number[]'
+        const flatResults = physicalResults.map(r => r.value);
+
+        const firebaseRoll: FirebaseRoll = {
+          id: crypto.randomUUID(),
+          isPrivate,
+          diceCount: mainDieCount,
+          diceFaces: mainDieFaces,
+          modifier: 0, // Compliqué à calculer rétroactivement exactement, on met 0 ou on essaie de parser
+          results: flatResults,
+          total: total,
+          userName,
+          ...(userAvatar ? { userAvatar } : {}),
+          type: "Dice Roller",
+          timestamp: Date.now(),
+          notation: originalNotation,
+          output: output,
+          ...(persoId ? { persoId } : {})
+        };
+
+        await addDoc(collection(db, `rolls/${roomId}/rolls`), firebaseRoll);
+        setFirebaseRolls((prevRolls) => [firebaseRoll, ...prevRolls]);
+
+        // 🎯 SYNC WITH CHAT
+        if (!isPrivate) {
+          const chatMessage = {
+            text: `🎲 Lancer de dé (${originalNotation}) : ${output}`,
+            sender: userName,
+            uid: auth.currentUser?.uid || "unknown",
+            timestamp: serverTimestamp(),
+            imageUrl: null,
+            recipients: []
           };
-
-          await addDoc(collection(db, `rolls/${roomId}/rolls`), firebaseRoll);
-          setFirebaseRolls((prevRolls) => [firebaseRoll, ...prevRolls]);
+          await addDoc(collection(db, `rooms/${roomId}/chat`), chatMessage);
         }
       }
 
     } catch (err) {
-      setError("Notation invalide. Exemples: 1d20, 2d6+3, 4d6kh3, 1d20+CON");
+      setError("Erreur lors du lancer. Vérifiez la notation.");
       console.error("Erreur de lancer de dés:", err);
     } finally {
       setIsLoading(false);
@@ -447,6 +529,17 @@ export function DiceRoller() {
   // Récupérer seulement les lancers Firebase filtrés
   const getFilteredRolls = () => {
     return firebaseRolls.filter(canDisplayRoll).sort((a, b) => b.timestamp - a.timestamp);
+  };
+
+  const RollingNumber = () => {
+    const [num, setNum] = useState(0);
+    useEffect(() => {
+      const interval = setInterval(() => {
+        setNum(Math.floor(Math.random() * 20) + 1);
+      }, 50);
+      return () => clearInterval(interval);
+    }, []);
+    return <span>{num}</span>;
   };
 
   return (
@@ -545,11 +638,13 @@ export function DiceRoller() {
                     transition={{ delay: 0.2, type: "spring" }}
                     className="text-6xl font-bold text-[var(--accent-brown)]"
                   >
-                    <NumberTicker
-                      value={result.total}
-                      className="text-6xl font-bold text-[var(--accent-brown)]"
-                      delay={0.5}
-                    />
+                    {isLoading ? (
+                      <RollingNumber />
+                    ) : (
+                      <span className="text-6xl font-bold text-[var(--accent-brown)]">
+                        {result.total}
+                      </span>
+                    )}
                   </motion.div>
 
                   <AnimatePresence>

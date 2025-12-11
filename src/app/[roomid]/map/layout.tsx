@@ -12,7 +12,9 @@ import Competences from "@/components/(competences)/competences";
 import OverlayComponent from "@/components/(overlays)/overlay";
 import QuestOverlay from "@/components/(overlays)/questOverlay";
 import InfoComponent, { type InfoSection } from "@/components/(infos)/info";
+import { DiceThrower } from "@/components/(dices)/throw";
 import RollRequest from '@/components/(dices)/Rollrequest';
+
 import { Button } from "@/components/ui/button";
 import { Statistiques } from "@/components/Statistiques";
 import CitiesManager from "@/components/(worldmap)/CitiesManager";
@@ -320,7 +322,8 @@ export default function Layout({ children }: LayoutProps) {
         </button> */}
       </div>
 
+      {/* 3D Dice Overlay */}
+      <DiceThrower />
     </div>
-
   );
 }
