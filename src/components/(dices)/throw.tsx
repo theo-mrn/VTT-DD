@@ -10,8 +10,14 @@ import { Button } from "@/components/ui/button";
 const getDieValue = (type: string, index: number) => {
     if (type === 'd10') {
         // D10 usually 0-9. Face 0->0, Face 1->1.
-        return (index % 10).toString();
+        // Pour usage RPG standard, 0 = 10.
+        const val = index % 10;
+        return val === 0 ? "10" : val.toString();
     }
+    if (type === 'd6') {
+        return (index + 1).toString();
+    }
+    // Default (d4, d8, d12, d20... though d4/d8 strict exclusion in roller means they won't reach here)
     return (index + 1).toString();
 };
 
