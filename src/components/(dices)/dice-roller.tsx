@@ -248,15 +248,37 @@ export function DiceRoller() {
   const perform3DRoll = async (requests: { type: string, count: number }[]): Promise<{ type: string, value: number }[]> => {
     if (typeof window === 'undefined' || requests.length === 0) return Promise.resolve([]);
 
+    // Filtrer les dés supportés par la 3D (d6, d10, d12, d20 comme demandé)
+    const SUPPORTED_3D_DICE = ['d6', 'd10', 'd12', 'd20'];
+    const requests3D = requests.filter(req => SUPPORTED_3D_DICE.includes(req.type));
+    const requestsInstant = requests.filter(req => !SUPPORTED_3D_DICE.includes(req.type));
+
+    // Générer immédiatement les résultats pour les dés non-3D
+    const instantResults: { type: string, value: number }[] = [];
+    requestsInstant.forEach(req => {
+      const faces = parseInt(req.type.substring(1));
+      for (let i = 0; i < req.count; i++) {
+        instantResults.push({
+          type: req.type,
+          value: Math.floor(Math.random() * faces) + 1
+        });
+      }
+    });
+
+    // Si aucun dé 3D n'est requis, on retourne direct les résultats instantanés
+    if (requests3D.length === 0) {
+      return Promise.resolve(instantResults);
+    }
+
     const rollId = crypto.randomUUID();
     return new Promise((resolve) => {
       // Set timeout de sécurité (si jamais la 3D plante ou n'est pas chargée)
       const timeoutId = setTimeout(() => {
         if (pendingRollsRef.current.has(rollId)) {
           console.warn("Roll timed out, generating fallback values");
-          // Fallback: générer des valeurs aléatoires locales
+          // Fallback: générer des valeurs aléatoires locales pour les dés 3D manquants
           const fallbackResults: { type: string, value: number }[] = [];
-          requests.forEach(req => {
+          requests3D.forEach(req => {
             const faces = parseInt(req.type.substring(1));
             for (let i = 0; i < req.count; i++) {
               fallbackResults.push({
@@ -266,20 +288,22 @@ export function DiceRoller() {
             }
           });
           pendingRollsRef.current.delete(rollId);
-          resolve(fallbackResults);
+          // On retourne tout (fallback 3D + instantanés déjà calculés)
+          resolve([...fallbackResults, ...instantResults]);
         }
       }, 10000); // 10 secondes max
 
-      pendingRollsRef.current.set(rollId, (results) => {
+      pendingRollsRef.current.set(rollId, (results3D) => {
         clearTimeout(timeoutId);
-        resolve(results);
+        // On fusionne les résultats 3D reçus avec les résultats instantanés
+        resolve([...results3D, ...instantResults]);
       });
 
-      // Déclencher l'animation
+      // Déclencher l'animation uniquement pour les dés supportés
       window.dispatchEvent(new CustomEvent('vtt-trigger-3d-roll', {
         detail: {
           rollId,
-          requests
+          requests: requests3D
         }
       }));
     });
