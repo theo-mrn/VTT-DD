@@ -772,7 +772,21 @@ export default function Component() {
 
   // 🎯 NOUVELLE FONCTION : Calculer l'opacité fog of war selon la distance aux joueurs
   const calculateFogOpacity = (cellX: number, cellY: number): number => {
-    if (!fogGrid.has(`${cellX},${cellY}`)) return 0; // Pas de brouillard sur cette cellule
+    // Si pas de brouillard complet ET pas de cellule de brouillard ici, alors visible (0)
+    if (!fullMapFog && !fogGrid.has(`${cellX},${cellY}`)) return 0;
+
+    // Si la cellule a été EXPLICITEMENT retirée du brouillard (même en mode complet), elle est visible
+    // Note: Pour l'instant, fogGrid ne stocke que les cases "avec brouillard".
+    // Si on voulait permettre de "gommer" le brouillard complet, il faudrait une logique "anti-fog" ou "revealed".
+    // Mais pour la simplicité actuelle : 
+    // - Si FullMapFog : tout est brouillard sauf autour des joueurs.
+    // - Si !FullMapFog : seul fogGrid est brouillard.
+    // - MAIS : Le gommmage (clearFogCell) supprime juste de fogGrid.
+    // - Donc en FullMapFog, on ne peut pas vraiment "gommer" manuellement une zone sans changer la logique de données.
+    // - Pas grave pour ce fix, on respecte la logique existante : FullMapFog = base noire.
+
+    // Si pas fullMapFog et pas dans grille (déjà checké au dessus), return 0. 
+    // Si fullMapFog = true, on continue comme si c'était du brouillard.
 
     let minOpacity = 1; // Opacité maximale par défaut (brouillard complet)
 
@@ -1024,6 +1038,52 @@ export default function Component() {
         });
       }
       ctx.stroke();
+    }
+
+    // 🎯 RENDER FOG OF WAR
+    // On dessine le brouillard après le fond et les dessins, mais avant les personnages
+    // Optimisation : ne parcourir que les cellules visibles à l'écran
+    if (fogMode || showFogGrid || fullMapFog || fogGrid.size > 0) {
+      const startCellX = Math.floor(offset.x / (scaledWidth / image.width) / fogCellSize);
+      const startCellY = Math.floor(offset.y / (scaledHeight / image.height) / fogCellSize);
+      // Correction du calcul de fin de zone visible
+      // On convertit la largeur du canvas en "pixels image"
+      const visibleImageWidth = canvas.width / scale / zoom;
+      const visibleImageHeight = canvas.height / scale / zoom;
+
+      const endCellX = startCellX + Math.ceil(visibleImageWidth / fogCellSize) + 1;
+      const endCellY = startCellY + Math.ceil(visibleImageHeight / fogCellSize) + 1;
+
+      for (let x = startCellX; x <= endCellX; x++) {
+        for (let y = startCellY; y <= endCellY; y++) {
+
+          // Calculer l'opacité
+          const opacity = calculateFogOpacity(x, y);
+
+          // Si totalement transparent, on ne dessine rien (sauf si mode édition)
+          if (opacity === 0 && !showFogGrid) continue;
+
+          // Position sur l'écran
+          const cellScreenX = (x * fogCellSize / image.width) * scaledWidth - offset.x;
+          const cellScreenY = (y * fogCellSize / image.height) * scaledHeight - offset.y;
+          const cellScreenWidth = (fogCellSize / image.width) * scaledWidth;
+          const cellScreenHeight = (fogCellSize / image.height) * scaledHeight;
+
+          // Dessiner le brouillard
+          if (opacity > 0) {
+            ctx.fillStyle = `rgba(0, 0, 0, ${opacity})`;
+            // Légère superposition pour éviter les lignes de fuite entre cases
+            ctx.fillRect(cellScreenX - 0.5, cellScreenY - 0.5, cellScreenWidth + 1, cellScreenHeight + 1);
+          }
+
+          // En mode édition (brouillard activé dans le menu), afficher la grille de brouillard pour aider au placement
+          if ((fogMode || showFogGrid) && (opacity > 0 || fullMapFog || fogGrid.has(`${x},${y}`))) {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(cellScreenX, cellScreenY, cellScreenWidth, cellScreenHeight);
+          }
+        }
+      }
     }
 
     // 🎯 Dessiner la zone de sélection en cours
