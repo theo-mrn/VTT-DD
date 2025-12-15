@@ -87,6 +87,7 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
     const [isUnlockable, setIsUnlockable] = useState(false)
     const [roomID, setRoomID] = useState<string | null>(null)
     const [userPersoId, setUserPersoId] = useState<string | null>(null)
+    const [userRole, setUserRole] = useState<string | null>(null)
     const [refreshTrigger, setRefreshTrigger] = useState(0)
 
     useEffect(() => {
@@ -99,8 +100,10 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
                         const userData = userDoc.data()
                         const roomID = userData?.room_id
                         const persoId = userData?.persoId
+                        const role = userData?.role
                         setRoomID(roomID)
                         setUserPersoId(persoId)
+                        setUserRole(role)
                         if (roomID) {
                             await loadCharacters(roomID, persoId)
                         }
@@ -325,30 +328,33 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
     }
 
     if (showChangeComponent) {
-        return <ChangeComponent onClose={async () => {
-            setShowChangeComponent(false)
-            // Recharger les données du personnage depuis Firestore
-            if (selectedCharacter && roomID) {
-                // Recharger le personnage depuis Firestore pour avoir les données à jour
-                const characterRef = doc(db, `cartes/${roomID}/characters/${selectedCharacter.id}`)
-                const characterDoc = await getDoc(characterRef)
-                if (characterDoc.exists()) {
-                    const updatedCharacter = { id: selectedCharacter.id, ...characterDoc.data() } as Character
-                    await selectCharacter(updatedCharacter)
+        return <ChangeComponent
+            characterId={selectedCharacter?.id}
+            roomId={roomID || undefined}
+            onClose={async () => {
+                setShowChangeComponent(false)
+                // Recharger les données du personnage depuis Firestore
+                if (selectedCharacter && roomID) {
+                    // Recharger le personnage depuis Firestore pour avoir les données à jour
+                    const characterRef = doc(db, `cartes/${roomID}/characters/${selectedCharacter.id}`)
+                    const characterDoc = await getDoc(characterRef)
+                    if (characterDoc.exists()) {
+                        const updatedCharacter = { id: selectedCharacter.id, ...characterDoc.data() } as Character
+                        await selectCharacter(updatedCharacter)
 
-                    // Attendre un court instant pour que Firestore se synchronise
-                    await new Promise(resolve => setTimeout(resolve, 100))
+                        // Attendre un court instant pour que Firestore se synchronise
+                        await new Promise(resolve => setTimeout(resolve, 100))
 
-                    // Émettre un événement personnalisé pour notifier competencesD de recharger depuis Firestore
-                    window.dispatchEvent(new CustomEvent('competences-updated', {
-                        detail: {
-                            characterId: selectedCharacter.id,
-                            roomId: roomID
-                        }
-                    }))
+                        // Émettre un événement personnalisé pour notifier competencesD de recharger depuis Firestore
+                        window.dispatchEvent(new CustomEvent('competences-updated', {
+                            detail: {
+                                characterId: selectedCharacter.id,
+                                roomId: roomID
+                            }
+                        }))
+                    }
                 }
-            }
-        }} />
+            }} />
     }
 
     return (
@@ -394,12 +400,14 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
                         >
                             Réinitialiser
                         </Button>
-                        <Button
-                            onClick={() => setShowChangeComponent(true)}
-                            className="button-primary"
-                        >
-                            Gérer les Voies
-                        </Button>
+                        {(selectedCharacter?.id === userPersoId || userRole === 'MJ') && (
+                            <Button
+                                onClick={() => setShowChangeComponent(true)}
+                                className="button-primary"
+                            >
+                                Gérer les Voies
+                            </Button>
+                        )}
                     </div>
                     <div id="tabContent" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-w-5xl w-full">
                         {Object.entries(voieData).map(([voieKey, voie]) => {

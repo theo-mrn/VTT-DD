@@ -289,16 +289,19 @@ export default function Layout({ children }: LayoutProps) {
         {/* Lecteur Musical Flottant */}
         <FloatingMusic roomId={roomId} />
       </div>
-      {/* Boutons Map, Info et Quêtes en haut au centre */}
-      <div className="fixed top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 z-10">
-
+      {/* Boutons Map, Info et Quêtes en haut au centre -> Déplacé en haut à droite avec les autres contrôles */}
+      <div
+        className="fixed right-4 z-[20] transition-all duration-300"
+        style={{ top: isMJ ? '160px' : '112px' }}
+      >
         <button
           onClick={() => handleIconClick("infoComponent")}
-          className={`rounded-lg px-4 py-2 flex items-center gap-2 ${activeTab === "infoComponent"
-            ? "bg-[#c0a080] text-black"
-            : "bg-[#242424] text-[#d4d4d4] hover:bg-[#333]"
+          className={`w-10 h-10 flex items-center justify-center rounded-lg border backdrop-blur-sm transition-all shadow-lg ${activeTab === "infoComponent"
+              ? "bg-[#c0a080] text-black border-[#c0a080]"
+              : "bg-black/50 text-[#d4d4d4] border-gray-600 hover:bg-black/70 hover:text-white mb-2"
             }`}
           aria-label="Ouvrir les informations"
+          title="Ouvrir le Compendium"
         >
           <BookOpen className="h-5 w-5" />
         </button>

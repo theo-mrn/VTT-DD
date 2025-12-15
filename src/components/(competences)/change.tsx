@@ -60,6 +60,8 @@ type CustomCompetence = {
 
 interface CharacterProfileProps {
   onClose?: () => void;
+  characterId?: string;
+  roomId?: string;
 }
 
 // Sortable Voie Card Component
@@ -183,7 +185,7 @@ function SortableVoieCard({
   );
 }
 
-export default function CharacterProfile({ onClose }: CharacterProfileProps = {}) {
+export default function CharacterProfile({ onClose, characterId: propCharacterId, roomId: propRoomId }: CharacterProfileProps = {}) {
   const router = useRouter();
   const [, setProfile] = useState<string | null>(null);
   const [, setRace] = useState<string | null>(null);
@@ -204,8 +206,8 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
   const [prestigeSearchTerm, setPrestigeSearchTerm] = useState<string>('');
   const [isPrestigeInputFocused, setIsPrestigeInputFocused] = useState(false);
   const [isDetailsPanelOpen, setIsDetailsPanelOpen] = useState(false);
-  const [roomId, setRoomId] = useState<string | null>(null);
-  const [persoId, setPersoId] = useState<string | null>(null);
+  const [roomId, setRoomId] = useState<string | null>(propRoomId || null);
+  const [persoId, setPersoId] = useState<string | null>(propCharacterId || null);
   const [loading, setLoading] = useState(true);
   const [customCompetences, setCustomCompetences] = useState<CustomCompetence[]>([]);
   const [isCompetenceDialogOpen, setIsCompetenceDialogOpen] = useState(false);
@@ -285,43 +287,60 @@ export default function CharacterProfile({ onClose }: CharacterProfileProps = {}
 
   useEffect(() => {
     const fetchCharacterData = async () => {
-      const user = auth.currentUser;
-      if (user) {
-        const userRef = doc(db, 'users', user.uid);
-        const userData = await getDoc(userRef);
+      // Prioritize props if available
+      let targetRoomId = propRoomId;
+      let targetPersoId = propCharacterId;
 
-        if (userData.exists()) {
-          const { room_id, persoId } = userData.data();
-          setRoomId(room_id);
-          setPersoId(persoId);
+      if (!targetRoomId || !targetPersoId) {
+        const user = auth.currentUser;
+        if (user) {
+          const userRef = doc(db, 'users', user.uid);
+          const userData = await getDoc(userRef);
 
-          const characterRef = doc(db, `cartes/${room_id}/characters/${persoId}`);
-          const characterData = await getDoc(characterRef);
-
-          if (characterData.exists()) {
-            const data = characterData.data();
-            setRace(data.Race);
-            setProfile(data.Profile);
-
-            // Load custom competences FIRST
-            const customComps = await loadCustomCompetences(room_id, persoId);
-
-            // Then load current voies with custom competences applied
-            await loadCurrentVoies(data, customComps);
+          if (userData.exists()) {
+            const data = userData.data();
+            targetRoomId = data.room_id;
+            targetPersoId = data.persoId;
+            setRoomId(targetRoomId || null);
+            setPersoId(targetPersoId || null);
           }
         }
       }
+
+      if (targetRoomId && targetPersoId) {
+        const characterRef = doc(db, `cartes/${targetRoomId}/characters/${targetPersoId}`);
+        const characterData = await getDoc(characterRef);
+
+        if (characterData.exists()) {
+          const data = characterData.data();
+          setRace(data.Race);
+          setProfile(data.Profile);
+
+          // Load custom competences FIRST
+          const customComps = await loadCustomCompetences(targetRoomId, targetPersoId);
+
+          // Then load current voies with custom competences applied
+          await loadCurrentVoies(data, customComps);
+          setLoading(false);
+          return;
+        }
+      }
+
       setLoading(false);
     };
 
-    onAuthStateChanged(auth, (user) => {
-      if (user) {
-        fetchCharacterData();
-      } else {
-        setLoading(false);
-      }
-    });
-  }, []);
+    if (propRoomId && propCharacterId) {
+      fetchCharacterData();
+    } else {
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          fetchCharacterData();
+        } else {
+          setLoading(false);
+        }
+      });
+    }
+  }, [propCharacterId, propRoomId]);
 
   const loadCustomCompetences = async (roomId: string, persoId: string): Promise<CustomCompetence[]> => {
     try {
