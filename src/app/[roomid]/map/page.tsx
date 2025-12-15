@@ -3432,7 +3432,7 @@ export default function Component() {
       )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-[rgb(36,36,36)] max-w-4xl text-[#c0a080]">
+        <DialogContent className="bg-[rgb(36,36,36)] w-full text-[#c0a080]">
           <DialogHeader>
             <DialogTitle className="text-base">Ajouter un personnage</DialogTitle>
           </DialogHeader>
@@ -4251,7 +4251,7 @@ export default function Component() {
 
       {/* 🆕 DIALOGUE D'IMPORTATION DE PNJ */}
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[70vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-5xl max-h-[70vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">📥 Importer un PNJ depuis une autre ville</DialogTitle>
           </DialogHeader>
