@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/(combat)/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -128,7 +128,18 @@ export default function Component() {
   const fileInputRef = useRef<HTMLInputElement>(null); // Ref pour l'input de changement de fond
   const characterInputRef = useRef<HTMLInputElement>(null); // Ref pour l'input d'ajout de personnage
   const [panMode, setPanMode] = useState(false); // Mode déplacement de carte
+
   const [playerViewMode, setPlayerViewMode] = useState(false); // Mode "Vue Joueur" pour le MJ
+
+  // 🎯 MEASUREMENT & CALIBRATION STATE
+  const [measureMode, setMeasureMode] = useState(false);
+  const [isCalibrating, setIsCalibrating] = useState(false); // Sub-mode of measureMode
+  const [measureStart, setMeasureStart] = useState<Point | null>(null);
+  const [measureEnd, setMeasureEnd] = useState<Point | null>(null);
+  const [pixelsPerUnit, setPixelsPerUnit] = useState(50); // Default: 50 pixels = 1 unit
+  const [unitName, setUnitName] = useState('m'); // Default unit
+  const [calibrationDialogOpen, setCalibrationDialogOpen] = useState(false);
+  const [tempCalibrationDistance, setTempCalibrationDistance] = useState('');
 
 
   useEffect(() => {
@@ -237,7 +248,7 @@ export default function Component() {
       ctx.scale(sizeMultiplier, sizeMultiplier);
       drawMap(ctx, image, containerWidth, containerHeight); // Pass container dimensions
     };
-  }, [backgroundImage, showGrid, zoom, offset, characters, notes, selectedCharacterIndex, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isFogDragging, playerViewMode, isMJ]);
+  }, [backgroundImage, showGrid, zoom, offset, characters, notes, selectedCharacterIndex, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating]);
 
 
   // Firebase Functions
@@ -255,12 +266,14 @@ export default function Component() {
     { id: 9, label: 'Changer fond', icon: ImagePlus },
     { id: 10, label: 'Déplacer carte', icon: Move },
     { id: 11, label: playerViewMode ? 'Vue MJ' : 'Vue Joueur', icon: playerViewMode ? ScanEye : User },
+    { id: 12, label: 'Mesurer', icon: Ruler },
   ] : [
     { id: 1, label: 'Ajouter Texte', icon: Baseline },
     { id: 2, label: 'Dessiner', icon: Pencil },
     { id: 3, label: showGrid ? 'Masquer grille' : 'Afficher grille', icon: Grid },
     { id: 4, label: 'Déplacer carte', icon: Move },
     { id: 5, label: 'Effacer dessins', icon: Trash2 },
+    { id: 6, label: 'Mesurer', icon: Ruler },
   ];
 
   // 🎯 Calculer les IDs des outils actuellement actifs (peut être plusieurs)
@@ -274,12 +287,15 @@ export default function Component() {
       if (fullMapFog) activeIds.push(5); // Brouillard complet
       if (showGrid) activeIds.push(7); // Afficher grille
       if (panMode) activeIds.push(10); // Déplacer carte
+      if (panMode) activeIds.push(10); // Déplacer carte
       if (playerViewMode) activeIds.push(11); // Vue Joueur
+      if (measureMode) activeIds.push(12); // Mesurer
     } else {
       // Menu Joueur
       if (drawMode) activeIds.push(2); // Dessiner
       if (showGrid) activeIds.push(3); // Afficher grille
       if (panMode) activeIds.push(4); // Déplacer carte
+      if (measureMode) activeIds.push(6); // Mesurer
     }
 
     return activeIds;
@@ -299,18 +315,20 @@ export default function Component() {
     const desactiverOutilsIncompatibles = (toolId: number) => {
       if (isMJ) {
         // Pour le MJ : ID 3 (Dessin), ID 4 (Brouillard), ID 10 (Déplacement) sont incompatibles
-        if (toolId === 3 || toolId === 4 || toolId === 10) {
+        if (toolId == 3 || toolId == 4 || toolId == 10 || toolId == 12) {
           // Désactiver les deux autres
           if (toolId !== 3 && drawMode) setDrawMode(false);
           if (toolId !== 4 && fogMode) setFogMode(false);
           if (toolId !== 10 && panMode) setPanMode(false);
+          if (toolId !== 12 && measureMode) setMeasureMode(false);
         }
       } else {
         // Pour le joueur : ID 2 (Dessin), ID 4 (Déplacement) sont incompatibles
-        if (toolId === 2 || toolId === 4) {
+        if (toolId === 2 || toolId === 4 || toolId === 6) {
           // Désactiver l'autre
           if (toolId !== 2 && drawMode) setDrawMode(false);
           if (toolId !== 4 && panMode) setPanMode(false);
+          if (toolId !== 6 && measureMode) setMeasureMode(false);
         }
       }
     };
@@ -363,7 +381,17 @@ export default function Component() {
           break;
         case 11:
           // Toggle Vue Joueur
+          // Toggle Vue Joueur
           setPlayerViewMode(!playerViewMode);
+          break;
+        case 12:
+          // Mesurer
+          desactiverOutilsIncompatibles(12);
+          setMeasureMode(!measureMode);
+          // Reset measurement state when toggling
+          setMeasureStart(null);
+          setMeasureEnd(null);
+          setIsCalibrating(false);
           break;
       }
     } else {
@@ -390,6 +418,14 @@ export default function Component() {
         case 5:
           // Effacer dessins
           clearDrawings();
+          break;
+        case 6:
+          // Mesurer
+          desactiverOutilsIncompatibles(6);
+          setMeasureMode(!measureMode);
+          setMeasureStart(null);
+          setMeasureEnd(null);
+          setIsCalibrating(false);
           break;
       }
     }
@@ -453,6 +489,12 @@ export default function Component() {
     onSnapshot(settingsRef, (doc) => {
       if (doc.exists() && doc.data().tour_joueur) {
         setActivePlayerId(doc.data().tour_joueur);
+      }
+      // 🎯 Charger les paramètres de mesure
+      if (doc.exists()) {
+        const data = doc.data();
+        if (data.pixelsPerUnit) setPixelsPerUnit(data.pixelsPerUnit);
+        if (data.unitName) setUnitName(data.unitName);
       }
     });
     // Charger les personnages
@@ -1326,6 +1368,60 @@ export default function Component() {
         ctx.stroke();
       }
     });
+
+    // 🎯 DRAW MEASUREMENT RULER
+    if (measureMode && measureStart) {
+      // Draw a line from start to current mouse position (measureEnd)
+      // If measureEnd is null, we might be just starting click, so nothing to draw yet or draw point.
+      const p1 = measureStart;
+      const p2 = measureEnd;
+
+      if (p1 && p2) {
+        const x1 = (p1.x / image.width) * scaledWidth - offset.x;
+        const y1 = (p1.y / image.height) * scaledHeight - offset.y;
+        const x2 = (p2.x / image.width) * scaledWidth - offset.x;
+        const y2 = (p2.y / image.height) * scaledHeight - offset.y;
+
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.strokeStyle = '#FFD700'; // Gold
+        ctx.lineWidth = 3 * zoom;
+        ctx.setLineDash([15, 10]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Draw Endpoints
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        ctx.arc(x1, y1, 5 * zoom, 0, 2 * Math.PI);
+        ctx.arc(x2, y2, 5 * zoom, 0, 2 * Math.PI);
+        ctx.fill();
+
+        // Draw Label
+        // Calculate pixel distance
+        const pixelDist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        const unitDist = pixelDist / pixelsPerUnit;
+        const text = isCalibrating
+          ? `Calibration: ${pixelDist.toFixed(0)} px`
+          : `${unitDist.toFixed(1)} ${unitName}`;
+
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+
+        ctx.font = `bold ${14 * zoom}px Arial`;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        const textMetrics = ctx.measureText(text);
+        const padding = 6 * zoom;
+
+        ctx.fillRect(midX - textMetrics.width / 2 - padding, midY - 25 * zoom, textMetrics.width + padding * 2, 30 * zoom);
+
+        ctx.fillStyle = '#FFD700';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, midX, midY - 10 * zoom);
+      }
+    }
   };
 
 
@@ -1428,6 +1524,37 @@ export default function Component() {
     }
   };
 
+
+
+  // 🎯 CALIBRATION SUBMIT
+  const handleCalibrationSubmit = async () => {
+    const distanceVal = parseFloat(tempCalibrationDistance);
+    if (!isNaN(distanceVal) && distanceVal > 0 && measureStart && measureEnd && roomId) {
+      // Calculate pixel distance
+      const pixelDist = calculateDistance(measureStart.x, measureStart.y, measureEnd.x, measureEnd.y);
+      const newPixelsPerUnit = pixelDist / distanceVal;
+
+      // Save to Firebase
+      try {
+        const settingsRef = doc(db, 'cartes', String(roomId), 'settings', 'general');
+        await setDoc(settingsRef, {
+          pixelsPerUnit: newPixelsPerUnit
+        }, { merge: true }); // Merge to keep other settings
+
+        // Also update local state immediately for responsiveness
+        setPixelsPerUnit(newPixelsPerUnit);
+
+        setIsCalibrating(false);
+        setMeasureStart(null);
+        setMeasureEnd(null);
+        setCalibrationDialogOpen(false);
+        setTempCalibrationDistance('');
+      } catch (e) {
+        console.error("Error saving calibration:", e);
+      }
+    }
+  };
+
   const handleCharacterImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -1498,6 +1625,12 @@ export default function Component() {
       const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
       const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
 
+      // 🎯 MEASURE DRAG
+      if (measureMode && measureStart && (e.buttons === 1)) {
+        setMeasureEnd({ x: clickX, y: clickY });
+        return;
+      }
+
       // CLIC MILIEU (button = 1) : DÉPLACEMENT DE LA CARTE
       if (e.button === 1) {
         e.preventDefault();
@@ -1508,6 +1641,14 @@ export default function Component() {
 
       // CLIC GAUCHE (button = 0) : SÉLECTION ET INTERACTIONS
       if (e.button === 0) {
+        // 🎯 MODE MESURE
+        if (measureMode) {
+          // In measure mode, left click starts a new measurement line
+          setMeasureStart({ x: clickX, y: clickY });
+          setMeasureEnd({ x: clickX, y: clickY }); // Initially same point
+          return;
+        }
+
         // 🎯 MODE DÉPLACEMENT DE CARTE - Priorité élevée
         if (panMode) {
           setIsDragging(true);
@@ -1937,6 +2078,17 @@ export default function Component() {
 
 
   const handleCanvasMouseUp = async () => {
+    // 🎯 CALIBRATION END (OPEN DIALOG)
+    if (isCalibrating && measureMode && measureStart && measureEnd) {
+      // If dragged distance is significant, open dialog
+      const dist = calculateDistance(measureStart.x, measureStart.y, measureEnd.x, measureEnd.y);
+      if (dist > 10) {
+        setCalibrationDialogOpen(true);
+      }
+    }
+
+    setIsDragging(false);
+    setDragStart({ x: 0, y: 0 });
     // Réinitialiser le bouton de souris
     const currentMouseButton = mouseButton;
     setMouseButton(null);
@@ -2445,51 +2597,11 @@ export default function Component() {
         </Button>
       </div>
 
-      {/* 🎯 Indicateurs de mode actif en haut à gauche */}
-      {(drawMode || fogMode || panMode || playerViewMode) && (
-        <div className="absolute top-4 left-4 z-50 flex flex-col gap-2">
-          {playerViewMode && isMJ && (
-            <div className="text-xs text-purple-300 bg-black/70 backdrop-blur-sm p-3 rounded-lg border border-purple-500 shadow-lg">
-              <div className="font-semibold mb-1">👁️ Vue Joueur Active</div>
-              <div className="text-gray-300">Vous voyez la carte comme un joueur</div>
-              <div className="text-gray-400 text-[10px] mt-1">Les ennemis cachés ne sont pas visibles</div>
-            </div>
-          )}
-          {panMode && (
-            <div className="text-xs text-blue-300 bg-black/70 backdrop-blur-sm p-3 rounded-lg border border-blue-500 shadow-lg">
-              <div className="font-semibold mb-1">🔄 Mode Déplacement</div>
-              <div className="text-gray-300">Cliquez et glissez pour déplacer la carte</div>
-            </div>
-          )}
-          {drawMode && (
-            <div className="text-xs text-yellow-300 bg-black/70 backdrop-blur-sm p-3 rounded-lg border border-yellow-500 shadow-lg">
-              <div className="font-semibold mb-1">✏️ Mode Dessin</div>
-              <div className="text-gray-300">Clic gauche pour dessiner</div>
-            </div>
-          )}
-          {fogMode && (
-            <div className="text-xs text-yellow-300 bg-black/70 backdrop-blur-sm p-3 rounded-lg border border-yellow-500 shadow-lg">
-              <div className="font-semibold mb-1">🌫️ Mode Brouillard</div>
-              <div className="text-gray-300">• Zone vide → Ajouter</div>
-              <div className="text-gray-300">• Zone brouillée → Supprimer</div>
-              {isMJ && (
-                <Button
-                  onClick={() => setShowFogGrid(!showFogGrid)}
-                  className={`mt-2 text-xs h-7 w-full ${showFogGrid ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-gray-700 hover:bg-gray-600'}`}
-                >
-                  <Grid className="w-3 h-3 mr-1" />
-                  {showFogGrid ? 'Masquer grille' : 'Grille'}
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {/* 🎯 Indicateurs de mode actif - REPLACED BY CENTERED OVERLAYS */}
 
-      {/* 🎯 Drawing Toolbar */}
       {drawMode && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2">
-          <div className="flex items-center gap-4 bg-zinc-900/90 backdrop-blur-md p-3 rounded-xl border border-zinc-700 shadow-2xl">
+          <div className="flex items-center gap-4 bg-neutral-900/90 backdrop-blur-md px-4 py-2 rounded-full border border-neutral-700 shadow-2xl">
             {/* Tools */}
             <div className="flex bg-zinc-800 rounded-lg p-1 border border-zinc-600">
               <Button
@@ -3637,6 +3749,129 @@ export default function Component() {
           }}
         />
       )}
+
+      {/* 🎯 PAN MODE OVERLAY */}
+      {panMode && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-50 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <Move className="w-4 h-4 text-neutral-400" />
+            <span className="font-medium text-sm">Mode Déplacement</span>
+          </div>
+        </div>
+      )}
+
+      {/* 🎯 FOG MODE OVERLAY */}
+      {fogMode && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-50 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <Cloud className="w-4 h-4 text-neutral-400" />
+            <span className="font-medium text-sm">Mode Brouillard</span>
+          </div>
+          <div className="h-4 w-px bg-neutral-700 mx-1"></div>
+          <div className="text-xs text-neutral-400">
+            Clic pour modifier
+          </div>
+          {isMJ && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowFogGrid(!showFogGrid)}
+              className={`h-7 px-2 text-xs ml-2 ${showFogGrid ? 'text-yellow-400 bg-yellow-400/10' : 'text-neutral-400 hover:text-white'}`}
+            >
+              <Grid className="w-3 h-3 mr-1" />
+              Grille
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* 🎯 PLAYER VIEW OVERLAY */}
+      {playerViewMode && isMJ && (
+        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-purple-900/90 text-purple-100 px-4 py-2 rounded-full border border-purple-700 shadow-xl flex items-center gap-3 z-40 backdrop-blur-sm pointer-events-none">
+          <ScanEye className="w-4 h-4" />
+          <span className="font-medium text-sm">Vue Joueur Active</span>
+        </div>
+      )}
+
+      {/* 🎯 MEASUREMENT OVERLAY UI */}
+      {measureMode && (
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-50 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <Ruler className="w-4 h-4 text-neutral-400" />
+            <span className="font-medium text-sm">Mode Mesure</span>
+          </div>
+
+          <div className="h-4 w-px bg-neutral-700 mx-1"></div>
+
+          <div className="text-xs text-neutral-400">
+            {isCalibrating ? "Tracez une ligne d'étalon." : "Tracez pour mesurer."}
+          </div>
+
+          {!isCalibrating && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setIsCalibrating(true);
+                setMeasureStart(null);
+                setMeasureEnd(null);
+              }}
+              className="h-7 px-2 text-xs text-neutral-400 hover:text-white hover:bg-white/5 ml-2"
+            >
+              Étalonner
+            </Button>
+          )}
+          {isCalibrating && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsCalibrating(false)}
+              className="h-7 px-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 ml-2"
+            >
+              Annuler
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* 🎯 CALIBRATION DIALOG */}
+      <Dialog open={calibrationDialogOpen} onOpenChange={setCalibrationDialogOpen}>
+        <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] border-[#FFD700]">
+          <DialogHeader>
+            <DialogTitle>Étalonnage de la carte</DialogTitle>
+          </DialogHeader>
+          <div className="py-4">
+            <p className="mb-4 text-sm">Quelle distance représente la ligne que vous venez de tracer ?</p>
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <Label htmlFor="distVal">Distance</Label>
+                <Input
+                  id="distVal"
+                  type="number"
+                  value={tempCalibrationDistance}
+                  onChange={(e) => setTempCalibrationDistance(e.target.value)}
+                  placeholder="Ex: 1.5"
+                  autoFocus
+                />
+              </div>
+              <div className="w-24">
+                <Label htmlFor="unitVal">Unité</Label>
+                <Input
+                  id="unitVal"
+                  type="text"
+                  value={unitName}
+                  onChange={(e) => setUnitName(e.target.value)}
+                  placeholder="m"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setCalibrationDialogOpen(false)}>Annuler</Button>
+            <Button onClick={handleCalibrationSubmit} className="bg-[#FFD700] text-black hover:bg-[#e6c200]">Valider</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
