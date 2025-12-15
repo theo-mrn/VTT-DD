@@ -1420,6 +1420,29 @@ export default function Component() {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(text, midX, midY - 10 * zoom);
+      } else if (p1 && !p2) {
+        // Draw just the start point
+        const x1 = (p1.x / image.width) * scaledWidth - offset.x;
+        const y1 = (p1.y / image.height) * scaledHeight - offset.y;
+
+        ctx.fillStyle = '#FFD700';
+        ctx.beginPath();
+        ctx.arc(x1, y1, 7 * zoom, 0, 2 * Math.PI);
+        ctx.fill();
+
+        // Draw a small label
+        ctx.font = `bold ${12 * zoom}px Arial`;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        const text = 'Click to set end point';
+        const textMetrics = ctx.measureText(text);
+        const padding = 6 * zoom;
+
+        ctx.fillRect(x1 - textMetrics.width / 2 - padding, y1 - 35 * zoom, textMetrics.width + padding * 2, 25 * zoom);
+
+        ctx.fillStyle = '#FFD700';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, x1, y1 - 22 * zoom);
       }
     }
   };
@@ -1625,11 +1648,6 @@ export default function Component() {
       const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
       const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
 
-      // 🎯 MEASURE DRAG
-      if (measureMode && measureStart && (e.buttons === 1)) {
-        setMeasureEnd({ x: clickX, y: clickY });
-        return;
-      }
 
       // CLIC MILIEU (button = 1) : DÉPLACEMENT DE LA CARTE
       if (e.button === 1) {
@@ -1643,9 +1661,21 @@ export default function Component() {
       if (e.button === 0) {
         // 🎯 MODE MESURE
         if (measureMode) {
-          // In measure mode, left click starts a new measurement line
-          setMeasureStart({ x: clickX, y: clickY });
-          setMeasureEnd({ x: clickX, y: clickY }); // Initially same point
+          console.log('🎯 MEASURE CLICK:', { clickX, clickY, measureStart, measureEnd });
+
+          // If no start point OR both points already set, start new measurement
+          if (!measureStart || (measureStart && measureEnd &&
+            Math.abs(measureStart.x - measureEnd.x) > 1 &&
+            Math.abs(measureStart.y - measureEnd.y) > 1)) {
+            // Start new measurement
+            console.log('✅ Starting NEW measurement');
+            setMeasureStart({ x: clickX, y: clickY });
+            setMeasureEnd(null);
+          } else {
+            // Set end point
+            console.log('✅ Setting END point');
+            setMeasureEnd({ x: clickX, y: clickY });
+          }
           return;
         }
 
@@ -1881,6 +1911,13 @@ export default function Component() {
       if (isFogDragging && fogMode) {
         const addMode = isFogAddMode; // isFogAddMode stocke si on ajoute (true) ou supprime (false)
         addFogCellIfNew(currentX, currentY, addMode);
+        return;
+      }
+
+      // 🎯 MEASURE DRAG - Update end point while dragging
+      if (measureMode && measureStart && e.buttons === 1) {
+        console.log('📏 MEASURE MOVE:', { currentX, currentY, buttons: e.buttons, measureStart });
+        setMeasureEnd({ x: currentX, y: currentY });
         return;
       }
 
