@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 
 type Character = {
+  cityId?: string
   id: string
   name: string
   avatar: string
@@ -45,6 +46,10 @@ type AttackReport = {
 
 export function GMDashboard() {
   const [characters, setCharacters] = useState<Character[]>([])
+  const [rawCharacters, setRawCharacters] = useState<Character[]>([])
+  const [activePlayerId, setActivePlayerId] = useState<string | null>(null)
+  const [currentCityId, setCurrentCityId] = useState<string | null>(null)
+
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null)
   const [selectedAttack, setSelectedAttack] = useState<AttackReport | null>(null)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -88,64 +93,122 @@ export function GMDashboard() {
     fetchRoomId()
   }, [userId])
 
+  // 1. Listen to Room Settings (Active Player & Current City)
   useEffect(() => {
-    const fetchCharactersAndSettings = async () => {
-      if (!roomId) return
+    if (!roomId) return
 
-      try {
-        const settingsDoc = await getDoc(doc(db, `cartes/${roomId}/settings/general`))
-        let activePlayerId: string | null = null
+    const settingsRef = doc(db, `cartes/${roomId}/settings/general`)
+    const unsubscribe = onSnapshot(settingsRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data()
+        setActivePlayerId(data.tour_joueur || null)
+        setCurrentCityId(data.currentCityId || null)
+      }
+    })
 
-        if (settingsDoc.exists()) {
-          const data = settingsDoc.data()
-          activePlayerId = data.tour_joueur || null
-        }
+    return () => unsubscribe()
+  }, [roomId])
 
-        const charactersRef = collection(db, `cartes/${roomId}/characters`)
+  // 2. Listen to All Characters (Raw Data)
+  useEffect(() => {
+    if (!roomId) return
 
-        onSnapshot(charactersRef, (snapshot) => {
-          const charactersData = snapshot.docs.map((doc) => {
-            const data = doc.data()
-            return {
-              id: doc.id,
-              name: data.Nomperso || "absente",
-              avatar: data.imageURLFinal || data.imageURL || `/placeholder.svg?height=40&width=40&text=${data.Nomperso ? data.Nomperso[0] : "?"}`,
-              pv: data.PV ?? 0,
-              init: data.INIT ?? 0,
-              initDetails: data.initDetails || "0",
-              type: data.type || "pnj",
-              currentInit: data.currentInit || 0,
-              Defense: data.Defense || 10,
-              stats: {
-                FOR: data.FOR || 10,
-                DEX: data.DEX || 10,
-                CON: data.CON || 10,
-                INT: data.INT || 10,
-                SAG: data.SAG || 10,
-                CHA: data.CHA || 10,
-              }
-            }
-          })
-
-          const sortedCharacters = charactersData.sort((a, b) => (b.currentInit ?? 0) - (a.currentInit ?? 0))
-
-          if (activePlayerId) {
-            const activePlayerIndex = sortedCharacters.findIndex((char) => char.id === activePlayerId)
-            if (activePlayerIndex > 0) {
-              const [activeCharacter] = sortedCharacters.splice(activePlayerIndex, 1)
-              sortedCharacters.unshift(activeCharacter)
-            }
+    const charactersRef = collection(db, `cartes/${roomId}/characters`)
+    const unsubscribe = onSnapshot(charactersRef, (snapshot) => {
+      const charactersData = snapshot.docs.map((doc) => {
+        const data = doc.data()
+        return {
+          id: doc.id,
+          cityId: data.cityId, // Capture cityId
+          name: data.Nomperso || "absente",
+          avatar: data.imageURLFinal || data.imageURL || `/placeholder.svg?height=40&width=40&text=${data.Nomperso ? data.Nomperso[0] : "?"}`,
+          pv: data.PV ?? 0,
+          init: data.INIT ?? 0,
+          initDetails: data.initDetails || "0",
+          type: data.type || "pnj",
+          currentInit: data.currentInit || 0,
+          Defense: data.Defense || 10,
+          stats: {
+            FOR: data.FOR || 10,
+            DEX: data.DEX || 10,
+            CON: data.CON || 10,
+            INT: data.INT || 10,
+            SAG: data.SAG || 10,
+            CHA: data.CHA || 10,
           }
+        }
+      })
+      setRawCharacters(charactersData)
+    })
 
-          setCharacters(sortedCharacters)
-        })
-      } catch (error) {
-        console.error("Erreur lors du chargement des personnages et des paramètres :", error)
+    return () => unsubscribe()
+  }, [roomId])
+
+  // 3. Compute Display Characters (Filter & Sort)
+  useEffect(() => {
+    let filteredChars = rawCharacters
+
+    // Filter by City:
+    // Keep characters if:
+    // - They are PLAYERS (type === 'joueurs')
+    // - OR (currentCityId matches character.cityId)
+    // - OR (activePlayerId matches character.id) - safety to ensure turn player is always visible? Optional but good practice.
+    if (currentCityId) {
+      filteredChars = rawCharacters.filter(char => {
+        const isPlayer = char.type === 'joueurs';
+        const isAlly = char.type === 'allié'; // Assuming 'allié' exists or handled? User said 'pnj' only. 
+        // Let's stick to strict: Players kept, others filtered by city.
+        // Also check if type is 'joueurs' vs 'pnj'
+        if (isPlayer) return true;
+
+        // For NPCs:
+        return char.cityId === currentCityId;
+      });
+    } else {
+      // If NO city is selected (World Map mode?), maybe show all? 
+      // Or only global ones?
+      // User request: "pnj de la ville en cours, et non pas des autres villes"
+      // If currentCityId is null, we are likely on World Map.
+      // Maybe show NO NPCs? Or all? 
+      // Let's assume we filter strictly. If no city selected, maybe only players?
+      // But usually combat happens in a city.
+      // Let's keep logic: if cityId matches.
+      // If currentCityId is null, char.cityId === null ?
+    }
+
+    // Refining the filter logic based on user request:
+    filteredChars = rawCharacters.filter(char => {
+      // Always show players
+      if (char.type === 'joueurs' || char.type === 'allié') return true;
+
+      // If we have a current City, show NPCs of that city
+      if (currentCityId) {
+        return char.cityId === currentCityId;
+      }
+
+      // If no current city (World Map), show global NPCs (no cityId?) or everything?
+      // Let's default to showing everything if no city filter is active (legacy behavior support), 
+      // UNLESS user strictly implies "world map has no city NPCs".
+      // But typically we don't want to break "All" view if something is wrong.
+      // However, to be "modified to ONLY show...", I should filter.
+      // If currentCityId is null, I'll filter out city-bound NPCs?
+      // Let's check if 'cityId' is present on char.
+      if (char.cityId) return false; // Hide city-specific NPCs on world map
+      return true; // Show global NPCs
+    });
+
+    const sortedCharacters = filteredChars.sort((a, b) => (b.currentInit ?? 0) - (a.currentInit ?? 0))
+
+    if (activePlayerId) {
+      const activePlayerIndex = sortedCharacters.findIndex((char) => char.id === activePlayerId)
+      if (activePlayerIndex > 0) {
+        const [activeCharacter] = sortedCharacters.splice(activePlayerIndex, 1)
+        sortedCharacters.unshift(activeCharacter)
       }
     }
 
-    fetchCharactersAndSettings()
-  }, [roomId])
+    setCharacters(sortedCharacters)
+  }, [rawCharacters, currentCityId, activePlayerId])
 
   useEffect(() => {
     const fetchAttackReports = async () => {

@@ -22,12 +22,18 @@ interface City {
     icon?: string;
     color?: string;
     visibleToPlayers?: boolean;
+    backgroundUrl?: string; // 🆕 Fond spécifique à cette ville
 }
 
 const ICONS = ["🏰", "🏛️", "🏘️", "⛪", "🗼", "🏯"];
 const COLORS = ["#c0a080", "#8B4513", "#4169E1", "#228B22", "#DC143C", "#9370DB"];
 
-export default function CitiesManager() {
+
+interface CitiesManagerProps {
+    onCitySelect?: (cityId: string) => void; // 🆕 Callback pour naviguer vers une ville
+}
+
+export default function CitiesManager({ onCitySelect }: CitiesManagerProps) {
     const { user, isMJ } = useGame();
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -37,8 +43,9 @@ export default function CitiesManager() {
 
     // Formulaire
     const [showForm, setShowForm] = useState(false);
-    const [formData, setFormData] = useState({ name: "", description: "", icon: ICONS[0], color: COLORS[0], x: 0, y: 0, visibleToPlayers: true });
+    const [formData, setFormData] = useState({ name: "", description: "", icon: ICONS[0], color: COLORS[0], x: 0, y: 0, visibleToPlayers: true, backgroundUrl: "" });
     const [editingId, setEditingId] = useState<string | null>(null);
+    const cityBackgroundInputRef = useRef<HTMLInputElement>(null);
 
     // Drag & Drop ville
     const [draggingCity, setDraggingCity] = useState<string | null>(null);
@@ -281,6 +288,10 @@ export default function CitiesManager() {
 
         if (clicked) {
             setSelectedCity(clicked);
+            // 🆕 Double-clic pour naviguer vers la ville
+            if (e.detail === 2 && onCitySelect) {
+                onCitySelect(clicked.id);
+            }
         } else {
             setSelectedCity(null);
         }
@@ -393,7 +404,7 @@ export default function CitiesManager() {
 
     // Ouvrir le formulaire
     const handleAddCity = () => {
-        setFormData({ name: "", description: "", icon: ICONS[0], color: COLORS[0], x: 500, y: 400, visibleToPlayers: true });
+        setFormData({ name: "", description: "", icon: ICONS[0], color: COLORS[0], x: 500, y: 400, visibleToPlayers: true, backgroundUrl: "" });
         setEditingId(null);
         setShowForm(true);
     };
@@ -409,7 +420,7 @@ export default function CitiesManager() {
         }
 
         setShowForm(false);
-        setFormData({ name: "", description: "", icon: ICONS[0], color: COLORS[0], x: 0, y: 0, visibleToPlayers: true });
+        setFormData({ name: "", description: "", icon: ICONS[0], color: COLORS[0], x: 0, y: 0, visibleToPlayers: true, backgroundUrl: "" });
         setEditingId(null);
     };
 
@@ -423,6 +434,7 @@ export default function CitiesManager() {
             x: city.x,
             y: city.y,
             visibleToPlayers: city.visibleToPlayers ?? true,
+            backgroundUrl: city.backgroundUrl || "",
         });
         setEditingId(city.id);
         setShowForm(true);
@@ -484,6 +496,20 @@ export default function CitiesManager() {
             showGrid: newShowGrid,
         }, { merge: true });
     };
+
+    // 🆕 Upload fond de ville (pour une ville spécifique)
+    const handleCityBackgroundUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = async (event) => {
+            const imageUrl = event.target?.result as string;
+            setFormData({ ...formData, backgroundUrl: imageUrl });
+        };
+        reader.readAsDataURL(file);
+    };
+
 
     return (
         <div className="relative h-full w-full overflow-hidden bg-[#0a0a0a] group">
@@ -665,6 +691,17 @@ export default function CitiesManager() {
                                         </Button>
                                     </div>
                                 )}
+
+                                {/* 🆕 Bouton Entrer dans la ville */}
+                                {onCitySelect && (
+                                    <Button
+                                        onClick={() => onCitySelect(selectedCity.id)}
+                                        className="w-full mt-3 bg-[#c0a080] text-black hover:bg-[#d4b594] font-semibold"
+                                        size="sm"
+                                    >
+                                        Entrer dans la ville →
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </motion.div>
@@ -710,6 +747,45 @@ export default function CitiesManager() {
                                 rows={3}
                                 className="bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-[#c0a080]/50 focus:ring-[#c0a080]/20 resize-none"
                             />
+                        </div>
+
+                        <div className="space-y-2 pt-2 border-t border-white/10">
+                            <Label className="text-gray-400 text-xs uppercase tracking-wider font-semibold">Fond de carte de la ville</Label>
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    onClick={() => cityBackgroundInputRef.current?.click()}
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1 border-white/10 text-white/70 hover:text-[#c0a080] hover:bg-white/5"
+                                >
+                                    <Upload className="h-4 w-4 mr-2" />
+                                    {formData.backgroundUrl ? "Changer le fond" : "Uploader un fond"}
+                                </Button>
+                                {formData.backgroundUrl && (
+                                    <Button
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, backgroundUrl: "" })}
+                                        variant="outline"
+                                        size="sm"
+                                        className="border-white/10 text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
+                            <input
+                                ref={cityBackgroundInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleCityBackgroundUpload}
+                                className="hidden"
+                            />
+                            {formData.backgroundUrl && (
+                                <div className="relative w-full h-24 rounded-md overflow-hidden border border-white/10 bg-white/5">
+                                    <img src={formData.backgroundUrl} alt="Fond de ville" className="w-full h-full object-cover" />
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">

@@ -102,8 +102,6 @@ export default function Layout({ children }: LayoutProps) {
         return <InfoComponent />;
       case "Statistiques":
         return <Statistiques />;
-      case "Cities":
-        return <CitiesManager />;
       case "Chat":
         return <Chat />;
       default:
@@ -293,16 +291,7 @@ export default function Layout({ children }: LayoutProps) {
       </div>
       {/* Boutons Map, Info et Quêtes en haut au centre */}
       <div className="fixed top-4 left-1/2 transform -translate-x-1/2 flex items-center gap-2 z-10">
-        <button
-          onClick={() => handleIconClick("Cities")}
-          className={`rounded-lg px-4 py-2 flex items-center gap-2 ${activeTab === "Cities"
-            ? "bg-[#c0a080] text-black"
-            : "bg-[#242424] text-[#d4d4d4] hover:bg-[#333]"
-            }`}
-          aria-label="Ouvrir le gestionnaire de villes"
-        >
-          <Map className="h-5 w-5" />
-        </button>
+
         <button
           onClick={() => handleIconClick("infoComponent")}
           className={`rounded-lg px-4 py-2 flex items-center gap-2 ${activeTab === "infoComponent"
@@ -313,13 +302,6 @@ export default function Layout({ children }: LayoutProps) {
         >
           <BookOpen className="h-5 w-5" />
         </button>
-        {/* <button
-          onClick={() => setShowQuestOverlay(!showQuestOverlay)}
-          className="rounded-lg px-4 py-2 flex items-center gap-2 bg-[#242424] text-[#d4d4d4] hover:bg-[#333]"
-          aria-label={showQuestOverlay ? "Masquer les quêtes" : "Afficher les quêtes"}
-        >
-          <Scroll className="h-5 w-5" />
-        </button> */}
       </div>
 
       {/* 3D Dice Overlay */}

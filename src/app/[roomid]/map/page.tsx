@@ -7,13 +7,15 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Download, MapPin } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/(combat)/combat2';  // Importez le composant de combat
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import CharacterSheet from '@/components/(fiches)/CharacterSheet'; // Importez le composant de fiche de personnage
 import { Component as RadialMenu } from '@/components/ui/radial-menu'; // Menu radial
+import CitiesManager from '@/components/(worldmap)/CitiesManager'; // 🆕 Import du gestionnaire de villes
+
 
 
 export default function Component() {
@@ -141,6 +143,20 @@ export default function Component() {
   const [calibrationDialogOpen, setCalibrationDialogOpen] = useState(false);
   const [tempCalibrationDistance, setTempCalibrationDistance] = useState('');
 
+  // 🆕 VIEW MODE & CITY NAVIGATION STATE
+  type ViewMode = 'world' | 'city';
+  const [viewMode, setViewMode] = useState<ViewMode>('world'); // 'world' = world map, 'city' = city map
+  const [selectedCityId, setSelectedCityId] = useState<string | null>(null); // null = world map
+  const [cities, setCities] = useState<any[]>([]); // Villes disponibles
+
+  // 🆕 IMPORT NPC STATE
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [availableNPCsFromOtherCities, setAvailableNPCsFromOtherCities] = useState<Array<{
+    npc: Character;
+    cityName: string;
+    cityId: string;
+  }>>([]);
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -153,6 +169,179 @@ export default function Component() {
     });
     return () => unsubscribe();
   }, [roomId]);
+
+  // 🆕 CHARGER LE FOND SELON LA VILLE SÉLECTIONNÉE
+  useEffect(() => {
+    if (!roomId) return;
+
+    let unsubscribe: (() => void) | undefined;
+
+    if (selectedCityId) {
+      // En mode ville : charger le fond spécifique de la ville
+      const cityRef = doc(db, 'cartes', roomId, 'cities', selectedCityId);
+      unsubscribe = onSnapshot(cityRef, (docSnap) => {
+        if (docSnap.exists()) {
+          const cityData = docSnap.data();
+          if (cityData.backgroundUrl) {
+            console.log('📍 Chargement fond de ville:', cityData.name, cityData.backgroundUrl);
+            setBackgroundImage(cityData.backgroundUrl);
+          } else {
+            console.log('📍 Aucun fond pour la ville, utilisation du placeholder');
+            setBackgroundImage('/placeholder.svg?height=600&width=800');
+          }
+        }
+      });
+    } else {
+      // En mode world map : charger le fond global
+      const fondRef = doc(db, 'cartes', roomId, 'fond', 'fond1');
+      unsubscribe = onSnapshot(fondRef, (docSnap) => {
+        if (docSnap.exists() && docSnap.data().url) {
+          console.log('🗺️ Chargement fond global:', docSnap.data().url);
+          setBackgroundImage(docSnap.data().url);
+        }
+      });
+    }
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [roomId, selectedCityId]);
+
+  // 🆕 CHARGER LES DONNÉES FILTRÉES PAR VILLE (depuis les collections globales)
+  useEffect(() => {
+    if (!roomId) return;
+
+    const unsubscribers: (() => void)[] = [];
+
+    // 1. CHARGER ET FILTRER LES PERSONNAGES
+    const charactersRef = collection(db, 'cartes', roomId, 'characters');
+    const charsUnsub = onSnapshot(charactersRef, (snapshot) => {
+      const allChars: Character[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+
+        // CRITÈRE DE FILTRAGE :
+        // - Soit c'est un joueur ou allié (toujours visible partout)
+        // - Soit c'est un PNJ lié à la ville actuelle
+        const isGlobal = data.type === 'joueurs' || data.visibility === 'ally';
+        const isForCurrentCity = data.cityId === selectedCityId;
+
+        if (isGlobal || isForCurrentCity) {
+          const img = new Image();
+          if (data.type === 'joueurs') {
+            img.src = data.imageURLFinal || data.imageURL2 || data.imageURL;
+          } else {
+            img.src = data.imageURL2 || data.imageURL;
+          }
+          allChars.push({
+            id: doc.id,
+            niveau: data.niveau || 1,
+            name: data.Nomperso || '',
+            x: data.x || 0,
+            y: data.y || 0,
+            image: img,
+            visibility: data.visibility || 'hidden',
+            visibilityRadius: parseFloat(data.visibilityRadius) || 100,
+            type: data.type || 'pnj',
+            PV: data.PV || 10,
+            Defense: data.Defense || 5,
+            Contact: data.Contact || 5,
+            Distance: data.Distance || 5,
+            Magie: data.Magie || 5,
+            INIT: data.INIT || 5,
+            FOR: data.FOR || 0,
+            DEX: data.DEX || 0,
+            CON: data.CON || 0,
+            SAG: data.SAG || 0,
+            INT: data.INT || 0,
+            CHA: data.CHA || 0,
+            // cityId: data.cityId // Garder l'info
+          });
+        }
+      });
+      setCharacters(allChars);
+      setLoading(false);
+    });
+    unsubscribers.push(charsUnsub);
+
+    // 2. CHARGER ET FILTRER LES DESSINS
+    const drawingsRef = collection(db, 'cartes', roomId, 'drawings');
+    const drawingsUnsub = onSnapshot(drawingsRef, (snapshot) => {
+      const drws: SavedDrawing[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        // Afficher seulement les dessins de la ville actuelle
+        if (data.cityId === selectedCityId) {
+          const points = data.points || data.paths;
+          if (points && Array.isArray(points)) {
+            drws.push({
+              id: doc.id,
+              points: points,
+              color: data.color || '#000000',
+              width: data.width || 5,
+              type: data.type || 'pen',
+            });
+          }
+        }
+      });
+      setDrawings(drws);
+    });
+    unsubscribers.push(drawingsUnsub);
+
+    // 3. CHARGER ET FILTRER LES NOTES
+    const notesRef = collection(db, 'cartes', roomId, 'text');
+    const notesUnsub = onSnapshot(notesRef, (snapshot) => {
+      const texts: Text[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        // Afficher seulement les notes de la ville actuelle
+        if (data.cityId === selectedCityId) {
+          texts.push({
+            id: doc.id,
+            text: data.content,
+            x: data.x || 0,
+            y: data.y || 0,
+            color: data.color || 'yellow',
+          });
+        }
+      });
+      setNotes(texts);
+    });
+    unsubscribers.push(notesUnsub);
+
+    // 4. CHARGER LE BROUILLARD (Stocké par ID spécifique ex: fog_cityId)
+    // Pour le brouillard, comme c'est un document unique souvent lourd, on utilise des docs séparés dans la même collection
+    const fogDocId = selectedCityId ? `fog_${selectedCityId}` : 'fogData';
+    const fogRef = doc(db, 'cartes', roomId, 'fog', fogDocId);
+
+    console.log(`🔌 Initialisation listener brouillard pour: ${fogDocId}`);
+
+    const fogUnsub = onSnapshot(fogRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        console.log(`📥 RECEPTION BROUILLARD (${fogDocId}) update:`, data.grid ? Object.keys(data.grid).length : 0, "cellules");
+
+        if (data.grid) {
+          const loadedGrid = new Map<string, boolean>(Object.entries(data.grid));
+          setFogGrid(loadedGrid);
+        } else {
+          setFogGrid(new Map());
+        }
+        if (data.fullMapFog !== undefined) {
+          setFullMapFog(data.fullMapFog);
+        }
+      } else {
+        console.log(`📥 RECEPTION BROUILLARD: Document ${fogDocId} introuvable, reset.`);
+        setFogGrid(new Map());
+        setFullMapFog(false);
+      }
+    });
+    unsubscribers.push(fogUnsub);
+
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
+    };
+  }, [roomId, selectedCityId]);
 
 
   type Character = {
@@ -267,6 +456,7 @@ export default function Component() {
     { id: 10, label: 'Déplacer carte', icon: Move },
     { id: 11, label: playerViewMode ? 'Vue MJ' : 'Vue Joueur', icon: playerViewMode ? ScanEye : User },
     { id: 12, label: 'Mesurer', icon: Ruler },
+    { id: 13, label: 'Importer PNJ', icon: Download },
   ] : [
     { id: 1, label: 'Ajouter Texte', icon: Baseline },
     { id: 2, label: 'Dessiner', icon: Pencil },
@@ -393,6 +583,10 @@ export default function Component() {
           setMeasureEnd(null);
           setIsCalibrating(false);
           break;
+        case 13:
+          // Importer PNJ
+          loadNPCsFromOtherCities();
+          break;
       }
     } else {
       // Menu Joueur
@@ -475,14 +669,138 @@ export default function Component() {
     console.log('=========================');
   };
 
+  const loadNPCsFromOtherCities = async () => {
+    if (!roomId || !selectedCityId) return;
+
+    try {
+      setAvailableNPCsFromOtherCities([]);
+
+      // Charger toutes les villes pour avoir les noms
+      const citiesRef = collection(db, 'cartes', roomId, 'cities');
+      const citiesSnapshot = await getDocs(citiesRef);
+      const cityNamesMap = new Map<string, string>();
+      citiesSnapshot.forEach(doc => {
+        cityNamesMap.set(doc.id, doc.data().name || 'Ville inconnue');
+      });
+
+      // Charger tous les personnages
+      const charsRef = collection(db, 'cartes', roomId, 'characters');
+      const charsSnapshot = await getDocs(charsRef);
+
+      const allNPCs: Array<{ npc: Character; cityName: string; cityId: string }> = [];
+
+      charsSnapshot.forEach((doc) => {
+        const data = doc.data();
+        // Filtrer : PNJ seulement, qui ont un cityId, et qui ne sont PAS dans la ville actuelle
+        if (data.type !== 'joueurs' && data.visibility !== 'ally' && data.cityId && data.cityId !== selectedCityId) {
+          allNPCs.push({
+            npc: {
+              id: doc.id,
+              name: data.Nomperso || 'Sans nom',
+              niveau: data.niveau || 1,
+              x: data.x || 0,
+              y: data.y || 0,
+              image: { src: data.imageURL2 || data.imageURL } as HTMLImageElement,
+              visibility: data.visibility || 'hidden',
+              visibilityRadius: data.visibilityRadius || 100,
+              type: data.type || 'pnj',
+              PV: data.PV || 10,
+              Defense: data.Defense || 5,
+              Contact: data.Contact || 5,
+              Distance: data.Distance || 5,
+              Magie: data.Magie || 5,
+              INIT: data.INIT || 5,
+              FOR: data.FOR || 0,
+              DEX: data.DEX || 0,
+              CON: data.CON || 0,
+              SAG: data.SAG || 0,
+              INT: data.INT || 0,
+              CHA: data.CHA || 0,
+              // cityId: data.cityId // Info pour le debug
+            },
+            cityName: cityNamesMap.get(data.cityId) || 'Ville inconnue',
+            cityId: data.cityId,
+          });
+        }
+      });
+
+      console.log(`📦 ${allNPCs.length} PNJ disponibles depuis d'autres villes`);
+      setAvailableNPCsFromOtherCities(allNPCs);
+      setImportDialogOpen(true);
+
+    } catch (error) {
+      console.error('❌ Erreur chargement PNJ:', error);
+    }
+  };
+
+  const importNPCToCurrentCity = async (npcData: any, sourceCityId: string) => {
+    if (!roomId || !selectedCityId) return;
+
+    try {
+      const charsRef = collection(db, 'cartes', roomId, 'characters');
+
+      // Copier le PNJ dans la collection centrale avec le cityId actuel
+      await addDoc(charsRef, {
+        ...npcData,
+        cityId: selectedCityId, // 🆕 ASSIGNER À LA VILLE ACTUELLE
+        x: (Math.random() * (canvasRef.current?.width || 800)) / zoom,
+        y: (Math.random() * (canvasRef.current?.height || 600)) / zoom,
+      });
+
+      console.log(`✅ PNJ importé: ${npcData.Nomperso} vers ville ${selectedCityId}`);
+      alert(`✅ ${npcData.Nomperso} a été importé dans la ville actuelle !`);
+
+    } catch (error) {
+      console.error('❌ Erreur import PNJ:', error);
+      alert('❌ Erreur lors de l\'importation');
+    }
+  };
+
+  // 🎯 NAVIGATION FUNCTIONS
+  const navigateToCity = async (cityId: string) => {
+    setSelectedCityId(cityId);
+    setViewMode('city');
+    // Reset tool modes when entering city
+    setDrawMode(false);
+    setFogMode(false);
+    setPanMode(false);
+    setMeasureMode(false);
+
+    // 🆕 Sauvegarder la ville actuelle dans Firebase (pour synchroniser tous les joueurs)
+    if (roomId && isMJ) {
+      console.log('💾 MJ change de ville, sauvegarde dans Firebase:', cityId);
+      await updateDoc(doc(db, 'cartes', roomId, 'settings', 'general'), {
+        currentCityId: cityId,
+      });
+    }
+  };
+
+  const navigateToWorldMap = async () => {
+    // Limiter la navigation à la world map au MJ uniquement
+    if (!isMJ) {
+      console.log('⛔ Seul le MJ peut naviguer vers la world map');
+      return;
+    }
+
+    setSelectedCityId(null);
+    setViewMode('world');
+    // Reset selections when going back to world
+    setSelectedCharacterIndex(null);
+    setSelectedNoteIndex(null);
+    setSelectedDrawingIndex(null);
+
+    // 🆕 Effacer la ville actuelle dans Firebase (pour indiquer qu'on est sur la world map)
+    if (roomId) {
+      console.log('💾 MJ retourne à la world map, effacement de currentCityId');
+      await updateDoc(doc(db, 'cartes', roomId, 'settings', 'general'), {
+        currentCityId: null,
+      });
+    }
+  };
+
 
   const INITializeFirebaseListeners = (room: string) => {
-    const fondRef = doc(db, 'cartes', room.toString(), 'fond', 'fond1');
-    onSnapshot(fondRef, (doc) => {
-      if (doc.exists() && doc.data().url) {
-        setBackgroundImage(doc.data().url);
-      }
-    });
+    // Le chargement du fond est maintenant géré par un useEffect séparé (voir ligne ~165)
 
     // Écouter le personnage actif (tour_joueur)
     const settingsRef = doc(db, 'cartes', room.toString(), 'settings', 'general');
@@ -490,94 +808,32 @@ export default function Component() {
       if (doc.exists() && doc.data().tour_joueur) {
         setActivePlayerId(doc.data().tour_joueur);
       }
-      // 🎯 Charger les paramètres de mesure
+      // 🆕 CHARGER LA VILLE ACTUELLE (synchronisée pour tous les utilisateurs)
       if (doc.exists()) {
         const data = doc.data();
         if (data.pixelsPerUnit) setPixelsPerUnit(data.pixelsPerUnit);
         if (data.unitName) setUnitName(data.unitName);
+
+        // Synchroniser la ville actuelle
+        if (data.currentCityId) {
+          console.log('🏙️ Ville synchronisée depuis Firebase:', data.currentCityId);
+          setSelectedCityId(data.currentCityId);
+          setViewMode('city');
+        } else if (!isMJ) {
+          // Si pas de ville définie et qu'on n'est pas MJ, on reste sur une vue par défaut
+          console.log('⚠️ Aucune ville définie, en attente du MJ');
+        }
       }
     });
-    // Charger les personnages
-    const charactersRef = collection(db, 'cartes', room.toString(), 'characters');
-    onSnapshot(charactersRef, (snapshot) => {
-      const chars: Character[] = [];
+
+    // 🆕 Charger les villes pour la world map
+    const citiesRef = collection(db, 'cartes', room.toString(), 'cities');
+    onSnapshot(citiesRef, (snapshot) => {
+      const loadedCities: any[] = [];
       snapshot.forEach((doc) => {
-        const data = doc.data();
-        const img = new Image();
-        // Pour les joueurs : utiliser imageURLFinal si disponible, sinon imageURL2, sinon imageURL
-        // Pour les PNJ : utiliser imageURL2 si disponible, sinon imageURL
-        if (data.type === 'joueurs') {
-          img.src = data.imageURLFinal || data.imageURL2 || data.imageURL;
-        } else {
-          img.src = data.imageURL2 || data.imageURL;
-        }
-
-        // Ajoutez tous les champs requis
-        chars.push({
-          id: doc.id,
-          niveau: data.niveau || 1,
-          name: data.Nomperso || '',
-          x: data.x || 0,
-          y: data.y || 0,
-          image: img,
-          visibility: data.visibility || 'hidden',
-          visibilityRadius: parseFloat(data.visibilityRadius) || 100,
-          type: data.type || 'pnj',
-          PV: data.PV || 10, // Assurez-vous que chaque champ est bien extrait
-          Defense: data.Defense || 5,
-          Contact: data.Contact || 5,
-          Distance: data.Distance || 5,
-          Magie: data.Magie || 5,
-          INIT: data.INIT || 5,
-          FOR: data.FOR || 0,
-          DEX: data.DEX || 0,
-          CON: data.CON || 0,
-          SAG: data.SAG || 0,
-          INT: data.INT || 0,
-          CHA: data.CHA || 0,
-        });
+        loadedCities.push({ id: doc.id, ...doc.data() });
       });
-      setCharacters(chars);
-      setLoading(false);
-    });
-
-    // Charger les notes
-    const notesRef = collection(db, 'cartes', room.toString(), 'text');
-    onSnapshot(notesRef, (snapshot) => {
-      const texts = [] as Text[];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        texts.push({
-          id: doc.id,
-          text: data.content,
-          x: data.x || 0,
-          y: data.y || 0,
-          color: data.color || 'yellow'
-        });
-      });
-      setNotes(texts);
-    });
-
-    // Charger les dessins
-    const drawingsRef = collection(db, 'cartes', room.toString(), 'drawings');
-    onSnapshot(drawingsRef, (snapshot) => {
-      const drws: SavedDrawing[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        // Support backward compatibility (old "paths" field) and new "points" field
-        const points = data.points || data.paths;
-
-        if (points && Array.isArray(points)) {
-          drws.push({
-            id: doc.id,
-            points: points,
-            color: data.color || '#000000',
-            width: data.width || 5,
-            type: data.type || 'pen',
-          });
-        }
-      });
-      setDrawings(drws);
+      setCities(loadedCities);
     });
 
     // Charger le brouillard
@@ -666,8 +922,47 @@ export default function Component() {
     const cellY = Math.floor(y / fogCellSize);
     return `${cellX},${cellY}`;
   };
+  // 🆕 SAUVEGARDER BROUILLARD (Déplacé ici pour être accessible)
+  const saveFogGrid = async (newGrid: Map<string, boolean>) => {
+    if (!roomId) return;
 
+    // 🆕 SAUVEGARDER BROUILLARD PAR VILLE (dans la même collection 'fog')
+    // Utiliser selectedCityId directement
+    const targetCityId = selectedCityId;
+    const fogDocId = targetCityId ? `fog_${targetCityId}` : 'fogData';
+    const fogRef = doc(db, 'cartes', roomId, 'fog', fogDocId);
 
+    console.log(`💾 START SAVE FOG GRID`);
+    console.log(`- City ID: ${targetCityId}`);
+    console.log(`- Target Doc: ${fogDocId}`);
+    console.log(`- Cells count: ${newGrid.size}`);
+
+    const gridObj = Object.fromEntries(newGrid);
+
+    try {
+      // ⚠️ UTILISATION DE setDoc SANS MERGE pour forcer le remplacement de la grille
+      // Cela permet de SUPPRIMER les clés qui ne sont plus dans newGrid
+      // On doit réinclure fullMapFog pour ne pas le perdre
+      await setDoc(fogRef, {
+        grid: gridObj,
+        fullMapFog: fullMapFog // On utilise la valeur du state actuel
+      });
+      console.log(`✅ FOG SAVED SUCCESS to ${fogDocId}`);
+    } catch (error) {
+      console.error("❌ Erreur sauvegarde brouillard:", error);
+    }
+  };
+
+  const saveFullMapFog = async (status: boolean) => {
+    if (!roomId) return;
+
+    // 🆕 SAUVEGARDER BROUILLARD PAR VILLE
+    const fogDocId = selectedCityId ? `fog_${selectedCityId}` : 'fogData';
+
+    await setDoc(doc(db, 'cartes', roomId, 'fog', fogDocId), {
+      fullMapFog: status
+    }, { merge: true });
+  };
 
   const isCellInFog = (x: number, y: number): boolean => {
     const key = getCellKey(x, y);
@@ -794,9 +1089,7 @@ export default function Component() {
 
     // Sauvegarder en Firebase
     if (roomId) {
-      const fogDocRef = doc(db, 'cartes', String(roomId), 'fog', 'fogData');
-      const gridObject = Object.fromEntries(newFogGrid);
-      await setDoc(fogDocRef, { grid: gridObject }, { merge: true });
+      await saveFogGrid(newFogGrid);
     }
   };
 
@@ -1462,10 +1755,20 @@ export default function Component() {
         // Get the download URL for the uploaded file
         const downloadURL = await getDownloadURL(storageRef);
 
-        // Update Firestore with the download URL instead of the image data
-        await setDoc(doc(db, 'cartes', roomId, 'fond', 'fond1'), {
-          url: downloadURL,
-        }, { merge: true });
+        // 🆕 Sauvegarder selon le mode (ville ou global)
+        if (selectedCityId) {
+          // Mode ville : sauvegarder dans la ville spécifique
+          console.log('💾 Sauvegarde fond pour la ville:', selectedCityId, downloadURL);
+          await updateDoc(doc(db, 'cartes', roomId, 'cities', selectedCityId), {
+            backgroundUrl: downloadURL,
+          });
+        } else {
+          // Mode global : sauvegarder dans fond1 (pour compatibilité)
+          console.log('💾 Sauvegarde fond global:', downloadURL);
+          await setDoc(doc(db, 'cartes', roomId, 'fond', 'fond1'), {
+            url: downloadURL,
+          }, { merge: true });
+        }
 
         // Set the background image locally (optional, if needed for immediate display)
         setBackgroundImage(downloadURL);
@@ -1479,7 +1782,11 @@ export default function Component() {
   const handleCharacterSubmit = async () => {
     if (newCharacter.name && newCharacter.image && roomId) {
       const storage = getStorage();
+
+      // 🆕 RETOUR À LA COLLECTION CENTRALE
       const charactersCollectionRef = collection(db, 'cartes', roomId.toString(), 'characters');
+      const isAlly = newCharacter.visibility === 'ally';
+
       // Charger l'image dans Firebase Storage
       try {
         // Créez une référence pour l'image dans le dossier "characters"
@@ -1515,7 +1822,9 @@ export default function Component() {
             SAG: newCharacter.SAG,
             INT: newCharacter.INT,
             CHA: newCharacter.CHA,
-            type: "pnj"
+            type: "pnj",
+            // 🆕 AJOUT DU CITY ID si c'est un PNJ (les alliés restent globaux)
+            cityId: (!isAlly && selectedCityId) ? selectedCityId : null
           });
         }
 
@@ -1613,10 +1922,12 @@ export default function Component() {
       try {
         await addDoc(collection(db, 'cartes', roomIdStr, 'text'), {
           content: newNote.text,
-          color: newNote.color,
+          color: newNote.color || 'yellow',
           fontSize: newNote.fontSize,
-          x: (Math.random() * (canvasRef.current?.width || 0) + offset.x) / zoom,
-          y: (Math.random() * (canvasRef.current?.height || 0) + offset.y) / zoom,
+          x: (Math.random() * (canvasRef.current?.width || 800) + offset.x) / zoom,
+          y: (Math.random() * (canvasRef.current?.height || 600) + offset.y) / zoom,
+          // 🆕 AJOUT DU CITY ID
+          cityId: selectedCityId
         });
         setAddNoteDialogOpen(false);
         setNewNote({ text: '', color: '#ffff00', fontSize: 16 });
@@ -2214,6 +2525,8 @@ export default function Component() {
           const hasChanged = currentChar.x !== originalPos.x || currentChar.y !== originalPos.y;
 
           if (hasChanged && roomId && currentChar?.id) {
+            // 🆕 RETOUR À LA COLLECTION CENTRALE
+            // Tous les personnages sont dans 'characters', on a juste besoin de l'ID
             await updateDoc(doc(db, 'cartes', String(roomId), 'characters', currentChar.id), {
               x: currentChar.x,
               y: currentChar.y
@@ -2275,7 +2588,9 @@ export default function Component() {
             points: currentPath,
             color: drawingColor,
             width: drawingSize,
-            type: currentTool === 'eraser' ? 'pen' : currentTool // Should not happen but fallback
+            type: currentTool === 'eraser' ? 'pen' : currentTool,
+            // 🆕 AJOUT DU CITY ID
+            cityId: selectedCityId
           };
           const docRef = await addDoc(collection(db, 'cartes', String(roomId), 'drawings'), newDrawingData);
           setDrawings(prev => [...prev, { ...newDrawingData, id: docRef.id }]);
@@ -2521,25 +2836,16 @@ export default function Component() {
   };
 
   const clearFog = async () => {
-    if (!db) {
-      console.error("Database instance 'db' is not initialisée.");
-      return;
-    }
+    // Effacer toute la grille de brouillard localement
+    const emptyGrid = new Map<string, boolean>();
+    setFogGrid(emptyGrid);
 
-    if (!roomId) {
-      console.error("Room ID is missing or undefined.");
-      return;
-    }
-
-    try {
-      // Effacer toute la grille de brouillard
-      setFogGrid(new Map());
-
-      // Supprimer de Firebase
-      const fogDocRef = doc(db, 'cartes', String(roomId), 'fog', 'fogData');
-      await setDoc(fogDocRef, { grid: {} }, { merge: true });
-    } catch (error) {
-      console.error('Error clearing fog:', error);
+    // Sauvegarder dans Firebase via la fonction centralisée
+    console.log("🧹 Clearing fog...");
+    if (roomId) {
+      await saveFogGrid(emptyGrid);
+    } else {
+      console.error("❌ Room ID missing when trying to clear fog");
     }
   };
 
@@ -2614,24 +2920,48 @@ export default function Component() {
     return <div>Veuillez vous connecter pour accéder à la carte</div>
   }
 
+  // 🆕 RENDER WORLD MAP if in world mode
+  if (viewMode === 'world') {
+    return (
+      <div className="h-screen w-full relative">
+        <CitiesManager onCitySelect={navigateToCity} />
+      </div>
+    );
+  }
+
+  // 🎯 RENDER CITY MAP (existing functionality)
   return (
     <div className="flex flex-col relative">
+      {/* 🆕 Bouton Retour à la World Map - UNIQUEMENT POUR LE MJ */}
+      {/* 🆕 Bouton Retour à la World Map - UNIQUEMENT POUR LE MJ (DEPLACÉ EN HAUT À DROITE) */}
+      {/* L'ancien emplacement en haut à gauche est supprimé pour Importer PNJ et Retour au Monde */}
+
       {/* 🎯 Contrôles de zoom flottants en haut à droite */}
-      <div className="absolute top-4 right-4 z-[5] flex flex-col gap-2">
+      <div className="absolute top-4 right-4 z-[5] flex flex-col gap-2 items-end">
         <Button
           onClick={() => handleZoom(0.1)}
-          className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm"
+          className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm origin-center"
           title="Zoomer"
         >
           <Plus className="w-4 h-4" />
         </Button>
         <Button
           onClick={() => handleZoom(-0.1)}
-          className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm"
+          className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm origin-center"
           title="Dézoomer"
         >
           <Minus className="w-4 h-4" />
         </Button>
+        {/* 🆕 Bouton Retour à la World  - Déplacé ici */}
+        {isMJ && (
+          <Button
+            onClick={navigateToWorldMap}
+            className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm origin-center"
+            title="Retour à la carte du monde"
+          >
+            <MapPin className="w-4 h-4" />
+          </Button>
+        )}
       </div>
 
       {/* 🎯 Indicateurs de mode actif - REPLACED BY CENTERED OVERLAYS */}
@@ -2703,6 +3033,7 @@ export default function Component() {
                   }}
                 />
               ))}
+
               <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-zinc-600 hover:border-white transition-colors">
                 <input
                   type="color"
@@ -3086,7 +3417,14 @@ export default function Component() {
       {isMJ && selectedFogIndex !== null && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
           <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
-            <Button onClick={clearFog}>
+            <Button onClick={() => {
+              console.log("🧨 Radial Menu: Suppression totale du brouillard");
+              setFullMapFog(false);
+              saveFullMapFog(false);
+              // 🆕 SUPPRIMER AUSSI TOUTE LA GRILLE DE BROUILLARD
+              setFogGrid(new Map());
+              saveFogGrid(new Map());
+            }}>
               <X className="w-4 h-4 mr-2" /> Supprimer le brouillard
             </Button>
           </div>
@@ -3906,6 +4244,103 @@ export default function Component() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setCalibrationDialogOpen(false)}>Annuler</Button>
             <Button onClick={handleCalibrationSubmit} className="bg-[#FFD700] text-black hover:bg-[#e6c200]">Valider</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
+      {/* 🆕 DIALOGUE D'IMPORTATION DE PNJ */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[70vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">📥 Importer un PNJ depuis une autre ville</DialogTitle>
+          </DialogHeader>
+
+          <ScrollArea className="flex-1">
+            {availableNPCsFromOtherCities.length === 0 ? (
+              <div className="text-center py-12 text-gray-400">
+                <p className="text-lg">Aucun PNJ disponible dans les autres villes</p>
+                <p className="text-sm mt-2">Créez des PNJ dans d'autres villes pour pouvoir les importer ici</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {availableNPCsFromOtherCities.map((item, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-4 p-3 border border-gray-700 rounded-lg bg-gray-800/30 hover:bg-gray-700/30 transition-colors"
+                  >
+                    {/* Image du PNJ */}
+                    <div className="w-16 h-16 rounded-md overflow-hidden bg-gray-900 border border-gray-600 flex-shrink-0">
+                      {item.npc.image?.src ? (
+                        <img
+                          src={item.npc.image.src}
+                          alt={item.npc.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-2xl text-gray-600">
+                          👤
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Info du PNJ */}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-semibold text-white truncate">
+                        {item.npc.name}
+                      </h3>
+                      <p className="text-sm text-gray-400 truncate">
+                        📍 {item.cityName}
+                      </p>
+                      <div className="flex gap-3 mt-1 text-xs text-gray-300">
+                        <span>Niv. {item.npc.niveau}</span>
+                        <span>❤️ {item.npc.PV}</span>
+                      </div>
+                    </div>
+
+                    {/* Bouton Import */}
+                    <Button
+                      onClick={() => {
+                        // Extraire les données sans l'objet image
+                        const { image, ...npcDataWithoutImage } = item.npc;
+                        // Reconstruire avec l'URL de l'image
+                        const npcDataToImport = {
+                          Nomperso: item.npc.name,
+                          imageURL2: item.npc.image?.src,
+                          niveau: item.npc.niveau,
+                          visibility: item.npc.visibility,
+                          visibilityRadius: item.npc.visibilityRadius,
+                          type: item.npc.type,
+                          PV: item.npc.PV,
+                          Defense: item.npc.Defense,
+                          Contact: item.npc.Contact,
+                          Distance: item.npc.Distance,
+                          Magie: item.npc.Magie,
+                          INIT: item.npc.INIT,
+                          FOR: item.npc.FOR,
+                          DEX: item.npc.DEX,
+                          CON: item.npc.CON,
+                          SAG: item.npc.SAG,
+                          INT: item.npc.INT,
+                          CHA: item.npc.CHA,
+                        };
+                        importNPCToCurrentCity(npcDataToImport, item.cityId);
+                      }}
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      size="sm"
+                    >
+                      Importer
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </ScrollArea>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+              Fermer
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
