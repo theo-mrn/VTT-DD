@@ -24,7 +24,18 @@ import { WidgetAvatar, WidgetDetails, WidgetStats, WidgetVitals, WidgetCombatSta
 import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { LayoutDashboard, RotateCcw, Settings } from 'lucide-react';
+import { LayoutDashboard, RotateCcw, Settings, Minus, Plus } from 'lucide-react';
+import {
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
+import { Button } from "@/components/ui/button";
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -397,6 +408,21 @@ export default function Component() {
     setRollResult(roll + conModifier);
   };
 
+  const handleUpdatePV = async (amount: number) => {
+    if (!selectedCharacter) return;
+    const currentPV = selectedCharacter.PV || 0;
+    const maxPV = selectedCharacter.PV_Max || 0;
+    let newPV = currentPV + amount;
+
+    if (newPV > maxPV) newPV = maxPV;
+
+    try {
+      await updateCharacter(selectedCharacter.id, { PV: newPV });
+    } catch (e) {
+      console.error("Error updating PV", e);
+    }
+  };
+
   const LevelUpConfirmationModal: React.FC<{ onClose: () => void; updatedCharacter: Character }> = ({ onClose, updatedCharacter }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center">
@@ -710,7 +736,88 @@ export default function Component() {
                 <div key="avatar" className="overflow-hidden h-full"><WidgetAvatar style={boxStyle} /></div>
                 <div key="details" className="overflow-hidden h-full"><WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} /></div>
                 <div key="stats" className="overflow-hidden h-full"><WidgetStats style={boxStyle} /></div>
-                <div key="vitals" className="overflow-hidden h-full"><WidgetVitals style={boxStyle} /></div>
+                <div key="vitals" className="overflow-hidden h-full">
+                  <Drawer>
+                    <DrawerTrigger asChild>
+                      <button className="w-full h-full text-left p-0 bg-transparent border-0 cursor-pointer block hover:brightness-110 transition-all">
+                        <WidgetVitals style={boxStyle} />
+                      </button>
+                    </DrawerTrigger>
+                    <DrawerContent className="bg-[#1c1c1c] border-[#3a3a3a] text-[#d4d4d4]">
+                      <div className="mx-auto w-full max-w-sm">
+                        <DrawerHeader>
+                          <DrawerTitle className="text-[#c0a080]">Gestion des Points de Vie</DrawerTitle>
+                          <DrawerDescription className="text-[#a0a0a0]">Ajustez les points de vie de votre personnage.</DrawerDescription>
+                        </DrawerHeader>
+                        <div className="p-4 pb-0">
+                          <div className="flex items-center justify-center space-x-2">
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-10 w-10 shrink-0 rounded-full bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]/80 text-[#d4d4d4]"
+                              onClick={() => handleUpdatePV(-5)}
+                              disabled={!selectedCharacter}
+                            >
+                              <span className="font-bold">-5</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 shrink-0 rounded-full bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]/80 text-[#d4d4d4]"
+                              onClick={() => handleUpdatePV(-1)}
+                              disabled={!selectedCharacter}
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+
+                            <div className="flex-1 text-center">
+                              <div className="text-5xl font-bold tracking-tighter text-[#d4d4d4]">
+                                {selectedCharacter?.PV}
+                              </div>
+                              <div className="text-[0.70rem] uppercase text-muted-foreground text-[#a0a0a0]">
+                                PV ACTUELS / {selectedCharacter?.PV_Max} MAX
+                              </div>
+                            </div>
+
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-8 w-8 shrink-0 rounded-full bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]/80 text-[#d4d4d4]"
+                              onClick={() => handleUpdatePV(1)}
+                              disabled={!selectedCharacter || (selectedCharacter?.PV || 0) >= (selectedCharacter?.PV_Max || 0)}
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              className="h-10 w-10 shrink-0 rounded-full bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]/80 text-[#d4d4d4]"
+                              onClick={() => handleUpdatePV(5)}
+                              disabled={!selectedCharacter || (selectedCharacter?.PV || 0) >= (selectedCharacter?.PV_Max || 0)}
+                            >
+                              <span className="font-bold">+5</span>
+                            </Button>
+                          </div>
+                          <div className="mt-8 flex justify-center">
+                            <Button
+                              variant="ghost"
+                              className="text-[#80c0a0] hover:text-[#80c0a0] hover:bg-[#2a2a2a]"
+                              onClick={() => handleUpdatePV((selectedCharacter?.PV_Max || 0) - (selectedCharacter?.PV || 0))}
+                              disabled={!selectedCharacter || (selectedCharacter?.PV || 0) >= (selectedCharacter?.PV_Max || 0)}
+                            >
+                              Repos complet (Full PV)
+                            </Button>
+                          </div>
+                        </div>
+                        <DrawerFooter>
+                          <DrawerClose asChild>
+                            <Button variant="outline" className="bg-[#2a2a2a] border-[#3a3a3a] text-[#d4d4d4] hover:bg-[#3a3a3a]/80">Fermer</Button>
+                          </DrawerClose>
+                        </DrawerFooter>
+                      </div>
+                    </DrawerContent>
+                  </Drawer>
+                </div>
                 <div key="combat_stats" className="overflow-hidden h-full"><WidgetCombatStats style={boxStyle} /></div>
                 <div key="inventory" className="overflow-hidden h-full">
                   <InventoryManagement2
