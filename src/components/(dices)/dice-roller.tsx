@@ -3,16 +3,22 @@
 import React, { useState, useEffect } from "react";
 // import { DiceRoll } from "@dice-roller/rpg-dice-roller"; // Removed unused import
 import { motion, AnimatePresence } from "framer-motion";
-import { Dice1, RotateCcw, History, Trash2, Shield, BarChart3 } from "lucide-react";
+import { Dice1, RotateCcw, History, Trash2, Shield, BarChart3, Palette, Check } from "lucide-react";
 import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy, serverTimestamp } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-// import { NumberTicker } from "@/components/magicui/number-ticker"; // Removed as per user request
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { DiceStats } from "./dice-stats";
+import { DICE_SKINS, DiceSkin } from "./throw";
 
 // Types
 interface RollResult {
@@ -62,6 +68,17 @@ export function DiceRoller() {
   const [characterName, setCharacterName] = useState("Utilisateur");
   const [characterModifiers, setCharacterModifiers] = useState<{ [key: string]: number }>({});
 
+
+  const [selectedSkinId, setSelectedSkinId] = useState("gold");
+  const [isSkinDialogOpen, setIsSkinDialogOpen] = useState(false);
+
+  // Charger le skin depuis le localStorage au chargement
+  useEffect(() => {
+    const savedSkin = localStorage.getItem("vtt_dice_skin");
+    if (savedSkin && DICE_SKINS[savedSkin]) {
+      setSelectedSkinId(savedSkin);
+    }
+  }, []);
 
   // Effet pour afficher les détails 1 seconde après le résultat
   useEffect(() => {
@@ -303,7 +320,8 @@ export function DiceRoller() {
       window.dispatchEvent(new CustomEvent('vtt-trigger-3d-roll', {
         detail: {
           rollId,
-          requests: requests3D
+          requests: requests3D,
+          skinId: selectedSkinId
         }
       }));
     });
@@ -567,25 +585,27 @@ export function DiceRoller() {
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-6 bg-[var(--bg-dark)] min-h-screen relative">
+    <div className="mx-auto p-3 space-y-4 bg-[var(--bg-dark)] min-h-screen relative">
       {/* En-tête */}
 
 
       {/* Contrôles de confidentialité */}
       {roomId && (
         <Card className="card">
-          <CardContent className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <Label htmlFor="private-switch" className="text-[var(--text-primary)]">Lancer privé</Label>
-              <Switch id="private-switch" checked={isPrivate} onCheckedChange={setIsPrivate} />
+          <CardContent className="p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Switch id="private-switch" checked={isPrivate} onCheckedChange={setIsPrivate} />
+                <Label htmlFor="private-switch" className="text-[var(--text-primary)] text-sm">Privé</Label>
+              </div>
               {userName && (
-                <div className="flex items-center gap-3 ml-4">
+                <div className="flex items-center gap-2">
                   {userAvatar && (
-                    <Avatar className="h-16 w-16">
+                    <Avatar className="h-8 w-8">
                       <AvatarImage src={userAvatar} alt="Avatar" className="object-contain" />
                     </Avatar>
                   )}
-                  <span className="text-base font-medium text-[var(--text-primary)]">{userName}</span>
+                  <span className="text-sm font-medium text-[var(--text-primary)] truncate max-w-[100px]">{userName}</span>
                 </div>
               )}
             </div>
@@ -595,7 +615,7 @@ export function DiceRoller() {
 
       {/* Input principal */}
       <Card className="card">
-        <CardContent className="space-y-4">
+        <CardContent className="p-3 space-y-3">
           <div className="flex gap-2">
             <input
               type="text"
@@ -623,6 +643,69 @@ export function DiceRoller() {
               )}
               {isLoading ? "Lancement..." : "Lancer"}
             </Button>
+          </div>
+
+          <div className="pt-2 flex justify-between items-center">
+            <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
+              <span
+                className="w-3 h-3 rounded-full border border-white/20"
+                style={{ backgroundColor: DICE_SKINS[selectedSkinId]?.bodyColor || '#f59e0b' }}
+              />
+              <span className="opacity-80">Skin: {DICE_SKINS[selectedSkinId]?.name || "Classique"}</span>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs gap-1.5 bg-transparent border-white/10 hover:bg-white/5"
+              onClick={() => setIsSkinDialogOpen(true)}
+            >
+              <Palette className="h-3.5 w-3.5" />
+              Apparence
+            </Button>
+
+            <Dialog open={isSkinDialogOpen} onOpenChange={setIsSkinDialogOpen}>
+              <DialogContent className="bg-[#242424] border-[#333] text-[var(--text-primary)] sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Choisir l'apparence des dés</DialogTitle>
+                </DialogHeader>
+                <div className="grid grid-cols-2 gap-3 py-4">
+                  {Object.values(DICE_SKINS).map((skin) => (
+                    <button
+                      key={skin.id}
+                      onClick={() => {
+                        setSelectedSkinId(skin.id);
+                        localStorage.setItem("vtt_dice_skin", skin.id);
+                        setIsSkinDialogOpen(false);
+                      }}
+                      className={`relative flex items-center gap-3 p-3 rounded-lg border transition-all overflow-hidden group 
+                        ${selectedSkinId === skin.id
+                          ? "border-[var(--accent-gold)] bg-[var(--accent-gold)]/10"
+                          : "border-white/5 hover:border-white/10 hover:bg-white/5"
+                        }`}
+                    >
+                      <div
+                        className="w-10 h-10 rounded-full flex items-center justify-center shadow-inner"
+                        style={{ backgroundColor: skin.bodyColor }}
+                      >
+                        <div className="w-6 h-6 rounded-full border-2 border-white/20" style={{ borderColor: 'rgba(255,255,255,0.5)' }}></div>
+                      </div>
+
+                      <div className="text-left">
+                        <div className="font-medium text-sm text-[var(--text-primary)]">{skin.name}</div>
+                        <div className="text-[10px] opacity-60">Thème {skin.id}</div>
+                      </div>
+
+                      {selectedSkinId === skin.id && (
+                        <div className="absolute right-3 text-[var(--accent-gold)]">
+                          <Check className="h-4 w-4" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
 
           {error && (
@@ -702,124 +785,124 @@ export function DiceRoller() {
       </AnimatePresence>
 
       {/* Onglets Historique / Statistiques */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setShowStats(false)}
-              className={`flex items-center gap-2 ${!showStats ? "button-primary" : "button-cancel"
-                }`}
-            >
-              <History className="h-5 w-5" />
-              Historique ({getFilteredRolls().length})
-            </Button>
-            <Button
-              onClick={() => setShowStats(true)}
-              className={`flex items-center gap-2 ${showStats ? "button-primary" : "button-cancel"
-                }`}
-            >
-              <BarChart3 className="h-5 w-5" />
-              Statistiques
-            </Button>
-          </div>
-          <div className="flex gap-2">
-            {firebaseRolls.length > 0 && isMJ && !showStats && (
-              <Button
-                onClick={clearFirebaseRolls}
-                className="button-cancel flex items-center gap-1"
-              >
-                <Trash2 className="h-3 w-3" />
-                Effacer tout
-              </Button>
-            )}
-          </div>
+      <div className="space-y-2">
+        <div className="flex gap-2 w-full">
+          <Button
+            onClick={() => setShowStats(false)}
+            className={`flex-1 flex items-center justify-center gap-2 px-2 py-1.5 text-xs ${!showStats ? "button-primary" : "button-cancel"
+              }`}
+            size="sm"
+          >
+            <History className="h-4 w-4" />
+            <span className="truncate">Historique ({getFilteredRolls().length})</span>
+          </Button>
+          <Button
+            onClick={() => setShowStats(true)}
+            className={`flex-1 flex items-center justify-center gap-2 px-2 py-1.5 text-xs ${showStats ? "button-primary" : "button-cancel"
+              }`}
+            size="sm"
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span>Stats</span>
+          </Button>
         </div>
 
-        <AnimatePresence mode="wait">
-          {showStats ? (
-            <motion.div
-              key="stats"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              <DiceStats
-                rolls={getFilteredRolls()}
-                currentUserName={characterName}
-                isMJ={isMJ}
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="history"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-            >
-              {showHistory && (
-                <div className="overflow-y-auto">
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="space-y-2"
-                  >
-                    {getFilteredRolls().length === 0 ? (
-                      <div className="text-center text-[var(--text-secondary)] py-8">
-                        Aucun lancer dans l&apos;historique
-                      </div>
-                    ) : (
-                      getFilteredRolls().map((roll, index) => (
-                        <motion.div
-                          key={roll.id}
-                          initial={{ opacity: 0, x: -20 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                        >
-                          <Card className="card">
-                            <CardContent className="p-3 flex items-center space-x-3">
-                              {roll.userAvatar && (
-                                <Avatar className="h-16 w-16">
-                                  <AvatarImage src={roll.userAvatar} alt="Avatar" className="object-contain" />
-                                </Avatar>
-                              )}
-                              <div className="flex-grow">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm font-medieval text-[var(--text-primary)]">{roll.userName}</span>
-                                  {roll.isPrivate && <Shield className="h-4 w-4 text-[var(--accent-brown)]" />}
-                                </div>
-                                <span className="text-sm font-medium text-[var(--text-primary)]">
-                                  {roll.notation}
-                                </span>
-                                <div className="flex items-center gap-1">
-                                  <span className="text-lg font-bold text-[var(--text-primary)]">Total: {roll.total}</span>
-                                </div>
-                                <div className="text-xs text-[var(--text-secondary)] font-mono mt-1">
-                                  {roll.output}
-                                </div>
-                              </div>
-                              <Button
-                                onClick={() => rerollFromFirebase(roll)}
-                                className="button-secondary opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all"
-                                size="sm"
-                              >
-                                <RotateCcw className="h-3 w-3" />
-                                Relancer
-                              </Button>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      ))
-                    )}
-                  </motion.div>
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {firebaseRolls.length > 0 && isMJ && !showStats && (
+          <Button
+            onClick={clearFirebaseRolls}
+            className="w-full button-cancel flex items-center justify-center gap-2 px-2 py-1.5 text-xs"
+            size="sm"
+          >
+            <Trash2 className="h-3 w-3" />
+            Effacer tout l'historique
+          </Button>
+        )}
       </div>
+
+      <AnimatePresence mode="wait">
+        {showStats ? (
+          <motion.div
+            key="stats"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <DiceStats
+              rolls={getFilteredRolls()}
+              currentUserName={characterName}
+              isMJ={isMJ}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="history"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            {showHistory && (
+              <div className="overflow-y-auto">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="space-y-2"
+                >
+                  {getFilteredRolls().length === 0 ? (
+                    <div className="text-center text-[var(--text-secondary)] py-8">
+                      Aucun lancer dans l&apos;historique
+                    </div>
+                  ) : (
+                    getFilteredRolls().map((roll, index) => (
+                      <motion.div
+                        key={roll.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <Card className="card">
+                          <CardContent className="p-3 flex items-center space-x-3">
+                            {roll.userAvatar && (
+                              <Avatar className="h-16 w-16">
+                                <AvatarImage src={roll.userAvatar} alt="Avatar" className="object-contain" />
+                              </Avatar>
+                            )}
+                            <div className="flex-grow">
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm font-medieval text-[var(--text-primary)]">{roll.userName}</span>
+                                {roll.isPrivate && <Shield className="h-4 w-4 text-[var(--accent-brown)]" />}
+                              </div>
+                              <span className="text-sm font-medium text-[var(--text-primary)]">
+                                {roll.notation}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <span className="text-lg font-bold text-[var(--text-primary)]">Total: {roll.total}</span>
+                              </div>
+                              <div className="text-xs text-[var(--text-secondary)] font-mono mt-1">
+                                {roll.output}
+                              </div>
+                            </div>
+                            <Button
+                              onClick={() => rerollFromFirebase(roll)}
+                              className="button-secondary opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all"
+                              size="sm"
+                            >
+                              <RotateCcw className="h-3 w-3" />
+                              Relancer
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))
+                  )}
+                </motion.div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
-} 
+}

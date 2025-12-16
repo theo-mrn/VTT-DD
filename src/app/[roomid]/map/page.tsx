@@ -15,8 +15,33 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import CharacterSheet from '@/components/(fiches)/CharacterSheet'; // Importez le composant de fiche de personnage
 import { Component as RadialMenu } from '@/components/ui/radial-menu'; // Menu radial
 import CitiesManager from '@/components/(worldmap)/CitiesManager'; // 🆕 Import du gestionnaire de villes
+import InfoComponent, { type InfoSection } from "@/components/(infos)/info";
+import { BookOpen } from "lucide-react";
 
 
+
+// 🆕 InfoComponentWrapper Definition
+function InfoComponentWrapper({ onClose }: { onClose: () => void }) {
+  const [activeSection, setActiveSection] = useState<InfoSection>(null);
+
+  return (
+    <>
+      {!activeSection && (
+        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-40 bg-[#242424] rounded-lg shadow-lg border border-[#3a3a3a] p-2 pointer-events-auto">
+          <button
+            onClick={onClose}
+            className="absolute -top-2 -right-2 rounded-full p-1 bg-[#1c1c1c] text-[#d4d4d4] hover:bg-[#333] transition-colors shadow-lg border border-[#3a3a3a] z-10"
+            aria-label="Fermer"
+          >
+            <X className="h-3 w-3" />
+          </button>
+          <InfoComponent activeSection={activeSection} setActiveSection={setActiveSection} renderButtons={true} />
+        </div>
+      )}
+      <InfoComponent activeSection={activeSection} setActiveSection={setActiveSection} renderButtons={false} />
+    </>
+  );
+}
 
 export default function Component() {
   const params = useParams();
@@ -43,6 +68,7 @@ export default function Component() {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [notes, setNotes] = useState<Text[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [showInfo, setShowInfo] = useState(false); // 🆕 State for InfoComponent visibility
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
   const [selectedCharacterForSheet, setSelectedCharacterForSheet] = useState<string | null>(null);
   const [newCharacter, setNewCharacter] = useState<NewCharacter>({
@@ -2952,6 +2978,15 @@ export default function Component() {
         >
           <Minus className="w-4 h-4" />
         </Button>
+        {/* 🆕 Bouton Livre / Info */}
+        <Button
+          onClick={() => setShowInfo(!showInfo)}
+          className={`w-10 h-10 p-0 border border-gray-600 backdrop-blur-sm origin-center ${showInfo ? 'bg-amber-900/80 text-amber-100' : 'bg-black/50 hover:bg-black/70'
+            }`}
+          title="Ouvrir le livre"
+        >
+          <BookOpen className="w-4 h-4" />
+        </Button>
         {/* 🆕 Bouton Retour à la World  - Déplacé ici */}
         {isMJ && (
           <Button
@@ -2963,6 +2998,41 @@ export default function Component() {
           </Button>
         )}
       </div>
+
+      {/* 🆕 InfoComponentWrapper (Livre Central) */}
+      {showInfo && (
+        <InfoComponentWrapper onClose={() => setShowInfo(false)} />
+      )}
+
+      {/* Styles pour l'animation de livre */}
+      <style jsx global>{`
+        @keyframes bookOpen {
+          0% {
+            opacity: 0;
+            transform: perspective(2000px) rotateY(-90deg);
+            transform-origin: right center; /* Changed to right center for right-side opening */
+          }
+          50% {
+            opacity: 0.5;
+          }
+          100% {
+            opacity: 1;
+            transform: perspective(2000px) rotateY(0deg);
+            transform-origin: right center;
+          }
+        }
+
+        @keyframes fadeIn {
+          0% {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
 
       {/* 🎯 Indicateurs de mode actif - REPLACED BY CENTERED OVERLAYS */}
 

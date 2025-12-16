@@ -129,6 +129,7 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
         <button onClick={() => handleIconClick("NewComponent")} className="p-1.5 sm:p-2">
           <Edit className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "NewComponent" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button>
+
         <button onClick={() => handleIconClick("DiceRoller")} className="p-1.5 sm:p-2">
           <Dice5 className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "DiceRoller" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button>
