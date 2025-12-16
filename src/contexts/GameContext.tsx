@@ -38,19 +38,19 @@ interface GameContextType {
   isMJ: boolean;
   persoId: string | null;
   playerData: PlayerData | null;
-  
+
   // États d'authentification
   user: UserData | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   isHydrated: boolean;
-  
+
   // Actions
   setIsMJ: (isMJ: boolean) => void;
   setPersoId: (persoId: string | null) => void;
   setPlayerData: (playerData: PlayerData | null) => void;
   loadCharacterData: (roomId: string, persoId: string) => Promise<void>;
-  
+
   // Actions d'authentification
   refreshUserData: () => Promise<void>;
 }
@@ -104,7 +104,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [isMJ, setIsMJState] = useState(false);
   const [persoId, setPersoIdState] = useState<string | null>(null);
   const [playerData, setPlayerDataState] = useState<PlayerData | null>(null);
-  
+
   // États d'authentification
   const [user, setUser] = useState<UserData | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -138,7 +138,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       if (charSnap.exists()) {
         const charData = charSnap.data();
-        
+
         // Créer l'objet PlayerData avec toutes les valeurs nécessaires
         const playerDataObj: PlayerData = {
           id: persoId,
@@ -198,14 +198,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
       console.log('🔍 Restoring player data from Firebase for uid:', uid);
       const userRef = doc(db, 'users', uid);
       const userDoc = await getDoc(userRef);
-      
+
       if (userDoc.exists()) {
         const userData = userDoc.data();
         console.log('📊 User data from Firebase:', userData);
         console.log('🎭 Role:', userData.role);
         console.log('👤 PersoId:', userData.persoId);
         console.log('🏠 RoomId:', userData.room_id);
-        
+
         // Logique corrigée : Prioriser le champ 'role' pour déterminer si l'utilisateur est MJ
         if (userData.role === 'MJ') {
           console.log('✅ User has MJ role, treating as MJ');
@@ -213,19 +213,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
           setPersoId(userData.persoId || null);
           setPlayerData(null);
           console.log("🎭 User restored as MJ");
-          
+
           // Si le MJ a aussi un persoId, charger les données du personnage pour référence
           if (userData.persoId && userData.room_id) {
             console.log('📥 Loading MJ character data for reference:', userData.persoId);
             const characterRef = doc(db, `cartes/${userData.room_id}/characters`, userData.persoId);
             const characterDoc = await getDoc(characterRef);
-            
+
             if (characterDoc.exists()) {
               const characterData = characterDoc.data();
               console.log('🧙‍♂️ MJ character data loaded for reference:', characterData);
-              
-              const fullCharacterData: PlayerData = { 
-                id: userData.persoId, 
+
+              const fullCharacterData: PlayerData = {
+                id: userData.persoId,
                 Nomperso: characterData.Nomperso || userData.perso,
                 imageURL: characterData.imageURL,
                 imageURL2: characterData.imageURL2,
@@ -248,24 +248,24 @@ export function GameProvider({ children }: { children: ReactNode }) {
                 visibility: characterData.visibility,
                 visibilityRadius: characterData.visibilityRadius,
               };
-              
+
               setPlayerData(fullCharacterData);
             }
           }
         } else if (userData.persoId && userData.room_id) {
           console.log('✅ User has persoId and no MJ role, treating as PLAYER');
-          
+
           // Récupérer les données complètes du personnage
           console.log('📥 Loading character data for persoId:', userData.persoId);
           const characterRef = doc(db, `cartes/${userData.room_id}/characters`, userData.persoId);
           const characterDoc = await getDoc(characterRef);
-          
+
           if (characterDoc.exists()) {
             const characterData = characterDoc.data();
             console.log('🧙‍♂️ Character data loaded:', characterData);
-            
-            const fullCharacterData: PlayerData = { 
-              id: userData.persoId, 
+
+            const fullCharacterData: PlayerData = {
+              id: userData.persoId,
               Nomperso: characterData.Nomperso || userData.perso,
               imageURL: characterData.imageURL,
               imageURL2: characterData.imageURL2,
@@ -288,7 +288,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
               visibility: characterData.visibility,
               visibilityRadius: characterData.visibilityRadius,
             };
-            
+
             // L'utilisateur est un JOUEUR (pas un MJ)
             setIsMJ(false);
             setPersoId(userData.persoId);
@@ -340,11 +340,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const savedIsMJ = loadFromLocalStorage(STORAGE_KEYS.IS_MJ);
       const savedPersoId = loadFromLocalStorage(STORAGE_KEYS.PERSO_ID);
       const savedPlayerData = loadFromLocalStorage(STORAGE_KEYS.PLAYER_DATA);
-      
+
       if (savedIsMJ !== null) setIsMJState(savedIsMJ);
       if (savedPersoId !== null) setPersoIdState(savedPersoId);
       if (savedPlayerData !== null) setPlayerDataState(savedPlayerData);
-      
+
       setIsHydrated(true);
     }
   }, []);
@@ -357,19 +357,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Gestion de l'authentification avec restauration automatique
   useEffect(() => {
     let mounted = true;
-    
+
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
       if (!mounted) return;
-      
+
       console.log('Auth state changed:', authUser?.uid);
-      
+
       if (authUser) {
         try {
           const roomId = await getRoomId(authUser);
           if (mounted) {
             setUser({ uid: authUser.uid, roomId });
             setIsAuthenticated(true);
-            
+
             // Restaurer automatiquement les données du joueur depuis Firebase
             // Cela va mettre à jour localStorage aussi
             await restorePlayerDataFromFirebase(authUser.uid);
@@ -393,7 +393,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           console.log('User logged out, context and localStorage cleared');
         }
       }
-      
+
       if (mounted) {
         setIsLoading(false);
       }
@@ -406,24 +406,24 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [getRoomId, restorePlayerDataFromFirebase, setIsMJ, setPersoId, setPlayerData]);
 
   return (
-    <GameContext.Provider value={{ 
+    <GameContext.Provider value={{
       // États du jeu
-      isMJ, 
-      persoId, 
+      isMJ,
+      persoId,
       playerData,
-      
+
       // États d'authentification
       user,
       isAuthenticated,
       isLoading,
       isHydrated,
-      
+
       // Actions
-      setIsMJ, 
-      setPersoId, 
+      setIsMJ,
+      setPersoId,
       setPlayerData,
       loadCharacterData,
-      
+
       // Actions d'authentification
       refreshUserData
     }}>

@@ -11,7 +11,6 @@ import { DiceRoller } from "@/components/(dices)/dice-roller";
 import Competences from "@/components/(competences)/competences";
 import OverlayComponent from "@/components/(overlays)/overlay";
 import QuestOverlay from "@/components/(overlays)/questOverlay";
-import InfoComponent, { type InfoSection } from "@/components/(infos)/info";
 import { DiceThrower } from "@/components/(dices)/throw";
 import RollRequest from '@/components/(dices)/Rollrequest';
 
@@ -27,27 +26,7 @@ type LayoutProps = {
   children: ReactNode;
 };
 
-function InfoComponentWrapper({ onClose }: { onClose: () => void }) {
-  const [activeSection, setActiveSection] = useState<InfoSection>(null);
 
-  return (
-    <>
-      {!activeSection && (
-        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-40 bg-[#242424] rounded-lg shadow-lg border border-[#3a3a3a] p-2 pointer-events-auto">
-          <button
-            onClick={onClose}
-            className="absolute -top-2 -right-2 rounded-full p-1 bg-[#1c1c1c] text-[#d4d4d4] hover:bg-[#333] transition-colors shadow-lg border border-[#3a3a3a] z-10"
-            aria-label="Fermer"
-          >
-            <X className="h-3 w-3" />
-          </button>
-          <InfoComponent activeSection={activeSection} setActiveSection={setActiveSection} renderButtons={true} />
-        </div>
-      )}
-      <InfoComponent activeSection={activeSection} setActiveSection={setActiveSection} renderButtons={false} />
-    </>
-  );
-}
 
 export default function Layout({ children }: LayoutProps) {
   const params = useParams();
@@ -92,14 +71,13 @@ export default function Layout({ children }: LayoutProps) {
         return <GMDashboard />;
       case "Component":
         return <Component />;
+
       case "NewComponent":
         return <MedievalNotes />;
       case "DiceRoller":
         return <DiceRoller />;
       case "Competences":
         return <Competences />;
-      case "infoComponent":
-        return <InfoComponent />;
       case "Statistiques":
         return <Statistiques />;
       case "Chat":
@@ -122,7 +100,7 @@ export default function Layout({ children }: LayoutProps) {
       case "GMDashboard":
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] bg-white";
       case "DiceRoller":
-        return "w-full sm:w-[90vw] md:w-[600px] lg:w-[500px]";
+        return "w-full sm:w-[400px] md:w-[400px] lg:w-[380px]";
       case "NewComponent": // Style livre pour les notes
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1200px]";
       case "Cities":
@@ -146,20 +124,10 @@ export default function Layout({ children }: LayoutProps) {
         <OverlayComponent />
       </div>
 
-      {showQuestOverlay && (
-        <>
-          <div className="fixed inset-0 bg-black/50 z-[100]" onClick={() => setShowQuestOverlay(false)} />
-          <div className="fixed inset-0 flex items-center justify-center z-[101] pointer-events-none">
-            <div className="pointer-events-auto">
-              <QuestOverlay isVisible={showQuestOverlay} />
-            </div>
-          </div>
-        </>
-      )}
 
 
 
-      {activeTab && activeTab !== "Cities" && activeTab !== "infoComponent" && (
+      {activeTab && activeTab !== "Cities" && (
         <aside
           className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${getPanelWidth()} text-black shadow-lg z-20
             ${activeTab === 'Chat' ? 'overflow-hidden' : 'overflow-y-auto'}
@@ -192,28 +160,6 @@ export default function Layout({ children }: LayoutProps) {
         </aside>
       )}
 
-      {/* InfoComponent en petit panneau flottant compact */}
-      {activeTab === "infoComponent" && (
-        <InfoComponentWrapper onClose={() => setActiveTab("")} />
-      )}
-
-      {/* CitiesManager en haut au centre */}
-      {activeTab === "Cities" && (
-        <div className="fixed inset-0 flex items-start justify-center bg-black bg-opacity-75 z-50 p-4 pt-8 sm:pt-12 md:pt-16">
-          <div className="relative rounded-lg bg-[#242424] text-[#d4d4d4] w-full max-w-[95vw] sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[1400px] h-[90vh] max-h-[90vh] overflow-hidden shadow-2xl">
-            <button
-              onClick={() => setActiveTab("")}
-              className="absolute top-2 right-2 z-[60] rounded-full p-2 bg-[#1c1c1c] text-white hover:bg-[#333] transition-colors shadow-lg"
-              aria-label="Fermer"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <div className="h-full overflow-y-auto pt-12">
-              <CitiesManager />
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Styles pour l'animation de livre */}
       <style jsx global>{`
@@ -267,45 +213,17 @@ export default function Layout({ children }: LayoutProps) {
         }
       `}</style>
 
+
+
       <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c]">
         <div className="w-full h-full">{children}</div>
       </main>
 
-      {showRollRequest && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-75 z-50 p-4">
-          <div className="rounded text-black w-full xs:w-[95%] sm:w-[80%] md:w-[60%] lg:w-[50%] xl:w-[40%] 2xl:w-1/3 text-center max-h-[90vh] overflow-y-auto">
-            <RollRequest />
-            <Button
-              onClick={() => setShowRollRequest(false)}
-              className="mt-4 items-center justify-center text-xs sm:text-sm"
-              variant="default"
-            >
-              Close
-            </Button>
-          </div>
-        </div>
-      )}
       <div className="z-50 music">
         {/* Lecteur Musical Flottant */}
         <FloatingMusic roomId={roomId} />
       </div>
-      {/* Boutons Map, Info et Quêtes en haut au centre -> Déplacé en haut à droite avec les autres contrôles */}
-      <div
-        className="fixed right-4 z-[20] transition-all duration-300"
-        style={{ top: isMJ ? '160px' : '112px' }}
-      >
-        <button
-          onClick={() => handleIconClick("infoComponent")}
-          className={`w-10 h-10 flex items-center justify-center rounded-lg border backdrop-blur-sm transition-all shadow-lg ${activeTab === "infoComponent"
-              ? "bg-[#c0a080] text-black border-[#c0a080]"
-              : "bg-black/50 text-[#d4d4d4] border-gray-600 hover:bg-black/70 hover:text-white mb-2"
-            }`}
-          aria-label="Ouvrir les informations"
-          title="Ouvrir le Compendium"
-        >
-          <BookOpen className="h-5 w-5" />
-        </button>
-      </div>
+
 
       {/* 3D Dice Overlay */}
       <DiceThrower />
