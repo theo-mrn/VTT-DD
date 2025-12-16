@@ -872,10 +872,20 @@ const Table = () => {
                 <planeGeometry args={[100, 100]} />
                 <meshStandardMaterial color="#1a1b26" roughness={0.5} transparent opacity={0} />
             </mesh>
-            <Wall args={[50, 10, 1]} position={[0, 5, -15]} />
-            <Wall args={[50, 10, 1]} position={[0, 5, 15]} />
-            <Wall args={[1, 10, 50]} position={[-25, 5, 0]} />
-            <Wall args={[1, 10, 50]} position={[25, 5, 0]} />
+            {/* Murs invisibles : Hauteur augmentée pour éviter les sauts (args=[w, h, d] => geometry=[w*2, h*2, d*2]) */}
+            {/* Position Y rehaussée pour couvrir tout rebond vertical */}
+
+            {/* Mur du Fond (Haut écran) */}
+            <Wall args={[60, 50, 1]} position={[0, 25, -16]} />
+
+            {/* Mur de Devant (Bas écran) */}
+            <Wall args={[60, 50, 1]} position={[0, 25, 18]} />
+
+            {/* Mur Gauche */}
+            <Wall args={[1, 50, 60]} position={[-30, 25, 0]} />
+
+            {/* Mur Droit */}
+            <Wall args={[1, 50, 60]} position={[30, 25, 0]} />
         </group>
     );
 };
