@@ -927,12 +927,12 @@ export default function Component() {
       const charScreenX = (char.x / image.width) * scaledWidth - offset.x;
       const charScreenY = (char.y / image.height) * scaledHeight - offset.y;
 
-      // Vérifier si dans le rayon de vision d'un joueur ou allié
+      // Vérifier si dans le rayon de vision de SON joueur ou d'un allié
       return characters.some((player) => {
         const playerScreenX = (player.x / image.width) * scaledWidth - offset.x;
         const playerScreenY = (player.y / image.height) * scaledHeight - offset.y;
         return (
-          (player.type === 'joueurs' || player.visibility === 'ally') &&
+          (player.id === persoId || player.visibility === 'ally') &&
           calculateDistance(charScreenX, charScreenY, playerScreenX, playerScreenY) <= player.visibilityRadius * zoom
         );
       });
@@ -1133,32 +1133,24 @@ export default function Component() {
 
   // 🎯 NOUVELLE FONCTION : Calculer l'opacité fog of war selon la distance aux joueurs
   const calculateFogOpacity = (cellX: number, cellY: number): number => {
+    // MJ en mode normal voit tout (brouillard transparent à 50% pour voir la map dessous)
+    // Joueurs : brouillard sombre à 90%
+    const effectiveIsMJ = isMJ && !playerViewMode;
+
     // Si pas de brouillard complet ET pas de cellule de brouillard ici, alors visible (0)
     if (!fullMapFog && !fogGrid.has(`${cellX},${cellY}`)) return 0;
 
-    // Si la cellule a été EXPLICITEMENT retirée du brouillard (même en mode complet), elle est visible
-    // Note: Pour l'instant, fogGrid ne stocke que les cases "avec brouillard".
-    // Si on voulait permettre de "gommer" le brouillard complet, il faudrait une logique "anti-fog" ou "revealed".
-    // Mais pour la simplicité actuelle : 
-    // - Si FullMapFog : tout est brouillard sauf autour des joueurs.
-    // - Si !FullMapFog : seul fogGrid est brouillard.
-    // - MAIS : Le gommmage (clearFogCell) supprime juste de fogGrid.
-    // - Donc en FullMapFog, on ne peut pas vraiment "gommer" manuellement une zone sans changer la logique de données.
-    // - Pas grave pour ce fix, on respecte la logique existante : FullMapFog = base noire.
-
-    // Si pas fullMapFog et pas dans grille (déjà checké au dessus), return 0. 
-    // Si fullMapFog = true, on continue comme si c'était du brouillard.
-
-    let minOpacity = 1; // Opacité maximale par défaut (brouillard complet)
+    // Opacité de base déterminée par le rôle
+    let minOpacity = effectiveIsMJ ? 0.5 : 0.9;
 
     // Pour mieux coller au cercle de vision, on ajoute une marge
     // correspondant à la moitié de la diagonale d'une case de brouillard.
     // Ainsi, toute case qui touche le cercle est considérée comme visible.
     const cellDiagonalHalf = fogCellSize * Math.SQRT2 * 0.5;
 
-    // Vérifier la distance à tous les personnages joueurs et alliés
+    // Vérifier la distance à SON personnage et aux alliés
     for (const character of characters) {
-      if ((character.type === 'joueurs' || character.visibility === 'ally') && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
+      if ((character.id === persoId || character.visibility === 'ally') && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
         const cellCenterX = cellX * fogCellSize + fogCellSize / 2;
         const cellCenterY = cellY * fogCellSize + fogCellSize / 2;
         const distance = calculateDistance(character.x, character.y, cellCenterX, cellCenterY);
@@ -1515,7 +1507,7 @@ export default function Component() {
           const playerX = (player.x / image.width) * scaledWidth - offset.x;
           const playerY = (player.y / image.height) * scaledHeight - offset.y;
           return (
-            (player.type === 'joueurs' || player.visibility === 'ally') &&
+            (player.id === persoId || player.visibility === 'ally') &&
             calculateDistance(x, y, playerX, playerY) <= player.visibilityRadius * zoom
           );
         });
