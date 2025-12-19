@@ -13,6 +13,7 @@ export type Character = {
     visibilityRadius: number;
     type: string;
     PV: number;
+    PV_Max?: number;
     Defense: number;
     Contact: number;
     Distance: number;
@@ -24,6 +25,7 @@ export type Character = {
     SAG: number;
     INT: number;
     CHA: number;
+    conditions?: string[];
 };
 
 export type MapText = {
@@ -49,6 +51,7 @@ export type NewCharacter = {
     image: { src: string } | null;
     visibility: 'visible' | 'hidden' | 'ally';
     PV: number;
+    PV_Max?: number;
     Defense: number;
     Contact: number;
     Distance: number;

@@ -13,6 +13,7 @@ import OverlayComponent from "@/components/(overlays)/overlay";
 import QuestOverlay from "@/components/(overlays)/questOverlay";
 import { DiceThrower } from "@/components/(dices)/throw";
 import RollRequest from '@/components/(dices)/Rollrequest';
+import { NPCManager } from '@/components/(personnages)/personnages'
 
 import { Button } from "@/components/ui/button";
 import { Statistiques } from "@/components/Statistiques";
@@ -69,9 +70,10 @@ export default function Layout({ children }: LayoutProps) {
     switch (activeTab) {
       case "GMDashboard":
         return <GMDashboard />;
+      case "NPCManager":
+        return <NPCManager />;
       case "Component":
         return <Component />;
-
       case "NewComponent":
         return <MedievalNotes />;
       case "DiceRoller":
@@ -99,6 +101,8 @@ export default function Layout({ children }: LayoutProps) {
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[1200px]";
       case "GMDashboard":
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] bg-white";
+      case "NPCManager":
+        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[1200px]"; // Large panel for NPC Manager
       case "DiceRoller":
         return "w-full sm:w-[400px] md:w-[400px] lg:w-[380px]";
       case "NewComponent": // Style livre pour les notes

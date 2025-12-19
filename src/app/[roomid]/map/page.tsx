@@ -7,16 +7,18 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Download, MapPin } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Download, MapPin, Heart, Shield, Zap, Dices } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
-import Combat from '@/components/(combat)/combat2';  // Importez le composant de combat
+import Combat from '@/components/(combat)/combat2';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ScrollArea } from "@/components/ui/scroll-area";
-import CharacterSheet from '@/components/(fiches)/CharacterSheet'; // Importez le composant de fiche de personnage
-import { Component as RadialMenu } from '@/components/ui/radial-menu'; // Menu radial
-import CitiesManager from '@/components/(worldmap)/CitiesManager'; // 🆕 Import du gestionnaire de villes
+import CharacterSheet from '@/components/(fiches)/CharacterSheet';
+import { Component as RadialMenu } from '@/components/ui/radial-menu';
+import CitiesManager from '@/components/(worldmap)/CitiesManager';
 import { InfoComponentWrapper } from "@/components/(infos)/InfoWrapper";
+import ContextMenuPanel from '@/components/(overlays)/ContextMenuPanel';
 import { BookOpen, Flashlight } from "lucide-react";
+import { NPCManager } from '@/components/(personnages)/personnages';
 import {
   type Obstacle,
   type Point as VisibilityPoint,
@@ -100,6 +102,10 @@ export default function Component() {
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
 
+  // 🎯 Context Menu State
+  const [contextMenuOpen, setContextMenuOpen] = useState(false);
+  const [contextMenuCharacterId, setContextMenuCharacterId] = useState<string | null>(null);
+
   // 🎯 Drawing Selection State
   const [selectedDrawingIndex, setSelectedDrawingIndex] = useState<number | null>(null);
   const [isDraggingDrawing, setIsDraggingDrawing] = useState(false);
@@ -174,6 +180,36 @@ export default function Component() {
     cityName: string;
     cityId: string;
   }>>([]);
+
+  // 🆕 RANDOM STAT GENERATOR STATE
+  const [difficulty, setDifficulty] = useState(3); // 1-5
+
+  const generateRandomStats = () => {
+    const level = newCharacter.niveau;
+    const diffMultiplier = difficulty; // 1 to 5
+
+    // Helper for random variation
+    const vary = (base: number, variation: number) => {
+      return Math.max(0, base + Math.floor(Math.random() * (variation * 2 + 1)) - variation);
+    };
+
+    setNewCharacter(prev => ({
+      ...prev,
+      PV: vary((level * 5) + (diffMultiplier * 10), 5), // Example: Lvl 1, Diff 3 => 5 + 30 = 35 +/- 5
+      PV_Max: vary((level * 5) + (diffMultiplier * 10), 5),
+      Defense: vary(10 + Math.floor(level / 2) + diffMultiplier, 2),
+      Contact: vary(Math.floor(level / 2) + diffMultiplier * 2, 2),
+      Distance: vary(Math.floor(level / 2) + diffMultiplier * 2, 2),
+      Magie: vary(Math.floor(level / 2) + diffMultiplier * 2, 2),
+      INIT: vary(10 + diffMultiplier, 5),
+      FOR: vary(10 + (diffMultiplier * 2), 2),
+      DEX: vary(10 + (diffMultiplier * 2), 2),
+      CON: vary(10 + (diffMultiplier * 2), 2),
+      SAG: vary(10 + (diffMultiplier * 2), 2),
+      INT: vary(10 + (diffMultiplier * 2), 2),
+      CHA: vary(10 + (diffMultiplier * 2), 2),
+    }));
+  };
 
   // 🔦 DYNAMIC LIGHTING / OBSTACLES STATE
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
@@ -327,6 +363,7 @@ export default function Component() {
             visibilityRadius: parseFloat(data.visibilityRadius) || 100,
             type: data.type || 'pnj',
             PV: data.PV || 10,
+            PV_Max: data.PV_Max || data.PV || 10, // Use PV as fallback if PV_Max is missing
             Defense: data.Defense || 5,
             Contact: data.Contact || 5,
             Distance: data.Distance || 5,
@@ -1397,10 +1434,6 @@ export default function Component() {
 
 
       if (isVisible) {
-        // Set border color based on character type or if it is the player's character
-        // Debug logs
-
-
         // 🎯 Couleur spéciale pour les personnages dans la zone de sélection
         let borderColor;
         let lineWidth = 3;
@@ -1516,6 +1549,98 @@ export default function Component() {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText(`${char.niveau}`, badgeX, badgeY);
+
+        /**
+         * 🎯 RENDU DES NOMS ET BARRES DE VIE
+         * - Nom : Visible au survol ou si sélectionné (tout le monde)
+         * - Barre de Vie : Visible POUr le MJ (isMJ) et pour le propriétaire du perso (persoId)
+         */
+        const isHovered = false; // TODO: Ajouter la détection de survol si nécessaire plus tard
+        const isSelected = index === selectedCharacterIndex;
+
+        // 1. RENDU DU NOM
+        // Le nom s'affiche si : sélectionné OU MJ (toujours visible pour MJ pour identifier)
+        if (isSelected || (isMJ && !playerViewMode)) {
+          const nameY = y + borderRadius + (15 * zoom);
+
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+          ctx.strokeStyle = borderColor; // Rappel de la couleur de faction/état
+
+          // Fond du nom
+          const fontSize = 12 * zoom;
+          ctx.font = `bold ${fontSize}px sans-serif`;
+          const textMetrics = ctx.measureText(char.name);
+          const textPadding = 4 * zoom;
+          const textBgWidth = textMetrics.width + (textPadding * 2);
+          const textBgHeight = fontSize + (textPadding * 2);
+
+          ctx.beginPath();
+          ctx.roundRect(x - (textBgWidth / 2), nameY - (textBgHeight / 2), textBgWidth, textBgHeight, 4 * zoom);
+          ctx.fill();
+          // Ligne fine colorée sous le nom pour rappel de faction
+          ctx.lineWidth = 1 * zoom;
+          ctx.stroke();
+
+          // Texte du nom
+          ctx.fillStyle = 'white';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(char.name, x, nameY);
+        }
+
+        // 2. RENDU DE LA BARRE DE VIE (HP BAR)
+        // Visible pour le MJ (sauf mode vue joueur) OU pour le propriétaire
+        const canSeeHP = (isMJ && !playerViewMode) || char.id === persoId;
+
+        if (canSeeHP && char.PV !== undefined) {
+          // Valeurs par défaut si PV Max non défini (on suppose 100% si pas de max, ou on estime)
+          // Idéalement il faudrait PV_Max dans le type Character. Pour l'instant on va utiliser une logique simple
+          // Si PV > 0, on affiche. On suppose un max basé sur le PV actuel si c'est un PNJ simple, 
+          // ou on essaie de récupérer le max si disponible.
+          // Note: Le type Character a PV mais pas toujours PV_Max explicite ici. 
+          // On va supposer que PV est la vie ACTUELLE.
+
+          // Pour l'affichage "Barre", il nous faut un Max. 
+          // Hack temporaire : Si c'est un PNJ, on considère que ses PV initiaux étaient le Max s'ils ne sont pas stockés.
+          // Mais ici on n'a que "PV". On va afficher une barre de vie proportionnelle ou juste le chiffre pour le MJ.
+
+          // Amélioration : Barre de vie standardisée
+          const barWidth = 40 * zoom;
+          const barHeight = 6 * zoom;
+          const barY = y - borderRadius - (10 * zoom); // Au dessus du token
+          const currentPV = char.PV || 0;
+          const maxPV = char.PV_Max || char.PV || 100; // Fallback to current PV or 100 if undefined
+          const normalizedHealth = Math.max(0, Math.min(100, (currentPV / maxPV) * 100));
+
+          // 1. Fond de la barre (Gris sombre/Noir)
+          ctx.fillStyle = 'rgba(30, 30, 30, 0.8)';
+          ctx.beginPath();
+          ctx.roundRect(x - (barWidth / 2), barY, barWidth, barHeight, 3 * zoom);
+          ctx.fill();
+
+          // 2. Barre de vie colorée (HSL dynamic)
+          // 120 (Green) -> 0 (Red)
+          const hue = (normalizedHealth / 100) * 120;
+          ctx.fillStyle = `hsl(${hue}, 100%, 45%)`;
+          ctx.beginPath();
+          // Clip width based on health %
+          const healthWidth = (normalizedHealth / 100) * barWidth;
+          if (healthWidth > 0) {
+            ctx.roundRect(x - (barWidth / 2), barY, healthWidth, barHeight, 3 * zoom);
+            ctx.fill();
+          }
+
+          // 3. Texte des PV (Centré)
+          ctx.fillStyle = 'white';
+          ctx.shadowColor = 'black';
+          ctx.shadowBlur = 2;
+          ctx.font = `bold ${8 * zoom}px sans-serif`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          const textY = barY + (barHeight / 2) - (1 * zoom); // Slight adjustment for vertical centering
+          ctx.fillText(`${currentPV} / ${maxPV}`, x, textY);
+          ctx.shadowBlur = 0; // Reset shadow
+        }
       }
 
       // Draw hidden status badge if character is hidden (soit par défaut, soit par le brouillard) - uniquement en mode MJ normal, pas en vue joueur
@@ -1679,78 +1804,63 @@ export default function Component() {
 
 
   const handleCharacterSubmit = async () => {
-    if (newCharacter.name && newCharacter.image && roomId) {
+    // Legacy function - kept just in case but shouldn't be used with NPCManager
+  };
+
+  const handleNPCManagerSubmit = async (charData: NewCharacter & { visibilityRadius?: number }) => {
+    if (charData.name && roomId) {
       const storage = getStorage();
-
-      // 🆕 RETOUR À LA COLLECTION CENTRALE
       const charactersCollectionRef = collection(db, 'cartes', roomId.toString(), 'characters');
-      const isAlly = newCharacter.visibility === 'ally';
+      const isAlly = charData.visibility === 'ally';
 
-      // Charger l'image dans Firebase Storage
+      let imageURL = '';
+
       try {
-        // Créez une référence pour l'image dans le dossier "characters"
-        const imageRef = ref(storage, `characters/${newCharacter.name}-${Date.now()}`);
-        const imageFile = newCharacter.image.src; // Image data URL
-        // Extraire les données de l'image du Data URL
-        const response = await fetch(imageFile);
-        const blob = await response.blob();
-        // Upload l'image dans Firebase Storage
-        await uploadBytes(imageRef, blob);
-        // Obtenez l'URL de téléchargement
-        const imageURL = await getDownloadURL(imageRef);
-        // Créer `nombre` personnages avec les mêmes statistiques et l'URL de l'image téléchargée
-        for (let i = 1; i <= newCharacter.nombre; i++) {
-          const characterName = `${newCharacter.name} ${i}`; // Ajouter un numéro au nom
+        if (charData.image && charData.image.src) {
+          // Check if it's already a firebase URL (from drag and drop of existing?) 
+          // or a data URL. My NPCManager uses Data URL for new uploads.
+          if (charData.image.src.startsWith('data:')) {
+            const imageRef = ref(storage, `characters/${charData.name}-${Date.now()}`);
+            const response = await fetch(charData.image.src);
+            const blob = await response.blob();
+            await uploadBytes(imageRef, blob);
+            imageURL = await getDownloadURL(imageRef);
+          } else {
+            imageURL = charData.image.src;
+          }
+        }
+
+        // Create characters
+        for (let i = 1; i <= charData.nombre; i++) {
+          const characterName = charData.nombre > 1 ? `${charData.name} ${i}` : charData.name;
           await addDoc(charactersCollectionRef, {
             Nomperso: characterName,
-            imageURL2: imageURL,  // Utiliser imageURL2 pour l'image
+            imageURL2: imageURL,
             x: (Math.random() * (canvasRef.current?.width || 0) + offset.x) / zoom,
             y: (Math.random() * (canvasRef.current?.height || 0) + offset.y) / zoom,
-            visibility: newCharacter.visibility,
-            visibilityRadius: newCharacter.visibility === 'ally' ? visibilityRadius : 100,
-            PV: newCharacter.PV,
-            niveau: newCharacter.niveau,
-            Defense: newCharacter.Defense,
-            Contact: newCharacter.Contact,
-            Distance: newCharacter.Distance,
-            Magie: newCharacter.Magie,
-            INIT: newCharacter.INIT,
-            FOR: newCharacter.FOR,
-            DEX: newCharacter.DEX,
-            CON: newCharacter.CON,
-            SAG: newCharacter.SAG,
-            INT: newCharacter.INT,
-            CHA: newCharacter.CHA,
+            visibility: charData.visibility,
+            visibilityRadius: charData.visibilityRadius || (charData.visibility === 'ally' ? 100 : 100),
+            PV: charData.PV,
+            PV_Max: charData.PV_Max || charData.PV,
+            niveau: charData.niveau,
+            Defense: charData.Defense,
+            Contact: charData.Contact,
+            Distance: charData.Distance,
+            Magie: charData.Magie,
+            INIT: charData.INIT,
+            FOR: charData.FOR,
+            DEX: charData.DEX,
+            CON: charData.CON,
+            SAG: charData.SAG,
+            INT: charData.INT,
+            CHA: charData.CHA,
             type: "pnj",
-            // 🆕 AJOUT DU CITY ID si c'est un PNJ (les alliés restent globaux)
             cityId: (!isAlly && selectedCityId) ? selectedCityId : null
           });
         }
-
-        // RéINITialiser les champs du formulaire
-        setNewCharacter({
-          name: '',
-          image: null,
-          niveau: 1,
-          visibility: 'visible',
-          PV: 10,
-          Defense: 5,
-          Contact: 5,
-          Distance: 5,
-          Magie: 5,
-          INIT: 5,
-          nombre: 1, // RéINITialiser le champ nombre
-          FOR: 0,
-          DEX: 0,
-          CON: 0,
-          SAG: 0,
-          INT: 0,
-          CHA: 0,
-        });
         setDialogOpen(false);
-
       } catch (error) {
-        console.error("Erreur lors du chargement de l'image dans Firebase Storage :", error);
+        console.error("Error creating NPC:", error);
       }
     }
   };
@@ -2206,12 +2316,27 @@ export default function Component() {
                 setSelectedCharacterIndex(clickedCharIndex);
                 setSelectedCharacters([clickedCharIndex]);
               }
+
+              // Allow opening context menu for players inspecting allies or enemies
+              const char = characters[clickedCharIndex];
+              if (char && char.id) {
+                setContextMenuCharacterId(char.id);
+                setContextMenuOpen(true);
+              }
+
               return;
             }
 
             if (!isAlreadySelected) {
               setSelectedCharacterIndex(clickedCharIndex);
               setSelectedCharacters([clickedCharIndex]);
+            }
+
+
+            const char = characters[clickedCharIndex];
+            if (char && char.id) {
+              setContextMenuCharacterId(char.id);
+              setContextMenuOpen(true);
             }
 
             // Préparer le drag des personnages (seulement si autorisé)
@@ -2267,6 +2392,7 @@ export default function Component() {
           setSelectedFogIndex(null);
           setSelectedCharacters([]);
           setSelectedDrawingIndex(null);
+          setContextMenuOpen(false);
 
           setSelectionStart({ x: clickX, y: clickY });
           setIsSelectingArea(true);
@@ -3508,209 +3634,7 @@ export default function Component() {
         </div>
       )}
 
-      {selectedCharacterIndex !== null && isCharacterVisibleToUser(characters[selectedCharacterIndex]) && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
-          <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
-            <Button className="button-primary">{characters[selectedCharacterIndex].name}</Button>
 
-            {/* Slider de rayon de visibilité pour les personnages joueurs */}
-            {characters[selectedCharacterIndex].type === 'joueurs' && (isMJ || characters[selectedCharacterIndex].id === persoId) && (
-              <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm px-4 py-2 rounded-lg border border-gray-600">
-                <ScanEye className="w-4 h-4 text-blue-400" />
-                <input
-                  type="range"
-                  min="10"
-                  max="500"
-                  value={characters[selectedCharacterIndex].visibilityRadius || visibilityRadius}
-                  onChange={(e) => {
-                    const newRadius = parseInt(e.target.value, 10);
-                    const charId = characters[selectedCharacterIndex].id;
-                    if (charId && roomId) {
-                      updateDoc(doc(db, 'cartes', String(roomId), 'characters', charId), {
-                        visibilityRadius: newRadius
-                      });
-                      setCharacters(prevCharacters =>
-                        prevCharacters.map((char, index) =>
-                          index === selectedCharacterIndex
-                            ? { ...char, visibilityRadius: newRadius }
-                            : char
-                        )
-                      );
-                    }
-                  }}
-                  className="w-24 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                />
-                <span className="text-white text-sm font-medium min-w-[3rem]">
-                  {Math.round(1 + ((characters[selectedCharacterIndex].visibilityRadius || visibilityRadius) - 10) / 490 * 29)}
-                </span>
-              </div>
-            )}
-
-            {/* Slider de rayon de visibilité pour les alliés (MJ uniquement) */}
-            {characters[selectedCharacterIndex].visibility === 'ally' && isMJ && (
-              <div className="flex items-center gap-2 bg-black/70 backdrop-blur-sm px-4 py-2 rounded-lg border border-green-600">
-                <ScanEye className="w-4 h-4 text-green-400" />
-                <input
-                  type="range"
-                  min="10"
-                  max="500"
-                  value={characters[selectedCharacterIndex].visibilityRadius || visibilityRadius}
-                  onChange={(e) => {
-                    const newRadius = parseInt(e.target.value, 10);
-                    const charId = characters[selectedCharacterIndex].id;
-                    if (charId && roomId) {
-                      updateDoc(doc(db, 'cartes', String(roomId), 'characters', charId), {
-                        visibilityRadius: newRadius
-                      });
-                      setCharacters(prevCharacters =>
-                        prevCharacters.map((char, index) =>
-                          index === selectedCharacterIndex
-                            ? { ...char, visibilityRadius: newRadius }
-                            : char
-                        )
-                      );
-                    }
-                  }}
-                  className="w-24 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                />
-                <span className="text-white text-sm font-medium min-w-[3rem]">
-                  {Math.round(1 + ((characters[selectedCharacterIndex].visibilityRadius || visibilityRadius) - 10) / 490 * 29)}
-                </span>
-              </div>
-            )}
-
-            {isMJ || characters[selectedCharacterIndex].id === persoId ? (
-              <>
-                {characters[selectedCharacterIndex].type === 'joueurs' && (
-                  <Button onClick={() => {
-                    setSelectedCharacterForSheet(characters[selectedCharacterIndex].id);
-                    setShowCharacterSheet(true);
-                  }}>
-                    fiche
-                  </Button>
-                )}
-                {/* Boutons pour les personnages non-joueurs (MJ seulement) */}
-                {isMJ && characters[selectedCharacterIndex]?.type !== 'joueurs' && (
-                  <>
-                    <Button
-                      onClick={async () => {
-                        const character = characters[selectedCharacterIndex];
-                        if (character.id && roomId) {
-                          try {
-                            await updateDoc(doc(db, 'cartes', String(roomId), 'characters', character.id), {
-                              visibility: 'visible'
-                            });
-                            setCharacters(prevCharacters =>
-                              prevCharacters.map((char, index) =>
-                                index === selectedCharacterIndex
-                                  ? { ...char, visibility: 'visible' }
-                                  : char
-                              )
-                            );
-                          } catch (error) {
-                            console.error("Erreur lors du changement de visibilité :", error);
-                          }
-                        }
-                      }}
-                      className={characters[selectedCharacterIndex].visibility === 'visible' ? 'bg-blue-600' : ''}
-                    >
-                      👁️ Visible
-                    </Button>
-                    <Button
-                      onClick={async () => {
-                        const character = characters[selectedCharacterIndex];
-                        if (character.id && roomId) {
-                          try {
-                            await updateDoc(doc(db, 'cartes', String(roomId), 'characters', character.id), {
-                              visibility: 'ally'
-                            });
-                            setCharacters(prevCharacters =>
-                              prevCharacters.map((char, index) =>
-                                index === selectedCharacterIndex
-                                  ? { ...char, visibility: 'ally' }
-                                  : char
-                              )
-                            );
-                          } catch (error) {
-                            console.error("Erreur lors du changement de visibilité :", error);
-                          }
-                        }
-                      }}
-                      className={characters[selectedCharacterIndex].visibility === 'ally' ? 'bg-green-600' : ''}
-                    >
-                      🤝 Allié
-                    </Button>
-                    <Button
-                      onClick={async () => {
-                        const character = characters[selectedCharacterIndex];
-                        if (character.id && roomId) {
-                          try {
-                            await updateDoc(doc(db, 'cartes', String(roomId), 'characters', character.id), {
-                              visibility: 'hidden'
-                            });
-                            setCharacters(prevCharacters =>
-                              prevCharacters.map((char, index) =>
-                                index === selectedCharacterIndex
-                                  ? { ...char, visibility: 'hidden' }
-                                  : char
-                              )
-                            );
-                          } catch (error) {
-                            console.error("Erreur lors du changement de visibilité :", error);
-                          }
-                        }
-                      }}
-                      className={characters[selectedCharacterIndex].visibility === 'hidden' ? 'bg-gray-600' : ''}
-                    >
-                      👁️‍🗨️ Caché
-                    </Button>
-                    <Button onClick={() => {
-                      setCharacterToDelete(characters[selectedCharacterIndex]);
-                      setConfirmDeleteOpen(true);
-                    }}>
-                      <X className="w-4 h-4 mr-2" /> Supprimer
-                    </Button>
-                    <Button onClick={handleEditCharacter}>
-                      <Edit className="w-4 h-4 mr-2" /> Modifier
-                    </Button>
-                  </>
-                )}
-
-                {/* Bouton Attaquer pour TOUS les personnages (MJ seulement) */}
-                {isMJ && (
-                  <Button className="button-primary" onClick={handleAttack}>
-                    <Edit className="w-4 h-4 mr-2" /> Attaquer
-                  </Button>
-                )}
-
-                {/* Bouton modifier pour les personnages joueurs (MJ seulement) */}
-                {characters[selectedCharacterIndex]?.type === 'joueurs' && isMJ && (
-                  <Button onClick={handleEditCharacter}>
-                    <Edit className="w-4 h-4 mr-2" /> Modifier
-                  </Button>
-                )}
-              </>
-            ) : (
-              (isMJ || characters[selectedCharacterIndex].id !== persoId) && (
-                <>
-
-                  <Button className="button-primary" onClick={handleAttack}>
-                    <Edit className="w-4 h-4 mr-2" /> Attaquer
-                  </Button>
-                  {characters[selectedCharacterIndex].type === 'joueurs' && (
-                    <Button onClick={() => {
-                      setSelectedCharacterForSheet(characters[selectedCharacterIndex].id);
-                      setShowCharacterSheet(true);
-                    }}>
-                      Fiche
-                    </Button>
-                  )}
-                </>
-              )
-            )}
-          </div>
-        </div>
-      )}
 
       {selectedCharacters.length > 1 && isMJ && (
         // Afficher le bouton seulement si plusieurs personnages non-joueurs sont sélectionnés
@@ -3760,247 +3684,12 @@ export default function Component() {
         </div>
       )}
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-[rgb(36,36,36)] w-full text-[#c0a080]">
-          <DialogHeader>
-            <DialogTitle className="text-base">Ajouter un personnage</DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="">
-            <div className="space-y-2 py-1">
-              {/* Section Informations générales */}
-              <div className="space-y-1 ml-2">
-                <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Informations</h3>
-                <div className="grid grid-cols-2 gap-2">
-                  <div>
-                    <Label htmlFor="nombre" className="text-xs">Nombre</Label>
-                    <Input
-                      id="nombre"
-                      type="number"
-                      value={newCharacter.nombre}
-                      onChange={(e) => setNewCharacter({ ...newCharacter, nombre: parseInt(e.target.value) || 1 })}
-                      className="h-7 mt-0.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="name" className="text-xs">Nom</Label>
-                    <Input
-                      id="name"
-                      value={newCharacter.name}
-                      onChange={(e) => setNewCharacter({ ...newCharacter, name: e.target.value })}
-                      className="h-7 mt-0.5"
-                    />
-                  </div>
-                </div>
-                <div className="mt-2">
-                  <Label htmlFor="image" className="text-xs">Image</Label>
-                  <Input
-                    id="image"
-                    type="file"
-                    onChange={handleCharacterImageChange}
-                    className="h-10 mt-0.5"
-                  />
-                </div>
-              </div>
-
-              {/* Section Statistiques de combat */}
-              <div className="space-y-1">
-                <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Combat</h3>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <Label htmlFor="PV" className="text-xs">PV</Label>
-                    <Input
-                      id="PV"
-                      type="number"
-                      value={newCharacter.PV}
-                      onChange={(e) => setNewCharacter({ ...newCharacter, PV: parseInt(e.target.value) || 100 })}
-                      className="h-7 mt-0.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="niveau" className="text-xs">Niveau</Label>
-                    <Input
-                      id="niveau"
-                      type="number"
-                      value={newCharacter.niveau}
-                      onChange={(e) => setNewCharacter({ ...newCharacter, niveau: parseInt(e.target.value) || 1 })}
-                      className="h-7 mt-0.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="Defense" className="text-xs">Défense</Label>
-                    <Input
-                      id="Defense"
-                      type="number"
-                      value={newCharacter.Defense}
-                      onChange={(e) => setNewCharacter({ ...newCharacter, Defense: parseInt(e.target.value) || 0 })}
-                      className="h-7 mt-0.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="INIT" className="text-xs">Init</Label>
-                    <Input
-                      id="INIT"
-                      type="number"
-                      value={newCharacter.INIT}
-                      onChange={(e) => setNewCharacter({ ...newCharacter, INIT: parseInt(e.target.value) || 0 })}
-                      className="h-7 mt-0.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="Contact" className="text-xs">Contact</Label>
-                    <Input
-                      id="Contact"
-                      type="number"
-                      value={newCharacter.Contact}
-                      onChange={(e) => setNewCharacter({ ...newCharacter, Contact: parseInt(e.target.value) || 0 })}
-                      className="h-7 mt-0.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="Distance" className="text-xs">Distance</Label>
-                    <Input
-                      id="Distance"
-                      type="number"
-                      value={newCharacter.Distance}
-                      onChange={(e) => setNewCharacter({ ...newCharacter, Distance: parseInt(e.target.value) || 0 })}
-                      className="h-7 mt-0.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="Magie" className="text-xs">Magie</Label>
-                    <Input
-                      id="Magie"
-                      type="number"
-                      value={newCharacter.Magie}
-                      onChange={(e) => setNewCharacter({ ...newCharacter, Magie: parseInt(e.target.value) || 0 })}
-                      className="h-7 mt-0.5"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Section Caractéristiques */}
-              <div className="space-y-1">
-                <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Caractéristiques</h3>
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <Label htmlFor="FOR" className="text-xs">FOR</Label>
-                    <Input
-                      id="FOR"
-                      type="number"
-                      value={newCharacter.FOR}
-                      onChange={(e) => setNewCharacter({ ...newCharacter, FOR: parseInt(e.target.value) || 0 })}
-                      className="h-7 mt-0.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="DEX" className="text-xs">DEX</Label>
-                    <Input
-                      id="DEX"
-                      type="number"
-                      value={newCharacter.DEX}
-                      onChange={(e) => setNewCharacter({ ...newCharacter, DEX: parseInt(e.target.value) || 0 })}
-                      className="h-7 mt-0.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="CON" className="text-xs">CON</Label>
-                    <Input
-                      id="CON"
-                      type="number"
-                      value={newCharacter.CON}
-                      onChange={(e) => setNewCharacter({ ...newCharacter, CON: parseInt(e.target.value) || 0 })}
-                      className="h-7 mt-0.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="SAG" className="text-xs">SAG</Label>
-                    <Input
-                      id="SAG"
-                      type="number"
-                      value={newCharacter.SAG}
-                      onChange={(e) => setNewCharacter({ ...newCharacter, SAG: parseInt(e.target.value) || 0 })}
-                      className="h-7 mt-0.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="INT" className="text-xs">INT</Label>
-                    <Input
-                      id="INT"
-                      type="number"
-                      value={newCharacter.INT}
-                      onChange={(e) => setNewCharacter({ ...newCharacter, INT: parseInt(e.target.value) || 0 })}
-                      className="h-7 mt-0.5"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="CHA" className="text-xs">CHA</Label>
-                    <Input
-                      id="CHA"
-                      type="number"
-                      value={newCharacter.CHA}
-                      onChange={(e) => setNewCharacter({ ...newCharacter, CHA: parseInt(e.target.value) || 0 })}
-                      className="h-7 mt-0.5"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Section Visibilité */}
-              <div className="space-y-1">
-                <h3 className="text-sm font-semibold border-b border-gray-600 pb-0.5 mb-1">Visibilité</h3>
-                <div className="space-y-1.5">
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      onClick={() => setNewCharacter({ ...newCharacter, visibility: 'visible' })}
-                      className={`flex-1 h-7 text-xs px-2 ${newCharacter.visibility === 'visible' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'}`}
-                    >
-                      👁️ Visible
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => setNewCharacter({ ...newCharacter, visibility: 'ally' })}
-                      className={`flex-1 h-7 text-xs px-2 ${newCharacter.visibility === 'ally' ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-700 hover:bg-gray-600'}`}
-                    >
-                      🤝 Allié
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => setNewCharacter({ ...newCharacter, visibility: 'hidden' })}
-                      className={`flex-1 h-7 text-xs px-2 ${newCharacter.visibility === 'hidden' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-700 hover:bg-gray-600'}`}
-                    >
-                      👁️‍🗨️ Caché
-                    </Button>
-                  </div>
-                  {newCharacter.visibility === 'ally' && (
-                    <div>
-                      <Label htmlFor="visibilityRadiusNew" className="text-xs">Rayon de vision</Label>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <input
-                          id="visibilityRadiusNew"
-                          type="range"
-                          min="10"
-                          max="500"
-                          value={visibilityRadius}
-                          onChange={(e) => setVisibilityRadius(parseInt(e.target.value) || 100)}
-                          className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                        />
-                        <span className="text-xs text-white font-medium min-w-[2.5rem]">
-                          {Math.round(1 + (visibilityRadius - 10) / 490 * 29)}
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </ScrollArea>
-          <DialogFooter>
-            <Button onClick={handleCharacterSubmit}>Ajouter</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <NPCManager
+        isOpen={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        onSubmit={handleNPCManagerSubmit}
+        difficulty={difficulty}
+      />
 
       <Dialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen}>
         <DialogContent className="bg-[rgb(36,36,36)] max-w-3xl text-[#c0a080]">
@@ -4140,286 +3829,185 @@ export default function Component() {
           <DialogHeader>
             <DialogTitle>Modifier le personnage</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="h-96"> {/* Ajouter ScrollArea ici */}
-            <div className="grid gap-4 py-4">
-              {/* Nom Field */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="characterName" className="text-right text-white">Nom</Label>
-                <Input
-                  id="characterName"
-                  value={editingCharacter?.name || ''}
-                  onChange={(e) => {
-                    if (editingCharacter) { // Vérifie que `editingCharacter` n'est pas null
-                      setEditingCharacter({ ...editingCharacter, name: e.target.value });
-                    }
-                  }}
-                  className="col-span-3"
-                />
-              </div>
-              {/* Image Field */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="characterImage" className="text-right text-white">Image</Label>
-                <Input
-                  id="characterImage"
-                  type="file"
-                  onChange={(e) => {
-                    const file = e.target.files ? e.target.files[0] : null;
-                    if (file) {
-                      const reader = new FileReader();
-                      reader.onload = (e) => {
-                        const img = new Image();
-                        img.onload = () => {
-                          if (editingCharacter) { // Vérifie que `editingCharacter` n'est pas null
-                            setEditingCharacter({ ...editingCharacter, image: img });
-                          }
-                        };
-                        if (typeof e.target?.result === 'string') {
-                          img.src = e.target.result;
-                        }
-                      };
-                      reader.readAsDataURL(file);
-                    }
-                  }}
-                  className="col-span-3"
-                />
-              </div>
-              {/* PV Field */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="PV" className="text-right text-white">PV</Label>
-                <Input
-                  id="PV"
-                  type="number"
-                  value={editingCharacter?.PV || 0}
-                  onChange={(e) => {
-                    if (editingCharacter) {
-                      setEditingCharacter({ ...editingCharacter, PV: parseInt(e.target.value) || 0 });
-                    }
-                  }}
-                  className="col-span-3"
-                />
-              </div>
-              {/* niveau Field */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="niveau" className="text-right text-white">Niveau</Label>
-                <Input
-                  id="niveau"
-                  type="number"
-                  value={editingCharacter?.niveau || 1}
-                  onChange={(e) => {
-                    if (editingCharacter) {
-                      setEditingCharacter({ ...editingCharacter, niveau: parseInt(e.target.value) || 1 });
-                    }
-                  }}
-                  className="col-span-3"
-                />
-              </div>
-              {/* Contact Field */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="Contact" className="text-right text-white">Contact</Label>
-                <Input
-                  id="Contact"
-                  type="number"
-                  value={editingCharacter?.Contact || 0}
-                  onChange={(e) => {
-                    if (editingCharacter) {
-                      setEditingCharacter({ ...editingCharacter, Contact: parseInt(e.target.value) || 0 });
-                    }
-                  }}
-                  className="col-span-3"
-                />
-              </div>
-              {/* Distance Field */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="Distance" className="text-right text-white">Distance</Label>
-                <Input
-                  id="Distance"
-                  type="number"
-                  value={editingCharacter?.Distance || 0}
-                  onChange={(e) => {
-                    if (editingCharacter) {
-                      setEditingCharacter({ ...editingCharacter, Distance: parseInt(e.target.value) || 0 });
-                    }
-                  }}
-                  className="col-span-3"
-                />
-              </div>
-              {/* Distance Field */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="Magie" className="text-right text-white">Magie</Label>
-                <Input
-                  id="Magie"
-                  type="number"
-                  value={editingCharacter?.Magie || 0}
-                  onChange={(e) => {
-                    if (editingCharacter) {
-                      setEditingCharacter({ ...editingCharacter, Magie: parseInt(e.target.value) || 0 });
-                    }
-                  }}
-                  className="col-span-3"
-                />
-              </div>
-              {/* INIT Field */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="INIT" className="text-right text-white">INIT</Label>
-                <Input
-                  id="INIT"
-                  type="number"
-                  value={editingCharacter?.INIT || 0}
-                  onChange={(e) => {
-                    if (editingCharacter) {
-                      setEditingCharacter({ ...editingCharacter, INIT: parseInt(e.target.value) || 0 });
-                    }
-                  }}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="FOR" className="text-right text-white">FOR</Label>
-                <Input
-                  id="FOR"
-                  type="number"
-                  value={editingCharacter?.FOR || 0}
-                  onChange={(e) => {
-                    if (editingCharacter) {
-                      setEditingCharacter({ ...editingCharacter, FOR: parseInt(e.target.value) || 0 });
-                    }
-                  }}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="DEX" className="text-right text-white">DEX</Label>
-                <Input
-                  id="DEX"
-                  type="number"
-                  value={editingCharacter?.DEX || 0}
-                  onChange={(e) => {
-                    if (editingCharacter) {
-                      setEditingCharacter({ ...editingCharacter, DEX: parseInt(e.target.value) || 0 });
-                    }
-                  }}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="CON" className="text-right text-white">CON</Label>
-                <Input
-                  id="CON"
-                  type="number"
-                  value={editingCharacter?.CON || 0}
-                  onChange={(e) => {
-                    if (editingCharacter) {
-                      setEditingCharacter({ ...editingCharacter, CON: parseInt(e.target.value) || 0 });
-                    }
-                  }}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="SAG" className="text-right text-white">SAG</Label>
-                <Input
-                  id="SAG"
-                  type="number"
-                  value={editingCharacter?.SAG || 0}
-                  onChange={(e) => {
-                    if (editingCharacter) {
-                      setEditingCharacter({ ...editingCharacter, SAG: parseInt(e.target.value) || 0 });
-                    }
-                  }}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="INT" className="text-right text-white">INT</Label>
-                <Input
-                  id="INT"
-                  type="number"
-                  value={editingCharacter?.INT || 0}
-                  onChange={(e) => {
-                    if (editingCharacter) {
-                      setEditingCharacter({ ...editingCharacter, INT: parseInt(e.target.value) || 0 });
-                    }
-                  }}
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="CHA" className="text-right text-white">CHA</Label>
-                <Input
-                  id="CHA"
-                  type="number"
-                  value={editingCharacter?.CHA || 0}
-                  onChange={(e) => {
-                    if (editingCharacter) {
-                      setEditingCharacter({ ...editingCharacter, CHA: parseInt(e.target.value) || 0 });
-                    }
-                  }}
-                  className="col-span-3"
-                />
-              </div>
-              {/* Visibility Field */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="visibility" className="text-right text-white">Visibilité</Label>
-                <div className="col-span-3 flex gap-2">
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      if (editingCharacter) {
-                        setEditingCharacter({ ...editingCharacter, visibility: 'visible' });
-                      }
-                    }}
-                    className={`flex-1 ${editingCharacter?.visibility === 'visible' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-700 hover:bg-gray-600'}`}
-                  >
-                    👁️ Visible
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      if (editingCharacter) {
-                        setEditingCharacter({ ...editingCharacter, visibility: 'ally' });
-                      }
-                    }}
-                    className={`flex-1 ${editingCharacter?.visibility === 'ally' ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-700 hover:bg-gray-600'}`}
-                  >
-                    🤝 Allié
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      if (editingCharacter) {
-                        setEditingCharacter({ ...editingCharacter, visibility: 'hidden' });
-                      }
-                    }}
-                    className={`flex-1 ${editingCharacter?.visibility === 'hidden' ? 'bg-gray-600 hover:bg-gray-700' : 'bg-gray-700 hover:bg-gray-600'}`}
-                  >
-                    👁️‍🗨️ Caché
-                  </Button>
-                </div>
-              </div>
-              {/* Visibility Radius Field - Affiché seulement pour les joueurs et alliés */}
-              {(editingCharacter?.type === 'joueurs' || editingCharacter?.visibility === 'ally') && (
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="visibilityRadius" className="text-right text-white">Rayon de vision</Label>
-                  <div className="col-span-3 flex items-center gap-2">
-                    <input
-                      id="visibilityRadius"
-                      type="range"
-                      min="10"
-                      max="500"
-                      value={editingCharacter?.visibilityRadius || 100}
+          <ScrollArea className="h-auto max-h-[85vh] pr-4">
+            <div className="space-y-6 py-4">
+
+              {/* --- SECTION 1: GÉNÉRAL --- */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Général</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="characterName" className="text-xs text-gray-300">Nom du personnage</Label>
+                    <Input
+                      id="characterName"
+                      value={editingCharacter?.name || ''}
+                      onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, name: e.target.value })}
+                      className="bg-[#2a2a2a] border-gray-600 focus:border-[#c0a080]"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="characterImage" className="text-xs text-gray-300">Image / Token</Label>
+                    <Input
+                      id="characterImage"
+                      type="file"
                       onChange={(e) => {
-                        if (editingCharacter) {
-                          setEditingCharacter({ ...editingCharacter, visibilityRadius: parseInt(e.target.value) || 100 });
+                        const file = e.target.files ? e.target.files[0] : null;
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = (e) => {
+                            const img = new Image();
+                            img.onload = () => editingCharacter && setEditingCharacter({ ...editingCharacter, image: img });
+                            if (typeof e.target?.result === 'string') img.src = e.target.result;
+                          };
+                          reader.readAsDataURL(file);
                         }
                       }}
-                      className="flex-1 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                      className="bg-[#2a2a2a] border-gray-600 text-xs cursor-pointer file:bg-gray-700 file:text-white file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-2 hover:bg-[#333]"
                     />
-                    <span className="text-sm text-white font-medium min-w-[3rem]">
-                      {Math.round(1 + ((editingCharacter?.visibilityRadius || 100) - 10) / 490 * 29)}
-                    </span>
                   </div>
                 </div>
-              )}
+              </div>
+
+              {/* --- SECTION 2: COMBAT & VITALITÉ --- */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Combat & Vitalité</h3>
+                <div className="grid grid-cols-4 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="PV" className="text-[10px] uppercase text-gray-400">PV Actuels</Label>
+                    <Input
+                      id="PV"
+                      type="number"
+                      value={editingCharacter?.PV || 0}
+                      onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, PV: parseInt(e.target.value) || 0 })}
+                      className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="PV_Max" className="text-[10px] uppercase text-gray-400">PV Max</Label>
+                    <Input
+                      id="PV_Max"
+                      type="number"
+                      value={editingCharacter?.PV_Max || editingCharacter?.PV || 0}
+                      onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, PV_Max: parseInt(e.target.value) || 0 })}
+                      className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="Defense" className="text-[10px] uppercase text-gray-400">Défense</Label>
+                    <Input
+                      id="Defense"
+                      type="number"
+                      value={editingCharacter?.Defense || 0}
+                      onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, Defense: parseInt(e.target.value) || 0 })}
+                      className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="INIT" className="text-[10px] uppercase text-gray-400">Initiative</Label>
+                    <Input
+                      id="INIT"
+                      type="number"
+                      value={editingCharacter?.INIT || 0}
+                      onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, INIT: parseInt(e.target.value) || 0 })}
+                      className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="niveau" className="text-[10px] uppercase text-gray-400">Niveau</Label>
+                    <Input
+                      id="niveau"
+                      type="number"
+                      value={editingCharacter?.niveau || 1}
+                      onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, niveau: parseInt(e.target.value) || 1 })}
+                      className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* --- SECTION 3: BONUS D'ATTAQUE --- */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Bonus d'Attaque</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  {['Contact', 'Distance', 'Magie'].map((stat) => (
+                    <div key={stat} className="space-y-1">
+                      <Label htmlFor={stat} className="text-[10px] uppercase text-gray-400">{stat}</Label>
+                      <Input
+                        id={stat}
+                        type="number"
+                        value={editingCharacter?.[stat as keyof Character] as number || 0}
+                        onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, [stat]: parseInt(e.target.value) || 0 })}
+                        className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* --- SECTION 4: CARACTÉRISTIQUES --- */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Caractéristiques</h3>
+                <div className="grid grid-cols-6 gap-2">
+                  {['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].map((stat) => (
+                    <div key={stat} className="space-y-1 text-center">
+                      <Label htmlFor={stat} className="text-[10px] uppercase text-gray-400 block">{stat}</Label>
+                      <Input
+                        id={stat}
+                        type="number"
+                        value={editingCharacter?.[stat as keyof Character] as number || 0}
+                        onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, [stat]: parseInt(e.target.value) || 0 })}
+                        className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono px-1"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* --- SECTION 5: VISIBILITÉ --- */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Visibilité</h3>
+                <div className="flex flex-col gap-3">
+                  <div className="flex gap-2">
+                    {[
+                      { id: 'visible', label: 'Visible' },
+                      { id: 'ally', label: 'Allié' },
+                      { id: 'hidden', label: 'Caché' }
+                    ].map((mode) => (
+                      <button
+                        key={mode.id}
+                        type="button"
+                        onClick={() => editingCharacter && setEditingCharacter({ ...editingCharacter, visibility: mode.id as any })}
+                        className={`flex-1 h-9 rounded-md border text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 ${editingCharacter?.visibility === mode.id
+                          ? 'bg-[#c0a080] border-[#c0a080] text-[#1e1e1e] font-bold shadow-sm'
+                          : 'bg-[#2a2a2a] border-gray-600 text-gray-300 hover:bg-[#3a3a3a] hover:text-white'}`}
+                      >
+                        {mode.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {(editingCharacter?.type === 'joueurs' || editingCharacter?.visibility === 'ally') && (
+                    <div className="bg-[#2a2a2a] p-3 rounded-lg border border-gray-700 flex items-center gap-4">
+                      <Label htmlFor="visibilityRadius" className="text-xs text-gray-300 whitespace-nowrap">Rayon de vision</Label>
+                      <div className="flex-1 flex items-center gap-3">
+                        <input
+                          id="visibilityRadius"
+                          type="range"
+                          min="10"
+                          max="500"
+                          value={editingCharacter?.visibilityRadius || 100}
+                          onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, visibilityRadius: parseInt(e.target.value) || 100 })}
+                          className="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-[#c0a080]"
+                        />
+                        <span className="text-xs font-mono text-[#c0a080] bg-[#1c1c1c] px-2 py-1 rounded border border-gray-600 min-w-[3rem] text-center">
+                          {Math.round(1 + ((editingCharacter?.visibilityRadius || 100) - 10) / 490 * 29)} c.
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
             </div>
           </ScrollArea>
           <DialogFooter>
@@ -4443,100 +4031,110 @@ export default function Component() {
         </DialogContent>
       </Dialog>
 
-      {showCharacterSheet && selectedCharacterForSheet && roomId && (
-        <CharacterSheet
-          characterId={selectedCharacterForSheet}
-          roomId={roomId}
-          onClose={() => {
-            setShowCharacterSheet(false);
-            setSelectedCharacterForSheet(null);
-          }}
-        />
-      )}
+      {
+        showCharacterSheet && selectedCharacterForSheet && roomId && (
+          <CharacterSheet
+            characterId={selectedCharacterForSheet}
+            roomId={roomId}
+            onClose={() => {
+              setShowCharacterSheet(false);
+              setSelectedCharacterForSheet(null);
+            }}
+          />
+        )
+      }
 
       {/* 🎯 PAN MODE OVERLAY */}
-      {panMode && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-50 backdrop-blur-sm">
-          <div className="flex items-center gap-2">
-            <Move className="w-4 h-4 text-neutral-400" />
-            <span className="font-medium text-sm">Mode Déplacement</span>
+      {
+        panMode && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-50 backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              <Move className="w-4 h-4 text-neutral-400" />
+              <span className="font-medium text-sm">Mode Déplacement</span>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       {/* 🎯 FOG MODE OVERLAY */}
-      {fogMode && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-50 backdrop-blur-sm">
-          <div className="flex items-center gap-2">
-            <Cloud className="w-4 h-4 text-neutral-400" />
-            <span className="font-medium text-sm">Mode Brouillard</span>
+      {
+        fogMode && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-50 backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              <Cloud className="w-4 h-4 text-neutral-400" />
+              <span className="font-medium text-sm">Mode Brouillard</span>
+            </div>
+            <div className="h-4 w-px bg-neutral-700 mx-1"></div>
+            <div className="text-xs text-neutral-400">
+              Clic pour modifier
+            </div>
+            {isMJ && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowFogGrid(!showFogGrid)}
+                className={`h-7 px-2 text-xs ml-2 ${showFogGrid ? 'text-yellow-400 bg-yellow-400/10' : 'text-neutral-400 hover:text-white'}`}
+              >
+                <Grid className="w-3 h-3 mr-1" />
+                Grille
+              </Button>
+            )}
           </div>
-          <div className="h-4 w-px bg-neutral-700 mx-1"></div>
-          <div className="text-xs text-neutral-400">
-            Clic pour modifier
-          </div>
-          {isMJ && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowFogGrid(!showFogGrid)}
-              className={`h-7 px-2 text-xs ml-2 ${showFogGrid ? 'text-yellow-400 bg-yellow-400/10' : 'text-neutral-400 hover:text-white'}`}
-            >
-              <Grid className="w-3 h-3 mr-1" />
-              Grille
-            </Button>
-          )}
-        </div>
-      )}
+        )
+      }
 
       {/* 🎯 PLAYER VIEW OVERLAY */}
-      {playerViewMode && isMJ && (
-        <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-purple-900/90 text-purple-100 px-4 py-2 rounded-full border border-purple-700 shadow-xl flex items-center gap-3 z-40 backdrop-blur-sm pointer-events-none">
-          <ScanEye className="w-4 h-4" />
-          <span className="font-medium text-sm">Vue Joueur Active</span>
-        </div>
-      )}
+      {
+        playerViewMode && isMJ && (
+          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-purple-900/90 text-purple-100 px-4 py-2 rounded-full border border-purple-700 shadow-xl flex items-center gap-3 z-40 backdrop-blur-sm pointer-events-none">
+            <ScanEye className="w-4 h-4" />
+            <span className="font-medium text-sm">Vue Joueur Active</span>
+          </div>
+        )
+      }
 
       {/* 🎯 MEASUREMENT OVERLAY UI */}
-      {measureMode && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-50 backdrop-blur-sm">
-          <div className="flex items-center gap-2">
-            <Ruler className="w-4 h-4 text-neutral-400" />
-            <span className="font-medium text-sm">Mode Mesure</span>
+      {
+        measureMode && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-50 backdrop-blur-sm">
+            <div className="flex items-center gap-2">
+              <Ruler className="w-4 h-4 text-neutral-400" />
+              <span className="font-medium text-sm">Mode Mesure</span>
+            </div>
+
+            <div className="h-4 w-px bg-neutral-700 mx-1"></div>
+
+            <div className="text-xs text-neutral-400">
+              {isCalibrating ? "Tracez une ligne d'étalon." : "Tracez pour mesurer."}
+            </div>
+
+            {!isCalibrating && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsCalibrating(true);
+                  setMeasureStart(null);
+                  setMeasureEnd(null);
+                }}
+                className="h-7 px-2 text-xs text-neutral-400 hover:text-white hover:bg-white/5 ml-2"
+              >
+                Étalonner
+              </Button>
+            )}
+            {isCalibrating && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsCalibrating(false)}
+                className="h-7 px-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 ml-2"
+              >
+                Annuler
+              </Button>
+            )}
           </div>
-
-          <div className="h-4 w-px bg-neutral-700 mx-1"></div>
-
-          <div className="text-xs text-neutral-400">
-            {isCalibrating ? "Tracez une ligne d'étalon." : "Tracez pour mesurer."}
-          </div>
-
-          {!isCalibrating && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setIsCalibrating(true);
-                setMeasureStart(null);
-                setMeasureEnd(null);
-              }}
-              className="h-7 px-2 text-xs text-neutral-400 hover:text-white hover:bg-white/5 ml-2"
-            >
-              Étalonner
-            </Button>
-          )}
-          {isCalibrating && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsCalibrating(false)}
-              className="h-7 px-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 ml-2"
-            >
-              Annuler
-            </Button>
-          )}
-        </div>
-      )}
+        )
+      }
 
       {/* 🎯 CALIBRATION DIALOG */}
       <Dialog open={calibrationDialogOpen} onOpenChange={setCalibrationDialogOpen}>
@@ -4673,6 +4271,79 @@ export default function Component() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
-  );
+
+      <ContextMenuPanel
+        character={contextMenuCharacterId ? characters.find(c => c.id === contextMenuCharacterId) || null : null}
+        isOpen={contextMenuOpen}
+        onClose={() => {
+          setContextMenuOpen(false);
+          setContextMenuCharacterId(null);
+          setSelectedCharacterIndex(null); // Désélectionner aussi sur la map si on ferme le menu
+        }}
+        isMJ={isMJ}
+        onAction={(action, characterId, value) => {
+          // Gestion des actions du menu contextuel
+          const char = characters.find(c => c.id === characterId);
+          if (!char) return;
+
+          if (action === 'openSheet') {
+            setSelectedCharacterForSheet(characterId);
+            setShowCharacterSheet(true);
+          } else if (action === 'attack') {
+            if (isMJ) {
+              if (activePlayerId) {
+                setAttackerId(activePlayerId);
+                setTargetId(characterId);
+                setCombatOpen(true);
+              } else {
+                alert("Aucun personnage actif sélectionné pour attaquer (Tour du joueur)");
+              }
+            } else {
+              if (persoId) {
+                setAttackerId(persoId);
+                setTargetId(characterId);
+                setCombatOpen(true);
+              }
+            }
+          } else if (action === 'delete') {
+            if (isMJ) {
+              setCharacterToDelete(char);
+              setConfirmDeleteOpen(true);
+            }
+          } else if (action === 'edit') {
+            if (isMJ) {
+              setEditingCharacter(char);
+              setCharacterDialogOpen(true);
+              setContextMenuOpen(false); // Close context menu when opening edit
+            }
+          } else if (action === 'setVisibility') {
+            if (isMJ && roomId) {
+              const newVisibility = value;
+              const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
+              updateDoc(charRef, { visibility: newVisibility });
+            }
+          } else if (action === 'updateRadius') {
+            if (isMJ && roomId) {
+              const newRadius = value;
+              const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
+              updateDoc(charRef, { visibilityRadius: newRadius });
+            }
+          } else if (action === 'toggleCondition') {
+            if (isMJ && roomId) {
+              const condition = value;
+              const currentConditions = char.conditions || [];
+              let newConditions;
+              if (currentConditions.includes(condition)) {
+                newConditions = currentConditions.filter(c => c !== condition);
+              } else {
+                newConditions = [...currentConditions, condition];
+              }
+              const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
+              updateDoc(charRef, { conditions: newConditions });
+            }
+          }
+        }}
+      />
+    </div >
+  )
 }
