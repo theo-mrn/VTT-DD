@@ -1,7 +1,7 @@
 // Sidebar.tsx
 "use client";
 
-import { Swords, FileText, Edit, Dice5, List, Search, MessageSquare } from "lucide-react";
+import { Swords, FileText, Edit, Dice5, List, Search, MessageSquare, UsersRound } from "lucide-react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useCompetences } from "@/contexts/CompetencesContext";
 import { useGame } from "@/contexts/GameContext";
@@ -111,17 +111,15 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
   return (
     <>
       <aside className="fixed top-1/2 left-0 transform -translate-y-1/2 z-30 bg-[#242424] p-2 sm:p-3 md:p-4 rounded-r-lg shadow-lg flex flex-col items-center space-y-3 sm:space-y-4 md:space-y-6">
-        {/* <button
-          onClick={() => setIsSearchOpen(true)}
-          className="p-1.5 sm:p-2 hover:bg-[#333] rounded transition-colors"
-          title="Rechercher une compétence (Ctrl+K)"
-        >
-          <Search className="h-5 w-5 sm:h-6 sm:w-6 text-[#d4d4d4] hover:text-[#c0a080]" />
-        </button> */}
         {isHydrated && isMJ && (
-          <button onClick={() => handleIconClick("GMDashboard")} className="p-1.5 sm:p-2">
-            <Swords className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "GMDashboard" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
-          </button>
+          <>
+            <button onClick={() => handleIconClick("GMDashboard")} className="p-1.5 sm:p-2">
+              <Swords className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "GMDashboard" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
+            </button>
+            <button onClick={() => handleIconClick("NPCManager")} className="p-1.5 sm:p-2">
+              <UsersRound className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "NPCManager" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
+            </button>
+          </>
         )}
         <button onClick={() => handleIconClick("Component")} className="p-1.5 sm:p-2">
           <FileText className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Component" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
@@ -137,9 +135,6 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
           <MessageSquare className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Chat" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button>
 
-        {/* <button onClick={() => handleIconClick("Competences")} className="p-1.5 sm:p-2">
-          <List className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Competences" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
-        </button> */}
       </aside>
 
       <Dialog open={isSearchOpen} onOpenChange={handleOpenChange}>

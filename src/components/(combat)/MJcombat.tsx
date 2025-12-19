@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer"
-import { Plus, Minus, Dice1, ChevronRight, Sword, Skull, Shield, Heart, X } from "lucide-react"
+import { Plus, Minus, Dice1, ChevronRight, Sword, Skull, Shield, Heart, X, Pencil } from "lucide-react"
 import { auth, db, doc, getDoc, onSnapshot, updateDoc, deleteDoc, collection, onAuthStateChanged, writeBatch } from "@/lib/firebase"
 import { Dialog, DialogTrigger, DialogPortal, DialogOverlay, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
@@ -198,16 +198,18 @@ export function GMDashboard() {
     });
 
     const sortedCharacters = filteredChars.sort((a, b) => (b.currentInit ?? 0) - (a.currentInit ?? 0))
+    let finalCharacters = [...sortedCharacters]
 
     if (activePlayerId) {
-      const activePlayerIndex = sortedCharacters.findIndex((char) => char.id === activePlayerId)
+      const activePlayerIndex = finalCharacters.findIndex((char) => char.id === activePlayerId)
       if (activePlayerIndex > 0) {
-        const [activeCharacter] = sortedCharacters.splice(activePlayerIndex, 1)
-        sortedCharacters.unshift(activeCharacter)
+        const part1 = finalCharacters.slice(activePlayerIndex)
+        const part2 = finalCharacters.slice(0, activePlayerIndex)
+        finalCharacters = [...part1, ...part2]
       }
     }
 
-    setCharacters(sortedCharacters)
+    setCharacters(finalCharacters)
   }, [rawCharacters, currentCityId, activePlayerId])
 
   useEffect(() => {
@@ -585,11 +587,15 @@ export function GMDashboard() {
                             </div>
                             <div className="h-8 w-px bg-[var(--border-color)]"></div>
                             <div className="flex flex-col items-end">
-                              <div className="flex items-center gap-1 text-xl font-bold text-[var(--text-primary)]">
+                              <Button
+                                variant="ghost"
+                                className="flex items-center gap-2 h-auto p-1 px-2 hover:bg-white/5 -mr-2"
+                                onClick={() => openDrawer(targetCharacter)}
+                              >
                                 <Heart className="h-5 w-5 text-red-500 fill-red-500" />
-                                {targetCharacter.pv}
-                              </div>
-                              <span className="text-xs text-[var(--text-secondary)]">PV</span>
+                                <span className="text-xl font-bold text-[var(--text-primary)]">{targetCharacter.pv}</span>
+                                <Pencil className="h-3 w-3 text-[var(--text-secondary)] opacity-50 ml-1" />
+                              </Button>
                             </div>
                           </div>
                         </div>
@@ -620,7 +626,7 @@ export function GMDashboard() {
 
           {/* Active Character Panel */}
           {activeCharacter ? (
-            <Card className="h-fit max-h-full flex flex-col border-[var(--accent-brown)] border-2 bg-[var(--bg-card)] shadow-lg overflow-hidden">
+            <Card className="flex-1 min-h-0 flex flex-col border-[var(--accent-brown)] border-2 bg-[var(--bg-card)] shadow-lg overflow-hidden">
               <CardHeader className="pb-2 bg-[var(--accent-brown)]/5">
                 <div className="flex items-center gap-4">
                   <Avatar className="h-20 w-20 border-2 border-[var(--accent-brown)] shadow-md">
@@ -651,12 +657,14 @@ export function GMDashboard() {
                           </div>
                           <div className="h-10 w-px bg-[var(--border-color)]"></div>
                           <div className="flex flex-col items-end">
-                            <div className="flex items-center gap-2 text-2xl font-bold text-[var(--text-primary)]">
+                            <Button
+                              variant="ghost"
+                              className="flex items-center gap-2 h-auto p-1 px-2 hover:bg-white/5 -mr-2"
+                              onClick={() => openDrawer(activeCharacter)}
+                            >
                               <Heart className="h-6 w-6 text-red-500 fill-red-500" />
-                              {activeCharacter.pv}
-                            </div>
-                            <Button variant="link" className="text-[var(--accent-brown)] p-0 h-auto text-xs" onClick={() => openDrawer(activeCharacter)}>
-                              Ajuster PV
+                              <span className="text-2xl font-bold text-[var(--text-primary)]">{activeCharacter.pv}</span>
+                              <Pencil className="h-4 w-4 text-[var(--text-secondary)] opacity-50 ml-1" />
                             </Button>
                           </div>
                         </div>
@@ -825,7 +833,7 @@ export function GMDashboard() {
           </DialogContent>
         </DialogPortal>
       </Dialog>
-    </div>
+    </div >
   )
 }
 
