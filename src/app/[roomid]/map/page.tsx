@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Download, MapPin, Heart, Shield, Zap, Dices } from 'lucide-react'
+
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/(combat)/combat2';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -15,10 +16,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import CharacterSheet from '@/components/(fiches)/CharacterSheet';
 import { Component as RadialMenu } from '@/components/ui/radial-menu';
 import CitiesManager from '@/components/(worldmap)/CitiesManager';
-import { InfoComponentWrapper } from "@/components/(infos)/InfoWrapper";
 import ContextMenuPanel from '@/components/(overlays)/ContextMenuPanel';
-import { BookOpen, Flashlight } from "lucide-react";
-import { NPCManager } from '@/components/(personnages)/personnages';
+import { NPCTemplateDrawer } from '@/components/(personnages)/NPCTemplateDrawer';
+import { PlaceNPCModal } from '@/components/(personnages)/PlaceNPCModal';
+import { CreateNoteModal } from '@/components/(map)/CreateNoteModal';
+import InfoComponent, { type InfoSection } from "@/components/(infos)/info";
+import { type NPC } from '@/components/(personnages)/personnages';
 import {
   type Obstacle,
   type Point as VisibilityPoint,
@@ -59,8 +62,8 @@ export default function Component() {
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [characters, setCharacters] = useState<Character[]>([]);
   const [notes, setNotes] = useState<Text[]>([]);
-  const [dialogOpen, setDialogOpen] = useState(false)
-  const [showInfo, setShowInfo] = useState(false); // 🆕 State for InfoComponent visibility
+
+  const [activeInfoSection, setActiveInfoSection] = useState<InfoSection>(null); // 🆕 State for Info Sections
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
   const [selectedCharacterForSheet, setSelectedCharacterForSheet] = useState<string | null>(null);
   const [newCharacter, setNewCharacter] = useState<NewCharacter>({
@@ -106,6 +109,9 @@ export default function Component() {
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [contextMenuCharacterId, setContextMenuCharacterId] = useState<string | null>(null);
 
+  const [isRadialMenuOpen, setIsRadialMenuOpen] = useState(false);
+  const [isRadialMenuCentered, setIsRadialMenuCentered] = useState(false);
+
   // 🎯 Drawing Selection State
   const [selectedDrawingIndex, setSelectedDrawingIndex] = useState<number | null>(null);
   const [isDraggingDrawing, setIsDraggingDrawing] = useState(false);
@@ -115,8 +121,14 @@ export default function Component() {
   const [isResizingDrawing, setIsResizingDrawing] = useState(false);
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
   const [characterDialogOpen, setCharacterDialogOpen] = useState(false)
-  const [addNoteDialogOpen, setAddNoteDialogOpen] = useState(false)
-  const [newNote, setNewNote] = useState({ text: '', color: '#ffff00', fontSize: 16 })
+
+  // 🎯 NPC Template Drag & Drop States
+  const [isNPCDrawerOpen, setIsNPCDrawerOpen] = useState(false)
+  const [draggedTemplate, setDraggedTemplate] = useState<NPC | null>(null)
+  const [dropPosition, setDropPosition] = useState<{ x: number; y: number } | null>(null)
+
+  const [showPlaceModal, setShowPlaceModal] = useState(false)
+  const [showCreateNoteModal, setShowCreateNoteModal] = useState(false)
   const [isDrawing, setIsDrawing] = useState(false)
   const [drawMode, setDrawMode] = useState(false)
   const [drawings, setDrawings] = useState<SavedDrawing[]>([]);
@@ -129,6 +141,24 @@ export default function Component() {
   const [currentPath, setCurrentPath] = useState<Point[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true)
+  const [fontFamilyMap, setFontFamilyMap] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    // Résoudre les variables CSS pour le Canvas
+    if (typeof window !== 'undefined') {
+      const style = getComputedStyle(document.documentElement);
+      const getValue = (n: string) => style.getPropertyValue(n).replace(/"/g, '').trim();
+
+      setFontFamilyMap({
+        'var(--font-body)': getValue('--font-body'),
+        'var(--font-title)': getValue('--font-title'),
+        'var(--font-hand)': getValue('--font-hand'),
+        'var(--font-medieval)': getValue('--font-medieval'),
+        'var(--font-modern)': getValue('--font-modern'),
+      });
+    }
+  }, []);
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [visibilityRadius, setVisibilityRadius] = useState(100);
@@ -172,14 +202,6 @@ export default function Component() {
   const [viewMode, setViewMode] = useState<ViewMode>('world'); // 'world' = world map, 'city' = city map
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null); // null = world map
   const [cities, setCities] = useState<any[]>([]); // Villes disponibles
-
-  // 🆕 IMPORT NPC STATE
-  const [importDialogOpen, setImportDialogOpen] = useState(false);
-  const [availableNPCsFromOtherCities, setAvailableNPCsFromOtherCities] = useState<Array<{
-    npc: Character;
-    cityName: string;
-    cityId: string;
-  }>>([]);
 
   // 🆕 RANDOM STAT GENERATOR STATE
   const [difficulty, setDifficulty] = useState(3); // 1-5
@@ -422,6 +444,8 @@ export default function Component() {
             x: data.x || 0,
             y: data.y || 0,
             color: data.color || 'yellow',
+            fontSize: data.fontSize,
+            fontFamily: data.fontFamily,
           });
         }
       });
@@ -488,25 +512,6 @@ export default function Component() {
 
 
 
-
-
-
-
-
-
-  // Keep Drawing for backward compatibility if needed, or just use SavedDrawing
-  // We will transition state to SavedDrawing[]
-
-
-
-
-
-
-
-
-
-
-
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !bgImageObject) return;
@@ -523,6 +528,131 @@ export default function Component() {
   }, [bgImageObject, showGrid, zoom, offset, characters, notes, selectedCharacterIndex, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle]);
 
 
+  // 🎯 NPC Template Drag & Drop Handlers
+  const handleTemplateDragStart = (template: NPC) => {
+    console.log('🎯 Drag started:', template.Nomperso)
+    setDraggedTemplate(template)
+  }
+
+  const handleCanvasDrop = (e: React.DragEvent) => {
+    console.log('📍 Drop event triggered')
+    e.preventDefault()
+
+    const canvas = canvasRef.current
+    const image = bgImageObject
+    if (!canvas || !image) {
+      console.log('❌ No canvas ref or image')
+      return
+    }
+
+    // Get template data from dataTransfer
+    const templateData = e.dataTransfer.getData('application/json')
+    console.log('📦 Template data:', templateData ? 'Found' : 'Not found')
+
+    if (!templateData) {
+      console.log('❌ No template data in drop event')
+      return
+    }
+
+    try {
+      const template = JSON.parse(templateData) as NPC
+      console.log('✅ Template parsed:', template.Nomperso)
+
+      const rect = canvas.getBoundingClientRect()
+      const containerWidth = containerRef.current?.clientWidth || rect.width
+      const containerHeight = containerRef.current?.clientHeight || rect.height
+
+      // Calcul de l'échelle et des dimensions scalées (même logique que drawMap)
+      const scale = Math.min(containerWidth / image.width, containerHeight / image.height)
+      const scaledWidth = image.width * scale * zoom
+      const scaledHeight = image.height * scale * zoom
+
+      // IMPORTANT: Utiliser la même formule que handleCanvasMouseMove (lignes 2425-2426)
+      // Le canvas utilise ctx.scale(sizeMultiplier) donc pas besoin de diviser par sizeMultiplier
+      const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width
+      const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height
+
+      console.log('📍 Drop position:', {
+        x: x.toFixed(2),
+        y: y.toFixed(2),
+        zoom,
+        offset,
+        clientX: e.clientX,
+        clientY: e.clientY,
+        scaledWidth: scaledWidth.toFixed(2),
+        scaledHeight: scaledHeight.toFixed(2),
+        imageWidth: image.width,
+        imageHeight: image.height
+      })
+
+      setDraggedTemplate(template)
+      setDropPosition({ x, y })
+      setShowPlaceModal(true)
+    } catch (error) {
+      console.error('❌ Error parsing template data:', error)
+    }
+  }
+
+  const handleCanvasDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }
+
+  const handlePlaceConfirm = async (config: { nombre: number; visibility: 'visible' | 'hidden' | 'ally' }) => {
+    if (!draggedTemplate || !dropPosition) return
+
+    console.log('🎯 Placement de', config.nombre, 'PNJ(s) à la position:', dropPosition)
+
+    try {
+      const charactersRef = collection(db, `cartes/${roomId}/characters`)
+
+      // Create instances based on nombre
+      for (let i = 0; i < config.nombre; i++) {
+        const offsetX = i * 50 // Offset each instance slightly
+        const offsetY = i * 50
+
+        const finalX = dropPosition.x + offsetX
+        const finalY = dropPosition.y + offsetY
+
+        console.log(`📍 Placement PNJ ${i + 1}/${config.nombre} à x:${finalX.toFixed(2)}, y:${finalY.toFixed(2)}`)
+
+        await addDoc(charactersRef, {
+          Nomperso: config.nombre > 1 ? `${draggedTemplate.Nomperso} ${i + 1}` : draggedTemplate.Nomperso,
+          type: 'pnj',
+          imageURL2: draggedTemplate.imageURL2 || '',
+          niveau: draggedTemplate.niveau,
+          PV: draggedTemplate.PV,
+          PV_Max: draggedTemplate.PV_Max,
+          Defense: draggedTemplate.Defense,
+          FOR: draggedTemplate.FOR ?? 10,
+          DEX: draggedTemplate.DEX ?? 10,
+          CON: draggedTemplate.CON ?? 10,
+          INT: draggedTemplate.INT ?? 10,
+          SAG: draggedTemplate.SAG ?? 10,
+          CHA: draggedTemplate.CHA ?? 10,
+          Contact: draggedTemplate.Contact ?? 0,
+          Distance: draggedTemplate.Distance ?? 0,
+          Magie: draggedTemplate.Magie ?? 0,
+          INIT: draggedTemplate.INIT ?? 0,
+          visibility: config.visibility,
+          visibilityRadius: 100, // Default visibility radius
+          cityId: selectedCityId, // Associate with current city
+          x: finalX,
+          y: finalY,
+          createdAt: new Date()
+        })
+      }
+
+      console.log(`✅ ${config.nombre} NPC(s) placé(s) sur la carte`)
+    } catch (error) {
+      console.error('❌ Error placing NPC:', error)
+    } finally {
+      setShowPlaceModal(false)
+      setDraggedTemplate(null)
+      setDropPosition(null)
+    }
+  }
+
   // Firebase Functions
 
   // 🎯 Configuration du menu radial
@@ -537,7 +667,6 @@ export default function Component() {
     { id: 8, label: 'Déplacer carte', icon: Move },
     { id: 9, label: playerViewMode ? 'Vue MJ' : 'Vue Joueur', icon: playerViewMode ? ScanEye : User },
     { id: 10, label: 'Mesurer', icon: Ruler },
-    { id: 11, label: 'Importer PNJ', icon: Download },
   ] : [
     { id: 1, label: 'Ajouter Texte', icon: Baseline },
     { id: 2, label: 'Dessiner', icon: Pencil },
@@ -688,8 +817,8 @@ export default function Component() {
       // Menu MJ
       switch (item.id) {
         case 1:
-          // Ajouter Personnage
-          setDialogOpen(true);
+          // Ajouter Personnage - Ouvrir le drawer de templates
+          setIsNPCDrawerOpen(true);
           break;
         case 2:
           // Ajouter Texte
@@ -734,10 +863,7 @@ export default function Component() {
           setMeasureEnd(null);
           setIsCalibrating(false);
           break;
-        case 11:
-          // Importer PNJ
-          loadNPCsFromOtherCities();
-          break;
+
       }
     } else {
       // Menu Joueur
@@ -816,92 +942,6 @@ export default function Component() {
 
   };
 
-  const loadNPCsFromOtherCities = async () => {
-    if (!roomId || !selectedCityId) return;
-
-    try {
-      setAvailableNPCsFromOtherCities([]);
-
-      // Charger toutes les villes pour avoir les noms
-      const citiesRef = collection(db, 'cartes', roomId, 'cities');
-      const citiesSnapshot = await getDocs(citiesRef);
-      const cityNamesMap = new Map<string, string>();
-      citiesSnapshot.forEach(doc => {
-        cityNamesMap.set(doc.id, doc.data().name || 'Ville inconnue');
-      });
-
-      // Charger tous les personnages
-      const charsRef = collection(db, 'cartes', roomId, 'characters');
-      const charsSnapshot = await getDocs(charsRef);
-
-      const allNPCs: Array<{ npc: Character; cityName: string; cityId: string }> = [];
-
-      charsSnapshot.forEach((doc) => {
-        const data = doc.data();
-        // Filtrer : PNJ seulement, qui ont un cityId, et qui ne sont PAS dans la ville actuelle
-        if (data.type !== 'joueurs' && data.visibility !== 'ally' && data.cityId && data.cityId !== selectedCityId) {
-          allNPCs.push({
-            npc: {
-              id: doc.id,
-              name: data.Nomperso || 'Sans nom',
-              niveau: data.niveau || 1,
-              x: data.x || 0,
-              y: data.y || 0,
-              image: { src: data.imageURL2 || data.imageURL } as HTMLImageElement,
-              visibility: data.visibility || 'hidden',
-              visibilityRadius: data.visibilityRadius || 100,
-              type: data.type || 'pnj',
-              PV: data.PV || 10,
-              Defense: data.Defense || 5,
-              Contact: data.Contact || 5,
-              Distance: data.Distance || 5,
-              Magie: data.Magie || 5,
-              INIT: data.INIT || 5,
-              FOR: data.FOR || 0,
-              DEX: data.DEX || 0,
-              CON: data.CON || 0,
-              SAG: data.SAG || 0,
-              INT: data.INT || 0,
-              CHA: data.CHA || 0,
-              // cityId: data.cityId // Info pour le debug
-            },
-            cityName: cityNamesMap.get(data.cityId) || 'Ville inconnue',
-            cityId: data.cityId,
-          });
-        }
-      });
-
-      console.log(`📦 ${allNPCs.length} PNJ disponibles depuis d'autres villes`);
-      setAvailableNPCsFromOtherCities(allNPCs);
-      setImportDialogOpen(true);
-
-    } catch (error) {
-      console.error('❌ Erreur chargement PNJ:', error);
-    }
-  };
-
-  const importNPCToCurrentCity = async (npcData: any, sourceCityId: string) => {
-    if (!roomId || !selectedCityId) return;
-
-    try {
-      const charsRef = collection(db, 'cartes', roomId, 'characters');
-
-      // Copier le PNJ dans la collection centrale avec le cityId actuel
-      await addDoc(charsRef, {
-        ...npcData,
-        cityId: selectedCityId, // 🆕 ASSIGNER À LA VILLE ACTUELLE
-        x: (Math.random() * (canvasRef.current?.width || 800)) / zoom,
-        y: (Math.random() * (canvasRef.current?.height || 600)) / zoom,
-      });
-
-
-      alert(`✅ ${npcData.Nomperso} a été importé dans la ville actuelle !`);
-
-    } catch (error) {
-      console.error('❌ Erreur import PNJ:', error);
-      alert('❌ Erreur lors de l\'importation');
-    }
-  };
 
   // 🎯 NAVIGATION FUNCTIONS
   const navigateToCity = async (cityId: string) => {
@@ -1110,7 +1150,12 @@ export default function Component() {
 
       // Utiliser la taille de police de la note ou une taille par défaut
       const fontSize = (note.fontSize || 16) * zoom;
-      ctx.font = `${fontSize}px Arial`;
+
+      // Résoudre la police : CSS Var -> Nom réel -> Fallback
+      const fontVar = note.fontFamily || 'var(--font-body)';
+      const fontFamily = fontFamilyMap[fontVar] || 'Arial';
+
+      ctx.font = `${fontSize}px ${fontFamily}`;
       ctx.fillText(note.text, x, y);
 
       if (index === selectedNoteIndex) {
@@ -1807,63 +1852,7 @@ export default function Component() {
     // Legacy function - kept just in case but shouldn't be used with NPCManager
   };
 
-  const handleNPCManagerSubmit = async (charData: NewCharacter & { visibilityRadius?: number }) => {
-    if (charData.name && roomId) {
-      const storage = getStorage();
-      const charactersCollectionRef = collection(db, 'cartes', roomId.toString(), 'characters');
-      const isAlly = charData.visibility === 'ally';
 
-      let imageURL = '';
-
-      try {
-        if (charData.image && charData.image.src) {
-          // Check if it's already a firebase URL (from drag and drop of existing?) 
-          // or a data URL. My NPCManager uses Data URL for new uploads.
-          if (charData.image.src.startsWith('data:')) {
-            const imageRef = ref(storage, `characters/${charData.name}-${Date.now()}`);
-            const response = await fetch(charData.image.src);
-            const blob = await response.blob();
-            await uploadBytes(imageRef, blob);
-            imageURL = await getDownloadURL(imageRef);
-          } else {
-            imageURL = charData.image.src;
-          }
-        }
-
-        // Create characters
-        for (let i = 1; i <= charData.nombre; i++) {
-          const characterName = charData.nombre > 1 ? `${charData.name} ${i}` : charData.name;
-          await addDoc(charactersCollectionRef, {
-            Nomperso: characterName,
-            imageURL2: imageURL,
-            x: (Math.random() * (canvasRef.current?.width || 0) + offset.x) / zoom,
-            y: (Math.random() * (canvasRef.current?.height || 0) + offset.y) / zoom,
-            visibility: charData.visibility,
-            visibilityRadius: charData.visibilityRadius || (charData.visibility === 'ally' ? 100 : 100),
-            PV: charData.PV,
-            PV_Max: charData.PV_Max || charData.PV,
-            niveau: charData.niveau,
-            Defense: charData.Defense,
-            Contact: charData.Contact,
-            Distance: charData.Distance,
-            Magie: charData.Magie,
-            INIT: charData.INIT,
-            FOR: charData.FOR,
-            DEX: charData.DEX,
-            CON: charData.CON,
-            SAG: charData.SAG,
-            INT: charData.INT,
-            CHA: charData.CHA,
-            type: "pnj",
-            cityId: (!isAlly && selectedCityId) ? selectedCityId : null
-          });
-        }
-        setDialogOpen(false);
-      } catch (error) {
-        console.error("Error creating NPC:", error);
-      }
-    }
-  };
 
 
 
@@ -1919,32 +1908,42 @@ export default function Component() {
   };
 
   const handleAddNote = async () => {
-    // Réinitialiser et ouvrir le dialog
-    setNewNote({ text: '', color: '#ffff00', fontSize: 16 });
-    setAddNoteDialogOpen(true);
+    setEditingNote(null);
+    setShowCreateNoteModal(true);
   };
 
-  const handleNoteSubmitNew = async () => {
+  const handleCreateNoteConfirm = async (note: { text: string, color: string, fontSize: number, fontFamily: string }) => {
     const roomIdStr = String(roomId);
 
-    if (newNote.text.trim() && typeof roomIdStr === 'string') {
+    if (note.text.trim() && typeof roomIdStr === 'string') {
       try {
-        await addDoc(collection(db, 'cartes', roomIdStr, 'text'), {
-          content: newNote.text,
-          color: newNote.color || 'yellow',
-          fontSize: newNote.fontSize,
-          x: (Math.random() * (canvasRef.current?.width || 800) + offset.x) / zoom,
-          y: (Math.random() * (canvasRef.current?.height || 600) + offset.y) / zoom,
-          // 🆕 AJOUT DU CITY ID
-          cityId: selectedCityId
-        });
-        setAddNoteDialogOpen(false);
-        setNewNote({ text: '', color: '#ffff00', fontSize: 16 });
+        if (editingNote && editingNote.id) {
+          await updateDoc(doc(db, 'cartes', roomIdStr, 'text', editingNote.id), {
+            content: note.text,
+            color: note.color,
+            fontSize: note.fontSize,
+            fontFamily: note.fontFamily
+          });
+        } else if (containerRef.current) {
+          const container = containerRef.current;
+          const centerX = (container.clientWidth / 2 - offset.x) / zoom;
+          const centerY = (container.clientHeight / 2 - offset.y) / zoom;
+
+          await addDoc(collection(db, 'cartes', roomIdStr, 'text'), {
+            content: note.text,
+            color: note.color,
+            fontSize: note.fontSize,
+            fontFamily: note.fontFamily,
+            x: centerX,
+            y: centerY,
+            cityId: selectedCityId
+          });
+        }
+        setShowCreateNoteModal(false);
+        setEditingNote(null);
       } catch (error) {
-        console.error("Erreur lors de l'ajout de la note :", error);
+        console.error("Erreur lors de l'ajout/modification de la note :", error);
       }
-    } else {
-      console.error("Erreur : texte ou roomId manquant ou invalide.");
     }
   };
 
@@ -2019,22 +2018,6 @@ export default function Component() {
           return;
         }
 
-        // Gérer le double-clic pour ouvrir les fiches de personnage
-        if (e.detail === 2) {
-          const clickedCharIndex = characters.findIndex(char => {
-            const charX = (char.x / image.width) * scaledWidth - offset.x;
-            const charY = (char.y / image.height) * scaledHeight - offset.y;
-            const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
-            return Math.abs(charX - e.clientX + rect.left) < clickRadius && Math.abs(charY - e.clientY + rect.top) < clickRadius;
-          });
-
-          if (clickedCharIndex !== -1 && characters[clickedCharIndex].type === "joueurs") {
-            const character = characters[clickedCharIndex];
-            setSelectedCharacterForSheet(character.id);
-            setShowCharacterSheet(true);
-            return;
-          }
-        }
 
         // 🔦 MODE VISIBILITÉ - MODE EDIT (sélection et manipulation d'obstacles)
         if (visibilityMode && currentVisibilityTool === 'edit') {
@@ -2254,7 +2237,25 @@ export default function Component() {
         const clickedNoteIndex = notes.findIndex(note => {
           const noteX = (note.x / image.width) * scaledWidth - offset.x;
           const noteY = (note.y / image.height) * scaledHeight - offset.y;
-          return Math.abs(noteX - e.clientX + rect.left) < 50 * zoom && Math.abs(noteY - e.clientY + rect.top) < 20 * zoom;
+
+          const mouseX = e.clientX - rect.left;
+          const mouseY = e.clientY - rect.top;
+
+          const fontSize = (note.fontSize || 16) * zoom;
+          // Estimation de la largeur : 0.6 * fontSize par caractère (moyenne large)
+          const estimatedWidth = (note.text.length * fontSize * 0.7);
+          const estimatedHeight = fontSize;
+
+          // Padding confortable pour faciliter le clic
+          const padding = 15 * zoom;
+
+          // Hitbox alignée avec le rendu du texte (Baseline left)
+          // X: de [x - padding] à [x + width + padding]
+          // Y: de [y - height - padding] à [y + descenders + padding]
+          const isInX = mouseX >= (noteX - padding) && mouseX <= (noteX + estimatedWidth + padding);
+          const isInY = mouseY >= (noteY - estimatedHeight - padding) && mouseY <= (noteY + (estimatedHeight * 0.5) + padding);
+
+          return isInX && isInY;
         });
 
         // 🎯 NOUVEAU : Vérifier si on clique sur une cellule de brouillard
@@ -2317,11 +2318,13 @@ export default function Component() {
                 setSelectedCharacters([clickedCharIndex]);
               }
 
-              // Allow opening context menu for players inspecting allies or enemies
-              const char = characters[clickedCharIndex];
-              if (char && char.id) {
-                setContextMenuCharacterId(char.id);
-                setContextMenuOpen(true);
+              // For players (non-MJ), open context menu on single click for non-controllable characters
+              if (!isMJ) {
+                const char = characters[clickedCharIndex];
+                if (char && char.id) {
+                  setContextMenuCharacterId(char.id);
+                  setContextMenuOpen(true);
+                }
               }
 
               return;
@@ -2333,11 +2336,6 @@ export default function Component() {
             }
 
 
-            const char = characters[clickedCharIndex];
-            if (char && char.id) {
-              setContextMenuCharacterId(char.id);
-              setContextMenuOpen(true);
-            }
 
             // Préparer le drag des personnages (seulement si autorisé)
             setIsDraggingCharacter(true);
@@ -2400,6 +2398,39 @@ export default function Component() {
       } // Fin du clic gauche
     };
   };
+
+  const handleCanvasDoubleClick = (e: React.MouseEvent<Element>) => {
+    if (!bgImageObject) return
+
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    const containerWidth = containerRef.current?.clientWidth || rect.width
+    const containerHeight = containerRef.current?.clientHeight || rect.height
+
+    const image = bgImageObject
+    const scale = Math.min(containerWidth / image.width, containerHeight / image.height)
+    const scaledWidth = image.width * scale * zoom
+    const scaledHeight = image.height * scale * zoom
+    const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width
+    const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height
+
+    // Check if double-clicked on a character
+    const clickedCharIndex = characters.findIndex((char) => {
+      const tokenSize = 50
+      const dx = clickX - char.x
+      const dy = clickY - char.y
+      return Math.sqrt(dx * dx + dy * dy) < tokenSize / 2
+    })
+
+    if (clickedCharIndex !== -1) {
+      const char = characters[clickedCharIndex]
+      if (char && char.id) {
+        setContextMenuCharacterId(char.id)
+        setContextMenuOpen(true)
+      }
+    }
+  }
 
 
   const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
@@ -2890,16 +2921,32 @@ export default function Component() {
   };
 
 
+
+
+
   const handleZoom = (delta: number) => {
-    setZoom((prev) => {
-      const newZoom = Math.max(0.1, Math.min(5, prev + delta));
-      const zoomFactor = newZoom / prev;
-      setOffset((prev) => ({
-        x: prev.x * zoomFactor,
-        y: prev.y * zoomFactor
+    const newZoom = Math.max(0.1, Math.min(5, zoom + delta));
+    const zoomFactor = newZoom / zoom;
+
+    if (zoomFactor === 1 || isNaN(zoomFactor)) return;
+
+    if (containerRef.current) {
+      const { clientWidth, clientHeight } = containerRef.current;
+      const centerX = clientWidth / 2;
+      const centerY = clientHeight / 2;
+
+      setOffset((prevOffset) => ({
+        x: prevOffset.x * zoomFactor + centerX * (zoomFactor - 1),
+        y: prevOffset.y * zoomFactor + centerY * (zoomFactor - 1)
       }));
-      return newZoom;
-    });
+    } else {
+      setOffset((prevOffset) => ({
+        x: prevOffset.x * zoomFactor,
+        y: prevOffset.y * zoomFactor
+      }));
+    }
+
+    setZoom(newZoom);
   };
 
 
@@ -2924,25 +2971,28 @@ export default function Component() {
   const handleDeleteNote = async () => {
     // Convertir roomId en chaîne de caractères
     const roomIdStr = String(roomId);
-    // Vérifie que `selectedNoteIndex` est valide
+
+    // Check local selection validity
     if (selectedNoteIndex !== null && typeof roomIdStr === 'string') {
       const noteToDelete = notes[selectedNoteIndex];
 
-      // Vérifie que la note a un `id` valide avant de supprimer
-      if (typeof noteToDelete?.id === 'string') {
+      // Ensure note exists and has ID
+      if (noteToDelete && typeof noteToDelete.id === 'string') {
         try {
-          await deleteDoc(doc(db, 'cartes', roomIdStr, 'text', noteToDelete.id));
-          // Met à jour la liste des notes en retirant celle qui a été supprimée
-          setNotes((prevNotes) => prevNotes.filter((_, index) => index !== selectedNoteIndex));
+          // 1. Clear selection IMMEDIATELY to prevent double-trigger
           setSelectedNoteIndex(null);
+
+          // 2. Perform DB deletion
+          await deleteDoc(doc(db, 'cartes', roomIdStr, 'text', noteToDelete.id));
+
+          // 3. Update local state safely using ID (not index, which is unstable)
+          setNotes((prevNotes) => prevNotes.filter((n) => n.id !== noteToDelete.id));
         } catch (error) {
           console.error("Erreur lors de la suppression de la note :", error);
         }
       } else {
-        console.error("Erreur: noteToDelete.id n'est pas une chaîne valide.");
+        console.error("Erreur: Note introuvable ou ID invalide.");
       }
-    } else {
-      console.error("Erreur : selectedNoteIndex est invalide ou roomId est manquant.");
     }
   };
 
@@ -2957,7 +3007,7 @@ export default function Component() {
   const handleEditNote = () => {
     if (selectedNoteIndex !== null) {  // Ensure index is not null
       setEditingNote(notes[selectedNoteIndex]);
-      setNoteDialogOpen(true);
+      setShowCreateNoteModal(true);
     }
   };
 
@@ -3168,24 +3218,31 @@ export default function Component() {
 
   const handleDeleteSelectedCharacters = async () => {
     if (selectedCharacters.length > 0 && roomId && isMJ) {
-      // Filtrer pour ne supprimer que les personnages non-joueurs
-      const nonPlayerIndices = selectedCharacters.filter(index =>
-        characters[index]?.type !== 'joueurs'
-      );
+      // Collect valid characters to delete (objects, not just indices)
+      const charsToDelete = selectedCharacters
+        .map(index => characters[index])
+        .filter(c => c && c.type !== 'joueurs');
 
-      if (nonPlayerIndices.length > 0) {
-        const deletePromises = nonPlayerIndices.map(async (index) => {
-          const charToDelete = characters[index];
-          if (charToDelete?.id) {
-            await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', charToDelete.id));
+      if (charsToDelete.length > 0) {
+        // 1. Clear selection IMMEDIATELY
+        setSelectedCharacters([]);
+
+        // 2. Perform DB deletions
+        const deletePromises = charsToDelete.map(async (char) => {
+          if (char?.id) {
+            await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', char.id));
           }
         });
 
         await Promise.all(deletePromises);
-        setCharacters(characters.filter((_, index) => !nonPlayerIndices.includes(index)));
-      }
 
-      setSelectedCharacters([]);
+        // 3. Update local state safely using IDs
+        const deletedIds = charsToDelete.map(c => c.id);
+        setCharacters(prev => prev.filter(c => !deletedIds.includes(c.id)));
+      } else {
+        // Clear selection if only players were selected (and ignored)
+        setSelectedCharacters([]);
+      }
     }
   };
 
@@ -3219,6 +3276,7 @@ export default function Component() {
       {/* L'ancien emplacement en haut à gauche est supprimé pour Importer PNJ et Retour au Monde */}
 
       {/* 🎯 Contrôles de zoom flottants en haut à droite */}
+      {/* 🎯 Contrôles de zoom flottants en haut à droite */}
       <div className="absolute top-4 right-4 z-[5] flex flex-col gap-2 items-end">
         <Button
           onClick={() => handleZoom(0.1)}
@@ -3234,15 +3292,7 @@ export default function Component() {
         >
           <Minus className="w-4 h-4" />
         </Button>
-        {/* 🆕 Bouton Livre / Info */}
-        <Button
-          onClick={() => setShowInfo(!showInfo)}
-          className={`w-10 h-10 p-0 border border-gray-600 backdrop-blur-sm origin-center ${showInfo ? 'bg-amber-900/80 text-amber-100' : 'bg-black/50 hover:bg-black/70'
-            }`}
-          title="Ouvrir le livre"
-        >
-          <BookOpen className="w-4 h-4" />
-        </Button>
+
         {/* 🆕 Bouton Retour à la World  - Déplacé ici */}
         {isMJ && (
           <Button
@@ -3255,9 +3305,17 @@ export default function Component() {
         )}
       </div>
 
-      {/* 🆕 InfoComponentWrapper (Livre Central) */}
-      {showInfo && (
-        <InfoComponentWrapper onClose={() => setShowInfo(false)} />
+
+
+      {/* 🆕 InfoComponent Integré */}
+      {activeInfoSection && (
+        <div className="fixed inset-0 z-[60]">
+          <InfoComponent
+            activeSection={activeInfoSection}
+            setActiveSection={setActiveInfoSection}
+            renderButtons={false}
+          />
+        </div>
       )}
 
       {/* Styles pour l'animation de livre */}
@@ -3549,7 +3607,35 @@ export default function Component() {
         </div>
       )}
 
-      {/* Input caché pour le changement de fond */}
+      {/* 🆕 MENU ORB - Stylized Trigger */}
+      <div className="absolute bottom-6 right-6 z-[40]">
+        <button
+          onClick={() => {
+            setIsRadialMenuCentered(true);
+            setIsRadialMenuOpen(!isRadialMenuOpen);
+          }}
+          className={`
+            relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300
+            ${isRadialMenuOpen ? 'bg-[#c0a080] shadow-[0_0_20px_rgba(192,160,128,0.5)] scale-110' : 'bg-black/40 hover:bg-black/60 backdrop-blur-md border border-[#c0a080]/30 hover:border-[#c0a080]/70 hover:scale-105 hover:shadow-[0_0_15px_rgba(192,160,128,0.3)]'}
+          `}
+          title="Ouvrir le menu (ou Clic Droit)"
+        >
+          {/* Inner ring for detail */}
+          <div className={`absolute inset-1 rounded-full border border-white/10 ${isRadialMenuOpen ? 'border-black/20' : ''}`} />
+
+          {/* Icon */}
+          <div className={`transition-transform duration-500 ${isRadialMenuOpen ? 'rotate-180' : 'rotate-0'}`}>
+            {isRadialMenuOpen ? (
+              <X className="w-6 h-6 text-black" />
+            ) : (
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-[#c0a080]">
+                <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </div>
+        </button>
+      </div>
+
       <input
         ref={fileInputRef}
         type="file"
@@ -3564,6 +3650,9 @@ export default function Component() {
         size={280}
         iconSize={20}
         activeItemIds={getActiveToolIds()}
+        open={isRadialMenuOpen}
+        onOpenChange={setIsRadialMenuOpen}
+        centered={isRadialMenuCentered}
       >
         <div
           ref={containerRef}
@@ -3585,12 +3674,76 @@ export default function Component() {
             // Empêcher le menu contextuel en mode visibilité + brouillard (clic droit = retirer brouillard)
             if (visibilityMode && currentVisibilityTool === 'fog') {
               e.preventDefault();
+              return;
             }
-          }}
+
+            // Ensure Radial Menu is NOT centered when triggered by right-click
+            setIsRadialMenuCentered(false);
+
+            // 🎯 CONFLICT RESOLUTION: Character Context Menu vs Radial Menu
+            // If we are hovering over a character, we want the CHARACTER context menu to open (handled elsewhere or natively if implemented),
+            // and we want to PREVENT the Radial Menu from opening.
+
+            // Check if cursor is over a character
+            const rect = canvasRef.current?.getBoundingClientRect();
+            if (rect && bgImageObject) {
+              const containerWidth = containerRef.current?.clientWidth || rect.width;
+              const containerHeight = containerRef.current?.clientHeight || rect.height;
+              const image = bgImageObject;
+              const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
+              const scaledWidth = image.width * scale * zoom;
+              const scaledHeight = image.height * scale * zoom;
+              const mouseX = e.clientX;
+              const mouseY = e.clientY;
+
+              const hoveredCharIndex = characters.findIndex(char => {
+                const charX = (char.x / image.width) * scaledWidth - offset.x + rect.left;
+                const charY = (char.y / image.height) * scaledHeight - offset.y + rect.top;
+                const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
+                return Math.abs(charX - mouseX) < clickRadius && Math.abs(charY - mouseY) < clickRadius;
+              });
+
+              if (hoveredCharIndex !== -1) {
+                // Cursor is over a character.
+                // Prevent the Radial Menu (parent) from seeing this event.
+                // The Character Context Menu mechanism (likely handleCanvasMouseDown right-click check) might handle it,
+                // OR we need to trigger it here if it's not handled by 'contextmenu' event.
+
+                // In existing code, handleCanvasMouseDown handles right-click detection explicitly for logic (like fog),
+                // but `ContextMenuPanel` state is usually set there.
+
+                // Let's ensure we stop propagation so RadialMenu doesn't open.
+                e.stopPropagation();
+
+                // Also, if the character right-click logic relies on 'mousedown', it has already fired.
+                // If it relies on 'contextmenu', it might be on the canvas.
+
+                // IMPORTANT: e.preventDefault() here would stop the browser native menu, 
+                // but we might WANT the custom Character Context Menu relative logic to run if it wasn't triggered by mousedown.
+                // However, let's look at `handleCanvasMouseDown` again.
+                // It handles `e.button === 2`? NOT explicitly for opening the character menu yet (it was mostly for fog).
+
+                // To be safe: triggering character menu usually happens on clic. 
+                // Let's add the logic to OPEN the character menu here directly on contextmenu if generic right click didn't do it.
+
+                const char = characters[hoveredCharIndex];
+                if (char && char.id) {
+                  e.preventDefault(); // Stop native browser menu
+                  setContextMenuCharacterId(char.id);
+                  setContextMenuOpen(true);
+                }
+                return;
+              }
+            }
+          }
+          }
         >
           <canvas
             ref={canvasRef}
             style={{ width: '100%', height: '100vh' }}
+            onDrop={handleCanvasDrop}
+            onDragOver={handleCanvasDragOver}
+            onDoubleClick={handleCanvasDoubleClick}
           />
           {combatOpen && (
             <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-10">
@@ -3684,145 +3837,23 @@ export default function Component() {
         </div>
       )}
 
-      <NPCManager
-        isOpen={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        onSubmit={handleNPCManagerSubmit}
-        difficulty={difficulty}
+
+
+      {/* Modal moderne pour ajouter/modifier une note */}
+      <CreateNoteModal
+        isOpen={showCreateNoteModal}
+        onClose={() => {
+          setShowCreateNoteModal(false);
+          setEditingNote(null);
+        }}
+        onConfirm={handleCreateNoteConfirm}
+        initialValues={editingNote ? {
+          text: editingNote.text,
+          color: editingNote.color,
+          fontSize: editingNote.fontSize,
+          fontFamily: editingNote.fontFamily
+        } : null}
       />
-
-      <Dialog open={noteDialogOpen} onOpenChange={setNoteDialogOpen}>
-        <DialogContent className="bg-[rgb(36,36,36)] max-w-3xl text-[#c0a080]">
-          <DialogHeader>
-            <DialogTitle>Modifier la note</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="noteText" className="text-right">Texte</Label>
-              <Input
-                id="noteText"
-                value={editingNote?.text || ''}
-                onChange={(e) => setEditingNote({ ...editingNote, text: e.target.value })}
-                className="col-span-3"
-              />
-            </div>
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="noteColor" className="text-right">Couleur</Label>
-              <Input
-                id="noteColor"
-                type="color"
-                value={editingNote?.color || '#ffff00'}
-                onChange={(e) => setEditingNote({ ...editingNote, color: e.target.value })}
-                className="col-span-3"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button onClick={handleNoteSubmit}>Modifier</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Dialog pour ajouter une nouvelle note */}
-      <Dialog open={addNoteDialogOpen} onOpenChange={setAddNoteDialogOpen}>
-        <DialogContent className="bg-[rgb(36,36,36)] max-w-md text-[#c0a080]">
-          <DialogHeader>
-            <DialogTitle className="text-2xl font-bold text-center mb-4">📝 Créer une note</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6 py-4">
-            {/* Texte de la note */}
-            <div className="space-y-2">
-              <Label htmlFor="newNoteText" className="text-lg font-medium">Texte de la note</Label>
-              <textarea
-                id="newNoteText"
-                value={newNote.text}
-                onChange={(e) => setNewNote({ ...newNote, text: e.target.value })}
-                className="w-full h-24 p-3 bg-[rgb(50,50,50)] border border-gray-600 rounded-lg text-white resize-none focus:ring-2 focus:ring-[#c0a080] focus:border-[#c0a080]"
-                placeholder="Entrez votre note ici..."
-              />
-            </div>
-
-            {/* Couleur */}
-            <div className="space-y-2">
-              <Label htmlFor="newNoteColor" className="text-lg font-medium">Couleur du texte</Label>
-              <div className="flex items-center space-x-3">
-                <input
-                  id="newNoteColor"
-                  type="color"
-                  value={newNote.color}
-                  onChange={(e) => setNewNote({ ...newNote, color: e.target.value })}
-                  className="w-12 h-12 rounded-lg border-2 border-gray-600 cursor-pointer"
-                />
-                <div className="flex space-x-2">
-                  {/* Couleurs prédéfinies */}
-                  {['#ffff00', '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff'].map(color => (
-                    <button
-                      key={color}
-                      onClick={() => setNewNote({ ...newNote, color })}
-                      className={`w-8 h-8 rounded-full border-2 ${newNote.color === color ? 'border-white' : 'border-gray-600'} transition-all hover:scale-110`}
-                      style={{ backgroundColor: color }}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Taille de police */}
-            <div className="space-y-2">
-              <Label htmlFor="newNoteFontSize" className="text-lg font-medium">Taille du texte</Label>
-              <div className="space-y-2">
-                <input
-                  id="newNoteFontSize"
-                  type="range"
-                  min="12"
-                  max="48"
-                  value={newNote.fontSize}
-                  onChange={(e) => setNewNote({ ...newNote, fontSize: parseInt(e.target.value) })}
-                  className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                />
-                <div className="flex justify-between text-sm text-gray-400">
-                  <span>Petit (12px)</span>
-                  <span className="font-medium" style={{ color: newNote.color, fontSize: `${Math.min(newNote.fontSize, 24)}px` }}>
-                    Aperçu ({newNote.fontSize}px)
-                  </span>
-                  <span>Grand (48px)</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Aperçu de la note */}
-            <div className="bg-[rgb(50,50,50)] p-4 rounded-lg border border-gray-600">
-              <Label className="text-sm text-gray-400 mb-2 block">Aperçu :</Label>
-              <div
-                style={{
-                  color: newNote.color,
-                  fontSize: `${Math.min(newNote.fontSize, 24)}px`,
-                  lineHeight: '1.4'
-                }}
-                className="font-medium"
-              >
-                {newNote.text || 'Votre texte apparaîtra ici...'}
-              </div>
-            </div>
-          </div>
-          <DialogFooter className="flex space-x-3">
-            <Button
-              variant="outline"
-              onClick={() => setAddNoteDialogOpen(false)}
-              className="px-6 py-2 border-gray-600 text-gray-300 hover:bg-gray-700"
-            >
-              Annuler
-            </Button>
-            <Button
-              onClick={handleNoteSubmitNew}
-              disabled={!newNote.text.trim()}
-              className="px-6 py-2 bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              ✨ Créer la note
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={characterDialogOpen} onOpenChange={setCharacterDialogOpen}>
         <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">
@@ -4175,103 +4206,6 @@ export default function Component() {
         </DialogContent>
       </Dialog>
 
-
-      {/* 🆕 DIALOGUE D'IMPORTATION DE PNJ */}
-      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
-        <DialogContent className="max-w-5xl max-h-[70vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold">📥 Importer un PNJ depuis une autre ville</DialogTitle>
-          </DialogHeader>
-
-          <ScrollArea className="flex-1">
-            {availableNPCsFromOtherCities.length === 0 ? (
-              <div className="text-center py-12 text-gray-400">
-                <p className="text-lg">Aucun PNJ disponible dans les autres villes</p>
-                <p className="text-sm mt-2">Créez des PNJ dans d'autres villes pour pouvoir les importer ici</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {availableNPCsFromOtherCities.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-4 p-3 border border-gray-700 rounded-lg bg-gray-800/30 hover:bg-gray-700/30 transition-colors"
-                  >
-                    {/* Image du PNJ */}
-                    <div className="w-16 h-16 rounded-md overflow-hidden bg-gray-900 border border-gray-600 flex-shrink-0">
-                      {item.npc.image?.src ? (
-                        <img
-                          src={item.npc.image.src}
-                          alt={item.npc.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-2xl text-gray-600">
-                          👤
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Info du PNJ */}
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-white truncate">
-                        {item.npc.name}
-                      </h3>
-                      <p className="text-sm text-gray-400 truncate">
-                        📍 {item.cityName}
-                      </p>
-                      <div className="flex gap-3 mt-1 text-xs text-gray-300">
-                        <span>Niv. {item.npc.niveau}</span>
-                        <span>❤️ {item.npc.PV}</span>
-                      </div>
-                    </div>
-
-                    {/* Bouton Import */}
-                    <Button
-                      onClick={() => {
-                        // Extraire les données sans l'objet image
-                        const { image, ...npcDataWithoutImage } = item.npc;
-                        // Reconstruire avec l'URL de l'image
-                        const npcDataToImport = {
-                          Nomperso: item.npc.name,
-                          imageURL2: item.npc.image?.src,
-                          niveau: item.npc.niveau,
-                          visibility: item.npc.visibility,
-                          visibilityRadius: item.npc.visibilityRadius,
-                          type: item.npc.type,
-                          PV: item.npc.PV,
-                          Defense: item.npc.Defense,
-                          Contact: item.npc.Contact,
-                          Distance: item.npc.Distance,
-                          Magie: item.npc.Magie,
-                          INIT: item.npc.INIT,
-                          FOR: item.npc.FOR,
-                          DEX: item.npc.DEX,
-                          CON: item.npc.CON,
-                          SAG: item.npc.SAG,
-                          INT: item.npc.INT,
-                          CHA: item.npc.CHA,
-                        };
-                        importNPCToCurrentCity(npcDataToImport, item.cityId);
-                      }}
-                      className="bg-blue-600 hover:bg-blue-700 text-white"
-                      size="sm"
-                    >
-                      Importer
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
-              Fermer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <ContextMenuPanel
         character={contextMenuCharacterId ? characters.find(c => c.id === contextMenuCharacterId) || null : null}
         isOpen={contextMenuOpen}
@@ -4343,6 +4277,27 @@ export default function Component() {
             }
           }
         }}
+      />
+
+      {/* NPC Template Drawer */}
+      <NPCTemplateDrawer
+        roomId={roomId}
+        isOpen={isNPCDrawerOpen}
+        onClose={() => setIsNPCDrawerOpen(false)}
+        onDragStart={handleTemplateDragStart}
+        currentCityId={selectedCityId}
+      />
+
+      {/* Place NPC Modal */}
+      <PlaceNPCModal
+        isOpen={showPlaceModal}
+        template={draggedTemplate}
+        onClose={() => {
+          setShowPlaceModal(false)
+          setDraggedTemplate(null)
+          setDropPosition(null)
+        }}
+        onConfirm={handlePlaceConfirm}
       />
     </div >
   )

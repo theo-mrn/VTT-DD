@@ -33,6 +33,9 @@ type RadialMenuProps = {
   outerRingWidth?: number;
   onSelect?: (item: MenuItem) => void;
   activeItemIds?: number[]; // Tableau des IDs des items actuellement actifs
+  open?: boolean; // Controlled state
+  onOpenChange?: (open: boolean) => void; // Controlled state handler
+  centered?: boolean; // Force menu to center of screen
 };
 
 type MenuItem = {
@@ -124,6 +127,9 @@ export const Component = ({
   outerRingWidth = 12,
   onSelect,
   activeItemIds = [],
+  open: propsOpen,
+  onOpenChange,
+  centered = false,
 }: RadialMenuProps) => {
   const radius = size / 2;
 
@@ -141,7 +147,14 @@ export const Component = ({
 
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [open, setOpen] = useState<boolean>(false);
+
+  // Internal state for uncontrolled mode
+  const [internalOpen, setInternalOpen] = useState<boolean>(false);
+
+  // Determine effective state (controlled vs uncontrolled)
+  const isControlled = typeof propsOpen !== 'undefined';
+  const open = isControlled ? propsOpen : internalOpen;
+
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
 
   const resetActive = () => {
@@ -149,9 +162,13 @@ export const Component = ({
     setHoveredLabel(null);
   };
 
-  const handleOpenChange = (isOpen: boolean) => {
-    setOpen(isOpen);
-    if (!isOpen) resetActive();
+  const handleOpenChange = (newOpen: boolean) => {
+    if (!isControlled) {
+      setInternalOpen(newOpen);
+    }
+    onOpenChange?.(newOpen);
+
+    if (!newOpen) resetActive();
   };
 
   return (
@@ -167,7 +184,7 @@ export const Component = ({
                 if (open) {
                   e.preventDefault();
                   e.stopPropagation();
-                  setOpen(false);
+                  handleOpenChange(false);
                   return;
                 }
                 // Sinon, laisser le comportement par défaut (ouvrir le menu)
@@ -176,7 +193,7 @@ export const Component = ({
               onClick={(e) => {
                 // Fermer le menu si on clique n'importe où quand il est ouvert
                 if (open) {
-                  setOpen(false);
+                  handleOpenChange(false);
                 }
                 triggerProps.onClick?.(e);
               }}
@@ -202,18 +219,21 @@ export const Component = ({
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setOpen(false);
+                handleOpenChange(false);
               }}
               onContextMenu={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setOpen(false);
+                handleOpenChange(false);
               }}
             />
             <ContextMenu.Positioner
               align="center"
               sideOffset={({ positioner }) => -positioner.height / 2}
-              className="outline-none z-50"
+              className={cn(
+                "outline-none z-50",
+                centered ? "!fixed !top-1/2 !left-1/2 !-translate-x-1/2 !-translate-y-1/2" : ""
+              )}
             >
               <ContextMenu.Popup
                 style={{ width: size, height: size }}
@@ -228,7 +248,7 @@ export const Component = ({
                     onContextMenu={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      setOpen(false);
+                      handleOpenChange(false);
                     }}
                   />
                 }
@@ -240,7 +260,7 @@ export const Component = ({
                   onContextMenu={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    setOpen(false);
+                    handleOpenChange(false);
                   }}
                 >
                   {menuItems.map((item, index) => {
@@ -399,7 +419,7 @@ export const Component = ({
                           className="fill-neutral-200 dark:fill-neutral-800 cursor-pointer hover:fill-neutral-300 dark:hover:fill-neutral-700 transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setOpen(false);
+                            handleOpenChange(false);
                           }}
                         />
                         {/* Icône X avec foreignObject pour utiliser lucide-react */}

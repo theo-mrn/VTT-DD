@@ -1,7 +1,7 @@
 // Sidebar.tsx
 "use client";
 
-import { Swords, FileText, Edit, Dice5, List, Search, MessageSquare, UsersRound } from "lucide-react";
+import { Swords, FileText, Edit, Dice5, List, Search, MessageSquare, UsersRound, Music } from "lucide-react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useCompetences } from "@/contexts/CompetencesContext";
 import { useGame } from "@/contexts/GameContext";
@@ -118,6 +118,9 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
             </button>
             <button onClick={() => handleIconClick("NPCManager")} className="p-1.5 sm:p-2">
               <UsersRound className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "NPCManager" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
+            </button>
+            <button onClick={() => handleIconClick("Music")} className="p-1.5 sm:p-2">
+              <Music className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Music" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
             </button>
           </>
         )}
