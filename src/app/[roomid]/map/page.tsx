@@ -2958,6 +2958,10 @@ export default function Component() {
 
     // 🎯 DRAG OBSTACLE
     if (isDraggingObstacle && draggedObstacleId) {
+      if (draggedObstacleOriginalPoints.length === 0) {
+        // Prevent disappearance due to race condition or empty state
+        return;
+      }
       const startMapX = ((dragStart.x - rect.left + offset.x) / scaledWidth) * image.width;
       const startMapY = ((dragStart.y - rect.top + offset.y) / scaledHeight) * image.height;
 
