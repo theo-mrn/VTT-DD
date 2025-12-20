@@ -119,11 +119,11 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
             <button onClick={() => handleIconClick("NPCManager")} className="p-1.5 sm:p-2">
               <UsersRound className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "NPCManager" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
             </button>
-            <button onClick={() => handleIconClick("Music")} className="p-1.5 sm:p-2">
-              <Music className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Music" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
-            </button>
           </>
         )}
+        <button onClick={() => handleIconClick("Music")} className="p-1.5 sm:p-2">
+          <Music className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Music" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
+        </button>
         <button onClick={() => handleIconClick("Component")} className="p-1.5 sm:p-2">
           <FileText className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Component" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button>

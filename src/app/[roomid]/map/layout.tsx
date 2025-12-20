@@ -17,6 +17,7 @@ import { auth, onAuthStateChanged } from "@/lib/firebase";
 import { X } from "lucide-react";
 
 import MJMusicPlayer from "@/components/(music)/MJMusicPlayer";
+import PlayerMusicControl from "@/components/(music)/PlayerMusicControl";
 
 type LayoutProps = {
   children: ReactNode;
@@ -51,7 +52,7 @@ export default function Layout({ children }: LayoutProps) {
       case "DiceRoller":
         return <DiceRoller />;
       case "Music":
-        return <MJMusicPlayer roomId={roomId} />;
+        return isMJ ? <MJMusicPlayer roomId={roomId} /> : <PlayerMusicControl roomId={roomId} />;
       case "Competences":
         return <Competences />;
       case "Chat":
