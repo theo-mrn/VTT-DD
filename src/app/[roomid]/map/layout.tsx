@@ -51,8 +51,6 @@ export default function Layout({ children }: LayoutProps) {
         return <MedievalNotes />;
       case "DiceRoller":
         return <DiceRoller />;
-      case "Music":
-        return isMJ ? <MJMusicPlayer roomId={roomId} /> : <PlayerMusicControl roomId={roomId} />;
       case "Competences":
         return <Competences />;
       case "Chat":
@@ -80,8 +78,6 @@ export default function Layout({ children }: LayoutProps) {
         return "w-full sm:w-[400px] md:w-[400px] lg:w-[380px]";
       case "NewComponent":
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1200px]";
-      case "Music":
-        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[900px]";
       case "Chat":
         return "w-full sm:w-[90vw] md:w-[500px] lg:w-[600px]";
       default:
@@ -101,12 +97,28 @@ export default function Layout({ children }: LayoutProps) {
         <OverlayComponent />
       </div>
 
-      {activeTab && (
+      {/* Persistent Music Player Container */}
+      <aside
+        className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#242424] h-auto max-h-[85vh] rounded-xl border border-[#333]
+          w-full sm:w-[95vw] md:w-[90vw] lg:w-[900px] text-black shadow-lg z-20 overflow-y-auto
+          ${activeTab === 'Music' ? 'block' : 'hidden'}`}
+      >
+        <button
+          onClick={() => setActiveTab("")}
+          className={`lg:hidden fixed top-3 right-3 z-10 rounded-full p-2 transition-colors shadow-lg bg-[#1c1c1c] text-white hover:bg-[#333]`}
+          aria-label="Fermer le panneau"
+        >
+          <X className="h-5 w-5" />
+        </button>
+
+        <div className="">
+          {isMJ ? <MJMusicPlayer roomId={roomId} /> : <PlayerMusicControl roomId={roomId} />}
+        </div>
+      </aside>
+
+      {activeTab && activeTab !== 'Music' && (
         <aside
-          className={`fixed ${activeTab === 'Music'
-            ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#242424] h-auto max-h-[85vh] rounded-xl border border-[#333]'
-            : 'left-0 sm:left-16 md:left-20 top-0 h-full'
-            } ${getPanelWidth()} text-black shadow-lg z-20
+          className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${getPanelWidth()} text-black shadow-lg z-20
             ${activeTab === 'Chat' ? 'overflow-hidden' : 'overflow-y-auto'}`}
         >
 

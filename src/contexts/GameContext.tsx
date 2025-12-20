@@ -53,6 +53,10 @@ interface GameContextType {
 
   // Actions d'authentification
   refreshUserData: () => Promise<void>;
+
+  // GM Simulated View
+  viewAsPersoId: string | null;
+  setViewAsPersoId: (id: string | null) => void;
 }
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -110,6 +114,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isHydrated, setIsHydrated] = useState(false);
+
+  // GM Simulated View State
+  const [viewAsPersoId, setViewAsPersoId] = useState<string | null>(null);
 
   // Wrappers pour sauvegarder dans localStorage
   const setIsMJ = useCallback((value: boolean) => {
@@ -425,7 +432,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       loadCharacterData,
 
       // Actions d'authentification
-      refreshUserData
+      refreshUserData,
+
+      // GM Simulated View
+      viewAsPersoId, // [NEW]
+      setViewAsPersoId // [NEW]
     }}>
       {children}
     </GameContext.Provider>

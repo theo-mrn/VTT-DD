@@ -44,7 +44,7 @@ import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLay
 export default function Component() {
   const params = useParams();
   const roomId = params.roomid as string;
-  const { isMJ, persoId } = useGame();
+  const { isMJ, persoId, viewAsPersoId, setViewAsPersoId } = useGame();
   const [combatOpen, setCombatOpen] = useState(false);
   const [attackerId, setAttackerId] = useState<string | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
@@ -364,6 +364,7 @@ export default function Component() {
     isMJ,
     playerViewMode,
     persoId,
+    viewAsPersoId, // [NEW]
     characters,
     fogCellSize
   });
@@ -659,7 +660,7 @@ export default function Component() {
     canvas.height = containerHeight * sizeMultiplier;
     ctx.scale(sizeMultiplier, sizeMultiplier);
     drawMap(ctx, image, containerWidth, containerHeight); // Pass container dimensions
-  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers]);
+  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers, viewAsPersoId]);
 
 
   // 🎯 NPC Template Drag & Drop Handlers
@@ -1440,8 +1441,11 @@ export default function Component() {
       // Trouver le personnage du joueur
       let viewerPosition: Point | null = null;
 
+      // [NEW] Use simulated view ID if active
+      const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
+
       for (const character of characters) {
-        if (character.id === persoId &&
+        if (character.id === effectivePersoId &&
           character.x !== undefined && character.y !== undefined) {
           viewerPosition = { x: character.x, y: character.y };
           break;
@@ -1582,8 +1586,11 @@ export default function Component() {
     let activeShadowsForFiltering: Point[][] | null = null;
 
     if (!effectiveIsMJ && obstacles.length > 0 && isLayerVisible('obstacles')) {
+      // [NEW] Use simulated view ID if active
+      const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
+
       for (const char of characters) {
-        if (char.id === persoId && char.x !== undefined && char.y !== undefined) {
+        if (char.id === effectivePersoId && char.x !== undefined && char.y !== undefined) {
           activeShadowsForFiltering = calculateShadowPolygons({ x: char.x, y: char.y }, obstacles, { width: image.width, height: image.height });
           break;
         }
@@ -4851,14 +4858,78 @@ export default function Component() {
       }
 
       {/* 🎯 PLAYER VIEW OVERLAY */}
-      {
-        playerViewMode && isMJ && (
-          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 bg-purple-900/90 text-purple-100 px-4 py-2 rounded-full border border-purple-700 shadow-xl flex items-center gap-3 z-40 backdrop-blur-sm pointer-events-none">
-            <ScanEye className="w-4 h-4" />
-            <span className="font-medium text-sm">Vue Joueur Active</span>
+      {isMJ && playerViewMode && (
+        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-center gap-3 bg-zinc-900/95 text-white p-2 pr-4 rounded-full border border-red-500/20 shadow-2xl backdrop-blur-xl ring-1 ring-white/5">
+
+            {/* Header / Indicator */}
+            <div className="flex items-center gap-2 pl-2">
+              <div className="relative flex items-center justify-center w-6 h-6 rounded-full bg-red-500/20">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-20 animate-ping"></span>
+                <Eye className="w-3 h-3 text-red-400" />
+              </div>
+              <span className="text-[10px] font-bold tracking-widest text-red-100/80 uppercase whitespace-nowrap hidden sm:block">
+                {viewAsPersoId ? characters.find(c => c.id === viewAsPersoId)?.name : "VUE JOUEUR"}
+              </span>
+            </div>
+
+            <div className="h-4 w-px bg-white/10" />
+
+            {/* Portraits Horizontal Scroll */}
+            <div className="flex items-center gap-2 px-1">
+              {characters
+                .filter(c => c.type === 'joueurs' || c.visibility === 'ally')
+                .map(char => {
+                  const isSelected = viewAsPersoId === char.id;
+                  return (
+                    <div
+                      key={char.id}
+                      onClick={() => setViewAsPersoId(isSelected ? null : char.id)}
+                      className="relative group cursor-pointer transition-all duration-200"
+                      title={char.name}
+                    >
+                      <div className={`
+                        relative w-8 h-8 rounded-full overflow-hidden border transition-all duration-200
+                        ${isSelected
+                          ? 'border-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.4)] scale-110'
+                          : 'border-white/10 hover:border-white/40 hover:scale-105 opacity-70 hover:opacity-100'}
+                      `}>
+                        {char.image && char.image.src ? (
+                          <img src={char.image.src} alt={char.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-[10px] text-zinc-400 font-bold">
+                            {char.name[0]}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Tooltip on hover */}
+                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/90 text-[9px] px-2 py-0.5 rounded text-white whitespace-nowrap pointer-events-none z-50 border border-white/10">
+                        {char.name}
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+
+            <div className="h-4 w-px bg-white/10" />
+
+            {/* Close */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setPlayerViewMode(false);
+                setViewAsPersoId(null);
+              }}
+              className="h-6 w-6 rounded-full hover:bg-red-950/50 text-red-400/50 hover:text-red-300 p-0"
+              title="Quitter"
+            >
+              <X className="w-3 h-3" />
+            </Button>
           </div>
-        )
-      }
+        </div>
+      )}
 
       {/* 🎯 MEASUREMENT OVERLAY UI */}
       {
