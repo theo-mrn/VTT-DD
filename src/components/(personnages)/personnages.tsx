@@ -122,8 +122,8 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
             INT: rand(),
             SAG: rand(),
             CHA: rand(),
-            PV: base * 2 + 10,
-            PV_Max: base * 2 + 10,
+            PV: base + diff * 3, // Formule réduite : ~5-35 PV au lieu de ~20-80
+            PV_Max: base + diff * 3,
             Defense: 10 + Math.floor(base / 2),
             INIT: rand(),
             Contact: Math.floor(diff * 2), // Contact basé sur difficulté

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Crown, ChevronRight, Loader2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { db, getDocs, collection, doc, setDoc } from '@/lib/firebase'
 import { useGame } from '@/contexts/GameContext'
 
@@ -11,6 +12,29 @@ interface Character {
   Nomperso: string;
   imageURL?: string;
   type?: string;
+  Race?: string;
+  Profile?: string;
+}
+
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+}
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 30 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 50, damping: 15 } }
+}
+
+const hoverEffect = {
+  scale: 1.05,
+  transition: { duration: 0.3 }
 }
 
 export default function CharacterSelection() {
@@ -25,10 +49,11 @@ export default function CharacterSelection() {
   } = useGame();
 
   const [characters, setCharacters] = useState<Character[]>([])
-  const [charactersLoading, setCharactersLoading] = useState(false)
+  const [charactersLoading, setCharactersLoading] = useState(true) // Start true for smoother load
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCharId, setSelectedCharId] = useState<string | null>(null)
 
-  // Fonction mémorisée pour charger les personnages
+  // Load Characters
   const loadCharacters = useCallback(async (uid: string, roomId: string) => {
     setCharactersLoading(true)
     try {
@@ -48,50 +73,36 @@ export default function CharacterSelection() {
       console.error("Error loading characters:", error)
       setCharacters([])
     } finally {
-      setCharactersLoading(false)
+      // Small delay for smooth transition even if fast
+      setTimeout(() => setCharactersLoading(false), 500)
     }
   }, [])
 
-  // Charger les personnages quand l'utilisateur et la room sont disponibles
   useEffect(() => {
     if (user?.uid && user?.roomId && user.roomId !== '0') {
       loadCharacters(user.uid, user.roomId)
     } else if (user && (!user.roomId || user.roomId === '0')) {
       console.log("No Room_id found for this user.")
       setCharacters([])
+      setCharactersLoading(false)
     }
   }, [user, loadCharacters])
 
+  // Actions
   const saveSelectedCharacter = useCallback(async (character: Character) => {
-    if (!character.Nomperso || !character.id) {
-      console.error("Character data is incomplete:", character)
-      return
-    }
+    if (!character.Nomperso || !character.id || !user) return
 
-    if (!user) {
-      throw new Error("User data is not available");
-    }
+    setSelectedCharId(character.id) // Trigger loading state on card
 
     try {
-      // Optimisation : utiliser les données déjà chargées
-      const fullCharacterData = character;
-
-      // Set context values avec toutes les données du personnage
-      // Note: Ne pas modifier isMJ ici - laissez le contexte gérer la logique basée sur la base de données
       setPersoId(character.id);
-      setPlayerData(fullCharacterData);
+      setPlayerData(character);
 
-      console.log('Setting player data (OPTIMIZED):', {
-        persoId: character.id,
-        playerData: fullCharacterData
-      });
-
-      // Sauvegarder en base de données
       const userRef = doc(db, 'users', user.uid)
       await setDoc(userRef, {
         perso: character.Nomperso,
         persoId: character.id,
-        role: null  // Supprimer le rôle MJ quand on sélectionne un personnage
+        role: null
       }, { merge: true })
 
       if (user.roomId) {
@@ -99,32 +110,25 @@ export default function CharacterSelection() {
         await setDoc(roomRef, { nom: character.Nomperso }, { merge: true })
       }
 
-      console.log("Selected character saved:", character.Nomperso)
-
-      // Redirection vers la carte
       router.push(`/${user.roomId}/map`);
     } catch (error) {
       console.error("Error saving selected character:", error)
+      setSelectedCharId(null)
     }
-  }, [user, setIsMJ, setPersoId, setPlayerData, router])
+  }, [user, setPersoId, setPlayerData, router])
 
   const startAsMJ = useCallback(async () => {
-    if (!user) {
-      throw new Error("User data is not available");
-    }
-
+    if (!user) return
     try {
-      // Set context values
       setIsMJ(true);
       setPersoId(null);
       setPlayerData(null);
 
       const userRef = doc(db, 'users', user.uid)
-
       await setDoc(userRef, {
         perso: 'MJ',
         role: 'MJ',
-        persoId: null  // Supprimer le persoId quand on devient MJ
+        persoId: null
       }, { merge: true })
 
       if (user.roomId) {
@@ -138,7 +142,7 @@ export default function CharacterSelection() {
     }
   }, [user, setIsMJ, setPersoId, setPlayerData, router])
 
-  // Filtrer les personnages selon la recherche
+  // Filtering
   const filteredCharacters = useMemo(() => {
     if (!searchQuery.trim()) return characters
     return characters.filter(character =>
@@ -146,83 +150,195 @@ export default function CharacterSelection() {
     )
   }, [characters, searchQuery])
 
-  // Mémorisation du rendu des personnages pour éviter les re-renders
-  const charactersElements = useMemo(() => {
-    return filteredCharacters.map((character) => (
-      <div
-        key={character.id}
-        className="group w-36 h-[500px] rounded-[50px] bg-cover bg-top relative overflow-hidden transition-all duration-500 ease-in-out cursor-pointer hover:w-96 flex flex-col justify-end items-start"
-        style={{ backgroundImage: `url(${character.imageURL || 'default-avatar.png'})` }}
-        onClick={() => saveSelectedCharacter(character)}
-      >
-        <div className="absolute inset-x-0 bottom-0 h-1/4 bg-gradient-to-t from-black to-transparent"></div>
-        <h3 className="absolute bottom-4 left-6 text-white text-lg font-semibold opacity-0 transition-opacity duration-500 group-hover:opacity-100">
-          {character.Nomperso || 'Nom non défini'}
-        </h3>
-      </div>
-    ))
-  }, [filteredCharacters, saveSelectedCharacter])
-
-  // États de chargement
-  if (isLoading) {
+  // Loading Screen
+  if (isLoading || !isAuthenticated) {
     return (
-      <div className="relative w-full min-h-screen flex items-center justify-center bg-cover bg-center" style={{ backgroundImage: "url(../images/index1.webp)" }}>
-        <div className="text-white text-xl">Chargement...</div>
-      </div>
-    )
-  }
-
-  if (!isAuthenticated) {
-    return (
-      <div className="relative w-full min-h-screen flex items-center justify-center bg-cover bg-center" style={{ backgroundImage: "url(../images/index1.webp)" }}>
-        <div className="text-white text-xl">Veuillez vous connecter</div>
+      <div className="relative w-full h-screen flex flex-col items-center justify-center bg-[#0a0a0a] overflow-hidden">
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent z-10" />
+          {/* Background Image fallback or nice gradient */}
+          <div className="w-full h-full bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-neutral-800 via-black to-black" />
+        </div>
+        <div className="z-10 flex flex-col items-center gap-4">
+          {/* Spinner */}
+          <div className="w-16 h-16 border-4 border-[#c0a080]/30 border-t-[#c0a080] rounded-full animate-spin" />
+          <p className="text-[#c0a080] font-serif text-xl tracking-widest animate-pulse">
+            {isLoading ? "CHARGEMENT DES ARCHIVES..." : "AUTHENTIFICATION REQUISE"}
+          </p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="relative w-full min-h-screen flex flex-col items-center justify-start pt-20 bg-cover bg-center" style={{ backgroundImage: "url(../images/index1.webp)" }}>
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-white opacity-0 transition-opacity duration-2000 delay-500" style={{ fontFamily: "'Aclonica', sans-serif" }}>
-          Choisissez votre personnage
-        </h1>
+    <div className="relative min-h-screen w-full bg-[#050505] text-white overflow-x-hidden font-sans selection:bg-[#c0a080] selection:text-black">
+
+      {/* Cinematic Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div
+          className="absolute inset-0 bg-cover bg-center opacity-40 scale-105"
+          style={{ backgroundImage: "url(../images/index1.webp)" }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/80 to-[#050505]" />
+        <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.03] mix-blend-overlay" />
       </div>
 
-      {/* Search Bar */}
-      <div className="w-4/5 max-w-md mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Rechercher un personnage..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 rounded-lg bg-black/50 border border-[#c0a080]/30 text-white placeholder-gray-400 focus:outline-none focus:border-[#c0a080] transition-colors"
-          />
-        </div>
-      </div>
+      <div className="relative z-10 container mx-auto px-4 py-8 min-h-screen flex flex-col">
 
-      {charactersLoading ? (
-        <div className="text-white text-xl">Chargement des personnages...</div>
-      ) : (
-        <div className="flex flex-wrap justify-center w-4/5 gap-4">
-          {charactersElements}
-          <a
-            href="/creation"
-            className="group w-36 h-[500px] rounded-[50px] bg-white relative overflow-hidden transition-all duration-500 ease-in-out cursor-pointer hover:w-96 flex flex-col justify-center items-center"
+        {/* Header Section */}
+        <header className="flex flex-col md:flex-row justify-between items-center gap-6 mb-12 mt-4">
+          <div className="text-center md:text-left">
+            <motion.h1
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, ease: "easeOut" }}
+              className="text-4xl md:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[#e0c0a0] via-[#c0a080] to-[#8a6a4b]"
+              style={{ fontFamily: "'Aclonica', sans-serif" }}
+            >
+              Destinée
+            </motion.h1>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3, duration: 0.7 }}
+              className="text-gray-400 mt-2 text-lg font-light tracking-wide"
+            >
+              Choisissez votre incarnation pour cette aventure
+            </motion.p>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.4 }}
+            className="flex items-center gap-4"
           >
-            <Plus className="w-12 h-12 text-black transition-transform duration-300 ease-in-out group-hover:scale-150" />
-            <h3 className="absolute bottom-4 left-6 text-black opacity-0 transition-opacity duration-500 group-hover:opacity-100">Nouveau</h3>
-          </a>
-        </div>
-      )}
+            <button
+              onClick={startAsMJ}
+              className="group relative px-6 py-3 bg-[#1a1a1a] hover:bg-[#252525] border border-[#c0a080]/30 rounded-lg transition-all duration-300 overflow-hidden"
+            >
+              <div className="absolute inset-0 w-0 bg-[#c0a080]/10 transition-all duration-[250ms] ease-out group-hover:w-full" />
+              <div className="flex items-center gap-3 relative z-10">
+                <Crown className="w-5 h-5 text-[#c0a080]" />
+                <span className="text-[#e0e0e0] font-medium group-hover:text-white transition-colors">Maître du Jeu</span>
+              </div>
+            </button>
+          </motion.div>
+        </header>
 
-      <button
-        onClick={startAsMJ}
-        className="bg-[#c0a080] mt-16 mb-16 text-[#1c1c1c] px-12 py-4 rounded-lg hover:bg-[#d4b48f] transition duration-300 text-lg font-bold"
-      >
-        Commencer en tant que MJ
-      </button>
+
+
+        {/* Content Area */}
+        {charactersLoading ? (
+          <div className="flex-1 flex justify-center items-center pb-20">
+            <div className="flex flex-col items-center">
+              <Loader2 className="w-12 h-12 text-[#c0a080] animate-spin mb-4" />
+              <p className="text-gray-400 animate-pulse">Invocation des héros...</p>
+            </div>
+          </div>
+        ) : (
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="show"
+            className="flex flex-wrap justify-center gap-6 pb-12 w-full max-w-[95vw] mx-auto"
+          >
+            {/* New Character Card */}
+            <motion.a
+              variants={cardVariants}
+              href="/creation"
+              className="group relative h-[500px] w-24 sm:w-32 hover:w-80 md:hover:w-96 rounded-[40px] border-2 border-dashed border-[#c0a080]/30 hover:border-[#c0a080]/80 bg-white/5 hover:bg-white/10 transition-all duration-500 ease-out flex flex-col items-center justify-center cursor-pointer overflow-hidden backdrop-blur-sm"
+            >
+              <div className="absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-300 group-hover:opacity-0">
+                <Plus className="w-8 h-8 text-[#c0a080]" />
+                <span className="text-[#c0a080]/50 text-xs font-bold uppercase tracking-widest rotate-[-90deg] mt-16 whitespace-nowrap">Créer un héros</span>
+              </div>
+
+              <div className="opacity-0 group-hover:opacity-100 transition-all duration-500 delay-100 flex flex-col items-center min-w-[300px]">
+                <div className="bg-[#c0a080]/10 p-6 rounded-full mb-6 group-hover:scale-110 transition-transform duration-300">
+                  <Plus className="w-10 h-10 text-[#c0a080]" />
+                </div>
+                <h3 className="text-xl font-bold text-[#c0a080] group-hover:text-white transition-colors">Créer un Héros</h3>
+                <p className="text-gray-500 mt-2 text-sm max-w-[200px] text-center group-hover:text-gray-300 transition-colors">
+                  Façonnez une nouvelle légende pour parcourir ce monde.
+                </p>
+              </div>
+
+              {/* Decorative glow effect */}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#c0a080]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            </motion.a>
+
+            {/* Existing Characters */}
+            {filteredCharacters.map((character) => (
+              <motion.div
+                key={character.id}
+                variants={cardVariants}
+                className="group relative h-[500px] w-24 sm:w-32 hover:w-80 md:hover:w-96 rounded-[40px] overflow-hidden cursor-pointer shadow-2xl border border-white/5 hover:border-[#c0a080]/50 transition-all duration-500 ease-out bg-[#121212]"
+                onClick={() => !selectedCharId && saveSelectedCharacter(character)}
+              >
+                {/* Background Image */}
+                <div
+                  className="absolute inset-0 bg-cover bg-center transition-transform duration-700 ease-out group-hover:scale-110"
+                  style={{ backgroundImage: `url(${character.imageURL || 'default-avatar.png'})` }}
+                >
+                  {/* Dark Gradient Overlay - Always visible but stronger at bottom */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-transparent opacity-90 transition-opacity duration-300 group-hover:opacity-100" />
+                </div>
+
+                {/* Vertical Text (Collapsed State) */}
+                <div className="absolute inset-0 flex items-end justify-center pb-8 group-hover:opacity-0 transition-opacity duration-300">
+                  <h3 className="text-xl font-bold text-white/80 tracking-widest uppercase rotate-[-90deg] whitespace-nowrap origin-bottom translate-y-[-40px]" style={{ fontFamily: "'Aclonica', sans-serif" }}>
+                    {character.Nomperso}
+                  </h3>
+                </div>
+
+                {/* Content Overlay (Expanded State) */}
+                <div className="absolute inset-0 p-8 flex flex-col justify-end z-10 opacity-0 group-hover:opacity-100 transition-all duration-500 delay-100 min-w-[300px]">
+
+
+
+                  {/* Text Content */}
+                  <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                    <h3 className="text-3xl font-bold text-white mb-2 group-hover:text-[#c0a080] transition-colors" style={{ fontFamily: "'Aclonica', sans-serif" }}>
+                      {character.Nomperso}
+                    </h3>
+                    <div className="h-1 w-12 bg-[#c0a080] mb-4 group-hover:w-24 transition-all duration-700 ease-out" />
+
+                    <p className="text-[#c0a080] text-sm font-medium uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-200 mb-6">
+                      {character.Race || 'Inconnu'} • {character.Profile || 'Aventurier'}
+                    </p>
+
+                    <button className="w-full py-4 bg-[#c0a080] text-black font-bold rounded-xl opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-500 delay-300 flex items-center justify-center gap-3 hover:bg-[#d4b48f] hover:shadow-[0_0_20px_rgba(192,160,128,0.4)]">
+                      {selectedCharId === character.id ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : (
+                        <>
+                          <span className="uppercase tracking-wide text-sm">Sélectionner</span>
+                          <ChevronRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Loading / Selection Overlay */}
+                <AnimatePresence>
+                  {selectedCharId === character.id && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="absolute inset-0 bg-black/80 backdrop-blur-md z-50 flex flex-col items-center justify-center"
+                    >
+                      <Loader2 className="w-12 h-12 text-[#c0a080] animate-spin mb-4" />
+                      <span className="text-[#c0a080] font-medium tracking-wider animate-pulse">LIAISON DE L'ÂME...</span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </div>
     </div>
   )
 }
