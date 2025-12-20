@@ -151,15 +151,10 @@ export const NPCCreationForm = React.memo(({
                                 </Label>
                                 <Slider
                                     defaultValue={[difficulty]}
-                                    max={5} min={1} step={1}
+                                    max={10} min={0} step={1}
                                     className="[&_.bg-primary]:bg-[#c0a080]"
                                     onValueChange={(val) => onGenerateStats(val[0])}
                                 />
-                                <div className="flex justify-between text-[10px] text-gray-500 uppercase font-medium">
-                                    <span>Faible</span>
-                                    <span>Moyen</span>
-                                    <span>Mortel</span>
-                                </div>
                             </div>
 
                             {/* IDENTITY SECTION - Moved to left column */}
@@ -209,18 +204,18 @@ export const NPCCreationForm = React.memo(({
                                                 <span className="text-sm font-bold text-gray-300">Vitalité</span>
                                             </div>
                                             <div className="space-y-3">
-                                                <div className="space-y-1">
-                                                    <div className="flex justify-between text-xs text-gray-500">
-                                                        <span>PV Max</span>
-                                                        <span>{char.PV_Max}</span>
-                                                    </div>
-                                                    <Slider
-                                                        value={[char.PV_Max ?? 20]}
+                                                <div className="space-y-2">
+                                                    <Label className="text-gray-400 text-xs uppercase">PV Max</Label>
+                                                    <Input
+                                                        type="number"
+                                                        value={char.PV_Max ?? 20}
+                                                        onChange={(e) => {
+                                                            const val = parseInt(e.target.value) || 0;
+                                                            onCharChange({ ...char, PV_Max: val, PV: val });
+                                                        }}
+                                                        className="bg-[#1a1a1a] border-[#444] text-center font-bold text-red-400 h-12 text-xl"
                                                         min={0}
-                                                        max={200}
-                                                        step={5}
-                                                        onValueChange={(val) => onCharChange({ ...char, PV_Max: val[0], PV: val[0] })}
-                                                        className="[&_.bg-primary]:bg-red-600"
+                                                        max={500}
                                                     />
                                                 </div>
                                             </div>
