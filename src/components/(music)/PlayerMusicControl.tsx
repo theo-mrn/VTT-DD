@@ -77,10 +77,10 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
 
   const toggleMute = useCallback(() => {
     if (!playerRef.current) return;
-    
+
     const newMuted = !isMuted;
     setIsMuted(newMuted);
-    
+
     if (newMuted) {
       playerRef.current.mute();
     } else {
@@ -198,11 +198,11 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
 
       {/* Titre de la musique */}
       {musicState.videoId && musicState.videoTitle && (
-        <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-          <Music2 className="h-4 w-4 text-primary shrink-0" />
+        <div className="flex items-center gap-2 p-3 bg-white/10 rounded-lg border border-white/10">
+          <Music2 className="h-4 w-4 text-white shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">{musicState.videoTitle}</p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-sm font-semibold truncate text-white">{musicState.videoTitle}</p>
+            <p className="text-xs text-gray-300">
               {musicState.isPlaying ? '▶ En lecture' : '⏸ En pause'}
             </p>
           </div>
@@ -210,12 +210,12 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
       )}
 
       {/* Contrôle du volume */}
-      <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg">
+      <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/5">
         <Button
           variant="ghost"
           size="icon"
           onClick={toggleMute}
-          className="shrink-0 h-8 w-8"
+          className="shrink-0 h-8 w-8 text-gray-300 hover:text-white hover:bg-white/10"
           title={isMuted ? "Activer le son" : "Couper le son"}
         >
           {isMuted ? (
@@ -234,13 +234,13 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
           className="flex-1"
         />
 
-        <span className="text-xs font-semibold w-10 text-right shrink-0">
+        <span className="text-xs font-semibold w-10 text-right shrink-0 text-white">
           {Math.round(isMuted ? 0 : localVolume)}%
         </span>
       </div>
 
       {!musicState.videoId && (
-        <div className="text-center text-muted-foreground py-8">
+        <div className="text-center text-gray-400 py-8">
           <Music2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
           <p className="text-sm">Aucune musique en cours</p>
         </div>

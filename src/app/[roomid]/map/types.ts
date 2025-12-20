@@ -67,6 +67,27 @@ export type NewCharacter = {
     CHA: number;
 };
 
+export type MapObject = {
+    id: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
+    imageUrl: string;
+    cityId: string | null;
+    image?: HTMLImageElement; // Preloaded image for rendering
+};
+
+export type ObjectTemplate = {
+    id: string;
+    name: string;
+    imageUrl: string;
+    width?: number; // Default width
+    height?: number; // Default height
+    category?: string;
+};
+
 export type Note = {
     text?: string;
     id?: string;
