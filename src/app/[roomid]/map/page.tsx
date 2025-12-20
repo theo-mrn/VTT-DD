@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/(combat)/combat2';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -31,7 +31,9 @@ import {
   calculateShadowPolygons,
   isPointInPolygon,
 } from '@/lib/visibility';
-import { type ViewMode, type Point, type Character, type MapText as Text, type SavedDrawing, type NewCharacter, type Note, type MapObject, type ObjectTemplate } from './types';
+import { LayerControl } from '@/components/(map)/LayerControl';
+import { SelectionMenu, type SelectionCandidates, type SelectionType } from '@/components/(map)/SelectionMenu';
+import { type ViewMode, type Point, type Character, type MapText as Text, type SavedDrawing, type NewCharacter, type Note, type MapObject, type ObjectTemplate, type Layer, type LayerType } from './types';
 import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath } from './drawings';
 import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
 
@@ -100,8 +102,9 @@ export default function Component() {
   // 🎯 NOUVEAUX ÉTATS pour le drag & drop des objets
   const [isObjectDrawerOpen, setIsObjectDrawerOpen] = useState(false)
   const [isDraggingObject, setIsDraggingObject] = useState(false)
-  const [draggedObjectIndex, setDraggedObjectIndex] = useState<number | null>(null)
+  const [draggedObjectIndex, setDraggedObjectIndex] = useState<number | null>(null) // Used for main reference
   const [draggedObjectOriginalPos, setDraggedObjectOriginalPos] = useState({ x: 0, y: 0 })
+  const [draggedObjectsOriginalPositions, setDraggedObjectsOriginalPositions] = useState<{ index: number, x: number, y: number }[]>([]); // For multi-drag
   const [draggedObjectTemplate, setDraggedObjectTemplate] = useState<any>(null)
 
   // 🎯 NOUVEAUX ÉTATS pour le drag & drop des notes
@@ -109,8 +112,10 @@ export default function Component() {
   const [draggedNoteIndex, setDraggedNoteIndex] = useState<number | null>(null)
   const [draggedNoteOriginalPos, setDraggedNoteOriginalPos] = useState({ x: 0, y: 0 })
 
+
+
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState<number | null>(null);
-  const [selectedObjectIndex, setSelectedObjectIndex] = useState<number | null>(null);
+  const [selectedObjectIndices, setSelectedObjectIndices] = useState<number[]>([]);
   const [selectedNoteIndex, setSelectedNoteIndex] = useState<number | null>(null);
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
@@ -139,6 +144,12 @@ export default function Component() {
 
   const [showPlaceModal, setShowPlaceModal] = useState(false)
   const [showCreateNoteModal, setShowCreateNoteModal] = useState(false)
+
+  // 🎯 MULTI-SELECTION STATE
+  const [selectionCandidates, setSelectionCandidates] = useState<SelectionCandidates | null>(null);
+  const [showSelectionMenu, setShowSelectionMenu] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
+
   const [isDrawing, setIsDrawing] = useState(false)
   const [drawMode, setDrawMode] = useState(false)
   const [drawings, setDrawings] = useState<SavedDrawing[]>([]);
@@ -251,6 +262,7 @@ export default function Component() {
   const [currentObstaclePoints, setCurrentObstaclePoints] = useState<Point[]>([]);
   const [selectedObstacleId, setSelectedObstacleId] = useState<string | null>(null);
   const [isDraggingObstacle, setIsDraggingObstacle] = useState(false);
+  const [draggedObstacleId, setDraggedObstacleId] = useState<string | null>(null);
   const [draggedObstacleOriginalPoints, setDraggedObstacleOriginalPoints] = useState<Point[]>([]);
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
   // États pour l'édition d'obstacles
@@ -258,6 +270,80 @@ export default function Component() {
   const [draggedPointIndex, setDraggedPointIndex] = useState<number | null>(null);
   const [dragStartPos, setDragStartPos] = useState<Point | null>(null);
   const [connectedPoints, setConnectedPoints] = useState<{ obstacleId: string, pointIndex: number }[]>([]);
+
+  // 🎯 LAYERS STATE
+  const [showLayerControl, setShowLayerControl] = useState(false);
+  const [layers, setLayers] = useState<Layer[]>([
+    { id: 'background', label: 'Fond', isVisible: true, order: 0 },
+    { id: 'notes', label: 'Notes', isVisible: true, order: 2 },
+    { id: 'drawings', label: 'Dessins', isVisible: true, order: 3 },
+    { id: 'objects', label: 'Objets', isVisible: true, order: 4 },
+    { id: 'characters', label: 'Personnages', isVisible: true, order: 5 },
+    { id: 'fog', label: 'Brouillard', isVisible: true, order: 6 },
+    { id: 'obstacles', label: 'Obstacle', isVisible: true, order: 7 },
+  ]);
+
+  // 🔄 SYNC LAYERS WITH FIREBASE
+  useEffect(() => {
+    if (!roomId) return;
+
+    // Définition locale des layers (source de vérité pour les labels et l'ordre)
+    const localLayersDef: Layer[] = [
+      { id: 'background', label: 'Fond', isVisible: true, order: 0 },
+      { id: 'notes', label: 'Notes', isVisible: true, order: 2 },
+      { id: 'drawings', label: 'Dessins', isVisible: true, order: 3 },
+      { id: 'objects', label: 'Objets', isVisible: true, order: 4 },
+      { id: 'characters', label: 'Personnages', isVisible: true, order: 5 },
+      { id: 'fog', label: 'Brouillard', isVisible: true, order: 6 },
+      { id: 'obstacles', label: 'Obstacle', isVisible: true, order: 7 },
+    ];
+
+    const layersRef = doc(db, 'cartes', roomId, 'settings', 'layers');
+    const unsubscribe = onSnapshot(layersRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.layers) {
+          // Fusion intelligente : On garde les labels locaux mais on prend la visibilité de Firebase
+          setLayers(prev => {
+            const remoteLayers = data.layers as Layer[];
+
+            return localLayersDef.map(localLayer => {
+              const remoteLayer = remoteLayers.find(rl => rl.id === localLayer.id);
+              // Si le layer existe distant, on prend sa visibilité, sinon défaut
+              return {
+                ...localLayer,
+                isVisible: remoteLayer ? remoteLayer.isVisible : localLayer.isVisible
+              };
+            });
+          });
+        }
+      } else {
+        // Init default layers if doc doesn't exist
+        setDoc(layersRef, { layers: localLayersDef }, { merge: true });
+        setLayers(localLayersDef);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [roomId]);
+
+  const toggleLayer = async (layerId: LayerType) => {
+    // Optimistic update (optional, but good for UI responsiveness)
+    const newLayers = layers.map(layer =>
+      layer.id === layerId ? { ...layer, isVisible: !layer.isVisible } : layer
+    );
+    // setLayers(newLayers); // Let the snapshot listener handle the update to avoid out-of-sync issues
+
+    // Update in Firebase
+    if (roomId) {
+      const layersRef = doc(db, 'cartes', roomId, 'settings', 'layers');
+      await setDoc(layersRef, { layers: newLayers }, { merge: true });
+    }
+  };
+
+  const isLayerVisible = (layerId: LayerType) => {
+    return layers.find(l => l.id === layerId)?.isVisible ?? true;
+  };
 
 
 
@@ -573,7 +659,7 @@ export default function Component() {
     canvas.height = containerHeight * sizeMultiplier;
     ctx.scale(sizeMultiplier, sizeMultiplier);
     drawMap(ctx, image, containerWidth, containerHeight); // Pass container dimensions
-  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndex, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle]);
+  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers]);
 
 
   // 🎯 NPC Template Drag & Drop Handlers
@@ -737,7 +823,7 @@ export default function Component() {
   // 🎯 Configuration du menu radial
   const radialMenuItems = isMJ ? [
     { id: 1, label: 'Ajouter Personnage', icon: CircleUserRound },
-    { id: 2, label: 'Objets', icon: ImageIcon },
+    { id: 2, label: 'Objets', icon: Package },
     { id: 11, label: 'Ajouter Texte', icon: Baseline },
     { id: 3, label: 'Dessiner', icon: Pencil },
     { id: 4, label: 'Visibilité', icon: Eye }, // 🔦 Mode unifié brouillard + obstacles
@@ -747,6 +833,7 @@ export default function Component() {
     { id: 8, label: 'Déplacer carte', icon: Move },
     { id: 9, label: playerViewMode ? 'Vue MJ' : 'Vue Joueur', icon: playerViewMode ? ScanEye : User },
     { id: 10, label: 'Mesurer', icon: Ruler },
+    { id: 12, label: 'Calques', icon: Layers },
   ] : [
     { id: 1, label: 'Ajouter Texte', icon: Baseline },
     { id: 2, label: 'Dessiner', icon: Pencil },
@@ -801,7 +888,7 @@ export default function Component() {
     } else {
       // Entrer en mode visibilité : désélectionner les autres éléments
       setSelectedCharacterIndex(null);
-      setSelectedObjectIndex(null);
+      setSelectedObjectIndices([]);
       setSelectedNoteIndex(null);
       setSelectedDrawingIndex(null);
     }
@@ -950,7 +1037,10 @@ export default function Component() {
           setMeasureEnd(null);
           setIsCalibrating(false);
           break;
-
+        case 12:
+          // Toggle Layer Control for MJ
+          setShowLayerControl(!showLayerControl);
+          break;
       }
     } else {
       // Menu Joueur
@@ -984,6 +1074,10 @@ export default function Component() {
           setMeasureStart(null);
           setMeasureEnd(null);
           setIsCalibrating(false);
+          break;
+        case 7:
+          // Toggle Layer Control for Player
+          setShowLayerControl(!showLayerControl);
           break;
       }
     }
@@ -1199,6 +1293,7 @@ export default function Component() {
     const scaledWidth = image.width * scale * zoom;
     const scaledHeight = image.height * scale * zoom;
 
+
     // Fonction de transformation des coordonnées map -> screen
     const transformPoint = (p: Point): Point => ({
       x: (p.x / image.width) * scaledWidth - offset.x,
@@ -1206,10 +1301,12 @@ export default function Component() {
     });
 
     // Draw background image
-    ctx.drawImage(image, -offset.x, -offset.y, scaledWidth, scaledHeight);
+    if (isLayerVisible('background')) {
+      ctx.drawImage(image, -offset.x, -offset.y, scaledWidth, scaledHeight);
+    }
 
     // Draw grid if enabled
-    if (showGrid) {
+    if (showGrid && isLayerVisible('grid')) {
       ctx.strokeStyle = '#000000';
       ctx.lineWidth = 1;
       const gridSize = 50 * zoom;
@@ -1230,32 +1327,34 @@ export default function Component() {
 
 
     // Draw each note
-    notes.forEach((note, index) => {
-      const x = (note.x / image.width) * scaledWidth - offset.x;
-      const y = (note.y / image.height) * scaledHeight - offset.y;
-      ctx.fillStyle = note.color || 'yellow';
+    if (isLayerVisible('notes')) {
+      notes.forEach((note, index) => {
+        const x = (note.x / image.width) * scaledWidth - offset.x;
+        const y = (note.y / image.height) * scaledHeight - offset.y;
+        ctx.fillStyle = note.color || 'yellow';
 
-      // Utiliser la taille de police de la note ou une taille par défaut
-      const fontSize = (note.fontSize || 16) * zoom;
+        // Utiliser la taille de police de la note ou une taille par défaut
+        const fontSize = (note.fontSize || 16) * zoom;
 
-      // Résoudre la police : CSS Var -> Nom réel -> Fallback
-      const fontVar = note.fontFamily || 'var(--font-body)';
-      const fontFamily = fontFamilyMap[fontVar] || 'Arial';
+        // Résoudre la police : CSS Var -> Nom réel -> Fallback
+        const fontVar = note.fontFamily || 'var(--font-body)';
+        const fontFamily = fontFamilyMap[fontVar] || 'Arial';
 
-      ctx.font = `${fontSize}px ${fontFamily}`;
-      ctx.fillText(note.text, x, y);
+        ctx.font = `${fontSize}px ${fontFamily}`;
+        ctx.fillText(note.text, x, y);
 
-      if (index === selectedNoteIndex) {
-        ctx.strokeStyle = '#4285F4';
-        ctx.lineWidth = 2;
-        const metrics = ctx.measureText(note.text);
-        const padding = 4;
-        ctx.strokeRect(x - padding, y - fontSize, metrics.width + (padding * 2), fontSize + padding);
-      }
-    });
+        if (index === selectedNoteIndex) {
+          ctx.strokeStyle = '#4285F4';
+          ctx.lineWidth = 2;
+          const metrics = ctx.measureText(note.text);
+          const padding = 4;
+          ctx.strokeRect(x - padding, y - fontSize, metrics.width + (padding * 2), fontSize + padding);
+        }
+      });
+    }
     // Draw each saved drawing path
     // Draw each saved drawing path
-    if (drawings && Array.isArray(drawings)) {
+    if (isLayerVisible('drawings') && drawings && Array.isArray(drawings)) {
       renderDrawings(
         ctx,
         drawings,
@@ -1313,30 +1412,31 @@ export default function Component() {
     const hasObstacles = obstacles.length > 0;
 
     // 🌫️ D'abord dessiner le brouillard classique (si actif)
-    renderFogLayer(
-      ctx,
-      offset,
-      scaledWidth,
-      scaledHeight,
-      image.width,
-      image.height,
-      canvas.width,
-      canvas.height,
-      fogCellSize,
-      scale,
-      zoom,
-      fogMode,
-      showFogGrid,
-      visibilityMode,
-      currentVisibilityTool,
-      fullMapFog,
-      fogGrid,
-      calculateFogOpacity
-    );
+    if (isLayerVisible('fog')) {
+      renderFogLayer(
+        ctx,
+        offset,
+        scaledWidth,
+        scaledHeight,
+        image.width,
+        image.height,
+        canvas.width,
+        canvas.height,
+        fogCellSize,
+        scale,
+        zoom,
+        fogMode,
+        showFogGrid,
+        visibilityMode,
+        currentVisibilityTool,
+        fullMapFog,
+        fogGrid,
+        calculateFogOpacity
+      );
+    }
 
-    // 🔦 SHADOW CASTING - Seulement pour les JOUEURS (pas le MJ)
-    // Le MJ voit tout, pas besoin de calculer les ombres
-    if (hasObstacles && !effectiveIsMJ) {
+
+    if (hasObstacles && !effectiveIsMJ && isLayerVisible('obstacles')) {
       // Trouver le personnage du joueur
       let viewerPosition: Point | null = null;
 
@@ -1364,12 +1464,22 @@ export default function Component() {
     }
 
     // 🔦 DESSINER LES OBSTACLES (visible seulement pour le MJ en mode édition)
-    if (visibilityMode || (effectiveIsMJ && obstacles.length > 0)) {
+    if (isLayerVisible('obstacles') && (visibilityMode || (effectiveIsMJ && obstacles.length > 0))) {
+      // 1. Base Layer (Thick Black)
       drawObstacles(ctx, obstacles, transformPoint, {
-        strokeColor: visibilityMode ? 'rgba(255, 100, 100, 0.9)' : 'rgba(255, 100, 100, 0.4)',
-        fillColor: visibilityMode ? 'rgba(255, 100, 100, 0.3)' : 'rgba(255, 100, 100, 0.1)',
-        strokeWidth: 2,
-        showHandles: visibilityMode,
+        strokeColor: '#000000',
+        fillColor: visibilityMode ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.5)',
+        strokeWidth: 10,
+        showHandles: false, // Don't draw handles twice
+        selectedId: selectedObstacleId,
+      });
+
+      // 2. Detail Layer (Inner Grey Line) - Makes it look like a constructed wall
+      drawObstacles(ctx, obstacles, transformPoint, {
+        strokeColor: '#555555',
+        fillColor: 'transparent', // Don't fill twice
+        strokeWidth: 4,
+        showHandles: visibilityMode || !!selectedObstacleId,
         selectedId: selectedObstacleId,
       });
 
@@ -1471,7 +1581,7 @@ export default function Component() {
     // Si un PNJ ou objet est dans l'ombre du joueur (ou allié), il ne doit pas être affiché
     let activeShadowsForFiltering: Point[][] | null = null;
 
-    if (!effectiveIsMJ && obstacles.length > 0) {
+    if (!effectiveIsMJ && obstacles.length > 0 && isLayerVisible('obstacles')) {
       for (const char of characters) {
         if (char.id === persoId && char.x !== undefined && char.y !== undefined) {
           activeShadowsForFiltering = calculateShadowPolygons({ x: char.x, y: char.y }, obstacles, { width: image.width, height: image.height });
@@ -1481,47 +1591,49 @@ export default function Component() {
     }
 
     // Draw Objects (before characters)
-    objects.forEach((obj, index) => {
-      const x = (obj.x / image.width) * scaledWidth - offset.x;
-      const y = (obj.y / image.height) * scaledHeight - offset.y;
-      const w = (obj.width / image.width) * scaledWidth;
-      const h = (obj.height / image.height) * scaledHeight;
+    if (isLayerVisible('objects')) {
+      objects.forEach((obj, index) => {
+        const x = (obj.x / image.width) * scaledWidth - offset.x;
+        const y = (obj.y / image.height) * scaledHeight - offset.y;
+        const w = (obj.width / image.width) * scaledWidth;
+        const h = (obj.height / image.height) * scaledHeight;
 
-      // 🔦 Vérifier si l'objet est masqué par une ombre (même logique que pour les PNJ)
-      if (activeShadowsForFiltering) {
-        const objPos = { x: obj.x, y: obj.y };
-        let isInShadow = false;
-        for (const shadow of activeShadowsForFiltering) {
-          if (isPointInPolygon(objPos, shadow)) {
-            isInShadow = true;
-            break;
+        // 🔦 Vérifier si l'objet est masqué par une ombre (même logique que pour les PNJ)
+        if (activeShadowsForFiltering) {
+          const objPos = { x: obj.x, y: obj.y };
+          let isInShadow = false;
+          for (const shadow of activeShadowsForFiltering) {
+            if (isPointInPolygon(objPos, shadow)) {
+              isInShadow = true;
+              break;
+            }
           }
+          // Ne pas dessiner l'objet s'il est dans l'ombre (sauf pour le MJ)
+          if (isInShadow && !effectiveIsMJ) return;
         }
-        // Ne pas dessiner l'objet s'il est dans l'ombre (sauf pour le MJ)
-        if (isInShadow && !effectiveIsMJ) return;
-      }
 
-      // Draw object image
-      if (obj.image) {
-        ctx.drawImage(obj.image, x, y, w, h);
-      } else {
-        // Fallback: show a placeholder while image is loading
-        ctx.fillStyle = '#333';
-        ctx.fillRect(x, y, w, h);
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, w, h);
-      }
+        // Draw object image
+        if (obj.image) {
+          ctx.drawImage(obj.image, x, y, w, h);
+        } else {
+          // Fallback: show a placeholder while image is loading
+          ctx.fillStyle = '#333';
+          ctx.fillRect(x, y, w, h);
+          ctx.strokeStyle = '#666';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x, y, w, h);
+        }
 
-      // Selection Border
-      if (index === selectedObjectIndex) {
-        ctx.strokeStyle = '#00BFFF';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, w, h);
+        // Selection Border
+        if (selectedObjectIndices.includes(index)) {
+          ctx.strokeStyle = '#00BFFF';
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x, y, w, h);
 
-        // Resize handles could go here
-      }
-    });
+          // Resize handles could go here
+        }
+      });
+    }
 
     // 🎯 Dessiner la zone de sélection en cours
     if (isSelectingArea && selectionStart && selectionEnd) {
@@ -1552,81 +1664,135 @@ export default function Component() {
       ctx.setLineDash([]);
       ctx.strokeRect(rectX + 1, rectY + 1, rectWidth - 2, rectHeight - 2);
 
-      // Afficher les dimensions de la zone
-      if (rectWidth > 50 && rectHeight > 20) {
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(rectX + 5, rectY + 5, 100, 20);
-        ctx.fillStyle = 'white';
+      // Afficher les dimensions de la zone (même pour les sélections fines car le texte est à l'extérieur)
+      if (rectWidth > 5 || rectHeight > 5) {
+        // Calculate dimensions in map units
+        const mapRectWidth = Math.abs(selectionEnd.x - selectionStart.x);
+        const mapRectHeight = Math.abs(selectionEnd.y - selectionStart.y);
+
+        let widthText = `${Math.round(rectWidth)}`;
+        let heightText = `${Math.round(rectHeight)}`;
+
+        // Use units if available
+        if (pixelsPerUnit > 0) {
+          const wUnits = mapRectWidth / pixelsPerUnit;
+          const hUnits = mapRectHeight / pixelsPerUnit;
+          const unit = unitName || 'u';
+          widthText = `${wUnits.toFixed(1)} ${unit}`;
+          heightText = `${hUnits.toFixed(1)} ${unit}`;
+        }
+
+        const text = `${widthText} × ${heightText}`;
         ctx.font = '12px Arial';
-        ctx.fillText(`${Math.round(rectWidth)}×${Math.round(rectHeight)}`, rectX + 10, rectY + 18);
+        const metrics = ctx.measureText(text);
+
+        // Position text above the rect, or below if too close to top
+        const padding = 5;
+        const textHeight = 20;
+        let textX = rectX;
+        let textY = rectY - textHeight - padding;
+
+        // If too close to top edge, put it below
+        if (textY < padding) {
+          textY = rectY + rectHeight + padding;
+        }
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(textX, textY, metrics.width + 10, textHeight);
+        ctx.fillStyle = 'white';
+        // ctx.font is already set
+        ctx.fillText(text, textX + 5, textY + 14);
       }
     }
 
 
-    characters.forEach((char, index) => {
-      const x = (char.x / image.width) * scaledWidth - offset.x;
-      const y = (char.y / image.height) * scaledHeight - offset.y;
+    if (isLayerVisible('characters')) {
+      characters.forEach((char, index) => {
+        const x = (char.x / image.width) * scaledWidth - offset.x;
+        const y = (char.y / image.height) * scaledHeight - offset.y;
 
-      let isVisible = true;
+        let isVisible = true;
 
-      // 🎯 Vérifier si le personnage est masqué par une ombre (uniquement pour les joueurs)
-      if (activeShadowsForFiltering && char.type !== 'joueurs' && char.visibility !== 'ally') {
-        const charPos = { x: char.x, y: char.y };
-        for (const shadow of activeShadowsForFiltering) {
-          if (isPointInPolygon(charPos, shadow)) {
-            isVisible = false;
-            break;
+        // 🎯 Vérifier si le personnage est masqué par une ombre (uniquement pour les joueurs)
+        if (activeShadowsForFiltering && char.type !== 'joueurs' && char.visibility !== 'ally') {
+          const charPos = { x: char.x, y: char.y };
+          for (const shadow of activeShadowsForFiltering) {
+            if (isPointInPolygon(charPos, shadow)) {
+              isVisible = false;
+              break;
+            }
           }
+          if (!isVisible) return; // Ne pas dessiner si dans l'ombre
         }
-        if (!isVisible) return; // Ne pas dessiner si dans l'ombre
-      }
 
-      // 🎯 Vérifier si le personnage est dans le brouillard
-      const isInFog = fullMapFog || isCellInFog(char.x, char.y, fogGrid, fogCellSize);
+        // 🎯 Vérifier si le personnage est dans le brouillard
+        const isInFog = fullMapFog || isCellInFog(char.x, char.y, fogGrid, fogCellSize);
 
-      // 🎯 Pour les PNJ (non joueurs et non alliés) : s'ils sont dans le brouillard, ils deviennent automatiquement cachés
-      let effectiveVisibility = char.visibility;
-      if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
-        effectiveVisibility = 'hidden';
-      }
+        // 🎯 Pour les PNJ (non joueurs et non alliés) : s'ils sont dans le brouillard, ils deviennent automatiquement cachés
+        let effectiveVisibility = char.visibility;
+        if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
+          effectiveVisibility = 'hidden';
+        }
 
-      // Les alliés sont toujours visibles (même dans le brouillard complet)
-      if (char.visibility === 'ally') {
-        isVisible = true;
-      }
-      // Les personnages cachés (ou cachés par le brouillard) ne sont visibles que pour le MJ (en mode normal) ou s'ils sont dans le rayon de vision d'un joueur ou allié
-      else if (effectiveVisibility === 'hidden') {
-        isVisible = effectiveIsMJ || characters.some((player) => {
-          const playerX = (player.x / image.width) * scaledWidth - offset.x;
-          const playerY = (player.y / image.height) * scaledHeight - offset.y;
-          return (
-            player.id === persoId &&
-            calculateDistance(x, y, playerX, playerY) <= player.visibilityRadius * zoom
-          );
-        });
-      }
+        // Les alliés sont toujours visibles (même dans le brouillard complet)
+        if (char.visibility === 'ally') {
+          isVisible = true;
+        }
+        // Les personnages cachés (ou cachés par le brouillard) ne sont visibles que pour le MJ (en mode normal) ou s'ils sont dans le rayon de vision d'un joueur ou allié
+        else if (effectiveVisibility === 'hidden') {
+          isVisible = effectiveIsMJ || characters.some((player) => {
+            const playerX = (player.x / image.width) * scaledWidth - offset.x;
+            const playerY = (player.y / image.height) * scaledHeight - offset.y;
+            return (
+              player.id === persoId &&
+              calculateDistance(x, y, playerX, playerY) <= player.visibilityRadius * zoom
+            );
+          });
+        }
 
 
 
-      if (isVisible) {
-        // 🎯 Couleur spéciale pour les personnages dans la zone de sélection
-        let borderColor;
-        let lineWidth = 3;
+        if (isVisible) {
+          // 🎯 Couleur spéciale pour les personnages dans la zone de sélection
+          let borderColor;
+          let lineWidth = 3;
 
-        if (selectedCharacters.includes(index)) {
-          // Personnage sélectionné
-          borderColor = 'rgba(0, 255, 0, 1)';  // Vert vif
-          lineWidth = 4;
-        } else if (isSelectingArea && selectionStart && selectionEnd) {
-          // Vérifier si le personnage est dans la zone de sélection en cours
-          const minX = Math.min(selectionStart.x, selectionEnd.x);
-          const maxX = Math.max(selectionStart.x, selectionEnd.x);
-          const minY = Math.min(selectionStart.y, selectionEnd.y);
-          const maxY = Math.max(selectionStart.y, selectionEnd.y);
-
-          if (char.x >= minX && char.x <= maxX && char.y >= minY && char.y <= maxY) {
-            borderColor = 'rgba(0, 150, 255, 1)'; // Bleu pour prévisualisation
+          if (selectedCharacters.includes(index)) {
+            // Personnage sélectionné
+            borderColor = 'rgba(0, 255, 0, 1)';  // Vert vif
             lineWidth = 4;
+          } else if (isSelectingArea && selectionStart && selectionEnd) {
+            // Vérifier si le personnage est dans la zone de sélection en cours
+            const minX = Math.min(selectionStart.x, selectionEnd.x);
+            const maxX = Math.max(selectionStart.x, selectionEnd.x);
+            const minY = Math.min(selectionStart.y, selectionEnd.y);
+            const maxY = Math.max(selectionStart.y, selectionEnd.y);
+
+            if (char.x >= minX && char.x <= maxX && char.y >= minY && char.y <= maxY) {
+              borderColor = 'rgba(0, 150, 255, 1)'; // Bleu pour prévisualisation
+              lineWidth = 4;
+            } else {
+              // Couleur normale selon le type
+              if (isMJ) {
+                // MJ : voit le personnage actif en rouge vif
+                borderColor = char.id === activePlayerId
+                  ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour le personnage actif (dont c'est le tour)
+                  : char.visibility === 'ally'
+                    ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
+                    : char.type === 'joueurs'
+                      ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les personnages joueurs
+                      : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
+              } else {
+                // Joueur : voit SEULEMENT son personnage en rouge
+                borderColor = char.id === persoId
+                  ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour SON personnage
+                  : char.visibility === 'ally'
+                    ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
+                    : char.type === 'joueurs'
+                      ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les autres personnages joueurs
+                      : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
+              }
+            }
           } else {
             // Couleur normale selon le type
             if (isMJ) {
@@ -1649,224 +1815,203 @@ export default function Component() {
                     : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
             }
           }
-        } else {
-          // Couleur normale selon le type
-          if (isMJ) {
-            // MJ : voit le personnage actif en rouge vif
-            borderColor = char.id === activePlayerId
-              ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour le personnage actif (dont c'est le tour)
-              : char.visibility === 'ally'
-                ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
-                : char.type === 'joueurs'
-                  ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les personnages joueurs
-                  : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
-          } else {
-            // Joueur : voit SEULEMENT son personnage en rouge
-            borderColor = char.id === persoId
-              ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour SON personnage
-              : char.visibility === 'ally'
-                ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
-                : char.type === 'joueurs'
-                  ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les autres personnages joueurs
-                  : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
-          }
-        }
 
-        ctx.strokeStyle = borderColor;
-        ctx.lineWidth = lineWidth;
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = lineWidth;
 
-        // 🎯 Taille différente pour les personnages joueurs (avec imageURLFinal)
-        const isPlayerCharacter = char.type === 'joueurs';
-        const iconRadius = isPlayerCharacter ? 30 * zoom : 20 * zoom;
-        const borderRadius = isPlayerCharacter ? 32 * zoom : 22 * zoom;
+          // 🎯 Taille différente pour les personnages joueurs (avec imageURLFinal)
+          const isPlayerCharacter = char.type === 'joueurs';
+          const iconRadius = isPlayerCharacter ? 30 * zoom : 20 * zoom;
+          const borderRadius = isPlayerCharacter ? 32 * zoom : 22 * zoom;
 
-        // Draw character border circle
-        ctx.beginPath();
-        ctx.arc(x, y, borderRadius, 0, 2 * Math.PI);
-        ctx.stroke();
-
-        // Draw character icon
-        if (char.image) {
-          ctx.save();
+          // Draw character border circle
           ctx.beginPath();
-          ctx.arc(x, y, iconRadius, 0, 2 * Math.PI);
-          ctx.clip();
-          ctx.drawImage(char.image, x - iconRadius, y - iconRadius, iconRadius * 2, iconRadius * 2);
-          ctx.restore();
-        } else {
-          ctx.fillStyle = 'red';
-          ctx.beginPath();
-          ctx.arc(x, y, iconRadius, 0, 2 * Math.PI);
-          ctx.fill();
-        }
-
-
-
-
-
-
-        // Configuration
-        const uiScale = Math.max(0.6, Math.min(1.5, zoom));
-        const isSelected = index === selectedCharacterIndex;
-        const canSeeHP = (isMJ && !playerViewMode) || char.id === persoId; // Visible MJ or Owner
-
-        // Le widget s'affiche si le perso est sélectionné, ou si c'est le MJ, ou si c'est notre perso (toujours)
-        // Ou globalement on peut décider de toujours l'afficher pour les Noms, mais on garde la logique "clean"
-        const alwaysShowName = true; // Option: toujours afficher le nom ? (souvent préférable en VTT)
-
-        if (alwaysShowName || isSelected || (isMJ && !playerViewMode)) {
-
-          // --- DIMENSIONS & POSITIONS ---
-          // On place la pilule en bas du cercle
-          // Centre de la pilule = x, y + borderRadius
-          const pillCenterX = x;
-          const pillCenterY = y + borderRadius; // Pile sur le bord bas
-
-          const fontSize = 10 * uiScale;
-          const iconSize = 10 * uiScale;
-          const paddingX = 8 * uiScale;
-          const paddingY = 4 * uiScale;
-          const gap = 8 * uiScale; // Espace entre PV et Nom
-
-          // Pré-calcul des tailles de texte
-          ctx.font = `600 ${fontSize}px "Geist Mono", system-ui, sans-serif`;
-
-          // Partie PV
-          let pvText = "";
-          let pvWidth = 0;
-          if (canSeeHP && char.PV !== undefined) {
-            const current = char.PV || 0;
-            pvText = `${current}`;
-            pvWidth = ctx.measureText(pvText).width + 4; // Text + Gap (no icon)
-          }
-
-          // Partie Nom
-          const nameText = char.name;
-          ctx.font = `500 ${fontSize}px system-ui, -apple-system, sans-serif`; // Police un peu plus "propre" pour le nom
-          const nameWidth = ctx.measureText(nameText).width;
-
-          // Largeur totale
-          // Si on a PV: [PV_Width] [Separator_Width] [Name_Width]
-          // Si pas PV: [Name_Width]
-          const separatorWidth = canSeeHP ? (1 * uiScale) + (gap * 2) : 0; // 1px line + margins
-          const totalContentWidth = (canSeeHP ? pvWidth : 0) + separatorWidth + nameWidth;
-          const pillWidth = totalContentWidth + (paddingX * 2);
-          const pillHeight = fontSize + (paddingY * 2) + 2; // +2 for breathing room
-
-          // --- DESSIN DU FOND (PILL) ---
-          const pillX = pillCenterX - (pillWidth / 2);
-          const pillY = pillCenterY - (pillHeight / 2);
-
-          // Ombre portée
-          ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-          ctx.shadowBlur = 8;
-          ctx.shadowOffsetY = 3;
-
-          // Fond (Gris foncé/Noir style "Interface")
-          ctx.fillStyle = 'rgba(20, 22, 26, 0.95)';
-          ctx.beginPath();
-          ctx.roundRect(pillX, pillY, pillWidth, pillHeight, pillHeight / 2);
-          ctx.fill();
-
-          // Reset shadow
-          ctx.shadowBlur = 0;
-          ctx.shadowOffsetY = 0;
-
-          // Bordure subtile (couleur faction/état)
-          ctx.strokeStyle = isSelected ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.15)';
-          ctx.lineWidth = 1;
+          ctx.arc(x, y, borderRadius, 0, 2 * Math.PI);
           ctx.stroke();
 
-          // --- DESSIN DU CONTENU ---
-          let currentCursorX = pillX + paddingX;
-          const textY = pillY + (pillHeight / 2); // Center vertical
-
-          // 1. PV SECTION (Si visible)
-          if (canSeeHP) {
-            // Texte PV (Sans icône cœur)
-            const current = char.PV || 0;
-            const max = char.PV_Max || char.PV || 100;
-            const healthPct = Math.max(0, Math.min(100, (current / max) * 100));
-
-            let healthColor = '#ffffff';
-            if (healthPct < 25) healthColor = '#ef4444';
-            else if (healthPct < 50) healthColor = '#fbbf24';
-            else healthColor = '#4ade80';
-
-            ctx.fillStyle = healthColor;
-            ctx.font = `700 ${fontSize}px "Geist Mono", monospace`;
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(pvText, currentCursorX, textY + 1);
-
-            currentCursorX += pvWidth;
-
-            // Séparateur
-            const sepX = currentCursorX + gap;
+          // Draw character icon
+          if (char.image) {
+            ctx.save();
             ctx.beginPath();
-            ctx.moveTo(sepX, pillY + 4);
-            ctx.lineTo(sepX, pillY + pillHeight - 4);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.arc(x, y, iconRadius, 0, 2 * Math.PI);
+            ctx.clip();
+            ctx.drawImage(char.image, x - iconRadius, y - iconRadius, iconRadius * 2, iconRadius * 2);
+            ctx.restore();
+          } else {
+            ctx.fillStyle = 'red';
+            ctx.beginPath();
+            ctx.arc(x, y, iconRadius, 0, 2 * Math.PI);
+            ctx.fill();
+          }
+
+
+
+
+
+
+          // Configuration
+          const uiScale = Math.max(0.6, Math.min(1.5, zoom));
+          const isSelected = index === selectedCharacterIndex;
+          const canSeeHP = (isMJ && !playerViewMode) || char.id === persoId; // Visible MJ or Owner
+
+          // Le widget s'affiche si le perso est sélectionné, ou si c'est le MJ, ou si c'est notre perso (toujours)
+          // Ou globalement on peut décider de toujours l'afficher pour les Noms, mais on garde la logique "clean"
+          const alwaysShowName = true; // Option: toujours afficher le nom ? (souvent préférable en VTT)
+
+          if (alwaysShowName || isSelected || (isMJ && !playerViewMode)) {
+
+            // --- DIMENSIONS & POSITIONS ---
+            // On place la pilule en bas du cercle
+            // Centre de la pilule = x, y + borderRadius
+            const pillCenterX = x;
+            const pillCenterY = y + borderRadius; // Pile sur le bord bas
+
+            const fontSize = 10 * uiScale;
+            const iconSize = 10 * uiScale;
+            const paddingX = 8 * uiScale;
+            const paddingY = 4 * uiScale;
+            const gap = 8 * uiScale; // Espace entre PV et Nom
+
+            // Pré-calcul des tailles de texte
+            ctx.font = `600 ${fontSize}px "Geist Mono", system-ui, sans-serif`;
+
+            // Partie PV
+            let pvText = "";
+            let pvWidth = 0;
+            if (canSeeHP && char.PV !== undefined) {
+              const current = char.PV || 0;
+              pvText = `${current}`;
+              pvWidth = ctx.measureText(pvText).width + 4; // Text + Gap (no icon)
+            }
+
+            // Partie Nom
+            const nameText = char.name;
+            ctx.font = `500 ${fontSize}px system-ui, -apple-system, sans-serif`; // Police un peu plus "propre" pour le nom
+            const nameWidth = ctx.measureText(nameText).width;
+
+            // Largeur totale
+            // Si on a PV: [PV_Width] [Separator_Width] [Name_Width]
+            // Si pas PV: [Name_Width]
+            const separatorWidth = canSeeHP ? (1 * uiScale) + (gap * 2) : 0; // 1px line + margins
+            const totalContentWidth = (canSeeHP ? pvWidth : 0) + separatorWidth + nameWidth;
+            const pillWidth = totalContentWidth + (paddingX * 2);
+            const pillHeight = fontSize + (paddingY * 2) + 2; // +2 for breathing room
+
+            // --- DESSIN DU FOND (PILL) ---
+            const pillX = pillCenterX - (pillWidth / 2);
+            const pillY = pillCenterY - (pillHeight / 2);
+
+            // Ombre portée
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetY = 3;
+
+            // Fond (Gris foncé/Noir style "Interface")
+            ctx.fillStyle = 'rgba(20, 22, 26, 0.95)';
+            ctx.beginPath();
+            ctx.roundRect(pillX, pillY, pillWidth, pillHeight, pillHeight / 2);
+            ctx.fill();
+
+            // Reset shadow
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+
+            // Bordure subtile (couleur faction/état)
+            ctx.strokeStyle = isSelected ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.15)';
             ctx.lineWidth = 1;
             ctx.stroke();
 
-            currentCursorX += separatorWidth;
+            // --- DESSIN DU CONTENU ---
+            let currentCursorX = pillX + paddingX;
+            const textY = pillY + (pillHeight / 2); // Center vertical
+
+            // 1. PV SECTION (Si visible)
+            if (canSeeHP) {
+              // Texte PV (Sans icône cœur)
+              const current = char.PV || 0;
+              const max = char.PV_Max || char.PV || 100;
+              const healthPct = Math.max(0, Math.min(100, (current / max) * 100));
+
+              let healthColor = '#ffffff';
+              if (healthPct < 25) healthColor = '#ef4444';
+              else if (healthPct < 50) healthColor = '#fbbf24';
+              else healthColor = '#4ade80';
+
+              ctx.fillStyle = healthColor;
+              ctx.font = `700 ${fontSize}px "Geist Mono", monospace`;
+              ctx.textAlign = 'left';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(pvText, currentCursorX, textY + 1);
+
+              currentCursorX += pvWidth;
+
+              // Séparateur
+              const sepX = currentCursorX + gap;
+              ctx.beginPath();
+              ctx.moveTo(sepX, pillY + 4);
+              ctx.lineTo(sepX, pillY + pillHeight - 4);
+              ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+              ctx.lineWidth = 1;
+              ctx.stroke();
+
+              currentCursorX += separatorWidth;
+            }
+
+            // 2. NOM SECTION
+            // Si on n'a que le nom, on le centre. Sinon il est après le séparateur.
+            // Ici currentCursorX est déjà positionné correctement.
+
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(nameText, currentCursorX, textY + 0.5);
           }
-
-          // 2. NOM SECTION
-          // Si on n'a que le nom, on le centre. Sinon il est après le séparateur.
-          // Ici currentCursorX est déjà positionné correctement.
-
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-          ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(nameText, currentCursorX, textY + 0.5);
         }
-      }
 
-      // Draw hidden status badge if character is hidden (soit par défaut, soit par le brouillard) - uniquement en mode MJ normal, pas en vue joueur
-      if (effectiveVisibility === 'hidden' && effectiveIsMJ) {
-        const isPlayerCharacter = char.type === 'joueurs';
-        const hiddenBadgeOffsetMultiplier = isPlayerCharacter ? 24 : 16;
-        const badgeX = x + hiddenBadgeOffsetMultiplier * zoom; // Positioning the badge at the top-right
-        const badgeY = y - hiddenBadgeOffsetMultiplier * zoom;
+        // Draw hidden status badge if character is hidden (soit par défaut, soit par le brouillard) - uniquement en mode MJ normal, pas en vue joueur
+        if (effectiveVisibility === 'hidden' && effectiveIsMJ) {
+          const isPlayerCharacter = char.type === 'joueurs';
+          const hiddenBadgeOffsetMultiplier = isPlayerCharacter ? 24 : 16;
+          const badgeX = x + hiddenBadgeOffsetMultiplier * zoom; // Positioning the badge at the top-right
+          const badgeY = y - hiddenBadgeOffsetMultiplier * zoom;
 
-        ctx.fillStyle = char.id === persoId
-          ? 'rgba(255, 0, 0, 1)'             // Red for the player's character
-          : char.type === 'joueurs'
-            ? 'rgba(0, 0, 255, 1)'             // Blue for 'joueurs'
-            : 'rgba(255, 165, 0, 1)';          // Orange for other characters
+          ctx.fillStyle = char.id === persoId
+            ? 'rgba(255, 0, 0, 1)'             // Red for the player's character
+            : char.type === 'joueurs'
+              ? 'rgba(0, 0, 255, 1)'             // Blue for 'joueurs'
+              : 'rgba(255, 165, 0, 1)';          // Orange for other characters
 
-        ctx.beginPath();
-        ctx.arc(badgeX, badgeY, 8 * zoom, 0, 2 * Math.PI);
-        ctx.fill();
+          ctx.beginPath();
+          ctx.arc(badgeX, badgeY, 8 * zoom, 0, 2 * Math.PI);
+          ctx.fill();
 
-        ctx.fillStyle = 'white';
-        ctx.font = `${8 * zoom}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('👁️', badgeX, badgeY); // EyeOff symbol
-      }
+          ctx.fillStyle = 'white';
+          ctx.font = `${8 * zoom}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('👁️', badgeX, badgeY); // EyeOff symbol
+        }
 
-      // Draw visibility radius outline for selected characters (no more filled semi-transparent disk)
-      if (char.type === 'joueurs' && index === selectedCharacterIndex) {
-        ctx.strokeStyle = 'rgba(0, 0, 255, 0.9)'; // Bright blue outline
-        ctx.lineWidth = 2 * zoom;
-        ctx.beginPath();
-        ctx.arc(x, y, char.visibilityRadius * zoom, 0, 2 * Math.PI);
-        ctx.stroke();
-      }
+        // Draw visibility radius outline for selected characters (no more filled semi-transparent disk)
+        if (char.type === 'joueurs' && index === selectedCharacterIndex) {
+          ctx.strokeStyle = 'rgba(0, 0, 255, 0.9)'; // Bright blue outline
+          ctx.lineWidth = 2 * zoom;
+          ctx.beginPath();
+          ctx.arc(x, y, char.visibilityRadius * zoom, 0, 2 * Math.PI);
+          ctx.stroke();
+        }
 
-      // Draw visibility radius outline for allies when selected (MJ only)
-      if (char.visibility === 'ally' && index === selectedCharacterIndex && isMJ) {
-        ctx.strokeStyle = 'rgba(0, 255, 0, 0.9)'; // Bright green outline
-        ctx.lineWidth = 2 * zoom;
-        ctx.beginPath();
-        ctx.arc(x, y, char.visibilityRadius * zoom, 0, 2 * Math.PI);
-        ctx.stroke();
-      }
-    });
+        // Draw visibility radius outline for allies when selected (MJ only)
+        if (char.visibility === 'ally' && index === selectedCharacterIndex && isMJ) {
+          ctx.strokeStyle = 'rgba(0, 255, 0, 0.9)'; // Bright green outline
+          ctx.lineWidth = 2 * zoom;
+          ctx.beginPath();
+          ctx.arc(x, y, char.visibilityRadius * zoom, 0, 2 * Math.PI);
+          ctx.stroke();
+        }
+      });
+    }
 
     // 🎯 DRAW MEASUREMENT RULER
     if (measureMode && measureStart) {
@@ -2157,7 +2302,7 @@ export default function Component() {
 
 
         // 🔦 MODE VISIBILITÉ - MODE EDIT (sélection et manipulation d'obstacles)
-        if (visibilityMode && currentVisibilityTool === 'edit') {
+        if (visibilityMode && currentVisibilityTool === 'edit' && isLayerVisible('obstacles')) {
           const handleRadius = 12 / zoom; // Rayon de détection des poignées
 
           // 1. Si un obstacle est sélectionné, vérifier si on clique sur une poignée
@@ -2317,7 +2462,7 @@ export default function Component() {
         }
 
         // 🎯 NOUVEAU Mode brouillard - priorité élevée (placement continu)
-        if (fogMode) {
+        if (fogMode && isLayerVisible('fog')) {
           setIsFogDragging(true);
           const firstCellKey = getCellKey(clickX, clickY, fogCellSize);
           const isCurrentlyFogged = fogGrid.has(firstCellKey);
@@ -2336,7 +2481,7 @@ export default function Component() {
         }
 
         // Mode dessin - priorité élevée
-        if (drawMode) {
+        if (drawMode && isLayerVisible('drawings')) {
           setIsDrawing(true);
 
           if (currentTool === 'eraser') {
@@ -2364,14 +2509,14 @@ export default function Component() {
 
         // 🎯 MODE SÉLECTION PAR DÉFAUT - Nouveau comportement principal
         // Vérifier si on clique sur un élément existant ET s'il est visible
-        const clickedCharIndex = characters.findIndex(char => {
+        const clickedCharIndex = isLayerVisible('characters') ? characters.findIndex(char => {
           const charX = (char.x / image.width) * scaledWidth - offset.x;
           const charY = (char.y / image.height) * scaledHeight - offset.y;
           const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
           return Math.abs(charX - e.clientX + rect.left) < clickRadius && Math.abs(charY - e.clientY + rect.top) < clickRadius;
-        });
+        }) : -1;
 
-        const clickedNoteIndex = notes.findIndex(note => {
+        const clickedNoteIndex = isLayerVisible('notes') ? notes.findIndex(note => {
           const noteX = (note.x / image.width) * scaledWidth - offset.x;
           const noteY = (note.y / image.height) * scaledHeight - offset.y;
 
@@ -2393,10 +2538,10 @@ export default function Component() {
           const isInY = mouseY >= (noteY - estimatedHeight - padding) && mouseY <= (noteY + (estimatedHeight * 0.5) + padding);
 
           return isInX && isInY;
-        });
+        }) : -1;
 
         // 🎯 NOUVEAU : Vérifier si on clique sur un objet
-        const clickedObjectIndex = objects.findIndex(obj => {
+        const clickedObjectIndex = isLayerVisible('objects') ? objects.findIndex(obj => {
           const x = (obj.x / image.width) * scaledWidth - offset.x;
           const y = (obj.y / image.height) * scaledHeight - offset.y;
           const w = (obj.width / image.width) * scaledWidth;
@@ -2406,7 +2551,7 @@ export default function Component() {
           const mouseY = e.clientY - rect.top;
 
           return mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h;
-        });
+        }) : -1;
 
         // 🎯 NOUVEAU : Vérifier si on clique sur une cellule de brouillard
         const clickedFogIndex = isCellInFog(clickX, clickY, fogGrid, fogCellSize) ? 0 : -1;
@@ -2501,7 +2646,7 @@ export default function Component() {
           }
           setSelectedNoteIndex(null);
           setSelectedFogIndex(null);
-          setSelectedObjectIndex(null);
+          setSelectedObjectIndices([]);
         } else if (clickedNoteIndex !== -1) {
           setSelectedNoteIndex(clickedNoteIndex);
           setSelectedCharacterIndex(null);
@@ -2514,21 +2659,39 @@ export default function Component() {
           setDraggedNoteIndex(clickedNoteIndex);
           setDraggedNoteOriginalPos({ x: note.x, y: note.y });
           setSelectedDrawingIndex(null); // Clear drawing selection
-          setSelectedObjectIndex(null);
+          setSelectedObjectIndices([]);
         } else if (clickedObjectIndex !== -1) {
           // 🎯 SELECTION OBJET
-          setSelectedObjectIndex(clickedObjectIndex);
+          setContextMenuOpen(false);
+          let objectsToMove: number[] = [];
+
+          if (selectedObjectIndices.includes(clickedObjectIndex)) {
+            // Multi-drag existing selection
+            objectsToMove = [...selectedObjectIndices];
+          } else {
+            // New single selection
+            setSelectedObjectIndices([clickedObjectIndex]);
+            objectsToMove = [clickedObjectIndex];
+          }
+
           setSelectedCharacterIndex(null);
           setSelectedNoteIndex(null);
           setSelectedFogIndex(null);
           setSelectedCharacters([]);
           setSelectedDrawingIndex(null);
 
-          // 🎯 NOUVEAU : Commencer le drag & drop de l'objet
-          const obj = objects[clickedObjectIndex];
+          // 🎯 NOUVEAU : Commencer le drag & drop (MULTI)
           setIsDraggingObject(true);
-          setDraggedObjectIndex(clickedObjectIndex);
-          setDraggedObjectOriginalPos({ x: obj.x, y: obj.y });
+          setDraggedObjectIndex(clickedObjectIndex); // Reference for delta calc
+          setDraggedObjectOriginalPos({ x: objects[clickedObjectIndex].x, y: objects[clickedObjectIndex].y });
+
+          const originalPositions = objectsToMove.map(index => ({
+            index,
+            x: objects[index].x,
+            y: objects[index].y
+          }));
+          setDraggedObjectsOriginalPositions(originalPositions);
+
           setDragStart({ x: e.clientX, y: e.clientY });
         } else if (clickedDrawingIndex !== -1) {
           // 🎯 SELECTION DESSIN
@@ -2537,7 +2700,7 @@ export default function Component() {
           setSelectedNoteIndex(null);
           setSelectedFogIndex(null);
           setSelectedCharacters([]);
-          setSelectedObjectIndex(null);
+          setSelectedObjectIndices([]);
 
           setIsDraggingDrawing(true);
           setDragStart({ x: e.clientX, y: e.clientY });
@@ -2551,19 +2714,78 @@ export default function Component() {
           setSelectedNoteIndex(null);
           setSelectedCharacters([]);
           setSelectedDrawingIndex(null);
-          setSelectedObjectIndex(null);
+          setSelectedObjectIndices([]);
         } else {
-          // Clic sur zone vide : Commencer une sélection par zone
-          setSelectedCharacterIndex(null);
-          setSelectedNoteIndex(null);
-          setSelectedFogIndex(null);
-          setSelectedCharacters([]);
-          setSelectedDrawingIndex(null);
-          setSelectedObjectIndex(null); // Désélectionner l'objet
-          setContextMenuOpen(false);
+          // 🎯 DETECTION D'OBSTACLE (Polygones / Murs)
+          // On ne peut sélectionner un obstacle que si on est en mode visibilité ou MJ
+          let clickedObstacleId: string | null = null;
 
-          setSelectionStart({ x: clickX, y: clickY });
-          setIsSelectingArea(true);
+          if (isMJ || visibilityMode) {
+            const mouseMapX = (clickX / containerWidth) * image.width; // Approx, clickX/Y are passed from caller but might need adjustment
+            // Actually, clickX and clickY are already in map space (relative to image)
+            // handleCanvasMouseDown receives clickX, clickY which are computed as:
+            // const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width
+
+            // Simple version: iterate obstacles
+            for (const obs of obstacles) {
+              // Polygon check
+              if (obs.type === 'polygon') {
+                if (isPointInPolygon({ x: clickX, y: clickY }, obs.points)) {
+                  clickedObstacleId = obs.id;
+                  break;
+                }
+              } else if (obs.type === 'wall') {
+                // Line check
+                for (let i = 0; i < obs.points.length - 1; i++) {
+                  const p1 = obs.points[i];
+                  const p2 = obs.points[i + 1];
+                  // distance point to segment
+                  const d = pDistance(clickX, clickY, p1.x, p1.y, p2.x, p2.y);
+                  if (d < 15) { // Tolerance
+                    clickedObstacleId = obs.id;
+                    break;
+                  }
+                }
+                if (clickedObstacleId) break;
+              }
+            }
+          }
+
+          if (clickedObstacleId) {
+            setSelectedObstacleId(clickedObstacleId);
+            // Clear others
+            setSelectedCharacterIndex(null);
+            setSelectedNoteIndex(null);
+            setSelectedFogIndex(null);
+            setSelectedCharacters([]);
+            setSelectedDrawingIndex(null);
+            setSelectedObjectIndices([]);
+
+            setContextMenuOpen(false);
+
+            // Start Drag
+            setIsDraggingObstacle(true);
+            setDraggedObstacleId(clickedObstacleId);
+            const obs = obstacles.find(o => o.id === clickedObstacleId);
+            if (obs) {
+              // Deep copy points
+              setDraggedObstacleOriginalPoints(obs.points.map(p => ({ ...p })));
+            }
+            setDragStart({ x: e.clientX, y: e.clientY });
+          } else {
+            // Clic sur zone vide : Commencer une sélection par zone
+            setSelectedCharacterIndex(null);
+            setSelectedNoteIndex(null);
+            setSelectedFogIndex(null);
+            setSelectedCharacters([]);
+            setSelectedDrawingIndex(null);
+            setSelectedObjectIndices([]); // Désélectionner l'objet
+            setSelectedObstacleId(null);
+            setContextMenuOpen(false);
+
+            setSelectionStart({ x: clickX, y: clickY });
+            setIsSelectingArea(true);
+          }
         }
       } // Fin du clic gauche
     };
@@ -2734,6 +2956,35 @@ export default function Component() {
       return;
     }
 
+    // 🎯 DRAG OBSTACLE
+    if (isDraggingObstacle && draggedObstacleId) {
+      const startMapX = ((dragStart.x - rect.left + offset.x) / scaledWidth) * image.width;
+      const startMapY = ((dragStart.y - rect.top + offset.y) / scaledHeight) * image.height;
+
+      const deltaX = currentX - startMapX;
+      const deltaY = currentY - startMapY;
+
+      // DEBUG NAN
+      if (isNaN(deltaX) || isNaN(deltaY)) {
+        console.error("NaN detected in obstacle drag:", { startMapX, startMapY, currentX, currentY, dragStart, rect, offset, scaledWidth, imageWidth: image.width });
+        return;
+      }
+
+      setObstacles(prev => prev.map(obs => {
+        if (obs.id === draggedObstacleId) {
+          // Create new points based on original points + delta
+          // We rely on draggedObstacleOriginalPoints having the same length and order
+          const newPoints = draggedObstacleOriginalPoints.map(p => ({
+            x: p.x + deltaX,
+            y: p.y + deltaY
+          }));
+          return { ...obs, points: newPoints };
+        }
+        return obs;
+      }));
+      return;
+    }
+
     // 🎯 DÉPLACEMENT DE CARTE
     if (isDragging && (mouseButton === 1 || (mouseButton === 0 && panMode))) {
       const dx = e.clientX - dragStart.x;
@@ -2810,20 +3061,26 @@ export default function Component() {
     }
 
     // 🎯 DRAG & DROP OBJET
-    if (isDraggingObject && draggedObjectIndex !== null) {
-      // Use the same delta calculation method as notes and drawings
-      const startMapX = ((dragStart.x - rect.left + offset.x) / scaledWidth) * image.width;
-      const startMapY = ((dragStart.y - rect.top + offset.y) / scaledHeight) * image.height;
+    // 🎯 DRAG & DROP OBJET (MULTI)
+    if (isDraggingObject && draggedObjectIndex !== null && draggedObjectsOriginalPositions.length > 0) {
+      const originalRefObj = draggedObjectsOriginalPositions.find(pos => pos.index === draggedObjectIndex);
+      if (originalRefObj) {
+        // Current mouse position in map coords (currentX, currentY is already map coords)
+        const deltaX = currentX - originalRefObj.x;
+        const deltaY = currentY - originalRefObj.y;
 
-      const deltaMapX = currentX - startMapX;
-      const deltaMapY = currentY - startMapY;
-
-      setObjects(prev => prev.map((o, index) => {
-        if (index === draggedObjectIndex) {
-          return { ...o, x: draggedObjectOriginalPos.x + deltaMapX, y: draggedObjectOriginalPos.y + deltaMapY };
-        }
-        return o;
-      }));
+        setObjects(prev => prev.map((obj, index) => {
+          const originalPos = draggedObjectsOriginalPositions.find(pos => pos.index === index);
+          if (originalPos) {
+            return {
+              ...obj,
+              x: originalPos.x + deltaX,
+              y: originalPos.y + deltaY
+            };
+          }
+          return obj;
+        }));
+      }
       return;
     }
 
@@ -2893,6 +3150,7 @@ export default function Component() {
 
 
   const handleCanvasMouseUp = async () => {
+    const rect = canvasRef.current?.getBoundingClientRect();
     // 🎯 CALIBRATION END (OPEN DIALOG)
     if (isCalibrating && measureMode && measureStart && measureEnd) {
       // If dragged distance is significant, open dialog
@@ -2983,6 +3241,36 @@ export default function Component() {
       return;
     }
 
+    // 🎯 FIN DU DRAG & DROP OBSTACLE
+    if (isDraggingObstacle && draggedObstacleId && roomId) {
+      const obs = obstacles.find(o => o.id === draggedObstacleId);
+      if (obs) {
+        // Check if changed
+        const hasChanged = JSON.stringify(obs.points) !== JSON.stringify(draggedObstacleOriginalPoints);
+        if (hasChanged) {
+          try {
+            await updateDoc(doc(db, 'cartes', String(roomId), 'obstacles', obs.id), {
+              points: obs.points
+            });
+          } catch (e) {
+            console.error("Error saving obstacle:", e);
+            // Revert
+            setObstacles(prev => prev.map(o => {
+              if (o.id === draggedObstacleId) {
+                return { ...o, points: draggedObstacleOriginalPoints };
+              }
+              return o;
+            }));
+          }
+        }
+      }
+
+      setIsDraggingObstacle(false);
+      setDraggedObstacleId(null);
+      setDraggedObstacleOriginalPoints([]);
+      return;
+    }
+
     // 🎯 FIN DU DRAG & DROP NOTE - Priorité élevée
     if (isDraggingNote && draggedNoteIndex !== null) {
       const draggedNote = notes[draggedNoteIndex];
@@ -3017,23 +3305,38 @@ export default function Component() {
       return;
     }
 
-    // 🎯 FIN DU DRAG & DROP OBJET
-    if (isDraggingObject && draggedObjectIndex !== null) {
-      const obj = objects[draggedObjectIndex];
-      if (obj.x !== draggedObjectOriginalPos.x || obj.y !== draggedObjectOriginalPos.y) {
-        if (roomId) {
-          try {
-            await updateDoc(doc(db, 'cartes', String(roomId), 'objects', obj.id), {
-              x: obj.x,
-              y: obj.y
-            });
-          } catch (e) {
-            console.error("Error saving object pos:", e);
-          }
+    // 🎯 FIN DU DRAG & DROP OBJET (MULTI)
+    if (isDraggingObject && draggedObjectIndex !== null && draggedObjectsOriginalPositions.length > 0) {
+      if (roomId) {
+        try {
+          const updatePromises = draggedObjectsOriginalPositions.map(async (originalPos) => {
+            const currentObj = objects[originalPos.index];
+            const hasChanged = currentObj.x !== originalPos.x || currentObj.y !== originalPos.y;
+
+            if (hasChanged && currentObj?.id) {
+              await updateDoc(doc(db, 'cartes', String(roomId), 'objects', currentObj.id), {
+                x: currentObj.x,
+                y: currentObj.y
+              });
+            }
+          });
+
+          await Promise.all(updatePromises);
+        } catch (e) {
+          console.error("Error saving object pos:", e);
+          // Revert on error
+          setObjects(prev => prev.map((obj, index) => {
+            const originalPos = draggedObjectsOriginalPositions.find(pos => pos.index === index);
+            if (originalPos) {
+              return { ...obj, x: originalPos.x, y: originalPos.y };
+            }
+            return obj;
+          }));
         }
       }
       setIsDraggingObject(false);
       setDraggedObjectIndex(null);
+      setDraggedObjectsOriginalPositions([]);
       return;
     }
 
@@ -3079,7 +3382,120 @@ export default function Component() {
     }
 
     // 🎯 FIN DE SÉLECTION PAR ZONE
-    if (isSelectingArea) {
+    if (isSelectingArea && selectionStart && selectionEnd) {
+      const minX = Math.min(selectionStart.x, selectionEnd.x);
+      const maxX = Math.max(selectionStart.x, selectionEnd.x);
+      const minY = Math.min(selectionStart.y, selectionEnd.y);
+      const maxY = Math.max(selectionStart.y, selectionEnd.y);
+
+      // Helper for AABB collision
+      const isInRect = (x: number, y: number) => x >= minX && x <= maxX && y >= minY && y <= maxY;
+
+      // 1. Find Characters
+      const selectedChars = characters
+        .map((char, index) => isInRect(char.x, char.y) ? index : null)
+        .filter((i): i is number => i !== null);
+
+      // 2. Find Objects (Center point)
+      const selectedObjs = objects
+        .map((obj, index) => isInRect(obj.x + obj.width / 2, obj.y + obj.height / 2) ? index : null)
+        .filter((i): i is number => i !== null);
+
+      // 3. Find Notes
+      const selectedNotes = notes
+        .map((note, index) => isInRect(note.x, note.y) ? index : null)
+        .filter((i): i is number => i !== null);
+
+      // 4. Find Drawings (First point approximation for now)
+      const selectedDrawings = drawings
+        .map((drawing, index) => (drawing.points && drawing.points.length > 0 && isInRect(drawing.points[0].x, drawing.points[0].y)) ? index : null)
+        .filter((i): i is number => i !== null);
+
+      // 5. Find Obstacles (Any point inside)
+      const selectedObstacles = obstacles
+        .map((obs) => {
+          const hasPointInRect = obs.points.some(p => isInRect(p.x, p.y));
+          return hasPointInRect ? obs.id : null;
+        })
+        .filter((id): id is string => id !== null);
+
+      const totalFound =
+        selectedChars.length +
+        selectedObjs.length +
+        selectedNotes.length +
+        selectedDrawings.length +
+        selectedObstacles.length;
+
+      if (totalFound === 0) {
+        // Clear all selections
+        setSelectedCharacters([]);
+        setSelectedObjectIndices([]);
+        setSelectedNoteIndex(null);
+        setSelectedDrawingIndex(null);
+        setSelectedObstacleId(null);
+      } else {
+        const candidates: SelectionCandidates = {
+          characters: selectedChars,
+          objects: selectedObjs,
+          notes: selectedNotes,
+          drawings: selectedDrawings,
+          obstacles: selectedObstacles
+        };
+
+        // Determine if we need to show the menu
+        const typesFound = [
+          selectedChars.length > 0,
+          selectedObjs.length > 0,
+          selectedNotes.length > 0,
+          selectedDrawings.length > 0,
+          selectedObstacles.length > 0
+        ].filter(Boolean).length;
+
+        if (typesFound > 1) {
+          // Mixed selection -> Show Menu
+          setSelectionCandidates(candidates);
+          // Calculate screen position for menu
+          if (rect && containerRef.current) {
+            // Assuming last mouse position (currentX, currentY) isn't available here directly without ref checking, 
+            // we can use the mouse up event e clientX if available, but here we don't have 'e'.
+            // We'll use the center of the selection rectangle converted to screen coords?
+            // Or easier: just use the last known mouse position from a ref if we had one.
+            // Let's use the bounds of the selection box center.
+            // Map coords -> Screen coords:
+            // screenX = (mapX / image.width) * scaledWidth + offset.x + rect.left
+            // We need image and container ref here.
+            // Let's just default to a specific position or try to get context.
+            // Actually, we can use the drag end position? selectionEnd is in Map coords.
+            // Warning: We need to convert back to screen for the menu (fixed position).
+            // Since we lack 'e.clientX' here easily, let's just use a center screen approximation.
+            // Better yet, we will just use a fixed state update and let the render handle it if we passed valid screen coords?
+            // Let's assume we can get clientX/Y from last event or just center of screen?
+            // No, let's try to recalculate screen coords from map coords roughly.
+
+            // Simplification: We will store the mouseUP event in a ref or just pass it to this function?
+            // changing signature of handleCanvasMouseUp is risky.
+            // Let's just put it in the center of the viewport for now, or use a cached mouse position.
+            setMenuPosition({ x: window.innerWidth / 2 - 100, y: window.innerHeight / 2 });
+            setShowSelectionMenu(true);
+          }
+        } else {
+          // Single type found -> Select immediately
+          if (selectedChars.length > 0) setSelectedCharacters(selectedChars);
+          else setSelectedCharacters([]); // Clear others
+
+          setSelectedObjectIndices(selectedObjs);
+
+          if (selectedNotes.length > 0) setSelectedNoteIndex(selectedNotes[0]);
+          else setSelectedNoteIndex(null);
+
+          if (selectedDrawings.length > 0) setSelectedDrawingIndex(selectedDrawings[0]);
+          else setSelectedDrawingIndex(null);
+
+          if (selectedObstacles.length > 0) setSelectedObstacleId(selectedObstacles[0]);
+          else setSelectedObstacleId(null);
+        }
+      }
+
       setIsSelectingArea(false);
       setSelectionStart(null);
       setSelectionEnd(null);
@@ -3476,9 +3892,60 @@ export default function Component() {
     );
   }
 
+  const handleSelection = (type: SelectionType) => {
+    if (!selectionCandidates) return;
+
+    // Clear all first
+    setSelectedCharacters([]);
+    setSelectedCharacters([]);
+    setSelectedObjectIndices([]);
+    setSelectedNoteIndex(null);
+    setSelectedDrawingIndex(null);
+    setSelectedObstacleId(null);
+
+    switch (type) {
+      case 'characters':
+        setSelectedCharacters(selectionCandidates.characters);
+        break;
+      case 'objects':
+        setSelectedObjectIndices(selectionCandidates.objects);
+        break;
+      case 'notes':
+        if (selectionCandidates.notes.length > 0) {
+          setSelectedNoteIndex(selectionCandidates.notes[0]);
+        }
+        break;
+      case 'drawings':
+        if (selectionCandidates.drawings.length > 0) {
+          setSelectedDrawingIndex(selectionCandidates.drawings[0]);
+        }
+        break;
+      case 'obstacles':
+        if (selectionCandidates.obstacles.length > 0) {
+          setSelectedObstacleId(selectionCandidates.obstacles[0]);
+        }
+        break;
+    }
+
+    setShowSelectionMenu(false);
+    setSelectionCandidates(null);
+  };
+
   // 🎯 RENDER CITY MAP (existing functionality)
   return (
-    <div className="flex flex-col relative">
+    <div className="flex flex-col relative" ref={containerRef}>
+      {/* 🎯 SELECTION MENU */}
+      {showSelectionMenu && selectionCandidates && (
+        <SelectionMenu
+          position={menuPosition}
+          candidates={selectionCandidates}
+          onSelect={handleSelection}
+          onCancel={() => {
+            setShowSelectionMenu(false);
+            setSelectionCandidates(null);
+          }}
+        />
+      )}
       {/* 🆕 Bouton Retour à la World Map - UNIQUEMENT POUR LE MJ */}
       {/* 🆕 Bouton Retour à la World Map - UNIQUEMENT POUR LE MJ (DEPLACÉ EN HAUT À DROITE) */}
       {/* L'ancien emplacement en haut à gauche est supprimé pour Importer PNJ et Retour au Monde */}
@@ -3995,22 +4462,59 @@ export default function Component() {
         </div>
       )}
 
-      {selectedObjectIndex !== null && isMJ && (
+      {selectedObjectIndices.length > 0 && isMJ && (
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
           <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600 shadow-xl z-50">
-            <span className="text-white text-sm font-medium pr-2">Objet sélectionné</span>
+            <span className="text-white text-sm font-medium pr-2">{selectedObjectIndices.length} Objet(s) sélectionné(s)</span>
             <Button
               variant="destructive"
               onClick={() => {
-                if (selectedObjectIndex !== null && roomId && isMJ) {
-                  const obj = objects[selectedObjectIndex];
-                  deleteDoc(doc(db, 'cartes', String(roomId), 'objects', obj.id));
-                  setObjects(prev => prev.filter((_, i) => i !== selectedObjectIndex));
-                  setSelectedObjectIndex(null);
+                if (selectedObjectIndices.length > 0 && roomId && isMJ) {
+                  selectedObjectIndices.forEach(index => {
+                    const obj = objects[index];
+                    if (obj) deleteDoc(doc(db, 'cartes', String(roomId), 'objects', obj.id));
+                  });
+                  setObjects(prev => prev.filter((_, i) => !selectedObjectIndices.includes(i)));
+                  setSelectedObjectIndices([]);
                 }
               }}
             >
               <Trash2 className="w-4 h-4 mr-2" /> Supprimer
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setSelectedObjectIndices([])}
+            >
+              Fermer
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {selectedObstacleId && isMJ && (
+        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
+          <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600 shadow-xl z-50">
+            <span className="text-white text-sm font-medium pr-2">Obstacle sélectionné</span>
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (selectedObstacleId && roomId && isMJ) {
+                  await deleteDoc(doc(db, 'cartes', String(roomId), 'obstacles', selectedObstacleId));
+                  // Optimistic update
+                  setObstacles(prev => prev.filter(o => o.id !== selectedObstacleId));
+                  setSelectedObstacleId(null);
+                }
+              }}
+            >
+              <Trash2 className="w-4 h-4 mr-2" /> Supprimer
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setSelectedObstacleId(null)}
+            >
+              Fermer
             </Button>
           </div>
         </div>
@@ -4535,6 +5039,44 @@ export default function Component() {
         }}
         onConfirm={handlePlaceConfirm}
       />
-    </div >
+      {/* Layer Control Panel */}
+      {showLayerControl && (
+        <div className="absolute top-24 left-24 z-50">
+          <LayerControl layers={layers} onToggle={toggleLayer} />
+        </div>
+      )}
+    </div>
   )
+}
+
+function pDistance(x: number, y: number, x1: number, y1: number, x2: number, y2: number) {
+  var A = x - x1;
+  var B = y - y1;
+  var C = x2 - x1;
+  var D = y2 - y1;
+
+  var dot = A * C + B * D;
+  var len_sq = C * C + D * D;
+  var param = -1;
+  if (len_sq != 0) //in case of 0 length line
+    param = dot / len_sq;
+
+  var xx, yy;
+
+  if (param < 0) {
+    xx = x1;
+    yy = y1;
+  }
+  else if (param > 1) {
+    xx = x2;
+    yy = y2;
+  }
+  else {
+    xx = x1 + param * C;
+    yy = y1 + param * D;
+  }
+
+  var dx = x - xx;
+  var dy = y - yy;
+  return Math.sqrt(dx * dx + dy * dy);
 }

@@ -97,4 +97,14 @@ export type Note = {
 };
 
 export type DrawingTool = 'pen' | 'eraser' | 'line' | 'rectangle' | 'circle';
+
 export type DrawingMode = 'drawing' | 'view';
+
+export type LayerType = 'background' | 'grid' | 'drawings' | 'objects' | 'characters' | 'fog' | 'notes' | 'obstacles';
+
+export interface Layer {
+    id: LayerType;
+    label: string;
+    isVisible: boolean;
+    order: number;
+}
