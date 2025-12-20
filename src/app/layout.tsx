@@ -7,8 +7,7 @@ import { CharacterProvider } from '@/contexts/CharacterContext';
 import { Toaster } from "@/components/ui/sonner"
 
 
-import { IM_Fell_English } from 'next/font/google';
-import { Cinzel } from 'next/font/google';
+import { IM_Fell_English, Cinzel, Caveat, MedievalSharp, Inter } from 'next/font/google';
 
 const imFellEnglish = IM_Fell_English({
   subsets: ['latin'],
@@ -21,6 +20,25 @@ const cinzel = Cinzel({
   subsets: ['latin'],
   weight: ['400', '700'],
   variable: '--font-title',
+  display: 'swap',
+});
+
+const caveat = Caveat({
+  subsets: ['latin'],
+  variable: '--font-hand',
+  display: 'swap',
+});
+
+const medieval = MedievalSharp({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-medieval',
+  display: 'swap',
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-modern',
   display: 'swap',
 });
 
@@ -39,7 +57,7 @@ export default function RootLayout({
     <html
       lang="fr"
       suppressHydrationWarning
-      className={`${imFellEnglish.variable} ${cinzel.variable}`}
+      className={`${imFellEnglish.variable} ${cinzel.variable} ${caveat.variable} ${medieval.variable} ${inter.variable}`}
     >
       <body
         className="antialiased"

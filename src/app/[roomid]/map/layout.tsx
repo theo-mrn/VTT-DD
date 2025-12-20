@@ -10,18 +10,13 @@ import MedievalNotes from "@/components/Notes";
 import { DiceRoller } from "@/components/(dices)/dice-roller";
 import Competences from "@/components/(competences)/competences";
 import OverlayComponent from "@/components/(overlays)/overlay";
-import QuestOverlay from "@/components/(overlays)/questOverlay";
 import { DiceThrower } from "@/components/(dices)/throw";
-import RollRequest from '@/components/(dices)/Rollrequest';
 import { NPCManager } from '@/components/(personnages)/personnages'
-
-import { Button } from "@/components/ui/button";
-import { Statistiques } from "@/components/Statistiques";
-import CitiesManager from "@/components/(worldmap)/CitiesManager";
 import Chat from "@/components/(chat)/Chat";
-import { auth, db, onAuthStateChanged, collection, onSnapshot } from "@/lib/firebase";
-import { X, Map, BookOpen, Scroll } from "lucide-react";
-import FloatingMusic from "@/components/(music)/FloatingMusic";
+import { auth, onAuthStateChanged } from "@/lib/firebase";
+import { X } from "lucide-react";
+
+import MJMusicPlayer from "@/components/(music)/MJMusicPlayer";
 
 type LayoutProps = {
   children: ReactNode;
@@ -33,38 +28,15 @@ export default function Layout({ children }: LayoutProps) {
   const params = useParams();
   const roomId = params.roomid as string;
   const { isMJ } = useGame();
-
   const [activeTab, setActiveTab] = useState<string>("");
-  const [showRollRequest, setShowRollRequest] = useState(false);
-  const [showQuestOverlay, setShowQuestOverlay] = useState(false);
+
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async () => {
-      // Juste vérifier que l'utilisateur est connecté
-      // Le statut MJ et roomId viennent du contexte et des paramètres
-    });
-
+    const unsubscribeAuth = onAuthStateChanged(auth, async () => { });
     return () => unsubscribeAuth();
   }, []);
 
-  useEffect(() => {
-    if (!roomId) return;
 
-    const requestsRef = collection(db, `Rollsrequests/${roomId}/requete`);
-
-    const unsubscribe = onSnapshot(requestsRef, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === "added" || change.type === "modified") {
-          const data = change.doc.data();
-          if (data.isRequesting && !data.isCompleted) {
-            setShowRollRequest(true);
-          }
-        }
-      });
-    });
-
-    return () => unsubscribe();
-  }, [roomId]);
 
   const renderActiveTab = () => {
     switch (activeTab) {
@@ -78,10 +50,10 @@ export default function Layout({ children }: LayoutProps) {
         return <MedievalNotes />;
       case "DiceRoller":
         return <DiceRoller />;
+      case "Music":
+        return <MJMusicPlayer roomId={roomId} />;
       case "Competences":
         return <Competences />;
-      case "Statistiques":
-        return <Statistiques />;
       case "Chat":
         return <Chat />;
       default:
@@ -96,19 +68,19 @@ export default function Layout({ children }: LayoutProps) {
   const getPanelWidth = () => {
     switch (activeTab) {
       case "Component":
-        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1400px]"; // Fiche de personnage responsive
+        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1400px]";
       case "Competences":
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[1200px]";
       case "GMDashboard":
-        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] bg-white";
+        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] h-auto";
       case "NPCManager":
-        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[1200px]"; // Large panel for NPC Manager
+        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[900px]";
       case "DiceRoller":
         return "w-full sm:w-[400px] md:w-[400px] lg:w-[380px]";
-      case "NewComponent": // Style livre pour les notes
+      case "NewComponent":
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1200px]";
-      case "Cities":
-        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1400px]";
+      case "Music":
+        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[900px]";
       case "Chat":
         return "w-full sm:w-[90vw] md:w-[500px] lg:w-[600px]";
       default:
@@ -116,7 +88,7 @@ export default function Layout({ children }: LayoutProps) {
     }
   };
 
-  const isBookStyle = activeTab === "NewComponent";
+
 
   return (
     <div className="relative h-screen bg-[#1c1c1c] text-[#d4d4d4] flex">
@@ -128,107 +100,34 @@ export default function Layout({ children }: LayoutProps) {
         <OverlayComponent />
       </div>
 
-
-
-
-      {activeTab && activeTab !== "Cities" && (
+      {activeTab && (
         <aside
-          className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${getPanelWidth()} text-black shadow-lg z-20
-            ${activeTab === 'Chat' ? 'overflow-hidden' : 'overflow-y-auto'}
-            ${isBookStyle
-              ? 'bg-transparent animate-[bookOpen_0.6s_ease-out] [perspective:2000px]'
-              : 'bg-[#242424] transition-transform duration-300 ease-in-out'
-            }`}
-          style={isBookStyle ? {
-            transformStyle: 'preserve-3d',
-            animation: 'bookOpen 0.6s ease-out forwards'
-          } : undefined}
+          className={`fixed ${activeTab === 'Music'
+            ? 'top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#242424] h-auto max-h-[85vh] rounded-xl border border-[#333]'
+            : 'left-0 sm:left-16 md:left-20 top-0 h-full'
+            } ${getPanelWidth()} text-black shadow-lg z-20
+            ${activeTab === 'Chat' ? 'overflow-hidden' : 'overflow-y-auto'}`}
         >
 
           {/* Bouton de fermeture pour mobile/tablette */}
           <button
             onClick={() => setActiveTab("")}
-            className={`lg:hidden fixed top-3 right-3 z-10 rounded-full p-2 transition-colors shadow-lg
-              ${isBookStyle
-                ? 'bg-amber-800 text-amber-50 hover:bg-amber-700'
-                : 'bg-[#1c1c1c] text-white hover:bg-[#333]'
-              }`}
+            className={`lg:hidden fixed top-3 right-3 z-10 rounded-full p-2 transition-colors shadow-lg bg-[#1c1c1c] text-white hover:bg-[#333]`}
             aria-label="Fermer le panneau"
           >
             <X className="h-5 w-5" />
           </button>
 
-          <div className={activeTab === 'Chat' ? 'h-full' : (isBookStyle ? 'animate-[fadeIn_0.8s_ease-out_0.3s_both]' : '')}>
+          <div className={activeTab === 'Chat' || activeTab === 'NPCManager' ? 'h-full' : ""}>
             {renderActiveTab()}
           </div>
         </aside>
       )}
 
 
-      {/* Styles pour l'animation de livre */}
-      <style jsx global>{`
-        @keyframes bookOpen {
-          0% {
-            opacity: 0;
-            transform: perspective(2000px) rotateY(-90deg);
-            transform-origin: left center;
-          }
-          50% {
-            opacity: 0.5;
-          }
-          100% {
-            opacity: 1;
-            transform: perspective(2000px) rotateY(0deg);
-            transform-origin: left center;
-          }
-        }
-
-        @keyframes fadeIn {
-          0% {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes pageTurnOut {
-          0% {
-            opacity: 1;
-            transform: perspective(1200px) rotateY(0deg) translateX(0);
-          }
-          100% {
-            opacity: 0;
-            transform: perspective(1200px) rotateY(-30deg) translateX(-50px);
-          }
-        }
-
-        @keyframes pageTurnIn {
-          0% {
-            opacity: 0;
-            transform: perspective(1200px) rotateY(30deg) translateX(50px);
-          }
-          100% {
-            opacity: 1;
-            transform: perspective(1200px) rotateY(0deg) translateX(0);
-          }
-        }
-      `}</style>
-
-
-
       <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c]">
         <div className="w-full h-full">{children}</div>
       </main>
-
-      <div className="z-50 music">
-        {/* Lecteur Musical Flottant */}
-        <FloatingMusic roomId={roomId} />
-      </div>
-
-
       {/* 3D Dice Overlay */}
       <DiceThrower />
     </div>

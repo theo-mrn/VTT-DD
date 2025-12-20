@@ -121,7 +121,7 @@ export function GMDashboard() {
           id: doc.id,
           cityId: data.cityId, // Capture cityId
           name: data.Nomperso || "absente",
-          avatar: data.imageURLFinal || data.imageURL || `/placeholder.svg?height=40&width=40&text=${data.Nomperso ? data.Nomperso[0] : "?"}`,
+          avatar: data.imageURLFinal || data.imageURL || data.imageURL2 || `/placeholder.svg?height=40&width=40&text=${data.Nomperso ? data.Nomperso[0] : "?"}`,
           pv: data.PV ?? 0,
           init: data.INIT ?? 0,
           initDetails: data.initDetails || "0",

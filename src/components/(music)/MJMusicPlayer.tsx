@@ -71,7 +71,7 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
       /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
       /^([a-zA-Z0-9_-]{11})$/
     ];
-    
+
     for (const pattern of patterns) {
       const match = url.match(pattern);
       if (match && match[1]) {
@@ -84,10 +84,10 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
   // Fonction pour mettre à jour l'état de la musique dans Firebase
   const updateMusicState = useCallback(async (updates: Partial<MusicState>) => {
     if (!user) return;
-    
+
     setIsLocalUpdate(true);
     const musicRef = dbRef(realtimeDb, musicStateRef.current);
-    
+
     try {
       await update(musicRef, {
         ...updates,
@@ -104,7 +104,7 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
   // Ajouter un morceau à la bibliothèque
   const addToPlaylist = useCallback(async () => {
     const videoId = extractVideoId(youtubeUrl);
-    
+
     if (!videoId || !user) {
       console.error('URL YouTube invalide ou utilisateur non connecté');
       return;
@@ -138,7 +138,7 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
   // Supprimer un morceau de la bibliothèque
   const removeFromPlaylist = useCallback(async (trackId: string) => {
     if (!user) return;
-    
+
     try {
       const playlistDbRef = dbRef(realtimeDb, playlistRef.current);
       const updatedPlaylist = playlist.filter(track => track.id !== trackId);
@@ -151,9 +151,9 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
   // Charger et jouer un morceau de la playlist
   const playTrack = useCallback(async (videoId: string) => {
     if (!isMJ) return;
-    
+
     console.log('🎵 Playing track:', videoId);
-    
+
     await updateMusicState({
       videoId,
       isPlaying: true,
@@ -164,25 +164,25 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
   // Gestionnaire Play/Pause
   const handlePlayPause = useCallback(async () => {
     if (!playerRef.current || !isMJ) return;
-    
+
     const newIsPlaying = !musicState.isPlaying;
     console.log('🎛️ Play/Pause clicked:', newIsPlaying ? 'PLAY' : 'PAUSE');
-    
+
     isSyncingFromFirebase.current = true;
     if (newIsPlaying) {
       playerRef.current.playVideo();
     } else {
       playerRef.current.pauseVideo();
     }
-    
+
     await new Promise(resolve => setTimeout(resolve, 100));
     const currentTime = playerRef.current.getCurrentTime();
-    
+
     await updateMusicState({
       isPlaying: newIsPlaying,
       timestamp: currentTime
     });
-    
+
     setTimeout(() => {
       isSyncingFromFirebase.current = false;
     }, 1000);
@@ -210,10 +210,10 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
 
   const toggleMute = useCallback(() => {
     if (!playerRef.current) return;
-    
+
     const newMuted = !isMuted;
     setIsMuted(newMuted);
-    
+
     if (newMuted) {
       playerRef.current.mute();
     } else {
@@ -281,13 +281,13 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
 
   const onPlayerStateChange: YouTubeProps['onStateChange'] = async (event) => {
     const playerState = event.data;
-    
+
     if (isLocalUpdate || isSyncingFromFirebase.current) {
       return;
     }
-    
+
     const isPlaying = playerState === 1;
-    
+
     if ((playerState === 1 || playerState === 2) && isPlaying !== musicState.isPlaying && user && isMJ) {
       const currentTime = event.target.getCurrentTime();
       await updateMusicState({
@@ -366,7 +366,7 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
   // Synchronisation avec Firebase - Playlist
   useEffect(() => {
     const playlistDbRef = dbRef(realtimeDb, playlistRef.current);
-    
+
     const unsubscribe = onValue(playlistDbRef, (snapshot) => {
       const data = snapshot.val() as MusicTrack[] | null;
       if (data) {
@@ -404,9 +404,9 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
   }
 
   return (
-    <div className="w-full h-full flex flex-col gap-4">
+    <div className="w-full h-full flex flex-col bg-[#1a1a1a]">
       {/* Add Music Section */}
-      <div className="bg-white/10 backdrop-blur-md rounded-lg p-3">
+      <div className="p-4 bg-[#141414] border-b border-[#333]">
         <div className="flex gap-2">
           <Input
             type="text"
@@ -418,10 +418,12 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
                 addToPlaylist();
               }
             }}
+            className="flex-1 bg-[#252525] border-[#444] text-[#e0e0e0] placeholder-gray-500 focus:border-[#c0a080] h-9"
           />
-          <Button 
-            onClick={addToPlaylist} 
+          <Button
+            onClick={addToPlaylist}
             disabled={!youtubeUrl}
+            className="bg-[#c0a080] text-black font-bold hover:bg-[#b09070] h-9"
           >
             <Plus className="h-4 w-4 mr-2" />
             Ajouter
@@ -430,15 +432,15 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
       </div>
 
       {/* Main Content */}
-      <div className="flex gap-4 flex-1 min-h-0">
+      <div className="flex gap-4 flex-1 min-h-0 p-4">
         {/* Left Side - Current Track & Controls */}
-        <div className="flex flex-col gap-3 w-[300px]">
+        <div className="flex flex-col gap-4 w-[320px]">
           {/* Current Track Display */}
-          <div className="bg-black/40 backdrop-blur-sm rounded-lg p-3">
+          <div className="bg-[#222] border border-[#333] rounded-lg p-3 shadow-lg">
             {musicState.videoId ? (
-              <div className="space-y-2">
-                <div className="aspect-video bg-black rounded-lg overflow-hidden">
-                  <img 
+              <div className="space-y-3">
+                <div className="aspect-video bg-black rounded-md overflow-hidden border border-[#333]">
+                  <img
                     src={`https://img.youtube.com/vi/${musicState.videoId}/maxresdefault.jpg`}
                     alt={musicState.videoTitle || 'Miniature vidéo'}
                     className="w-full h-full object-cover"
@@ -451,15 +453,18 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
                   />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base truncate text-white drop-shadow-md">
+                  <h3 className="font-bold text-base truncate text-[#e0e0e0]">
                     {musicState.videoTitle || 'Sans titre'}
                   </h3>
-                  <p className="text-xs text-white/90 font-semibold mt-0.5">En cours de lecture</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="w-2 h-2 rounded-full bg-[#c0a080] animate-pulse" />
+                    <p className="text-xs text-[#c0a080] font-semibold">En cours de lecture</p>
+                  </div>
                 </div>
               </div>
             ) : (
-              <div className="aspect-video bg-white/10 rounded-lg flex items-center justify-center">
-                <div className="text-center text-white/70">
+              <div className="aspect-video bg-[#1a1a1a] rounded-md flex items-center justify-center border border-[#333] border-dashed">
+                <div className="text-center text-gray-500">
                   <Music2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p className="text-xs font-semibold">Aucun morceau sélectionné</p>
                 </div>
@@ -468,29 +473,32 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
           </div>
 
           {/* Player Controls */}
-          <div className="bg-white/10 backdrop-blur-md rounded-lg p-3">
-            <div className="flex items-center gap-3">
+          <div className="bg-[#222] border border-[#333] rounded-lg p-4 shadow-lg">
+            <div className="flex items-center gap-4">
               {/* Play/Pause Button */}
               <Button
                 onClick={handlePlayPause}
                 disabled={!musicState.videoId}
                 size="icon"
-                className="shrink-0"
+                className={`shrink-0 h-10 w-10 rounded-full ${musicState.isPlaying
+                    ? 'bg-[#c0a080] text-black hover:bg-[#b09070]'
+                    : 'bg-[#333] text-gray-200 hover:bg-[#444]'
+                  }`}
               >
                 {musicState.isPlaying ? (
                   <Pause className="w-5 h-5" />
                 ) : (
-                  <Play className="w-5 h-5" />
+                  <Play className="w-5 h-5 pl-0.5" />
                 )}
               </Button>
 
               {/* Volume Control */}
-              <div className="flex items-center gap-2 flex-1">
+              <div className="flex items-center gap-3 flex-1">
                 <Button
                   variant="ghost"
                   size="icon"
                   onClick={toggleMute}
-                  className="shrink-0 h-8 w-8"
+                  className="shrink-0 h-8 w-8 text-gray-400 hover:text-[#c0a080]"
                 >
                   {isMuted ? (
                     <VolumeX className="h-4 w-4" />
@@ -505,10 +513,10 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
                   max={100}
                   step={1}
                   onValueChange={handleVolumeChange}
-                  className="flex-1"
+                  className="flex-1 [&>.absolute]:bg-[#c0a080]"
                 />
 
-                <span className="text-xs font-bold text-white drop-shadow-md w-10 text-right shrink-0">
+                <span className="text-xs font-bold text-[#c0a080] w-9 text-right shrink-0">
                   {Math.round(isMuted ? 0 : localVolume)}%
                 </span>
               </div>
@@ -517,45 +525,58 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
         </div>
 
         {/* Right Side - Playlist */}
-        <div className="flex-1 min-h-0 overflow-hidden bg-white/10 backdrop-blur-md rounded-lg p-3">
-          <div className="h-full overflow-y-auto">
+        <div className="flex-1 min-h-0 flex flex-col bg-[#222] border border-[#333] rounded-lg overflow-hidden shadow-lg">
+          <div className="p-3 border-b border-[#333] bg-[#222]">
+            <h3 className="text-sm font-bold text-[#e0e0e0] flex items-center gap-2">
+              <Music2 className="w-4 h-4 text-[#c0a080]" />
+              File d'attente
+            </h3>
+          </div>
+          <div className="flex-1 overflow-y-auto p-2">
             {playlist.length === 0 ? (
               <div className="flex items-center justify-center h-full">
-                <div className="text-center text-white/70">
-                  <Music2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p className="text-sm font-bold">Aucun morceau dans la bibliothèque</p>
-                  <p className="text-xs font-semibold mt-1">Ajoutez une URL YouTube ci-dessus</p>
+                <div className="text-center text-gray-500">
+                  <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center mx-auto mb-3">
+                    <Music2 className="w-8 h-8 opacity-50" />
+                  </div>
+                  <p className="text-sm font-bold text-gray-400">Bibliothèque vide</p>
+                  <p className="text-xs mt-1">Ajoutez une URL YouTube pour commencer</p>
                 </div>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-1">
                 {playlist.map((track) => (
                   <div
                     key={track.id}
-                    className={`flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer group ${
-                      musicState.videoId === track.videoId
-                        ? 'bg-white/25 ring-2 ring-white/50'
-                        : 'hover:bg-white/15'
-                    }`}
+                    className={`flex items-center gap-3 p-2 rounded-lg transition-all cursor-pointer group border ${musicState.videoId === track.videoId
+                        ? 'bg-[#c0a080]/10 border-[#c0a080]/30'
+                        : 'bg-[#1a1a1a]/50 border-transparent hover:bg-[#333] hover:border-[#444]'
+                      }`}
                     onClick={() => playTrack(track.videoId)}
                   >
-                    <div className="w-16 h-12 rounded overflow-hidden flex-shrink-0 bg-black">
-                      <img 
+                    <div className="w-12 h-9 rounded overflow-hidden flex-shrink-0 bg-black relative">
+                      <img
                         src={track.thumbnail || `https://img.youtube.com/vi/${track.videoId}/mqdefault.jpg`}
                         alt={track.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
                           target.src = `https://img.youtube.com/vi/${track.videoId}/default.jpg`;
                         }}
                       />
+                      {musicState.videoId === track.videoId && (
+                        <div className="absolute inset-0 bg-[#c0a080]/20 flex items-center justify-center">
+                          <div className="w-2 h-2 bg-[#c0a080] rounded-full animate-ping" />
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-bold text-sm truncate text-white drop-shadow-md">
+                      <h4 className={`font-bold text-sm truncate ${musicState.videoId === track.videoId ? 'text-[#c0a080]' : 'text-[#e0e0e0]'
+                        }`}>
                         {track.title}
                       </h4>
-                      <p className="text-xs text-white/80 font-semibold mt-0.5">
-                        {track.videoId}
+                      <p className="text-[10px] text-gray-500 font-medium">
+                        ID: {track.videoId}
                       </p>
                     </div>
                     <Button
@@ -565,9 +586,9 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
                         e.stopPropagation();
                         removeFromPlaylist(track.id);
                       }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8 text-white hover:bg-red-500/30 hover:text-red-300"
+                      className="opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 text-gray-500 hover:bg-red-950/20 hover:text-red-400"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 ))}

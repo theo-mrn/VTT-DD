@@ -35,6 +35,7 @@ export type MapText = {
     y: number;
     color: string;
     fontSize?: number;
+    fontFamily?: string;
 };
 
 export type SavedDrawing = {
@@ -70,6 +71,8 @@ export type Note = {
     text?: string;
     id?: string;
     color?: string;
+    fontSize?: number;
+    fontFamily?: string;
 };
 
 export type DrawingTool = 'pen' | 'eraser' | 'line' | 'rectangle' | 'circle';
