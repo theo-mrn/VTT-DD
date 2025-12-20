@@ -29,6 +29,7 @@ interface FogManagerProps {
     isMJ: boolean;
     playerViewMode: boolean;
     persoId: string | null;
+    viewAsPersoId: string | null; // [NEW]
     characters: Character[];
     fogCellSize: number;
 }
@@ -44,6 +45,7 @@ export const useFogManager = ({
     isMJ,
     playerViewMode,
     persoId,
+    viewAsPersoId, // [NEW]
     characters,
     fogCellSize,
 }: FogManagerProps) => {
@@ -100,11 +102,21 @@ export const useFogManager = ({
         const effectiveIsMJ = isMJ && !playerViewMode;
         if (!fullMapFog && !fogGrid.has(`${cellX},${cellY}`)) return 0;
 
+        // [NEW] Determine effective ID for vision
+        const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
+
         let minOpacity = effectiveIsMJ ? 0.5 : 0.9;
         const cellDiagonalHalf = fogCellSize * Math.SQRT2 * 0.5;
 
         for (const character of characters) {
-            if ((character.id === persoId || character.visibility === 'ally') && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
+            // Check if this character should reveal fog:
+            // 1. It is the effective user character
+            // 2. OR it is an ally (always visible)
+            // 3. AND it has a visibility radius and valid position
+            const isViewer = character.id === effectivePersoId;
+            const isAlly = character.visibility === 'ally';
+
+            if ((isViewer || isAlly) && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
                 const cellCenterX = cellX * fogCellSize + fogCellSize / 2;
                 const cellCenterY = cellY * fogCellSize + fogCellSize / 2;
                 const distance = calculateDistance(character.x, character.y, cellCenterX, cellCenterY);
