@@ -116,23 +116,90 @@ function isSegmentFacingViewer(viewerPos: Point, segment: Segment): boolean {
 }
 
 /**
+ * Check if the viewer is inside a closed polygon obstacle
+ */
+export function isViewerInsideObstacle(viewerPos: Point, obstacle: Obstacle): boolean {
+    if (obstacle.type !== 'polygon' || obstacle.points.length < 3) {
+        return false;
+    }
+    return isPointInPolygon(viewerPos, obstacle.points);
+}
+
+/**
+ * Create a polygon that covers the entire map EXCEPT the given polygon
+ * This is used when the viewer is inside a polygon to hide everything outside
+ */
+function createExteriorMask(
+    polygonPoints: Point[],
+    mapBounds: { width: number; height: number }
+): Point[][] {
+    // Create a large outer rectangle that covers the map bounds (with some margin)
+    const margin = Math.max(mapBounds.width, mapBounds.height);
+    const outer: Point[] = [
+        { x: -margin, y: -margin },
+        { x: mapBounds.width + margin, y: -margin },
+        { x: mapBounds.width + margin, y: mapBounds.height + margin },
+        { x: -margin, y: mapBounds.height + margin },
+    ];
+
+    // Return the outer rectangle and the inner polygon as separate shapes
+    // The rendering will handle the "hole" by using canvas clipping or composite operations
+    // For simplicity, we return this as two separate polygons - the outer mask will be drawn,
+    // then the inner polygon will be "cut out" during rendering
+    return [outer, polygonPoints];
+}
+
+/**
  * Calculate all shadow polygons from obstacles
+ * Walls cast shadows behind them, polygons only block their interior (or exterior if viewer inside)
  */
 export function calculateShadowPolygons(
     viewerPos: Point,
     obstacles: Obstacle[],
     mapBounds: { width: number; height: number }
 ): Point[][] {
-    const segments = getSegmentsFromObstacles(obstacles);
     const shadows: Point[][] = [];
 
-    for (const segment of segments) {
-        // Only cast shadow if segment is facing away from viewer
-        // Actually, we want shadows from segments facing the viewer (the back side)
-        // Let's cast shadows from all segments for simplicity
-        const shadow = calculateShadowPolygon(viewerPos, segment, mapBounds);
-        if (shadow.length >= 3) {
-            shadows.push(shadow);
+    for (const obstacle of obstacles) {
+        if (obstacle.type === 'polygon' && obstacle.points.length >= 3) {
+            // For polygons: check if viewer is inside or outside
+            const viewerInside = isPointInPolygon(viewerPos, obstacle.points);
+
+            if (viewerInside) {
+                // Viewer is INSIDE the polygon: hide everything OUTSIDE
+                // We'll handle this separately in drawShadows with a special mask
+                // For now, we don't add shadow polygons here - it will be handled in drawShadowsWithPolygonBehavior
+            } else {
+                // Viewer is OUTSIDE the polygon: hide the polygon's interior
+                // Just add the polygon itself as a shadow (not shadows cast behind it)
+                shadows.push([...obstacle.points]);
+            }
+        } else {
+            // For walls (and chains): cast shadows behind each segment
+            const segments = obstacle.type === 'wall' && obstacle.points.length >= 2
+                ? [{ p1: obstacle.points[0], p2: obstacle.points[1] }]
+                : obstacle.type === 'rectangle' && obstacle.points.length >= 2
+                    ? getSegmentsFromRectangle(obstacle.points[0], obstacle.points[1])
+                    : [];
+
+            // For chain walls (polygon with type 'wall'), handle each segment
+            if (obstacle.type === 'wall' && obstacle.points.length > 2) {
+                // This is a chain of walls
+                for (let i = 0; i < obstacle.points.length - 1; i++) {
+                    const segment = { p1: obstacle.points[i], p2: obstacle.points[i + 1] };
+                    const shadow = calculateShadowPolygon(viewerPos, segment, mapBounds);
+                    if (shadow.length >= 3) {
+                        shadows.push(shadow);
+                    }
+                }
+            } else {
+                for (const segment of segments) {
+                    const shadow = calculateShadowPolygon(viewerPos, segment, mapBounds);
+                    if (shadow.length >= 3) {
+                        shadows.push(shadow);
+                    }
+                }
+            }
         }
     }
 
@@ -140,8 +207,37 @@ export function calculateShadowPolygons(
 }
 
 /**
+ * Helper to get segments from a rectangle
+ */
+function getSegmentsFromRectangle(tl: Point, br: Point): Segment[] {
+    const tr = { x: br.x, y: tl.y };
+    const bl = { x: tl.x, y: br.y };
+    return [
+        { p1: tl, p2: tr },
+        { p1: tr, p2: br },
+        { p1: br, p2: bl },
+        { p1: bl, p2: tl },
+    ];
+}
+
+/**
+ * Get polygons where the viewer is inside (for special exterior masking)
+ */
+export function getPolygonsContainingViewer(
+    viewerPos: Point,
+    obstacles: Obstacle[]
+): Obstacle[] {
+    return obstacles.filter(
+        obs => obs.type === 'polygon' &&
+            obs.points.length >= 3 &&
+            isPointInPolygon(viewerPos, obs.points)
+    );
+}
+
+/**
  * Draw shadow polygons on the canvas
  * Uses a temporary canvas to avoid opacity stacking when shadows overlap
+ * Also handles special case where viewer is inside a polygon (hides exterior)
  */
 export function drawShadows(
     ctx: CanvasRenderingContext2D,
@@ -154,7 +250,9 @@ export function drawShadows(
     if (obstacles.length === 0) return;
 
     const shadows = calculateShadowPolygons(viewerPos, obstacles, mapBounds);
-    if (shadows.length === 0) return;
+    const polygonsContainingViewer = getPolygonsContainingViewer(viewerPos, obstacles);
+
+    if (shadows.length === 0 && polygonsContainingViewer.length === 0) return;
 
     // Créer un canvas temporaire pour les ombres
     // Cela évite l'accumulation d'opacité quand les ombres se superposent
@@ -173,6 +271,7 @@ export function drawShadows(
     // Dessiner toutes les ombres en noir opaque sur le canvas temporaire
     tempCtx.fillStyle = 'black';
 
+    // 1. Draw regular shadow polygons (from walls and polygon interiors when viewer is outside)
     for (const shadow of shadows) {
         if (shadow.length < 3) continue;
 
@@ -187,6 +286,52 @@ export function drawShadows(
 
         tempCtx.closePath();
         tempCtx.fill();
+    }
+
+    // 2. Handle case where viewer is INSIDE a polygon
+    // In this case, we need to hide everything OUTSIDE the polygon
+    if (polygonsContainingViewer.length > 0) {
+        // Use destination-out to "cut holes" where the polygon interiors are
+        // First, we need a different approach: draw everything black, then cut out the polygon
+
+        // Create another temp canvas for the exterior mask
+        const exteriorCanvas = document.createElement('canvas');
+        exteriorCanvas.width = canvas.width;
+        exteriorCanvas.height = canvas.height;
+        const exteriorCtx = exteriorCanvas.getContext('2d');
+        if (exteriorCtx) {
+            exteriorCtx.scale(scaleX, scaleY);
+
+            // Fill entire canvas with black (fog)
+            exteriorCtx.fillStyle = 'black';
+            exteriorCtx.fillRect(0, 0, canvas.width / scaleX, canvas.height / scaleY);
+
+            // Cut out the interior of each polygon the viewer is inside
+            exteriorCtx.globalCompositeOperation = 'destination-out';
+            exteriorCtx.fillStyle = 'white';
+
+            for (const polygon of polygonsContainingViewer) {
+                if (polygon.points.length < 3) continue;
+
+                exteriorCtx.beginPath();
+                const first = transformPoint(polygon.points[0]);
+                exteriorCtx.moveTo(first.x, first.y);
+
+                for (let i = 1; i < polygon.points.length; i++) {
+                    const p = transformPoint(polygon.points[i]);
+                    exteriorCtx.lineTo(p.x, p.y);
+                }
+
+                exteriorCtx.closePath();
+                exteriorCtx.fill();
+            }
+
+            // Composite the exterior mask onto the main temp canvas
+            tempCtx.globalCompositeOperation = 'source-over';
+            tempCtx.resetTransform();
+            tempCtx.drawImage(exteriorCanvas, 0, 0);
+            tempCtx.scale(scaleX, scaleY);
+        }
     }
 
     // Appliquer le canvas temporaire avec l'opacité désirée
@@ -318,6 +463,7 @@ export function isPointInPolygon(point: Point, polygon: Point[]): boolean {
 
 /**
  * Check if a point is in shadow (obscured by obstacles) from a viewer's perspective
+ * Handles both walls (shadow cast behind) and polygons (interior hidden when outside, exterior hidden when inside)
  */
 export function isPointInShadows(
     targetPoint: Point,
@@ -325,6 +471,7 @@ export function isPointInShadows(
     obstacles: Obstacle[],
     mapBounds: { width: number; height: number }
 ): boolean {
+    // First check: is the target inside a shadow polygon cast by walls?
     const shadows = calculateShadowPolygons(viewerPos, obstacles, mapBounds);
 
     for (const shadow of shadows) {
@@ -332,5 +479,15 @@ export function isPointInShadows(
             return true; // The point is inside a shadow
         }
     }
+
+    // Second check: if viewer is inside a polygon, points outside that polygon are in shadow
+    const polygonsContainingViewer = getPolygonsContainingViewer(viewerPos, obstacles);
+    for (const polygon of polygonsContainingViewer) {
+        // If target point is OUTSIDE the polygon that contains the viewer, it's in shadow
+        if (!isPointInPolygon(targetPoint, polygon.points)) {
+            return true;
+        }
+    }
+
     return false;
 }

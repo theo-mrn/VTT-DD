@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Heart, Shield, X } from 'lucide-react';
+import { Heart, Shield, X, User, Package } from 'lucide-react';
 import { auth, db, doc, getDoc, onSnapshot, collection } from '@/lib/firebase';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import CharacterImage from '@/components/(fiches)/CharacterImage';
@@ -16,6 +16,7 @@ interface Character {
   Taille?: number;
   Poids?: number;
   imageURL?: string;
+  imageURL2?: string;
   PV?: number;
   PV_Max?: number;
   Defense?: number;
@@ -61,11 +62,14 @@ interface UserData {
   perso?: string;
 }
 
+type TabType = 'character' | 'inventory';
+
 export default function CharacterSheet({ characterId, roomId, onClose }: CharacterSheetProps) {
   const [character, setCharacter] = useState<Character | null>(null);
   const [bonuses, setBonuses] = useState<Bonuses | null>(null);
   const [userPersoId, setUserPersoId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<TabType>('character');
 
   useEffect(() => {
     const loadUserData = async () => {
@@ -139,139 +143,245 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
   return (
     <TooltipProvider>
       <div
-        className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4"
         onClick={onClose}
       >
         <div
-          className="bg-[#242424] rounded-lg shadow-2xl p-2 sm:p-3 space-y-2 sm:space-y-3 max-w-4xl w-full max-h-[90vh] overflow-y-auto relative"
+          className="bg-gradient-to-b from-[#2a2a2a] to-[#1f1f1f] rounded-xl shadow-2xl w-full max-w-2xl max-h-[85vh] overflow-hidden relative border border-[#3a3a3a]"
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            onClick={onClose}
-            className="sticky top-0 right-0 float-right bg-[#2a2a2a] rounded-full p-1.5 text-gray-400 hover:text-white hover:bg-[#3a3a3a] transition-colors z-10"
-            aria-label="Fermer"
-          >
-            <X size={20} />
-          </button>
-
-          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-            {character.type === 'joueurs' && (
-              <div className="flex-shrink-0 mx-auto sm:mx-0">
-                <CharacterImage
-                  imageUrl={character.imageURL}
-                  altText={character.Nomperso}
-                  characterId={character.id}
-                />
-              </div>
-            )}
-
-            <div className="flex-grow space-y-2">
-              <div className="bg-[#2a2a2a] p-2 rounded-lg border border-[#3a3a3a]">
-                <h2 className="text-lg md:text-xl font-bold text-[#c0a0a0] mb-1 text-center sm:text-left">{character.Nomperso}</h2>
-                <div className="grid grid-cols-1 xs:grid-cols-2 gap-1 text-xs">
-                  <div>Niveau: <span className="text-[#a0a0a0]">{character.niveau}</span></div>
-                  <div>Initiative: <span className="text-[#a0a0a0]">{getDisplayValue("INIT")}</span></div>
-                  <div>Profil: <span className="text-[#a0a0a0]">{character.Profile}</span></div>
-                  <div>Taille: <span className="text-[#a0a0a0]">{character.Taille} cm</span></div>
-                  <div>Race: <span className="text-[#a0a0a0]">{character.Race}</span></div>
-                  <div>Poids: <span className="text-[#a0a0a0]">{character.Poids} Kg</span></div>
-                  <div className="xs:col-span-2">Dé de Vie: <span className="text-[#a0a0a0]">{character.deVie}</span></div>
-                </div>
-              </div>
-            </div>
+          {/* Header with close button */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[#3a3a3a] bg-[#252525]">
+            <h2 className="text-xl font-bold text-[#e0c8c8] truncate">{character.Nomperso}</h2>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-white hover:bg-[#3a3a3a] rounded-lg transition-colors"
+              aria-label="Fermer"
+            >
+              <X size={20} />
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {/* Colonne Gauche: Caractéristiques */}
-            <div className="grid grid-cols-3 gap-1.5 text-center content-start">
-              {[
-                { name: 'FOR', value: getModifier(character.FOR || 0) },
-                { name: 'DEX', value: getModifier(character.DEX || 0) },
-                { name: 'CON', value: getModifier(character.CON || 0) },
-                { name: 'INT', value: getModifier(character.INT || 0) },
-                { name: 'SAG', value: getModifier(character.SAG || 0) },
-                { name: 'CHA', value: getModifier(character.CHA || 0) },
-              ].map((ability) => (
-                <Tooltip key={ability.name}>
-                  <TooltipTrigger>
-                    <div className="bg-[#2a2a2a] p-1.5 rounded-lg border border-[#3a3a3a] h-full flex flex-col justify-center">
-                      <div className="text-[#c0a0a0] font-semibold text-xs">{ability.name}</div>
-                      <div className={`text-lg font-bold leading-tight ${ability.value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {ability.value >= 0 ? '+' : ''}{ability.value}
+          {/* Tabs */}
+          <div className="flex border-b border-[#3a3a3a]">
+            <button
+              onClick={() => setActiveTab('character')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 font-medium transition-colors ${activeTab === 'character'
+                ? 'text-[#e0c8c8] bg-[#2a2a2a] border-b-2 border-[#c0a080]'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-[#2a2a2a]/50'
+                }`}
+            >
+              <User size={18} />
+              <span>Personnage</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('inventory')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 font-medium transition-colors ${activeTab === 'inventory'
+                ? 'text-[#e0c8c8] bg-[#2a2a2a] border-b-2 border-[#c0a080]'
+                : 'text-gray-400 hover:text-gray-200 hover:bg-[#2a2a2a]/50'
+                }`}
+            >
+              <Package size={18} />
+              <span>Inventaire</span>
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="overflow-y-auto max-h-[calc(85vh-130px)]">
+            {activeTab === 'character' ? (
+              <div className="p-6 space-y-6">
+                {/* Character Info Section - Full for players, simplified for NPCs */}
+                {character.type === 'joueurs' ? (
+                  /* Full info block for player characters */
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    {/* Character Image - Medium size */}
+                    <div className="flex-shrink-0 mx-auto sm:mx-0 w-36 h-36">
+                      <CharacterImage
+                        imageUrl={character.imageURL}
+                        altText={character.Nomperso}
+                        characterId={character.id}
+                      />
+                    </div>
+
+                    {/* Basic Info */}
+                    <div className="flex-grow">
+                      <div className="bg-[#252525] p-4 rounded-xl border border-[#3a3a3a]">
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Niveau</span>
+                            <span className="text-white font-medium">{character.niveau}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Initiative</span>
+                            <span className="text-white font-medium">{getDisplayValue("INIT")}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Profil</span>
+                            <span className="text-white font-medium">{character.Profile}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Race</span>
+                            <span className="text-white font-medium">{character.Race}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Taille</span>
+                            <span className="text-white font-medium">{character.Taille} cm</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">Poids</span>
+                            <span className="text-white font-medium">{character.Poids} kg</span>
+                          </div>
+                          <div className="flex justify-between col-span-2">
+                            <span className="text-gray-400">Dé de Vie</span>
+                            <span className="text-white font-medium">{character.deVie}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-[10px] text-[#a0a0a0]">{character[ability.name as keyof Character]}</div>
                     </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Valeur de base: {character[ability.name as keyof Character]}</p>
-                    <p>Bonus total: {bonuses ? bonuses[ability.name] || 0 : 0}</p>
-                  </TooltipContent>
-                </Tooltip>
-              ))}
-            </div>
+                  </div>
+                ) : (
+                  /* Simplified info block for NPCs - image, profile, level, initiative */
+                  <div className="flex items-center gap-4">
+                    {/* NPC Image - Only show if image exists */}
+                    {(character.imageURL2 || character.imageURL) && (
+                      <div className="flex-shrink-0 w-36 h-36 rounded-lg overflow-hidden border border-[#3a3a3a]">
+                        <img
+                          src={character.imageURL2 || character.imageURL}
+                          alt={character.Nomperso}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
 
-            {/* Colonne Droite: Combat & Vitalité */}
-            <div className="space-y-2">
-              <div className="bg-[#2a2a2a] p-1.5 sm:p-2 rounded-lg border border-[#3a3a3a] flex flex-col xs:flex-row justify-between items-center gap-2">
-                <Tooltip>
-                  <TooltipTrigger>
-                    <div className="flex items-center space-x-1.5">
-                      <Heart className="text-red-500" size={16} />
-                      <span className="text-base sm:text-lg font-bold text-[#d4d4d4]">
-                        {getDisplayValue("PV")} / {getDisplayValue("PV_Max")}
-                      </span>
+                    {/* NPC Basic Info */}
+                    <div className="flex-grow bg-[#252525] p-3 rounded-xl border border-[#3a3a3a]">
+                      <div className="flex flex-wrap justify-between gap-4 text-sm">
+                        {character.Profile && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-400">Profil</span>
+                            <span className="text-white font-medium">{character.Profile}</span>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-400">Niveau</span>
+                          <span className="text-white font-bold text-lg">{character.niveau}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-400">Initiative</span>
+                          <span className="text-white font-bold text-lg">{getDisplayValue("INIT")}</span>
+                        </div>
+                      </div>
                     </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Valeur de base: {character.PV} / {character.PV_Max}</p>
-                    <p>Bonus total: {bonuses ? bonuses.PV || 0 : 0} / {bonuses ? bonuses.PV_Max || 0 : 0}</p>
-                  </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <div className="flex items-center space-x-1.5">
-                      <Shield className="text-blue-500" size={16} />
-                      <span className="text-base sm:text-lg font-bold text-[#d4d4d4]">{getDisplayValue("Defense")}</span>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Valeur de base: {character.Defense}</p>
-                    <p>Bonus total: {bonuses ? bonuses.Defense || 0 : 0}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
+                  </div>
+                )}
 
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { name: 'Contact', value: getDisplayValue("Contact") },
-                  { name: 'Distance', value: getDisplayValue("Distance") },
-                  { name: 'Magie', value: getDisplayValue("Magie") }
-                ].map((stat) => (
-                  <Tooltip key={stat.name}>
-                    <TooltipTrigger>
-                      <div className="bg-[#2a2a2a] p-1.5 sm:p-2 rounded-lg border border-[#3a3a3a] text-center">
-                        <h3 className="text-xs sm:text-sm font-semibold text-[#c0a0a0] mb-0.5">{stat.name}</h3>
-                        <span className="text-base sm:text-lg font-bold text-[#d4d4d4]">{stat.value}</span>
+                {/* HP and Defense - Full width */}
+                <div className="grid grid-cols-2 gap-4">
+                  <Tooltip>
+                    <TooltipTrigger className="w-full">
+                      <div className="flex items-center justify-center gap-4 px-6 py-4 bg-[#252525] rounded-xl border border-[#3a3a3a] hover:border-[#4a4a4a] transition-colors">
+                        <Heart className="text-red-500" size={28} />
+                        <div className="text-left">
+                          <div className="text-xs text-gray-400">Points de Vie</div>
+                          <div className="text-2xl font-bold text-white">
+                            {getDisplayValue("PV")} / {getDisplayValue("PV_Max")}
+                          </div>
+                        </div>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Valeur de base: {character[stat.name as keyof Character]}</p>
-                      <p>Bonus total: {bonuses ? bonuses[stat.name] || 0 : 0}</p>
+                      <p>Base: {character.PV} / {character.PV_Max}</p>
+                      <p>Bonus: {bonuses ? bonuses.PV || 0 : 0} / {bonuses ? bonuses.PV_Max || 0 : 0}</p>
                     </TooltipContent>
                   </Tooltip>
-                ))}
-              </div>
-            </div>
-          </div>
 
-          {/* Inventaire */}
-          <InventoryManagement2
-            playerName={character.Nomperso}
-            roomId={roomId}
-            canEdit={character.id === userPersoId || userRole === "MJ"}
-          />
+                  <Tooltip>
+                    <TooltipTrigger className="w-full">
+                      <div className="flex items-center justify-center gap-4 px-6 py-4 bg-[#252525] rounded-xl border border-[#3a3a3a] hover:border-[#4a4a4a] transition-colors">
+                        <Shield className="text-blue-500" size={28} />
+                        <div className="text-left">
+                          <div className="text-xs text-gray-400">Défense</div>
+                          <div className="text-2xl font-bold text-white">{getDisplayValue("Defense")}</div>
+                        </div>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p>Base: {character.Defense}</p>
+                      <p>Bonus: {bonuses ? bonuses.Defense || 0 : 0}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+
+                {/* Ability Scores */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Caractéristiques</h3>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+                    {[
+                      { name: 'FOR', fullName: 'Force', value: getModifier(character.FOR || 0), base: character.FOR },
+                      { name: 'DEX', fullName: 'Dextérité', value: getModifier(character.DEX || 0), base: character.DEX },
+                      { name: 'CON', fullName: 'Constitution', value: getModifier(character.CON || 0), base: character.CON },
+                      { name: 'INT', fullName: 'Intelligence', value: getModifier(character.INT || 0), base: character.INT },
+                      { name: 'SAG', fullName: 'Sagesse', value: getModifier(character.SAG || 0), base: character.SAG },
+                      { name: 'CHA', fullName: 'Charisme', value: getModifier(character.CHA || 0), base: character.CHA },
+                    ].map((ability) => (
+                      <Tooltip key={ability.name}>
+                        <TooltipTrigger className="w-full">
+                          <div className="bg-[#252525] p-3 rounded-xl border border-[#3a3a3a] text-center hover:border-[#4a4a4a] transition-colors">
+                            <div className="text-xs font-semibold text-[#c0a080] mb-1">{ability.name}</div>
+                            <div className={`text-2xl font-bold ${ability.value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {ability.value >= 0 ? '+' : ''}{ability.value}
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">{ability.base}</div>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p className="font-medium">{ability.fullName}</p>
+                          <p>Base: {ability.base}</p>
+                          <p>Bonus: {bonuses ? bonuses[ability.name] || 0 : 0}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Combat Stats */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Combat</h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { name: 'Contact', value: getDisplayValue("Contact"), color: 'text-orange-400' },
+                      { name: 'Distance', value: getDisplayValue("Distance"), color: 'text-green-400' },
+                      { name: 'Magie', value: getDisplayValue("Magie"), color: 'text-purple-400' }
+                    ].map((stat) => (
+                      <Tooltip key={stat.name}>
+                        <TooltipTrigger className="w-full">
+                          <div className="bg-[#252525] p-4 rounded-xl border border-[#3a3a3a] text-center hover:border-[#4a4a4a] transition-colors">
+                            <h4 className="text-sm font-medium text-gray-300 mb-1">{stat.name}</h4>
+                            <span className={`text-2xl font-bold ${stat.color}`}>{stat.value}</span>
+                          </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Base: {character[stat.name as keyof Character]}</p>
+                          <p>Bonus: {bonuses ? bonuses[stat.name] || 0 : 0}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Inventory Tab */
+              <div className="p-4">
+                <InventoryManagement2
+                  playerName={character.Nomperso}
+                  roomId={roomId}
+                  canEdit={character.id === userPersoId || userRole === "MJ"}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </TooltipProvider>
   );
-} 
+}

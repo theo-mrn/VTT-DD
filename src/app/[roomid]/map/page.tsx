@@ -30,6 +30,8 @@ import {
   drawObstacles,
   calculateShadowPolygons,
   isPointInPolygon,
+  getPolygonsContainingViewer,
+  isPointInShadows,
 } from '@/lib/visibility';
 import { LayerControl } from '@/components/(map)/LayerControl';
 import { SelectionMenu, type SelectionCandidates, type SelectionType } from '@/components/(map)/SelectionMenu';
@@ -831,7 +833,6 @@ export default function Component() {
     { id: 5, label: showGrid ? 'Masquer grille' : 'Afficher grille', icon: Grid },
     { id: 6, label: 'Effacer dessins', icon: Trash2 },
     { id: 7, label: 'Changer fond', icon: ImagePlus },
-    { id: 8, label: 'Déplacer carte', icon: Move },
     { id: 9, label: playerViewMode ? 'Vue MJ' : 'Vue Joueur', icon: playerViewMode ? ScanEye : User },
     { id: 10, label: 'Mesurer', icon: Ruler },
     { id: 12, label: 'Calques', icon: Layers },
@@ -839,7 +840,6 @@ export default function Component() {
     { id: 1, label: 'Ajouter Texte', icon: Baseline },
     { id: 2, label: 'Dessiner', icon: Pencil },
     { id: 3, label: showGrid ? 'Masquer grille' : 'Afficher grille', icon: Grid },
-    { id: 4, label: 'Déplacer carte', icon: Move },
     { id: 5, label: 'Effacer dessins', icon: Trash2 },
     { id: 6, label: 'Mesurer', icon: Ruler },
   ];
@@ -1235,18 +1235,37 @@ export default function Component() {
     const effectiveIsMJ = isMJ && !playerViewMode;
     if (effectiveIsMJ) return true;
 
+    // Les joueurs et alliés sont toujours visibles
+    if (char.type === 'joueurs' || char.visibility === 'ally') {
+      return true;
+    }
+
+    // 🔦 Vérifier si le personnage est dans l'ombre d'un obstacle
+    if (obstacles.length > 0 && bgImageObject) {
+      // Trouver la position du joueur actuel
+      const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
+      const viewer = characters.find(c => c.id === effectivePersoId);
+
+      if (viewer && viewer.x !== undefined && viewer.y !== undefined) {
+        const charPos = { x: char.x, y: char.y };
+        const viewerPos = { x: viewer.x, y: viewer.y };
+        const mapBounds = { width: bgImageObject.width, height: bgImageObject.height };
+
+        // Vérifier si le personnage est dans l'ombre
+        if (isPointInShadows(charPos, viewerPos, obstacles, mapBounds)) {
+          return false; // Le personnage est caché par un obstacle
+        }
+      }
+    }
+
     // Vérifier si le personnage est dans le brouillard
     const isInFog = fullMapFog || isCellInFog(char.x, char.y, fogGrid, fogCellSize);
 
     // Déterminer la visibilité effective (les PNJ dans le brouillard deviennent cachés)
+    // Note: Les alliés et joueurs sont déjà traités au-dessus
     let effectiveVisibility = char.visibility;
-    if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
+    if (char.type !== 'joueurs' && isInFog) {
       effectiveVisibility = 'hidden';
-    }
-
-    // Les alliés sont toujours visibles
-    if (char.visibility === 'ally') {
-      return true;
     }
 
     // Les personnages cachés ne sont visibles que s'ils sont dans le rayon de vision d'un joueur/allié
@@ -1584,6 +1603,8 @@ export default function Component() {
     // 🎯 CALCUL DES OMBRES POUR MASQUER LES PNJs ET OBJETS (Côté Client seulement)
     // Si un PNJ ou objet est dans l'ombre du joueur (ou allié), il ne doit pas être affiché
     let activeShadowsForFiltering: Point[][] | null = null;
+    let polygonsContainingViewerForFiltering: Obstacle[] = [];
+    let viewerPositionForFiltering: Point | null = null;
 
     if (!effectiveIsMJ && obstacles.length > 0 && isLayerVisible('obstacles')) {
       // [NEW] Use simulated view ID if active
@@ -1591,11 +1612,15 @@ export default function Component() {
 
       for (const char of characters) {
         if (char.id === effectivePersoId && char.x !== undefined && char.y !== undefined) {
+          viewerPositionForFiltering = { x: char.x, y: char.y };
           activeShadowsForFiltering = calculateShadowPolygons({ x: char.x, y: char.y }, obstacles, { width: image.width, height: image.height });
+          // Also get polygons that contain the viewer (for hiding exterior when inside)
+          polygonsContainingViewerForFiltering = getPolygonsContainingViewer({ x: char.x, y: char.y }, obstacles);
           break;
         }
       }
     }
+
 
     // Draw Objects (before characters)
     if (isLayerVisible('objects')) {
@@ -1606,15 +1631,30 @@ export default function Component() {
         const h = (obj.height / image.height) * scaledHeight;
 
         // 🔦 Vérifier si l'objet est masqué par une ombre (même logique que pour les PNJ)
-        if (activeShadowsForFiltering) {
+        if (activeShadowsForFiltering || polygonsContainingViewerForFiltering.length > 0) {
           const objPos = { x: obj.x, y: obj.y };
           let isInShadow = false;
-          for (const shadow of activeShadowsForFiltering) {
-            if (isPointInPolygon(objPos, shadow)) {
-              isInShadow = true;
-              break;
+
+          // Check shadow polygons (from walls and polygon interiors when outside)
+          if (activeShadowsForFiltering) {
+            for (const shadow of activeShadowsForFiltering) {
+              if (isPointInPolygon(objPos, shadow)) {
+                isInShadow = true;
+                break;
+              }
             }
           }
+
+          // Check if viewer is inside a polygon but object is outside (hide exterior)
+          if (!isInShadow && polygonsContainingViewerForFiltering.length > 0) {
+            for (const polygon of polygonsContainingViewerForFiltering) {
+              if (!isPointInPolygon(objPos, polygon.points)) {
+                isInShadow = true;
+                break;
+              }
+            }
+          }
+
           // Ne pas dessiner l'objet s'il est dans l'ombre (sauf pour le MJ)
           if (isInShadow && !effectiveIsMJ) return;
         }
@@ -1721,14 +1761,30 @@ export default function Component() {
         let isVisible = true;
 
         // 🎯 Vérifier si le personnage est masqué par une ombre (uniquement pour les joueurs)
-        if (activeShadowsForFiltering && char.type !== 'joueurs' && char.visibility !== 'ally') {
+        if ((activeShadowsForFiltering || polygonsContainingViewerForFiltering.length > 0) &&
+          char.type !== 'joueurs' && char.visibility !== 'ally') {
           const charPos = { x: char.x, y: char.y };
-          for (const shadow of activeShadowsForFiltering) {
-            if (isPointInPolygon(charPos, shadow)) {
-              isVisible = false;
-              break;
+
+          // Check shadow polygons (from walls and polygon interiors when outside)
+          if (activeShadowsForFiltering) {
+            for (const shadow of activeShadowsForFiltering) {
+              if (isPointInPolygon(charPos, shadow)) {
+                isVisible = false;
+                break;
+              }
             }
           }
+
+          // Check if viewer is inside a polygon but character is outside (hide exterior)
+          if (isVisible && polygonsContainingViewerForFiltering.length > 0) {
+            for (const polygon of polygonsContainingViewerForFiltering) {
+              if (!isPointInPolygon(charPos, polygon.points)) {
+                isVisible = false;
+                break;
+              }
+            }
+          }
+
           if (!isVisible) return; // Ne pas dessiner si dans l'ombre
         }
 
@@ -1747,14 +1803,36 @@ export default function Component() {
         }
         // Les personnages cachés (ou cachés par le brouillard) ne sont visibles que pour le MJ (en mode normal) ou s'ils sont dans le rayon de vision d'un joueur ou allié
         else if (effectiveVisibility === 'hidden') {
-          isVisible = effectiveIsMJ || characters.some((player) => {
-            const playerX = (player.x / image.width) * scaledWidth - offset.x;
-            const playerY = (player.y / image.height) * scaledHeight - offset.y;
-            return (
-              player.id === persoId &&
-              calculateDistance(x, y, playerX, playerY) <= player.visibilityRadius * zoom
-            );
-          });
+          // [NEW] Use simulated view ID if active
+          const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
+
+          // In player view simulation mode, GM should NOT see all hidden characters
+          // They should only see those within the simulated character's visibility radius
+          const isInPlayerViewMode = playerViewMode && viewAsPersoId;
+
+          if (isInPlayerViewMode) {
+            // GM simulating player view - use visibility radius check only
+            const viewer = characters.find(c => c.id === effectivePersoId);
+            if (viewer) {
+              // Use screen coordinates for distance calculation (like line 1276)
+              const viewerScreenX = (viewer.x / image.width) * scaledWidth - offset.x;
+              const viewerScreenY = (viewer.y / image.height) * scaledHeight - offset.y;
+              const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
+              isVisible = dist <= viewer.visibilityRadius * zoom;
+            } else {
+              isVisible = false;
+            }
+          } else {
+            // Normal mode - MJ sees all, players check visibility radius
+            isVisible = effectiveIsMJ || (() => {
+              const viewer = characters.find(c => c.id === effectivePersoId);
+              if (!viewer) return false;
+              const viewerScreenX = (viewer.x / image.width) * scaledWidth - offset.x;
+              const viewerScreenY = (viewer.y / image.height) * scaledHeight - offset.y;
+              const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
+              return dist <= viewer.visibilityRadius * zoom;
+            })();
+          }
         }
 
 
@@ -2300,8 +2378,9 @@ export default function Component() {
           return;
         }
 
-        // 🎯 MODE DÉPLACEMENT DE CARTE - Priorité élevée
-        if (panMode) {
+        // 🎯 MODE DÉPLACEMENT DE CARTE - Seulement si le mode est explicitement activé (MJ uniquement)
+        // Pour les joueurs, le pan est géré dans la section "clic sur zone vide" plus bas
+        if (panMode && isMJ) {
           setIsDragging(true);
           setDragStart({ x: e.clientX, y: e.clientY });
           return;
@@ -2517,6 +2596,12 @@ export default function Component() {
         // 🎯 MODE SÉLECTION PAR DÉFAUT - Nouveau comportement principal
         // Vérifier si on clique sur un élément existant ET s'il est visible
         const clickedCharIndex = isLayerVisible('characters') ? characters.findIndex(char => {
+          // 🔒 Vérifier d'abord si le personnage est visible pour le joueur
+          // (pas dans l'ombre ou le brouillard)
+          if (!isMJ && !isCharacterVisibleToUser(char)) {
+            return false; // Ignorer les personnages cachés pour les joueurs
+          }
+
           const charX = (char.x / image.width) * scaledWidth - offset.x;
           const charY = (char.y / image.height) * scaledHeight - offset.y;
           const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
@@ -2780,7 +2865,7 @@ export default function Component() {
             }
             setDragStart({ x: e.clientX, y: e.clientY });
           } else {
-            // Clic sur zone vide : Commencer une sélection par zone
+            // Clic sur zone vide
             setSelectedCharacterIndex(null);
             setSelectedNoteIndex(null);
             setSelectedFogIndex(null);
@@ -2790,8 +2875,15 @@ export default function Component() {
             setSelectedObstacleId(null);
             setContextMenuOpen(false);
 
-            setSelectionStart({ x: clickX, y: clickY });
-            setIsSelectingArea(true);
+            if (isMJ) {
+              // MJ : Commencer une sélection par zone
+              setSelectionStart({ x: clickX, y: clickY });
+              setIsSelectingArea(true);
+            } else {
+              // Joueurs : Déplacer la carte (comme le mode pan)
+              setIsDragging(true);
+              setDragStart({ x: e.clientX, y: e.clientY });
+            }
           }
         }
       } // Fin du clic gauche
@@ -2816,6 +2908,11 @@ export default function Component() {
 
     // Check if double-clicked on a character
     const clickedCharIndex = characters.findIndex((char) => {
+      // 🔒 Vérifier d'abord si le personnage est visible pour le joueur
+      if (!isMJ && !isCharacterVisibleToUser(char)) {
+        return false; // Ignorer les personnages cachés pour les joueurs
+      }
+
       const tokenSize = 50
       const dx = clickX - char.x
       const dy = clickY - char.y
@@ -2997,7 +3094,9 @@ export default function Component() {
     }
 
     // 🎯 DÉPLACEMENT DE CARTE
-    if (isDragging && (mouseButton === 1 || (mouseButton === 0 && panMode))) {
+    // Pour le MJ : clic milieu OU clic gauche en panMode
+    // Pour les joueurs : clic milieu OU clic gauche sur zone vide (isDragging sans autre action en cours)
+    if (isDragging && (mouseButton === 1 || (mouseButton === 0 && (panMode || !isMJ)))) {
       const dx = e.clientX - dragStart.x;
       const dy = e.clientY - dragStart.y;
       setOffset((prev) => ({ x: prev.x - dx, y: prev.y - dy }));
@@ -3513,8 +3612,8 @@ export default function Component() {
       return;
     }
 
-    // Fin du déplacement de carte (clic milieu OU mode pan avec clic gauche)
-    if (currentMouseButton === 1 || (currentMouseButton === 0 && panMode)) {
+    // Fin du déplacement de carte (clic milieu OU mode pan avec clic gauche OU joueur sur zone vide)
+    if (currentMouseButton === 1 || (currentMouseButton === 0 && (panMode || !isMJ))) {
       setIsDragging(false);
     }
 
@@ -3978,6 +4077,28 @@ export default function Component() {
         >
           <Minus className="w-4 h-4" />
         </Button>
+
+        {/* 🎯 Bouton Déplacer carte - MJ uniquement */}
+        {isMJ && (
+          <Button
+            onClick={() => {
+              setPanMode(!panMode);
+              if (!panMode) {
+                setDrawMode(false);
+                setFogMode(false);
+                setMeasureMode(false);
+                setVisibilityMode(false);
+              }
+            }}
+            className={`w-10 h-10 p-0 border backdrop-blur-sm origin-center ${panMode
+              ? 'bg-blue-600/80 hover:bg-blue-700/80 border-blue-400'
+              : 'bg-black/50 hover:bg-black/70 border-gray-600'
+              }`}
+            title={panMode ? 'Désactiver déplacement carte' : 'Activer déplacement carte'}
+          >
+            <Move className="w-4 h-4" />
+          </Button>
+        )}
 
         {/* 🆕 Bouton Retour à la World  - Déplacé ici */}
         {isMJ && (
@@ -5030,6 +5151,7 @@ export default function Component() {
           if (action === 'openSheet') {
             setSelectedCharacterForSheet(characterId);
             setShowCharacterSheet(true);
+            setContextMenuOpen(false); // Fermer le panel du personnage
           } else if (action === 'attack') {
             if (isMJ) {
               if (activePlayerId) {
