@@ -4,12 +4,18 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer"
-import { Plus, Minus, Dice1, ChevronRight, Sword, Skull, Shield, Heart, X, Pencil } from "lucide-react"
+import { Plus, Minus, Dice1, ChevronRight, Sword, Skull, Shield, Heart, X, Pencil, Zap, EyeOff, Ghost, Anchor, Flame, Snowflake, Sparkles } from "lucide-react"
 import { auth, db, doc, getDoc, onSnapshot, updateDoc, deleteDoc, collection, onAuthStateChanged, writeBatch } from "@/lib/firebase"
 import { Dialog, DialogTrigger, DialogPortal, DialogOverlay, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Input } from "@/components/ui/input"
+import poisonIcon from '../../app/[roomid]/map/icons/poison.svg';
+import stunIcon from '../../app/[roomid]/map/icons/stun.svg';
+import blindIcon from '../../app/[roomid]/map/icons/blind.svg';
+import otherIcon from '../../app/[roomid]/map/icons/other.svg';
 
 type Character = {
   cityId?: string
@@ -30,6 +36,112 @@ type Character = {
     SAG: number
     CHA: number
   }
+  conditions?: string[]
+}
+
+export const CONDITIONS = [
+  { id: 'poisoned', label: 'Empoisonné', icon: Skull, iconSrc: poisonIcon, color: 'text-green-500' },
+  { id: 'stunned', label: 'Etourdi', icon: Zap, iconSrc: stunIcon, color: 'text-yellow-500' },
+  { id: 'blinded', label: 'Aveuglé', icon: EyeOff, iconSrc: blindIcon, color: 'text-gray-500' },
+]
+
+function ConditionManager({ character, onToggle }: { character: Character, onToggle: (charId: string, condId: string) => void }) {
+  const [customCondition, setCustomCondition] = useState("")
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* CONDITIONS TOGGLE */}
+      <div className="flex flex-wrap gap-2">
+        <Popover>
+          <PopoverTrigger asChild>
+            <Button variant="outline" size="sm" className="h-6 gap-1 px-2 border-dashed border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-primary)]">
+              <Plus className="h-3 w-3" /> Effets
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-56 p-2 bg-[var(--bg-card)] border-[var(--border-color)]">
+            <div className="space-y-1">
+              <h4 className="font-medium text-xs text-[var(--text-secondary)] mb-2 px-2">Veuillez sélectionner un état</h4>
+              {CONDITIONS.map((condition) => {
+                const Icon = condition.icon
+                const isActive = character.conditions?.includes(condition.id)
+                return (
+                  <Button
+                    key={condition.id}
+                    variant="ghost"
+                    size="sm"
+                    className={`w-full justify-start gap-2 h-8 ${isActive ? 'bg-[var(--accent-brown)]/20 text-[var(--accent-brown)]' : 'text-[var(--text-primary)] hover:bg-[var(--bg-dark)]'}`}
+                    onClick={() => onToggle(character.id, condition.id)}
+                  >
+                    {condition.iconSrc ? (
+                      <img src={condition.iconSrc.src} alt={condition.label} className="w-4 h-4" />
+                    ) : (
+                      <Icon className={`h-4 w-4 ${condition.color}`} />
+                    )}
+                    <span className="text-xs">{condition.label}</span>
+                    {isActive && <div className="ml-auto h-1.5 w-1.5 rounded-full bg-[var(--accent-brown)]" />}
+                  </Button>
+                )
+              })}
+              <div className="flex gap-2 pt-2 border-t border-[var(--border-color)]">
+                <Input
+                  value={customCondition}
+                  onChange={(e) => setCustomCondition(e.target.value)}
+                  placeholder="Autre..."
+                  className="h-8 text-xs bg-[var(--bg-dark)] border-[var(--border-color)]"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && customCondition.trim()) {
+                      onToggle(character.id, customCondition.trim());
+                      setCustomCondition("");
+                    }
+                  }}
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 hover:bg-[var(--bg-dark)]"
+                  onClick={() => {
+                    if (customCondition.trim()) {
+                      onToggle(character.id, customCondition.trim());
+                      setCustomCondition("");
+                    }
+                  }}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </PopoverContent>
+        </Popover>
+      </div>
+
+      {/* ACTIVE CONDITIONS LIST */}
+      {character.conditions && character.conditions.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {character.conditions.map(c => {
+            const cond = CONDITIONS.find(def => def.id === c) || { id: c, label: c, icon: Sparkles, iconSrc: otherIcon, color: 'text-purple-400' }
+            const Icon = cond.icon
+            return (
+              <Badge key={c} variant="secondary" className="gap-1 pl-1 pr-2 h-6 bg-[var(--bg-dark)] border border-[var(--border-color)]">
+                {cond.iconSrc ? (
+                  <img src={cond.iconSrc.src} alt={cond.label} className="w-3 h-3" />
+                ) : (
+                  <Icon className={`h-3 w-3 ${cond.color}`} />
+                )}
+                <span className="text-[10px]">{cond.label}</span>
+                <Button
+                  variant="ghost"
+                  className="h-3 w-3 p-0 ml-1 hover:text-red-500 hover:bg-transparent"
+                  onClick={(e) => { e.stopPropagation(); onToggle(character.id, c); }}
+                >
+                  <X className="h-2 w-2" />
+                </Button>
+              </Badge>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 type AttackReport = {
@@ -65,6 +177,7 @@ export function GMDashboard() {
 
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null)
   const [viewedCharacter, setViewedCharacter] = useState<Character | null>(null)
+  const [customCondition, setCustomCondition] = useState("")
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -135,7 +248,8 @@ export function GMDashboard() {
             INT: data.INT || 10,
             SAG: data.SAG || 10,
             CHA: data.CHA || 10,
-          }
+          },
+          conditions: data.conditions || []
         }
       })
       setRawCharacters(charactersData)
@@ -404,6 +518,29 @@ export function GMDashboard() {
     }
   }
 
+  const toggleCondition = async (characterId: string, conditionId: string) => {
+    if (!roomId) return
+
+    const char = characters.find(c => c.id === characterId)
+    if (!char) return
+
+    const currentConditions = char.conditions || []
+    let newConditions: string[]
+
+    if (currentConditions.includes(conditionId)) {
+      newConditions = currentConditions.filter(c => c !== conditionId)
+    } else {
+      newConditions = [...currentConditions, conditionId]
+    }
+
+    try {
+      const characterRef = doc(db, `cartes/${roomId}/characters/${characterId}`)
+      await updateDoc(characterRef, { conditions: newConditions })
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour des conditions :", error)
+    }
+  }
+
   const activeCharacter = characters[0]
 
   return (
@@ -458,6 +595,19 @@ export function GMDashboard() {
                       <div className="text-xs text-[var(--text-secondary)] flex items-center gap-2">
                         <span className="flex items-center gap-1"><Heart className="h-3 w-3" /> {char.pv}</span>
                         <span className="flex items-center gap-1"><Dice1 className="h-3 w-3" /> {char.initDetails}</span>
+                        {char.conditions && char.conditions.length > 0 && (
+                          <div className="flex gap-1 ml-2">
+                            {char.conditions.map(c => {
+                              const cond = CONDITIONS.find(def => def.id === c) || { id: c, label: c, icon: Sparkles, iconSrc: otherIcon, color: 'text-purple-400' }
+                              const Icon = cond.icon
+                              return cond.iconSrc ? (
+                                <img key={c} src={cond.iconSrc.src} alt={c} className="h-3 w-3" />
+                              ) : (
+                                <Icon key={c} className={`h-3 w-3 ${cond.color}`} />
+                              )
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
                     <Button variant="ghost" size="icon" className="opacity-0 group-hover:opacity-100 transition-opacity h-8 w-8" onClick={(e) => { e.stopPropagation(); openDrawer(char); }}>
@@ -508,6 +658,9 @@ export function GMDashboard() {
                           <Badge className="bg-blue-900/50 text-blue-200 hover:bg-blue-900/70">
                             INIT: {viewedCharacter.currentInit}
                           </Badge>
+
+                          {/* CONDITIONS TOGGLE & LIST */}
+                          <ConditionManager character={viewedCharacter} onToggle={toggleCondition} />
                         </div>
                       </div>
                       <div className="text-right pr-8">
@@ -573,10 +726,11 @@ export function GMDashboard() {
                             <Skull className="h-4 w-4 text-red-500" />
                             <h2 className="text-xl font-bold text-[var(--text-primary)]">Cible: {targetCharacter.name}</h2>
                           </div>
-                          <div className="flex gap-2 mt-1">
-                            <Badge variant="outline" className="text-[var(--text-secondary)] border-red-900/30">
+                          <div className="flex flex-col gap-2 mt-1">
+                            <Badge variant="outline" className="text-[var(--text-secondary)] border-red-900/30 w-fit">
                               {targetCharacter.type.toUpperCase()}
                             </Badge>
+                            <ConditionManager character={targetCharacter} onToggle={toggleCondition} />
                           </div>
                         </div>
                         <div className="text-right">
@@ -640,13 +794,16 @@ export function GMDashboard() {
                           <Sword className="h-5 w-5 text-[var(--accent-brown)]" />
                           <h2 className="text-2xl font-bold text-[var(--text-primary)]">{activeCharacter.name}</h2>
                         </div>
-                        <div className="flex gap-2 mt-1">
-                          <Badge variant="outline" className="text-[var(--text-secondary)] border-[var(--border-color)]">
-                            {activeCharacter.type.toUpperCase()}
-                          </Badge>
-                          <Badge className="bg-[var(--accent-brown)] hover:bg-[var(--accent-brown)]/90">
-                            INIT: {activeCharacter.currentInit}
-                          </Badge>
+                        <div className="flex flex-col gap-2 mt-1">
+                          <div className="flex gap-2">
+                            <Badge variant="outline" className="text-[var(--text-secondary)] border-[var(--border-color)]">
+                              {activeCharacter.type.toUpperCase()}
+                            </Badge>
+                            <Badge className="bg-[var(--accent-brown)] hover:bg-[var(--accent-brown)]/90">
+                              INIT: {activeCharacter.currentInit}
+                            </Badge>
+                          </div>
+                          <ConditionManager character={activeCharacter} onToggle={toggleCondition} />
                         </div>
                       </div>
                       <div className="text-right">

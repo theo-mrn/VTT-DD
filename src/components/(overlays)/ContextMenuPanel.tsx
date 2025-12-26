@@ -18,8 +18,13 @@ import {
     Target,
     MoreHorizontal,
     X,
-    User
+    User,
+    Sparkles,
+    ChevronRight,
+    Plus
 } from 'lucide-react';
+import { CONDITIONS } from '@/components/(combat)/MJcombat';
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +48,7 @@ export default function ContextMenuPanel({
     isMJ
 }: ContextMenuPanelProps) {
     const dragControls = useDragControls();
+    const [customCondition, setCustomCondition] = useState("");
 
     if (!character) return null;
 
@@ -128,6 +134,86 @@ export default function ContextMenuPanel({
                                         <span className="text-sm font-medium">DEF</span>
                                     </div>
                                     <span className="text-lg font-bold text-white">{character.Defense}</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* --- ACTIONS SECONDAIRES (EFFETS) --- */}
+                        {isMJ && (
+                            <div className="mb-6">
+                                <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Effets & États</h3>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {CONDITIONS.map((condition) => {
+                                        const isActive = character.conditions?.includes(condition.id);
+                                        const Icon = condition.icon;
+                                        return (
+                                            <Button
+                                                key={condition.id}
+                                                variant="outline"
+                                                size="sm"
+                                                className={`justify-start gap-2 h-8 text-xs ${isActive ? 'bg-blue-900/40 border-blue-500/50 text-blue-200' : 'bg-[#252525] border-[#333] text-gray-400 hover:text-gray-200'}`}
+                                                onClick={() => onAction('toggleCondition', character.id, condition.id)}
+                                            >
+                                                <Icon size={14} className={isActive ? condition.color : ""} />
+                                                {condition.label}
+                                            </Button>
+                                        );
+                                    })}
+                                </div>
+
+                                {/* Active Custom Conditions */}
+                                {character.conditions && character.conditions.some(c => !CONDITIONS.some(cond => cond.id === c)) && (
+                                    <div className="grid grid-cols-2 gap-2 mt-2">
+                                        {character.conditions.map(c => {
+                                            const isPredefined = CONDITIONS.some(cond => cond.id === c);
+                                            if (isPredefined) return null;
+
+                                            return (
+                                                <Button
+                                                    key={c}
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="justify-between h-8 text-xs bg-blue-900/40 border-blue-500/50 text-blue-200 hover:bg-red-900/30 hover:border-red-800 hover:text-red-200 transition-colors group"
+                                                    onClick={() => onAction('toggleCondition', character.id, c)}
+                                                >
+                                                    <div className="flex items-center gap-2 overflow-hidden">
+                                                        <Sparkles size={14} className="text-purple-400 shrink-0" />
+                                                        <span className="truncate">{c}</span>
+                                                    </div>
+                                                    <X size={14} className="opacity-50 group-hover:opacity-100" />
+                                                </Button>
+                                            )
+                                        })}
+                                    </div>
+                                )}
+
+                                {/* Custom Condition Input */}
+                                <div className="flex gap-2 mt-2 pt-2 border-t border-[#333]">
+                                    <Input
+                                        value={customCondition}
+                                        onChange={(e) => setCustomCondition(e.target.value)}
+                                        placeholder="Autre effet..."
+                                        className="h-7 text-xs bg-[#252525] border-[#333] focus:border-blue-500/50"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && customCondition.trim()) {
+                                                onAction('toggleCondition', character.id, customCondition.trim());
+                                                setCustomCondition("");
+                                            }
+                                        }}
+                                    />
+                                    <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="h-7 w-7 p-0 hover:bg-[#333]"
+                                        onClick={() => {
+                                            if (customCondition.trim()) {
+                                                onAction('toggleCondition', character.id, customCondition.trim());
+                                                setCustomCondition("");
+                                            }
+                                        }}
+                                    >
+                                        <Plus size={14} />
+                                    </Button>
                                 </div>
                             </div>
                         )}

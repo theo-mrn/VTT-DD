@@ -140,7 +140,6 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                     }
                 })
 
-                console.log(`📦 Loaded ${npcs.length} NPCs from Firebase`)
                 setExistingNPCs(npcs)
             })
 
