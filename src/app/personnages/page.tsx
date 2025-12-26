@@ -82,7 +82,6 @@ export default function CharacterSelection() {
     if (user?.uid && user?.roomId && user.roomId !== '0') {
       loadCharacters(user.uid, user.roomId)
     } else if (user && (!user.roomId || user.roomId === '0')) {
-      console.log("No Room_id found for this user.")
       setCharacters([])
       setCharactersLoading(false)
     }

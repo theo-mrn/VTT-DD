@@ -21,6 +21,7 @@ import { NPCTemplateDrawer } from '@/components/(personnages)/NPCTemplateDrawer'
 import { ObjectDrawer } from '@/components/(personnages)/ObjectDrawer';
 import { PlaceNPCModal } from '@/components/(personnages)/PlaceNPCModal';
 import { CreateNoteModal } from '@/components/(map)/CreateNoteModal';
+import { NoBackgroundModal } from '@/components/(map)/NoBackgroundModal';
 import InfoComponent, { type InfoSection } from "@/components/(infos)/info";
 import { type NPC } from '@/components/(personnages)/personnages';
 import {
@@ -146,6 +147,7 @@ export default function Component() {
 
   const [showPlaceModal, setShowPlaceModal] = useState(false)
   const [showCreateNoteModal, setShowCreateNoteModal] = useState(false)
+  const [showNoBackgroundModal, setShowNoBackgroundModal] = useState(false)
 
   // 🎯 MULTI-SELECTION STATE
   const [selectionCandidates, setSelectionCandidates] = useState<SelectionCandidates | null>(null);
@@ -423,10 +425,8 @@ export default function Component() {
         if (docSnap.exists()) {
           const cityData = docSnap.data();
           if (cityData.backgroundUrl) {
-            console.log('📍 Chargement fond de ville:', cityData.name, cityData.backgroundUrl);
             setBackgroundImage(cityData.backgroundUrl);
           } else {
-            console.log('📍 Aucun fond pour la ville, utilisation du placeholder');
             setBackgroundImage('/placeholder.svg?height=600&width=800');
           }
         }
@@ -446,6 +446,26 @@ export default function Component() {
       if (unsubscribe) unsubscribe();
     };
   }, [roomId, selectedCityId]);
+
+  // 🆕 AFFICHER LE MODAL SI PAS DE FOND (MJ seulement)
+  useEffect(() => {
+    if (!isMJ || loading) return;
+
+    // Si on est dans une ville, vérifier si cette ville a un fond
+    if (selectedCityId) {
+      const selectedCity = cities.find(c => c.id === selectedCityId);
+      // Si la ville existe et n'a pas de backgroundUrl, afficher le modal
+      if (selectedCity && !selectedCity.backgroundUrl) {
+        setShowNoBackgroundModal(true);
+      }
+    } else {
+      // En mode world map, vérifier si le fond est un placeholder
+      const isPlaceholder = backgroundImage.includes('placeholder.svg');
+      if (isPlaceholder) {
+        setShowNoBackgroundModal(true);
+      }
+    }
+  }, [backgroundImage, isMJ, loading, selectedCityId, cities]);
 
   // 🆕 CHARGER LES DONNÉES FILTRÉES PAR VILLE (depuis les collections globales)
   useEffect(() => {
@@ -557,7 +577,6 @@ export default function Component() {
     const fogDocId = selectedCityId ? `fog_${selectedCityId}` : 'fogData';
     const fogRef = doc(db, 'cartes', roomId, 'fog', fogDocId);
 
-    console.log(`🔌 Initialisation listener brouillard pour: ${fogDocId}`);
 
     const fogUnsub = onSnapshot(fogRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -667,34 +686,28 @@ export default function Component() {
 
   // 🎯 NPC Template Drag & Drop Handlers
   const handleTemplateDragStart = (template: NPC) => {
-    console.log('🎯 Drag started:', template.Nomperso)
     setDraggedTemplate(template)
   }
 
   const handleCanvasDrop = async (e: React.DragEvent) => {
-    console.log('📍 Drop event triggered')
     e.preventDefault()
 
     const canvas = canvasRef.current
     const image = bgImageObject
     if (!canvas || !image) {
-      console.log('❌ No canvas ref or image')
       return
     }
 
     // Get template data from dataTransfer
     const templateData = e.dataTransfer.getData('application/json')
-    console.log('📦 Template data:', templateData ? 'Found' : 'Not found')
 
     if (!templateData) {
-      console.log('❌ No template data in drop event')
       return
     }
 
     try {
       if (templateData.includes('"type":"object_template"')) {
         const template = JSON.parse(templateData)
-        console.log('✅ Object Template parsed:', template.name)
 
         // Logic similar for Object
         const rect = canvas.getBoundingClientRect()
@@ -720,8 +733,6 @@ export default function Component() {
       }
 
       const template = JSON.parse(templateData) as NPC
-      console.log('✅ Template parsed:', template.Nomperso)
-
       const rect = canvas.getBoundingClientRect()
       const containerWidth = containerRef.current?.clientWidth || rect.width
       const containerHeight = containerRef.current?.clientHeight || rect.height
@@ -736,18 +747,6 @@ export default function Component() {
       const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width
       const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height
 
-      console.log('📍 Drop position:', {
-        x: x.toFixed(2),
-        y: y.toFixed(2),
-        zoom,
-        offset,
-        clientX: e.clientX,
-        clientY: e.clientY,
-        scaledWidth: scaledWidth.toFixed(2),
-        scaledHeight: scaledHeight.toFixed(2),
-        imageWidth: image.width,
-        imageHeight: image.height
-      })
 
       setDraggedTemplate(template)
       setDropPosition({ x, y })
@@ -763,13 +762,10 @@ export default function Component() {
   }
 
   const handleObjectDragStart = (template: ObjectTemplate) => {
-    console.log('📦 Object Drag started:', template.name)
   }
 
   const handlePlaceConfirm = async (config: { nombre: number; visibility: 'visible' | 'hidden' | 'ally' }) => {
     if (!draggedTemplate || !dropPosition) return
-
-    console.log('🎯 Placement de', config.nombre, 'PNJ(s) à la position:', dropPosition)
 
     try {
       const charactersRef = collection(db, `cartes/${roomId}/characters`)
@@ -781,9 +777,6 @@ export default function Component() {
 
         const finalX = dropPosition.x + offsetX
         const finalY = dropPosition.y + offsetY
-
-        console.log(`📍 Placement PNJ ${i + 1}/${config.nombre} à x:${finalX.toFixed(2)}, y:${finalY.toFixed(2)}`)
-
         await addDoc(charactersRef, {
           Nomperso: config.nombre > 1 ? `${draggedTemplate.Nomperso} ${i + 1}` : draggedTemplate.Nomperso,
           type: 'pnj',
@@ -811,7 +804,6 @@ export default function Component() {
         })
       }
 
-      console.log(`✅ ${config.nombre} NPC(s) placé(s) sur la carte`)
     } catch (error) {
       console.error('❌ Error placing NPC:', error)
     } finally {
@@ -907,7 +899,6 @@ export default function Component() {
       };
 
       const docRef = await addDoc(collection(db, 'cartes', String(roomId), 'obstacles'), obstacleData);
-      console.log(`🔦 Obstacle sauvegardé: ${docRef.id}`);
     } catch (error) {
       console.error('❌ Erreur sauvegarde obstacle:', error);
     }
@@ -4688,7 +4679,6 @@ export default function Component() {
         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
           <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
             <Button onClick={() => {
-              console.log("🧨 Radial Menu: Suppression totale du brouillard");
               setFullMapFog(false);
               saveFullMapFog(false);
               // 🆕 SUPPRIMER AUSSI TOUTE LA GRILLE DE BROUILLARD
@@ -5235,6 +5225,25 @@ export default function Component() {
           setDropPosition(null)
         }}
         onConfirm={handlePlaceConfirm}
+      />
+
+      {/* No Background Modal */}
+      <NoBackgroundModal
+        isOpen={showNoBackgroundModal}
+        onClose={() => setShowNoBackgroundModal(false)}
+        onUploadBackground={() => fileInputRef.current?.click()}
+        cities={cities}
+        onSelectCity={(cityId) => {
+          if (cityId === '') {
+            // Retour à la world map
+            setSelectedCityId(null);
+            setViewMode('world');
+          } else {
+            setSelectedCityId(cityId);
+            setViewMode('city');
+          }
+        }}
+        selectedCityId={selectedCityId}
       />
       {/* Layer Control Panel */}
       {showLayerControl && (

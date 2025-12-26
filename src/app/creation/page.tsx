@@ -227,9 +227,6 @@ export default function CharacterCreationPage() {
 
       // Update user's current character ID
       await setDoc(doc(db, 'users', userId), { persoId: docRef.id }, { merge: true })
-
-      console.log("Character created successfully with ID:", docRef.id)
-
       // Redirect to /map after successful creation (change page)
       router.push('/change')
     } catch (error) {

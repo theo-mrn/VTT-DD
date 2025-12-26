@@ -79,9 +79,6 @@ export default function CharacterProfile() {
             setRace(data.Race);
             setProfile(data.Profile);
             setPersoName(data.Nomperso); // Add state for name
-
-            console.log("Character Data Loaded:", data); // Debug
-
             // Load current voies from character data
             await loadCurrentVoies(data);
 
@@ -160,7 +157,6 @@ export default function CharacterProfile() {
 
     // 2. If no voies were loaded (either none saved, or all empty), load defaults
     if (loadedVoies.length === 0) {
-      console.log("No saved voies found, loading defaults...");
       const race = characterData.Race as string;
       const profile = characterData.Profile as string;
 

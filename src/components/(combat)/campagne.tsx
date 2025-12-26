@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
-import { Shield, Dice1, Swords, Trash2 ,Info} from 'lucide-react';
+import { Shield, Dice1, Swords, Trash2, Info } from 'lucide-react';
 import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import RollRequest from '@/components/(dices)/Rollrequest'; // Importation du composant RollRequest
@@ -74,12 +74,8 @@ export default function DiceRollerDnD() {
               fetchCharacterInfo(data.room_id, data.persoId);
             }
             fetchRolls(data.room_id);
-          } else {
-            console.log("No such document!");
           }
         }).catch((error) => console.error("Error fetching user data:", error));
-      } else {
-        console.log("No user is signed in.");
       }
     });
 
@@ -115,7 +111,6 @@ export default function DiceRollerDnD() {
           Magie: charData.Magie_F || charData.Magie || 0,
           Defense: charData.Defense_F || charData.Defense || 0,
         });
-        console.log("Fetched character info:", charData);
         return charData;
       } else {
         console.log("No character document found!");
@@ -130,7 +125,7 @@ export default function DiceRollerDnD() {
     try {
       const charactersRef = collection(db, `cartes/${roomId}/characters`);
       const snapshot = await getDocs(charactersRef);
-  
+
       const fetchedCharacters = snapshot.docs
         .map(doc => {
           const data = doc.data();
@@ -138,13 +133,13 @@ export default function DiceRollerDnD() {
           return { id: doc.id, name: data.Nomperso || "Unnamed Character", type: data.type };
         })
         .filter(char => char.type !== "joueurs");
-  
+
       setCharacters(fetchedCharacters);
     } catch (error) {
       console.error("Error fetching characters:", error);
     }
   };
-  
+
 
   const fetchRolls = async (roomId: string) => {
     try {
@@ -162,7 +157,7 @@ export default function DiceRollerDnD() {
   const parseRollCommand = (command: string, charData: any) => {
     console.log("Parsing command:", command);
     console.log("Character data:", charData);
-  
+
     const regex = /^(\d+)d(\d+)(([+-](\d+|CON|FOR|DEX|CHA|INT|SAG|Contact|Distance|Magie|Defense))*)\s*(-p)?$/;
     const match = command.match(regex);
     if (match) {
@@ -171,7 +166,7 @@ export default function DiceRollerDnD() {
       let modifier = 0;
       const modifiers = match[3].match(/[+-](\d+|CON|FOR|DEX|CHA|INT|SAG|Contact|Distance|Magie|Defense)/g) || [];
       console.log("Modifiers found:", modifiers);
-  
+
       modifiers.forEach(mod => {
         const sign = mod[0];
         const value = mod.substring(1);
@@ -225,7 +220,7 @@ export default function DiceRollerDnD() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setRollCommand(value);
-  
+
     if (value.includes('/')) {
       setShowSuggestions(true);
       setSuggestions(['CON', 'FOR', 'DEX', 'CHA', 'INT', 'SAG', 'Contact', 'Distance', 'Magie', 'Defense']);
@@ -233,7 +228,7 @@ export default function DiceRollerDnD() {
       setShowSuggestions(false);
     }
   };
-  
+
   const handleSuggestionClick = (suggestion: string) => {
     setRollCommand((prev) => prev.replace('/', '') + suggestion);
     setShowSuggestions(false);
@@ -244,7 +239,7 @@ export default function DiceRollerDnD() {
     const total = results.reduce((sum, result) => sum + result, 0) + modifier;
     let userNameToUse = userName;
     let userAvatarToUse = userAvatar;
-  
+
     if (isMJ && selectedCharacterId) {
       const charRef = doc(db, `cartes/${roomId}/characters/${selectedCharacterId}`);
       const charSnap = await getDoc(charRef);
@@ -254,7 +249,7 @@ export default function DiceRollerDnD() {
         userAvatarToUse = charData.imageURL || userAvatar;
       }
     }
-  
+
     const newRoll: Roll = {
       id: crypto.randomUUID(),
       isPrivate,
@@ -269,7 +264,7 @@ export default function DiceRollerDnD() {
       ...(userAvatarToUse ? { userAvatar: userAvatarToUse } : {}),
       ...(persoId ? { persoId } : {})
     };
-  
+
     try {
       if (roomId) {
         await addDoc(collection(db, `rolls/${roomId}/rolls`), newRoll);

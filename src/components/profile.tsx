@@ -49,9 +49,6 @@ export default function ProfilePage() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUid(user.uid);
-        console.log("Connected user UID:", user.uid);
-      } else {
-        console.log("No authenticated user.");
       }
     });
     return unsubscribe;
@@ -129,7 +126,6 @@ export default function ProfilePage() {
       await setDoc(userRef, { [field]: downloadURL }, { merge: true });
 
       setUserData((prevData) => prevData ? { ...prevData, [field]: downloadURL } : null);
-      console.log(`Updated ${field} successfully!`);
     } catch (error) {
       console.error("Error updating image:", error);
     }
@@ -146,13 +142,13 @@ export default function ProfilePage() {
           ...(doc.data() as Omit<FriendRequestData, "id">), // Exclude `id` from doc.data to avoid duplication
         }))
         .filter((user) => user.name.toLowerCase() === searchQuery.toLowerCase());
-  
+
       setSearchResults(results);
     } catch (error) {
       console.error("Error searching users:", error);
     }
   };
-  
+
 
   const sendFriendRequest = async (targetUserId: string, targetUserData: FriendRequestData) => {
     if (
