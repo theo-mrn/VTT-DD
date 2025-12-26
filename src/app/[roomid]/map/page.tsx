@@ -1,6 +1,53 @@
 "use client"
 
+import { renderToStaticMarkup } from 'react-dom/server';
+
 import React, { useState, useRef, useEffect } from 'react'
+import poisonIcon from './icons/poison.svg';
+import stunIcon from './icons/stun.svg';
+import blindIcon from './icons/blind.svg';
+import otherIcon from './icons/other.svg';
+
+const CONDITION_ICONS: Record<string, any> = {
+  poisoned: { src: poisonIcon },
+  stunned: { src: stunIcon },
+  blinded: { src: blindIcon },
+};
+
+// Hook to pre-render icons to images
+const useStatusEffectIcons = () => {
+  const [iconCache, setIconCache] = useState<Record<string, HTMLImageElement>>({});
+
+  useEffect(() => {
+    const loadIcon = (key: string, src: any) => {
+      const img = new Image();
+      // Handle Next.js import (might be object with .src or just string)
+      img.src = src.src || src;
+      img.onload = () => {
+        setIconCache(prev => ({ ...prev, [key]: img }));
+      };
+    };
+
+    // Load predefined
+    Object.entries(CONDITION_ICONS).forEach(([key, config]) => {
+      loadIcon(key, config.src);
+    });
+    // Load default/custom
+    loadIcon('default', otherIcon);
+
+  }, []);
+
+  const getIcon = (conditionId: string): HTMLImageElement | null => {
+    // Predefined
+    if (CONDITION_ICONS[conditionId]) {
+      return iconCache[conditionId] || null;
+    }
+    // Custom/Default (always use 'other' for everything else)
+    return iconCache['default'] || null;
+  };
+
+  return getIcon;
+};
 import { useParams } from 'next/navigation'
 import { useGame } from '@/contexts/GameContext'
 import { Button } from "@/components/ui/button"
@@ -8,9 +55,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/(combat)/combat2';
+import { CONDITIONS } from '@/components/(combat)/MJcombat';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import CharacterSheet from '@/components/(fiches)/CharacterSheet';
@@ -39,9 +87,6 @@ import { SelectionMenu, type SelectionCandidates, type SelectionType } from '@/c
 import { type ViewMode, type Point, type Character, type MapText as Text, type SavedDrawing, type NewCharacter, type Note, type MapObject, type ObjectTemplate, type Layer, type LayerType } from './types';
 import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath } from './drawings';
 import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
-
-
-
 
 
 export default function Component() {
@@ -120,6 +165,13 @@ export default function Component() {
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState<number | null>(null);
   const [selectedObjectIndices, setSelectedObjectIndices] = useState<number[]>([]);
   const [selectedNoteIndex, setSelectedNoteIndex] = useState<number | null>(null);
+  const getConditionIcon = useStatusEffectIcons(); // Hook d'icônes
+
+  // Tooltip State
+  const [hoveredCondition, setHoveredCondition] = useState<{ x: number, y: number, text: string } | null>(null);
+  const iconHitRegionsRef = useRef<{ x: number, y: number, w: number, h: number, label: string }[]>([]);
+  // États pour la Drag & Drop
+  const [draggedCharacter, setDraggedCharacter] = useState<Character | null>(null);
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
 
@@ -287,7 +339,7 @@ export default function Component() {
     { id: 'obstacles', label: 'Obstacle', isVisible: true, order: 7 },
   ]);
 
-  // 🔄 SYNC LAYERS WITH FIREBASE
+  // 🔄 SYNC LAYERS AVEC FIREBASE
   useEffect(() => {
     if (!roomId) return;
 
@@ -516,6 +568,7 @@ export default function Component() {
             SAG: data.SAG || 0,
             INT: data.INT || 0,
             CHA: data.CHA || 0,
+            conditions: data.conditions || [],
             // cityId: data.cityId // Garder l'info
           });
         }
@@ -1294,10 +1347,14 @@ export default function Component() {
 
 
 
-
+  /* Removed duplicates */
 
   const drawMap = (ctx: CanvasRenderingContext2D, image: HTMLImageElement, containerWidth: number, containerHeight: number) => {
     const canvas = ctx.canvas;
+    // Clear Hit Regions at start of frame
+    iconHitRegionsRef.current = [];
+
+    // Nettoyer le canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
@@ -1930,118 +1987,157 @@ export default function Component() {
           const isSelected = index === selectedCharacterIndex;
           const canSeeHP = (isMJ && !playerViewMode) || char.id === persoId; // Visible MJ or Owner
 
-          // Le widget s'affiche si le perso est sélectionné, ou si c'est le MJ, ou si c'est notre perso (toujours)
-          // Ou globalement on peut décider de toujours l'afficher pour les Noms, mais on garde la logique "clean"
-          const alwaysShowName = true; // Option: toujours afficher le nom ? (souvent préférable en VTT)
+          // --- DIMENSIONS & POSITIONS ---
+          // On place la pilule en HAUT du cercle ("en dessus")
+          // Centre de la pilule = x, y - borderRadius (moins une petite marge)
+          const pillCenterX = x;
+          const pillCenterY = y + borderRadius + (12 * uiScale); // En dessous du cercle (pillHeight/2 approx)
 
-          if (alwaysShowName || isSelected || (isMJ && !playerViewMode)) {
+          const fontSize = 10 * uiScale;
+          const iconSize = 10 * uiScale;
+          const paddingX = 8 * uiScale;
+          const paddingY = 4 * uiScale;
+          const gap = 8 * uiScale; // Espace entre PV et Nom
+          const condGap = 4 * uiScale; // Espace entre Nom et Conditions
 
-            // --- DIMENSIONS & POSITIONS ---
-            // On place la pilule en bas du cercle
-            // Centre de la pilule = x, y + borderRadius
-            const pillCenterX = x;
-            const pillCenterY = y + borderRadius; // Pile sur le bord bas
+          // Pré-calcul des tailles de texte
+          ctx.font = `600 ${fontSize}px "Geist Mono", system-ui, sans-serif`;
 
-            const fontSize = 10 * uiScale;
-            const iconSize = 10 * uiScale;
-            const paddingX = 8 * uiScale;
-            const paddingY = 4 * uiScale;
-            const gap = 8 * uiScale; // Espace entre PV et Nom
+          // Partie PV
+          let pvText = "";
+          let pvWidth = 0;
+          if (canSeeHP && char.PV !== undefined) {
+            const current = char.PV || 0;
+            pvText = `${current}`;
+            pvWidth = ctx.measureText(pvText).width + 4; // Text + Gap (no icon)
+          }
 
-            // Pré-calcul des tailles de texte
-            ctx.font = `600 ${fontSize}px "Geist Mono", system-ui, sans-serif`;
+          // Partie Nom
+          const nameText = char.name;
+          ctx.font = `500 ${fontSize}px system-ui, -apple-system, sans-serif`;
+          const nameWidth = ctx.measureText(nameText).width;
 
-            // Partie PV
-            let pvText = "";
-            let pvWidth = 0;
-            if (canSeeHP && char.PV !== undefined) {
-              const current = char.PV || 0;
-              pvText = `${current}`;
-              pvWidth = ctx.measureText(pvText).width + 4; // Text + Gap (no icon)
-            }
+          // Partie Conditions
+          let condWidth = 0;
+          const activeConditions = char.conditions || [];
+          if (activeConditions.length > 0) {
+            // width = (num * actualImgSize) + ((num-1) * spacing) + margin-left
+            // Actual Img Size used in draw is iconSize + (4 * uiScale)
+            const actualImgSize = iconSize + (4 * uiScale);
+            condWidth = (activeConditions.length * actualImgSize) + ((activeConditions.length - 1) * 2 * uiScale) + condGap;
+          }
 
-            // Partie Nom
-            const nameText = char.name;
-            ctx.font = `500 ${fontSize}px system-ui, -apple-system, sans-serif`; // Police un peu plus "propre" pour le nom
-            const nameWidth = ctx.measureText(nameText).width;
+          // Largeur totale
+          const separatorWidth = canSeeHP ? (1 * uiScale) + (gap * 2) : 0;
+          const totalContentWidth = (canSeeHP ? pvWidth : 0) + separatorWidth + nameWidth + condWidth;
+          const pillWidth = totalContentWidth + (paddingX * 2);
+          const pillHeight = fontSize + (paddingY * 2) + 2;
 
-            // Largeur totale
-            // Si on a PV: [PV_Width] [Separator_Width] [Name_Width]
-            // Si pas PV: [Name_Width]
-            const separatorWidth = canSeeHP ? (1 * uiScale) + (gap * 2) : 0; // 1px line + margins
-            const totalContentWidth = (canSeeHP ? pvWidth : 0) + separatorWidth + nameWidth;
-            const pillWidth = totalContentWidth + (paddingX * 2);
-            const pillHeight = fontSize + (paddingY * 2) + 2; // +2 for breathing room
+          // --- DESSIN DU FOND (PILL) ---
+          const pillX = pillCenterX - (pillWidth / 2);
+          const pillY = pillCenterY - (pillHeight / 2);
 
-            // --- DESSIN DU FOND (PILL) ---
-            const pillX = pillCenterX - (pillWidth / 2);
-            const pillY = pillCenterY - (pillHeight / 2);
+          // Ombre portée
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+          ctx.shadowBlur = 8;
+          ctx.shadowOffsetY = 3;
 
-            // Ombre portée
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-            ctx.shadowBlur = 8;
-            ctx.shadowOffsetY = 3;
+          // Fond (Gris foncé/Noir style "Interface")
+          ctx.fillStyle = 'rgba(20, 22, 26, 0.95)';
+          ctx.beginPath();
+          ctx.roundRect(pillX, pillY, pillWidth, pillHeight, pillHeight / 2);
+          ctx.fill();
 
-            // Fond (Gris foncé/Noir style "Interface")
-            ctx.fillStyle = 'rgba(20, 22, 26, 0.95)';
+          // Reset shadow
+          ctx.shadowBlur = 0;
+          ctx.shadowOffsetY = 0;
+
+          // Bordure subtile
+          ctx.strokeStyle = isSelected ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.15)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // --- DESSIN DU CONTENU ---
+          let currentCursorX = pillX + paddingX;
+          const textY = pillY + (pillHeight / 2); // Center vertical
+
+          // 1. PV SECTION (Si visible)
+          if (canSeeHP) {
+            const current = char.PV || 0;
+            const max = char.PV_Max || char.PV || 100;
+            const healthPct = Math.max(0, Math.min(100, (current / max) * 100));
+
+            let healthColor = '#ffffff';
+            if (healthPct < 25) healthColor = '#ef4444';
+            else if (healthPct < 50) healthColor = '#fbbf24';
+            else healthColor = '#4ade80';
+
+            ctx.fillStyle = healthColor;
+            ctx.font = `700 ${fontSize}px "Geist Mono", monospace`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(pvText, currentCursorX, textY + 1);
+
+            currentCursorX += pvWidth;
+
+            // Séparateur
+            const sepX = currentCursorX + gap;
             ctx.beginPath();
-            ctx.roundRect(pillX, pillY, pillWidth, pillHeight, pillHeight / 2);
-            ctx.fill();
-
-            // Reset shadow
-            ctx.shadowBlur = 0;
-            ctx.shadowOffsetY = 0;
-
-            // Bordure subtile (couleur faction/état)
-            ctx.strokeStyle = isSelected ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.15)';
+            ctx.moveTo(sepX, pillY + 4);
+            ctx.lineTo(sepX, pillY + pillHeight - 4);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
             ctx.lineWidth = 1;
             ctx.stroke();
 
-            // --- DESSIN DU CONTENU ---
-            let currentCursorX = pillX + paddingX;
-            const textY = pillY + (pillHeight / 2); // Center vertical
+            currentCursorX += separatorWidth;
+          }
 
-            // 1. PV SECTION (Si visible)
-            if (canSeeHP) {
-              // Texte PV (Sans icône cœur)
-              const current = char.PV || 0;
-              const max = char.PV_Max || char.PV || 100;
-              const healthPct = Math.max(0, Math.min(100, (current / max) * 100));
+          // 2. NOM SECTION
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(nameText, currentCursorX, textY + 0.5);
 
-              let healthColor = '#ffffff';
-              if (healthPct < 25) healthColor = '#ef4444';
-              else if (healthPct < 50) healthColor = '#fbbf24';
-              else healthColor = '#4ade80';
+          currentCursorX += nameWidth;
 
-              ctx.fillStyle = healthColor;
-              ctx.font = `700 ${fontSize}px "Geist Mono", monospace`;
-              ctx.textAlign = 'left';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(pvText, currentCursorX, textY + 1);
+          // 3. CONDITIONS SECTION
+          if (activeConditions.length > 0) {
+            currentCursorX += condGap;
 
-              currentCursorX += pvWidth;
+            activeConditions.forEach((condId) => {
+              const iconImg = getConditionIcon(condId);
 
-              // Séparateur
-              const sepX = currentCursorX + gap;
-              ctx.beginPath();
-              ctx.moveTo(sepX, pillY + 4);
-              ctx.lineTo(sepX, pillY + pillHeight - 4);
-              ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-              ctx.lineWidth = 1;
-              ctx.stroke();
+              if (iconImg) {
+                // Draw pre-rendered SVG Icon
+                const imgSize = iconSize + (4 * uiScale);
+                const imgY = textY - (imgSize / 2);
 
-              currentCursorX += separatorWidth;
-            }
+                ctx.drawImage(iconImg, currentCursorX, imgY, imgSize, imgSize);
 
-            // 2. NOM SECTION
-            // Si on n'a que le nom, on le centre. Sinon il est après le séparateur.
-            // Ici currentCursorX est déjà positionné correctement.
+                // Add Hit Region (World Coordinates)
+                // We try to resolve a label: Predefined or Custom
+                const predefined = CONDITIONS.find(c => c.id === condId);
+                const label = predefined ? predefined.label : condId;
 
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(nameText, currentCursorX, textY + 0.5);
+                iconHitRegionsRef.current.push({
+                  x: currentCursorX,
+                  y: imgY,
+                  w: imgSize,
+                  h: imgSize,
+                  label: label
+                });
+
+                currentCursorX += imgSize + (2 * uiScale);
+              } else {
+                // Loading placeholder
+                ctx.beginPath();
+                ctx.arc(currentCursorX + (iconSize / 2), textY, 2 * uiScale, 0, 2 * Math.PI);
+                ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                ctx.fill();
+                currentCursorX += iconSize + (2 * uiScale);
+              }
+            });
           }
         }
 
@@ -2936,6 +3032,26 @@ export default function Component() {
     const currentX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
     const currentY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
 
+
+    // 🕵️ HOVER DETECTION FOR CONDITIONS (Screen Coordinates)
+    // The icons are drawn using Screen Coordinates (manually transformed in drawMap), so we must compare against Mouse Screen Coords
+    const mouseX = e.clientX - rect.left;
+    const mouseY = e.clientY - rect.top;
+
+    let foundHover = null;
+    for (const region of iconHitRegionsRef.current) {
+      if (mouseX >= region.x && mouseX <= region.x + region.w &&
+        mouseY >= region.y && mouseY <= region.y + region.h) {
+
+        foundHover = {
+          x: e.clientX,
+          y: e.clientY,
+          text: region.label
+        };
+        break;
+      }
+    }
+    setHoveredCondition(foundHover);
 
     const x = currentX;
     const y = currentY;
@@ -5251,6 +5367,22 @@ export default function Component() {
           <LayerControl layers={layers} onToggle={toggleLayer} />
         </div>
       )}
+      {/* Custom Tooltip for Conditions */}
+      {hoveredCondition && (
+        <div
+          style={{
+            position: 'fixed',
+            left: hoveredCondition.x + 10,
+            top: hoveredCondition.y + 10,
+            zIndex: 9999,
+            pointerEvents: 'none'
+          }}
+          className="bg-black/90 text-white text-xs px-2 py-1 rounded shadow-xl border border-white/20"
+        >
+          {hoveredCondition.text}
+        </div>
+      )}
+
     </div>
   )
 }
