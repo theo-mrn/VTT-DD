@@ -55,7 +55,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2 } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Music } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/(combat)/combat2';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
@@ -84,7 +84,8 @@ import {
 } from '@/lib/visibility';
 import { LayerControl } from '@/components/(map)/LayerControl';
 import { SelectionMenu, type SelectionCandidates, type SelectionType } from '@/components/(map)/SelectionMenu';
-import { type ViewMode, type Point, type Character, type MapText as Text, type SavedDrawing, type NewCharacter, type Note, type MapObject, type ObjectTemplate, type Layer, type LayerType } from './types';
+import { type ViewMode, type Point, type Character, type MapText as Text, type SavedDrawing, type NewCharacter, type Note, type MapObject, type ObjectTemplate, type Layer, type LayerType, type MusicZone } from './types';
+import { useAudioZones } from '@/hooks/map/useAudioZones';
 import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath } from './drawings';
 import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
 
@@ -97,7 +98,6 @@ const getMediaDimensions = (media: HTMLImageElement | HTMLVideoElement | CanvasI
   }
   return { width: (media as any).width || 0, height: (media as any).height || 0 };
 };
-
 
 export default function Component() {
   const params = useParams();
@@ -157,7 +157,7 @@ export default function Component() {
       }
       img.onerror = () => {
         setIsBackgroundLoading(false);
-        console.error("Image load error");
+
       }
       img.crossOrigin = "anonymous"; // Helps with potential CORS issues
     }
@@ -405,7 +405,89 @@ export default function Component() {
     { id: 'characters', label: 'Personnages', isVisible: true, order: 5 },
     { id: 'fog', label: 'Brouillard', isVisible: true, order: 6 },
     { id: 'obstacles', label: 'Obstacle', isVisible: true, order: 7 },
+    { id: 'music', label: 'Musique', isVisible: true, order: 8 },
   ]);
+
+  // 🎵 MUSIC ZONES STATE
+  const [musicZones, setMusicZones] = useState<MusicZone[]>([]);
+  const [isMusicMode, setIsMusicMode] = useState(false);
+  const [isMusicZoneDrawerOpen, setIsMusicZoneDrawerOpen] = useState(false);
+  const [selectedMusicZoneIds, setSelectedMusicZoneIds] = useState<string[]>([]); // MULTI-SELECTION
+  const [showMusicDialog, setShowMusicDialog] = useState(false);
+  const [showEditMusicDialog, setShowEditMusicDialog] = useState(false);
+  const [editingMusicZoneId, setEditingMusicZoneId] = useState<string | null>(null);
+  const [newMusicZonePos, setNewMusicZonePos] = useState<Point | null>(null);
+  const [tempZoneData, setTempZoneData] = useState({ name: '', url: '', radius: 200, volume: 0.5 });
+  const [isDraggingMusicZone, setIsDraggingMusicZone] = useState(false);
+  const [draggedMusicZoneId, setDraggedMusicZoneId] = useState<string | null>(null); // Keep for main drag reference
+  const [draggedMusicZonesOriginalPositions, setDraggedMusicZonesOriginalPositions] = useState<{ id: string, x: number, y: number }[]>([]); // MULTI-DRAG
+
+  // 🔊 AUDIO MANAGER
+  const listenerCharacter = characters.find(c => c.id === (viewAsPersoId || persoId));
+  const listenerPos = listenerCharacter ? { x: listenerCharacter.x, y: listenerCharacter.y } : null;
+  useAudioZones(musicZones, listenerPos);
+
+  const saveMusicZone = async () => {
+    if (!newMusicZonePos || !tempZoneData.name || !tempZoneData.url || !roomId) return;
+
+    const newZone: Omit<MusicZone, 'id'> = {
+      x: newMusicZonePos.x,
+      y: newMusicZonePos.y,
+      radius: parseFloat(tempZoneData.radius.toString()),
+      url: tempZoneData.url,
+      name: tempZoneData.name,
+      volume: parseFloat(tempZoneData.volume.toString()),
+      cityId: selectedCityId
+    };
+
+    await addDoc(collection(db, 'cartes', roomId, 'musicZones'), newZone);
+    setShowMusicDialog(false);
+    setNewMusicZonePos(null);
+    // Reset temp data
+    setTempZoneData({ name: '', url: '', radius: 200, volume: 0.5 });
+  };
+
+  const openEditDialog = (zoneId: string) => {
+    const zone = musicZones.find(z => z.id === zoneId);
+    if (zone) {
+      setEditingMusicZoneId(zoneId);
+      setTempZoneData({
+        name: zone.name,
+        url: zone.url,
+        radius: zone.radius,
+        volume: zone.volume
+      });
+      setShowEditMusicDialog(true);
+    }
+  };
+
+  const saveEditedMusicZone = async () => {
+    if (!editingMusicZoneId || !tempZoneData.name || !tempZoneData.url || !roomId) return;
+
+    await updateDoc(doc(db, 'cartes', roomId, 'musicZones', editingMusicZoneId), {
+      name: tempZoneData.name,
+      url: tempZoneData.url,
+      radius: parseFloat(tempZoneData.radius.toString()),
+      volume: parseFloat(tempZoneData.volume.toString())
+    });
+
+    setShowEditMusicDialog(false);
+    setEditingMusicZoneId(null);
+    setTempZoneData({ name: '', url: '', radius: 200, volume: 0.5 });
+  };
+
+
+
+  const deleteMusicZone = async (id: string) => {
+    if (!roomId) return;
+    await deleteDoc(doc(db, 'cartes', roomId, 'musicZones', id));
+    setSelectedMusicZoneIds(prev => prev.filter(zid => zid !== id));
+  }
+
+  const updateMusicZonePosition = async (id: string, x: number, y: number) => {
+    if (!roomId) return;
+    await updateDoc(doc(db, 'cartes', roomId, 'musicZones', id), { x, y });
+  };
 
   // 🔄 SYNC LAYERS AVEC FIREBASE
   useEffect(() => {
@@ -781,6 +863,20 @@ export default function Component() {
     });
     unsubscribers.push(objectsUnsub);
 
+    // 7. CHARGER ZONES DE MUSIQUE
+    const musicZonesRef = collection(db, 'cartes', roomId, 'musicZones');
+    const musicZonesUnsub = onSnapshot(musicZonesRef, (snapshot) => {
+      const zones: MusicZone[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.cityId === selectedCityId) {
+          zones.push({ id: doc.id, ...data } as MusicZone);
+        }
+      });
+      setMusicZones(zones);
+    });
+    unsubscribers.push(musicZonesUnsub);
+
     return () => {
       unsubscribers.forEach(unsub => unsub());
     };
@@ -868,7 +964,7 @@ export default function Component() {
     };
 
 
-  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers, viewAsPersoId, containerSize]);
+  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers, viewAsPersoId, containerSize, musicZones, selectedMusicZoneIds, isMusicMode, isDraggingMusicZone]);
 
 
   // 🎯 NPC Template Drag & Drop Handlers
@@ -1016,6 +1112,7 @@ export default function Component() {
     { id: 9, label: playerViewMode ? 'Vue MJ' : 'Vue Joueur', icon: playerViewMode ? ScanEye : User },
     { id: 10, label: 'Mesurer', icon: Ruler },
     { id: 12, label: 'Calques', icon: Layers },
+    { id: 13, label: 'Musique', icon: Music },
   ] : [
     { id: 1, label: 'Ajouter Texte', icon: Baseline },
     { id: 2, label: 'Dessiner', icon: Pencil },
@@ -1036,6 +1133,7 @@ export default function Component() {
       if (panMode) activeIds.push(8); // Déplacer carte
       if (playerViewMode) activeIds.push(9); // Vue Joueur
       if (measureMode) activeIds.push(10); // Mesurer
+      if (isMusicMode) activeIds.push(13); // Musique
     } else {
       // Menu Joueur
       if (drawMode) activeIds.push(2); // Dessiner
@@ -1139,8 +1237,8 @@ export default function Component() {
     // 🎯 Désactiver les outils incompatibles avant d'activer le nouveau
     const desactiverOutilsIncompatibles = (toolId: number) => {
       if (isMJ) {
-        // Pour le MJ : ID 3 (Dessin), ID 4 (Visibilité), ID 8 (Déplacement), ID 10 (Mesure) sont incompatibles
-        if ([3, 4, 8, 10].includes(toolId)) {
+        // Pour le MJ : ID 3 (Dessin), ID 4 (Visibilité), ID 8 (Déplacement), ID 10 (Mesure), ID 13 (Musique) sont incompatibles
+        if ([3, 4, 8, 10, 13].includes(toolId)) {
           if (toolId !== 3 && drawMode) setDrawMode(false);
           if (toolId !== 4 && visibilityMode) {
             setVisibilityMode(false);
@@ -1151,6 +1249,7 @@ export default function Component() {
           if (toolId !== 2 && isObjectDrawerOpen) setIsObjectDrawerOpen(false); // Close Object Drawer if other tool
           if (toolId !== 8 && panMode) setPanMode(false);
           if (toolId !== 10 && measureMode) setMeasureMode(false);
+          if (toolId !== 13 && isMusicMode) setIsMusicMode(false);
         }
       } else {
         // Pour le joueur : ID 2 (Dessin), ID 4 (Déplacement), ID 6 (Mesure) sont incompatibles
@@ -1215,7 +1314,14 @@ export default function Component() {
           setMeasureMode(!measureMode);
           setMeasureStart(null);
           setMeasureEnd(null);
-          setIsCalibrating(false);
+          break;
+        case 12:
+          setShowLayerControl(!showLayerControl);
+          break;
+        case 13:
+          // Musique
+          desactiverOutilsIncompatibles(13);
+          setIsMusicMode(!isMusicMode);
           break;
         case 12:
           // Toggle Layer Control for MJ
@@ -1687,6 +1793,80 @@ export default function Component() {
       }
     }
 
+
+    // 🎵 DRAW MUSIC ZONES (Always visible for MJ)
+    if (isMJ) {
+      musicZones.forEach(zone => {
+        const center = transformPoint({ x: zone.x, y: zone.y });
+        const isSelected = selectedMusicZoneIds.includes(zone.id);
+        const screenRadius = zone.radius * zoom;
+
+        // Removed culling optimization - containerSize was 0x0 causing all zones to be hidden
+
+        // Skip if any values are invalid (NaN or Infinity)
+        if (!isFinite(center.x) || !isFinite(center.y) || !isFinite(screenRadius) || screenRadius <= 0) {
+          return;
+        }
+
+        // VISUALISATION RAYON (Gradient) (Toujours visible en mode musique, plus fort si sélectionné)
+        const gradient = ctx.createRadialGradient(center.x, center.y, 0, center.x, center.y, screenRadius);
+        if (isSelected) {
+          gradient.addColorStop(0, 'rgba(217, 70, 239, 0.4)'); // Centre fort
+          gradient.addColorStop(0.5, 'rgba(217, 70, 239, 0.1)');
+          gradient.addColorStop(1, 'rgba(217, 70, 239, 0)'); // Bord transparent
+        } else {
+          gradient.addColorStop(0, 'rgba(217, 70, 239, 0.15)'); // Centre faible
+          gradient.addColorStop(0.5, 'rgba(217, 70, 239, 0.05)');
+          gradient.addColorStop(1, 'rgba(217, 70, 239, 0)');
+        }
+
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, screenRadius, 0, Math.PI * 2);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Bordure du rayon (Plus visible si sélectionné)
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, screenRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = isSelected ? 'rgba(217, 70, 239, 0.8)' : 'rgba(217, 70, 239, 0.3)';
+        ctx.lineWidth = isSelected ? 2 : 1;
+        ctx.setLineDash([5, 5]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Music Note Icon
+        const noteSize = isSelected ? 32 : 24;
+        // Draw background circle for icon
+        ctx.beginPath();
+        ctx.arc(center.x, center.y, noteSize / 2 + 5, 0, Math.PI * 2);
+        ctx.fillStyle = isSelected ? 'rgba(217, 70, 239, 1)' : 'rgba(217, 70, 239, 0.6)';
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Simple music note drawing or text
+        ctx.fillStyle = '#fff';
+        ctx.font = `${noteSize}px Arial`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('♫', center.x, center.y + 2);
+
+        // Draw label
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.font = isSelected ? 'bold 14px sans-serif' : '12px sans-serif';
+        ctx.textAlign = 'center';
+
+        // Background for label
+        const textWidth = ctx.measureText(zone.name).width;
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.fillRect(center.x - textWidth / 2 - 4, center.y + noteSize / 2 + 8, textWidth + 8, 20);
+
+        ctx.fillStyle = '#fff';
+        ctx.fillText(zone.name, center.x, center.y + noteSize / 2 + 22);
+      });
+    }
+
     // 🔦 DESSINER LES OBSTACLES (visible seulement pour le MJ en mode édition)
     if (isLayerVisible('obstacles') && (visibilityMode || (effectiveIsMJ && obstacles.length > 0))) {
       // 1. Base Layer (Thick Black)
@@ -1873,7 +2053,7 @@ export default function Component() {
         }
 
         const text = `${widthText} × ${heightText}`;
-        ctx.font = '12px Arial';
+        ctx.font = `12px Arial`;
         const metrics = ctx.measureText(text);
 
         // Position text above the rect, or below if too close to top
@@ -2563,6 +2743,72 @@ export default function Component() {
       const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
 
 
+      // 🎵 MUSIC MODE - CREATE ZONE
+      if (isMusicMode && isMJ && e.button === 0) {
+        e.preventDefault();
+        setNewMusicZonePos({ x: clickX, y: clickY });
+        setShowMusicDialog(true);
+        return;
+      }
+
+      // 🎵 SELECT MUSIC ZONE (when not in creation mode)
+      if (!isMusicMode && isMJ && e.button === 0) {
+        // Check if clicked on a zone icon
+        const clickedZone = musicZones.find(z => {
+          const dx = z.x - clickX;
+          const dy = z.y - clickY;
+          // Icon radius approx 15/zoom? No, world coordinates.
+          // Let's assume click precision 
+          // The icon is drawn with screen radius 15.
+          // We need to convert screen radius to world.
+          // screen = world * zoom. world = screen / zoom.
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          return dist < (20 / zoom);
+        });
+
+        if (clickedZone) {
+          e.preventDefault();
+
+          // MULTI-SELECTION: Shift/Ctrl + Click
+          if (e.shiftKey || e.ctrlKey) {
+            setSelectedMusicZoneIds(prev => {
+              if (prev.includes(clickedZone.id)) {
+                // Deselect if already selected
+                return prev.filter(id => id !== clickedZone.id);
+              } else {
+                // Add to selection
+                return [...prev, clickedZone.id];
+              }
+            });
+            return;
+          }
+
+          // SINGLE SELECTION (no modifier key)
+          // If clicking on an unselected zone, clear selection and select only this one
+          if (!selectedMusicZoneIds.includes(clickedZone.id)) {
+            setSelectedMusicZoneIds([clickedZone.id]);
+          }
+          // If clicking on already selected zone, keep the selection (prepare for drag)
+
+          // START DRAGGING ALL SELECTED ZONES
+          setIsDraggingMusicZone(true);
+          setDraggedMusicZoneId(clickedZone.id); // Reference zone
+          setDragStart({ x: e.clientX, y: e.clientY });
+
+          // Store original positions for all currently selected zones
+          const originalPositions = (selectedMusicZoneIds.includes(clickedZone.id) ? selectedMusicZoneIds : [clickedZone.id])
+            .map(id => {
+              const zone = musicZones.find(z => z.id === id);
+              return zone ? { id: zone.id, x: zone.x, y: zone.y } : null;
+            })
+            .filter(pos => pos !== null) as { id: string, x: number, y: number }[];
+
+          setDraggedMusicZonesOriginalPositions(originalPositions);
+          return;
+        }
+      }
+
+
       // CLIC MILIEU (button = 1) : DÉPLACEMENT DE LA CARTE
       if (e.button === 1) {
         e.preventDefault();
@@ -2614,6 +2860,19 @@ export default function Component() {
           return;
         }
 
+
+        // 🔦 MODE VISIBILITÉ + OUTIL BROUILLARD - Accepte clic gauche ET droit
+        // Placé AVANT le check sur e.button === 0 pour capturer les clics droits aussi
+        if (visibilityMode && currentVisibilityTool === 'fog' && (e.button === 0 || e.button === 2)) {
+          e.preventDefault(); // Empêcher le menu contextuel sur clic droit
+          setIsFogDragging(true);
+          // Clic gauche (0) = ajouter brouillard, Clic droit (2) = retirer brouillard
+          const addMode = e.button === 0;
+          setLastFogCell(null);
+          await addFogCellIfNew(clickX, clickY, addMode);
+          setIsFogAddMode(addMode);
+          return;
+        }
 
         // 🔦 MODE VISIBILITÉ - MODE EDIT (sélection et manipulation d'obstacles)
         if (visibilityMode && currentVisibilityTool === 'edit' && isLayerVisible('obstacles')) {
@@ -3295,6 +3554,36 @@ export default function Component() {
       return;
     }
 
+    // 🎵 HANDLE MUSIC ZONE DRAG (MULTI)
+    if (isDraggingMusicZone && draggedMusicZoneId && isMJ && draggedMusicZonesOriginalPositions.length > 0) {
+      // Find reference zone original position
+      const originalRefZone = draggedMusicZonesOriginalPositions.find(pos => pos.id === draggedMusicZoneId);
+      if (originalRefZone) {
+        // Calculate delta from START of drag in screen coordinates
+        const screenDx = e.clientX - dragStart.x;
+        const screenDy = e.clientY - dragStart.y;
+
+        // Convert screen delta to map delta
+        const mapDx = screenDx / (scale * zoom);
+        const mapDy = screenDy / (scale * zoom);
+
+        // Apply delta to ALL selected zones
+        setMusicZones(prev => prev.map(z => {
+          const originalPos = draggedMusicZonesOriginalPositions.find(pos => pos.id === z.id);
+          if (originalPos) {
+            return {
+              ...z,
+              x: originalPos.x + mapDx,
+              y: originalPos.y + mapDy
+            };
+          }
+          return z;
+        }));
+      }
+      return;
+    }
+
+
     // 🎯 DRAG OBSTACLE
     if (isDraggingObstacle && draggedObstacleId) {
       if (draggedObstacleOriginalPoints.length === 0) {
@@ -3558,6 +3847,22 @@ export default function Component() {
       return;
     }
 
+    // 🎵 END DRAG MUSIC ZONE (MULTI)
+    if (isDraggingMusicZone && draggedMusicZoneId) {
+      setIsDraggingMusicZone(false);
+
+      // Save all dragged zones to Firebase
+      draggedMusicZonesOriginalPositions.forEach(originalPos => {
+        const zone = musicZones.find(z => z.id === originalPos.id);
+        if (zone) {
+          updateMusicZonePosition(zone.id, zone.x, zone.y);
+        }
+      });
+
+      setDraggedMusicZoneId(null);
+      setDraggedMusicZonesOriginalPositions([]);
+      return;
+    }
     // ✏️ FIN DU DRAG OBSTACLE ENTIER
     if (isDraggingObstacle && selectedObstacleId) {
       const obstacle = obstacles.find(o => o.id === selectedObstacleId);
@@ -3789,12 +4094,18 @@ export default function Component() {
         })
         .filter((id): id is string => id !== null);
 
+      // 6. Find Music Zones (center point)
+      const selectedMusicZonesIds = musicZones
+        .map((zone) => isInRect(zone.x, zone.y) ? zone.id : null)
+        .filter((id): id is string => id !== null);
+
       const totalFound =
         selectedChars.length +
         selectedObjs.length +
         selectedNotes.length +
         selectedDrawings.length +
-        selectedObstacles.length;
+        selectedObstacles.length +
+        selectedMusicZonesIds.length;
 
       if (totalFound === 0) {
         // Clear all selections
@@ -3803,13 +4114,15 @@ export default function Component() {
         setSelectedNoteIndex(null);
         setSelectedDrawingIndex(null);
         setSelectedObstacleId(null);
+        setSelectedMusicZoneIds([]);
       } else {
         const candidates: SelectionCandidates = {
           characters: selectedChars,
           objects: selectedObjs,
           notes: selectedNotes,
           drawings: selectedDrawings,
-          obstacles: selectedObstacles
+          obstacles: selectedObstacles,
+          musicZones: selectedMusicZonesIds
         };
 
         // Determine if we need to show the menu
@@ -3818,7 +4131,8 @@ export default function Component() {
           selectedObjs.length > 0,
           selectedNotes.length > 0,
           selectedDrawings.length > 0,
-          selectedObstacles.length > 0
+          selectedObstacles.length > 0,
+          selectedMusicZonesIds.length > 0
         ].filter(Boolean).length;
 
         if (typesFound > 1) {
@@ -4179,6 +4493,7 @@ export default function Component() {
     setSelectedNoteIndex(null);
     setSelectedDrawingIndex(null);
     setSelectedObstacleId(null);
+    setSelectedMusicZoneIds([]);
 
     switch (type) {
       case 'characters':
@@ -4201,6 +4516,9 @@ export default function Component() {
         if (selectionCandidates.obstacles.length > 0) {
           setSelectedObstacleId(selectionCandidates.obstacles[0]);
         }
+        break;
+      case 'musicZones':
+        setSelectedMusicZoneIds(selectionCandidates.musicZones);
         break;
     }
 
@@ -4737,6 +5055,11 @@ export default function Component() {
                 const y = (obj.y / imgHeight) * scaledHeight - offset.y;
                 const w = (obj.width / imgWidth) * scaledWidth;
                 const h = (obj.height / imgHeight) * scaledHeight;
+
+                // Skip if any calculated values are invalid
+                if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h)) {
+                  return null;
+                }
 
                 const isSelected = selectedObjectIndices.includes(index);
 
@@ -5546,6 +5869,154 @@ export default function Component() {
           <LayerControl layers={layers} onToggle={toggleLayer} />
         </div>
       )}
+
+      {/* 🎵 Music Control & Dialog */}
+      {isMJ && (
+        <>
+          <div className="absolute top-24 left-4 z-50 flex flex-col gap-2">
+            {/* Radial Menu replaces this button generally, but we keep it if needed or remove it? User asked to place from Radial Menu */
+              /* Removing the button as requested to use Radial Menu "d'abord les placer depuis la menu radial" implies this is the primary way */
+            }
+          </div>
+
+          <Dialog open={showMusicDialog} onOpenChange={setShowMusicDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Ajouter une zone musicale</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="m-name" className="text-right">Nom</Label>
+                  <Input id="m-name" value={tempZoneData.name} onChange={e => setTempZoneData({ ...tempZoneData, name: e.target.value })} className="col-span-3" />
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="m-upload" className="text-right">Fichier MP3</Label>
+                  <div className="col-span-3 flex gap-2">
+                    <Input
+                      id="m-upload"
+                      type="file"
+                      accept="audio/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const storage = getStorage();
+                          const storageRef = ref(storage, `audio/${roomId}/${Date.now()}_${file.name}`);
+                          try {
+                            const snapshot = await uploadBytes(storageRef, file);
+                            const downloadURL = await getDownloadURL(snapshot.ref);
+                            setTempZoneData(prev => ({ ...prev, url: downloadURL }));
+                          } catch (error) {
+                            console.error("Upload failed", error);
+                            alert("Upload failed!");
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="m-radius" className="text-right">Rayon</Label>
+                  <Input id="m-radius" type="number" value={tempZoneData.radius} onChange={e => setTempZoneData({ ...tempZoneData, radius: Number(e.target.value) })} className="col-span-3" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={saveMusicZone}>Créer</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={showEditMusicDialog} onOpenChange={setShowEditMusicDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Modifier la zone musicale</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-m-name" className="text-right">Nom</Label>
+                  <Input id="edit-m-name" value={tempZoneData.name} onChange={e => setTempZoneData({ ...tempZoneData, name: e.target.value })} className="col-span-3" />
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-m-upload" className="text-right">Fichier MP3</Label>
+                  <div className="col-span-3 flex gap-2">
+                    <Input
+                      id="edit-m-upload"
+                      type="file"
+                      accept="audio/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const storage = getStorage();
+                          const storageRef = ref(storage, `audio/${roomId}/${Date.now()}_${file.name}`);
+                          try {
+                            const snapshot = await uploadBytes(storageRef, file);
+                            const downloadURL = await getDownloadURL(snapshot.ref);
+                            setTempZoneData(prev => ({ ...prev, url: downloadURL }));
+                          } catch (error) {
+                            console.error("Upload failed", error);
+                            alert("Upload failed!");
+                          }
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="edit-m-radius" className="text-right">Rayon</Label>
+                  <Input id="edit-m-radius" type="number" value={tempZoneData.radius} onChange={e => setTempZoneData({ ...tempZoneData, radius: Number(e.target.value) })} className="col-span-3" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={saveEditedMusicZone}>Sauvegarder</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* 🎵 Music Mode Overlay */}
+          {isMusicMode && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
+              <div className="flex items-center gap-3 bg-neutral-900/90 backdrop-blur-md px-6 py-3 rounded-full border border-fuchsia-500/50 shadow-2xl">
+                <Music className="w-5 h-5 text-fuchsia-400" />
+                <span className="text-white font-medium">Mode Musique</span>
+                <div className="w-px h-6 bg-zinc-700" />
+                <span className="text-zinc-400 text-sm">Cliquez sur la carte pour placer une zone audio</span>
+              </div>
+            </div>
+          )}
+
+          {/* 🎵 Music Zone Selection Panel */}
+          {selectedMusicZoneIds.length > 0 && (
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
+              <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
+                {selectedMusicZoneIds.length === 1 && (
+                  <>
+                    <span className="text-white text-sm mr-2">
+                      {musicZones.find(z => z.id === selectedMusicZoneIds[0])?.name}
+                    </span>
+                    <Button onClick={() => openEditDialog(selectedMusicZoneIds[0])}>
+                      <Edit className="w-4 h-4 mr-2" /> Modifier
+                    </Button>
+                  </>
+                )}
+                {selectedMusicZoneIds.length > 1 && (
+                  <span className="text-white text-sm mr-2">
+                    {selectedMusicZoneIds.length} zones sélectionnées
+                  </span>
+                )}
+                <Button onClick={() => {
+                  selectedMusicZoneIds.forEach(id => deleteMusicZone(id));
+                }}>
+                  <X className="w-4 h-4 mr-2" /> Supprimer
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Custom Tooltip for Conditions */}
       {hoveredCondition && (
         <div
