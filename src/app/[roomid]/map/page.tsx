@@ -55,7 +55,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2 } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/(combat)/combat2';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
@@ -88,6 +88,16 @@ import { type ViewMode, type Point, type Character, type MapText as Text, type S
 import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath } from './drawings';
 import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
 
+const getMediaDimensions = (media: HTMLImageElement | HTMLVideoElement | CanvasImageSource) => {
+  if (media instanceof HTMLVideoElement) {
+    return { width: media.videoWidth, height: media.videoHeight };
+  }
+  if (media instanceof HTMLImageElement) {
+    return { width: media.width, height: media.height };
+  }
+  return { width: (media as any).width || 0, height: (media as any).height || 0 };
+};
+
 
 export default function Component() {
   const params = useParams();
@@ -98,14 +108,59 @@ export default function Component() {
   const [targetId, setTargetId] = useState<string | null>(null);
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
   const [backgroundImage, setBackgroundImage] = useState('/placeholder.svg?height=600&width=800')
-  const [bgImageObject, setBgImageObject] = useState<HTMLImageElement | null>(null);
-
+  const [bgImageObject, setBgImageObject] = useState<HTMLImageElement | HTMLVideoElement | null>(null);
+  const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null); // Ref to keep track of video element for cleanup
 
   useEffect(() => {
-    if (!backgroundImage) return;
-    const img = new Image();
-    img.src = backgroundImage;
-    img.onload = () => setBgImageObject(img);
+    if (!backgroundImage) {
+      setIsBackgroundLoading(false);
+      return;
+    }
+
+    setIsBackgroundLoading(true);
+
+    // Cleanup previous video if exists
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.src = "";
+      videoRef.current = null;
+    }
+
+    const isVideo = backgroundImage.toLowerCase().includes('.webm');
+
+    if (isVideo) {
+      const video = document.createElement('video');
+      video.src = backgroundImage;
+      video.autoplay = true;
+      video.loop = true;
+      video.muted = true; // Required for autoplay usually
+      video.playsInline = true;
+      video.crossOrigin = "anonymous"; // Important for canvas
+
+      video.onloadedmetadata = () => {
+        setBgImageObject(video);
+        setIsBackgroundLoading(false);
+        video.play().catch(e => console.error("Video play error:", e));
+      };
+      video.onerror = () => {
+        setIsBackgroundLoading(false);
+        console.error("Video load error");
+      };
+      videoRef.current = video;
+    } else {
+      const img = new Image();
+      img.src = backgroundImage;
+      img.onload = () => {
+        setBgImageObject(img);
+        setIsBackgroundLoading(false);
+      }
+      img.onerror = () => {
+        setIsBackgroundLoading(false);
+        console.error("Image load error");
+      }
+      img.crossOrigin = "anonymous"; // Helps with potential CORS issues
+    }
   }, [backgroundImage]);
 
   const [showGrid, setShowGrid] = useState(false)
@@ -153,6 +208,19 @@ export default function Component() {
   const [draggedObjectIndex, setDraggedObjectIndex] = useState<number | null>(null) // Used for main reference
   const [draggedObjectOriginalPos, setDraggedObjectOriginalPos] = useState({ x: 0, y: 0 })
   const [draggedObjectsOriginalPositions, setDraggedObjectsOriginalPositions] = useState<{ index: number, x: number, y: number }[]>([]); // For multi-drag
+
+  // 🎯 Object Resizing State
+  const [isResizingObject, setIsResizingObject] = useState(false);
+  const [resizeStartData, setResizeStartData] = useState<{
+    index: number;
+    initialWidth: number;
+    initialHeight: number;
+    initialMouseDist: number; // Distance from center to mouse at start
+    centerX: number;
+    centerY: number;
+  } | null>(null);
+
+  const [snapPoint, setSnapPoint] = useState<Point | null>(null);
   const [draggedObjectTemplate, setDraggedObjectTemplate] = useState<any>(null)
 
   // 🎯 NOUVEAUX ÉTATS pour le drag & drop des notes
@@ -236,8 +304,10 @@ export default function Component() {
     }
   }, []);
 
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [visibilityRadius, setVisibilityRadius] = useState(100);
   // 🎯 NOUVEAU SYSTÈME DE BROUILLARD PAR QUADRILLAGE
   const [fogMode, setFogMode] = useState(false);
@@ -320,8 +390,6 @@ export default function Component() {
   const [isDraggingObstacle, setIsDraggingObstacle] = useState(false);
   const [draggedObstacleId, setDraggedObstacleId] = useState<string | null>(null);
   const [draggedObstacleOriginalPoints, setDraggedObstacleOriginalPoints] = useState<Point[]>([]);
-  const [snapPoint, setSnapPoint] = useState<Point | null>(null);
-  // États pour l'édition d'obstacles
   const [isDraggingObstaclePoint, setIsDraggingObstaclePoint] = useState(false);
   const [draggedPointIndex, setDraggedPointIndex] = useState<number | null>(null);
   const [dragStartPos, setDragStartPos] = useState<Point | null>(null);
@@ -721,20 +789,86 @@ export default function Component() {
 
 
 
+  // 🔄 Update Container Size on Resize
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !bgImageObject) return;
-    const ctx = canvas.getContext('2d')!;
-    const image = bgImageObject;
+    if (!containerRef.current) return;
+
+    const updateSize = () => {
+      if (containerRef.current) {
+        setContainerSize({
+          width: containerRef.current.clientWidth,
+          height: containerRef.current.clientHeight
+        });
+      }
+    };
+
+    updateSize();
+    const resizeObserver = new ResizeObserver(updateSize);
+    resizeObserver.observe(containerRef.current);
+
+    return () => resizeObserver.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const bgCanvas = bgCanvasRef.current;
+    const fgCanvas = fgCanvasRef.current;
+    if (!bgCanvas || !fgCanvas) return;
+
+    const bgCtx = bgCanvas.getContext('2d')!;
+    const fgCtx = fgCanvas.getContext('2d')!;
+
+    // Fallback if no valid image: default 1920x1080 transparent canvas
+    const image = bgImageObject || { width: 1920, height: 1080 } as HTMLImageElement;
 
     const sizeMultiplier = 1.5;
-    const containerWidth = containerRef.current?.clientWidth || canvas.width;
-    const containerHeight = containerRef.current?.clientHeight || canvas.height;
-    canvas.width = containerWidth * sizeMultiplier;
-    canvas.height = containerHeight * sizeMultiplier;
-    ctx.scale(sizeMultiplier, sizeMultiplier);
-    drawMap(ctx, image, containerWidth, containerHeight); // Pass container dimensions
-  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers, viewAsPersoId]);
+    // Use state dimensions if available, else fallbacks
+    const containerWidth = containerSize.width || containerRef.current?.clientWidth || bgCanvas.width;
+    const containerHeight = containerSize.height || containerRef.current?.clientHeight || bgCanvas.height;
+
+    // Set dimensions for BOTH canvases
+    bgCanvas.width = containerWidth * sizeMultiplier;
+    bgCanvas.height = containerHeight * sizeMultiplier;
+    fgCanvas.width = containerWidth * sizeMultiplier;
+    fgCanvas.height = containerHeight * sizeMultiplier;
+
+    bgCtx.scale(sizeMultiplier, sizeMultiplier);
+    fgCtx.scale(sizeMultiplier, sizeMultiplier);
+
+    // Initial draw
+    drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
+    drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
+
+    // 🎥 VIDEO RENDER LOOP
+    let animationFrameId: number;
+
+    if (image instanceof HTMLVideoElement) {
+      const renderLoop = () => {
+        // Redraw background only if video is playing? 
+        // Actually, clear and redraw background layer constantly
+        // We don't necessarily need to redraw Foreground layer constantly unless it has animated elements too.
+        // But avoiding transparency stacking issues, we might clear?
+        // Background Draw function clears the canvas usually.
+
+        drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
+
+        // If we don't redraw foreground, it stays static (good).
+        // But if specific interactions update state, they trigger the useEffect entirely, 
+        // which might conflict with this loop if we are not careful.
+        // React state updates trigger re-render of component -> re-execution of useEffect.
+        // If dependencies change, this effect is torn down and restarted.
+        // So this loop is safe.
+
+        animationFrameId = requestAnimationFrame(renderLoop);
+      };
+      renderLoop();
+    }
+
+    return () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    };
+
+
+  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers, viewAsPersoId, containerSize]);
 
 
   // 🎯 NPC Template Drag & Drop Handlers
@@ -745,11 +879,12 @@ export default function Component() {
   const handleCanvasDrop = async (e: React.DragEvent) => {
     e.preventDefault()
 
-    const canvas = canvasRef.current
+    const canvas = bgCanvasRef.current
     const image = bgImageObject
     if (!canvas || !image) {
       return
     }
+    const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
 
     // Get template data from dataTransfer
     const templateData = e.dataTransfer.getData('application/json')
@@ -766,11 +901,11 @@ export default function Component() {
         const rect = canvas.getBoundingClientRect()
         const containerWidth = containerRef.current?.clientWidth || rect.width
         const containerHeight = containerRef.current?.clientHeight || rect.height
-        const scale = Math.min(containerWidth / image.width, containerHeight / image.height)
-        const scaledWidth = image.width * scale * zoom
-        const scaledHeight = image.height * scale * zoom
-        const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width
-        const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height
+        const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight)
+        const scaledWidth = imgWidth * scale * zoom
+        const scaledHeight = imgHeight * scale * zoom
+        const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth
+        const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight
 
         await addDoc(collection(db, `cartes/${roomId}/objects`), {
           x,
@@ -791,14 +926,14 @@ export default function Component() {
       const containerHeight = containerRef.current?.clientHeight || rect.height
 
       // Calcul de l'échelle et des dimensions scalées (même logique que drawMap)
-      const scale = Math.min(containerWidth / image.width, containerHeight / image.height)
-      const scaledWidth = image.width * scale * zoom
-      const scaledHeight = image.height * scale * zoom
+      const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight)
+      const scaledWidth = imgWidth * scale * zoom
+      const scaledHeight = imgHeight * scale * zoom
 
       // IMPORTANT: Utiliser la même formule que handleCanvasMouseMove (lignes 2425-2426)
       // Le canvas utilise ctx.scale(sizeMultiplier) donc pas besoin de diviser par sizeMultiplier
-      const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width
-      const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height
+      const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth
+      const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight
 
 
       setDraggedTemplate(template)
@@ -1312,10 +1447,10 @@ export default function Component() {
       effectiveVisibility = 'hidden';
     }
 
-    // Les personnages cachés ne sont visibles que s'ils sont dans le rayon de vision d'un joueur/allié
+    // Les personnages cachés (ou cachés par le brouillard) ne sont visibles que s'ils sont dans le rayon de vision d'un joueur/allié
     if (effectiveVisibility === 'hidden') {
       const containerRef_current = containerRef.current;
-      const canvasRef_current = canvasRef.current;
+      const canvasRef_current = bgCanvasRef.current;
       if (!containerRef_current || !canvasRef_current || !bgImageObject) return false;
 
       const rect = canvasRef_current.getBoundingClientRect();
@@ -1323,17 +1458,18 @@ export default function Component() {
       const containerHeight = containerRef_current.clientHeight || rect.height;
       const image = bgImageObject;
 
-      const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
-      const scaledWidth = image.width * scale * zoom;
-      const scaledHeight = image.height * scale * zoom;
+      const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+      const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+      const scaledWidth = imgWidth * scale * zoom;
+      const scaledHeight = imgHeight * scale * zoom;
 
-      const charScreenX = (char.x / image.width) * scaledWidth - offset.x;
-      const charScreenY = (char.y / image.height) * scaledHeight - offset.y;
+      const charScreenX = (char.x / imgWidth) * scaledWidth - offset.x;
+      const charScreenY = (char.y / imgHeight) * scaledHeight - offset.y;
 
       // Vérifier si dans le rayon de vision de SON joueur ou d'un allié
       return characters.some((player) => {
-        const playerScreenX = (player.x / image.width) * scaledWidth - offset.x;
-        const playerScreenY = (player.y / image.height) * scaledHeight - offset.y;
+        const playerScreenX = (player.x / imgWidth) * scaledWidth - offset.x;
+        const playerScreenY = (player.y / imgHeight) * scaledHeight - offset.y;
         return (
           (player.id === persoId || player.visibility === 'ally') &&
           calculateDistance(charScreenX, charScreenY, playerScreenX, playerScreenY) <= player.visibilityRadius * zoom
@@ -1349,27 +1485,26 @@ export default function Component() {
 
   /* Removed duplicates */
 
-  const drawMap = (ctx: CanvasRenderingContext2D, image: HTMLImageElement, containerWidth: number, containerHeight: number) => {
+  const drawBackgroundLayers = (ctx: CanvasRenderingContext2D, image: CanvasImageSource, containerWidth: number, containerHeight: number) => {
     const canvas = ctx.canvas;
-    // Clear Hit Regions at start of frame
-    iconHitRegionsRef.current = [];
+    const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
 
     // Nettoyer le canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
-    const scaledWidth = image.width * scale * zoom;
-    const scaledHeight = image.height * scale * zoom;
+    const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+    const scaledWidth = imgWidth * scale * zoom;
+    const scaledHeight = imgHeight * scale * zoom;
 
 
     // Fonction de transformation des coordonnées map -> screen
     const transformPoint = (p: Point): Point => ({
-      x: (p.x / image.width) * scaledWidth - offset.x,
-      y: (p.y / image.height) * scaledHeight - offset.y,
+      x: (p.x / imgWidth) * scaledWidth - offset.x,
+      y: (p.y / imgHeight) * scaledHeight - offset.y,
     });
 
     // Draw background image
-    if (isLayerVisible('background')) {
+    if (isLayerVisible('background') && (image instanceof HTMLImageElement || image instanceof HTMLVideoElement || image instanceof HTMLCanvasElement)) {
       ctx.drawImage(image, -offset.x, -offset.y, scaledWidth, scaledHeight);
     }
 
@@ -1397,8 +1532,8 @@ export default function Component() {
     // Draw each note
     if (isLayerVisible('notes')) {
       notes.forEach((note, index) => {
-        const x = (note.x / image.width) * scaledWidth - offset.x;
-        const y = (note.y / image.height) * scaledHeight - offset.y;
+        const x = (note.x / imgWidth) * scaledWidth - offset.x;
+        const y = (note.y / imgHeight) * scaledHeight - offset.y;
         ctx.fillStyle = note.color || 'yellow';
 
         // Utiliser la taille de police de la note ou une taille par défaut
@@ -1428,8 +1563,8 @@ export default function Component() {
         drawings,
         transformPoint,
         selectedDrawingIndex,
-        image.width,
-        image.height,
+        imgWidth,
+        imgHeight,
         zoom,
         offset,
         scaledWidth,
@@ -1437,14 +1572,32 @@ export default function Component() {
       );
     }
 
+  };
+
+  const drawForegroundLayers = (ctx: CanvasRenderingContext2D, image: CanvasImageSource, containerWidth: number, containerHeight: number) => {
+    const canvas = ctx.canvas;
+    iconHitRegionsRef.current = [];
+    const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+    const scaledWidth = imgWidth * scale * zoom;
+    const scaledHeight = imgHeight * scale * zoom;
+
+    const transformPoint = (p: Point): Point => ({
+      x: (p.x / imgWidth) * scaledWidth - offset.x,
+      y: (p.y / imgHeight) * scaledHeight - offset.y,
+    });
+
     // 🎯 Optionnel : Dessiner les cercles de visibilité des joueurs et alliés (pour debug)
     // En mode Vue Joueur, le MJ ne voit pas les cercles de debug
     if (isMJ && !playerViewMode && showFogGrid) {
       characters.forEach(character => {
         if ((character.type === 'joueurs' || character.visibility === 'ally') && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
-          const playerScreenX = (character.x / image.width) * scaledWidth - offset.x;
-          const playerScreenY = (character.y / image.height) * scaledHeight - offset.y;
-          const radiusScreen = (character.visibilityRadius / image.width) * scaledWidth;
+          const playerScreenX = (character.x / imgWidth) * scaledWidth - offset.x;
+          const playerScreenY = (character.y / imgHeight) * scaledHeight - offset.y;
+          const radiusScreen = (character.visibilityRadius / imgWidth) * scaledWidth;
 
           // Couleur différente pour les alliés (vert) vs joueurs (jaune)
           ctx.strokeStyle = character.visibility === 'ally' ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 255, 0, 0.3)';
@@ -1486,8 +1639,8 @@ export default function Component() {
         offset,
         scaledWidth,
         scaledHeight,
-        image.width,
-        image.height,
+        imgWidth,
+        imgHeight,
         canvas.width,
         canvas.height,
         fogCellSize,
@@ -1520,7 +1673,7 @@ export default function Component() {
       }
 
       if (viewerPosition) {
-        const mapBounds = { width: image.width, height: image.height };
+        const mapBounds = { width: imgWidth, height: imgHeight };
 
         // Dessiner les ombres avec une opacité fixe (pas de superposition)
         drawShadows(
@@ -1661,7 +1814,7 @@ export default function Component() {
       for (const char of characters) {
         if (char.id === effectivePersoId && char.x !== undefined && char.y !== undefined) {
           viewerPositionForFiltering = { x: char.x, y: char.y };
-          activeShadowsForFiltering = calculateShadowPolygons({ x: char.x, y: char.y }, obstacles, { width: image.width, height: image.height });
+          activeShadowsForFiltering = calculateShadowPolygons({ x: char.x, y: char.y }, obstacles, { width: imgWidth, height: imgHeight });
           // Also get polygons that contain the viewer (for hiding exterior when inside)
           polygonsContainingViewerForFiltering = getPolygonsContainingViewer({ x: char.x, y: char.y }, obstacles);
           break;
@@ -1670,72 +1823,14 @@ export default function Component() {
     }
 
 
-    // Draw Objects (before characters)
-    if (isLayerVisible('objects')) {
-      objects.forEach((obj, index) => {
-        const x = (obj.x / image.width) * scaledWidth - offset.x;
-        const y = (obj.y / image.height) * scaledHeight - offset.y;
-        const w = (obj.width / image.width) * scaledWidth;
-        const h = (obj.height / image.height) * scaledHeight;
 
-        // 🔦 Vérifier si l'objet est masqué par une ombre (même logique que pour les PNJ)
-        if (activeShadowsForFiltering || polygonsContainingViewerForFiltering.length > 0) {
-          const objPos = { x: obj.x, y: obj.y };
-          let isInShadow = false;
-
-          // Check shadow polygons (from walls and polygon interiors when outside)
-          if (activeShadowsForFiltering) {
-            for (const shadow of activeShadowsForFiltering) {
-              if (isPointInPolygon(objPos, shadow)) {
-                isInShadow = true;
-                break;
-              }
-            }
-          }
-
-          // Check if viewer is inside a polygon but object is outside (hide exterior)
-          if (!isInShadow && polygonsContainingViewerForFiltering.length > 0) {
-            for (const polygon of polygonsContainingViewerForFiltering) {
-              if (!isPointInPolygon(objPos, polygon.points)) {
-                isInShadow = true;
-                break;
-              }
-            }
-          }
-
-          // Ne pas dessiner l'objet s'il est dans l'ombre (sauf pour le MJ)
-          if (isInShadow && !effectiveIsMJ) return;
-        }
-
-        // Draw object image
-        if (obj.image) {
-          ctx.drawImage(obj.image, x, y, w, h);
-        } else {
-          // Fallback: show a placeholder while image is loading
-          ctx.fillStyle = '#333';
-          ctx.fillRect(x, y, w, h);
-          ctx.strokeStyle = '#666';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(x, y, w, h);
-        }
-
-        // Selection Border
-        if (selectedObjectIndices.includes(index)) {
-          ctx.strokeStyle = '#00BFFF';
-          ctx.lineWidth = 2;
-          ctx.strokeRect(x, y, w, h);
-
-          // Resize handles could go here
-        }
-      });
-    }
 
     // 🎯 Dessiner la zone de sélection en cours
     if (isSelectingArea && selectionStart && selectionEnd) {
-      const startX = (selectionStart.x / image.width) * scaledWidth - offset.x;
-      const startY = (selectionStart.y / image.height) * scaledHeight - offset.y;
-      const endX = (selectionEnd.x / image.width) * scaledWidth - offset.x;
-      const endY = (selectionEnd.y / image.height) * scaledHeight - offset.y;
+      const startX = (selectionStart.x / imgWidth) * scaledWidth - offset.x;
+      const startY = (selectionStart.y / imgHeight) * scaledHeight - offset.y;
+      const endX = (selectionEnd.x / imgWidth) * scaledWidth - offset.x;
+      const endY = (selectionEnd.y / imgHeight) * scaledHeight - offset.y;
 
       // Calculer les dimensions du rectangle
       const rectX = Math.min(startX, endX);
@@ -1803,8 +1898,8 @@ export default function Component() {
 
     if (isLayerVisible('characters')) {
       characters.forEach((char, index) => {
-        const x = (char.x / image.width) * scaledWidth - offset.x;
-        const y = (char.y / image.height) * scaledHeight - offset.y;
+        const x = (char.x / imgWidth) * scaledWidth - offset.x;
+        const y = (char.y / imgHeight) * scaledHeight - offset.y;
 
         let isVisible = true;
 
@@ -1863,8 +1958,8 @@ export default function Component() {
             const viewer = characters.find(c => c.id === effectivePersoId);
             if (viewer) {
               // Use screen coordinates for distance calculation (like line 1276)
-              const viewerScreenX = (viewer.x / image.width) * scaledWidth - offset.x;
-              const viewerScreenY = (viewer.y / image.height) * scaledHeight - offset.y;
+              const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
+              const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
               const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
               isVisible = dist <= viewer.visibilityRadius * zoom;
             } else {
@@ -1875,8 +1970,8 @@ export default function Component() {
             isVisible = effectiveIsMJ || (() => {
               const viewer = characters.find(c => c.id === effectivePersoId);
               if (!viewer) return false;
-              const viewerScreenX = (viewer.x / image.width) * scaledWidth - offset.x;
-              const viewerScreenY = (viewer.y / image.height) * scaledHeight - offset.y;
+              const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
+              const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
               const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
               return dist <= viewer.visibilityRadius * zoom;
             })();
@@ -2193,10 +2288,10 @@ export default function Component() {
       const p2 = measureEnd;
 
       if (p1 && p2) {
-        const x1 = (p1.x / image.width) * scaledWidth - offset.x;
-        const y1 = (p1.y / image.height) * scaledHeight - offset.y;
-        const x2 = (p2.x / image.width) * scaledWidth - offset.x;
-        const y2 = (p2.y / image.height) * scaledHeight - offset.y;
+        const x1 = (p1.x / imgWidth) * scaledWidth - offset.x;
+        const y1 = (p1.y / imgHeight) * scaledHeight - offset.y;
+        const x2 = (p2.x / imgWidth) * scaledWidth - offset.x;
+        const y2 = (p2.y / imgHeight) * scaledHeight - offset.y;
 
         ctx.beginPath();
         ctx.moveTo(x1, y1);
@@ -2238,8 +2333,8 @@ export default function Component() {
         ctx.fillText(text, midX, midY - 10 * zoom);
       } else if (p1 && !p2) {
         // Draw just the start point
-        const x1 = (p1.x / image.width) * scaledWidth - offset.x;
-        const y1 = (p1.y / image.height) * scaledHeight - offset.y;
+        const x1 = (p1.x / imgWidth) * scaledWidth - offset.x;
+        const y1 = (p1.y / imgHeight) * scaledHeight - offset.y;
 
         ctx.fillStyle = '#FFD700';
         ctx.beginPath();
@@ -2402,9 +2497,54 @@ export default function Component() {
   };
 
 
+  // 🎯 Handle Object Resize Start
+  const handleResizeStart = (e: React.MouseEvent, index: number) => {
+    e.stopPropagation(); // Prevent drag start
+    e.preventDefault();
+
+    if (!bgImageObject || !bgCanvasRef.current) return;
+
+    // Calculate center and initial distance
+    const obj = objects[index];
+    const image = bgImageObject;
+    const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+    const rect = bgCanvasRef.current.getBoundingClientRect();
+
+    // Screen coordinates of mouse
+    const mouseX = e.clientX;
+    const mouseY = e.clientY;
+
+    // Better: retrieve exact render parameters. Since we are in the component, we can recalculate or use refs if we stored them.
+    // Let's recalculate quickly as in useEffect
+    const containerWidth = containerSize.width || containerRef.current?.clientWidth || 0;
+    const containerHeight = containerSize.height || containerRef.current?.clientHeight || 0;
+    const zoomScale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+    const scaledWidth = imgWidth * zoomScale * zoom;
+    const scaledHeight = imgHeight * zoomScale * zoom;
+
+    const objScreenX = (obj.x / imgWidth) * scaledWidth - offset.x + rect.left;
+    const objScreenY = (obj.y / imgHeight) * scaledHeight - offset.y + rect.top;
+    const objScreenW = (obj.width / imgWidth) * scaledWidth;
+    const objScreenH = (obj.height / imgHeight) * scaledHeight;
+
+    const centerX = objScreenX + objScreenW / 2;
+    const centerY = objScreenY + objScreenH / 2;
+
+    const dist = Math.sqrt(Math.pow(mouseX - centerX, 2) + Math.pow(mouseY - centerY, 2));
+
+    setIsResizingObject(true);
+    setResizeStartData({
+      index,
+      initialWidth: obj.width,
+      initialHeight: obj.height,
+      initialMouseDist: dist,
+      centerX,
+      centerY
+    });
+  };
 
   const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
+    const rect = bgCanvasRef.current?.getBoundingClientRect();
     if (!rect) return;
 
     // Stocker quel bouton de souris est pressé (0 = gauche, 1 = milieu, 2 = droit)
@@ -2415,11 +2555,12 @@ export default function Component() {
     if (!bgImageObject) return;
     const image = bgImageObject;
     if (image) {
-      const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
-      const scaledWidth = image.width * scale * zoom;
-      const scaledHeight = image.height * scale * zoom;
-      const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
-      const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
+      const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+      const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+      const scaledWidth = imgWidth * scale * zoom;
+      const scaledHeight = imgHeight * scale * zoom;
+      const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
+      const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
 
 
       // CLIC MILIEU (button = 1) : DÉPLACEMENT DE LA CARTE
@@ -2689,15 +2830,15 @@ export default function Component() {
             return false; // Ignorer les personnages cachés pour les joueurs
           }
 
-          const charX = (char.x / image.width) * scaledWidth - offset.x;
-          const charY = (char.y / image.height) * scaledHeight - offset.y;
+          const charX = (char.x / imgWidth) * scaledWidth - offset.x;
+          const charY = (char.y / imgHeight) * scaledHeight - offset.y;
           const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
           return Math.abs(charX - e.clientX + rect.left) < clickRadius && Math.abs(charY - e.clientY + rect.top) < clickRadius;
         }) : -1;
 
         const clickedNoteIndex = isLayerVisible('notes') ? notes.findIndex(note => {
-          const noteX = (note.x / image.width) * scaledWidth - offset.x;
-          const noteY = (note.y / image.height) * scaledHeight - offset.y;
+          const noteX = (note.x / imgWidth) * scaledWidth - offset.x;
+          const noteY = (note.y / imgHeight) * scaledHeight - offset.y;
 
           const mouseX = e.clientX - rect.left;
           const mouseY = e.clientY - rect.top;
@@ -2720,17 +2861,9 @@ export default function Component() {
         }) : -1;
 
         // 🎯 NOUVEAU : Vérifier si on clique sur un objet
-        const clickedObjectIndex = isLayerVisible('objects') ? objects.findIndex(obj => {
-          const x = (obj.x / image.width) * scaledWidth - offset.x;
-          const y = (obj.y / image.height) * scaledHeight - offset.y;
-          const w = (obj.width / image.width) * scaledWidth;
-          const h = (obj.height / image.height) * scaledHeight;
-
-          const mouseX = e.clientX - rect.left;
-          const mouseY = e.clientY - rect.top;
-
-          return mouseX >= x && mouseX <= x + w && mouseY >= y && mouseY <= y + h;
-        }) : -1;
+        // This logic is now handled by the DOM element's onMouseDown, as pointerEvents: 'auto' will prevent this from firing.
+        // So, this block will effectively be skipped for objects.
+        const clickedObjectIndex = -1; // No longer detected here
 
         // 🎯 NOUVEAU : Vérifier si on clique sur une cellule de brouillard
         const clickedFogIndex = isCellInFog(clickX, clickY, fogGrid, fogCellSize) ? 0 : -1;
@@ -2745,8 +2878,8 @@ export default function Component() {
           const handles = getResizeHandles(drawing);
 
           clickedHandleIndex = handles.findIndex(handle => {
-            const handleX = (handle.x / image.width) * scaledWidth - offset.x;
-            const handleY = (handle.y / image.height) * scaledHeight - offset.y;
+            const handleX = (handle.x / imgWidth) * scaledWidth - offset.x;
+            const handleY = (handle.y / imgHeight) * scaledHeight - offset.y;
             // Mouse check logic (screen coords vs handles)
             const dist = Math.sqrt(Math.pow(e.clientX - rect.left - handleX, 2) + Math.pow(e.clientY - rect.top - handleY, 2));
             return dist < 10;
@@ -2785,7 +2918,7 @@ export default function Component() {
             });
 
             if (!canMoveAllCharacters) {
-              // Si l'utilisateur n'a pas le droit de déplacer au moins un des personnages, 
+              // Si l'utilisateur n'a pas le droit de déplacer au moins un des personnages,
               // on ne fait que sélectionner sans initier le drag
               if (!isAlreadySelected) {
                 setSelectedCharacterIndex(clickedCharIndex);
@@ -2840,38 +2973,9 @@ export default function Component() {
           setSelectedDrawingIndex(null); // Clear drawing selection
           setSelectedObjectIndices([]);
         } else if (clickedObjectIndex !== -1) {
-          // 🎯 SELECTION OBJET
-          setContextMenuOpen(false);
-          let objectsToMove: number[] = [];
-
-          if (selectedObjectIndices.includes(clickedObjectIndex)) {
-            // Multi-drag existing selection
-            objectsToMove = [...selectedObjectIndices];
-          } else {
-            // New single selection
-            setSelectedObjectIndices([clickedObjectIndex]);
-            objectsToMove = [clickedObjectIndex];
-          }
-
-          setSelectedCharacterIndex(null);
-          setSelectedNoteIndex(null);
-          setSelectedFogIndex(null);
-          setSelectedCharacters([]);
-          setSelectedDrawingIndex(null);
-
-          // 🎯 NOUVEAU : Commencer le drag & drop (MULTI)
-          setIsDraggingObject(true);
-          setDraggedObjectIndex(clickedObjectIndex); // Reference for delta calc
-          setDraggedObjectOriginalPos({ x: objects[clickedObjectIndex].x, y: objects[clickedObjectIndex].y });
-
-          const originalPositions = objectsToMove.map(index => ({
-            index,
-            x: objects[index].x,
-            y: objects[index].y
-          }));
-          setDraggedObjectsOriginalPositions(originalPositions);
-
-          setDragStart({ x: e.clientX, y: e.clientY });
+          // This block is now effectively dead code for objects as they are DOM elements.
+          // Object selection and drag start will be handled by the object's onMouseDown.
+          // Keeping it here for now, but it won't be reached.
         } else if (clickedDrawingIndex !== -1) {
           // 🎯 SELECTION DESSIN
           setSelectedDrawingIndex(clickedDrawingIndex);
@@ -2980,18 +3084,19 @@ export default function Component() {
   const handleCanvasDoubleClick = (e: React.MouseEvent<Element>) => {
     if (!bgImageObject) return
 
-    const rect = canvasRef.current?.getBoundingClientRect()
+    const rect = bgCanvasRef.current?.getBoundingClientRect()
     if (!rect) return
 
     const containerWidth = containerRef.current?.clientWidth || rect.width
     const containerHeight = containerRef.current?.clientHeight || rect.height
 
     const image = bgImageObject
-    const scale = Math.min(containerWidth / image.width, containerHeight / image.height)
-    const scaledWidth = image.width * scale * zoom
-    const scaledHeight = image.height * scale * zoom
-    const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width
-    const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height
+    const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+    const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight)
+    const scaledWidth = imgWidth * scale * zoom
+    const scaledHeight = imgHeight * scale * zoom
+    const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth
+    const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight
 
     // Check if double-clicked on a character
     const clickedCharIndex = characters.findIndex((char) => {
@@ -3020,17 +3125,18 @@ export default function Component() {
 
     if (!bgImageObject) return;
 
-    const rect = canvasRef.current?.getBoundingClientRect();
+    const rect = bgCanvasRef.current?.getBoundingClientRect();
     if (!rect) return;
     const containerWidth = containerRef.current?.clientWidth || rect.width;
     const containerHeight = containerRef.current?.clientHeight || rect.height;
 
     const image = bgImageObject;
-    const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
-    const scaledWidth = image.width * scale * zoom;
-    const scaledHeight = image.height * scale * zoom;
-    const currentX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width;
-    const currentY = ((e.clientY - rect.top + offset.y) / scaledHeight) * image.height;
+    const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+    const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+    const scaledWidth = imgWidth * scale * zoom;
+    const scaledHeight = imgHeight * scale * zoom;
+    const currentX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
+    const currentY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
 
 
     // 🕵️ HOVER DETECTION FOR CONDITIONS (Screen Coordinates)
@@ -3055,6 +3161,28 @@ export default function Component() {
 
     const x = currentX;
     const y = currentY;
+
+    // 🎯 RESIZING OBJECT
+    if (isResizingObject && resizeStartData && bgImageObject) {
+      const mouseXScreen = e.clientX;
+      const mouseYScreen = e.clientY;
+
+      const currentDist = Math.sqrt(Math.pow(mouseXScreen - resizeStartData.centerX, 2) + Math.pow(mouseYScreen - resizeStartData.centerY, 2));
+      const scaleFactor = currentDist / resizeStartData.initialMouseDist;
+
+      const newWidth = resizeStartData.initialWidth * scaleFactor;
+      const newHeight = resizeStartData.initialHeight * scaleFactor;
+
+      // Update local state implicitly by updating objects array
+      // Only update the specific object
+      setObjects(prev => prev.map((o, i) => {
+        if (i === resizeStartData.index) {
+          return { ...o, width: newWidth, height: newHeight };
+        }
+        return o;
+      }));
+      return;
+    }
 
     // 🎯 PRIORITÉ 0: Placement continu de brouillard pendant le drag
     if (isFogDragging && (fogMode || (visibilityMode && currentVisibilityTool === 'fog'))) {
@@ -3173,15 +3301,15 @@ export default function Component() {
         // Prevent disappearance due to race condition or empty state
         return;
       }
-      const startMapX = ((dragStart.x - rect.left + offset.x) / scaledWidth) * image.width;
-      const startMapY = ((dragStart.y - rect.top + offset.y) / scaledHeight) * image.height;
+      const startMapX = ((dragStart.x - rect.left + offset.x) / scaledWidth) * imgWidth;
+      const startMapY = ((dragStart.y - rect.top + offset.y) / scaledHeight) * imgHeight;
 
       const deltaX = currentX - startMapX;
       const deltaY = currentY - startMapY;
 
       // DEBUG NAN
       if (isNaN(deltaX) || isNaN(deltaY)) {
-        console.error("NaN detected in obstacle drag:", { startMapX, startMapY, currentX, currentY, dragStart, rect, offset, scaledWidth, imageWidth: image.width });
+        console.error("NaN detected in obstacle drag:", { startMapX, startMapY, currentX, currentY, dragStart, rect, offset, scaledWidth, imageWidth: imgWidth });
         return;
       }
 
@@ -3248,8 +3376,8 @@ export default function Component() {
 
     // 🎯 DRAG & DROP DESSIN
     if (isDraggingDrawing && selectedDrawingIndex !== null) {
-      const startX = (dragStart.x - rect.left + offset.x) / scaledWidth * image.width;
-      const startY = (dragStart.y - rect.top + offset.y) / scaledHeight * image.height;
+      const startX = (dragStart.x - rect.left + offset.x) / scaledWidth * imgWidth;
+      const startY = (dragStart.y - rect.top + offset.y) / scaledHeight * imgHeight;
       const deltaX = currentX - startX;
       const deltaY = currentY - startY;
 
@@ -3367,7 +3495,7 @@ export default function Component() {
 
 
   const handleCanvasMouseUp = async () => {
-    const rect = canvasRef.current?.getBoundingClientRect();
+    const rect = bgCanvasRef.current?.getBoundingClientRect();
     // 🎯 CALIBRATION END (OPEN DIALOG)
     if (isCalibrating && measureMode && measureStart && measureEnd) {
       // If dragged distance is significant, open dialog
@@ -3382,6 +3510,31 @@ export default function Component() {
     // Réinitialiser le bouton de souris
     const currentMouseButton = mouseButton;
     setMouseButton(null);
+
+    // 🎯 FIN RESIZE OBJET
+    if (isResizingObject && resizeStartData && roomId) {
+      const resizedObject = objects[resizeStartData.index];
+      if (resizedObject && resizedObject.id) {
+        try {
+          await updateDoc(doc(db, 'cartes', String(roomId), 'objects', resizedObject.id), {
+            width: resizedObject.width,
+            height: resizedObject.height,
+          });
+        } catch (error) {
+          console.error("Error saving object resize:", error);
+          // Revert to original size on error
+          setObjects(prev => prev.map((o, i) => {
+            if (i === resizeStartData.index) {
+              return { ...o, width: resizeStartData.initialWidth, height: resizeStartData.initialHeight };
+            }
+            return o;
+          }));
+        }
+      }
+      setIsResizingObject(false);
+      setResizeStartData(null);
+      return;
+    }
 
     // ✏️ FIN DU DRAG POINT D'OBSTACLE
     if (isDraggingObstaclePoint) {
@@ -3673,11 +3826,9 @@ export default function Component() {
           setSelectionCandidates(candidates);
           // Calculate screen position for menu
           if (rect && containerRef.current) {
-            // Assuming last mouse position (currentX, currentY) isn't available here directly without ref checking, 
+            // Assuming last mouse position (currentX, currentY) isn't available here directly without ref checking,
             // we can use the mouse up event e clientX if available, but here we don't have 'e'.
-            // We'll use the center of the selection rectangle converted to screen coords?
-            // Or easier: just use the last known mouse position from a ref if we had one.
-            // Let's use the bounds of the selection box center.
+            // We'll use the bounds of the selection rectangle center.
             // Map coords -> Screen coords:
             // screenX = (mapX / image.width) * scaledWidth + offset.x + rect.left
             // We need image and container ref here.
@@ -3686,7 +3837,6 @@ export default function Component() {
             // Warning: We need to convert back to screen for the menu (fixed position).
             // Since we lack 'e.clientX' here easily, let's just use a center screen approximation.
             // Better yet, we will just use a fixed state update and let the render handle it if we passed valid screen coords?
-            // Let's assume we can get clientX/Y from last event or just center of screen?
             // No, let's try to recalculate screen coords from map coords roughly.
 
             // Simplification: We will store the mouseUP event in a ref or just pass it to this function?
@@ -3765,267 +3915,6 @@ export default function Component() {
 
 
 
-  const handleZoom = (delta: number) => {
-    const newZoom = Math.max(0.1, Math.min(5, zoom + delta));
-    const zoomFactor = newZoom / zoom;
-
-    if (zoomFactor === 1 || isNaN(zoomFactor)) return;
-
-    if (containerRef.current) {
-      const { clientWidth, clientHeight } = containerRef.current;
-      const centerX = clientWidth / 2;
-      const centerY = clientHeight / 2;
-
-      setOffset((prevOffset) => ({
-        x: prevOffset.x * zoomFactor + centerX * (zoomFactor - 1),
-        y: prevOffset.y * zoomFactor + centerY * (zoomFactor - 1)
-      }));
-    } else {
-      setOffset((prevOffset) => ({
-        x: prevOffset.x * zoomFactor,
-        y: prevOffset.y * zoomFactor
-      }));
-    }
-
-    setZoom(newZoom);
-  };
-
-
-  const handleDeleteCharacter = async () => {
-    if (characterToDelete && roomId) {
-      if (characterToDelete?.id) {
-        try {
-          await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', characterToDelete.id));
-          setCharacters(characters.filter((char) => char.id !== characterToDelete.id));
-          setSelectedCharacterIndex(null);
-        } catch (error) {
-          console.error("Erreur lors de la suppression du personnage :", error);
-        }
-      } else {
-        console.error("ID du personnage introuvable pour la suppression.");
-      }
-    } else {
-      console.error("Aucun personnage sélectionné ou roomId invalide.");
-    }
-  };
-
-  const handleDeleteNote = async () => {
-    // Convertir roomId en chaîne de caractères
-    const roomIdStr = String(roomId);
-
-    // Check local selection validity
-    if (selectedNoteIndex !== null && typeof roomIdStr === 'string') {
-      const noteToDelete = notes[selectedNoteIndex];
-
-      // Ensure note exists and has ID
-      if (noteToDelete && typeof noteToDelete.id === 'string') {
-        try {
-          // 1. Clear selection IMMEDIATELY to prevent double-trigger
-          setSelectedNoteIndex(null);
-
-          // 2. Perform DB deletion
-          await deleteDoc(doc(db, 'cartes', roomIdStr, 'text', noteToDelete.id));
-
-          // 3. Update local state safely using ID (not index, which is unstable)
-          setNotes((prevNotes) => prevNotes.filter((n) => n.id !== noteToDelete.id));
-        } catch (error) {
-          console.error("Erreur lors de la suppression de la note :", error);
-        }
-      } else {
-        console.error("Erreur: Note introuvable ou ID invalide.");
-      }
-    }
-  };
-
-
-  const handleEditCharacter = () => {
-    if (selectedCharacterIndex !== null) {  // Ensure index is not null
-      setEditingCharacter(characters[selectedCharacterIndex]);
-      setCharacterDialogOpen(true);
-    }
-  };
-
-  const handleEditNote = () => {
-    if (selectedNoteIndex !== null) {  // Ensure index is not null
-      setEditingNote(notes[selectedNoteIndex]);
-      setShowCreateNoteModal(true);
-    }
-  };
-
-
-
-
-  const handleCharacterEditSubmit = async () => {
-    if (editingCharacter && selectedCharacterIndex !== null && roomId) {
-      const charToUpdate = characters[selectedCharacterIndex];
-      if (charToUpdate?.id) {
-        try {
-          // Met à jour les données du personnage dans Firestore
-          const updatedData: {
-            Nomperso: string;
-            niveau: number;
-            PV: number;
-            Defense: number;
-            Contact: number;
-            Distance: number;
-            Magie: number;
-            INIT: number;
-            FOR: number;
-            DEX: number;
-            CON: number;
-            SAG: number;
-            INT: number;
-            CHA: number;
-            visibility: 'visible' | 'hidden' | 'ally';
-            visibilityRadius: number;
-            imageURL2?: string; // Add imageURL2 as an optional field
-          } = {
-            Nomperso: editingCharacter.name,
-            niveau: editingCharacter.niveau,
-            PV: editingCharacter.PV,
-            Defense: editingCharacter.Defense,
-            Contact: editingCharacter.Contact,
-            Distance: editingCharacter.Distance,
-            Magie: editingCharacter.Magie,
-            INIT: editingCharacter.INIT,
-            FOR: editingCharacter.FOR,
-            DEX: editingCharacter.DEX,
-            CON: editingCharacter.CON,
-            SAG: editingCharacter.SAG,
-            INT: editingCharacter.INT,
-            CHA: editingCharacter.CHA,
-            visibility: editingCharacter.visibility,
-            visibilityRadius: editingCharacter.visibilityRadius,
-          };
-
-          // Check if a new image is selected and upload it if necessary
-          if (editingCharacter.image?.src !== charToUpdate.image.src) {
-            const storage = getStorage();
-            const imageRef = ref(storage, `characters/${editingCharacter.name}-${Date.now()}`);
-            const response = await fetch(editingCharacter.image.src);
-            const blob = await response.blob();
-            await uploadBytes(imageRef, blob);
-            const imageURL = await getDownloadURL(imageRef);
-
-            // Add the image URL to Firestore data
-            updatedData.imageURL2 = imageURL;
-          }
-
-
-          // Vérifiez si une nouvelle image est sélectionnée et téléchargez-la si nécessaire
-          if (editingCharacter.image?.src !== charToUpdate.image.src) {
-            const storage = getStorage();
-            const imageRef = ref(storage, `characters/${editingCharacter.name}-${Date.now()}`);
-            const response = await fetch(editingCharacter.image.src);
-            const blob = await response.blob();
-            await uploadBytes(imageRef, blob);
-            const imageURL = await getDownloadURL(imageRef);
-
-            // Ajoutez l'URL de l'image au document Firestore
-            updatedData.imageURL2 = imageURL;
-          }
-
-          // Mise à jour dans Firestore
-          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToUpdate.id), updatedData);
-
-          // Mettez à jour le personnage localement
-          setCharacters((prevCharacters) =>
-            prevCharacters.map((character, index) =>
-              index === selectedCharacterIndex ? { ...character, ...updatedData } : character
-            )
-          );
-
-          // Réinitialisez l'état d'édition
-          setEditingCharacter(null);
-          setCharacterDialogOpen(false);
-          setSelectedCharacterIndex(null);
-        } catch (error) {
-          console.error("Erreur lors de la mise à jour du personnage :", error);
-        }
-      } else {
-        console.error("Erreur: ID du personnage non valide.");
-      }
-    }
-  };
-
-
-
-  const handleNoteSubmit = async () => {
-    if (editingNote && roomId && selectedNoteIndex !== null) {  // Vérifie que selectedNoteIndex n'est pas null
-      const noteToUpdate = notes[selectedNoteIndex];
-      if (typeof roomId === 'string' && typeof noteToUpdate?.id === 'string') {
-        try {
-          await updateDoc(doc(db, 'cartes', roomId, 'text', noteToUpdate.id), {
-            content: editingNote.text,
-            color: editingNote.color
-          });
-          setEditingNote(null);
-          setNoteDialogOpen(false);
-          setSelectedNoteIndex(null);
-        } catch (error) {
-          console.error("Erreur lors de la mise à jour de la note :", error);
-        }
-      } else {
-        console.error("Erreur: roomId ou noteToUpdate.id n'est pas une chaîne valide.");
-      }
-    } else {
-      console.error("Erreur : 'editingNote', 'roomId', ou 'selectedNoteIndex' est invalide.");
-    }
-  };
-
-
-  const toggleDrawMode = () => {
-    setDrawMode(!drawMode)
-    setSelectedCharacterIndex(null)
-    setSelectedNoteIndex(null)
-  }
-
-  const clearDrawings = async () => {
-    if (!db) {
-      console.error("Database instance 'db' is not INITialized.");
-      return;
-    }
-
-    if (!roomId) {
-      console.error("Room ID is missing or undefined.");
-      return;
-    }
-
-    try {
-      const drawingsRef = collection(db, 'cartes', String(roomId), 'drawings'); // Convert roomId to string
-      const snapshot = await getDocs(drawingsRef);
-
-      if (snapshot.empty) {
-
-        return;
-      }
-
-      const deletePromises = snapshot.docs.map((doc) => deleteDoc(doc.ref));
-      await Promise.all(deletePromises);
-
-    } catch (error) {
-      console.error('Error clearing drawings:', error);
-    }
-  };
-
-  const clearFog = async () => {
-    // Effacer toute la grille de brouillard localement
-    const emptyGrid = new Map<string, boolean>();
-    setFogGrid(emptyGrid);
-
-    // Sauvegarder dans Firebase via la fonction centralisée
-
-    if (roomId) {
-      await saveFogGrid(emptyGrid);
-    } else {
-      console.error("❌ Room ID missing when trying to clear fog");
-    }
-  };
-
-
-
-
-
   // 🎯 SUPPRIMÉ : useEffect pour shadowOpacity
 
 
@@ -4090,6 +3979,177 @@ export default function Component() {
 
 
   // 🎯 SUPPRIMÉ : Anciennes fonctions de brouillard (toggleClearFogMode, handleDeleteFog)
+
+  const handleZoom = (delta: number) => {
+    const newZoom = Math.max(0.1, Math.min(5, zoom + delta));
+    const zoomFactor = newZoom / zoom;
+
+    if (zoomFactor === 1 || isNaN(zoomFactor)) return;
+
+    if (containerRef.current) {
+      const { clientWidth, clientHeight } = containerRef.current;
+      const centerX = clientWidth / 2;
+      const centerY = clientHeight / 2;
+
+      setOffset((prevOffset) => ({
+        x: prevOffset.x * zoomFactor + centerX * (zoomFactor - 1),
+        y: prevOffset.y * zoomFactor + centerY * (zoomFactor - 1)
+      }));
+    } else {
+      setOffset((prevOffset) => ({
+        x: prevOffset.x * zoomFactor,
+        y: prevOffset.y * zoomFactor
+      }));
+    }
+
+    setZoom(newZoom);
+  };
+
+  const handleDeleteCharacter = async () => {
+    if (characterToDelete && roomId) {
+      if (characterToDelete?.id) {
+        try {
+          await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', characterToDelete.id));
+          setCharacters(characters.filter((char) => char.id !== characterToDelete.id));
+          setSelectedCharacterIndex(null);
+        } catch (error) {
+          console.error("Erreur lors de la suppression du personnage :", error);
+        }
+      } else {
+        console.error("ID du personnage introuvable pour la suppression.");
+      }
+    } else {
+      console.error("Aucun personnage sélectionné ou roomId invalide.");
+    }
+  };
+
+  const handleDeleteNote = async () => {
+    const roomIdStr = String(roomId);
+    if (selectedNoteIndex !== null && typeof roomIdStr === 'string') {
+      const noteToDelete = notes[selectedNoteIndex];
+      if (noteToDelete && typeof noteToDelete.id === 'string') {
+        try {
+          setSelectedNoteIndex(null);
+          await deleteDoc(doc(db, 'cartes', roomIdStr, 'text', noteToDelete.id));
+          setNotes((prevNotes) => prevNotes.filter((n) => n.id !== noteToDelete.id));
+        } catch (error) {
+          console.error("Erreur lors de la suppression de la note :", error);
+        }
+      }
+    }
+  };
+
+  const handleEditCharacter = () => {
+    if (selectedCharacterIndex !== null) {
+      setEditingCharacter(characters[selectedCharacterIndex]);
+      setCharacterDialogOpen(true);
+    }
+  };
+
+  const handleEditNote = () => {
+    if (selectedNoteIndex !== null) {
+      setEditingNote(notes[selectedNoteIndex]);
+      setShowCreateNoteModal(true);
+    }
+  };
+
+  const handleCharacterEditSubmit = async () => {
+    if (editingCharacter && selectedCharacterIndex !== null && roomId) {
+      const charToUpdate = characters[selectedCharacterIndex];
+      if (charToUpdate?.id) {
+        try {
+          const updatedData: any = {
+            Nomperso: editingCharacter.name,
+            niveau: editingCharacter.niveau,
+            PV: editingCharacter.PV,
+            Defense: editingCharacter.Defense,
+            Contact: editingCharacter.Contact,
+            Distance: editingCharacter.Distance,
+            Magie: editingCharacter.Magie,
+            INIT: editingCharacter.INIT,
+            FOR: editingCharacter.FOR,
+            DEX: editingCharacter.DEX,
+            CON: editingCharacter.CON,
+            SAG: editingCharacter.SAG,
+            INT: editingCharacter.INT,
+            CHA: editingCharacter.CHA,
+            visibility: editingCharacter.visibility,
+            visibilityRadius: editingCharacter.visibilityRadius,
+          };
+
+          if (editingCharacter.image?.src !== charToUpdate.image.src) {
+            const storage = getStorage();
+            const imageRef = ref(storage, `characters/${editingCharacter.name}-${Date.now()}`);
+            const response = await fetch(editingCharacter.image.src);
+            const blob = await response.blob();
+            await uploadBytes(imageRef, blob);
+            const imageURL = await getDownloadURL(imageRef);
+            updatedData.imageURL2 = imageURL;
+          }
+
+          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToUpdate.id), updatedData);
+
+          setCharacters((prevCharacters) =>
+            prevCharacters.map((character, index) =>
+              index === selectedCharacterIndex ? { ...character, ...updatedData } : character
+            )
+          );
+
+          setEditingCharacter(null);
+          setCharacterDialogOpen(false);
+          setSelectedCharacterIndex(null);
+        } catch (error) {
+          console.error("Erreur lors de la mise à jour du personnage :", error);
+        }
+      }
+    }
+  };
+
+  const handleNoteSubmit = async () => {
+    if (editingNote && roomId && selectedNoteIndex !== null) {
+      const noteToUpdate = notes[selectedNoteIndex];
+      if (typeof roomId === 'string' && typeof noteToUpdate?.id === 'string') {
+        try {
+          await updateDoc(doc(db, 'cartes', roomId, 'text', noteToUpdate.id), {
+            content: editingNote.text,
+            color: editingNote.color
+          });
+          setEditingNote(null);
+          setNoteDialogOpen(false);
+          setSelectedNoteIndex(null);
+        } catch (error) {
+          console.error("Erreur lors de la mise à jour de la note :", error);
+        }
+      }
+    }
+  };
+
+  const toggleDrawMode = () => {
+    setDrawMode(!drawMode)
+    setSelectedCharacterIndex(null)
+    setSelectedNoteIndex(null)
+  }
+
+  const clearDrawings = async () => {
+    if (!db || !roomId) return;
+    try {
+      const drawingsRef = collection(db, 'cartes', String(roomId), 'drawings');
+      const snapshot = await getDocs(drawingsRef);
+      if (snapshot.empty) return;
+      const deletePromises = snapshot.docs.map((doc) => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+    } catch (error) {
+      console.error('Error clearing drawings:', error);
+    }
+  };
+
+  const clearFog = async () => {
+    const emptyGrid = new Map<string, boolean>();
+    setFogGrid(emptyGrid);
+    if (roomId) {
+      await saveFogGrid(emptyGrid);
+    }
+  };
 
 
   if (loading) {
@@ -4553,7 +4613,7 @@ export default function Component() {
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,video/webm"
         onChange={handleBackgroundChange}
         style={{ display: 'none' }}
       />
@@ -4571,21 +4631,20 @@ export default function Component() {
         <div
           ref={containerRef}
           className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${isDraggingCharacter || isDraggingNote ? 'cursor-grabbing' :
-            isDragging ? 'cursor-move' :
+            isDragging || isDraggingObject ? 'cursor-move' :
               panMode ? 'cursor-grab' :
                 drawMode ? 'cursor-crosshair' :
                   fogMode ? 'cursor-cell' : 'cursor-default'
             } relative`}
           style={{
             height: '100vh',
-            userSelect: isDraggingCharacter || isDraggingNote ? 'none' : 'auto'
+            userSelect: isDraggingCharacter || isDraggingNote || isDraggingObject ? 'none' : 'auto'
           }}
           onMouseDown={handleCanvasMouseDown}
           onMouseMove={handleCanvasMouseMove}
           onMouseUp={handleCanvasMouseUp}
           onMouseLeave={handleCanvasMouseUp}
           onContextMenu={(e) => {
-            // Empêcher le menu contextuel en mode visibilité + brouillard (clic droit = retirer brouillard)
             if (visibilityMode && currentVisibilityTool === 'fog') {
               e.preventDefault();
               return;
@@ -4599,20 +4658,21 @@ export default function Component() {
             // and we want to PREVENT the Radial Menu from opening.
 
             // Check if cursor is over a character
-            const rect = canvasRef.current?.getBoundingClientRect();
+            const rect = bgCanvasRef.current?.getBoundingClientRect();
             if (rect && bgImageObject) {
               const containerWidth = containerRef.current?.clientWidth || rect.width;
               const containerHeight = containerRef.current?.clientHeight || rect.height;
               const image = bgImageObject;
-              const scale = Math.min(containerWidth / image.width, containerHeight / image.height);
-              const scaledWidth = image.width * scale * zoom;
-              const scaledHeight = image.height * scale * zoom;
+              const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+              const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+              const scaledWidth = imgWidth * scale * zoom;
+              const scaledHeight = imgHeight * scale * zoom;
               const mouseX = e.clientX;
               const mouseY = e.clientY;
 
               const hoveredCharIndex = characters.findIndex(char => {
-                const charX = (char.x / image.width) * scaledWidth - offset.x + rect.left;
-                const charY = (char.y / image.height) * scaledHeight - offset.y + rect.top;
+                const charX = (char.x / imgWidth) * scaledWidth - offset.x + rect.left;
+                const charY = (char.y / imgHeight) * scaledHeight - offset.y + rect.top;
                 const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
                 return Math.abs(charX - mouseX) < clickRadius && Math.abs(charY - mouseY) < clickRadius;
               });
@@ -4632,12 +4692,12 @@ export default function Component() {
                 // Also, if the character right-click logic relies on 'mousedown', it has already fired.
                 // If it relies on 'contextmenu', it might be on the canvas.
 
-                // IMPORTANT: e.preventDefault() here would stop the browser native menu, 
+                // IMPORTANT: e.preventDefault() here would stop the browser native menu,
                 // but we might WANT the custom Character Context Menu relative logic to run if it wasn't triggered by mousedown.
                 // However, let's look at `handleCanvasMouseDown` again.
                 // It handles `e.button === 2`? NOT explicitly for opening the character menu yet (it was mostly for fog).
 
-                // To be safe: triggering character menu usually happens on clic. 
+                // To be safe: triggering character menu usually happens on clic.
                 // Let's add the logic to OPEN the character menu here directly on contextmenu if generic right click didn't do it.
 
                 const char = characters[hoveredCharIndex];
@@ -4652,13 +4712,124 @@ export default function Component() {
           }
           }
         >
-          <canvas
-            ref={canvasRef}
-            style={{ width: '100%', height: '100vh' }}
-            onDrop={handleCanvasDrop}
-            onDragOver={handleCanvasDragOver}
-            onDoubleClick={handleCanvasDoubleClick}
-          />
+          <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+            <canvas
+              ref={bgCanvasRef}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+              onDrop={handleCanvasDrop}
+              onDragOver={handleCanvasDragOver}
+              onDoubleClick={handleCanvasDoubleClick}
+            />
+            <div className="objects-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' }}>
+              {isLayerVisible('objects') && objects.map((obj, index) => {
+                if (!bgImageObject) return null;
+                const image = bgImageObject;
+                const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+                const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
+                const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
+                if (cWidth === 0 || cHeight === 0) return null;
+
+                const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
+                const scaledWidth = imgWidth * scale * zoom;
+                const scaledHeight = imgHeight * scale * zoom;
+
+                const x = (obj.x / imgWidth) * scaledWidth - offset.x;
+                const y = (obj.y / imgHeight) * scaledHeight - offset.y;
+                const w = (obj.width / imgWidth) * scaledWidth;
+                const h = (obj.height / imgHeight) * scaledHeight;
+
+                const isSelected = selectedObjectIndices.includes(index);
+
+                // Visibility Check (Shadows) logic is hard to replicate exactly in JSX without running same heavy math.
+                // For now we skip "Shadow hiding" for DOM objects to ensure performance, or we accept they overlay shadows.
+                // User requested GIFs. Shadow hiding is a nice to have but complex to port.
+                // Wait, if objects are ABOVE bg but BELOW Main Canvas (Shadows are on Foreground),
+                // ANY Shadow drawn on Foreground Canvas will cover the DOM Object since Foreground Canvas is z-index 20!
+                // So we don't need to manually hide them if the Shadow is opaque black/grey on top!
+
+                return (
+                  <div
+                    key={obj.id}
+                    style={{
+                      position: 'absolute',
+                      left: x,
+                      top: y,
+                      width: w,
+                      height: h,
+                      transform: `rotate(${obj.rotation}deg)`,
+                      pointerEvents: 'auto', // Allow interactions
+                      cursor: isResizingObject ? 'nwse-resize' : 'move' // Change cursor if resizing
+                    }}
+                    onMouseDown={(e) => {
+                      // Handle Object Selection & Drag Start logic here or delegate?
+                      // If we want to move, we can bubble up or handle here.
+                      // For now, let's just allow selection.
+                      // Existing logic uses handleCanvasMouseDown checking for intersection.
+                      // But now objects are DOM elements blocking the canvas!
+                      // So we MUST handle MouseDown here to trigger selection/drag.
+                      if (e.button === 0) {
+                        // Select
+                        if (!e.shiftKey) {
+                          setSelectedObjectIndices([index]);
+                        } else {
+                          // Multi-select logic pending
+                          setSelectedObjectIndices(prev => [...prev, index]);
+                        }
+
+                        // Initiate Drag (reuse existing state or logic if compatible)
+                        setDragStart({ x: e.clientX, y: e.clientY });
+                        setIsDraggingObject(true);
+                        setDraggedObjectIndex(index);
+                        setDraggedObjectOriginalPos({ x: obj.x, y: obj.y });
+
+                        const originalPositions = selectedObjectIndices.includes(index) && selectedObjectIndices.length > 1
+                          ? selectedObjectIndices.map(idx => ({ index: idx, x: objects[idx].x, y: objects[idx].y }))
+                          : [{ index, x: obj.x, y: obj.y }];
+                        setDraggedObjectsOriginalPositions(originalPositions);
+
+                        // Prevent canvas from picking up this click as a "click on empty space"
+                        e.stopPropagation();
+                      }
+                    }}
+                  >
+                    <img
+                      src={obj.imageUrl}
+                      alt="Object"
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        border: isSelected ? '2px solid #00BFFF' : 'none',
+                        opacity: 1
+                      }}
+                      draggable={false} // Disable native drag to use our custom logic
+                    />
+
+                    {/* Resize Handle (Bottom Right) */}
+                    {isSelected && isMJ && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: -6,
+                          right: -6,
+                          width: 12,
+                          height: 12,
+                          backgroundColor: '#00BFFF',
+                          borderRadius: '50%',
+                          cursor: 'nwse-resize',
+                          zIndex: 10
+                        }}
+                        onMouseDown={(e) => handleResizeStart(e, index)}
+                      />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            <canvas
+              ref={fgCanvasRef}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+            />
+          </div>
           {combatOpen && (
             <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-10">
               <div className="text-black p-6 rounded-lg shadow-lg w-1/3 h-2/5">
@@ -5361,6 +5532,14 @@ export default function Component() {
         }}
         selectedCityId={selectedCityId}
       />
+      {/* Background Loader Overlay */}
+      {isBackgroundLoading && (
+        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
+          <Loader2 className="w-12 h-12 text-white animate-spin mb-4" />
+          <p className="text-white text-lg font-medium">Chargement du fond...</p>
+        </div>
+      )}
+
       {/* Layer Control Panel */}
       {showLayerControl && (
         <div className="absolute top-24 left-24 z-50">
