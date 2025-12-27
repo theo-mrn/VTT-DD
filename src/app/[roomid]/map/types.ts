@@ -77,6 +77,7 @@ export type MapObject = {
     imageUrl: string;
     cityId: string | null;
     image?: HTMLImageElement; // Preloaded image for rendering
+    isAnimated?: boolean;
 };
 
 export type ObjectTemplate = {
@@ -86,6 +87,7 @@ export type ObjectTemplate = {
     width?: number; // Default width
     height?: number; // Default height
     category?: string;
+    isAnimated?: boolean;
 };
 
 export type Note = {
