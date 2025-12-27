@@ -102,7 +102,7 @@ export type DrawingTool = 'pen' | 'eraser' | 'line' | 'rectangle' | 'circle';
 
 export type DrawingMode = 'drawing' | 'view';
 
-export type LayerType = 'background' | 'grid' | 'drawings' | 'objects' | 'characters' | 'fog' | 'notes' | 'obstacles';
+export type LayerType = 'background' | 'grid' | 'drawings' | 'objects' | 'characters' | 'fog' | 'notes' | 'obstacles' | 'music';
 
 export interface Layer {
     id: LayerType;
@@ -110,3 +110,14 @@ export interface Layer {
     isVisible: boolean;
     order: number;
 }
+
+export type MusicZone = {
+    id: string;
+    x: number;
+    y: number;
+    radius: number;
+    url: string;
+    name: string;
+    volume: number;
+    cityId: string | null;
+};

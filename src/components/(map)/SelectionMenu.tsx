@@ -1,7 +1,7 @@
 import React from 'react';
-import { User, Box, Type, Pencil, BrickWall } from 'lucide-react';
+import { User, Box, Type, Pencil, BrickWall, Music } from 'lucide-react';
 
-export type SelectionType = 'characters' | 'objects' | 'notes' | 'drawings' | 'obstacles';
+export type SelectionType = 'characters' | 'objects' | 'notes' | 'drawings' | 'obstacles' | 'musicZones';
 
 export interface SelectionCandidates {
     characters: number[];
@@ -9,6 +9,7 @@ export interface SelectionCandidates {
     notes: number[];
     drawings: number[];
     obstacles: string[];
+    musicZones: string[];
 }
 
 interface SelectionMenuProps {
@@ -30,6 +31,8 @@ const getLabelAndIcon = (type: SelectionType, count: number) => {
             return { label: `${count} Dessin${count > 1 ? 's' : ''}`, icon: Pencil, color: 'text-purple-400' };
         case 'obstacles':
             return { label: `${count} Obstacle${count > 1 ? 's' : ''}`, icon: BrickWall, color: 'text-red-400' };
+        case 'musicZones':
+            return { label: `${count} Zone${count > 1 ? 's' : ''} Audio`, icon: Music, color: 'text-fuchsia-400' };
     }
 };
 
@@ -40,6 +43,7 @@ export const SelectionMenu: React.FC<SelectionMenuProps> = ({ position, candidat
     if (candidates.notes.length > 0) options.push('notes');
     if (candidates.drawings.length > 0) options.push('drawings');
     if (candidates.obstacles.length > 0) options.push('obstacles');
+    if (candidates.musicZones.length > 0) options.push('musicZones');
 
     const containerRef = React.useRef<HTMLDivElement>(null);
 
