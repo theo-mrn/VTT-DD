@@ -3,6 +3,7 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import React, { useState, useRef, useEffect } from 'react'
+import { AnimatePresence } from 'framer-motion'
 import poisonIcon from './icons/poison.svg';
 import stunIcon from './icons/stun.svg';
 import blindIcon from './icons/blind.svg';
@@ -422,6 +423,10 @@ export default function Component() {
   const [draggedMusicZoneId, setDraggedMusicZoneId] = useState<string | null>(null); // Keep for main drag reference
   const [draggedMusicZonesOriginalPositions, setDraggedMusicZonesOriginalPositions] = useState<{ id: string, x: number, y: number }[]>([]); // MULTI-DRAG
 
+  // 🎵 MUSIC ZONE RESIZING
+  const [isResizingMusicZone, setIsResizingMusicZone] = useState(false);
+  const [resizingMusicZoneId, setResizingMusicZoneId] = useState<string | null>(null);
+
   // 🔊 AUDIO MANAGER
   const listenerCharacter = characters.find(c => c.id === (viewAsPersoId || persoId));
   const listenerPos = listenerCharacter ? { x: listenerCharacter.x, y: listenerCharacter.y } : null;
@@ -695,12 +700,22 @@ export default function Component() {
           } else {
             img.src = data.imageURL2 || data.imageURL;
           }
+          // 🎯 GESTION DES COORDONNÉES SPECIFIQUES PAR VILLE
+          let charX = data.x || 0;
+          let charY = data.y || 0;
+
+          // Si on est dans une ville spécifique et que le personnage a des positions sauvegardées pour cette ville
+          if (selectedCityId && data.positions && data.positions[selectedCityId]) {
+            charX = data.positions[selectedCityId].x;
+            charY = data.positions[selectedCityId].y;
+          }
+
           allChars.push({
             id: doc.id,
             niveau: data.niveau || 1,
             name: data.Nomperso || '',
-            x: data.x || 0,
-            y: data.y || 0,
+            x: charX,
+            y: charY,
             image: img,
             visibility: data.visibility || 'hidden',
             visibilityRadius: parseFloat(data.visibilityRadius) || 100,
@@ -1436,7 +1451,7 @@ export default function Component() {
       return;
     }
 
-    setSelectedCityId(null);
+    // setSelectedCityId(null); // Keep the current city selected so we can "cancel" back to it
     setViewMode('world');
     // Reset selections when going back to world
     setSelectedCharacterIndex(null);
@@ -1799,16 +1814,14 @@ export default function Component() {
       musicZones.forEach(zone => {
         const center = transformPoint({ x: zone.x, y: zone.y });
         const isSelected = selectedMusicZoneIds.includes(zone.id);
-        const screenRadius = zone.radius * zoom;
+        // VISUALISATION RAYON (Gradient) (Toujours visible en mode musique, plus fort si sélectionné)
+        let screenRadius = (zone.radius || 0) * scale * zoom;
 
-        // Removed culling optimization - containerSize was 0x0 causing all zones to be hidden
-
-        // Skip if any values are invalid (NaN or Infinity)
-        if (!isFinite(center.x) || !isFinite(center.y) || !isFinite(screenRadius) || screenRadius <= 0) {
+        // Safety Check: Ensure everything is finite before drawing
+        if (!Number.isFinite(center.x) || !Number.isFinite(center.y) || !Number.isFinite(screenRadius) || screenRadius <= 0) {
           return;
         }
 
-        // VISUALISATION RAYON (Gradient) (Toujours visible en mode musique, plus fort si sélectionné)
         const gradient = ctx.createRadialGradient(center.x, center.y, 0, center.x, center.y, screenRadius);
         if (isSelected) {
           gradient.addColorStop(0, 'rgba(217, 70, 239, 0.4)'); // Centre fort
@@ -1834,15 +1847,33 @@ export default function Component() {
         ctx.stroke();
         ctx.setLineDash([]);
 
+        // 🎯 RESIZE HANDLE (If Selected)
+        if (isSelected) {
+          const handleX = center.x + screenRadius;
+          const handleY = center.y;
+          const handleRadius = 6 * zoom; // Scales with interface zoom? Or keep constant size? Usually UI handles constant or slight scale. 
+          // Using zoom makes it easy to grab when zoomed in.
+
+          ctx.beginPath();
+          ctx.arc(handleX, handleY, handleRadius, 0, Math.PI * 2);
+          ctx.fillStyle = '#ffffff';
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(217, 70, 239, 1)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
         // Music Note Icon
-        const noteSize = isSelected ? 32 : 24;
+        const baseSize = isSelected ? 16 : 12; // Smaller size for "pro" look
+        const noteSize = baseSize * scale * zoom;
+        const padding = 4 * scale * zoom;
+
         // Draw background circle for icon
         ctx.beginPath();
-        ctx.arc(center.x, center.y, noteSize / 2 + 5, 0, Math.PI * 2);
-        ctx.fillStyle = isSelected ? 'rgba(217, 70, 239, 1)' : 'rgba(217, 70, 239, 0.6)';
+        ctx.arc(center.x, center.y, noteSize / 2 + padding, 0, Math.PI * 2);
+        ctx.fillStyle = isSelected ? 'rgba(217, 70, 239, 1)' : 'rgba(217, 70, 239, 0.7)'; // Slightly more opaque
         ctx.fill();
         ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
+        ctx.lineWidth = 1.5 * scale * zoom; // Finer stroke
         ctx.stroke();
 
         // Simple music note drawing or text
@@ -1850,17 +1881,33 @@ export default function Component() {
         ctx.font = `${noteSize}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('♫', center.x, center.y + 2);
+        ctx.fillText('♫', center.x, center.y + (1 * scale * zoom)); // Minor vertical adjustment
 
         // Draw label
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.font = isSelected ? 'bold 14px sans-serif' : '12px sans-serif';
+        ctx.font = isSelected ? `bold ${12 * zoom}px sans-serif` : `${10 * zoom}px sans-serif`; // Scale font too!
         ctx.textAlign = 'center';
 
         // Background for label
         const textWidth = ctx.measureText(zone.name).width;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.fillRect(center.x - textWidth / 2 - 4, center.y + noteSize / 2 + 8, textWidth + 8, 20);
+        const labelPadding = 4 * zoom;
+        const labelHeight = (isSelected ? 16 : 14) * zoom;
+        const labelY = center.y + (noteSize / 2) + padding + (4 * zoom);
+
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.beginPath();
+        ctx.roundRect(
+          center.x - textWidth / 2 - labelPadding,
+          labelY,
+          textWidth + (labelPadding * 2),
+          labelHeight,
+          4 * zoom
+        );
+        ctx.fill();
+
+        ctx.fillStyle = '#fff';
+        ctx.textBaseline = 'top';
+        ctx.fillText(zone.name, center.x, labelY + (2 * zoom));
 
         ctx.fillStyle = '#fff';
         ctx.fillText(zone.name, center.x, center.y + noteSize / 2 + 22);
@@ -2753,7 +2800,35 @@ export default function Component() {
 
       // 🎵 SELECT MUSIC ZONE (when not in creation mode)
       if (!isMusicMode && isMJ && e.button === 0) {
-        // Check if clicked on a zone icon
+
+        // 1. First Check for RESIZE HANDLE on selected zones
+        if (selectedMusicZoneIds.length > 0) {
+          const resizingZoneId = selectedMusicZoneIds.find(id => {
+            const zone = musicZones.find(z => z.id === id);
+            if (!zone) return false;
+
+            // Calculate Handle Position (Screen Coords)
+            // Center:
+            const zoneScreenX = ((zone.x / imgWidth) * scaledWidth) - offset.x + rect.left;
+            const zoneScreenY = ((zone.y / imgHeight) * scaledHeight) - offset.y + rect.top;
+
+            const screenRadius = zone.radius * scale * zoom;
+            const handleX = zoneScreenX + screenRadius;
+            const handleY = zoneScreenY; // 3 o'clock
+
+            const outputDist = Math.sqrt(Math.pow(e.clientX - handleX, 2) + Math.pow(e.clientY - handleY, 2));
+            return outputDist < (10 * zoom); // Hit radius
+          });
+
+          if (resizingZoneId) {
+            e.preventDefault();
+            setIsResizingMusicZone(true);
+            setResizingMusicZoneId(resizingZoneId);
+            return;
+          }
+        }
+
+        // 2. Check if clicked on a zone icon
         const clickedZone = musicZones.find(z => {
           const dx = z.x - clickX;
           const dy = z.y - clickY;
@@ -3583,6 +3658,26 @@ export default function Component() {
       return;
     }
 
+    // 🎵 HANDLE MUSIC ZONE RESIZING
+    if (isResizingMusicZone && resizingMusicZoneId && isMJ) {
+      setMusicZones(prev => prev.map(z => {
+        if (z.id === resizingMusicZoneId) {
+          // Calculate distance from center to current mouse (Map Coords)
+          // currentX, currentY are already in Map Coords!
+          const dx = currentX - z.x;
+          const dy = currentY - z.y;
+          const newRadius = Math.sqrt(dx * dx + dy * dy);
+
+          // Minimum radius check
+          if (newRadius < 10) return z;
+
+          return { ...z, radius: newRadius };
+        }
+        return z;
+      }));
+      return;
+    }
+
 
     // 🎯 DRAG OBSTACLE
     if (isDraggingObstacle && draggedObstacleId) {
@@ -3863,6 +3958,20 @@ export default function Component() {
       setDraggedMusicZonesOriginalPositions([]);
       return;
     }
+
+    // 🎵 END RESIZE MUSIC ZONE
+    if (isResizingMusicZone && resizingMusicZoneId && roomId) {
+      setIsResizingMusicZone(false);
+      const zone = musicZones.find(z => z.id === resizingMusicZoneId);
+      if (zone) {
+        // Save new radius
+        updateDoc(doc(db, 'cartes', roomId, 'musicZones', resizingMusicZoneId), {
+          radius: zone.radius
+        }).catch(err => console.error("Error saving music zone radius:", err));
+      }
+      setResizingMusicZoneId(null);
+      return;
+    }
     // ✏️ FIN DU DRAG OBSTACLE ENTIER
     if (isDraggingObstacle && selectedObstacleId) {
       const obstacle = obstacles.find(o => o.id === selectedObstacleId);
@@ -4026,10 +4135,25 @@ export default function Component() {
           if (hasChanged && roomId && currentChar?.id) {
             // 🆕 RETOUR À LA COLLECTION CENTRALE
             // Tous les personnages sont dans 'characters', on a juste besoin de l'ID
-            await updateDoc(doc(db, 'cartes', String(roomId), 'characters', currentChar.id), {
-              x: currentChar.x,
-              y: currentChar.y
-            });
+            const charRef = doc(db, 'cartes', String(roomId), 'characters', currentChar.id);
+
+            if (selectedCityId) {
+              // Mode Ville : Sauvegarder dans positions.{cityId} (deep merge)
+              await setDoc(charRef, {
+                positions: {
+                  [selectedCityId]: {
+                    x: currentChar.x,
+                    y: currentChar.y
+                  }
+                }
+              }, { merge: true });
+            } else {
+              // Mode World Map : Sauvegarder dans la racine
+              await updateDoc(charRef, {
+                x: currentChar.x,
+                y: currentChar.y
+              });
+            }
             return `${currentChar.name}: (${Math.round(currentChar.x)}, ${Math.round(currentChar.y)})`;
           }
           return null;
@@ -4474,14 +4598,7 @@ export default function Component() {
     return <div>Veuillez vous connecter pour accéder à la carte</div>
   }
 
-  // 🆕 RENDER WORLD MAP if in world mode
-  if (viewMode === 'world') {
-    return (
-      <div className="h-screen w-full relative">
-        <CitiesManager onCitySelect={navigateToCity} />
-      </div>
-    );
-  }
+
 
   const handleSelection = (type: SelectionType) => {
     if (!selectionCandidates) return;
@@ -4588,7 +4705,10 @@ export default function Component() {
         {/* 🆕 Bouton Retour à la World  - Déplacé ici */}
         {isMJ && (
           <Button
-            onClick={navigateToWorldMap}
+            onClick={(e) => {
+              e.stopPropagation();
+              navigateToWorldMap();
+            }}
             className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm origin-center"
             title="Retour à la carte du monde"
           >
@@ -6032,6 +6152,17 @@ export default function Component() {
           {hoveredCondition.text}
         </div>
       )}
+
+      {/* SCENE INVENTORY DRAWER */}
+      <AnimatePresence>
+        {viewMode === 'world' && (
+          <CitiesManager
+            onCitySelect={navigateToCity}
+            roomId={roomId}
+            onClose={() => setViewMode('city')}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   )

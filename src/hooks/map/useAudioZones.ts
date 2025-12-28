@@ -65,7 +65,7 @@ export const useAudioZones = (zones: MusicZone[], listenerPos: Point | null) => 
                 let vol = 0;
                 // Use 3x multiplier to account for coordinate system scaling
                 // The visual radius is affected by zoom, but coordinates are in world space
-                const audioRadius = zone.radius * 3;
+                const audioRadius = zone.radius;
 
                 // Quadratic falloff for smoother, more progressive volume changes
                 if (distance < audioRadius) {
