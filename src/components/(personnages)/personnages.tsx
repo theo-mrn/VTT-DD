@@ -51,6 +51,11 @@ export interface NPC {
     Distance: number
     Magie: number
     INIT: number
+    Actions?: Array<{
+        Nom: string;
+        Description: string;
+        Toucher: number;
+    }>;
 }
 
 export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCManagerProps) {

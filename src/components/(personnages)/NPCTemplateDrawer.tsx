@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Users, GripVertical, Search, X, BookTemplate, Map as MapIcon, Plus } from 'lucide-react'
+import { Users, GripVertical, Search, X, BookTemplate, Map as MapIcon, Plus, Book } from 'lucide-react'
 import { collection, onSnapshot, query, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { Input } from '@/components/ui/input'
@@ -9,6 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { type NPC } from '@/components/(personnages)/personnages'
 import { NPCCreationForm } from './NPCCreationForm'
+import { CreatureLibraryModal } from './CreatureLibraryModal'
 import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 
@@ -49,6 +50,7 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
     const [searchQuery, setSearchQuery] = useState('')
     const [loading, setLoading] = useState(true)
     const [showCreateForm, setShowCreateForm] = useState(false)
+    const [showLibraryModal, setShowLibraryModal] = useState(false)
     const [editingNpcId, setEditingNpcId] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -240,6 +242,7 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                 SAG: char.SAG,
                 INT: char.INT,
                 CHA: char.CHA,
+                Actions: char.Actions || []
             }
 
             if (editingNpcId) {
@@ -257,6 +260,54 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
 
         } catch (error) {
             console.error("Error saving NPC:", error)
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
+    const handleImport = async (importedChar: NewCharacter) => {
+        if (!roomId) return
+        setIsSubmitting(true)
+        try {
+            const templatesRef = collection(db, 'npc_templates', roomId, 'templates')
+
+            // Image handling (upload if Base64/DataURL)
+            let imageURL = importedChar.image?.src || ''
+            if (imageURL.startsWith('data:')) {
+                const storage = getStorage()
+                const imageRef = ref(storage, `characters/${importedChar.name}-${Date.now()}`)
+                const response = await fetch(imageURL)
+                const blob = await response.blob()
+                await uploadBytes(imageRef, blob)
+                imageURL = await getDownloadURL(imageRef)
+            }
+
+            const npcData = {
+                Nomperso: importedChar.name,
+                imageURL2: imageURL,
+                niveau: importedChar.niveau,
+                PV: importedChar.PV,
+                PV_F: importedChar.PV,
+                PV_Max: importedChar.PV_Max,
+                Defense: importedChar.Defense,
+                Defense_F: importedChar.Defense,
+                Contact: importedChar.Contact,
+                Distance: importedChar.Distance,
+                Magie: importedChar.Magie,
+                INIT: importedChar.INIT,
+                FOR: importedChar.FOR,
+                DEX: importedChar.DEX,
+                CON: importedChar.CON,
+                SAG: importedChar.SAG,
+                INT: importedChar.INT,
+                CHA: importedChar.CHA,
+                Actions: importedChar.Actions || []
+            }
+
+            await addDoc(templatesRef, npcData)
+            setShowLibraryModal(false)
+        } catch (error) {
+            console.error("Error importing NPC:", error)
         } finally {
             setIsSubmitting(false)
         }
@@ -367,6 +418,15 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                     <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => setShowLibraryModal(true)}
+                        className="h-9 w-9 p-0 text-[#c0a080] hover:text-white hover:bg-[#c0a080]/20 border border-[#c0a080]/30 hover:border-[#c0a080]/50 transition-all mr-2"
+                        title="Ouvrir le grimoire"
+                    >
+                        <Book className="w-5 h-5" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setShowCreateForm(true)}
                         className="h-9 w-9 p-0 text-[#c0a080] hover:text-white hover:bg-[#c0a080]/20 border border-[#c0a080]/30 hover:border-[#c0a080]/50 transition-all"
                         title="Créer un nouveau template"
@@ -451,6 +511,12 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                     </div>
                 )}
             </ScrollArea>
+
+            <CreatureLibraryModal
+                isOpen={showLibraryModal}
+                onClose={() => setShowLibraryModal(false)}
+                onImport={handleImport}
+            />
         </div>
     )
 }
