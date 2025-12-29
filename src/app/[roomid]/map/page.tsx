@@ -734,6 +734,7 @@ export default function Component() {
             INT: data.INT || 0,
             CHA: data.CHA || 0,
             conditions: data.conditions || [],
+            Actions: data.Actions || []
             // cityId: data.cityId // Garder l'info
           });
         }
@@ -1094,6 +1095,7 @@ export default function Component() {
           Distance: draggedTemplate.Distance ?? 0,
           Magie: draggedTemplate.Magie ?? 0,
           INIT: draggedTemplate.INIT ?? 0,
+          Actions: draggedTemplate.Actions || [],
           visibility: config.visibility,
           visibilityRadius: 100, // Default visibility radius
           cityId: selectedCityId, // Associate with current city

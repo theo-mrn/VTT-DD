@@ -46,6 +46,11 @@ export default function CombatPage({ attackerId, targetId, onClose }: CombatPage
   const [weapons, setWeapons] = useState<Weapon[]>([{ name: "Autre", numDice: 1, numFaces: 6 }])
   const [initialRollResult, setInitialRollResult] = useState<number | null>(null)
   const [roomId, setRoomId] = useState<string | null>(null)
+  const [creatureActions, setCreatureActions] = useState<Array<{
+    Nom: string;
+    Description: string;
+    Toucher: number;
+  }>>([])
 
   const [targetDefense, setTargetDefense] = useState<number>(10)
 
@@ -69,6 +74,9 @@ export default function CombatPage({ attackerId, targetId, onClose }: CombatPage
                 distance: attackerDoc.data().Distance_F || attackerDoc.data().Distance || null,
                 magie: attackerDoc.data().Magie_F || attackerDoc.data().Magie || null
               })
+
+              // Load creature Actions
+              setCreatureActions(attackerDoc.data().Actions || [])
             }
 
             // Fetch target defense
@@ -201,7 +209,7 @@ export default function CombatPage({ attackerId, targetId, onClose }: CombatPage
               Combat
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
             <AnimatePresence>
               <motion.div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
@@ -235,6 +243,39 @@ export default function CombatPage({ attackerId, targetId, onClose }: CombatPage
                     Custom
                   </Button>
                 </div>
+
+                {/* Creature Actions - Informational Only */}
+                {creatureActions.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="space-y-2"
+                  >
+                    <Label className="text-sm font-semibold text-[var(--accent-brown)]">
+                      Actions de Créature
+                    </Label>
+                    <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                      {creatureActions.map((action, index) => (
+                        <div
+                          key={index}
+                          className="bg-black/40 border border-[#2a2a2a] rounded-md p-3 space-y-1"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <h4 className="font-semibold text-white text-sm">{action.Nom}</h4>
+                            {action.Toucher !== 0 && (
+                              <span className="text-xs text-gray-400 whitespace-nowrap">
+                                {action.Toucher > 0 ? '+' : ''}{action.Toucher} to hit
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-400 leading-relaxed">
+                            {action.Description}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
 
                 {showCustomFields && (
                   <motion.div
@@ -349,14 +390,14 @@ export default function CombatPage({ attackerId, targetId, onClose }: CombatPage
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-4 bg-gradient-to-r from-[var(--accent-brown)]/10 to-[var(--accent-brown)]/5 border border-[var(--accent-brown)]/20 rounded-lg"
+                className="p-3 bg-gradient-to-r from-[var(--accent-brown)]/10 to-[var(--accent-brown)]/5 border border-[var(--accent-brown)]/20 rounded-lg"
               >
-                <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-3">Résultats</h3>
+                <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-2">Résultats</h3>
                 {attackResult && (
-                  <p className="text-[var(--text-secondary)] mb-2 font-mono text-sm">{attackResult}</p>
+                  <p className="text-[var(--text-secondary)] mb-1 font-mono text-xs">{attackResult}</p>
                 )}
                 {damageResult && (
-                  <p className="text-[var(--text-secondary)] font-mono text-sm font-bold">{damageResult}</p>
+                  <p className="text-[var(--text-secondary)] font-mono text-xs font-bold">{damageResult}</p>
                 )}
               </motion.div>
             )}

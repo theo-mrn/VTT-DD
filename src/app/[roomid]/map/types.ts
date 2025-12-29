@@ -26,6 +26,11 @@ export type Character = {
     INT: number;
     CHA: number;
     conditions?: string[];
+    Actions?: Array<{
+        Nom: string;
+        Description: string;
+        Toucher: number;
+    }>;
 };
 
 export type MapText = {
@@ -65,6 +70,11 @@ export type NewCharacter = {
     SAG: number;
     INT: number;
     CHA: number;
+    Actions?: Array<{
+        Nom: string;
+        Description: string;
+        Toucher: number;
+    }>;
 };
 
 export type MapObject = {
