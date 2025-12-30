@@ -7,6 +7,7 @@ import { db } from '@/lib/firebase'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { type NPC } from '@/components/(personnages)/personnages'
 import { NPCCreationForm } from './NPCCreationForm'
 import { CreatureLibraryModal } from './CreatureLibraryModal'
@@ -41,6 +42,7 @@ interface ExistingNPC {
     INIT: number
     visibility: 'visible' | 'hidden' | 'ally'
     cityName?: string
+    cityId?: string | null
 }
 
 export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, currentCityId }: NPCTemplateDrawerProps) {
@@ -53,6 +55,14 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
     const [showLibraryModal, setShowLibraryModal] = useState(false)
     const [editingNpcId, setEditingNpcId] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [cities, setCities] = useState<{ id: string; name: string }[]>([])
+    const [selectedCityFilter, setSelectedCityFilter] = useState<string>(currentCityId || 'all')
+
+    // Update filter when current city changes
+    useEffect(() => {
+        console.log('CurrentCityId updated:', currentCityId)
+        setSelectedCityFilter(currentCityId || 'all')
+    }, [currentCityId])
 
     // Default character for creation
     const defaultCharacter: NewCharacter = {
@@ -106,9 +116,13 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
             const citiesRef = collection(db, 'cartes', roomId, 'cities')
             const citiesSnapshot = await getDocs(citiesRef)
             const cityNamesMap = new Map<string, string>()
+            const citiesList: { id: string; name: string }[] = []
             citiesSnapshot.forEach(doc => {
-                cityNamesMap.set(doc.id, doc.data().name || 'Ville inconnue')
+                const cityName = doc.data().name || 'Ville inconnue'
+                cityNamesMap.set(doc.id, cityName)
+                citiesList.push({ id: doc.id, name: cityName })
             })
+            setCities(citiesList)
 
             // Then listen to characters in real-time
             const charsRef = collection(db, 'cartes', roomId, 'characters')
@@ -137,7 +151,8 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                             Magie: data.Magie || 0,
                             INIT: data.INIT || 0,
                             visibility: data.visibility || 'hidden',
-                            cityName: data.cityId ? cityNamesMap.get(data.cityId) : 'Aucune ville'
+                            cityName: data.cityId ? cityNamesMap.get(data.cityId) : 'Aucune ville',
+                            cityId: data.cityId || null
                         })
                     }
                 })
@@ -316,7 +331,14 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
     // Filter items based on active tab
     const filteredItems = activeTab === 'templates'
         ? templates.filter(t => t.Nomperso.toLowerCase().includes(searchQuery.toLowerCase()))
-        : existingNPCs.filter(n => n.Nomperso.toLowerCase().includes(searchQuery.toLowerCase()))
+        : existingNPCs
+            .filter(n => {
+                // Filter by search query
+                const matchesSearch = n.Nomperso.toLowerCase().includes(searchQuery.toLowerCase())
+                // Filter by city if a specific city is selected
+                const matchesCity = selectedCityFilter === 'all' || n.cityId === selectedCityFilter
+                return matchesSearch && matchesCity
+            })
 
     const handleDragStart = (e: React.DragEvent, item: NPC | ExistingNPC) => {
         e.dataTransfer.effectAllowed = 'copy'
@@ -404,6 +426,37 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
 
             {/* Search Bar with Add Button */}
             <div className="p-4 border-b border-[#333] shrink-0">
+                {/* City filter for NPCs tab */}
+                {activeTab === 'npcs' && cities.length > 0 && (
+                    <div className="mb-3">
+                        <Select
+                            value={selectedCityFilter}
+                            onValueChange={(val) => {
+                                console.log('City filter changed to:', val)
+                                setSelectedCityFilter(val)
+                            }}
+                        >
+                            <SelectTrigger className="bg-[#252525] border-[#444] text-[#e0e0e0] focus:border-[#c0a080] h-9">
+                                <SelectValue placeholder="Sélectionner une ville" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-[#1a1a1a] border-[#444]">
+                                <SelectItem value="all" className="text-[#e0e0e0] focus:bg-[#c0a080]/20 focus:text-white">
+                                    Toutes les villes
+                                </SelectItem>
+                                {cities.map((city) => (
+                                    <SelectItem
+                                        key={city.id}
+                                        value={city.id}
+                                        className="text-[#e0e0e0] focus:bg-[#c0a080]/20 focus:text-white"
+                                    >
+                                        {city.name}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+
                 <div className="flex items-center gap-2">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
