@@ -12,7 +12,7 @@
   "chevalier": {
     "description": "Le Chevalier est un noble guerrier errant, monté sur un puissant destrier et protégé par une armure lourde. Il parcourt la campagne en quête de torts à redresser et d’occasions de mettre son courage à l’épreuve.",
     "hitDie": "d10",
-    "image": "/images/profiles/chevalier.jpg"
+    "image": "/images/profiles/knight.webp"
   },
   "druide": {
     "description": "Un prêtre de la nature qui tire ses pouvoirs des éléments et protège la pureté de la nature.",
@@ -29,8 +29,6 @@
     "hitDie": "d6",
     "image": "/images/profiles/forgesort.jpg"
   },
-
-
   "guerrier": {
     "description": "Un maître du combat, le guerrier excelle dans l'art de la guerre sous toutes ses formes, faisant de lui un combattant redoutable.",
     "hitDie": "d10",
@@ -69,14 +67,13 @@
   "rodeur": {
     "description": "Un expert de la nature, le rôdeur combine ses talents de pisteur et de chasseur avec une connexion profonde avec le monde naturel.",
     "hitDie": "d10",
-    "image": "/images/profiles/rodeur.jpg"
+    "image": "/images/profiles/rodeur.webp"
   },
   "samourai": {
     "description": "Le samouraï est un guerrier, mais aussi un seigneur, un homme de cour. Surtout, il est un homme d’honneur. Ces caractéristiques le rapprochent du profil du chevalier, mais il se distingue de ce dernier par des techniques de combat axées sur la vitesse et la maîtrise de l’arc. Le samouraï est lui-même le vassal dévoué d’un seigneur, dans un système de type féodal.",
     "hitDie": "d8",
     "image": "/images/profiles/samourai.jpg"
   },
-  
   "voleur": {
     "description": "Le Voleur crochète les portes, détecte les pièges et préfère piller les cadavres des ennemis que de se salir les mains pendant le combat.",
     "hitDie": "d6",

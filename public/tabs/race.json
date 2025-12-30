@@ -5,7 +5,7 @@
       "CON": 2,
       "CHA": -2
     },
-    "image": "/images/races/ame-forgee.webp",
+    "image": "/images/races/ame.webp",
     "tailleMoyenne": 185,
     "poidsMoyen": 120
   },
@@ -84,7 +84,7 @@
       "INT": -2,
       "CHA": -2
     },
-    "image": "/images/races/Orc.Webp",
+    "image": "/images/races/Orc.webp",
     "tailleMoyenne": 190,
     "poidsMoyen": 100
   },
