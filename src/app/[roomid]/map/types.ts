@@ -9,6 +9,7 @@ export type Character = {
     x: number;
     y: number;
     image: HTMLImageElement;
+    imageUrl: string;
     visibility: 'visible' | 'hidden' | 'ally';
     visibilityRadius: number;
     type: string;
