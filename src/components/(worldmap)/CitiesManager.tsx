@@ -4,6 +4,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useGame } from "@/contexts/GameContext";
 import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "@/lib/firebase";
+import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -68,13 +69,16 @@ export default function CitiesManager({ onCitySelect, roomId, onClose }: CitiesM
     const [showGroupForm, setShowGroupForm] = useState(false);
     const [groupFormData, setGroupFormData] = useState({ name: "" });
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+    const [isUploadingImage, setIsUploadingImage] = useState(false); // État de chargement pour l'upload
 
     // Charger les scènes
     useEffect(() => {
         if (!effectiveRoomId) return;
+        console.log('🏰 [CitiesManager] Setting up scenes listener for roomId:', effectiveRoomId);
         const unsubscribe = onSnapshot(collection(db, `cartes/${effectiveRoomId}/cities`), (snapshot) => {
             const loaded: Scene[] = [];
             snapshot.forEach((doc) => loaded.push({ id: doc.id, ...doc.data() } as Scene));
+            console.log('🏰 [CitiesManager] Scenes loaded from Firebase:', loaded.length, 'scenes:', loaded.map(s => ({ id: s.id, name: s.name })));
             setScenes(loaded);
         });
         return () => unsubscribe();
@@ -138,7 +142,19 @@ export default function CitiesManager({ onCitySelect, roomId, onClose }: CitiesM
     };
 
     const handleSave = async () => {
-        if (!effectiveRoomId || !formData.name?.trim()) return;
+        console.log('🔘 [CitiesManager] handleSave called, formData:', formData, 'effectiveRoomId:', effectiveRoomId);
+
+        if (!effectiveRoomId) {
+            console.error('❌ [CitiesManager] No roomId available');
+            alert('Erreur: Impossible de sauvegarder (pas de roomId)');
+            return;
+        }
+
+        if (!formData.name?.trim()) {
+            console.error('❌ [CitiesManager] No name provided');
+            alert('Veuillez entrer un nom pour la scène');
+            return;
+        }
 
         const dataToSave = {
             ...formData,
@@ -146,10 +162,24 @@ export default function CitiesManager({ onCitySelect, roomId, onClose }: CitiesM
             y: 0
         };
 
-        if (editingId) {
-            await updateDoc(doc(db, `cartes/${effectiveRoomId}/cities/${editingId}`), dataToSave);
-        } else {
-            await addDoc(collection(db, `cartes/${effectiveRoomId}/cities`), dataToSave);
+        console.log('💾 [CitiesManager] Saving scene:', {
+            isEditing: !!editingId,
+            editingId,
+            dataToSave,
+            roomId: effectiveRoomId
+        });
+
+        try {
+            if (editingId) {
+                await updateDoc(doc(db, `cartes/${effectiveRoomId}/cities/${editingId}`), dataToSave);
+                console.log('✅ [CitiesManager] Scene updated successfully:', editingId);
+            } else {
+                const docRef = await addDoc(collection(db, `cartes/${effectiveRoomId}/cities`), dataToSave);
+                console.log('✅ [CitiesManager] Scene created successfully with ID:', docRef.id);
+            }
+        } catch (error) {
+            console.error('❌ [CitiesManager] Error saving scene:', error);
+            alert('Erreur lors de la sauvegarde: ' + (error as Error).message);
         }
 
         setShowForm(false);
@@ -177,14 +207,36 @@ export default function CitiesManager({ onCitySelect, roomId, onClose }: CitiesM
 
     const handleSceneBackgroundUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file || !effectiveRoomId) return;
 
-        const reader = new FileReader();
-        reader.onload = async (event) => {
-            const imageUrl = event.target?.result as string;
-            setFormData({ ...formData, backgroundUrl: imageUrl });
-        };
-        reader.readAsDataURL(file);
+        console.log('📤 [CitiesManager] Starting image upload, file size:', (file.size / 1024 / 1024).toFixed(2), 'MB');
+        setIsUploadingImage(true);
+
+        try {
+            // Créer une référence unique dans Firebase Storage
+            const storage = getStorage();
+            const timestamp = Date.now();
+            const fileName = `scenes/${effectiveRoomId}/${timestamp}_${file.name}`;
+            const fileRef = storageRef(storage, fileName);
+
+            console.log('📤 [CitiesManager] Uploading to Storage:', fileName);
+
+            // Upload du fichier
+            const snapshot = await uploadBytes(fileRef, file);
+
+            // Obtenir l'URL de téléchargement
+            const downloadUrl = await getDownloadURL(snapshot.ref);
+
+            console.log('✅ [CitiesManager] Image uploaded successfully, URL:', downloadUrl);
+
+            // Mettre à jour le formulaire avec l'URL
+            setFormData({ ...formData, backgroundUrl: downloadUrl });
+        } catch (error) {
+            console.error('❌ [CitiesManager] Error uploading image:', error);
+            alert('Erreur lors de l\'upload de l\'image. Veuillez réessayer.');
+        } finally {
+            setIsUploadingImage(false);
+        }
     };
 
     const isVideo = (url?: string) => {
@@ -426,8 +478,13 @@ export default function CitiesManager({ onCitySelect, roomId, onClose }: CitiesM
                         <div className="space-y-6 mt-4">
                             <div className="space-y-2">
                                 <Label className="uppercase text-xs font-bold text-gray-500 tracking-wider">Visuel</Label>
-                                <div className="relative w-full aspect-video bg-white/5 border border-white/10 rounded-lg overflow-hidden group hover:border-[#c0a080]/50 transition-colors cursor-pointer" onClick={() => sceneBackgroundInputRef.current?.click()}>
-                                    {formData.backgroundUrl ? (
+                                <div className="relative w-full aspect-video bg-white/5 border border-white/10 rounded-lg overflow-hidden group hover:border-[#c0a080]/50 transition-colors cursor-pointer" onClick={() => !isUploadingImage && sceneBackgroundInputRef.current?.click()}>
+                                    {isUploadingImage ? (
+                                        <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2">
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#c0a080]"></div>
+                                            <span className="text-xs">Upload en cours...</span>
+                                        </div>
+                                    ) : formData.backgroundUrl ? (
                                         <>
                                             {isVideo(formData.backgroundUrl) ? (
                                                 <video
@@ -449,7 +506,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose }: CitiesM
                                         <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-2"><ImageIcon className="w-10 h-10 opacity-50" /><span className="text-xs">Ajouter image/vidéo</span></div>
                                     )}
                                 </div>
-                                <input ref={sceneBackgroundInputRef} type="file" accept="image/*,video/webm" className="hidden" onChange={handleSceneBackgroundUpload} />
+                                <input ref={sceneBackgroundInputRef} type="file" accept="image/*,video/webm" className="hidden" onChange={handleSceneBackgroundUpload} disabled={isUploadingImage} />
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">

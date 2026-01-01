@@ -56,12 +56,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Music } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Music, Volume2, VolumeX } from 'lucide-react'
 import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
 import Combat from '@/components/(combat)/combat2';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import CharacterSheet from '@/components/(fiches)/CharacterSheet';
 import { Component as RadialMenu } from '@/components/ui/radial-menu';
 import CitiesManager from '@/components/(worldmap)/CitiesManager';
@@ -89,6 +90,8 @@ import { type ViewMode, type Point, type Character, type MapText as Text, type S
 import { useAudioZones } from '@/hooks/map/useAudioZones';
 import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath } from './drawings';
 import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
+import MapToolbar, { TOOLS } from '@/components/(map)/MapToolbar';
+import BackgroundSelector from '@/components/(map)/BackgroundSelector';
 
 const getMediaDimensions = (media: HTMLImageElement | HTMLVideoElement | CanvasImageSource) => {
   if (media instanceof HTMLVideoElement) {
@@ -135,7 +138,9 @@ export default function Component() {
       video.src = backgroundImage;
       video.autoplay = true;
       video.loop = true;
-      video.muted = true; // Required for autoplay usually
+      // Initialement muté pour l'autoplay, sera ajusté par l'effet suivant
+      video.muted = !isBackgroundAudioEnabled;
+      video.volume = backgroundAudioVolume;
       video.playsInline = true;
       video.crossOrigin = "anonymous"; // Important for canvas
 
@@ -161,11 +166,17 @@ export default function Component() {
 
       }
       img.crossOrigin = "anonymous"; // Helps with potential CORS issues
+
     }
   }, [backgroundImage]);
 
+  // 🎵 Update background video audio settings when they change
+
   const [showGrid, setShowGrid] = useState(false)
   const [zoom, setZoom] = useState(1.4)
+  const [globalTokenScale, setGlobalTokenScale] = useState(1);
+  const [showGlobalSettingsDialog, setShowGlobalSettingsDialog] = useState(false);
+  const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [characters, setCharacters] = useState<Character[]>([]);
   const [objects, setObjects] = useState<MapObject[]>([]);
@@ -204,7 +215,9 @@ export default function Component() {
   const [draggedCharactersOriginalPositions, setDraggedCharactersOriginalPositions] = useState<{ index: number, x: number, y: number }[]>([])
 
   // 🎯 NOUVEAUX ÉTATS pour le drag & drop des objets
-  const [isObjectDrawerOpen, setIsObjectDrawerOpen] = useState(false)
+  const [isObjectDrawerOpen, setIsObjectDrawerOpen] = useState(false);
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [measurementScale, setMeasurementScale] = useState<number>(50); // px per unit
   const [isDraggingObject, setIsDraggingObject] = useState(false)
   const [draggedObjectIndex, setDraggedObjectIndex] = useState<number | null>(null) // Used for main reference
   const [draggedObjectOriginalPos, setDraggedObjectOriginalPos] = useState({ x: 0, y: 0 })
@@ -406,7 +419,8 @@ export default function Component() {
     { id: 'characters', label: 'Personnages', isVisible: true, order: 5 },
     { id: 'fog', label: 'Brouillard', isVisible: true, order: 6 },
     { id: 'obstacles', label: 'Obstacle', isVisible: true, order: 7 },
-    { id: 'music', label: 'Musique', isVisible: true, order: 8 },
+    { id: 'music', label: 'Musique (Zones)', isVisible: true, order: 8 },
+    { id: 'background_audio', label: 'Audio Fond', isVisible: true, order: 9 },
   ]);
 
   // 🎵 MUSIC ZONES STATE
@@ -427,10 +441,15 @@ export default function Component() {
   const [isResizingMusicZone, setIsResizingMusicZone] = useState(false);
   const [resizingMusicZoneId, setResizingMusicZoneId] = useState<string | null>(null);
 
-  // 🔊 AUDIO MANAGER
-  const listenerCharacter = characters.find(c => c.id === (viewAsPersoId || persoId));
-  const listenerPos = listenerCharacter ? { x: listenerCharacter.x, y: listenerCharacter.y } : null;
-  useAudioZones(musicZones, listenerPos);
+  // 🎵 BACKGROUND AUDIO STATE
+  const [backgroundAudioUrl, setBackgroundAudioUrl] = useState<string | null>(null);
+  const [backgroundAudioVolume, setBackgroundAudioVolume] = useState(0.5);
+  const [isBackgroundAudioEnabled, setIsBackgroundAudioEnabled] = useState(true);
+  const [showBackgroundAudioDialog, setShowBackgroundAudioDialog] = useState(false);
+
+  // 🎵 Update background video audio settings when they change
+
+  // 🔊 AUDIO MANAGER - Moved after isLayerVisible declaration
 
   const saveMusicZone = async () => {
     if (!newMusicZonePos || !tempZoneData.name || !tempZoneData.url || !roomId) return;
@@ -494,6 +513,29 @@ export default function Component() {
     await updateDoc(doc(db, 'cartes', roomId, 'musicZones', id), { x, y });
   };
 
+  // 🎵 BACKGROUND AUDIO FUNCTIONS
+  const saveBackgroundAudio = async (url: string, volume: number, enabled: boolean) => {
+    if (!roomId) return;
+    const bgAudioDocId = selectedCityId ? `bgAudio_\${selectedCityId}` : 'bgAudio';
+    const bgAudioRef = doc(db, 'cartes', roomId, 'bgAudio', bgAudioDocId);
+    await setDoc(bgAudioRef, { url, volume, enabled }, { merge: true });
+  };
+
+  const updateBackgroundAudioVolume = async (volume: number) => {
+    if (!roomId) return;
+    const bgAudioDocId = selectedCityId ? `bgAudio_${selectedCityId}` : 'bgAudio';
+    const bgAudioRef = doc(db, 'cartes', roomId, 'bgAudio', bgAudioDocId);
+    await setDoc(bgAudioRef, { volume }, { merge: true });
+  };
+
+  const toggleBackgroundAudio = async () => {
+    if (!roomId) return;
+    const bgAudioDocId = selectedCityId ? `bgAudio_${selectedCityId}` : 'bgAudio';
+    const bgAudioRef = doc(db, 'cartes', roomId, 'bgAudio', bgAudioDocId);
+    const newState = !isBackgroundAudioEnabled;
+    await setDoc(bgAudioRef, { enabled: newState }, { merge: true });
+  };
+
   // 🔄 SYNC LAYERS AVEC FIREBASE
   useEffect(() => {
     if (!roomId) return;
@@ -507,6 +549,8 @@ export default function Component() {
       { id: 'characters', label: 'Personnages', isVisible: true, order: 5 },
       { id: 'fog', label: 'Brouillard', isVisible: true, order: 6 },
       { id: 'obstacles', label: 'Obstacle', isVisible: true, order: 7 },
+      { id: 'music', label: 'Musique (Zones)', isVisible: true, order: 8 },
+      { id: 'background_audio', label: 'Audio Fond', isVisible: true, order: 9 },
     ];
 
     const layersRef = doc(db, 'cartes', roomId, 'settings', 'layers');
@@ -552,9 +596,53 @@ export default function Component() {
     }
   };
 
+  useEffect(() => {
+    if (!roomId) return;
+    const settingsRef = doc(db, 'cartes', roomId, 'settings', 'general');
+    const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.globalTokenScale !== undefined) {
+          setGlobalTokenScale(data.globalTokenScale);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [roomId]);
+
+  const updateGlobalTokenScale = async (newScale: number) => {
+    if (!roomId || !isMJ) return;
+    // Optimistic
+    setGlobalTokenScale(newScale);
+    const settingsRef = doc(db, 'cartes', roomId, 'settings', 'general');
+    await setDoc(settingsRef, { globalTokenScale: newScale }, { merge: true });
+  };
+
   const isLayerVisible = (layerId: LayerType) => {
     return layers.find(l => l.id === layerId)?.isVisible ?? true;
   };
+
+  // 🔊 AUDIO MANAGER - Call useAudioZones after isLayerVisible is defined
+  const listenerCharacter = characters.find(c => c.id === (viewAsPersoId || persoId));
+  const listenerPos = listenerCharacter ? { x: listenerCharacter.x, y: listenerCharacter.y } : null;
+  useAudioZones(musicZones, listenerPos, isLayerVisible('music'));
+
+  // 🎵 Update background video audio settings when they change
+  useEffect(() => {
+    if (videoRef.current) {
+      // Force mute if volume is 0 or if explicitly disabled
+      const isLayerVis = isLayerVisible('background_audio');
+      // console.log('🔊 BG Audio Debug:', { isLayerVis, isBackgroundAudioEnabled, backgroundAudioVolume });
+      const shouldMute = !isBackgroundAudioEnabled || !isLayerVis || backgroundAudioVolume <= 0.01;
+
+      videoRef.current.muted = shouldMute;
+
+      // Ensure volume is between 0 and 1. If muted via layer/switch, force volume to 0 effectively.
+      const safeVolume = shouldMute ? 0 : Math.max(0, Math.min(1, backgroundAudioVolume));
+      videoRef.current.volume = safeVolume;
+    }
+  }, [backgroundAudioVolume, isBackgroundAudioEnabled, isLayerVisible]);
+
 
 
 
@@ -738,6 +826,7 @@ export default function Component() {
             INT: data.INT || 0,
             CHA: data.CHA || 0,
             conditions: data.conditions || [],
+            scale: data.scale || 1,
             Actions: data.Actions || []
             // cityId: data.cityId // Garder l'info
           });
@@ -895,6 +984,24 @@ export default function Component() {
       });
       setMusicZones(zones);
     });
+
+    // 8. CHARGER L'AUDIO DE FOND (spécifique par ville ou global)
+    const bgAudioDocId = selectedCityId ? `bgAudio_${selectedCityId}` : 'bgAudio';
+    const bgAudioRef = doc(db, 'cartes', roomId, 'bgAudio', bgAudioDocId);
+    const bgAudioUnsub = onSnapshot(bgAudioRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setBackgroundAudioUrl(data.url || null);
+        setBackgroundAudioVolume(data.volume ?? 0.5);
+        setIsBackgroundAudioEnabled(data.enabled ?? true);
+      } else {
+        // Pas d'audio de fond configuré pour cette ville/map
+        setBackgroundAudioUrl(null);
+        setBackgroundAudioVolume(0.5);
+        setIsBackgroundAudioEnabled(true);
+      }
+    });
+    unsubscribers.push(bgAudioUnsub);
     unsubscribers.push(musicZonesUnsub);
 
     return () => {
@@ -984,7 +1091,7 @@ export default function Component() {
     };
 
 
-  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers, viewAsPersoId, containerSize, musicZones, selectedMusicZoneIds, isMusicMode, isDraggingMusicZone]);
+  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers, viewAsPersoId, containerSize, musicZones, selectedMusicZoneIds, isMusicMode, isDraggingMusicZone, globalTokenScale]);
 
 
   // 🎯 NPC Template Drag & Drop Handlers
@@ -1134,6 +1241,7 @@ export default function Component() {
     { id: 10, label: 'Mesurer', icon: Ruler },
     { id: 12, label: 'Calques', icon: Layers },
     { id: 13, label: 'Musique', icon: Music },
+    { id: 14, label: 'Options', icon: BookOpen },
   ] : [
     { id: 1, label: 'Ajouter Texte', icon: Baseline },
     { id: 2, label: 'Dessiner', icon: Pencil },
@@ -1348,6 +1456,9 @@ export default function Component() {
           // Toggle Layer Control for MJ
           setShowLayerControl(!showLayerControl);
           break;
+        case 14:
+          setShowGlobalSettingsDialog(true);
+          break;
       }
     } else {
       // Menu Joueur
@@ -1388,6 +1499,549 @@ export default function Component() {
           break;
       }
     }
+  };
+
+  const handleToolbarAction = (actionId: string) => {
+    const deactivateIncompatible = (currentTool: string) => {
+      if (currentTool !== TOOLS.DRAW && drawMode) setDrawMode(false);
+      if (currentTool !== TOOLS.PAN && panMode) setPanMode(false);
+      if (currentTool !== TOOLS.MEASURE && measureMode) setMeasureMode(false);
+      if (isMJ) {
+        if (currentTool !== TOOLS.VISIBILITY && visibilityMode) {
+          setVisibilityMode(false);
+          setIsDrawingObstacle(false);
+          setCurrentObstaclePoints([]);
+          setFogMode(false);
+        }
+        if (currentTool !== TOOLS.ADD_OBJ && isObjectDrawerOpen) setIsObjectDrawerOpen(false);
+        if (currentTool !== TOOLS.ADD_CHAR && isNPCDrawerOpen) setIsNPCDrawerOpen(false);
+        if (currentTool !== TOOLS.MUSIC && isMusicMode) setIsMusicMode(false);
+        if (currentTool !== TOOLS.MULTI_SELECT && multiSelectMode) setMultiSelectMode(false);
+      }
+    };
+    switch (actionId) {
+      case TOOLS.PAN: deactivateIncompatible(TOOLS.PAN); togglePanMode(); break;
+      case TOOLS.GRID: setShowGrid(!showGrid); break;
+      case TOOLS.LAYERS: setShowLayerControl(!showLayerControl); break;
+      case TOOLS.BACKGROUND: if (isMJ) setShowBackgroundSelector(true); break;
+      case TOOLS.VIEW_MODE: if (isMJ) setPlayerViewMode(!playerViewMode); break;
+      case TOOLS.SETTINGS: if (isMJ) setShowGlobalSettingsDialog(true); break;
+      case TOOLS.ADD_CHAR: if (isMJ) { deactivateIncompatible(TOOLS.ADD_CHAR); setIsNPCDrawerOpen(!isNPCDrawerOpen); setIsObjectDrawerOpen(false); } break;
+      case TOOLS.ADD_OBJ: if (isMJ) { deactivateIncompatible(TOOLS.ADD_OBJ); setIsObjectDrawerOpen(!isObjectDrawerOpen); setIsNPCDrawerOpen(false); } break;
+      case TOOLS.ADD_NOTE: handleAddNote(); break;
+      case TOOLS.MUSIC: if (isMJ) { deactivateIncompatible(TOOLS.MUSIC); setIsMusicMode(!isMusicMode); } break;
+      case TOOLS.MULTI_SELECT: if (isMJ) { deactivateIncompatible(TOOLS.MULTI_SELECT); setMultiSelectMode(!multiSelectMode); } break;
+      case TOOLS.DRAW: deactivateIncompatible(TOOLS.DRAW); toggleDrawMode(); break;
+      case TOOLS.MEASURE: deactivateIncompatible(TOOLS.MEASURE); setMeasureMode(!measureMode); setMeasureStart(null); setMeasureEnd(null); setIsCalibrating(false); break;
+      case TOOLS.VISIBILITY: if (isMJ) { deactivateIncompatible(TOOLS.VISIBILITY); toggleVisibilityMode(); } break;
+      case TOOLS.CLEAR_DRAWINGS: clearDrawings(); break;
+      case TOOLS.ZOOM_IN: setZoom(prev => Math.min(prev + 0.1, 5)); break;
+      case TOOLS.ZOOM_OUT: setZoom(prev => Math.max(prev - 0.1, 0.1)); break;
+      case TOOLS.WORLD_MAP: navigateToWorldMap(); break;
+    }
+  };
+
+  const getActiveToolbarTools = (): string[] => {
+    const active: string[] = [];
+    if (drawMode) active.push(TOOLS.DRAW);
+    if (visibilityMode) active.push(TOOLS.VISIBILITY);
+    if (showGrid) active.push(TOOLS.GRID);
+    if (panMode) active.push(TOOLS.PAN);
+    if (playerViewMode) active.push(TOOLS.VIEW_MODE);
+    if (measureMode) active.push(TOOLS.MEASURE);
+    if (isMusicMode) active.push(TOOLS.MUSIC);
+    if (showLayerControl) active.push(TOOLS.LAYERS);
+    if (isObjectDrawerOpen) active.push(TOOLS.ADD_OBJ);
+    if (isNPCDrawerOpen) active.push(TOOLS.ADD_CHAR);
+    if (multiSelectMode) active.push(TOOLS.MULTI_SELECT);
+    return active;
+  };
+
+  const getToolOptionsContent = () => {
+    // 🎯 SELECTION : Dessin
+    if (selectedDrawingIndex !== null) {
+      return (
+        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+          <span className="text-white text-sm font-medium pr-2">Dessin sélectionné</span>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              if (selectedDrawingIndex !== null && roomId) {
+                const drawing = drawings[selectedDrawingIndex];
+                deleteDoc(doc(db, 'cartes', String(roomId), 'drawings', drawing.id));
+                setDrawings(prev => prev.filter((_, i) => i !== selectedDrawingIndex));
+                setSelectedDrawingIndex(null);
+              }
+            }}
+          >
+            <Trash2 className="w-4 h-4 mr-2" /> Supprimer
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedDrawingIndex(null)}
+            className="text-gray-400 hover:text-white"
+          >
+            Fermer
+          </Button>
+        </div>
+      );
+    }
+
+    // 🎯 SELECTION : Objets (MJ)
+    if (selectedObjectIndices.length > 0 && isMJ) {
+      return (
+        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+          <span className="text-white text-sm font-medium pr-2">{selectedObjectIndices.length} Objet(s)</span>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              if (selectedObjectIndices.length > 0 && roomId && isMJ) {
+                selectedObjectIndices.forEach(index => {
+                  const obj = objects[index];
+                  if (obj) deleteDoc(doc(db, 'cartes', String(roomId), 'objects', obj.id));
+                });
+                setObjects(prev => prev.filter((_, i) => !selectedObjectIndices.includes(i)));
+                setSelectedObjectIndices([]);
+              }
+            }}
+          >
+            <Trash2 className="w-4 h-4 mr-2" /> Supprimer
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedObjectIndices([])}
+            className="text-gray-400 hover:text-white"
+          >
+            Fermer
+          </Button>
+        </div>
+      );
+    }
+
+    // 🎯 SELECTION : Note
+    if (selectedNoteIndex !== null) {
+      return (
+        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+          <Button variant="ghost" size="sm" onClick={handleEditNote} className="text-[#c0a080] hover:text-[#d4b494] hover:bg-white/10">
+            <Edit className="w-4 h-4 mr-2" /> Modifier
+          </Button>
+          <Separator orientation="vertical" className="h-6 w-[1px] bg-white/10 mx-1" />
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleDeleteNote}
+          >
+            <X className="w-4 h-4 mr-2" /> Supprimer
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedNoteIndex(null)}
+            className="text-gray-400 hover:text-white"
+          >
+            Fermer
+          </Button>
+        </div>
+      );
+    }
+
+    // 🎯 SELECTION : Obstacle (MJ)
+    if (selectedObstacleId && isMJ) {
+      return (
+        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+          <span className="text-white text-sm font-medium pr-2">Obstacle</span>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={async () => {
+              if (selectedObstacleId && roomId && isMJ) {
+                await deleteDoc(doc(db, 'cartes', String(roomId), 'obstacles', selectedObstacleId));
+                setObstacles(prev => prev.filter(o => o.id !== selectedObstacleId));
+                setSelectedObstacleId(null);
+              }
+            }}
+          >
+            <Trash2 className="w-4 h-4 mr-2" /> Supprimer
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedObstacleId(null)}
+            className="text-gray-400 hover:text-white"
+          >
+            Fermer
+          </Button>
+        </div>
+      );
+    }
+
+    // 🎯 SELECTION : Multi-Char (MJ)
+    if (selectedCharacters.length > 1 && isMJ) {
+      const hasNonPlayerCharacter = selectedCharacters.some(index =>
+        characters[index]?.type !== 'joueurs'
+      );
+      if (hasNonPlayerCharacter) {
+        return (
+          <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+            <Button variant="destructive" size="sm" onClick={handleDeleteSelectedCharacters}>
+              <X className="w-4 h-4 mr-2" /> Supprimer la sélection ({selectedCharacters.length})
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedCharacters([])}
+              className="text-gray-400 hover:text-white"
+            >
+              Fermer
+            </Button>
+          </div>
+        );
+      }
+    }
+
+    // 🎯 SELECTION : Brouillard (MJ)
+    if (isMJ && selectedFogIndex !== null) {
+      return (
+        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+          <span className="text-white text-sm font-medium pr-2">Brouillard global</span>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              setFullMapFog(false);
+              saveFullMapFog(false);
+              setFogGrid(new Map());
+              saveFogGrid(new Map());
+            }}>
+            <X className="w-4 h-4 mr-2" /> Supprimer tout
+          </Button>
+        </div>
+      )
+    }
+
+    if (drawMode) {
+      return (
+        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentTool === 'pen' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              onClick={() => setCurrentTool('pen')}
+              title="Crayon"
+            >
+              <Pencil className="w-5 h-5" strokeWidth={currentTool === 'pen' ? 2.5 : 2} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentTool === 'line' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              onClick={() => setCurrentTool('line')}
+              title="Ligne"
+            >
+              <Slash className="w-5 h-5" strokeWidth={currentTool === 'line' ? 2.5 : 2} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentTool === 'rectangle' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              onClick={() => setCurrentTool('rectangle')}
+              title="Rectangle"
+            >
+              <Square className="w-5 h-5" strokeWidth={currentTool === 'rectangle' ? 2.5 : 2} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentTool === 'circle' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              onClick={() => setCurrentTool('circle')}
+              title="Cercle"
+            >
+              <CircleIcon className="w-5 h-5" strokeWidth={currentTool === 'circle' ? 2.5 : 2} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentTool === 'eraser' ? 'bg-red-500/20 text-red-400 hover:bg-red-500/40' : 'text-gray-400 hover:text-red-400 hover:bg-red-900/20'}`}
+              onClick={() => setCurrentTool('eraser')}
+              title="Gomme (supprime le trait entier)"
+            >
+              <Eraser className="w-5 h-5" />
+            </Button>
+          </div>
+
+          {/* Separator before "Clear All" logic or just integrate it */}
+          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+
+          {/* Clear All Button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 rounded-lg transition-all duration-200 text-gray-400 hover:text-red-400 hover:bg-red-900/20"
+            onClick={() => clearDrawings()}
+            title="Tout effacer"
+          >
+            <Trash2 className="w-5 h-5" />
+          </Button>
+
+          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+
+          {/* Colors */}
+          <div className="flex items-center gap-2">
+            {['#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'].map((color) => (
+              <button
+                key={color}
+                className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${drawingColor === color ? 'border-white scale-110 shadow-lg' : 'border-transparent'}`}
+                style={{ backgroundColor: color }}
+                onClick={() => {
+                  setDrawingColor(color);
+                  setCurrentTool('pen');
+                }}
+              />
+            ))}
+            <div className="relative w-6 h-6 rounded-full overflow-hidden border-2 border-zinc-600 hover:border-white transition-colors">
+              <input
+                type="color"
+                value={drawingColor}
+                onChange={(e) => {
+                  setDrawingColor(e.target.value);
+                  setCurrentTool('pen');
+                }}
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 m-0 border-0 cursor-pointer"
+              />
+            </div>
+          </div>
+
+          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+
+          {/* Size */}
+          <div className="flex items-center gap-2">
+            <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Taille</span>
+            <input
+              type="range"
+              min="1"
+              max="20"
+              value={drawingSize}
+              onChange={(e) => setDrawingSize(parseInt(e.target.value))}
+              className="w-20 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#c0a080]"
+            />
+            <span className="text-[#c0a080] text-sm font-bold w-4">{drawingSize}</span>
+          </div>
+        </div>
+      );
+    }
+    if (visibilityMode) {
+      return (
+        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+          <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
+            <Eye className="w-4 h-4 text-[#c0a080]" />
+            <span className="text-[#c0a080] font-medium text-xs tracking-wide uppercase">Visibilité</span>
+          </div>
+
+          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+
+          {/* Section Brouillard */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentVisibilityTool === 'fog' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              onClick={() => setCurrentVisibilityTool('fog')}
+              title="Brouillard (clic gauche = ajouter, clic droit = retirer)"
+            >
+              <Cloud className="w-5 h-5" strokeWidth={currentVisibilityTool === 'fog' ? 2.5 : 2} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-10 w-10 rounded-lg transition-all duration-200 ${fullMapFog ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              onClick={() => handleFullMapFogChange(!fullMapFog)}
+              title="Activer/désactiver le brouillard total"
+            >
+              {fullMapFog ? <EyeOff className="w-5 h-5" strokeWidth={2.5} /> : <Eye className="w-5 h-5" />}
+            </Button>
+          </div>
+
+          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+
+          {/* Section Obstacles (Murs) */}
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentVisibilityTool === 'chain' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              onClick={() => setCurrentVisibilityTool('chain')}
+              title="Murs connectés (clic pour chaîner, Escape pour terminer)"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={currentVisibilityTool === 'chain' ? 2.5 : 2}>
+                <polyline points="4,18 10,8 18,12 22,4" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentVisibilityTool === 'polygon' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              onClick={() => setCurrentVisibilityTool('polygon')}
+              title="Polygone (cliquer sur le 1er point pour fermer)"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={currentVisibilityTool === 'polygon' ? 2.5 : 2}>
+                <polygon points="12,2 22,8.5 18,20 6,20 2,8.5" />
+              </svg>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentVisibilityTool === 'edit' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              onClick={() => setCurrentVisibilityTool('edit')}
+              title="Éditer / Déplacer les murs"
+            >
+              <Move className="w-5 h-5" strokeWidth={currentVisibilityTool === 'edit' ? 2.5 : 2} />
+            </Button>
+          </div>
+        </div>
+      );
+    }
+    if (playerViewMode) {
+      return (
+        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+          <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
+            <Eye className="w-4 h-4 text-red-400" />
+            <span className="text-red-400 font-medium text-xs tracking-wide uppercase">VUE JOUEUR</span>
+          </div>
+
+          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+
+          <div className="flex items-center gap-2">
+            {characters
+              .filter(c => c.type === 'joueurs' || c.visibility === 'ally')
+              .map(char => {
+                const isSelected = viewAsPersoId === char.id;
+                return (
+                  <div
+                    key={char.id}
+                    onClick={() => setViewAsPersoId(isSelected ? null : char.id)}
+                    className={`relative w-8 h-8 rounded-full overflow-hidden border-2 cursor-pointer transition-all duration-200 ${isSelected ? 'border-[#c0a080] scale-110 shadow-[0_0_10px_rgba(192,160,128,0.4)]' : 'border-white/10 hover:border-white/40 hover:scale-105 opacity-70 hover:opacity-100'}`}
+                    title={char.name}
+                  >
+                    {char.image && char.image.src ? (
+                      <img src={char.image.src} alt={char.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-[10px] text-zinc-400 font-bold">
+                        {char.name[0]}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+          </div>
+          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 rounded-lg transition-all duration-200 text-gray-400 hover:text-red-400 hover:bg-red-900/20"
+            onClick={() => {
+              setPlayerViewMode(false);
+              setViewAsPersoId(null);
+            }}
+            title="Quitter"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+      );
+    }
+    if (measureMode) {
+      return (
+        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+          <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
+            <Ruler className="w-4 h-4 text-[#c0a080]" />
+            <span className="text-[#c0a080] font-medium text-xs tracking-wide uppercase">Mode Mesure</span>
+          </div>
+
+          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+
+          <div className="text-xs text-gray-400">
+            {isCalibrating ? "Tracez une ligne d'étalon." : "Tracez pour mesurer."}
+          </div>
+
+          {!isCalibrating && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setIsCalibrating(true);
+                setMeasureStart(null);
+                setMeasureEnd(null);
+              }}
+              className="h-8 px-3 ml-2 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/10 rounded-lg"
+            >
+              Étalonner
+            </Button>
+          )}
+          {isCalibrating && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsCalibrating(false)}
+              className="h-8 px-3 ml-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg"
+            >
+              Annuler
+            </Button>
+          )}
+        </div>
+      );
+    }
+    if (isMusicMode) {
+      return (
+        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+          <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
+            <Music className="w-4 h-4 text-fuchsia-400" />
+            <span className="text-fuchsia-400 font-medium text-xs tracking-wide uppercase">Mode Musique</span>
+          </div>
+
+          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+
+          <span className="text-xs text-gray-400 hidden sm:inline-block">Clic carte pour placer</span>
+
+          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1 hidden sm:block" />
+
+          {/* Audio Mixer */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Fond</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-8 w-8 rounded-full transition-all ${!isBackgroundAudioEnabled ? 'text-red-400 bg-red-400/10' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              onClick={toggleBackgroundAudio}
+              title={isBackgroundAudioEnabled ? "Désactiver le son du fond" : "Activer le son du fond"}
+            >
+              {isBackgroundAudioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </Button>
+
+            <div className="flex items-center gap-2 w-24">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={backgroundAudioVolume}
+                onChange={(e) => {
+                  const vol = parseFloat(e.target.value);
+                  setBackgroundAudioVolume(vol);
+                  updateBackgroundAudioVolume(vol);
+                }}
+                className="h-1 w-full bg-gray-700 rounded-full appearance-none cursor-pointer accent-fuchsia-500"
+              />
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
   };
 
   const handleAttack = () => {
@@ -1433,6 +2087,7 @@ export default function Component() {
 
   // 🎯 NAVIGATION FUNCTIONS
   const navigateToCity = async (cityId: string) => {
+    console.log('🗺️ [Navigation] Navigating to city:', cityId);
     setSelectedCityId(cityId);
     setViewMode('city');
     // Reset tool modes when entering city
@@ -1443,10 +2098,17 @@ export default function Component() {
 
     // 🆕 Sauvegarder la ville actuelle dans Firebase (pour synchroniser tous les joueurs)
     if (roomId && isMJ) {
-
-      await updateDoc(doc(db, 'cartes', roomId, 'settings', 'general'), {
-        currentCityId: cityId,
-      });
+      console.log('💾 [Navigation] Saving currentCityId to Firebase:', cityId);
+      try {
+        await updateDoc(doc(db, 'cartes', roomId, 'settings', 'general'), {
+          currentCityId: cityId,
+        });
+        console.log('✅ [Navigation] currentCityId saved successfully');
+      } catch (error) {
+        console.error('❌ [Navigation] Error saving currentCityId:', error);
+      }
+    } else {
+      console.log('ℹ️ [Navigation] Not saving currentCityId (isMJ:', isMJ, ')');
     }
   };
 
@@ -1491,23 +2153,27 @@ export default function Component() {
 
         // Synchroniser la ville actuelle
         if (data.currentCityId) {
-
+          console.log('🔄 [Settings Listener] Loaded currentCityId from Firebase:', data.currentCityId);
           setSelectedCityId(data.currentCityId);
           setViewMode('city');
-        } else if (!isMJ) {
-          // Si pas de ville définie et qu'on n'est pas MJ, on reste sur une vue par défaut
-
+        } else {
+          console.log('🔄 [Settings Listener] No currentCityId in Firebase');
+          if (!isMJ) {
+            // Si pas de ville définie et qu'on n'est pas MJ, on reste sur une vue par défaut
+          }
         }
       }
     });
 
     // 🆕 Charger les villes pour la world map
+    console.log('🏙️ [Cities Listener] Setting up cities listener for roomId:', room.toString());
     const citiesRef = collection(db, 'cartes', room.toString(), 'cities');
     onSnapshot(citiesRef, (snapshot) => {
       const loadedCities: any[] = [];
       snapshot.forEach((doc) => {
         loadedCities.push({ id: doc.id, ...doc.data() });
       });
+      console.log('🏙️ [Cities Listener] Cities loaded:', loadedCities.length, 'cities:', loadedCities.map(c => ({ id: c.id, name: c.name })));
       setCities(loadedCities);
     });
 
@@ -2281,9 +2947,16 @@ export default function Component() {
           ctx.lineWidth = lineWidth;
 
           // 🎯 Taille différente pour les personnages joueurs (avec imageURLFinal)
+          // 🎯 Taille différente pour les personnages joueurs (avec imageURLFinal)
           const isPlayerCharacter = char.type === 'joueurs';
-          const iconRadius = isPlayerCharacter ? 30 * zoom : 20 * zoom;
-          const borderRadius = isPlayerCharacter ? 32 * zoom : 22 * zoom;
+          const charScale = char.scale || 1;
+          const finalScale = charScale * globalTokenScale;
+
+          const baseRadius = isPlayerCharacter ? 30 : 20;
+          const baseBorderRadius = isPlayerCharacter ? 32 : 22;
+
+          // const iconRadius = baseRadius * finalScale * zoom; // Not used locally?
+          const borderRadius = baseBorderRadius * finalScale * zoom;
 
           // Draw character border circle
           ctx.beginPath();
@@ -2618,6 +3291,30 @@ export default function Component() {
     }
   };
 
+  const handleBackgroundSelectLocal = async (path: string) => {
+    if (!roomId) return;
+
+    try {
+      // Sauvegarder selon le mode (ville ou global)
+      if (selectedCityId) {
+        // Mode ville : sauvegarder dans la ville spécifique
+        await updateDoc(doc(db, 'cartes', roomId, 'cities', selectedCityId), {
+          backgroundUrl: path,
+        });
+      } else {
+        // Mode global : sauvegarder dans fond1 (pour compatibilité)
+        await setDoc(doc(db, 'cartes', roomId, 'fond', 'fond1'), {
+          url: path,
+        }, { merge: true });
+      }
+
+      // Set the background image locally for immediate display
+      setBackgroundImage(path);
+    } catch (error) {
+      console.error("Error setting background from local file:", error);
+    }
+  };
+
 
   const handleCharacterSubmit = async () => {
     // Legacy function - kept just in case but shouldn't be used with NPCManager
@@ -2697,8 +3394,15 @@ export default function Component() {
           });
         } else if (containerRef.current) {
           const container = containerRef.current;
-          const centerX = (container.clientWidth / 2 - offset.x) / zoom;
-          const centerY = (container.clientHeight / 2 - offset.y) / zoom;
+          let centerX = (container.clientWidth / 2 - offset.x) / zoom;
+          let centerY = (container.clientHeight / 2 - offset.y) / zoom;
+
+          // 🆕 Center on background media if available
+          if (bgImageObject) {
+            const { width, height } = getMediaDimensions(bgImageObject);
+            centerX = width / 2;
+            centerY = height / 2;
+          }
 
           await addDoc(collection(db, 'cartes', roomIdStr, 'text'), {
             content: note.text,
@@ -3395,12 +4099,12 @@ export default function Component() {
             setSelectedObstacleId(null);
             setContextMenuOpen(false);
 
-            if (isMJ) {
-              // MJ : Commencer une sélection par zone
+            if (isMJ && multiSelectMode) {
+              // MJ : Commencer une sélection par zone UNIQUEMENT si le mode est actif
               setSelectionStart({ x: clickX, y: clickY });
               setIsSelectingArea(true);
             } else {
-              // Joueurs : Déplacer la carte (comme le mode pan)
+              // Sinon : Déplacer la carte (comme le mode pan, comportement par défaut amélioré)
               setIsDragging(true);
               setDragStart({ x: e.clientX, y: e.clientY });
             }
@@ -4659,58 +5363,7 @@ export default function Component() {
 
       {/* 🎯 Contrôles de zoom flottants en haut à droite */}
       {/* 🎯 Contrôles de zoom flottants en haut à droite */}
-      <div className="absolute top-4 right-4 z-[5] flex flex-col gap-2 items-end">
-        <Button
-          onClick={() => handleZoom(0.1)}
-          className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm origin-center"
-          title="Zoomer"
-        >
-          <Plus className="w-4 h-4" />
-        </Button>
-        <Button
-          onClick={() => handleZoom(-0.1)}
-          className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm origin-center"
-          title="Dézoomer"
-        >
-          <Minus className="w-4 h-4" />
-        </Button>
 
-        {/* 🎯 Bouton Déplacer carte - MJ uniquement */}
-        {isMJ && (
-          <Button
-            onClick={() => {
-              setPanMode(!panMode);
-              if (!panMode) {
-                setDrawMode(false);
-                setFogMode(false);
-                setMeasureMode(false);
-                setVisibilityMode(false);
-              }
-            }}
-            className={`w-10 h-10 p-0 border backdrop-blur-sm origin-center ${panMode
-              ? 'bg-blue-600/80 hover:bg-blue-700/80 border-blue-400'
-              : 'bg-black/50 hover:bg-black/70 border-gray-600'
-              }`}
-            title={panMode ? 'Désactiver déplacement carte' : 'Activer déplacement carte'}
-          >
-            <Move className="w-4 h-4" />
-          </Button>
-        )}
-
-        {/* 🆕 Bouton Retour à la World  - Déplacé ici */}
-        {isMJ && (
-          <Button
-            onClick={(e) => {
-              e.stopPropagation();
-              navigateToWorldMap();
-            }}
-            className="w-10 h-10 p-0 bg-black/50 hover:bg-black/70 border border-gray-600 backdrop-blur-sm origin-center"
-            title="Retour à la carte du monde"
-          >
-            <MapPin className="w-4 h-4" />
-          </Button>
-        )}
-      </div>
 
 
 
@@ -4755,753 +5408,331 @@ export default function Component() {
         }
       `}</style>
 
-      {/* 🎯 Indicateurs de mode actif - REPLACED BY CENTERED OVERLAYS */}
 
-      {drawMode && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2">
-          <div className="flex items-center gap-4 bg-neutral-900/90 backdrop-blur-md px-4 py-2 rounded-full border border-neutral-700 shadow-2xl">
-            {/* Tools */}
-            <div className="flex bg-zinc-800 rounded-lg p-1 border border-zinc-600">
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`w-8 h-8 rounded-md ${currentTool === 'pen' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-white'}`}
-                onClick={() => setCurrentTool('pen')}
-                title="Crayon"
-              >
-                <Pencil className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`w-8 h-8 rounded-md ${currentTool === 'line' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-white'}`}
-                onClick={() => setCurrentTool('line')}
-                title="Ligne"
-              >
-                <Slash className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`w-8 h-8 rounded-md ${currentTool === 'rectangle' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-white'}`}
-                onClick={() => setCurrentTool('rectangle')}
-                title="Rectangle"
-              >
-                <Square className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`w-8 h-8 rounded-md ${currentTool === 'circle' ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-white'}`}
-                onClick={() => setCurrentTool('circle')}
-                title="Cercle"
-              >
-                <CircleIcon className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`w-8 h-8 rounded-md ${currentTool === 'eraser' ? 'bg-red-600 text-white' : 'text-zinc-400 hover:text-white'}`}
-                onClick={() => setCurrentTool('eraser')}
-                title="Gomme (supprime le trait entier)"
-              >
-                <Eraser className="w-4 h-4" />
-              </Button>
-            </div>
 
-            <div className="w-px h-8 bg-zinc-700" />
-
-            {/* Colors */}
-            <div className="flex items-center gap-2">
-              {['#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'].map((color) => (
-                <button
-                  key={color}
-                  className={`w-6 h-6 rounded-full border-2 transition-transform hover:scale-110 ${drawingColor === color ? 'border-white scale-110 shadow-lg' : 'border-transparent'}`}
-                  style={{ backgroundColor: color }}
-                  onClick={() => {
-                    setDrawingColor(color);
-                    setCurrentTool('pen');
-                  }}
-                />
-              ))}
-
-              <div className="relative w-8 h-8 rounded-full overflow-hidden border-2 border-zinc-600 hover:border-white transition-colors">
-                <input
-                  type="color"
-                  value={drawingColor}
-                  onChange={(e) => {
-                    setDrawingColor(e.target.value);
-                    setCurrentTool('pen');
-                  }}
-                  className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 m-0 border-0 cursor-pointer"
-                />
-              </div>
-            </div>
-
-            <div className="w-px h-8 bg-zinc-700" />
-
-            {/* Size */}
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-400 text-xs font-medium">Taille</span>
-              <input
-                type="range"
-                min="1"
-                max="20"
-                value={drawingSize}
-                onChange={(e) => setDrawingSize(parseInt(e.target.value))}
-                className="w-24 h-2 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-              <span className="text-white text-xs w-4">{drawingSize}</span>
-            </div>
-
-            <div className="w-px h-8 bg-zinc-700" />
-
-            {/* Actions */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-red-400 hover:text-red-300 hover:bg-red-900/30"
-              onClick={() => {
-                if (confirm('Voulez-vous vraiment effacer tous les dessins ?')) {
-                  clearDrawings();
-                }
-              }}
-            >
-              <Trash2 className="w-4 h-4 mr-2" />
-              Tout
-            </Button>
-          </div>
-
-          {/* Instructions overlay */}
-          <div className="text-[10px] text-zinc-400 bg-black/50 px-3 py-1 rounded-full backdrop-blur-sm border border-white/10">
-            {currentTool === 'pen' ? 'Clic gauche pour dessiner' : 'Clic ou glisser sur un trait pour effacer'}
-          </div>
-        </div>
-      )}
-
-      {/* 🔦 VISIBILITY MODE TOOLBAR - Design professionnel */}
-      {visibilityMode && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-3">
-          {/* Toolbar principale */}
-          <div className="flex items-center gap-1 bg-gradient-to-b from-zinc-800 to-zinc-900 backdrop-blur-xl px-3 py-2 rounded-xl border border-zinc-700/50 shadow-2xl shadow-black/50">
-
-            {/* Logo / Titre */}
-            <div className="flex items-center gap-2 px-2 py-1 bg-zinc-800/50 rounded-lg border border-zinc-700/30">
-              <Eye className="w-4 h-4 text-emerald-400" />
-              <span className="text-emerald-300 font-semibold text-xs tracking-wide uppercase">Visibilité</span>
-            </div>
-
-            <div className="w-px h-7 bg-zinc-700/50 mx-2" />
-
-            {/* Section Brouillard */}
-            <div className="flex items-center gap-1 px-2 py-1 bg-blue-950/30 rounded-lg border border-blue-800/30">
-              <span className="text-blue-400 text-[10px] font-medium mr-1 opacity-70">FOG</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`w-8 h-8 rounded-lg transition-all ${currentVisibilityTool === 'fog'
-                  ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/30'
-                  : 'text-blue-300 hover:text-white hover:bg-blue-600/50'}`}
-                onClick={() => setCurrentVisibilityTool('fog')}
-                title="Brouillard (clic gauche = ajouter, clic droit = retirer)"
-              >
-                <Cloud className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`h-8 px-2 rounded-lg text-xs transition-all ${fullMapFog
-                  ? 'bg-blue-600 text-white'
-                  : 'text-blue-300 hover:text-white hover:bg-blue-600/50'}`}
-                onClick={() => handleFullMapFogChange(!fullMapFog)}
-                title="Activer/désactiver le brouillard total"
-              >
-                {fullMapFog ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-              </Button>
-            </div>
-
-            <div className="w-px h-7 bg-zinc-700/50 mx-1" />
-
-            {/* Section Obstacles (Murs) */}
-            <div className="flex items-center gap-1 px-2 py-1 bg-amber-950/30 rounded-lg border border-amber-800/30">
-              <span className="text-amber-400 text-[10px] font-medium mr-1 opacity-70">OBSTACLE</span>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`w-8 h-8 rounded-lg transition-all ${currentVisibilityTool === 'chain'
-                  ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
-                  : 'text-amber-300 hover:text-white hover:bg-amber-600/50'}`}
-                onClick={() => setCurrentVisibilityTool('chain')}
-                title="Murs connectés (clic pour chaîner, Escape pour terminer)"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <polyline points="4,18 10,8 18,12 22,4" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`w-8 h-8 rounded-lg transition-all ${currentVisibilityTool === 'polygon'
-                  ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/30'
-                  : 'text-amber-300 hover:text-white hover:bg-amber-600/50'}`}
-                onClick={() => setCurrentVisibilityTool('polygon')}
-                title="Polygone (cliquer sur le 1er point pour fermer)"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="12,2 22,8.5 18,20 6,20 2,8.5" />
-                </svg>
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`w-8 h-8 rounded-lg transition-all ${currentVisibilityTool === 'edit'
-                  ? 'bg-violet-500 text-white shadow-lg shadow-violet-500/30'
-                  : 'text-violet-300 hover:text-white hover:bg-violet-600/50'}`}
-                onClick={() => {
-                  setCurrentVisibilityTool('edit');
-                  setIsDrawingObstacle(false);
-                  setCurrentObstaclePoints([]);
-                }}
-                title="Éditer les obstacles (sélectionner, supprimer)"
-              >
-                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
-                  <path d="M13 13l6 6" />
-                </svg>
-              </Button>
-            </div>
-
-            <div className="w-px h-7 bg-zinc-700/50 mx-1" />
-
-            {/* Actions */}
-            <div className="flex items-center gap-1">
-              {selectedObstacleId && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="w-8 h-8 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-900/30"
-                  onClick={() => deleteObstacle(selectedObstacleId)}
-                  title="Supprimer l'obstacle sélectionné"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="icon"
-                className="w-8 h-8 rounded-lg text-zinc-400 hover:text-red-300 hover:bg-red-900/30"
-                onClick={() => {
-                  if (confirm('Supprimer tout le brouillard et les obstacles ?')) {
-                    clearFog();
-                    clearAllObstacles();
-                  }
-                }}
-                title="Tout effacer"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="w-8 h-8 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700/50"
-                onClick={() => toggleVisibilityMode()}
-                title="Fermer"
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 🆕 MENU ORB - Stylized Trigger */}
-      <div className="absolute bottom-6 right-6 z-[40]">
-        <button
-          onClick={() => {
-            setIsRadialMenuCentered(true);
-            setIsRadialMenuOpen(!isRadialMenuOpen);
-          }}
-          className={`
-            relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-300
-            ${isRadialMenuOpen ? 'bg-[#c0a080] shadow-[0_0_20px_rgba(192,160,128,0.5)] scale-110' : 'bg-black/40 hover:bg-black/60 backdrop-blur-md border border-[#c0a080]/30 hover:border-[#c0a080]/70 hover:scale-105 hover:shadow-[0_0_15px_rgba(192,160,128,0.3)]'}
-          `}
-          title="Ouvrir le menu (ou Clic Droit)"
-        >
-          {/* Inner ring for detail */}
-          <div className={`absolute inset-1 rounded-full border border-white/10 ${isRadialMenuOpen ? 'border-black/20' : ''}`} />
-
-          {/* Icon */}
-          <div className={`transition-transform duration-500 ${isRadialMenuOpen ? 'rotate-180' : 'rotate-0'}`}>
-            {isRadialMenuOpen ? (
-              <X className="w-6 h-6 text-black" />
-            ) : (
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-[#c0a080]">
-                <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
-          </div>
-        </button>
-      </div>
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,video/webm"
-        onChange={handleBackgroundChange}
-        style={{ display: 'none' }}
+      <MapToolbar
+        isMJ={isMJ}
+        activeTools={getActiveToolbarTools()}
+        onAction={handleToolbarAction}
+        currentViewMode={playerViewMode ? 'player' : 'mj'}
+        showGrid={showGrid}
+        activeToolContent={getToolOptionsContent()}
       />
 
-      <RadialMenu
-        menuItems={radialMenuItems}
-        onSelect={handleRadialMenuSelect}
-        size={280}
-        iconSize={20}
-        activeItemIds={getActiveToolIds()}
-        open={isRadialMenuOpen}
-        onOpenChange={setIsRadialMenuOpen}
-        centered={isRadialMenuCentered}
-      >
-        <div
-          ref={containerRef}
-          className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${isDraggingCharacter || isDraggingNote ? 'cursor-grabbing' :
-            isDragging || isDraggingObject ? 'cursor-move' :
-              panMode ? 'cursor-grab' :
-                drawMode ? 'cursor-crosshair' :
-                  fogMode ? 'cursor-cell' : 'cursor-default'
-            } relative`}
-          style={{
-            height: '100vh',
-            userSelect: isDraggingCharacter || isDraggingNote || isDraggingObject ? 'none' : 'auto'
-          }}
-          onMouseDown={handleCanvasMouseDown}
-          onMouseMove={handleCanvasMouseMove}
-          onMouseUp={handleCanvasMouseUp}
-          onMouseLeave={handleCanvasMouseUp}
-          onContextMenu={(e) => {
-            if (visibilityMode && currentVisibilityTool === 'fog') {
-              e.preventDefault();
+      <div
+        ref={containerRef}
+        className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${isDraggingCharacter || isDraggingNote ? 'cursor-grabbing' :
+          isDragging || isDraggingObject ? 'cursor-move' :
+            panMode ? 'cursor-grab' :
+              drawMode ? 'cursor-crosshair' :
+                fogMode ? 'cursor-cell' : 'cursor-default'
+          } relative`}
+        style={{
+          height: '100vh',
+          userSelect: isDraggingCharacter || isDraggingNote || isDraggingObject ? 'none' : 'auto'
+        }}
+        onMouseDown={handleCanvasMouseDown}
+        onMouseMove={handleCanvasMouseMove}
+        onMouseUp={handleCanvasMouseUp}
+        onMouseLeave={handleCanvasMouseUp}
+        onContextMenu={(e) => {
+          if (visibilityMode && currentVisibilityTool === 'fog') {
+            e.preventDefault();
+            return;
+          }
+
+          // 🎯 CONFLICT RESOLUTION: Character Context Menu vs Tool interactions
+
+          // If we are hovering over a character, we want the CHARACTER context menu to open (handled elsewhere or natively if implemented),
+          // and we want to PREVENT the Radial Menu from opening.
+
+          // Check if cursor is over a character
+          const rect = bgCanvasRef.current?.getBoundingClientRect();
+          if (rect && bgImageObject) {
+            const containerWidth = containerRef.current?.clientWidth || rect.width;
+            const containerHeight = containerRef.current?.clientHeight || rect.height;
+            const image = bgImageObject;
+            const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+            const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+            const scaledWidth = imgWidth * scale * zoom;
+            const scaledHeight = imgHeight * scale * zoom;
+            const mouseX = e.clientX;
+            const mouseY = e.clientY;
+
+            const hoveredCharIndex = characters.findIndex(char => {
+              const charX = (char.x / imgWidth) * scaledWidth - offset.x + rect.left;
+              const charY = (char.y / imgHeight) * scaledHeight - offset.y + rect.top;
+              const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
+              return Math.abs(charX - mouseX) < clickRadius && Math.abs(charY - mouseY) < clickRadius;
+            });
+
+            if (hoveredCharIndex !== -1) {
+              // Cursor is over a character.
+              // Prevent the Radial Menu (parent) from seeing this event.
+              // The Character Context Menu mechanism (likely handleCanvasMouseDown right-click check) might handle it,
+              // OR we need to trigger it here if it's not handled by 'contextmenu' event.
+
+              // In existing code, handleCanvasMouseDown handles right-click detection explicitly for logic (like fog),
+              // but `ContextMenuPanel` state is usually set there.
+
+              // Let's ensure we stop propagation so RadialMenu doesn't open.
+              e.stopPropagation();
+
+              // Also, if the character right-click logic relies on 'mousedown', it has already fired.
+              // If it relies on 'contextmenu', it might be on the canvas.
+
+              // IMPORTANT: e.preventDefault() here would stop the browser native menu,
+              // but we might WANT the custom Character Context Menu relative logic to run if it wasn't triggered by mousedown.
+              // However, let's look at `handleCanvasMouseDown` again.
+              // It handles `e.button === 2`? NOT explicitly for opening the character menu yet (it was mostly for fog).
+
+              // To be safe: triggering character menu usually happens on clic.
+              // Let's add the logic to OPEN the character menu here directly on contextmenu if generic right click didn't do it.
+
+              const char = characters[hoveredCharIndex];
+              if (char && char.id) {
+                e.preventDefault(); // Stop native browser menu
+                setContextMenuCharacterId(char.id);
+                setContextMenuOpen(true);
+              }
               return;
             }
-
-            // Ensure Radial Menu is NOT centered when triggered by right-click
-            setIsRadialMenuCentered(false);
-
-            // 🎯 CONFLICT RESOLUTION: Character Context Menu vs Radial Menu
-            // If we are hovering over a character, we want the CHARACTER context menu to open (handled elsewhere or natively if implemented),
-            // and we want to PREVENT the Radial Menu from opening.
-
-            // Check if cursor is over a character
-            const rect = bgCanvasRef.current?.getBoundingClientRect();
-            if (rect && bgImageObject) {
-              const containerWidth = containerRef.current?.clientWidth || rect.width;
-              const containerHeight = containerRef.current?.clientHeight || rect.height;
+          }
+        }
+        }
+      >
+        <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+          <canvas
+            ref={bgCanvasRef}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
+            onDrop={handleCanvasDrop}
+            onDragOver={handleCanvasDragOver}
+            onDoubleClick={handleCanvasDoubleClick}
+          />
+          <div className="objects-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' }}>
+            {isLayerVisible('objects') && objects.map((obj, index) => {
+              if (!bgImageObject) return null;
               const image = bgImageObject;
               const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-              const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+              const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
+              const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
+              if (cWidth === 0 || cHeight === 0) return null;
+
+              const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
               const scaledWidth = imgWidth * scale * zoom;
               const scaledHeight = imgHeight * scale * zoom;
-              const mouseX = e.clientX;
-              const mouseY = e.clientY;
 
-              const hoveredCharIndex = characters.findIndex(char => {
-                const charX = (char.x / imgWidth) * scaledWidth - offset.x + rect.left;
-                const charY = (char.y / imgHeight) * scaledHeight - offset.y + rect.top;
-                const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
-                return Math.abs(charX - mouseX) < clickRadius && Math.abs(charY - mouseY) < clickRadius;
-              });
+              const x = (obj.x / imgWidth) * scaledWidth - offset.x;
+              const y = (obj.y / imgHeight) * scaledHeight - offset.y;
+              const w = (obj.width / imgWidth) * scaledWidth;
+              const h = (obj.height / imgHeight) * scaledHeight;
 
-              if (hoveredCharIndex !== -1) {
-                // Cursor is over a character.
-                // Prevent the Radial Menu (parent) from seeing this event.
-                // The Character Context Menu mechanism (likely handleCanvasMouseDown right-click check) might handle it,
-                // OR we need to trigger it here if it's not handled by 'contextmenu' event.
-
-                // In existing code, handleCanvasMouseDown handles right-click detection explicitly for logic (like fog),
-                // but `ContextMenuPanel` state is usually set there.
-
-                // Let's ensure we stop propagation so RadialMenu doesn't open.
-                e.stopPropagation();
-
-                // Also, if the character right-click logic relies on 'mousedown', it has already fired.
-                // If it relies on 'contextmenu', it might be on the canvas.
-
-                // IMPORTANT: e.preventDefault() here would stop the browser native menu,
-                // but we might WANT the custom Character Context Menu relative logic to run if it wasn't triggered by mousedown.
-                // However, let's look at `handleCanvasMouseDown` again.
-                // It handles `e.button === 2`? NOT explicitly for opening the character menu yet (it was mostly for fog).
-
-                // To be safe: triggering character menu usually happens on clic.
-                // Let's add the logic to OPEN the character menu here directly on contextmenu if generic right click didn't do it.
-
-                const char = characters[hoveredCharIndex];
-                if (char && char.id) {
-                  e.preventDefault(); // Stop native browser menu
-                  setContextMenuCharacterId(char.id);
-                  setContextMenuOpen(true);
-                }
-                return;
+              // Skip if any calculated values are invalid
+              if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h)) {
+                return null;
               }
-            }
-          }
-          }
-        >
-          <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
-            <canvas
-              ref={bgCanvasRef}
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}
-              onDrop={handleCanvasDrop}
-              onDragOver={handleCanvasDragOver}
-              onDoubleClick={handleCanvasDoubleClick}
-            />
-            <div className="objects-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' }}>
-              {isLayerVisible('objects') && objects.map((obj, index) => {
-                if (!bgImageObject) return null;
-                const image = bgImageObject;
-                const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-                const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
-                const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
-                if (cWidth === 0 || cHeight === 0) return null;
 
-                const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
-                const scaledWidth = imgWidth * scale * zoom;
-                const scaledHeight = imgHeight * scale * zoom;
+              const isSelected = selectedObjectIndices.includes(index);
 
-                const x = (obj.x / imgWidth) * scaledWidth - offset.x;
-                const y = (obj.y / imgHeight) * scaledHeight - offset.y;
-                const w = (obj.width / imgWidth) * scaledWidth;
-                const h = (obj.height / imgHeight) * scaledHeight;
+              // Visibility Check (Shadows) logic is hard to replicate exactly in JSX without running same heavy math.
+              // For now we skip "Shadow hiding" for DOM objects to ensure performance, or we accept they overlay shadows.
+              // User requested GIFs. Shadow hiding is a nice to have but complex to port.
+              // Wait, if objects are ABOVE bg but BELOW Main Canvas (Shadows are on Foreground),
+              // ANY Shadow drawn on Foreground Canvas will cover the DOM Object since Foreground Canvas is z-index 20!
+              // So we don't need to manually hide them if the Shadow is opaque black/grey on top!
 
-                // Skip if any calculated values are invalid
-                if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h)) {
-                  return null;
-                }
-
-                const isSelected = selectedObjectIndices.includes(index);
-
-                // Visibility Check (Shadows) logic is hard to replicate exactly in JSX without running same heavy math.
-                // For now we skip "Shadow hiding" for DOM objects to ensure performance, or we accept they overlay shadows.
-                // User requested GIFs. Shadow hiding is a nice to have but complex to port.
-                // Wait, if objects are ABOVE bg but BELOW Main Canvas (Shadows are on Foreground),
-                // ANY Shadow drawn on Foreground Canvas will cover the DOM Object since Foreground Canvas is z-index 20!
-                // So we don't need to manually hide them if the Shadow is opaque black/grey on top!
-
-                return (
-                  <div
-                    key={obj.id}
-                    style={{
-                      position: 'absolute',
-                      left: x,
-                      top: y,
-                      width: w,
-                      height: h,
-                      transform: `rotate(${obj.rotation}deg)`,
-                      pointerEvents: 'auto', // Allow interactions
-                      cursor: isResizingObject ? 'nwse-resize' : 'move' // Change cursor if resizing
-                    }}
-                    onMouseDown={(e) => {
-                      // Handle Object Selection & Drag Start logic here or delegate?
-                      // If we want to move, we can bubble up or handle here.
-                      // For now, let's just allow selection.
-                      // Existing logic uses handleCanvasMouseDown checking for intersection.
-                      // But now objects are DOM elements blocking the canvas!
-                      // So we MUST handle MouseDown here to trigger selection/drag.
-                      if (e.button === 0) {
-                        // Select
-                        if (!e.shiftKey) {
-                          setSelectedObjectIndices([index]);
-                        } else {
-                          // Multi-select logic pending
-                          setSelectedObjectIndices(prev => [...prev, index]);
-                        }
-
-                        // Initiate Drag (reuse existing state or logic if compatible)
-                        setDragStart({ x: e.clientX, y: e.clientY });
-                        setIsDraggingObject(true);
-                        setDraggedObjectIndex(index);
-                        setDraggedObjectOriginalPos({ x: obj.x, y: obj.y });
-
-                        const originalPositions = selectedObjectIndices.includes(index) && selectedObjectIndices.length > 1
-                          ? selectedObjectIndices.map(idx => ({ index: idx, x: objects[idx].x, y: objects[idx].y }))
-                          : [{ index, x: obj.x, y: obj.y }];
-                        setDraggedObjectsOriginalPositions(originalPositions);
-
-                        // Prevent canvas from picking up this click as a "click on empty space"
-                        e.stopPropagation();
+              return (
+                <div
+                  key={obj.id}
+                  style={{
+                    position: 'absolute',
+                    left: x,
+                    top: y,
+                    width: w,
+                    height: h,
+                    transform: `rotate(${obj.rotation}deg)`,
+                    pointerEvents: 'auto', // Allow interactions
+                    cursor: isResizingObject ? 'nwse-resize' : 'move' // Change cursor if resizing
+                  }}
+                  onMouseDown={(e) => {
+                    // Handle Object Selection & Drag Start logic here or delegate?
+                    // If we want to move, we can bubble up or handle here.
+                    // For now, let's just allow selection.
+                    // Existing logic uses handleCanvasMouseDown checking for intersection.
+                    // But now objects are DOM elements blocking the canvas!
+                    // So we MUST handle MouseDown here to trigger selection/drag.
+                    if (e.button === 0) {
+                      // Select
+                      if (!e.shiftKey) {
+                        setSelectedObjectIndices([index]);
+                      } else {
+                        // Multi-select logic pending
+                        setSelectedObjectIndices(prev => [...prev, index]);
                       }
+
+                      // Initiate Drag (reuse existing state or logic if compatible)
+                      setDragStart({ x: e.clientX, y: e.clientY });
+                      setIsDraggingObject(true);
+                      setDraggedObjectIndex(index);
+                      setDraggedObjectOriginalPos({ x: obj.x, y: obj.y });
+
+                      const originalPositions = selectedObjectIndices.includes(index) && selectedObjectIndices.length > 1
+                        ? selectedObjectIndices.map(idx => ({ index: idx, x: objects[idx].x, y: objects[idx].y }))
+                        : [{ index, x: obj.x, y: obj.y }];
+                      setDraggedObjectsOriginalPositions(originalPositions);
+
+                      // Prevent canvas from picking up this click as a "click on empty space"
+                      e.stopPropagation();
+                    }
+                  }}
+                >
+                  <img
+                    src={obj.imageUrl}
+                    alt="Object"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      border: isSelected ? '2px solid #00BFFF' : 'none',
+                      opacity: 1
                     }}
-                  >
+                    draggable={false} // Disable native drag to use our custom logic
+                  />
+
+                  {/* Resize Handle (Bottom Right) */}
+                  {isSelected && isMJ && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: -6,
+                        right: -6,
+                        width: 12,
+                        height: 12,
+                        backgroundColor: '#00BFFF',
+                        borderRadius: '50%',
+                        cursor: 'nwse-resize',
+                        zIndex: 10
+                      }}
+                      onMouseDown={(e) => handleResizeStart(e, index)}
+                    />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <div className="characters-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' }}>
+            {isLayerVisible('characters') && characters.map((char, index) => {
+              if (!bgImageObject) return null;
+              const image = bgImageObject;
+              const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+              const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
+              const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
+              if (cWidth === 0 || cHeight === 0) return null;
+
+              // Vérifier que le personnage a des coordonnées valides
+              if (typeof char.x !== 'number' || typeof char.y !== 'number' || isNaN(char.x) || isNaN(char.y)) {
+                console.warn('⚠️ [Character Render] Skipping character with invalid coordinates:', char.id, char.name, 'x:', char.x, 'y:', char.y);
+                return null;
+              }
+
+              const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
+              const scaledWidth = imgWidth * scale * zoom;
+              const scaledHeight = imgHeight * scale * zoom;
+
+              const x = (char.x / imgWidth) * scaledWidth - offset.x;
+              const y = (char.y / imgHeight) * scaledHeight - offset.y;
+
+              let isVisible = true;
+              const isInFog = fullMapFog || isCellInFog(char.x, char.y, fogGrid, fogCellSize);
+              let effectiveVisibility = char.visibility;
+              if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
+                effectiveVisibility = 'hidden';
+              }
+
+              if (char.visibility === 'ally') {
+                isVisible = true;
+              } else if (effectiveVisibility === 'hidden') {
+                const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
+                const isInPlayerViewMode = playerViewMode && viewAsPersoId;
+
+                if (isInPlayerViewMode) {
+                  const viewer = characters.find(c => c.id === effectivePersoId);
+                  if (viewer) {
+                    const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
+                    const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
+                    const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
+                    isVisible = dist <= viewer.visibilityRadius * zoom;
+                  } else {
+                    isVisible = false;
+                  }
+                } else {
+                  isVisible = isMJ || (() => {
+                    const viewer = characters.find(c => c.id === effectivePersoId);
+                    if (!viewer) return false;
+                    const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
+                    const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
+                    const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
+                    return dist <= viewer.visibilityRadius * zoom;
+                  })();
+                }
+              }
+
+              if (!isVisible) return null;
+
+              const isPlayerCharacter = char.type === 'joueurs';
+              const baseRadius = isPlayerCharacter ? 30 : 20;
+              const charScale = char.scale || 1;
+              const iconRadius = baseRadius * charScale * globalTokenScale * zoom;
+
+              return (
+                <div
+                  key={char.id}
+                  style={{
+                    position: 'absolute',
+                    left: x - iconRadius,
+                    top: y - iconRadius,
+                    width: iconRadius * 2,
+                    height: iconRadius * 2,
+                    pointerEvents: 'none',
+                    borderRadius: '50%',
+                    overflow: 'hidden'
+                  }}
+                >
+                  {char.imageUrl && (
                     <img
-                      src={obj.imageUrl}
-                      alt="Object"
+                      src={char.imageUrl}
+                      alt={char.name}
                       style={{
                         width: '100%',
                         height: '100%',
-                        border: isSelected ? '2px solid #00BFFF' : 'none',
-                        opacity: 1
+                        objectFit: 'cover',
+                        display: 'block'
                       }}
-                      draggable={false} // Disable native drag to use our custom logic
+                      draggable={false}
                     />
-
-                    {/* Resize Handle (Bottom Right) */}
-                    {isSelected && isMJ && (
-                      <div
-                        style={{
-                          position: 'absolute',
-                          bottom: -6,
-                          right: -6,
-                          width: 12,
-                          height: 12,
-                          backgroundColor: '#00BFFF',
-                          borderRadius: '50%',
-                          cursor: 'nwse-resize',
-                          zIndex: 10
-                        }}
-                        onMouseDown={(e) => handleResizeStart(e, index)}
-                      />
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-            <div className="characters-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' }}>
-              {isLayerVisible('characters') && characters.map((char, index) => {
-                if (!bgImageObject) return null;
-                const image = bgImageObject;
-                const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-                const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
-                const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
-                if (cWidth === 0 || cHeight === 0) return null;
-
-                const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
-                const scaledWidth = imgWidth * scale * zoom;
-                const scaledHeight = imgHeight * scale * zoom;
-
-                const x = (char.x / imgWidth) * scaledWidth - offset.x;
-                const y = (char.y / imgHeight) * scaledHeight - offset.y;
-
-                let isVisible = true;
-                const isInFog = fullMapFog || isCellInFog(char.x, char.y, fogGrid, fogCellSize);
-                let effectiveVisibility = char.visibility;
-                if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
-                  effectiveVisibility = 'hidden';
-                }
-
-                if (char.visibility === 'ally') {
-                  isVisible = true;
-                } else if (effectiveVisibility === 'hidden') {
-                  const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
-                  const isInPlayerViewMode = playerViewMode && viewAsPersoId;
-
-                  if (isInPlayerViewMode) {
-                    const viewer = characters.find(c => c.id === effectivePersoId);
-                    if (viewer) {
-                      const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
-                      const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
-                      const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-                      isVisible = dist <= viewer.visibilityRadius * zoom;
-                    } else {
-                      isVisible = false;
-                    }
-                  } else {
-                    isVisible = isMJ || (() => {
-                      const viewer = characters.find(c => c.id === effectivePersoId);
-                      if (!viewer) return false;
-                      const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
-                      const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
-                      const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-                      return dist <= viewer.visibilityRadius * zoom;
-                    })();
-                  }
-                }
-
-                if (!isVisible) return null;
-
-                const isPlayerCharacter = char.type === 'joueurs';
-                const iconRadius = isPlayerCharacter ? 30 * zoom : 20 * zoom;
-
-                return (
-                  <div
-                    key={char.id}
-                    style={{
-                      position: 'absolute',
-                      left: x - iconRadius,
-                      top: y - iconRadius,
-                      width: iconRadius * 2,
-                      height: iconRadius * 2,
-                      pointerEvents: 'none',
-                      borderRadius: '50%',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    {char.imageUrl && (
-                      <img
-                        src={char.imageUrl}
-                        alt={char.name}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          display: 'block'
-                        }}
-                        draggable={false}
-                      />
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-            <canvas
-              ref={fgCanvasRef}
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
-            />
+                  )}
+                </div>
+              )
+            })}
           </div>
-          {combatOpen && (
-            <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-10">
-              <div className="text-black p-6 rounded-lg shadow-lg w-1/3 h-2/5">
-                <Combat
-                  attackerId={attackerId || ''}
-                  targetId={targetId || ''}
-                  onClose={() => setCombatOpen(false)}
-                />
-              </div>
-            </div>
-          )}
+          <canvas
+            ref={fgCanvasRef}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+          />
         </div>
-      </RadialMenu>
-
-      {selectedDrawingIndex !== null && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
-          <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600 shadow-xl z-50">
-            <span className="text-white text-sm font-medium pr-2">Dessin sélectionné</span>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (selectedDrawingIndex !== null && roomId) {
-                  const drawing = drawings[selectedDrawingIndex];
-                  deleteDoc(doc(db, 'cartes', String(roomId), 'drawings', drawing.id));
-                  // Optimistic update
-                  setDrawings(prev => prev.filter((_, i) => i !== selectedDrawingIndex));
-                  setSelectedDrawingIndex(null);
-                }
-              }}
-            >
-              <Trash2 className="w-4 h-4 mr-2" /> Supprimer
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => setSelectedDrawingIndex(null)}
-            >
-              Fermer
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {selectedObjectIndices.length > 0 && isMJ && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
-          <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600 shadow-xl z-50">
-            <span className="text-white text-sm font-medium pr-2">{selectedObjectIndices.length} Objet(s) sélectionné(s)</span>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                if (selectedObjectIndices.length > 0 && roomId && isMJ) {
-                  selectedObjectIndices.forEach(index => {
-                    const obj = objects[index];
-                    if (obj) deleteDoc(doc(db, 'cartes', String(roomId), 'objects', obj.id));
-                  });
-                  setObjects(prev => prev.filter((_, i) => !selectedObjectIndices.includes(i)));
-                  setSelectedObjectIndices([]);
-                }
-              }}
-            >
-              <Trash2 className="w-4 h-4 mr-2" /> Supprimer
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setSelectedObjectIndices([])}
-            >
-              Fermer
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {selectedObstacleId && isMJ && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
-          <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600 shadow-xl z-50">
-            <span className="text-white text-sm font-medium pr-2">Obstacle sélectionné</span>
-            <Button
-              variant="destructive"
-              onClick={async () => {
-                if (selectedObstacleId && roomId && isMJ) {
-                  await deleteDoc(doc(db, 'cartes', String(roomId), 'obstacles', selectedObstacleId));
-                  // Optimistic update
-                  setObstacles(prev => prev.filter(o => o.id !== selectedObstacleId));
-                  setSelectedObstacleId(null);
-                }
-              }}
-            >
-              <Trash2 className="w-4 h-4 mr-2" /> Supprimer
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => setSelectedObstacleId(null)}
-            >
-              Fermer
-            </Button>
-          </div>
-        </div>
-      )}
-
-
-      {selectedCharacters.length > 1 && isMJ && (
-        // Afficher le bouton seulement si plusieurs personnages non-joueurs sont sélectionnés
-        (() => {
-          const hasNonPlayerCharacter = selectedCharacters.some(index =>
-            characters[index]?.type !== 'joueurs'
-          );
-          return hasNonPlayerCharacter;
-        })() && (
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
-            <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
-              <Button onClick={handleDeleteSelectedCharacters}>
-                <X className="w-4 h-4 mr-2" /> Supprimer la sélection
-              </Button>
+        {combatOpen && (
+          <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-10">
+            <div className="text-black p-6 rounded-lg shadow-lg w-1/3 h-2/5">
+              <Combat
+                attackerId={attackerId || ''}
+                targetId={targetId || ''}
+                onClose={() => setCombatOpen(false)}
+              />
             </div>
           </div>
-        )
-      )}
+        )}
+      </div>
 
-      {selectedNoteIndex !== null && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
-          <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
-            <Button onClick={handleDeleteNote}>
-              <X className="w-4 h-4 mr-2" /> Supprimer
-            </Button>
-            <Button onClick={handleEditNote}>
-              <Edit className="w-4 h-4 mr-2" /> Modifier
-            </Button>
-          </div>
-        </div>
-      )}
 
-      {isMJ && selectedFogIndex !== null && (
-        <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
-          <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
-            <Button onClick={() => {
-              setFullMapFog(false);
-              saveFullMapFog(false);
-              // 🆕 SUPPRIMER AUSSI TOUTE LA GRILLE DE BROUILLARD
-              setFogGrid(new Map());
-              saveFogGrid(new Map());
-            }}>
-              <X className="w-4 h-4 mr-2" /> Supprimer le brouillard
-            </Button>
-          </div>
-        </div>
-      )}
 
 
 
@@ -5682,9 +5913,10 @@ export default function Component() {
                         key={mode.id}
                         type="button"
                         onClick={() => editingCharacter && setEditingCharacter({ ...editingCharacter, visibility: mode.id as any })}
-                        className={`flex-1 h-9 rounded-md border text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 ${editingCharacter?.visibility === mode.id
+                        className={`flex - 1 h - 9 rounded - md border text - sm font - medium transition - colors focus - visible: outline - none focus - visible: ring - 1 focus - visible: ring - ring disabled: pointer - events - none disabled: opacity - 50 ${editingCharacter?.visibility === mode.id
                           ? 'bg-[#c0a080] border-[#c0a080] text-[#1e1e1e] font-bold shadow-sm'
-                          : 'bg-[#2a2a2a] border-gray-600 text-gray-300 hover:bg-[#3a3a3a] hover:text-white'}`}
+                          : 'bg-[#2a2a2a] border-gray-600 text-gray-300 hover:bg-[#3a3a3a] hover:text-white'
+                          } `}
                       >
                         {mode.label}
                       </button>
@@ -5778,7 +6010,7 @@ export default function Component() {
                 variant="ghost"
                 size="sm"
                 onClick={() => setShowFogGrid(!showFogGrid)}
-                className={`h-7 px-2 text-xs ml-2 ${showFogGrid ? 'text-yellow-400 bg-yellow-400/10' : 'text-neutral-400 hover:text-white'}`}
+                className={`h - 7 px - 2 text - xs ml - 2 ${showFogGrid ? 'text-yellow-400 bg-yellow-400/10' : 'text-neutral-400 hover:text-white'} `}
               >
                 <Grid className="w-3 h-3 mr-1" />
                 Grille
@@ -5788,122 +6020,9 @@ export default function Component() {
         )
       }
 
-      {/* 🎯 PLAYER VIEW OVERLAY */}
-      {isMJ && playerViewMode && (
-        <div className="fixed top-24 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-top-4 duration-300">
-          <div className="flex items-center gap-3 bg-zinc-900/95 text-white p-2 pr-4 rounded-full border border-red-500/20 shadow-2xl backdrop-blur-xl ring-1 ring-white/5">
 
-            {/* Header / Indicator */}
-            <div className="flex items-center gap-2 pl-2">
-              <div className="relative flex items-center justify-center w-6 h-6 rounded-full bg-red-500/20">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-20 animate-ping"></span>
-                <Eye className="w-3 h-3 text-red-400" />
-              </div>
-              <span className="text-[10px] font-bold tracking-widest text-red-100/80 uppercase whitespace-nowrap hidden sm:block">
-                {viewAsPersoId ? characters.find(c => c.id === viewAsPersoId)?.name : "VUE JOUEUR"}
-              </span>
-            </div>
 
-            <div className="h-4 w-px bg-white/10" />
 
-            {/* Portraits Horizontal Scroll */}
-            <div className="flex items-center gap-2 px-1">
-              {characters
-                .filter(c => c.type === 'joueurs' || c.visibility === 'ally')
-                .map(char => {
-                  const isSelected = viewAsPersoId === char.id;
-                  return (
-                    <div
-                      key={char.id}
-                      onClick={() => setViewAsPersoId(isSelected ? null : char.id)}
-                      className="relative group cursor-pointer transition-all duration-200"
-                      title={char.name}
-                    >
-                      <div className={`
-                        relative w-8 h-8 rounded-full overflow-hidden border transition-all duration-200
-                        ${isSelected
-                          ? 'border-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.4)] scale-110'
-                          : 'border-white/10 hover:border-white/40 hover:scale-105 opacity-70 hover:opacity-100'}
-                      `}>
-                        {char.image && char.image.src ? (
-                          <img src={char.image.src} alt={char.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-[10px] text-zinc-400 font-bold">
-                            {char.name[0]}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Tooltip on hover */}
-                      <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/90 text-[9px] px-2 py-0.5 rounded text-white whitespace-nowrap pointer-events-none z-50 border border-white/10">
-                        {char.name}
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-
-            <div className="h-4 w-px bg-white/10" />
-
-            {/* Close */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setPlayerViewMode(false);
-                setViewAsPersoId(null);
-              }}
-              className="h-6 w-6 rounded-full hover:bg-red-950/50 text-red-400/50 hover:text-red-300 p-0"
-              title="Quitter"
-            >
-              <X className="w-3 h-3" />
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {/* 🎯 MEASUREMENT OVERLAY UI */}
-      {
-        measureMode && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-50 backdrop-blur-sm">
-            <div className="flex items-center gap-2">
-              <Ruler className="w-4 h-4 text-neutral-400" />
-              <span className="font-medium text-sm">Mode Mesure</span>
-            </div>
-
-            <div className="h-4 w-px bg-neutral-700 mx-1"></div>
-
-            <div className="text-xs text-neutral-400">
-              {isCalibrating ? "Tracez une ligne d'étalon." : "Tracez pour mesurer."}
-            </div>
-
-            {!isCalibrating && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setIsCalibrating(true);
-                  setMeasureStart(null);
-                  setMeasureEnd(null);
-                }}
-                className="h-7 px-2 text-xs text-neutral-400 hover:text-white hover:bg-white/5 ml-2"
-              >
-                Étalonner
-              </Button>
-            )}
-            {isCalibrating && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsCalibrating(false)}
-                className="h-7 px-2 text-xs text-red-400 hover:text-red-300 hover:bg-red-400/10 ml-2"
-              >
-                Annuler
-              </Button>
-            )}
-          </div>
-        )
-      }
 
       {/* 🎯 CALIBRATION DIALOG */}
       <Dialog open={calibrationDialogOpen} onOpenChange={setCalibrationDialogOpen}>
@@ -5943,6 +6062,33 @@ export default function Component() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* 🎯 GLOBAL SETTINGS DIALOG (Start) */}
+      <Dialog open={showGlobalSettingsDialog} onOpenChange={setShowGlobalSettingsDialog}>
+        <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] border-[#FFD700]">
+          <DialogHeader>
+            <DialogTitle>Paramètres de la Carte</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div className="bg-[#252525] p-3 rounded border border-[#333]">
+              <div className="flex justify-between text-sm text-gray-400 mb-2">
+                <span>Échelle Globale des Pions</span>
+                <span>x{globalTokenScale.toFixed(1)}</span>
+              </div>
+              <input
+                type="range"
+                min="0.5"
+                max="3"
+                step="0.1"
+                value={globalTokenScale}
+                onChange={(e) => updateGlobalTokenScale(parseFloat(e.target.value))}
+                className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {/* 🎯 GLOBAL SETTINGS DIALOG (End) */}
 
       <ContextMenuPanel
         character={contextMenuCharacterId ? characters.find(c => c.id === contextMenuCharacterId) || null : null}
@@ -6004,6 +6150,12 @@ export default function Component() {
               const newRadius = value;
               const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
               updateDoc(charRef, { visibilityRadius: newRadius });
+            }
+          } else if (action === 'updateScale') {
+            if (isMJ && roomId) {
+              const newScale = value;
+              const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
+              updateDoc(charRef, { scale: newScale });
             }
           } else if (action === 'toggleCondition') {
             if (isMJ && roomId) {
@@ -6070,182 +6222,190 @@ export default function Component() {
         selectedCityId={selectedCityId}
       />
       {/* Background Loader Overlay */}
-      {isBackgroundLoading && (
-        <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
-          <Loader2 className="w-12 h-12 text-white animate-spin mb-4" />
-          <p className="text-white text-lg font-medium">Chargement du fond...</p>
-        </div>
-      )}
+      {
+        isBackgroundLoading && (
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
+            <Loader2 className="w-12 h-12 text-white animate-spin mb-4" />
+            <p className="text-white text-lg font-medium">Chargement du fond...</p>
+          </div>
+        )
+      }
 
       {/* Layer Control Panel */}
-      {showLayerControl && (
-        <div className="absolute top-24 left-24 z-50">
-          <LayerControl layers={layers} onToggle={toggleLayer} />
-        </div>
-      )}
+      {
+        showLayerControl && (
+          <div className="absolute top-24 left-24 z-50">
+            <LayerControl layers={layers} onToggle={toggleLayer} />
+          </div>
+        )
+      }
+
+      {/* Background Selector */}
+      <BackgroundSelector
+        isOpen={showBackgroundSelector}
+        onClose={() => setShowBackgroundSelector(false)}
+        onSelectLocal={handleBackgroundSelectLocal}
+        onUpload={handleBackgroundChange}
+      />
 
       {/* 🎵 Music Control & Dialog */}
-      {isMJ && (
-        <>
-          <div className="absolute top-24 left-4 z-50 flex flex-col gap-2">
-            {/* Radial Menu replaces this button generally, but we keep it if needed or remove it? User asked to place from Radial Menu */
-              /* Removing the button as requested to use Radial Menu "d'abord les placer depuis la menu radial" implies this is the primary way */
-            }
-          </div>
-
-          <Dialog open={showMusicDialog} onOpenChange={setShowMusicDialog}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Ajouter une zone musicale</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="m-name" className="text-right">Nom</Label>
-                  <Input id="m-name" value={tempZoneData.name} onChange={e => setTempZoneData({ ...tempZoneData, name: e.target.value })} className="col-span-3" />
-                </div>
-
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="m-upload" className="text-right">Fichier MP3</Label>
-                  <div className="col-span-3 flex gap-2">
-                    <Input
-                      id="m-upload"
-                      type="file"
-                      accept="audio/*"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const storage = getStorage();
-                          const storageRef = ref(storage, `audio/${roomId}/${Date.now()}_${file.name}`);
-                          try {
-                            const snapshot = await uploadBytes(storageRef, file);
-                            const downloadURL = await getDownloadURL(snapshot.ref);
-                            setTempZoneData(prev => ({ ...prev, url: downloadURL }));
-                          } catch (error) {
-                            console.error("Upload failed", error);
-                            alert("Upload failed!");
-                          }
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="m-radius" className="text-right">Rayon</Label>
-                  <Input id="m-radius" type="number" value={tempZoneData.radius} onChange={e => setTempZoneData({ ...tempZoneData, radius: Number(e.target.value) })} className="col-span-3" />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={saveMusicZone}>Créer</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          <Dialog open={showEditMusicDialog} onOpenChange={setShowEditMusicDialog}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Modifier la zone musicale</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit-m-name" className="text-right">Nom</Label>
-                  <Input id="edit-m-name" value={tempZoneData.name} onChange={e => setTempZoneData({ ...tempZoneData, name: e.target.value })} className="col-span-3" />
-                </div>
-
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit-m-upload" className="text-right">Fichier MP3</Label>
-                  <div className="col-span-3 flex gap-2">
-                    <Input
-                      id="edit-m-upload"
-                      type="file"
-                      accept="audio/*"
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const storage = getStorage();
-                          const storageRef = ref(storage, `audio/${roomId}/${Date.now()}_${file.name}`);
-                          try {
-                            const snapshot = await uploadBytes(storageRef, file);
-                            const downloadURL = await getDownloadURL(snapshot.ref);
-                            setTempZoneData(prev => ({ ...prev, url: downloadURL }));
-                          } catch (error) {
-                            console.error("Upload failed", error);
-                            alert("Upload failed!");
-                          }
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="edit-m-radius" className="text-right">Rayon</Label>
-                  <Input id="edit-m-radius" type="number" value={tempZoneData.radius} onChange={e => setTempZoneData({ ...tempZoneData, radius: Number(e.target.value) })} className="col-span-3" />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={saveEditedMusicZone}>Sauvegarder</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-
-          {/* 🎵 Music Mode Overlay */}
-          {isMusicMode && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-50">
-              <div className="flex items-center gap-3 bg-neutral-900/90 backdrop-blur-md px-6 py-3 rounded-full border border-fuchsia-500/50 shadow-2xl">
-                <Music className="w-5 h-5 text-fuchsia-400" />
-                <span className="text-white font-medium">Mode Musique</span>
-                <div className="w-px h-6 bg-zinc-700" />
-                <span className="text-zinc-400 text-sm">Cliquez sur la carte pour placer une zone audio</span>
-              </div>
+      {
+        isMJ && (
+          <>
+            <div className="absolute top-24 left-4 z-50 flex flex-col gap-2">
+              {/* Radial Menu replaces this button generally, but we keep it if needed or remove it? User asked to place from Radial Menu */
+                /* Removing the button as requested to use Radial Menu "d'abord les placer depuis la menu radial" implies this is the primary way */
+              }
             </div>
-          )}
 
-          {/* 🎵 Music Zone Selection Panel */}
-          {selectedMusicZoneIds.length > 0 && (
-            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
-              <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
-                {selectedMusicZoneIds.length === 1 && (
-                  <>
-                    <span className="text-white text-sm mr-2">
-                      {musicZones.find(z => z.id === selectedMusicZoneIds[0])?.name}
-                    </span>
-                    <Button onClick={() => openEditDialog(selectedMusicZoneIds[0])}>
-                      <Edit className="w-4 h-4 mr-2" /> Modifier
+            <Dialog open={showMusicDialog} onOpenChange={setShowMusicDialog}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Ajouter une zone musicale</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="m-name" className="text-right">Nom</Label>
+                    <Input id="m-name" value={tempZoneData.name} onChange={e => setTempZoneData({ ...tempZoneData, name: e.target.value })} className="col-span-3" />
+                  </div>
+
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="m-upload" className="text-right">Fichier MP3</Label>
+                    <div className="col-span-3 flex gap-2">
+                      <Input
+                        id="m-upload"
+                        type="file"
+                        accept="audio/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const storage = getStorage();
+                            const storageRef = ref(storage, `audio / ${roomId}/${Date.now()}_${file.name}`);
+                            try {
+                              const snapshot = await uploadBytes(storageRef, file);
+                              const downloadURL = await getDownloadURL(snapshot.ref);
+                              setTempZoneData(prev => ({ ...prev, url: downloadURL }));
+                            } catch (error) {
+                              console.error("Upload failed", error);
+                              alert("Upload failed!");
+                            }
+                          }
+                        }}
+                      />
+                    </div >
+                  </div >
+
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="m-radius" className="text-right">Rayon</Label>
+                    <Input id="m-radius" type="number" value={tempZoneData.radius} onChange={e => setTempZoneData({ ...tempZoneData, radius: Number(e.target.value) })} className="col-span-3" />
+                  </div>
+                </div >
+                <DialogFooter>
+                  <Button onClick={saveMusicZone}>Créer</Button>
+                </DialogFooter>
+              </DialogContent >
+            </Dialog >
+
+            <Dialog open={showEditMusicDialog} onOpenChange={setShowEditMusicDialog}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Modifier la zone musicale</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-m-name" className="text-right">Nom</Label>
+                    <Input id="edit-m-name" value={tempZoneData.name} onChange={e => setTempZoneData({ ...tempZoneData, name: e.target.value })} className="col-span-3" />
+                  </div>
+
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-m-upload" className="text-right">Fichier MP3</Label>
+                    <div className="col-span-3 flex gap-2">
+                      <Input
+                        id="edit-m-upload"
+                        type="file"
+                        accept="audio/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const storage = getStorage();
+                            const storageRef = ref(storage, `audio/${roomId}/${Date.now()}_${file.name}`);
+                            try {
+                              const snapshot = await uploadBytes(storageRef, file);
+                              const downloadURL = await getDownloadURL(snapshot.ref);
+                              setTempZoneData(prev => ({ ...prev, url: downloadURL }));
+                            } catch (error) {
+                              console.error("Upload failed", error);
+                              alert("Upload failed!");
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <Label htmlFor="edit-m-radius" className="text-right">Rayon</Label>
+                    <Input id="edit-m-radius" type="number" value={tempZoneData.radius} onChange={e => setTempZoneData({ ...tempZoneData, radius: Number(e.target.value) })} className="col-span-3" />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={saveEditedMusicZone}>Sauvegarder</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+
+
+            {/* 🎵 Music Zone Selection Panel */}
+            {
+              selectedMusicZoneIds.length > 0 && (
+                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
+                  <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
+                    {selectedMusicZoneIds.length === 1 && (
+                      <>
+                        <span className="text-white text-sm mr-2">
+                          {musicZones.find(z => z.id === selectedMusicZoneIds[0])?.name}
+                        </span>
+                        <Button onClick={() => openEditDialog(selectedMusicZoneIds[0])}>
+                          <Edit className="w-4 h-4 mr-2" /> Modifier
+                        </Button>
+                      </>
+                    )}
+                    {selectedMusicZoneIds.length > 1 && (
+                      <span className="text-white text-sm mr-2">
+                        {selectedMusicZoneIds.length} zones sélectionnées
+                      </span>
+                    )}
+                    <Button onClick={() => {
+                      selectedMusicZoneIds.forEach(id => deleteMusicZone(id));
+                    }}>
+                      <X className="w-4 h-4 mr-2" /> Supprimer
                     </Button>
-                  </>
-                )}
-                {selectedMusicZoneIds.length > 1 && (
-                  <span className="text-white text-sm mr-2">
-                    {selectedMusicZoneIds.length} zones sélectionnées
-                  </span>
-                )}
-                <Button onClick={() => {
-                  selectedMusicZoneIds.forEach(id => deleteMusicZone(id));
-                }}>
-                  <X className="w-4 h-4 mr-2" /> Supprimer
-                </Button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
+                  </div>
+                </div>
+              )
+            }
+          </>
+        )
+      }
 
       {/* Custom Tooltip for Conditions */}
-      {hoveredCondition && (
-        <div
-          style={{
-            position: 'fixed',
-            left: hoveredCondition.x + 10,
-            top: hoveredCondition.y + 10,
-            zIndex: 9999,
-            pointerEvents: 'none'
-          }}
-          className="bg-black/90 text-white text-xs px-2 py-1 rounded shadow-xl border border-white/20"
-        >
-          {hoveredCondition.text}
-        </div>
-      )}
+      {
+        hoveredCondition && (
+          <div
+            style={{
+              position: 'fixed',
+              left: hoveredCondition.x + 10,
+              top: hoveredCondition.y + 10,
+              zIndex: 9999,
+              pointerEvents: 'none'
+            }}
+            className="bg-black/90 text-white text-xs px-2 py-1 rounded shadow-xl border border-white/20"
+          >
+            {hoveredCondition.text}
+          </div>
+        )
+      }
 
       {/* SCENE INVENTORY DRAWER */}
       <AnimatePresence>
@@ -6258,7 +6418,7 @@ export default function Component() {
         )}
       </AnimatePresence>
 
-    </div>
+    </div >
   )
 }
 
