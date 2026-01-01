@@ -695,10 +695,13 @@ export default function Component() {
 
         if (isGlobal || isForCurrentCity) {
           const img = new Image();
+          let imageUrl = '';
           if (data.type === 'joueurs') {
-            img.src = data.imageURLFinal || data.imageURL2 || data.imageURL;
+            imageUrl = data.imageURLFinal || data.imageURL2 || data.imageURL;
+            img.src = imageUrl;
           } else {
-            img.src = data.imageURL2 || data.imageURL;
+            imageUrl = data.imageURL2 || data.imageURL;
+            img.src = imageUrl;
           }
           // 🎯 GESTION DES COORDONNÉES SPECIFIQUES PAR VILLE
           let charX = data.x || 0;
@@ -717,6 +720,7 @@ export default function Component() {
             x: charX,
             y: charY,
             image: img,
+            imageUrl: imageUrl,
             visibility: data.visibility || 'hidden',
             visibilityRadius: parseFloat(data.visibilityRadius) || 100,
             type: data.type || 'pnj',
@@ -2286,20 +2290,9 @@ export default function Component() {
           ctx.arc(x, y, borderRadius, 0, 2 * Math.PI);
           ctx.stroke();
 
-          // Draw character icon
-          if (char.image) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(x, y, iconRadius, 0, 2 * Math.PI);
-            ctx.clip();
-            ctx.drawImage(char.image, x - iconRadius, y - iconRadius, iconRadius * 2, iconRadius * 2);
-            ctx.restore();
-          } else {
-            ctx.fillStyle = 'red';
-            ctx.beginPath();
-            ctx.arc(x, y, iconRadius, 0, 2 * Math.PI);
-            ctx.fill();
-          }
+          // Note: Character image is now rendered as a DOM element (see characters-layer in JSX)
+          // This allows animated GIFs to work properly
+          // The canvas still renders the border circle and other UI elements
 
 
 
@@ -5270,6 +5263,93 @@ export default function Component() {
                 )
               })}
             </div>
+            <div className="characters-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' }}>
+              {isLayerVisible('characters') && characters.map((char, index) => {
+                if (!bgImageObject) return null;
+                const image = bgImageObject;
+                const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+                const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
+                const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
+                if (cWidth === 0 || cHeight === 0) return null;
+
+                const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
+                const scaledWidth = imgWidth * scale * zoom;
+                const scaledHeight = imgHeight * scale * zoom;
+
+                const x = (char.x / imgWidth) * scaledWidth - offset.x;
+                const y = (char.y / imgHeight) * scaledHeight - offset.y;
+
+                let isVisible = true;
+                const isInFog = fullMapFog || isCellInFog(char.x, char.y, fogGrid, fogCellSize);
+                let effectiveVisibility = char.visibility;
+                if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
+                  effectiveVisibility = 'hidden';
+                }
+
+                if (char.visibility === 'ally') {
+                  isVisible = true;
+                } else if (effectiveVisibility === 'hidden') {
+                  const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
+                  const isInPlayerViewMode = playerViewMode && viewAsPersoId;
+
+                  if (isInPlayerViewMode) {
+                    const viewer = characters.find(c => c.id === effectivePersoId);
+                    if (viewer) {
+                      const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
+                      const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
+                      const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
+                      isVisible = dist <= viewer.visibilityRadius * zoom;
+                    } else {
+                      isVisible = false;
+                    }
+                  } else {
+                    isVisible = isMJ || (() => {
+                      const viewer = characters.find(c => c.id === effectivePersoId);
+                      if (!viewer) return false;
+                      const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
+                      const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
+                      const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
+                      return dist <= viewer.visibilityRadius * zoom;
+                    })();
+                  }
+                }
+
+                if (!isVisible) return null;
+
+                const isPlayerCharacter = char.type === 'joueurs';
+                const iconRadius = isPlayerCharacter ? 30 * zoom : 20 * zoom;
+
+                return (
+                  <div
+                    key={char.id}
+                    style={{
+                      position: 'absolute',
+                      left: x - iconRadius,
+                      top: y - iconRadius,
+                      width: iconRadius * 2,
+                      height: iconRadius * 2,
+                      pointerEvents: 'none',
+                      borderRadius: '50%',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {char.imageUrl && (
+                      <img
+                        src={char.imageUrl}
+                        alt={char.name}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          display: 'block'
+                        }}
+                        draggable={false}
+                      />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
             <canvas
               ref={fgCanvasRef}
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
@@ -5441,7 +5521,14 @@ export default function Component() {
         } : null}
       />
 
-      <Dialog open={characterDialogOpen} onOpenChange={setCharacterDialogOpen}>
+      <Dialog open={characterDialogOpen} onOpenChange={(open) => {
+        setCharacterDialogOpen(open);
+        if (!open) {
+          // Reset state when dialog closes
+          setEditingCharacter(null);
+          setSelectedCharacterIndex(null);
+        }
+      }}>
         <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">
           <DialogHeader>
             <DialogTitle>Modifier le personnage</DialogTitle>
@@ -5465,6 +5552,7 @@ export default function Component() {
                   <div className="space-y-1.5">
                     <Label htmlFor="characterImage" className="text-xs text-gray-300">Image / Token</Label>
                     <Input
+                      key={editingCharacter?.id || 'new'}
                       id="characterImage"
                       type="file"
                       onChange={(e) => {
@@ -5897,9 +5985,13 @@ export default function Component() {
             }
           } else if (action === 'edit') {
             if (isMJ) {
-              setEditingCharacter(char);
-              setCharacterDialogOpen(true);
-              setContextMenuOpen(false); // Close context menu when opening edit
+              const charIndex = characters.findIndex(c => c.id === characterId);
+              if (charIndex !== -1) {
+                setSelectedCharacterIndex(charIndex);
+                setEditingCharacter(char);
+                setCharacterDialogOpen(true);
+                setContextMenuOpen(false);
+              }
             }
           } else if (action === 'setVisibility') {
             if (isMJ && roomId) {
