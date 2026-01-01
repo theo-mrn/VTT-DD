@@ -26,6 +26,7 @@ export type Character = {
     SAG: number;
     INT: number;
     CHA: number;
+    scale?: number;
     conditions?: string[];
     Actions?: Array<{
         Nom: string;
@@ -113,7 +114,7 @@ export type DrawingTool = 'pen' | 'eraser' | 'line' | 'rectangle' | 'circle';
 
 export type DrawingMode = 'drawing' | 'view';
 
-export type LayerType = 'background' | 'grid' | 'drawings' | 'objects' | 'characters' | 'fog' | 'notes' | 'obstacles' | 'music';
+export type LayerType = 'background' | 'grid' | 'drawings' | 'objects' | 'characters' | 'fog' | 'notes' | 'obstacles' | 'music' | 'background_audio';
 
 export interface Layer {
     id: LayerType;

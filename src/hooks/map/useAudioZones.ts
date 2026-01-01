@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { MusicZone, Point } from '@/app/[roomid]/map/types';
 
-export const useAudioZones = (zones: MusicZone[], listenerPos: Point | null) => {
+export const useAudioZones = (zones: MusicZone[], listenerPos: Point | null, isMusicLayerVisible: boolean = true) => {
     const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
     // Sync Audio objects creation/deletion/url
@@ -45,8 +45,16 @@ export const useAudioZones = (zones: MusicZone[], listenerPos: Point | null) => 
 
     }, [zones]);
 
-    // Update volumes based on position
+    // Update volumes based on position AND layer visibility
     useEffect(() => {
+        // If music layer is not visible, mute everything
+        if (!isMusicLayerVisible) {
+            audioRefs.current.forEach(audio => {
+                audio.volume = 0;
+            });
+            return;
+        }
+
         if (!listenerPos) {
             // Mute all if no listener
             audioRefs.current.forEach(audio => {
@@ -85,7 +93,7 @@ export const useAudioZones = (zones: MusicZone[], listenerPos: Point | null) => 
             }
         });
 
-    }, [listenerPos, zones]);
+    }, [listenerPos, zones, isMusicLayerVisible]);
 
     // Global Cleanup
     useEffect(() => {

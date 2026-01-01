@@ -5,6 +5,16 @@ export type SuggestedItem = {
 }
 
 export const SUGGESTED_OBJECTS: SuggestedItem[] = [
+
+  { name: 'arbre1', path: '/items/arbre/arbre1.gif', category: 'arbre' },
+  { name: 'arbre2', path: '/items/arbre/arbre2.gif', category: 'arbre' },
+  { name: 'arbre3', path: '/items/arbre/arbre3.gif', category: 'arbre' },
+  { name: 'arbre4', path: '/items/arbre/arbre4.gif', category: 'arbre' },
+  { name: 'arbre5', path: '/items/arbre/arbre5.gif', category: 'arbre' },
+  { name: 'arbre6', path: '/items/arbre/arbre6.gif', category: 'arbre' },
+  { name: 'arbre7', path: '/items/arbre/arbre7.gif', category: 'arbre' },
+  { name: 'arbre8', path: '/items/arbre/arbre8.gif', category: 'arbre' },
+
   // Arme
   { name: 'arme1', path: '/items/arme/arme1.png', category: 'arme' },
   { name: 'arme2', path: '/items/arme/arme2.png', category: 'arme' },
@@ -122,6 +132,8 @@ export const SUGGESTED_OBJECTS: SuggestedItem[] = [
   { name: 'decoration19', path: '/items/decorations/decoration19.png', category: 'decorations' },
   { name: 'decoration20', path: '/items/decorations/decoration20.png', category: 'decorations' },
 
+  { name: 'feu1', path: '/items/feu/feu1.gif', category: 'feu' },
+
   // Gem
   { name: 'gem1', path: '/items/gem/gem1.png', category: 'gem' },
   { name: 'gem2', path: '/items/gem/gem2.png', category: 'gem' },
@@ -181,6 +193,7 @@ export const SUGGESTED_OBJECTS: SuggestedItem[] = [
 
 export const ITEM_CATEGORIES = [
   { id: 'all', label: 'Tout' },
+  { id: 'arbre', label: 'Arbre' },
   { id: 'arme', label: 'Armes' },
   { id: 'armure', label: 'Armures' },
   { id: 'bag', label: 'Sacs' },
@@ -188,9 +201,11 @@ export const ITEM_CATEGORIES = [
   { id: 'book', label: 'Livres' },
   { id: 'chest', label: 'Coffres' },
   { id: 'decorations', label: 'Déco' },
+  { id: 'feu', label: 'Feu' },
   { id: 'gem', label: 'Gemmes' },
   { id: 'keys', label: 'Clés' },
   { id: 'ladder', label: 'Échelles' },
   { id: 'potions', label: 'Potions' },
+
 ]
 

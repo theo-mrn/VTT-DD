@@ -322,6 +322,22 @@ export default function ContextMenuPanel({
                                                     />
                                                 </div>
                                             )}
+
+                                            <div className="bg-[#252525] p-2 rounded border border-[#333]">
+                                                <div className="flex justify-between text-xs text-gray-400 mb-1">
+                                                    <span>Taille</span>
+                                                    <span>x{character.scale || 1}</span>
+                                                </div>
+                                                <input
+                                                    type="range"
+                                                    min="0.5"
+                                                    max="3"
+                                                    step="0.1"
+                                                    value={character.scale || 1}
+                                                    onChange={(e) => onAction('updateScale', character.id, parseFloat(e.target.value))}
+                                                    className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                                                />
+                                            </div>
                                         </div>
 
 
