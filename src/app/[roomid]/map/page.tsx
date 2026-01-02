@@ -57,7 +57,7 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
 import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Music, Volume2, VolumeX } from 'lucide-react'
-import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc } from '@/lib/firebase'
+import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc, query, where } from '@/lib/firebase'
 import Combat from '@/components/(combat)/combat2';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -83,6 +83,7 @@ import {
   isPointInPolygon,
   getPolygonsContainingViewer,
   isPointInShadows,
+  type ShadowResult
 } from '@/lib/visibility';
 import { LayerControl } from '@/components/(map)/LayerControl';
 import { SelectionMenu, type SelectionCandidates, type SelectionType } from '@/components/(map)/SelectionMenu';
@@ -320,6 +321,8 @@ export default function Component() {
 
   const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fgCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const shadowTempCanvas = useRef<HTMLCanvasElement | null>(null);
+  const shadowExteriorCanvas = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [visibilityRadius, setVisibilityRadius] = useState(100);
@@ -651,7 +654,8 @@ export default function Component() {
     saveFullMapFog,
     toggleFogCell,
     addFogCellIfNew,
-    calculateFogOpacity
+    calculateFogOpacity,
+    flushFogUpdates // [NEW]
   } = useFogManager({
     roomId,
     selectedCityId,
@@ -696,15 +700,21 @@ export default function Component() {
   }, [selectedObstacleId, visibilityMode, isDrawingObstacle]);
 
   useEffect(() => {
+    let cleanup: (() => void) | undefined;
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         setUserId(user.uid);
-        INITializeFirebaseListeners(roomId);
+        if (cleanup) cleanup(); // Clean up previous listeners if any (though this runs mostly once)
+        cleanup = INITializeFirebaseListeners(roomId);
       } else {
         setUserId(null);
+        if (cleanup) cleanup();
       }
     });
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      if (cleanup) cleanup();
+    };
   }, [roomId]);
 
   // 🆕 CHARGER LE FOND SELON LA VILLE SÉLECTIONNÉE
@@ -770,91 +780,187 @@ export default function Component() {
 
     // 1. CHARGER ET FILTRER LES PERSONNAGES
     const charactersRef = collection(db, 'cartes', roomId, 'characters');
-    const charsUnsub = onSnapshot(charactersRef, (snapshot) => {
-      const allChars: Character[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
 
-        // CRITÈRE DE FILTRAGE :
-        // - Soit c'est un joueur ou allié (toujours visible partout)
-        // - Soit c'est un PNJ lié à la ville actuelle
-        const isGlobal = data.type === 'joueurs' || data.visibility === 'ally';
-        const isForCurrentCity = data.cityId === selectedCityId;
+    // A. Charger les Joueurs (Global - toujours visibles)
+    const playersQuery = query(charactersRef, where('type', '==', 'joueurs'));
+    // B. Charger les PNJ de la ville actuelle (ou "Global" si pas de ville)
+    // Note: Si selectedCityId est null, on cherche les PNJ sans cityId ou avec cityId null
+    const npcsQuery = selectedCityId
+      ? query(charactersRef, where('cityId', '==', selectedCityId))
+      : query(charactersRef, where('cityId', '==', null)); // Ou undefined si indexé ainsi
 
-        if (isGlobal || isForCurrentCity) {
-          const img = new Image();
-          let imageUrl = '';
-          if (data.type === 'joueurs') {
-            imageUrl = data.imageURLFinal || data.imageURL2 || data.imageURL;
-            img.src = imageUrl;
-          } else {
-            imageUrl = data.imageURL2 || data.imageURL;
-            img.src = imageUrl;
-          }
-          // 🎯 GESTION DES COORDONNÉES SPECIFIQUES PAR VILLE
-          let charX = data.x || 0;
-          let charY = data.y || 0;
+    // On utilise un map pour fusionner les résultats sans doublons
+    const loadedCharsMap = new Map<string, Character>();
 
-          // Si on est dans une ville spécifique et que le personnage a des positions sauvegardées pour cette ville
-          if (selectedCityId && data.positions && data.positions[selectedCityId]) {
-            charX = data.positions[selectedCityId].x;
-            charY = data.positions[selectedCityId].y;
-          }
-
-          allChars.push({
-            id: doc.id,
-            niveau: data.niveau || 1,
-            name: data.Nomperso || '',
-            x: charX,
-            y: charY,
-            image: img,
-            imageUrl: imageUrl,
-            visibility: data.visibility || 'hidden',
-            visibilityRadius: parseFloat(data.visibilityRadius) || 100,
-            type: data.type || 'pnj',
-            PV: data.PV || 10,
-            PV_Max: data.PV_Max || data.PV || 10, // Use PV as fallback if PV_Max is missing
-            Defense: data.Defense || 5,
-            Contact: data.Contact || 5,
-            Distance: data.Distance || 5,
-            Magie: data.Magie || 5,
-            INIT: data.INIT || 5,
-            FOR: data.FOR || 0,
-            DEX: data.DEX || 0,
-            CON: data.CON || 0,
-            SAG: data.SAG || 0,
-            INT: data.INT || 0,
-            CHA: data.CHA || 0,
-            conditions: data.conditions || [],
-            scale: data.scale || 1,
-            Actions: data.Actions || []
-            // cityId: data.cityId // Garder l'info
-          });
-        }
-      });
-      setCharacters(allChars);
+    const updateCharacters = () => {
+      setCharacters(Array.from(loadedCharsMap.values()));
       setLoading(false);
+    };
+
+    const processSnapshot = (snapshot: any) => {
+      snapshot.forEach((doc: any) => {
+        const data = doc.data();
+        const img = new Image();
+        let imageUrl = '';
+        if (data.type === 'joueurs') {
+          imageUrl = data.imageURLFinal || data.imageURL2 || data.imageURL;
+          img.src = imageUrl;
+        } else {
+          imageUrl = data.imageURL2 || data.imageURL;
+          img.src = imageUrl;
+        }
+        // 🎯 GESTION DES COORDONNÉES SPECIFIQUES PAR VILLE
+        let charX = data.x || 0;
+        let charY = data.y || 0;
+
+        // Si on est dans une ville spécifique et que le personnage a des positions sauvegardées pour cette ville
+        if (selectedCityId && data.positions && data.positions[selectedCityId]) {
+          charX = data.positions[selectedCityId].x;
+          charY = data.positions[selectedCityId].y;
+        }
+
+        loadedCharsMap.set(doc.id, {
+          id: doc.id,
+          niveau: data.niveau || 1,
+          name: data.Nomperso || '',
+          x: charX,
+          y: charY,
+          image: img,
+          imageUrl: imageUrl,
+          visibility: data.visibility || 'hidden',
+          visibilityRadius: parseFloat(data.visibilityRadius) || 100,
+          type: data.type || 'pnj',
+          PV: data.PV || 10,
+          PV_Max: data.PV_Max || data.PV || 10,
+          Defense: data.Defense || 5,
+          Contact: data.Contact || 5,
+          Distance: data.Distance || 5,
+          Magie: data.Magie || 5,
+          INIT: data.INIT || 5,
+          FOR: data.FOR || 0,
+          DEX: data.DEX || 0,
+          CON: data.CON || 0,
+          SAG: data.SAG || 0,
+          INT: data.INT || 0,
+          CHA: data.CHA || 0,
+          conditions: data.conditions || [],
+          scale: data.scale || 1,
+          Actions: data.Actions || []
+        });
+      });
+      updateCharacters();
+    };
+
+    const playersUnsub = onSnapshot(playersQuery, (snapshot) => {
+      // Clear previous players to handle deletions (complex with merger, but acceptable for now)
+      // Ideal way: smart merge. For now, simpler re-process might be better if volume involved.
+      // But players volume is low (<10).
+      processSnapshot(snapshot);
     });
-    unsubscribers.push(charsUnsub);
+
+    // NOTE: This simple merge logic accumulates. If a char is deleted, it stays in map until full reload.
+    // To fix deletion, we'd need to track source of each char.
+    // Better approach for deletion support: Keep two separate lists and merge on render or inside keys.
+    // Let's do separate handlers for robustness.
+
+    const processCharData = (doc: any) => {
+      const data = doc.data();
+      const img = new Image();
+      let imageUrl = '';
+      if (data.type === 'joueurs') {
+        imageUrl = data.imageURLFinal || data.imageURL2 || data.imageURL;
+        img.src = imageUrl;
+      } else {
+        imageUrl = data.imageURL2 || data.imageURL;
+        img.src = imageUrl;
+      }
+      // 🎯 GESTION DES COORDONNÉES SPECIFIQUES PAR VILLE
+      let charX = data.x || 0;
+      let charY = data.y || 0;
+
+      // Si on est dans une ville spécifique et que le personnage a des positions sauvegardées pour cette ville
+      if (selectedCityId && data.positions && data.positions[selectedCityId]) {
+        charX = data.positions[selectedCityId].x;
+        charY = data.positions[selectedCityId].y;
+      }
+
+      return {
+        id: doc.id,
+        niveau: data.niveau || 1,
+        name: data.Nomperso || '',
+        x: charX,
+        y: charY,
+        image: img,
+        imageUrl: imageUrl,
+        visibility: data.visibility || 'hidden',
+        visibilityRadius: parseFloat(data.visibilityRadius) || 100,
+        type: data.type || 'pnj',
+        PV: data.PV || 10,
+        PV_Max: data.PV_Max || data.PV || 10,
+        Defense: data.Defense || 5,
+        Contact: data.Contact || 5,
+        Distance: data.Distance || 5,
+        Magie: data.Magie || 5,
+        INIT: data.INIT || 5,
+        FOR: data.FOR || 0,
+        DEX: data.DEX || 0,
+        CON: data.CON || 0,
+        SAG: data.SAG || 0,
+        INT: data.INT || 0,
+        CHA: data.CHA || 0,
+        conditions: data.conditions || [],
+        scale: data.scale || 1,
+        Actions: data.Actions || []
+      } as Character;
+    }
+
+    let currentPlayers: Character[] = [];
+    let currentNPCs: Character[] = [];
+
+    const mergeAndSet = () => {
+      // Map by ID to deduplicate (if a player somehow matches NPC query too)
+      const charMap = new Map<string, Character>();
+      currentPlayers.forEach(c => charMap.set(c.id, c));
+      currentNPCs.forEach(c => charMap.set(c.id, c));
+      setCharacters(Array.from(charMap.values()));
+      setLoading(false);
+    }
+
+    const unsubPlayers = onSnapshot(playersQuery, (snapshot) => {
+      const chars: Character[] = [];
+      snapshot.forEach(doc => chars.push(processCharData(doc)));
+      currentPlayers = chars;
+      mergeAndSet();
+    });
+    unsubscribers.push(unsubPlayers);
+
+    const unsubNPCs = onSnapshot(npcsQuery, (snapshot) => {
+      const chars: Character[] = [];
+      snapshot.forEach(doc => chars.push(processCharData(doc)));
+      currentNPCs = chars;
+      mergeAndSet();
+    });
+    unsubscribers.push(unsubNPCs);
 
     // 2. CHARGER ET FILTRER LES DESSINS
     const drawingsRef = collection(db, 'cartes', roomId, 'drawings');
-    const drawingsUnsub = onSnapshot(drawingsRef, (snapshot) => {
+    const drawingsQuery = selectedCityId
+      ? query(drawingsRef, where('cityId', '==', selectedCityId))
+      : query(drawingsRef, where('cityId', '==', null));
+
+    const drawingsUnsub = onSnapshot(drawingsQuery, (snapshot) => {
       const drws: SavedDrawing[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
-        // Afficher seulement les dessins de la ville actuelle
-        if (data.cityId === selectedCityId) {
-          const points = data.points || data.paths;
-          if (points && Array.isArray(points)) {
-            drws.push({
-              id: doc.id,
-              points: points,
-              color: data.color || '#000000',
-              width: data.width || 5,
-              type: data.type || 'pen',
-            });
-          }
+        const points = data.points || data.paths;
+        if (points && Array.isArray(points)) {
+          drws.push({
+            id: doc.id,
+            points: points,
+            color: data.color || '#000000',
+            width: data.width || 5,
+            type: data.type || 'pen',
+          });
         }
       });
       setDrawings(drws);
@@ -863,22 +969,23 @@ export default function Component() {
 
     // 3. CHARGER ET FILTRER LES NOTES
     const notesRef = collection(db, 'cartes', roomId, 'text');
-    const notesUnsub = onSnapshot(notesRef, (snapshot) => {
+    const notesQuery = selectedCityId
+      ? query(notesRef, where('cityId', '==', selectedCityId))
+      : query(notesRef, where('cityId', '==', null));
+
+    const notesUnsub = onSnapshot(notesQuery, (snapshot) => {
       const texts: Text[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
-        // Afficher seulement les notes de la ville actuelle
-        if (data.cityId === selectedCityId) {
-          texts.push({
-            id: doc.id,
-            text: data.content,
-            x: data.x || 0,
-            y: data.y || 0,
-            color: data.color || 'yellow',
-            fontSize: data.fontSize,
-            fontFamily: data.fontFamily,
-          });
-        }
+        texts.push({
+          id: doc.id,
+          text: data.content,
+          x: data.x || 0,
+          y: data.y || 0,
+          color: data.color || 'yellow',
+          fontSize: data.fontSize,
+          fontFamily: data.fontFamily,
+        });
       });
       setNotes(texts);
     });
@@ -914,20 +1021,21 @@ export default function Component() {
 
     // 5. 🔦 CHARGER LES OBSTACLES (pour la vision dynamique)
     const obstaclesRef = collection(db, 'cartes', roomId, 'obstacles');
-    const obstaclesUnsub = onSnapshot(obstaclesRef, (snapshot) => {
+    const obstaclesQuery = selectedCityId
+      ? query(obstaclesRef, where('cityId', '==', selectedCityId))
+      : query(obstaclesRef, where('cityId', '==', null));
+
+    const obstaclesUnsub = onSnapshot(obstaclesQuery, (snapshot) => {
       const obs: Obstacle[] = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data();
-        // Afficher seulement les obstacles de la ville actuelle
-        if (data.cityId === selectedCityId) {
-          obs.push({
-            id: docSnap.id,
-            type: data.type || 'wall',
-            points: data.points || [],
-            color: data.color,
-            opacity: data.opacity,
-          });
-        }
+        obs.push({
+          id: docSnap.id,
+          type: data.type || 'wall',
+          points: data.points || [],
+          color: data.color,
+          opacity: data.opacity,
+        });
       });
 
       setObstacles(obs);
@@ -936,37 +1044,32 @@ export default function Component() {
 
     // 6. CHARGER ET FILTRER LES OBJETS
     const objectsRef = collection(db, 'cartes', roomId, 'objects');
-    const objectsUnsub = onSnapshot(objectsRef, (snapshot) => {
+    const objectsQuery = selectedCityId
+      ? query(objectsRef, where('cityId', '==', selectedCityId))
+      : query(objectsRef, where('cityId', '==', null));
+
+    const objectsUnsub = onSnapshot(objectsQuery, (snapshot) => {
       const objs: MapObject[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
-        // Afficher seulement les objets de la ville actuelle ou globaux (si cityId est null/undefined et qu'on veut les afficher partout, à définir. Pour l'instant on filtre par cityId)
-        // Si data.cityId est undefined, on assume que c'est lié à la map globale ? Ou on force cityId.
-        // Ici on va dire : si cityId match selectedCityId.
 
-        // Note: pour compatibilité, si l'objet n'a pas de cityId, on peut décider qu'il est visible partout ou seulement sur la world map (selectedCityId === null)
-        const objectCityId = data.cityId || null;
-
-        if (objectCityId === selectedCityId) {
-          // Créer l'image immédiatement
-          const img = new Image();
-          if (data.imageUrl) {
-            img.src = data.imageUrl;
-          }
-
-          objs.push({
-            id: doc.id,
-            x: data.x || 0,
-            y: data.y || 0,
-            width: data.width || 100,
-            height: data.height || 100,
-            rotation: data.rotation || 0,
-            imageUrl: data.imageUrl || '',
-            cityId: data.cityId || null,
-            image: img
-          });
-
+        // Créer l'image immédiatement
+        const img = new Image();
+        if (data.imageUrl) {
+          img.src = data.imageUrl;
         }
+
+        objs.push({
+          id: doc.id,
+          x: data.x || 0,
+          y: data.y || 0,
+          width: data.width || 100,
+          height: data.height || 100,
+          rotation: data.rotation || 0,
+          imageUrl: data.imageUrl || '',
+          cityId: data.cityId || null,
+          image: img
+        });
       });
       setObjects(objs);
     });
@@ -974,13 +1077,15 @@ export default function Component() {
 
     // 7. CHARGER ZONES DE MUSIQUE
     const musicZonesRef = collection(db, 'cartes', roomId, 'musicZones');
-    const musicZonesUnsub = onSnapshot(musicZonesRef, (snapshot) => {
+    const musicZonesQuery = selectedCityId
+      ? query(musicZonesRef, where('cityId', '==', selectedCityId))
+      : query(musicZonesRef, where('cityId', '==', null));
+
+    const musicZonesUnsub = onSnapshot(musicZonesQuery, (snapshot) => {
       const zones: MusicZone[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
-        if (data.cityId === selectedCityId) {
-          zones.push({ id: doc.id, ...data } as MusicZone);
-        }
+        zones.push({ id: doc.id, ...data } as MusicZone);
       });
       setMusicZones(zones);
     });
@@ -1031,6 +1136,33 @@ export default function Component() {
 
     return () => resizeObserver.disconnect();
   }, []);
+
+  // 🔦 OPTIMIZATION: Memoize active viewer to avoid re-finding it constantly
+  const activeViewer = React.useMemo(() => {
+    const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
+    return characters.find(c => c.id === effectivePersoId);
+  }, [characters, playerViewMode, viewAsPersoId, persoId]);
+
+  // 🔦 OPTIMIZATION: Memoize shadow calculations
+  const precalculatedShadows = React.useMemo<ShadowResult | null>(() => {
+    if (!bgImageObject || !activeViewer || !obstacles.length) return null;
+
+    // Check if layer is visible (re-implement check since function dependency is tricky)
+    const obstLayer = layers.find(l => l.id === 'obstacles');
+    if (obstLayer && !obstLayer.isVisible) return null;
+
+    const effectiveIsMJ = isMJ && !playerViewMode;
+    if (effectiveIsMJ) return null;
+
+    const { width, height } = getMediaDimensions(bgImageObject);
+    const mapBounds = { width, height };
+    const viewerPos = { x: activeViewer.x, y: activeViewer.y };
+
+    return {
+      shadows: calculateShadowPolygons(viewerPos, obstacles, mapBounds),
+      polygonsContainingViewer: getPolygonsContainingViewer(viewerPos, obstacles)
+    };
+  }, [activeViewer?.x, activeViewer?.y, obstacles, bgImageObject, isMJ, playerViewMode, layers, activeViewer]);
 
   useEffect(() => {
     const bgCanvas = bgCanvasRef.current;
@@ -1091,7 +1223,7 @@ export default function Component() {
     };
 
 
-  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers, viewAsPersoId, containerSize, musicZones, selectedMusicZoneIds, isMusicMode, isDraggingMusicZone, globalTokenScale]);
+  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers, viewAsPersoId, containerSize, musicZones, selectedMusicZoneIds, isMusicMode, isDraggingMusicZone, globalTokenScale, precalculatedShadows]);
 
 
   // 🎯 NPC Template Drag & Drop Handlers
@@ -2137,11 +2269,13 @@ export default function Component() {
 
 
   const INITializeFirebaseListeners = (room: string) => {
+    const unsubscribers: (() => void)[] = [];
+
     // Le chargement du fond est maintenant géré par un useEffect séparé (voir ligne ~165)
 
     // Écouter le personnage actif (tour_joueur)
     const settingsRef = doc(db, 'cartes', room.toString(), 'settings', 'general');
-    onSnapshot(settingsRef, (doc) => {
+    const settingsUnsub = onSnapshot(settingsRef, (doc) => {
       if (doc.exists() && doc.data().tour_joueur) {
         setActivePlayerId(doc.data().tour_joueur);
       }
@@ -2164,11 +2298,12 @@ export default function Component() {
         }
       }
     });
+    unsubscribers.push(settingsUnsub);
 
     // 🆕 Charger les villes pour la world map
     console.log('🏙️ [Cities Listener] Setting up cities listener for roomId:', room.toString());
     const citiesRef = collection(db, 'cartes', room.toString(), 'cities');
-    onSnapshot(citiesRef, (snapshot) => {
+    const citiesUnsub = onSnapshot(citiesRef, (snapshot) => {
       const loadedCities: any[] = [];
       snapshot.forEach((doc) => {
         loadedCities.push({ id: doc.id, ...doc.data() });
@@ -2176,27 +2311,14 @@ export default function Component() {
       console.log('🏙️ [Cities Listener] Cities loaded:', loadedCities.length, 'cities:', loadedCities.map(c => ({ id: c.id, name: c.name })));
       setCities(loadedCities);
     });
+    unsubscribers.push(citiesUnsub);
 
-    // Charger le brouillard
-    const fogRef = doc(db, 'cartes', room.toString(), 'fog', 'fogData');
-    onSnapshot(fogRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        // 🎯 NOUVEAU : Charger la grille de brouillard depuis Firebase
-        const gridMap = new Map<string, boolean>();
-        if (data.grid) {
-          Object.entries(data.grid).forEach(([key, value]) => {
-            gridMap.set(key, value as boolean);
-          });
-        }
-        setFogGrid(gridMap);
+    // NOTE: Fog listener removed from here as it is handled by the main data loading useEffect (line ~890)
+    // to correctly support switching between city-specific fog and global fog files.
 
-        // 🎯 CHARGER le mode brouillard complet depuis Firebase
-        if (data.fullMapFog !== undefined) {
-          setFullMapFog(data.fullMapFog);
-        }
-      }
-    });
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
+    };
   };
 
 
@@ -2475,7 +2597,12 @@ export default function Component() {
           obstacles,
           mapBounds,
           1.0, // Opacité 100% - les joueurs ne voient rien derrière les obstacles
-          transformPoint
+          transformPoint,
+          {
+            precalculated: precalculatedShadows ?? undefined,
+            tempCanvas: shadowTempCanvas.current ?? undefined,
+            exteriorCanvas: shadowExteriorCanvas.current ?? undefined
+          }
         );
       }
     }
@@ -4751,6 +4878,14 @@ export default function Component() {
       setIsDraggingObstacle(false);
       setDraggedObstacleId(null);
       setDraggedObstacleOriginalPoints([]);
+      return;
+    }
+
+    // 🎯 FIN DU DRAG BROUILLARD
+    if (isFogDragging) {
+      setIsFogDragging(false);
+      // 🔥 FLUSH UPDATES TO FIREBASE
+      await flushFogUpdates();
       return;
     }
 

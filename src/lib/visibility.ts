@@ -239,33 +239,75 @@ export function getPolygonsContainingViewer(
  * Uses a temporary canvas to avoid opacity stacking when shadows overlap
  * Also handles special case where viewer is inside a polygon (hides exterior)
  */
+export type ShadowResult = {
+    shadows: Point[][];
+    polygonsContainingViewer: Obstacle[];
+};
+
+/**
+ * Draw shadow polygons on the canvas
+ * Uses a temporary canvas to avoid opacity stacking when shadows overlap
+ * Also handles special case where viewer is inside a polygon (hides exterior)
+ */
 export function drawShadows(
     ctx: CanvasRenderingContext2D,
     viewerPos: Point,
     obstacles: Obstacle[],
     mapBounds: { width: number; height: number },
     fogOpacity: number,
-    transformPoint: (p: Point) => Point
+    transformPoint: (p: Point) => Point,
+    options: {
+        precalculated?: ShadowResult;
+        tempCanvas?: HTMLCanvasElement;
+        exteriorCanvas?: HTMLCanvasElement;
+    } = {}
 ): void {
     if (obstacles.length === 0) return;
 
-    const shadows = calculateShadowPolygons(viewerPos, obstacles, mapBounds);
-    const polygonsContainingViewer = getPolygonsContainingViewer(viewerPos, obstacles);
+    let shadows: Point[][];
+    let polygonsContainingViewer: Obstacle[];
+
+    if (options.precalculated) {
+        shadows = options.precalculated.shadows;
+        polygonsContainingViewer = options.precalculated.polygonsContainingViewer;
+    } else {
+        shadows = calculateShadowPolygons(viewerPos, obstacles, mapBounds);
+        polygonsContainingViewer = getPolygonsContainingViewer(viewerPos, obstacles);
+    }
 
     if (shadows.length === 0 && polygonsContainingViewer.length === 0) return;
 
-    // Créer un canvas temporaire pour les ombres
+    // Créer un canvas temporaire pour les ombres ou utiliser celui fourni
     // Cela évite l'accumulation d'opacité quand les ombres se superposent
     const canvas = ctx.canvas;
-    const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = canvas.width;
-    tempCanvas.height = canvas.height;
-    const tempCtx = tempCanvas.getContext('2d');
+    let tempCanvas = options.tempCanvas;
+    let tempCtx: CanvasRenderingContext2D | null = null;
+    let createdTempCanvas = false;
+
+    if (!tempCanvas) {
+        tempCanvas = document.createElement('canvas');
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        createdTempCanvas = true;
+    } else {
+        // Resize if needed
+        if (tempCanvas.width !== canvas.width || tempCanvas.height !== canvas.height) {
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+        } else {
+            // Clear existing content
+            const tCtx = tempCanvas.getContext('2d');
+            if (tCtx) tCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+        }
+    }
+
+    tempCtx = tempCanvas.getContext('2d');
     if (!tempCtx) return;
 
     // Appliquer le même scale que le canvas principal
     const scaleX = canvas.width / (canvas.clientWidth || canvas.width);
     const scaleY = canvas.height / (canvas.clientHeight || canvas.height);
+    tempCtx.save(); // Save verifyable state
     tempCtx.scale(scaleX, scaleY);
 
     // Dessiner toutes les ombres en noir opaque sur le canvas temporaire
@@ -295,11 +337,26 @@ export function drawShadows(
         // First, we need a different approach: draw everything black, then cut out the polygon
 
         // Create another temp canvas for the exterior mask
-        const exteriorCanvas = document.createElement('canvas');
-        exteriorCanvas.width = canvas.width;
-        exteriorCanvas.height = canvas.height;
-        const exteriorCtx = exteriorCanvas.getContext('2d');
+        let exteriorCanvas = options.exteriorCanvas;
+        let exteriorCtx: CanvasRenderingContext2D | null = null;
+
+        if (!exteriorCanvas) {
+            exteriorCanvas = document.createElement('canvas');
+            exteriorCanvas.width = canvas.width;
+            exteriorCanvas.height = canvas.height;
+        } else {
+            if (exteriorCanvas.width !== canvas.width || exteriorCanvas.height !== canvas.height) {
+                exteriorCanvas.width = canvas.width;
+                exteriorCanvas.height = canvas.height;
+            } else {
+                const eCtx = exteriorCanvas.getContext('2d');
+                if (eCtx) eCtx.clearRect(0, 0, exteriorCanvas.width, exteriorCanvas.height);
+            }
+        }
+
+        exteriorCtx = exteriorCanvas.getContext('2d');
         if (exteriorCtx) {
+            exteriorCtx.save();
             exteriorCtx.scale(scaleX, scaleY);
 
             // Fill entire canvas with black (fog)
@@ -325,14 +382,19 @@ export function drawShadows(
                 exteriorCtx.closePath();
                 exteriorCtx.fill();
             }
+            exteriorCtx.restore();
 
             // Composite the exterior mask onto the main temp canvas
             tempCtx.globalCompositeOperation = 'source-over';
+            tempCtx.save();
             tempCtx.resetTransform();
             tempCtx.drawImage(exteriorCanvas, 0, 0);
-            tempCtx.scale(scaleX, scaleY);
+            tempCtx.restore();
+            // Restoring scaleX/scaleY is handled by tempCtx.restore() but we didn't save before resetTransform in original code safely. 
+            // In this new block, we rely on the outer tempCtx.save().
         }
     }
+    tempCtx.restore();
 
     // Appliquer le canvas temporaire avec l'opacité désirée
     ctx.save();
