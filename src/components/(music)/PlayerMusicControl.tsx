@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Volume2, VolumeX, Music2 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 
+import { useAudioMixer } from '@/components/(audio)/AudioMixerPanel';
+
 interface MusicState {
   videoId: string | null;
   videoTitle?: string;
@@ -23,10 +25,11 @@ interface PlayerMusicControlProps {
 
 /**
  * Contrôle musical simple pour les JOUEURS
- * Affiche uniquement le volume et le titre de la musique
- * Synchronisé avec le MJ via Firebase
+ * Affiche le titre de la musique et utilise le volume du mixeur global
  */
 export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) {
+  const { volumes: audioVolumes } = useAudioMixer(); // Hook local pour le volume
+
   const [musicState, setMusicState] = useState<MusicState>({
     videoId: null,
     videoTitle: '',
@@ -36,36 +39,17 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
     lastUpdate: Date.now(),
     updatedBy: ''
   });
-  const [isMuted, setIsMuted] = useState(false);
-  const [localVolume, setLocalVolume] = useState(80);
+
   const playerRef = useRef<YouTubePlayer | null>(null);
   const musicStateRef = useRef<string>(`rooms/${roomId}/music`);
   const isSyncingFromFirebase = useRef(false);
   const hasPlayerSyncedOnce = useRef(false);
 
-  // Charger le volume depuis localStorage après le montage du composant
+  // Appliquer le volume du mixeur quand il change
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('playerMusicVolume');
-      if (saved) {
-        const volume = parseInt(saved, 10);
-        setLocalVolume(volume);
-        setIsMuted(volume === 0);
-      }
-    }
-  }, []);
-
-  const handleVolumeChange = useCallback((value: number[]) => {
-    const volume = value[0];
-    setLocalVolume(volume);
-    setIsMuted(volume === 0);
-
-    // Sauvegarder dans localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('playerMusicVolume', volume.toString());
-    }
-
-    if (playerRef.current) {
+    if (playerRef.current && typeof playerRef.current.setVolume === 'function') {
+      // Volume backgroundMusic est entre 0 et 1, setVolume attend 0-100
+      const volume = audioVolumes.backgroundMusic * 100;
       playerRef.current.setVolume(volume);
       if (volume > 0) {
         playerRef.current.unMute();
@@ -73,29 +57,17 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
         playerRef.current.mute();
       }
     }
-  }, []);
-
-  const toggleMute = useCallback(() => {
-    if (!playerRef.current) return;
-
-    const newMuted = !isMuted;
-    setIsMuted(newMuted);
-
-    if (newMuted) {
-      playerRef.current.mute();
-    } else {
-      playerRef.current.unMute();
-      playerRef.current.setVolume(localVolume);
-    }
-  }, [isMuted, localVolume]);
+  }, [audioVolumes.backgroundMusic]);
 
   // Configuration du lecteur YouTube
   const onPlayerReady: YouTubeProps['onReady'] = async (event) => {
     playerRef.current = event.target;
-    const volume = isMuted ? 0 : localVolume;
+    const volume = audioVolumes.backgroundMusic * 100;
     playerRef.current.setVolume(volume);
-    if (!isMuted) {
+    if (volume > 0) {
       playerRef.current.unMute();
+    } else {
+      playerRef.current.mute();
     }
 
     // Synchroniser immédiatement avec l'état Firebase existant
@@ -197,52 +169,23 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
       )}
 
       {/* Titre de la musique */}
-      {musicState.videoId && musicState.videoTitle && (
-        <div className="flex items-center gap-2 p-3 bg-white/10 rounded-lg border border-white/10">
-          <Music2 className="h-4 w-4 text-white shrink-0" />
+      {musicState.videoId && musicState.videoTitle ? (
+        <div className="flex items-center gap-3 p-4 bg-[#1a1a1a] rounded-lg border border-[#333]">
+          <div className={`p-2 rounded-full ${musicState.isPlaying ? 'bg-[#c0a080]/20' : 'bg-[#333]'}`}>
+            <Music2 className={`h-5 w-5 ${musicState.isPlaying ? 'text-[#c0a080] animate-pulse' : 'text-gray-500'}`} />
+          </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate text-white">{musicState.videoTitle}</p>
-            <p className="text-xs text-gray-300">
-              {musicState.isPlaying ? '▶ En lecture' : '⏸ En pause'}
+            <p className="text-sm font-bold truncate text-[#e0e0e0]">{musicState.videoTitle}</p>
+            <p className="text-xs text-gray-400">
+              {musicState.isPlaying ? 'Lecture en cours' : 'En pause'}
             </p>
           </div>
         </div>
-      )}
-
-      {/* Contrôle du volume */}
-      <div className="flex items-center gap-3 p-3 bg-white/5 rounded-lg border border-white/5">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleMute}
-          className="shrink-0 h-8 w-8 text-gray-300 hover:text-white hover:bg-white/10"
-          title={isMuted ? "Activer le son" : "Couper le son"}
-        >
-          {isMuted ? (
-            <VolumeX className="h-4 w-4" />
-          ) : (
-            <Volume2 className="h-4 w-4" />
-          )}
-        </Button>
-
-        <Slider
-          value={[isMuted ? 0 : localVolume]}
-          min={0}
-          max={100}
-          step={1}
-          onValueChange={handleVolumeChange}
-          className="flex-1"
-        />
-
-        <span className="text-xs font-semibold w-10 text-right shrink-0 text-white">
-          {Math.round(isMuted ? 0 : localVolume)}%
-        </span>
-      </div>
-
-      {!musicState.videoId && (
-        <div className="text-center text-gray-400 py-8">
-          <Music2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p className="text-sm">Aucune musique en cours</p>
+      ) : (
+        <div className="text-center text-gray-500 py-8 px-4 bg-[#1a1a1a] rounded-lg border border-[#222]">
+          <Music2 className="h-8 w-8 mx-auto mb-2 opacity-30" />
+          <p className="text-sm">Aucune musique d'ambiance</p>
+          <p className="text-xs mt-1 opacity-60">Le MJ n'a pas lancé de musique</p>
         </div>
       )}
     </div>

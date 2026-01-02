@@ -4,10 +4,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import YouTube, { YouTubeProps, YouTubePlayer } from 'react-youtube';
 import { realtimeDb, dbRef, set, onValue, update } from '@/lib/firebase';
 import { useGame } from '@/contexts/GameContext';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Play, Pause, Volume2, VolumeX, Plus, Trash2, Music2 } from 'lucide-react';
-import { Slider } from '@/components/ui/slider';
 
 interface MusicTrack {
   id: string;
@@ -29,11 +25,13 @@ interface MusicState {
 
 interface MJMusicPlayerProps {
   roomId: string;
+  masterVolume?: number; // From audio mixer (0-1)
 }
 
-export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
+export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlayerProps) {
   const { user, isMJ } = useGame();
-  const [youtubeUrl, setYoutubeUrl] = useState('');
+
+  // State minimal pour la synchronisation
   const [musicState, setMusicState] = useState<MusicState>({
     videoId: null,
     videoTitle: '',
@@ -43,261 +41,37 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
     lastUpdate: Date.now(),
     updatedBy: ''
   });
+
   const [playlist, setPlaylist] = useState<MusicTrack[]>([]);
-  const [isLocalUpdate, setIsLocalUpdate] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const [localVolume, setLocalVolume] = useState(80);
+
+  // Refs pour éviter les closures périmées dans les callbacks
   const playerRef = useRef<YouTubePlayer | null>(null);
   const musicStateRef = useRef<string>(`rooms/${roomId}/music`);
   const playlistRef = useRef<string>(`rooms/${roomId}/playlist`);
+
+  // Flags pour éviter les boucles de feedback
   const isSyncingFromFirebase = useRef(false);
+  const isLocalUpdate = useRef(false);
   const hasPlayerSyncedOnce = useRef(false);
 
-  // Charger le volume depuis localStorage après le montage du composant
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('mjMusicVolume');
-      if (saved) {
-        const volume = parseInt(saved, 10);
-        setLocalVolume(volume);
-        setIsMuted(volume === 0);
-      }
-    }
-  }, []);
-
-  // Fonction pour extraire l'ID vidéo YouTube d'une URL
-  const extractVideoId = (url: string): string | null => {
-    const patterns = [
-      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/,
-      /^([a-zA-Z0-9_-]{11})$/
-    ];
-
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match && match[1]) {
-        return match[1];
-      }
-    }
-    return null;
-  };
-
-  // Fonction pour mettre à jour l'état de la musique dans Firebase
+  // Mettre à jour Firebase quand l'état change localement (play/pause/timestamp)
   const updateMusicState = useCallback(async (updates: Partial<MusicState>) => {
     if (!user) return;
-
-    setIsLocalUpdate(true);
-    const musicRef = dbRef(realtimeDb, musicStateRef.current);
-
+    isLocalUpdate.current = true;
     try {
-      await update(musicRef, {
+      await update(dbRef(realtimeDb, musicStateRef.current), {
         ...updates,
         lastUpdate: Date.now(),
         updatedBy: user.uid
       });
     } catch (error) {
-      console.error('Erreur lors de la mise à jour de la musique:', error);
+      console.error('Erreur update music:', error);
     } finally {
-      setTimeout(() => setIsLocalUpdate(false), 500);
+      setTimeout(() => { isLocalUpdate.current = false; }, 500);
     }
   }, [user]);
 
-  // Ajouter un morceau à la bibliothèque
-  const addToPlaylist = useCallback(async () => {
-    const videoId = extractVideoId(youtubeUrl);
-
-    if (!videoId || !user) {
-      console.error('URL YouTube invalide ou utilisateur non connecté');
-      return;
-    }
-
-    // Vérifier si le morceau n'est pas déjà dans la playlist
-    if (playlist.some(track => track.videoId === videoId)) {
-      console.log('Ce morceau est déjà dans la playlist');
-      setYoutubeUrl('');
-      return;
-    }
-
-    const newTrack: MusicTrack = {
-      id: `${Date.now()}_${videoId}`,
-      videoId,
-      title: 'Chargement...',
-      thumbnail: `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
-      addedAt: Date.now()
-    };
-
-    try {
-      const playlistDbRef = dbRef(realtimeDb, playlistRef.current);
-      const updatedPlaylist = [...playlist, newTrack];
-      await set(playlistDbRef, updatedPlaylist);
-      setYoutubeUrl('');
-    } catch (error) {
-      console.error('Erreur lors de l\'ajout à la playlist:', error);
-    }
-  }, [youtubeUrl, playlist, user]);
-
-  // Supprimer un morceau de la bibliothèque
-  const removeFromPlaylist = useCallback(async (trackId: string) => {
-    if (!user) return;
-
-    try {
-      const playlistDbRef = dbRef(realtimeDb, playlistRef.current);
-      const updatedPlaylist = playlist.filter(track => track.id !== trackId);
-      await set(playlistDbRef, updatedPlaylist);
-    } catch (error) {
-      console.error('Erreur lors de la suppression:', error);
-    }
-  }, [playlist, user]);
-
-  // Charger et jouer un morceau de la playlist
-  const playTrack = useCallback(async (videoId: string) => {
-    if (!isMJ) return;
-
-    console.log('🎵 Playing track:', videoId);
-
-    await updateMusicState({
-      videoId,
-      isPlaying: true,
-      timestamp: 0
-    });
-  }, [isMJ, updateMusicState]);
-
-  // Gestionnaire Play/Pause
-  const handlePlayPause = useCallback(async () => {
-    if (!playerRef.current || !isMJ) return;
-
-    const newIsPlaying = !musicState.isPlaying;
-    console.log('🎛️ Play/Pause clicked:', newIsPlaying ? 'PLAY' : 'PAUSE');
-
-    isSyncingFromFirebase.current = true;
-    if (newIsPlaying) {
-      playerRef.current.playVideo();
-    } else {
-      playerRef.current.pauseVideo();
-    }
-
-    await new Promise(resolve => setTimeout(resolve, 100));
-    const currentTime = playerRef.current.getCurrentTime();
-
-    await updateMusicState({
-      isPlaying: newIsPlaying,
-      timestamp: currentTime
-    });
-
-    setTimeout(() => {
-      isSyncingFromFirebase.current = false;
-    }, 1000);
-  }, [musicState.isPlaying, updateMusicState, isMJ]);
-
-  const handleVolumeChange = useCallback((value: number[]) => {
-    const volume = value[0];
-    setLocalVolume(volume);
-    setIsMuted(volume === 0);
-
-    // Sauvegarder dans localStorage
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('mjMusicVolume', volume.toString());
-    }
-
-    if (playerRef.current) {
-      playerRef.current.setVolume(volume);
-      if (volume > 0) {
-        playerRef.current.unMute();
-      } else {
-        playerRef.current.mute();
-      }
-    }
-  }, []);
-
-  const toggleMute = useCallback(() => {
-    if (!playerRef.current) return;
-
-    const newMuted = !isMuted;
-    setIsMuted(newMuted);
-
-    if (newMuted) {
-      playerRef.current.mute();
-    } else {
-      playerRef.current.unMute();
-      playerRef.current.setVolume(localVolume);
-    }
-  }, [isMuted, localVolume]);
-
-  // Configuration du lecteur YouTube
-  const onPlayerReady: YouTubeProps['onReady'] = async (event) => {
-    console.log('🎵 Player ready!');
-    playerRef.current = event.target;
-
-    // Récupérer le titre de la vidéo
-    try {
-      const videoData = await event.target.getVideoData();
-      if (videoData && videoData.title && user) {
-        await updateMusicState({
-          videoTitle: videoData.title
-        });
-
-        // Mettre à jour le titre dans la playlist si c'est un nouveau morceau
-        const trackIndex = playlist.findIndex(t => t.videoId === musicState.videoId);
-        if (trackIndex !== -1 && playlist[trackIndex].title === 'Chargement...') {
-          const updatedPlaylist = [...playlist];
-          updatedPlaylist[trackIndex].title = videoData.title;
-          const playlistDbRef = dbRef(realtimeDb, playlistRef.current);
-          await set(playlistDbRef, updatedPlaylist);
-        }
-      }
-    } catch (error) {
-      console.error('Error getting video title:', error);
-    }
-
-    const volume = isMuted ? 0 : localVolume;
-    playerRef.current.setVolume(volume);
-    if (!isMuted) {
-      playerRef.current.unMute();
-    }
-
-    // Synchroniser immédiatement avec l'état Firebase existant
-    if (musicState.videoId) {
-      isSyncingFromFirebase.current = true;
-
-      // Calculer la position actuelle en tenant compte du temps écoulé
-      const timeSinceUpdate = (Date.now() - musicState.lastUpdate) / 1000;
-      const targetTime = musicState.isPlaying ? musicState.timestamp + timeSinceUpdate : musicState.timestamp;
-
-      // Se positionner au bon moment
-      playerRef.current.seekTo(targetTime, true);
-
-      // Jouer ou mettre en pause selon l'état
-      if (musicState.isPlaying) {
-        playerRef.current.playVideo();
-      } else {
-        playerRef.current.pauseVideo();
-      }
-
-      setTimeout(() => {
-        isSyncingFromFirebase.current = false;
-        hasPlayerSyncedOnce.current = true;
-      }, 1000);
-    }
-  };
-
-  const onPlayerStateChange: YouTubeProps['onStateChange'] = async (event) => {
-    const playerState = event.data;
-
-    if (isLocalUpdate || isSyncingFromFirebase.current) {
-      return;
-    }
-
-    const isPlaying = playerState === 1;
-
-    if ((playerState === 1 || playerState === 2) && isPlaying !== musicState.isPlaying && user && isMJ) {
-      const currentTime = event.target.getCurrentTime();
-      await updateMusicState({
-        isPlaying,
-        timestamp: currentTime
-      });
-    }
-  };
-
-  // Options du lecteur YouTube (invisible)
+  // Options du lecteur YouTube (invisible, mute au démarrage pour éviter le blast)
   const opts: YouTubeProps['opts'] = {
     height: '0',
     width: '0',
@@ -311,49 +85,41 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
     },
   };
 
-  // Synchronisation avec Firebase - Music State
+  // Synchronisation DOWN: Firebase -> Player
   useEffect(() => {
     const musicRef = dbRef(realtimeDb, musicStateRef.current);
 
     const unsubscribe = onValue(musicRef, (snapshot) => {
       const data = snapshot.val() as MusicState | null;
-
       if (data) {
         setMusicState(data);
 
-        // Ne synchroniser QUE si le player a déjà été synchronisé une fois (évite le reset initial)
-        if (playerRef.current && data.videoId && typeof playerRef.current.playVideo === 'function' && hasPlayerSyncedOnce.current) {
+        // Si on a un player prêt
+        if (playerRef.current && typeof playerRef.current.playVideo === 'function' && hasPlayerSyncedOnce.current) {
+          // Si c'est une mise à jour locale (le MJ vient de cliquer sur pause), on ignore l'event Firebase qui revient
+          if (isLocalUpdate.current) return;
+
           try {
             isSyncingFromFirebase.current = true;
 
-            // Vérifier à nouveau avant chaque appel
-            if (!playerRef.current) return;
+            // Gestion Play/Pause
+            if (data.isPlaying) playerRef.current.playVideo();
+            else playerRef.current.pauseVideo();
 
-            if (data.isPlaying) {
-              playerRef.current.playVideo();
-            } else {
-              playerRef.current.pauseVideo();
-            }
-
-            // Vérifier à nouveau avant getCurrentTime
-            if (!playerRef.current) return;
-
+            // Gestion Timestamp (Seek si décalage > 1s)
             const currentTime = playerRef.current.getCurrentTime();
-            if (typeof currentTime === 'number' && playerRef.current) {
+            if (typeof currentTime === 'number') {
               const timeSinceUpdate = (Date.now() - data.lastUpdate) / 1000;
               const targetTime = data.isPlaying ? data.timestamp + timeSinceUpdate : data.timestamp;
-              const adjustedDiff = Math.abs(currentTime - targetTime);
 
-              if (adjustedDiff > 1 && playerRef.current) {
+              if (Math.abs(currentTime - targetTime) > 1.5) {
                 playerRef.current.seekTo(targetTime, true);
               }
             }
 
-            setTimeout(() => {
-              isSyncingFromFirebase.current = false;
-            }, 1000);
+            setTimeout(() => { isSyncingFromFirebase.current = false; }, 1000);
           } catch (error) {
-            console.error('Error syncing player:', error);
+            console.error(error);
             isSyncingFromFirebase.current = false;
           }
         }
@@ -361,253 +127,128 @@ export default function MJMusicPlayer({ roomId }: MJMusicPlayerProps) {
     });
 
     return () => unsubscribe();
-  }, [roomId, user]);
+  }, [roomId]);
 
-  // Synchronisation avec Firebase - Playlist
+  // Synchronisation Playlist (Lecture seule ici, pour mettre à jour les titres si besoin)
   useEffect(() => {
     const playlistDbRef = dbRef(realtimeDb, playlistRef.current);
-
     const unsubscribe = onValue(playlistDbRef, (snapshot) => {
-      const data = snapshot.val() as MusicTrack[] | null;
-      if (data) {
-        setPlaylist(Array.isArray(data) ? data : []);
-      }
+      const data = snapshot.val();
+      if (data) setPlaylist(Array.isArray(data) ? data : []);
     });
-
     return () => unsubscribe();
   }, [roomId]);
 
-  // Synchronisation périodique du timestamp pour le MJ
+  // Synchronisation UP: Player -> Firebase (Timestamp périodique pour MJ seulement)
   useEffect(() => {
-    if (!musicState.isPlaying || !playerRef.current || !user || !isMJ) return;
+    if (!musicState.isPlaying || !user || !isMJ) return;
 
     const interval = setInterval(async () => {
-      if (playerRef.current && !isSyncingFromFirebase.current) {
+      if (playerRef.current && !isSyncingFromFirebase.current && !isLocalUpdate.current) {
         const currentTime = playerRef.current.getCurrentTime();
-        const musicRef = dbRef(realtimeDb, musicStateRef.current);
-        await update(musicRef, {
-          timestamp: currentTime,
-          lastUpdate: Date.now()
-        });
+        // On push juste le timestamp sans changer l'état play/pause pour éviter les conflits
+        if (typeof currentTime === 'number') {
+          await update(dbRef(realtimeDb, musicStateRef.current), {
+            timestamp: currentTime,
+            lastUpdate: Date.now()
+          });
+        }
       }
-    }, 3000);
+    }, 4000); // Toutes les 4s
 
     return () => clearInterval(interval);
   }, [musicState.isPlaying, user, isMJ]);
 
-  if (!isMJ) {
-    return (
-      <div className="text-center p-8">
-        <p>Cette interface est réservée au Maître du Jeu.</p>
-      </div>
-    );
-  }
+  // Initialisation du Player
+  const onPlayerReady: YouTubeProps['onReady'] = async (event) => {
+    playerRef.current = event.target;
 
+    // Appliquer le volume master
+    const safeVolume = Math.max(0, Math.min(100, masterVolume * 100));
+    playerRef.current.setVolume(safeVolume);
+    if (safeVolume > 0) playerRef.current.unMute();
+    else playerRef.current.mute();
+
+    // Mettre à jour le titre si manquant
+    try {
+      const videoData = await event.target.getVideoData();
+      if (videoData && videoData.title && user && isMJ) {
+        // Si le titre stocké est vide ou différent, on le met à jour
+        if (musicState.videoTitle !== videoData.title) {
+          updateMusicState({ videoTitle: videoData.title });
+        }
+
+        // Mettre à jour le titre dans la playlist aussi
+        const trackIndex = playlist.findIndex(t => t.videoId === musicState.videoId);
+        if (trackIndex !== -1 && (playlist[trackIndex].title === 'Chargement...' || !playlist[trackIndex].title)) {
+          const updatedPlaylist = [...playlist];
+          updatedPlaylist[trackIndex].title = videoData.title;
+          await set(dbRef(realtimeDb, playlistRef.current), updatedPlaylist);
+        }
+      }
+    } catch (e) { }
+
+    // Synchronisation initiale (Seek + Play)
+    if (musicState.videoId) {
+      isSyncingFromFirebase.current = true;
+      const timeSinceUpdate = (Date.now() - musicState.lastUpdate) / 1000;
+      const targetTime = musicState.isPlaying ? musicState.timestamp + timeSinceUpdate : musicState.timestamp;
+
+      playerRef.current.seekTo(targetTime, true);
+      if (musicState.isPlaying) playerRef.current.playVideo();
+      else playerRef.current.pauseVideo();
+
+      setTimeout(() => {
+        isSyncingFromFirebase.current = false;
+        hasPlayerSyncedOnce.current = true;
+      }, 1000);
+    } else {
+      hasPlayerSyncedOnce.current = true;
+    }
+  };
+
+  // Gestion des changements d'état (Fin de vidéo, Pause manuelle imprévue, Buffering)
+  const onPlayerStateChange: YouTubeProps['onStateChange'] = async (event) => {
+    const playerState = event.data;
+
+    // Ignore si c'est nous qui pilotons le player via code
+    if (isLocalUpdate.current || isSyncingFromFirebase.current) return;
+
+    // MJ Only: Si l'état change (ex: buffering fini, ou pause utilisateur direct sur l'iframe invisible - impossible mais bon)
+    if (user && isMJ) {
+      const isPlaying = playerState === 1; // 1 = Playing
+
+      // Si l'état diffère de notre state local, on met à jour Firebase
+      if (isPlaying !== musicState.isPlaying && (playerState === 1 || playerState === 2)) { // 1 play, 2 pause
+        await updateMusicState({
+          isPlaying,
+          timestamp: event.target.getCurrentTime()
+        });
+      }
+    }
+  };
+
+  // Appliquer les changements de volume Master
+  useEffect(() => {
+    if (playerRef.current && typeof playerRef.current.setVolume === 'function') {
+      const safeVolume = Math.max(0, Math.min(100, masterVolume * 100));
+      playerRef.current.setVolume(safeVolume);
+
+      if (safeVolume > 0) playerRef.current.unMute();
+      else playerRef.current.mute();
+    }
+  }, [masterVolume]);
+
+  // Rendu minimaliste (invisible) : L'iframe est présente mais cachée
   return (
-    <div className="w-full h-full flex flex-col bg-[#1a1a1a]">
-      {/* Add Music Section */}
-      <div className="p-4 bg-[#141414] border-b border-[#333]">
-        <div className="flex gap-2">
-          <Input
-            type="text"
-            placeholder="Coller l'URL YouTube ou l'ID de la vidéo..."
-            value={youtubeUrl}
-            onChange={(e) => setYoutubeUrl(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                addToPlaylist();
-              }
-            }}
-            className="flex-1 bg-[#252525] border-[#444] text-[#e0e0e0] placeholder-gray-500 focus:border-[#c0a080] h-9"
-          />
-          <Button
-            onClick={addToPlaylist}
-            disabled={!youtubeUrl}
-            className="bg-[#c0a080] text-black font-bold hover:bg-[#b09070] h-9"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Ajouter
-          </Button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="flex gap-4 flex-1 min-h-0 p-4">
-        {/* Left Side - Current Track & Controls */}
-        <div className="flex flex-col gap-4 w-[320px]">
-          {/* Current Track Display */}
-          <div className="bg-[#222] border border-[#333] rounded-lg p-3 shadow-lg">
-            {musicState.videoId ? (
-              <div className="space-y-3">
-                <div className="aspect-video bg-black rounded-md overflow-hidden border border-[#333]">
-                  <img
-                    src={`https://img.youtube.com/vi/${musicState.videoId}/maxresdefault.jpg`}
-                    alt={musicState.videoTitle || 'Miniature vidéo'}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      const target = e.target as HTMLImageElement;
-                      if (!target.src.includes('hqdefault')) {
-                        target.src = `https://img.youtube.com/vi/${musicState.videoId}/hqdefault.jpg`;
-                      }
-                    }}
-                  />
-                </div>
-                <div>
-                  <h3 className="font-bold text-base truncate text-[#e0e0e0]">
-                    {musicState.videoTitle || 'Sans titre'}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="w-2 h-2 rounded-full bg-[#c0a080] animate-pulse" />
-                    <p className="text-xs text-[#c0a080] font-semibold">En cours de lecture</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="aspect-video bg-[#1a1a1a] rounded-md flex items-center justify-center border border-[#333] border-dashed">
-                <div className="text-center text-gray-500">
-                  <Music2 className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                  <p className="text-xs font-semibold">Aucun morceau sélectionné</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Player Controls */}
-          <div className="bg-[#222] border border-[#333] rounded-lg p-4 shadow-lg">
-            <div className="flex items-center gap-4">
-              {/* Play/Pause Button */}
-              <Button
-                onClick={handlePlayPause}
-                disabled={!musicState.videoId}
-                size="icon"
-                className={`shrink-0 h-10 w-10 rounded-full ${musicState.isPlaying
-                    ? 'bg-[#c0a080] text-black hover:bg-[#b09070]'
-                    : 'bg-[#333] text-gray-200 hover:bg-[#444]'
-                  }`}
-              >
-                {musicState.isPlaying ? (
-                  <Pause className="w-5 h-5" />
-                ) : (
-                  <Play className="w-5 h-5 pl-0.5" />
-                )}
-              </Button>
-
-              {/* Volume Control */}
-              <div className="flex items-center gap-3 flex-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={toggleMute}
-                  className="shrink-0 h-8 w-8 text-gray-400 hover:text-[#c0a080]"
-                >
-                  {isMuted ? (
-                    <VolumeX className="h-4 w-4" />
-                  ) : (
-                    <Volume2 className="h-4 w-4" />
-                  )}
-                </Button>
-
-                <Slider
-                  value={[isMuted ? 0 : localVolume]}
-                  min={0}
-                  max={100}
-                  step={1}
-                  onValueChange={handleVolumeChange}
-                  className="flex-1 [&>.absolute]:bg-[#c0a080]"
-                />
-
-                <span className="text-xs font-bold text-[#c0a080] w-9 text-right shrink-0">
-                  {Math.round(isMuted ? 0 : localVolume)}%
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Right Side - Playlist */}
-        <div className="flex-1 min-h-0 flex flex-col bg-[#222] border border-[#333] rounded-lg overflow-hidden shadow-lg">
-          <div className="p-3 border-b border-[#333] bg-[#222]">
-            <h3 className="text-sm font-bold text-[#e0e0e0] flex items-center gap-2">
-              <Music2 className="w-4 h-4 text-[#c0a080]" />
-              File d'attente
-            </h3>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2">
-            {playlist.length === 0 ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="text-center text-gray-500">
-                  <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center mx-auto mb-3">
-                    <Music2 className="w-8 h-8 opacity-50" />
-                  </div>
-                  <p className="text-sm font-bold text-gray-400">Bibliothèque vide</p>
-                  <p className="text-xs mt-1">Ajoutez une URL YouTube pour commencer</p>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-1">
-                {playlist.map((track) => (
-                  <div
-                    key={track.id}
-                    className={`flex items-center gap-3 p-2 rounded-lg transition-all cursor-pointer group border ${musicState.videoId === track.videoId
-                        ? 'bg-[#c0a080]/10 border-[#c0a080]/30'
-                        : 'bg-[#1a1a1a]/50 border-transparent hover:bg-[#333] hover:border-[#444]'
-                      }`}
-                    onClick={() => playTrack(track.videoId)}
-                  >
-                    <div className="w-12 h-9 rounded overflow-hidden flex-shrink-0 bg-black relative">
-                      <img
-                        src={track.thumbnail || `https://img.youtube.com/vi/${track.videoId}/mqdefault.jpg`}
-                        alt={track.title}
-                        className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
-                        onError={(e) => {
-                          const target = e.target as HTMLImageElement;
-                          target.src = `https://img.youtube.com/vi/${track.videoId}/default.jpg`;
-                        }}
-                      />
-                      {musicState.videoId === track.videoId && (
-                        <div className="absolute inset-0 bg-[#c0a080]/20 flex items-center justify-center">
-                          <div className="w-2 h-2 bg-[#c0a080] rounded-full animate-ping" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className={`font-bold text-sm truncate ${musicState.videoId === track.videoId ? 'text-[#c0a080]' : 'text-[#e0e0e0]'
-                        }`}>
-                        {track.title}
-                      </h4>
-                      <p className="text-[10px] text-gray-500 font-medium">
-                        ID: {track.videoId}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeFromPlaylist(track.id);
-                      }}
-                      className="opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 text-gray-500 hover:bg-red-950/20 hover:text-red-400"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Lecteur YouTube (invisible) */}
+    <div className="hidden">
       {musicState.videoId && (
-        <div className="hidden">
-          <YouTube
-            videoId={musicState.videoId}
-            opts={opts}
-            onReady={onPlayerReady}
-            onStateChange={onPlayerStateChange}
-          />
-        </div>
+        <YouTube
+          videoId={musicState.videoId}
+          opts={opts}
+          onReady={onPlayerReady}
+          onStateChange={onPlayerStateChange}
+        />
       )}
     </div>
   );

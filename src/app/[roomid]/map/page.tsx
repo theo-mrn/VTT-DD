@@ -72,9 +72,11 @@ import ObjectContextMenu from '@/components/(overlays)/ObjectContextMenu';
 import MusicZoneContextMenu from '@/components/(overlays)/MusicZoneContextMenu';
 import { NPCTemplateDrawer } from '@/components/(personnages)/NPCTemplateDrawer';
 import { ObjectDrawer } from '@/components/(personnages)/ObjectDrawer';
+import { SoundDrawer } from '@/components/(personnages)/SoundDrawer';
 import { PlaceNPCModal } from '@/components/(personnages)/PlaceNPCModal';
 import { CreateNoteModal } from '@/components/(map)/CreateNoteModal';
 import { NoBackgroundModal } from '@/components/(map)/NoBackgroundModal';
+import { doc as firestoreDoc } from 'firebase/firestore'
 import InfoComponent, { type InfoSection } from "@/components/(infos)/info";
 import { type NPC } from '@/components/(personnages)/personnages';
 import {
@@ -96,6 +98,7 @@ import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath }
 import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
 import MapToolbar, { TOOLS } from '@/components/(map)/MapToolbar';
 import BackgroundSelector from '@/components/(map)/BackgroundSelector';
+import { AudioMixerPanel, useAudioMixer } from '@/components/(audio)/AudioMixerPanel';
 import MeasurementShapeSelector from '@/components/(map)/MeasurementShapeSelector';
 import ConeConfigDialog from '@/components/(map)/ConeConfigDialog';
 import {
@@ -231,6 +234,11 @@ export default function Component() {
 
   // 🎯 NOUVEAUX ÉTATS pour le drag & drop des objets
   const [isObjectDrawerOpen, setIsObjectDrawerOpen] = useState(false);
+  const [isSoundDrawerOpen, setIsSoundDrawerOpen] = useState(false)
+  const [isAudioMixerOpen, setIsAudioMixerOpen] = useState(false)
+
+  // Audio mixer volumes
+  const { volumes: audioVolumes } = useAudioMixer();
   const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [measurementScale, setMeasurementScale] = useState<number>(50); // px per unit
   const [isDraggingObject, setIsDraggingObject] = useState(false)
@@ -251,6 +259,7 @@ export default function Component() {
 
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
   const [draggedObjectTemplate, setDraggedObjectTemplate] = useState<any>(null)
+  const [draggedSoundTemplate, setDraggedSoundTemplate] = useState<any>(null)
 
   // 🎯 NOUVEAUX ÉTATS pour le drag & drop des notes
   const [isDraggingNote, setIsDraggingNote] = useState(false)
@@ -654,23 +663,23 @@ export default function Component() {
   // 🔊 AUDIO MANAGER - Call useAudioZones after isLayerVisible is defined
   const listenerCharacter = characters.find(c => c.id === (viewAsPersoId || persoId));
   const listenerPos = listenerCharacter ? { x: listenerCharacter.x, y: listenerCharacter.y } : null;
-  useAudioZones(musicZones, listenerPos, isLayerVisible('music'));
+  useAudioZones(musicZones, listenerPos, isLayerVisible('music'), audioVolumes.musicZones);
 
   // 🎵 Update background video audio settings when they change
   useEffect(() => {
     if (videoRef.current) {
-      // Force mute if volume is 0 or if explicitly disabled
       const isLayerVis = isLayerVisible('background_audio');
-      // console.log('🔊 BG Audio Debug:', { isLayerVis, isBackgroundAudioEnabled, backgroundAudioVolume });
-      const shouldMute = !isBackgroundAudioEnabled || !isLayerVis || backgroundAudioVolume <= 0.01;
+
+      // Use ONLY local mixer volume. Ignore old Firebase synced volume.
+      const shouldMute = !isLayerVis || audioVolumes.backgroundAudio <= 0.001;
 
       videoRef.current.muted = shouldMute;
 
-      // Ensure volume is between 0 and 1. If muted via layer/switch, force volume to 0 effectively.
-      const safeVolume = shouldMute ? 0 : Math.max(0, Math.min(1, backgroundAudioVolume));
+      // Ensure volume is between 0 and 1. Apply mixer volume directly.
+      const safeVolume = shouldMute ? 0 : Math.max(0, Math.min(1, audioVolumes.backgroundAudio));
       videoRef.current.volume = safeVolume;
     }
-  }, [backgroundAudioVolume, isBackgroundAudioEnabled, isLayerVisible]);
+  }, [isLayerVisible, audioVolumes.backgroundAudio]); // Removed old system dependencies
 
 
 
@@ -724,6 +733,72 @@ export default function Component() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedObstacleId, visibilityMode, isDrawingObstacle]);
+
+  // 🎵 Global audio reference for quick sounds
+  const globalAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  // 🎵 Update global audio volume when mixer changes
+  useEffect(() => {
+    if (globalAudioRef.current) {
+      globalAudioRef.current.volume = audioVolumes.quickSounds;
+      console.log('🔊 [Page] Updated global audio volume to:', audioVolumes.quickSounds);
+    }
+  }, [audioVolumes.quickSounds]);
+
+  // 🎵 GLOBAL SOUND PLAYBACK LISTENER - Listen for sounds played by MJ
+  useEffect(() => {
+    if (!roomId) return
+
+    const globalSoundRef = firestoreDoc(db, 'global_sounds', roomId)
+
+    const unsubscribe = onSnapshot(globalSoundRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data()
+
+        // Check if it's a stop command
+        if (data.soundUrl === null || !data.soundUrl) {
+          // Stop current audio if any
+          if (globalAudioRef.current) {
+            globalAudioRef.current.pause();
+            globalAudioRef.current = null;
+          }
+          return;
+        }
+
+        if (data.soundUrl && data.timestamp) {
+          // Check if this is a new sound event (not older than 2 seconds)
+          const eventTime = data.timestamp.toMillis ? data.timestamp.toMillis() : data.timestamp
+          const now = Date.now()
+          const timeDiff = now - eventTime
+
+          // Tolerate up to 60 seconds of delay/clock drift
+          if (timeDiff < 60000) {
+            // Stop previous audio if any
+            if (globalAudioRef.current) {
+              globalAudioRef.current.pause();
+              globalAudioRef.current = null;
+            }
+
+            // Play the sound with volume from mixer
+            const audio = new Audio(data.soundUrl)
+            audio.volume = audioVolumes.quickSounds
+
+            // Store reference
+            globalAudioRef.current = audio;
+
+            // Clear reference when ended
+            audio.addEventListener('ended', () => {
+              globalAudioRef.current = null;
+            });
+
+            audio.play().catch(e => console.error('Error playing sound:', e))
+          }
+        }
+      }
+    })
+
+    return () => unsubscribe()
+  }, [roomId, audioVolumes.quickSounds])
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
@@ -1074,23 +1149,6 @@ export default function Component() {
       setMusicZones(zones);
     });
 
-    // 8. CHARGER L'AUDIO DE FOND (spécifique par ville ou global)
-    const bgAudioDocId = selectedCityId ? `bgAudio_${selectedCityId}` : 'bgAudio';
-    const bgAudioRef = doc(db, 'cartes', roomId, 'bgAudio', bgAudioDocId);
-    const bgAudioUnsub = onSnapshot(bgAudioRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setBackgroundAudioUrl(data.url || null);
-        setBackgroundAudioVolume(data.volume ?? 0.5);
-        setIsBackgroundAudioEnabled(data.enabled ?? true);
-      } else {
-        // Pas d'audio de fond configuré pour cette ville/map
-        setBackgroundAudioUrl(null);
-        setBackgroundAudioVolume(0.5);
-        setIsBackgroundAudioEnabled(true);
-      }
-    });
-    unsubscribers.push(bgAudioUnsub);
     unsubscribers.push(musicZonesUnsub);
 
     return () => {
@@ -1294,6 +1352,34 @@ export default function Component() {
         return
       }
 
+      // Handle sound_template drop
+      if (templateData.includes('"type":"sound_template"')) {
+        const sound = JSON.parse(templateData)
+
+        const rect = canvas.getBoundingClientRect()
+        const containerWidth = containerRef.current?.clientWidth || rect.width
+        const containerHeight = containerRef.current?.clientHeight || rect.height
+        const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight)
+        const scaledWidth = imgWidth * scale * zoom
+        const scaledHeight = imgHeight * scale * zoom
+        const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth
+        const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight
+
+        // Create a music zone with the sound
+        const newZone: Omit<MusicZone, 'id'> = {
+          x,
+          y,
+          radius: 200, // Default radius
+          url: sound.soundUrl,
+          name: sound.name,
+          volume: 0.5, // Default volume
+          cityId: selectedCityId
+        }
+
+        await addDoc(collection(db, 'cartes', roomId, 'musicZones'), newZone)
+        return
+      }
+
       const template = JSON.parse(templateData) as NPC
       const rect = canvas.getBoundingClientRect()
       const containerWidth = containerRef.current?.clientWidth || rect.width
@@ -1324,6 +1410,10 @@ export default function Component() {
   }
 
   const handleObjectDragStart = (template: ObjectTemplate) => {
+  }
+
+  const handleSoundDragStart = (sound: any) => {
+    setDraggedSoundTemplate(sound)
   }
 
   const handlePlaceConfirm = async (config: { nombre: number; visibility: 'visible' | 'hidden' | 'ally' }) => {
@@ -1685,10 +1775,11 @@ export default function Component() {
         }
         break;
       case TOOLS.SETTINGS: if (isMJ) setShowGlobalSettingsDialog(true); break;
-      case TOOLS.ADD_CHAR: if (isMJ) { deactivateIncompatible(TOOLS.ADD_CHAR); setIsNPCDrawerOpen(!isNPCDrawerOpen); setIsObjectDrawerOpen(false); } break;
-      case TOOLS.ADD_OBJ: if (isMJ) { deactivateIncompatible(TOOLS.ADD_OBJ); setIsObjectDrawerOpen(!isObjectDrawerOpen); setIsNPCDrawerOpen(false); } break;
+      case TOOLS.AUDIO_MIXER: setIsAudioMixerOpen(!isAudioMixerOpen); break;
+      case TOOLS.ADD_CHAR: if (isMJ) { deactivateIncompatible(TOOLS.ADD_CHAR); setIsNPCDrawerOpen(!isNPCDrawerOpen); setIsObjectDrawerOpen(false); setIsSoundDrawerOpen(false); } break;
+      case TOOLS.ADD_OBJ: if (isMJ) { deactivateIncompatible(TOOLS.ADD_OBJ); setIsObjectDrawerOpen(!isObjectDrawerOpen); setIsNPCDrawerOpen(false); setIsSoundDrawerOpen(false); } break;
       case TOOLS.ADD_NOTE: handleAddNote(); break;
-      case TOOLS.MUSIC: if (isMJ) { deactivateIncompatible(TOOLS.MUSIC); setIsMusicMode(!isMusicMode); } break;
+      case TOOLS.MUSIC: if (isMJ) { deactivateIncompatible(TOOLS.MUSIC); setIsSoundDrawerOpen(!isSoundDrawerOpen); setIsNPCDrawerOpen(false); setIsObjectDrawerOpen(false); } break;
       case TOOLS.MULTI_SELECT: if (isMJ) { deactivateIncompatible(TOOLS.MULTI_SELECT); setMultiSelectMode(!multiSelectMode); } break;
       case TOOLS.BACKGROUND_EDIT: if (isMJ) setIsBackgroundEditMode(!isBackgroundEditMode); break;
       case TOOLS.DRAW: deactivateIncompatible(TOOLS.DRAW); toggleDrawMode(); break;
@@ -1715,6 +1806,7 @@ export default function Component() {
     if (isNPCDrawerOpen) active.push(TOOLS.ADD_CHAR);
     if (multiSelectMode) active.push(TOOLS.MULTI_SELECT);
     if (isBackgroundEditMode) active.push(TOOLS.BACKGROUND_EDIT);
+    if (isAudioMixerOpen) active.push(TOOLS.AUDIO_MIXER);
     return active;
   };
 
@@ -6530,6 +6622,21 @@ export default function Component() {
         onClose={() => setIsObjectDrawerOpen(false)}
         onDragStart={handleObjectDragStart}
         currentCityId={selectedCityId}
+      />
+
+      {/* Sound Drawer */}
+      <SoundDrawer
+        roomId={roomId}
+        isOpen={isSoundDrawerOpen}
+        onClose={() => setIsSoundDrawerOpen(false)}
+        onDragStart={handleSoundDragStart}
+        currentCityId={selectedCityId}
+      />
+
+      {/* Audio Mixer Panel */}
+      <AudioMixerPanel
+        isOpen={isAudioMixerOpen}
+        onClose={() => setIsAudioMixerOpen(false)}
       />
 
       {/* Place NPC Modal */}

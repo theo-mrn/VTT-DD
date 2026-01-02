@@ -231,7 +231,6 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
       // Sélectionner automatiquement le premier personnage si aucun n'est sélectionné
       setSelectedCharacterId(prevId => {
         if (!prevId && charactersData.length > 0) {
-          console.log("🎯 Auto-selecting first character:", charactersData[0].Nomperso);
           return charactersData[0].id;
         }
         return prevId;
@@ -251,7 +250,6 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     if (selectedCharacterId && characters.length > 0) {
       const character = characters.find(c => c.id === selectedCharacterId);
       if (character) {
-        console.log("🔄 Updating selected character data for:", character.Nomperso);
         setSelectedCharacter(character);
       }
     } else if (!selectedCharacterId) {
@@ -384,11 +382,8 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     // 1. Vérifier le cache et afficher immédiatement si disponible
     const cachedCompetences = competencesCache.current.get(characterCacheKey);
     if (cachedCompetences) {
-      console.log("⚡ Using cached competences for:", selectedCharacter.Nomperso);
       setCompetences(cachedCompetences);
     }
-
-    console.log("🔄 Loading fresh competences for:", selectedCharacter.Nomperso);
 
     // 2. Charger les nouvelles compétences en arrière-plan
     const loadCompetences = async () => {
@@ -450,9 +445,6 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
             }
           }
 
-          console.log("✅ Loaded", skills.length, "fresh competences for", selectedCharacter.Nomperso);
-
-          // 3. Mettre à jour le cache et l'état
           competencesCache.current.set(characterCacheKey, skills);
           setCompetences(skills);
         } else {
@@ -478,7 +470,6 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     const characterCacheKey = `${roomId}-${selectedCharacter.id}`;
 
     // Déclencher un rechargement en forçant une mise à jour
-    console.log("🔄 Manual refresh requested for:", selectedCharacter.Nomperso);
 
     try {
       const characterRef = doc(db, `cartes/${roomId}/characters/${selectedCharacter.id}`);
@@ -536,7 +527,6 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
         // Mettre à jour le cache et l'état
         competencesCache.current.set(characterCacheKey, skills);
         setCompetences(skills);
-        console.log("✅ Manual refresh complete for:", selectedCharacter.Nomperso);
       }
     } catch (error) {
       console.error("Error refreshing character skills:", error);
@@ -550,7 +540,6 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
 
     try {
       await updateDoc(doc(db, `cartes/${roomId}/characters`, characterId), updates);
-      console.log("Character updated successfully");
     } catch (error) {
       console.error("Error updating character:", error);
       throw error;
@@ -560,7 +549,6 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
   // ==================== SÉLECTION DU PERSONNAGE ====================
 
   const handleSetSelectedCharacter = useCallback((character: Character | null) => {
-    console.log("👆 User selected character:", character?.Nomperso);
     setSelectedCharacterId(character?.id || null);
   }, []);
 

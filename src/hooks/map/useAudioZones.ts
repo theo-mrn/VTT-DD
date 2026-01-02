@@ -1,7 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { MusicZone, Point } from '@/app/[roomid]/map/types';
 
-export const useAudioZones = (zones: MusicZone[], listenerPos: Point | null, isMusicLayerVisible: boolean = true) => {
+export const useAudioZones = (
+    zones: MusicZone[],
+    listenerPos: Point | null,
+    isMusicLayerVisible: boolean = true,
+    masterVolume: number = 1 // From audio mixer
+) => {
     const audioRefs = useRef<Map<string, HTMLAudioElement>>(new Map());
 
     // Sync Audio objects creation/deletion/url
@@ -45,7 +50,7 @@ export const useAudioZones = (zones: MusicZone[], listenerPos: Point | null, isM
 
     }, [zones]);
 
-    // Update volumes based on position AND layer visibility
+    // Update volumes based on position AND layer visibility AND master volume
     useEffect(() => {
         // If music layer is not visible, mute everything
         if (!isMusicLayerVisible) {
@@ -79,7 +84,8 @@ export const useAudioZones = (zones: MusicZone[], listenerPos: Point | null, isM
                 if (distance < audioRadius) {
                     const normalizedDistance = distance / audioRadius; // 0 at center, 1 at edge
                     const falloff = 1 - (normalizedDistance * normalizedDistance); // Quadratic
-                    vol = zone.volume * falloff;
+                    vol = zone.volume * falloff * masterVolume; // Apply master volume from mixer
+                    console.log(`🔊 [useAudioZones] Zone "${zone.name}": zoneVol=${zone.volume}, falloff=${falloff.toFixed(2)}, master=${masterVolume}, final=${vol.toFixed(3)}`);
                 }
 
                 // Exponential/Logarithmic falloff feels more natural usually, but let's stick to linear for now as requested "plus ou moins"
@@ -93,7 +99,7 @@ export const useAudioZones = (zones: MusicZone[], listenerPos: Point | null, isM
             }
         });
 
-    }, [listenerPos, zones, isMusicLayerVisible]);
+    }, [listenerPos, zones, isMusicLayerVisible, masterVolume]);
 
     // Global Cleanup
     useEffect(() => {

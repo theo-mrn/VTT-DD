@@ -97,7 +97,7 @@ export function CompetencesProvider({ children }: { children: React.ReactNode })
                   const affichageKey = `Affichage${j}`;
                   const rangKey = `rang${j}`;
                   const typeKey = `type${j}`;
-                  
+
                   if (data[affichageKey] && data[rangKey]) {
                     competences.push({
                       titre: data[affichageKey],
@@ -112,7 +112,7 @@ export function CompetencesProvider({ children }: { children: React.ReactNode })
                 }
               }
             } catch (error) {
-              console.error(`Error fetching ${name}${i}.json:`, error);
+              //console.error(`Error fetching ${name}${i}.json:`, error);
             }
           }
           if (voies.length > 0) {
@@ -131,12 +131,12 @@ export function CompetencesProvider({ children }: { children: React.ReactNode })
             if (response.ok) {
               const data = await response.json();
               const competences: Competence[] = [];
-              
+
               for (let j = 1; j <= 20; j++) {
                 const affichageKey = `Affichage${j}`;
                 const rangKey = `rang${j}`;
                 const typeKey = `type${j}`;
-                
+
                 if (data[affichageKey] && data[rangKey]) {
                   competences.push({
                     titre: data[affichageKey],
@@ -151,7 +151,7 @@ export function CompetencesProvider({ children }: { children: React.ReactNode })
               }
             }
           } catch (error) {
-            console.error(`Error fetching ${name}.json:`, error);
+            //console.error(`Error fetching ${name}.json:`, error);
           }
         }
         setRaces(raceData);
@@ -168,12 +168,12 @@ export function CompetencesProvider({ children }: { children: React.ReactNode })
               if (response.ok) {
                 const data = await response.json();
                 const competences: Competence[] = [];
-                
+
                 for (let j = 1; j <= 20; j++) {
                   const affichageKey = `Affichage${j}`;
                   const rangKey = `rang${j}`;
                   const typeKey = `type${j}`;
-                  
+
                   if (data[affichageKey] && data[rangKey]) {
                     competences.push({
                       titre: data[affichageKey],
@@ -188,7 +188,7 @@ export function CompetencesProvider({ children }: { children: React.ReactNode })
                 }
               }
             } catch (error) {
-              console.error(`Error fetching prestige_${name}${i}.json:`, error);
+              //console.error(`Error fetching prestige_${name}${i}.json:`, error);
             }
           }
           if (voies.length > 0) {
@@ -198,7 +198,7 @@ export function CompetencesProvider({ children }: { children: React.ReactNode })
         setPrestiges(prestigeData);
 
       } catch (error) {
-        console.error('Error fetching data:', error);
+        //console.error('Error fetching data:', error);
       } finally {
         setIsLoading(false);
       }
@@ -211,9 +211,9 @@ export function CompetencesProvider({ children }: { children: React.ReactNode })
     if (!searchTerm.trim()) return [];
 
     const term = searchTerm.toLowerCase().trim();
-    
+
     // Utiliser la liste mémorisée des compétences pour la recherche
-    return allCompetences.filter(comp => 
+    return allCompetences.filter(comp =>
       comp.titre.toLowerCase().includes(term) ||
       comp.description.toLowerCase().includes(term)
     );

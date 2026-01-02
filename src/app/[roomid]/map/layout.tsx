@@ -18,6 +18,7 @@ import { X } from "lucide-react";
 
 import MJMusicPlayer from "@/components/(music)/MJMusicPlayer";
 import PlayerMusicControl from "@/components/(music)/PlayerMusicControl";
+import { useAudioMixer } from '@/components/(audio)/AudioMixerPanel';
 
 type LayoutProps = {
   children: ReactNode;
@@ -30,6 +31,9 @@ export default function Layout({ children }: LayoutProps) {
   const roomId = params.roomid as string;
   const { isMJ } = useGame();
   const [activeTab, setActiveTab] = useState<string>("");
+
+  // Audio mixer volumes
+  const { volumes: audioVolumes } = useAudioMixer();
 
 
   useEffect(() => {
@@ -112,7 +116,7 @@ export default function Layout({ children }: LayoutProps) {
         </button>
 
         <div className="">
-          {isMJ ? <MJMusicPlayer roomId={roomId} /> : <PlayerMusicControl roomId={roomId} />}
+          {isMJ ? <MJMusicPlayer roomId={roomId} masterVolume={audioVolumes.backgroundMusic} /> : <PlayerMusicControl roomId={roomId} />}
         </div>
       </aside>
 
