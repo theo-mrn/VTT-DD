@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Upload, X, Film, Image as ImageIcon, Palette, Loader2 } from 'lucide-react';
+import { Search, Upload, X, Film, Image as ImageIcon, Palette, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from "@/lib/utils";
 
 interface MapFile {
@@ -12,6 +12,132 @@ interface MapFile {
     path: string;
     category: string;
     type: 'image' | 'video';
+}
+
+const MediaItem = ({ map, onClick }: { map: MapFile, onClick: () => void }) => {
+    const [isLoading, setIsLoading] = useState(true);
+    const [progress, setProgress] = useState(0);
+    const [hasError, setHasError] = useState(false);
+    const [objectUrl, setObjectUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+        let xhr: XMLHttpRequest | null = null;
+        let url: string | null = null;
+
+        const loadAsset = () => {
+            setIsLoading(true);
+            setProgress(0);
+            setHasError(false);
+
+            xhr = new XMLHttpRequest();
+            xhr.open('GET', map.path, true);
+            xhr.responseType = 'blob';
+
+            xhr.onprogress = (event) => {
+                if (event.lengthComputable) {
+                    const percentComplete = Math.round((event.loaded / event.total) * 100);
+                    setProgress(percentComplete);
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr && xhr.status === 200) {
+                    const blob = xhr.response;
+                    url = URL.createObjectURL(blob);
+                    setObjectUrl(url);
+                    setIsLoading(false);
+                    setProgress(100);
+                } else {
+                    setHasError(true);
+                    setIsLoading(false);
+                }
+            };
+
+            xhr.onerror = () => {
+                setHasError(true);
+                setIsLoading(false);
+            };
+
+            xhr.send();
+        };
+
+        loadAsset();
+
+        return () => {
+            if (xhr) {
+                xhr.abort();
+            }
+            if (url) {
+                URL.revokeObjectURL(url);
+            }
+        };
+    }, [map.path]);
+
+    return (
+        <button
+            onClick={onClick}
+            disabled={isLoading || hasError}
+            className="group relative aspect-video rounded-xl overflow-hidden border-2 border-[#333] hover:border-[#c0a080] transition-all duration-200 bg-[#0a0a0a] hover:scale-105 hover:shadow-2xl hover:shadow-[#c0a080]/20 disabled:hover:scale-100 disabled:cursor-not-allowed"
+        >
+            <div className="absolute inset-0 flex items-center justify-center">
+                {isLoading && !hasError && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-[#0a0a0a]/90 backdrop-blur-sm">
+                        <div className="relative w-16 h-16 flex items-center justify-center mb-2">
+                            <Loader2 className="w-8 h-8 animate-spin text-[#c0a080] absolute" />
+                            <span className="text-[10px] font-bold text-white z-10">{progress}%</span>
+                        </div>
+                        <div className="w-1/2 h-1 bg-gray-800 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-[#c0a080] transition-all duration-300 ease-out"
+                                style={{ width: `${progress}%` }}
+                            />
+                        </div>
+                    </div>
+                )}
+
+                {hasError && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-[#1a0505] text-red-500 p-2 text-center">
+                        <AlertCircle className="w-8 h-8 mb-2" />
+                        <span className="text-xs">Échec du chargement</span>
+                    </div>
+                )}
+
+                {objectUrl && (
+                    map.type === 'video' ? (
+                        <>
+                            <video
+                                src={objectUrl}
+                                className="w-full h-full object-cover"
+                                muted
+                                autoPlay
+                                loop
+                                playsInline
+                            />
+                            <div className="absolute top-2 right-2 bg-black/70 rounded-full p-2">
+                                <Film className="w-4 h-4 text-white" />
+                            </div>
+                        </>
+                    ) : (
+                        <img
+                            src={objectUrl}
+                            alt={map.name}
+                            className="w-full h-full object-cover"
+                            loading="lazy"
+                        />
+                    )
+                )}
+            </div>
+
+            {/* Overlay */}
+            {!isLoading && !hasError && (
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute bottom-0 left-0 right-0 p-3">
+                        <p className="text-sm text-white font-medium truncate">{map.name}</p>
+                    </div>
+                </div>
+            )}
+        </button>
+    );
 }
 
 interface BackgroundSelectorProps {
@@ -306,44 +432,14 @@ export default function BackgroundSelector({
                                 <ScrollArea className="h-full">
                                     <div className="grid grid-cols-4 gap-6 pb-4">
                                         {filteredMaps.map((map, index) => (
-                                            <button
+                                            <MediaItem
                                                 key={index}
+                                                map={map}
                                                 onClick={() => {
                                                     onSelectLocal(map.path);
                                                     onClose();
                                                 }}
-                                                className="group relative aspect-video rounded-xl overflow-hidden border-2 border-[#333] hover:border-[#c0a080] transition-all duration-200 bg-[#0a0a0a] hover:scale-105 hover:shadow-2xl hover:shadow-[#c0a080]/20"
-                                            >
-                                                {/* Thumbnail */}
-                                                <div className="absolute inset-0 flex items-center justify-center">
-                                                    {map.type === 'video' ? (
-                                                        <>
-                                                            <video
-                                                                src={map.path}
-                                                                className="w-full h-full object-cover"
-                                                                muted
-                                                            />
-                                                            <div className="absolute top-2 right-2 bg-black/70 rounded-full p-2">
-                                                                <Film className="w-4 h-4 text-white" />
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        <img
-                                                            src={map.path}
-                                                            alt={map.name}
-                                                            className="w-full h-full object-cover"
-                                                            loading="lazy"
-                                                        />
-                                                    )}
-                                                </div>
-
-                                                {/* Overlay */}
-                                                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <div className="absolute bottom-0 left-0 right-0 p-3">
-                                                        <p className="text-sm text-white font-medium truncate">{map.name}</p>
-                                                    </div>
-                                                </div>
-                                            </button>
+                                            />
                                         ))}
                                     </div>
                                 </ScrollArea>
