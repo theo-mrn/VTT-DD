@@ -209,7 +209,7 @@ export default function BackgroundSelector({
                                     activeMediaType === 'static'
                                         ? "bg-[#c0a080] text-black shadow-lg"
                                         : "bg-[#1a1a1a] text-gray-400 hover:text-white hover:bg-[#2a2a2a] border border-[#333]",
-                                    (!selectedCategory || mediaTypeCounts.static === 0) && "opacity-50 cursor-not-allowed"
+                                    (!selectedCategory || mediaTypeCounts.static === 0) ? "opacity-50 cursor-not-allowed" : ""
                                 )}
                             >
                                 <ImageIcon size={18} />
@@ -224,7 +224,7 @@ export default function BackgroundSelector({
                                     activeMediaType === 'animated'
                                         ? "bg-[#c0a080] text-black shadow-lg"
                                         : "bg-[#1a1a1a] text-gray-400 hover:text-white hover:bg-[#2a2a2a] border border-[#333]",
-                                    (!selectedCategory || mediaTypeCounts.animated === 0) && "opacity-50 cursor-not-allowed"
+                                    (!selectedCategory || mediaTypeCounts.animated === 0) ? "opacity-50 cursor-not-allowed" : ""
                                 )}
                             >
                                 <Film size={18} />
@@ -239,7 +239,7 @@ export default function BackgroundSelector({
                                     activeMediaType === 'illustration'
                                         ? "bg-[#c0a080] text-black shadow-lg"
                                         : "bg-[#1a1a1a] text-gray-400 hover:text-white hover:bg-[#2a2a2a] border border-[#333]",
-                                    (!selectedCategory || mediaTypeCounts.illustration === 0) && "opacity-50 cursor-not-allowed"
+                                    (!selectedCategory || mediaTypeCounts.illustration === 0) ? "opacity-50 cursor-not-allowed" : ""
                                 )}
                             >
                                 <Palette size={18} />
