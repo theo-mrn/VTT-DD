@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useGame } from "@/contexts/GameContext";
-import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, storage, ref, uploadBytes, getDownloadURL, getDocs, where } from "@/lib/firebase";
+import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, storage, ref, uploadBytes, getDownloadURL, getDocs, where, limitToLast } from "@/lib/firebase";
 import { DiceRoll } from "@dice-roller/rpg-dice-roller";
 import { Send, Image as ImageIcon, X, Users, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -91,7 +91,8 @@ export default function Chat() {
 
         const q = query(
             collection(db, `rooms/${roomId}/chat`),
-            orderBy("timestamp", "asc")
+            orderBy("timestamp", "asc"),
+            limitToLast(50)
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {

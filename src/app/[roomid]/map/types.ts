@@ -90,6 +90,7 @@ export type MapObject = {
     cityId: string | null;
     image?: HTMLImageElement; // Preloaded image for rendering
     isAnimated?: boolean;
+    isBackground?: boolean;
 };
 
 export type ObjectTemplate = {

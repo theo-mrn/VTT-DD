@@ -90,7 +90,7 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
 
     // Load NPC templates
     useEffect(() => {
-        if (!roomId) return
+        if (!roomId || !isOpen) return
 
         const templatesRef = collection(db, `npc_templates/${roomId}/templates`)
         const q = query(templatesRef)
@@ -105,11 +105,11 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
         })
 
         return () => unsubscribe()
-    }, [roomId])
+    }, [roomId, isOpen])
 
     // Load existing NPCs with real-time updates
     useEffect(() => {
-        if (!roomId) return
+        if (!roomId || !isOpen) return
 
         // First load cities for names
         const loadCityNames = async () => {
@@ -168,7 +168,7 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
         return () => {
             unsubscribePromise.then(unsub => unsub?.())
         }
-    }, [roomId])
+    }, [roomId, isOpen])
 
     // Generate random stats
     const generateStats = (diff: number) => {

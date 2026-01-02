@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 // import { DiceRoll } from "@dice-roller/rpg-dice-roller"; // Removed unused import
 import { motion, AnimatePresence } from "framer-motion";
 import { Dice1, RotateCcw, History, Trash2, Shield, BarChart3, Palette, Check } from "lucide-react";
-import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy, serverTimestamp } from "@/lib/firebase";
+import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy, serverTimestamp, limit } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
@@ -172,7 +172,7 @@ export function DiceRoller() {
   const fetchFirebaseRolls = async (roomId: string) => {
     try {
       const rollsRef = collection(db, `rolls/${roomId}/rolls`);
-      const rollsQuery = query(rollsRef, orderBy("timestamp", "desc"));
+      const rollsQuery = query(rollsRef, orderBy("timestamp", "desc"), limit(50));
       const snapshot = await getDocs(rollsQuery);
 
       const fetchedRolls = snapshot.docs.map(doc => doc.data() as FirebaseRoll);
