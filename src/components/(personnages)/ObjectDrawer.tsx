@@ -36,7 +36,7 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
 
     // Load templates
     useEffect(() => {
-        if (!roomId) return
+        if (!roomId || !isOpen) return
 
         const templatesRef = collection(db, `object_templates/${roomId}/templates`)
         const q = query(templatesRef)
@@ -51,7 +51,7 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
         })
 
         return () => unsubscribe()
-    }, [roomId])
+    }, [roomId, isOpen])
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]

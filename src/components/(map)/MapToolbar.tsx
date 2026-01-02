@@ -17,6 +17,8 @@ import {
     Ruler,
     Eye,
     Trash2,
+    Lock,
+    Unlock,
     ChevronUp,
     ChevronDown,
     Menu,
@@ -62,6 +64,7 @@ export const TOOLS = {
     ADD_OBJ: 'add_obj',
     ADD_NOTE: 'add_note',
     MUSIC: 'music',
+    BACKGROUND_EDIT: 'background_edit',
 
     // Tools
     DRAW: 'draw',
@@ -180,12 +183,14 @@ export default function MapToolbar({
                             label="Déplacer la carte"
                             isActive={activeTools.includes(TOOLS.PAN)}
                         />
-                        <ToolButton
-                            id={TOOLS.WORLD_MAP}
-                            icon={MapPin}
-                            label="Villes / Carte du Monde"
-                            isActive={activeTools.includes(TOOLS.WORLD_MAP)}
-                        />
+                        {isMJ && (
+                            <ToolButton
+                                id={TOOLS.WORLD_MAP}
+                                icon={MapPin}
+                                label="Villes / Carte du Monde"
+                                isActive={activeTools.includes(TOOLS.WORLD_MAP)}
+                            />
+                        )}
                     </div>
 
                     <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
@@ -222,12 +227,14 @@ export default function MapToolbar({
                             label={showGrid ? "Masquer la grille" : "Afficher la grille"}
                             isActive={activeTools.includes(TOOLS.GRID)}
                         />
-                        <ToolButton
-                            id={TOOLS.LAYERS}
-                            icon={Layers}
-                            label="Gestion des calques"
-                            isActive={activeTools.includes(TOOLS.LAYERS)}
-                        />
+                        {isMJ && (
+                            <ToolButton
+                                id={TOOLS.LAYERS}
+                                icon={Layers}
+                                label="Gestion des calques"
+                                isActive={activeTools.includes(TOOLS.LAYERS)}
+                            />
+                        )}
                         {isMJ && (
                             <>
                                 <ToolButton
@@ -280,6 +287,12 @@ export default function MapToolbar({
                                     icon={Music}
                                     label="Ambiance & Musique"
                                     isActive={activeTools.includes(TOOLS.MUSIC)}
+                                />
+                                <ToolButton
+                                    id={TOOLS.BACKGROUND_EDIT}
+                                    icon={activeTools.includes(TOOLS.BACKGROUND_EDIT) ? Unlock : Lock}
+                                    label={activeTools.includes(TOOLS.BACKGROUND_EDIT) ? "Verrouiller le fond" : "Modifier le fond"}
+                                    isActive={activeTools.includes(TOOLS.BACKGROUND_EDIT)}
                                 />
                             </div>
 

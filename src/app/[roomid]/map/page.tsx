@@ -2,7 +2,7 @@
 
 import { renderToStaticMarkup } from 'react-dom/server';
 
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { AnimatePresence } from 'framer-motion'
 import poisonIcon from './icons/poison.svg';
 import stunIcon from './icons/stun.svg';
@@ -57,7 +57,8 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
 import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Music, Volume2, VolumeX } from 'lucide-react'
-import { auth, db, onAuthStateChanged, doc, getDocs, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc, query, where } from '@/lib/firebase'
+import { auth, db, onAuthStateChanged } from '@/lib/firebase'
+import { doc, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
 import Combat from '@/components/(combat)/combat2';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -67,6 +68,7 @@ import CharacterSheet from '@/components/(fiches)/CharacterSheet';
 import { Component as RadialMenu } from '@/components/ui/radial-menu';
 import CitiesManager from '@/components/(worldmap)/CitiesManager';
 import ContextMenuPanel from '@/components/(overlays)/ContextMenuPanel';
+import ObjectContextMenu from '@/components/(overlays)/ObjectContextMenu';
 import { NPCTemplateDrawer } from '@/components/(personnages)/NPCTemplateDrawer';
 import { ObjectDrawer } from '@/components/(personnages)/ObjectDrawer';
 import { PlaceNPCModal } from '@/components/(personnages)/PlaceNPCModal';
@@ -178,6 +180,7 @@ export default function Component() {
   const [globalTokenScale, setGlobalTokenScale] = useState(1);
   const [showGlobalSettingsDialog, setShowGlobalSettingsDialog] = useState(false);
   const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
+  const [isBackgroundEditMode, setIsBackgroundEditMode] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [characters, setCharacters] = useState<Character[]>([]);
   const [objects, setObjects] = useState<MapObject[]>([]);
@@ -247,6 +250,9 @@ export default function Component() {
 
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState<number | null>(null);
   const [selectedObjectIndices, setSelectedObjectIndices] = useState<number[]>([]);
+
+  // Ref to track mouse down position for click vs drag distinction
+  const mouseClickStartRef = React.useRef<{ x: number, y: number } | null>(null);
   const [selectedNoteIndex, setSelectedNoteIndex] = useState<number | null>(null);
   const getConditionIcon = useStatusEffectIcons(); // Hook d'icônes
 
@@ -261,6 +267,8 @@ export default function Component() {
   // 🎯 Context Menu State
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [contextMenuCharacterId, setContextMenuCharacterId] = useState<string | null>(null);
+  const [contextMenuObjectOpen, setContextMenuObjectOpen] = useState(false);
+  const [contextMenuObjectId, setContextMenuObjectId] = useState<string | null>(null);
 
   const [isRadialMenuOpen, setIsRadialMenuOpen] = useState(false);
   const [isRadialMenuCentered, setIsRadialMenuCentered] = useState(false);
@@ -772,182 +780,147 @@ export default function Component() {
     }
   }, [backgroundImage, isMJ, loading, selectedCityId, cities]);
 
+  const loadedPlayersRef = useRef<any[]>([]); // Storing RAW docs to re-parse with new cityId
+  const loadedNPCsRef = useRef<Character[]>([]);
+
+  // Helper functions need to be stable or defined outside if they don't depend on scope (they depend on selectedCityId)
+  // Since selectedCityId changes, the parsing logic changes (positions). 
+  // So `parseCharacterDoc` MUST be inside the effect OR depend on cityId.
+  // BUT! Global players shouldn't re-parse just because cityId changed? 
+  // YES they should! Because their position might be defined for that city.
+  // So actually Global Effect needs `selectedCityId`? 
+  // IF we depend on `selectedCityId`, we re-subscribe.
+  // SOLUTION: separating the listener from the parser?
+  // Complex. For now, let's keep it simple:
+  // If we want to avoid re-subscribing players, we must store the RAW DOCS and re-parse them when city changes.
+  // That's too complex for this refactor.
+  // Alternative: We accept that Players re-subscribe? NO, that's what we want to avoid.
+  // 
+  // FIX: The Global Effect subscribes to `playersQuery`. Inside the callback, it parses using `selectedCityId`.
+  // Wait, the callback captures the closure. If `selectedCityId` changes, the old callback still has old ID?
+  // Yes. So we need `selectedCityId` in dependency array.
+  // 
+  // TRICK: Use a ref for `selectedCityId`.
+  const selectedCityIdRef = useRef(selectedCityId);
+  // 1. DEFINE FUNCTIONS FIRST
+  const parseCharacterDoc = useCallback((doc: any, cityId: string | null): Character => {
+    const data = doc.data();
+    const img = new Image();
+    let imageUrl = '';
+    if (data.type === 'joueurs') {
+      imageUrl = data.imageURLFinal || data.imageURL2 || data.imageURL;
+    } else {
+      imageUrl = data.imageURL2 || data.imageURL;
+    }
+    if (imageUrl) img.src = imageUrl;
+
+    let charX = data.x || 0;
+    let charY = data.y || 0;
+    // Logic for position overrides
+    if (cityId && data.positions && data.positions[cityId]) {
+      charX = data.positions[cityId].x;
+      charY = data.positions[cityId].y;
+    }
+
+    return {
+      id: doc.id,
+      niveau: data.niveau || 1,
+      name: data.Nomperso || '',
+      x: charX,
+      y: charY,
+      image: img,
+      imageUrl: imageUrl,
+      visibility: data.visibility || 'hidden',
+      visibilityRadius: parseFloat(data.visibilityRadius) || 100,
+      type: data.type || 'pnj',
+      PV: data.PV || 10,
+      PV_Max: data.PV_Max || data.PV || 10,
+      Defense: data.Defense || 5,
+      Contact: data.Contact || 5,
+      Distance: data.Distance || 5,
+      Magie: data.Magie || 5,
+      INIT: data.INIT || 5,
+      FOR: data.FOR || 0,
+      DEX: data.DEX || 0,
+      CON: data.CON || 0,
+      SAG: data.SAG || 0,
+      INT: data.INT || 0,
+      CHA: data.CHA || 0,
+      conditions: data.conditions || [],
+      scale: data.scale || 1,
+      Actions: data.Actions || []
+    };
+  }, []);
+
+  const mergeAndSetCharacters = useCallback(() => {
+    // Deduplicate by ID
+    const visibleIds = new Set<string>();
+    const combined: Character[] = [];
+
+    const currentCityId = selectedCityIdRef.current; // Always use FRESH cityId
+
+    // Parse Global Players dynamically
+    const parsedPlayers = loadedPlayersRef.current.map(doc => parseCharacterDoc(doc, currentCityId));
+
+    [...parsedPlayers, ...loadedNPCsRef.current].forEach(char => {
+      if (!visibleIds.has(char.id)) {
+        visibleIds.add(char.id);
+        combined.push(char);
+      }
+    });
+    setCharacters(combined);
+    setLoading(false);
+  }, [parseCharacterDoc]);
+
+  // 2. NOW USE THEM IN EFFECT
+  useEffect(() => {
+    selectedCityIdRef.current = selectedCityId;
+    // Force update characters when city changes (to update player positions)
+    mergeAndSetCharacters();
+  }, [selectedCityId, mergeAndSetCharacters]);
+
   // 🆕 CHARGER LES DONNÉES FILTRÉES PAR VILLE (depuis les collections globales)
   useEffect(() => {
     if (!roomId) return;
 
     const unsubscribers: (() => void)[] = [];
 
-    // 1. CHARGER ET FILTRER LES PERSONNAGES
+    // 1. CHARGER ET FILTRER LES PERSONNAGES (Split: Players Global + NPCs Local)
     const charactersRef = collection(db, 'cartes', roomId, 'characters');
+    // let loadedPlayers: Character[] = []; // MOVED TO REF
+    // let loadedNPCs: Character[] = []; // MOVED TO REF
 
-    // A. Charger les Joueurs (Global - toujours visibles)
-    const playersQuery = query(charactersRef, where('type', '==', 'joueurs'));
-    // B. Charger les PNJ de la ville actuelle (ou "Global" si pas de ville)
-    // Note: Si selectedCityId est null, on cherche les PNJ sans cityId ou avec cityId null
-    const npcsQuery = selectedCityId
-      ? query(charactersRef, where('cityId', '==', selectedCityId))
-      : query(charactersRef, where('cityId', '==', null)); // Ou undefined si indexé ainsi
+    // PARSE FUNCTION MOVED OUTSIDE FOR REUSE
+    // const parseCharacterDoc = ...
 
-    // On utilise un map pour fusionner les résultats sans doublons
-    const loadedCharsMap = new Map<string, Character>();
+    // A. Subscribe to Players (Global)
+    // MOVED TO GLOBAL EFFECT
+    // const playersQuery = query(charactersRef, where('type', '==', 'joueurs'));
+    // const playersUnsub = onSnapshot(playersQuery, (snapshot) => {
+    //    loadedPlayers = snapshot.docs.map(doc => parseCharacterDoc(doc, selectedCityId));
+    //    mergeAndSetCharacters();
+    // });
+    // unsubscribers.push(playersUnsub);
 
-    const updateCharacters = () => {
-      setCharacters(Array.from(loadedCharsMap.values()));
-      setLoading(false);
-    };
-
-    const processSnapshot = (snapshot: any) => {
-      snapshot.forEach((doc: any) => {
-        const data = doc.data();
-        const img = new Image();
-        let imageUrl = '';
-        if (data.type === 'joueurs') {
-          imageUrl = data.imageURLFinal || data.imageURL2 || data.imageURL;
-          img.src = imageUrl;
-        } else {
-          imageUrl = data.imageURL2 || data.imageURL;
-          img.src = imageUrl;
-        }
-        // 🎯 GESTION DES COORDONNÉES SPECIFIQUES PAR VILLE
-        let charX = data.x || 0;
-        let charY = data.y || 0;
-
-        // Si on est dans une ville spécifique et que le personnage a des positions sauvegardées pour cette ville
-        if (selectedCityId && data.positions && data.positions[selectedCityId]) {
-          charX = data.positions[selectedCityId].x;
-          charY = data.positions[selectedCityId].y;
-        }
-
-        loadedCharsMap.set(doc.id, {
-          id: doc.id,
-          niveau: data.niveau || 1,
-          name: data.Nomperso || '',
-          x: charX,
-          y: charY,
-          image: img,
-          imageUrl: imageUrl,
-          visibility: data.visibility || 'hidden',
-          visibilityRadius: parseFloat(data.visibilityRadius) || 100,
-          type: data.type || 'pnj',
-          PV: data.PV || 10,
-          PV_Max: data.PV_Max || data.PV || 10,
-          Defense: data.Defense || 5,
-          Contact: data.Contact || 5,
-          Distance: data.Distance || 5,
-          Magie: data.Magie || 5,
-          INIT: data.INIT || 5,
-          FOR: data.FOR || 0,
-          DEX: data.DEX || 0,
-          CON: data.CON || 0,
-          SAG: data.SAG || 0,
-          INT: data.INT || 0,
-          CHA: data.CHA || 0,
-          conditions: data.conditions || [],
-          scale: data.scale || 1,
-          Actions: data.Actions || []
-        });
-      });
-      updateCharacters();
-    };
-
-    const playersUnsub = onSnapshot(playersQuery, (snapshot) => {
-      // Clear previous players to handle deletions (complex with merger, but acceptable for now)
-      // Ideal way: smart merge. For now, simpler re-process might be better if volume involved.
-      // But players volume is low (<10).
-      processSnapshot(snapshot);
+    // B. Subscribe to NPCs (Local)
+    // Note: We include 'ally' visibility in global usually? 
+    // The original code said: "isGlobal = data.type === 'joueurs' || data.visibility === 'ally'".
+    // For now, let's assume allies are also players OR handled by city. 
+    // If allies are NPCs, we might miss them if they are in another city but "allied".
+    // Let's stick to cityId for NPCs to save reads.
+    const npcsQuery = query(charactersRef, where('cityId', '==', selectedCityId));
+    const npcsUnsub = onSnapshot(npcsQuery, (snapshot) => {
+      // Filter out players if they appear here (shouldn't if data is clean, but safe to filter)
+      loadedNPCsRef.current = snapshot.docs
+        .filter(doc => doc.data().type !== 'joueurs')
+        .map(doc => parseCharacterDoc(doc, selectedCityId));
+      mergeAndSetCharacters();
     });
-
-    // NOTE: This simple merge logic accumulates. If a char is deleted, it stays in map until full reload.
-    // To fix deletion, we'd need to track source of each char.
-    // Better approach for deletion support: Keep two separate lists and merge on render or inside keys.
-    // Let's do separate handlers for robustness.
-
-    const processCharData = (doc: any) => {
-      const data = doc.data();
-      const img = new Image();
-      let imageUrl = '';
-      if (data.type === 'joueurs') {
-        imageUrl = data.imageURLFinal || data.imageURL2 || data.imageURL;
-        img.src = imageUrl;
-      } else {
-        imageUrl = data.imageURL2 || data.imageURL;
-        img.src = imageUrl;
-      }
-      // 🎯 GESTION DES COORDONNÉES SPECIFIQUES PAR VILLE
-      let charX = data.x || 0;
-      let charY = data.y || 0;
-
-      // Si on est dans une ville spécifique et que le personnage a des positions sauvegardées pour cette ville
-      if (selectedCityId && data.positions && data.positions[selectedCityId]) {
-        charX = data.positions[selectedCityId].x;
-        charY = data.positions[selectedCityId].y;
-      }
-
-      return {
-        id: doc.id,
-        niveau: data.niveau || 1,
-        name: data.Nomperso || '',
-        x: charX,
-        y: charY,
-        image: img,
-        imageUrl: imageUrl,
-        visibility: data.visibility || 'hidden',
-        visibilityRadius: parseFloat(data.visibilityRadius) || 100,
-        type: data.type || 'pnj',
-        PV: data.PV || 10,
-        PV_Max: data.PV_Max || data.PV || 10,
-        Defense: data.Defense || 5,
-        Contact: data.Contact || 5,
-        Distance: data.Distance || 5,
-        Magie: data.Magie || 5,
-        INIT: data.INIT || 5,
-        FOR: data.FOR || 0,
-        DEX: data.DEX || 0,
-        CON: data.CON || 0,
-        SAG: data.SAG || 0,
-        INT: data.INT || 0,
-        CHA: data.CHA || 0,
-        conditions: data.conditions || [],
-        scale: data.scale || 1,
-        Actions: data.Actions || []
-      } as Character;
-    }
-
-    let currentPlayers: Character[] = [];
-    let currentNPCs: Character[] = [];
-
-    const mergeAndSet = () => {
-      // Map by ID to deduplicate (if a player somehow matches NPC query too)
-      const charMap = new Map<string, Character>();
-      currentPlayers.forEach(c => charMap.set(c.id, c));
-      currentNPCs.forEach(c => charMap.set(c.id, c));
-      setCharacters(Array.from(charMap.values()));
-      setLoading(false);
-    }
-
-    const unsubPlayers = onSnapshot(playersQuery, (snapshot) => {
-      const chars: Character[] = [];
-      snapshot.forEach(doc => chars.push(processCharData(doc)));
-      currentPlayers = chars;
-      mergeAndSet();
-    });
-    unsubscribers.push(unsubPlayers);
-
-    const unsubNPCs = onSnapshot(npcsQuery, (snapshot) => {
-      const chars: Character[] = [];
-      snapshot.forEach(doc => chars.push(processCharData(doc)));
-      currentNPCs = chars;
-      mergeAndSet();
-    });
-    unsubscribers.push(unsubNPCs);
+    unsubscribers.push(npcsUnsub);
 
     // 2. CHARGER ET FILTRER LES DESSINS
     const drawingsRef = collection(db, 'cartes', roomId, 'drawings');
-    const drawingsQuery = selectedCityId
-      ? query(drawingsRef, where('cityId', '==', selectedCityId))
-      : query(drawingsRef, where('cityId', '==', null));
-
+    const drawingsQuery = query(drawingsRef, where('cityId', '==', selectedCityId));
     const drawingsUnsub = onSnapshot(drawingsQuery, (snapshot) => {
       const drws: SavedDrawing[] = [];
       snapshot.forEach((doc) => {
@@ -969,10 +942,7 @@ export default function Component() {
 
     // 3. CHARGER ET FILTRER LES NOTES
     const notesRef = collection(db, 'cartes', roomId, 'text');
-    const notesQuery = selectedCityId
-      ? query(notesRef, where('cityId', '==', selectedCityId))
-      : query(notesRef, where('cityId', '==', null));
-
+    const notesQuery = query(notesRef, where('cityId', '==', selectedCityId));
     const notesUnsub = onSnapshot(notesQuery, (snapshot) => {
       const texts: Text[] = [];
       snapshot.forEach((doc) => {
@@ -1021,10 +991,7 @@ export default function Component() {
 
     // 5. 🔦 CHARGER LES OBSTACLES (pour la vision dynamique)
     const obstaclesRef = collection(db, 'cartes', roomId, 'obstacles');
-    const obstaclesQuery = selectedCityId
-      ? query(obstaclesRef, where('cityId', '==', selectedCityId))
-      : query(obstaclesRef, where('cityId', '==', null));
-
+    const obstaclesQuery = query(obstaclesRef, where('cityId', '==', selectedCityId));
     const obstaclesUnsub = onSnapshot(obstaclesQuery, (snapshot) => {
       const obs: Obstacle[] = [];
       snapshot.forEach((docSnap) => {
@@ -1044,10 +1011,9 @@ export default function Component() {
 
     // 6. CHARGER ET FILTRER LES OBJETS
     const objectsRef = collection(db, 'cartes', roomId, 'objects');
-    const objectsQuery = selectedCityId
-      ? query(objectsRef, where('cityId', '==', selectedCityId))
-      : query(objectsRef, where('cityId', '==', null));
-
+    // Important: we assume that if data.cityId is missing, it's effectively null (or arguably we should handle that case, but standardizing on null is better)
+    // Firestore queries are strict: wheres are exact matches.
+    const objectsQuery = query(objectsRef, where('cityId', '==', selectedCityId));
     const objectsUnsub = onSnapshot(objectsQuery, (snapshot) => {
       const objs: MapObject[] = [];
       snapshot.forEach((doc) => {
@@ -1068,7 +1034,8 @@ export default function Component() {
           rotation: data.rotation || 0,
           imageUrl: data.imageUrl || '',
           cityId: data.cityId || null,
-          image: img
+          image: img,
+          isBackground: data.isBackground || false
         });
       });
       setObjects(objs);
@@ -1077,15 +1044,14 @@ export default function Component() {
 
     // 7. CHARGER ZONES DE MUSIQUE
     const musicZonesRef = collection(db, 'cartes', roomId, 'musicZones');
-    const musicZonesQuery = selectedCityId
-      ? query(musicZonesRef, where('cityId', '==', selectedCityId))
-      : query(musicZonesRef, where('cityId', '==', null));
-
+    const musicZonesQuery = query(musicZonesRef, where('cityId', '==', selectedCityId));
     const musicZonesUnsub = onSnapshot(musicZonesQuery, (snapshot) => {
       const zones: MusicZone[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
-        zones.push({ id: doc.id, ...data } as MusicZone);
+        if (data.cityId === selectedCityId) {
+          zones.push({ id: doc.id, ...data } as MusicZone);
+        }
       });
       setMusicZones(zones);
     });
@@ -1112,9 +1078,28 @@ export default function Component() {
     return () => {
       unsubscribers.forEach(unsub => unsub());
     };
-  }, [roomId, selectedCityId]);
+  }, [roomId, selectedCityId, parseCharacterDoc, mergeAndSetCharacters]);
 
 
+  // ------------------------------------------------------------------
+  // 🌍 GLOBAL LISTENER (PLAYERS) - Stays connected across City Switches
+  // ------------------------------------------------------------------
+  useEffect(() => {
+    if (!roomId) return;
+
+    const charactersRef = collection(db, 'cartes', roomId, 'characters');
+    // A. Subscribe to Players (Global)
+    const playersQuery = query(charactersRef, where('type', '==', 'joueurs'));
+    const playersUnsub = onSnapshot(playersQuery, (snapshot) => {
+      loadedPlayersRef.current = snapshot.docs; // Store RAW docs
+      mergeAndSetCharacters();
+    });
+
+    return () => {
+      playersUnsub();
+      loadedPlayersRef.current = []; // Clear on unmount
+    };
+  }, [roomId, parseCharacterDoc, mergeAndSetCharacters]);
 
 
   // 🔄 Update Container Size on Resize
@@ -1144,7 +1129,20 @@ export default function Component() {
   }, [characters, playerViewMode, viewAsPersoId, persoId]);
 
   // 🔦 OPTIMIZATION: Memoize shadow calculations
+  const lastShadowUpdateRef = React.useRef<number>(0);
+  const lastShadowResultRef = React.useRef<ShadowResult | null>(null);
+
   const precalculatedShadows = React.useMemo<ShadowResult | null>(() => {
+    // If we are dragging a character, throttle updates to 50ms (20fps)
+    // This prevents the expensive shadow calculation from blocking the UI thread
+    if (isDraggingCharacter) {
+      const now = Date.now();
+      if (now - lastShadowUpdateRef.current < 50 && lastShadowResultRef.current) {
+        return lastShadowResultRef.current;
+      }
+      lastShadowUpdateRef.current = now;
+    }
+
     if (!bgImageObject || !activeViewer || !obstacles.length) return null;
 
     // Check if layer is visible (re-implement check since function dependency is tricky)
@@ -1158,11 +1156,14 @@ export default function Component() {
     const mapBounds = { width, height };
     const viewerPos = { x: activeViewer.x, y: activeViewer.y };
 
-    return {
+    const result = {
       shadows: calculateShadowPolygons(viewerPos, obstacles, mapBounds),
       polygonsContainingViewer: getPolygonsContainingViewer(viewerPos, obstacles)
     };
-  }, [activeViewer?.x, activeViewer?.y, obstacles, bgImageObject, isMJ, playerViewMode, layers, activeViewer]);
+
+    lastShadowResultRef.current = result;
+    return result;
+  }, [activeViewer?.x, activeViewer?.y, obstacles, bgImageObject, isMJ, playerViewMode, layers, activeViewer, isDraggingCharacter]);
 
   useEffect(() => {
     const bgCanvas = bgCanvasRef.current;
@@ -1663,6 +1664,7 @@ export default function Component() {
       case TOOLS.ADD_NOTE: handleAddNote(); break;
       case TOOLS.MUSIC: if (isMJ) { deactivateIncompatible(TOOLS.MUSIC); setIsMusicMode(!isMusicMode); } break;
       case TOOLS.MULTI_SELECT: if (isMJ) { deactivateIncompatible(TOOLS.MULTI_SELECT); setMultiSelectMode(!multiSelectMode); } break;
+      case TOOLS.BACKGROUND_EDIT: if (isMJ) setIsBackgroundEditMode(!isBackgroundEditMode); break;
       case TOOLS.DRAW: deactivateIncompatible(TOOLS.DRAW); toggleDrawMode(); break;
       case TOOLS.MEASURE: deactivateIncompatible(TOOLS.MEASURE); setMeasureMode(!measureMode); setMeasureStart(null); setMeasureEnd(null); setIsCalibrating(false); break;
       case TOOLS.VISIBILITY: if (isMJ) { deactivateIncompatible(TOOLS.VISIBILITY); toggleVisibilityMode(); } break;
@@ -1686,6 +1688,7 @@ export default function Component() {
     if (isObjectDrawerOpen) active.push(TOOLS.ADD_OBJ);
     if (isNPCDrawerOpen) active.push(TOOLS.ADD_CHAR);
     if (multiSelectMode) active.push(TOOLS.MULTI_SELECT);
+    if (isBackgroundEditMode) active.push(TOOLS.BACKGROUND_EDIT);
     return active;
   };
 
@@ -2164,8 +2167,9 @@ export default function Component() {
                 onChange={(e) => {
                   const vol = parseFloat(e.target.value);
                   setBackgroundAudioVolume(vol);
-                  updateBackgroundAudioVolume(vol);
                 }}
+                onMouseUp={() => updateBackgroundAudioVolume(backgroundAudioVolume)}
+                onTouchEnd={() => updateBackgroundAudioVolume(backgroundAudioVolume)}
                 className="h-1 w-full bg-gray-700 rounded-full appearance-none cursor-pointer accent-fuchsia-500"
               />
             </div>
@@ -5031,7 +5035,10 @@ export default function Component() {
 
       // 2. Find Objects (Center point)
       const selectedObjs = objects
-        .map((obj, index) => isInRect(obj.x + obj.width / 2, obj.y + obj.height / 2) ? index : null)
+        .map((obj, index) => {
+          if (obj.isBackground && !isBackgroundEditMode) return null;
+          return isInRect(obj.x + obj.width / 2, obj.y + obj.height / 2) ? index : null;
+        })
         .filter((i): i is number => i !== null);
 
       // 3. Find Notes
@@ -5434,6 +5441,39 @@ export default function Component() {
 
 
 
+  const handleObjectAction = async (action: string, objectId: string, value?: any) => {
+    if (!roomId) return;
+    const objIndex = objects.findIndex(o => o.id === objectId);
+    if (objIndex === -1) return;
+    const obj = objects[objIndex];
+
+    try {
+      if (action === 'delete') {
+        await deleteDoc(doc(db, 'cartes', String(roomId), 'objects', objectId));
+        setContextMenuObjectOpen(false);
+        setContextMenuObjectId(null);
+        setSelectedObjectIndices(prev => prev.filter(idx => idx !== objIndex)); // Note: Index might shift if real-time, but for now ok
+      } else if (action === 'toggleBackground') {
+        // Toggle background status
+        await updateDoc(doc(db, 'cartes', String(roomId), 'objects', objectId), {
+          isBackground: !obj.isBackground
+        });
+        setContextMenuObjectOpen(false);
+        // Deselect if we are embedding it (locking it)
+        if (!obj.isBackground) {
+          setSelectedObjectIndices(prev => prev.filter(idx => idx !== objIndex));
+        }
+      } else if (action === 'rotate') {
+        // Realtime update might be too much, but for context menu slider it's ok
+        await updateDoc(doc(db, 'cartes', String(roomId), 'objects', objectId), {
+          rotation: value
+        });
+      }
+    } catch (error) {
+      console.error("Error handling object action:", error);
+    }
+  };
+
   const handleSelection = (type: SelectionType) => {
     if (!selectionCandidates) return;
 
@@ -5512,6 +5552,16 @@ export default function Component() {
           />
         </div>
       )}
+
+      {/* 🎯 Object Context Menu */}
+      <ObjectContextMenu
+        object={contextMenuObjectId ? objects.find(o => o.id === contextMenuObjectId) || null : null}
+        isOpen={contextMenuObjectOpen}
+        onClose={() => setContextMenuObjectOpen(false)}
+        onAction={handleObjectAction}
+        isMJ={isMJ}
+        isBackgroundEditMode={isBackgroundEditMode}
+      />
 
       {/* Styles pour l'animation de livre */}
       <style jsx global>{`
@@ -5686,8 +5736,9 @@ export default function Component() {
                     width: w,
                     height: h,
                     transform: `rotate(${obj.rotation}deg)`,
-                    pointerEvents: 'auto', // Allow interactions
-                    cursor: isResizingObject ? 'nwse-resize' : 'move' // Change cursor if resizing
+                    pointerEvents: obj.isBackground && !isBackgroundEditMode ? 'none' : 'auto', // Allow interactions only if not background or in edit mode
+                    cursor: isResizingObject ? 'nwse-resize' : 'move', // Change cursor if resizing
+                    zIndex: obj.isBackground ? 0 : 10 // Background objects lower in stack
                   }}
                   onMouseDown={(e) => {
                     // Handle Object Selection & Drag Start logic here or delegate?
@@ -5718,6 +5769,39 @@ export default function Component() {
 
                       // Prevent canvas from picking up this click as a "click on empty space"
                       e.stopPropagation();
+
+                      // Tracking for click vs drag
+                      mouseClickStartRef.current = { x: e.clientX, y: e.clientY };
+                    }
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (isMJ) {
+                      const start = mouseClickStartRef.current;
+                      if (start) {
+                        const dist = Math.sqrt(Math.pow(e.clientX - start.x, 2) + Math.pow(e.clientY - start.y, 2));
+                        if (dist < 5) {
+                          // It was a click, not a drag
+                          setContextMenuObjectId(obj.id);
+                          setContextMenuObjectOpen(true);
+                          // Ensure selection if not already (handled in mousedown but good to be safe)
+                          if (!selectedObjectIndices.includes(index)) {
+                            setSelectedObjectIndices([index]);
+                          }
+                        }
+                      }
+                    }
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (isMJ) {
+                      setContextMenuObjectId(obj.id);
+                      setContextMenuObjectOpen(true);
+                      // Also select it if not selected
+                      if (!selectedObjectIndices.includes(index)) {
+                        setSelectedObjectIndices([index]);
+                      }
                     }
                   }}
                 >
@@ -5727,8 +5811,8 @@ export default function Component() {
                     style={{
                       width: '100%',
                       height: '100%',
-                      border: isSelected ? '2px solid #00BFFF' : 'none',
-                      opacity: 1
+                      border: isSelected ? '2px solid #00BFFF' : (obj.isBackground && isBackgroundEditMode ? '2px dashed rgba(255, 255, 255, 0.5)' : 'none'),
+                      opacity: obj.isBackground && isBackgroundEditMode ? 0.8 : 1
                     }}
                     draggable={false} // Disable native drag to use our custom logic
                   />
@@ -6216,7 +6300,9 @@ export default function Component() {
                 max="3"
                 step="0.1"
                 value={globalTokenScale}
-                onChange={(e) => updateGlobalTokenScale(parseFloat(e.target.value))}
+                onChange={(e) => setGlobalTokenScale(parseFloat(e.target.value))}
+                onMouseUp={() => updateGlobalTokenScale(globalTokenScale)}
+                onTouchEnd={() => updateGlobalTokenScale(globalTokenScale)}
                 className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
               />
             </div>
@@ -6338,24 +6424,7 @@ export default function Component() {
         onConfirm={handlePlaceConfirm}
       />
 
-      {/* No Background Modal */}
-      <NoBackgroundModal
-        isOpen={showNoBackgroundModal}
-        onClose={() => setShowNoBackgroundModal(false)}
-        onUploadBackground={() => fileInputRef.current?.click()}
-        cities={cities}
-        onSelectCity={(cityId) => {
-          if (cityId === '') {
-            // Retour à la world map
-            setSelectedCityId(null);
-            setViewMode('world');
-          } else {
-            setSelectedCityId(cityId);
-            setViewMode('city');
-          }
-        }}
-        selectedCityId={selectedCityId}
-      />
+
       {/* Background Loader Overlay */}
       {
         isBackgroundLoading && (
