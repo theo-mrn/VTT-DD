@@ -87,7 +87,15 @@ export const useFogManager = ({
         }
 
         setFogGrid(newFogGrid);
-        if (roomId) await saveFogGrid(newFogGrid);
+        // [OPTIMIZATION] DO NOT SAVE TO FIREBASE HERE
+        // Calls to this function happen on every mouse move.
+        // We must batch writes or wait for mouse up.
+    };
+
+    const flushFogUpdates = async () => {
+        if (!roomId) return;
+        // Save the current state of fogGrid to Firebase
+        await saveFogGrid(fogGrid);
     };
 
     const addFogCellIfNew = async (x: number, y: number, addMode: boolean) => {
@@ -144,7 +152,8 @@ export const useFogManager = ({
         saveFullMapFog,
         toggleFogCell,
         addFogCellIfNew,
-        calculateFogOpacity
+        calculateFogOpacity,
+        flushFogUpdates
     };
 };
 
