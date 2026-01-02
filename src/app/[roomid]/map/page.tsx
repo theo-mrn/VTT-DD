@@ -69,6 +69,7 @@ import { Component as RadialMenu } from '@/components/ui/radial-menu';
 import CitiesManager from '@/components/(worldmap)/CitiesManager';
 import ContextMenuPanel from '@/components/(overlays)/ContextMenuPanel';
 import ObjectContextMenu from '@/components/(overlays)/ObjectContextMenu';
+import MusicZoneContextMenu from '@/components/(overlays)/MusicZoneContextMenu';
 import { NPCTemplateDrawer } from '@/components/(personnages)/NPCTemplateDrawer';
 import { ObjectDrawer } from '@/components/(personnages)/ObjectDrawer';
 import { PlaceNPCModal } from '@/components/(personnages)/PlaceNPCModal';
@@ -95,6 +96,16 @@ import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath }
 import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
 import MapToolbar, { TOOLS } from '@/components/(map)/MapToolbar';
 import BackgroundSelector from '@/components/(map)/BackgroundSelector';
+import MeasurementShapeSelector from '@/components/(map)/MeasurementShapeSelector';
+import ConeConfigDialog from '@/components/(map)/ConeConfigDialog';
+import {
+  type MeasurementShape,
+  renderLineMeasurement,
+  renderConeMeasurement,
+  renderCircleMeasurement,
+  renderCubeMeasurement,
+  renderStartPoint
+} from './measurements';
 
 const getMediaDimensions = (media: HTMLImageElement | HTMLVideoElement | CanvasImageSource) => {
   if (media instanceof HTMLVideoElement) {
@@ -253,6 +264,10 @@ export default function Component() {
 
   // Ref to track mouse down position for click vs drag distinction
   const mouseClickStartRef = React.useRef<{ x: number, y: number } | null>(null);
+
+  const [contextMenuMusicZoneId, setContextMenuMusicZoneId] = useState<string | null>(null);
+  const [contextMenuMusicZoneOpen, setContextMenuMusicZoneOpen] = useState(false);
+
   const [selectedNoteIndex, setSelectedNoteIndex] = useState<number | null>(null);
   const getConditionIcon = useStatusEffectIcons(); // Hook d'icônes
 
@@ -361,6 +376,7 @@ export default function Component() {
 
   // 🎯 MEASUREMENT & CALIBRATION STATE
   const [measureMode, setMeasureMode] = useState(false);
+  const [measurementShape, setMeasurementShape] = useState<MeasurementShape>('line');
   const [isCalibrating, setIsCalibrating] = useState(false); // Sub-mode of measureMode
   const [measureStart, setMeasureStart] = useState<Point | null>(null);
   const [measureEnd, setMeasureEnd] = useState<Point | null>(null);
@@ -368,6 +384,8 @@ export default function Component() {
   const [unitName, setUnitName] = useState('m'); // Default unit
   const [calibrationDialogOpen, setCalibrationDialogOpen] = useState(false);
   const [tempCalibrationDistance, setTempCalibrationDistance] = useState('');
+  const [coneConfigDialogOpen, setConeConfigDialogOpen] = useState(false);
+  const [coneWidth, setConeWidth] = useState<number | undefined>(undefined); // Custom cone width
 
   // 🆕 VIEW MODE & CITY NAVIGATION STATE
 
@@ -1657,7 +1675,15 @@ export default function Component() {
       case TOOLS.GRID: setShowGrid(!showGrid); break;
       case TOOLS.LAYERS: setShowLayerControl(!showLayerControl); break;
       case TOOLS.BACKGROUND: if (isMJ) setShowBackgroundSelector(true); break;
-      case TOOLS.VIEW_MODE: if (isMJ) setPlayerViewMode(!playerViewMode); break;
+      case TOOLS.VIEW_MODE:
+        if (isMJ) {
+          if (playerViewMode) {
+            // Turning off player view mode - clear the selected player
+            setViewAsPersoId(null);
+          }
+          setPlayerViewMode(!playerViewMode);
+        }
+        break;
       case TOOLS.SETTINGS: if (isMJ) setShowGlobalSettingsDialog(true); break;
       case TOOLS.ADD_CHAR: if (isMJ) { deactivateIncompatible(TOOLS.ADD_CHAR); setIsNPCDrawerOpen(!isNPCDrawerOpen); setIsObjectDrawerOpen(false); } break;
       case TOOLS.ADD_OBJ: if (isMJ) { deactivateIncompatible(TOOLS.ADD_OBJ); setIsObjectDrawerOpen(!isObjectDrawerOpen); setIsNPCDrawerOpen(false); } break;
@@ -1961,14 +1987,33 @@ export default function Component() {
               min="1"
               max="20"
               value={drawingSize}
-              onChange={(e) => setDrawingSize(parseInt(e.target.value))}
-              className="w-20 h-1 bg-zinc-700 rounded-lg appearance-none cursor-pointer accent-[#c0a080]"
+              onChange={(e) => setDrawingSize(Number(e.target.value))}
+              className="h-1 w-24 bg-gray-700 rounded-full appearance-none cursor-pointer accent-[#c0a080]"
             />
             <span className="text-[#c0a080] text-sm font-bold w-4">{drawingSize}</span>
           </div>
         </div>
       );
     }
+
+    // 🎯 MODE : Mesure
+    if (measureMode) {
+      return (
+        <MeasurementShapeSelector
+          selectedShape={measurementShape}
+          onShapeChange={setMeasurementShape}
+          onConeConfig={() => setConeConfigDialogOpen(true)}
+          isCalibrating={isCalibrating}
+          onStartCalibration={() => {
+            setIsCalibrating(true);
+            setMeasureStart(null);
+            setMeasureEnd(null);
+          }}
+          onCancelCalibration={() => setIsCalibrating(false)}
+        />
+      );
+    }
+
     if (visibilityMode) {
       return (
         <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
@@ -2612,8 +2657,8 @@ export default function Component() {
     }
 
 
-    // 🎵 DRAW MUSIC ZONES (Always visible for MJ)
-    if (isMJ) {
+    // 🎵 DRAW MUSIC ZONES (Visible only for MJ, and not in Player View mode)
+    if (isMJ && !viewAsPersoId) {
       musicZones.forEach(zone => {
         const center = transformPoint({ x: zone.x, y: zone.y });
         const isSelected = selectedMusicZoneIds.includes(zone.id);
@@ -2665,10 +2710,10 @@ export default function Component() {
           ctx.lineWidth = 2;
           ctx.stroke();
         }
-        // Music Note Icon
-        const baseSize = isSelected ? 16 : 12; // Smaller size for "pro" look
-        const noteSize = baseSize * scale * zoom;
-        const padding = 4 * scale * zoom;
+        // Music Note Icon - Fixed size like character tokens
+        const baseSize = isSelected ? 20 : 16; // Fixed pixel size
+        const noteSize = baseSize;
+        const padding = 4;
 
         // Draw background circle for icon
         ctx.beginPath();
@@ -2676,7 +2721,7 @@ export default function Component() {
         ctx.fillStyle = isSelected ? 'rgba(217, 70, 239, 1)' : 'rgba(217, 70, 239, 0.7)'; // Slightly more opaque
         ctx.fill();
         ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1.5 * scale * zoom; // Finer stroke
+        ctx.lineWidth = 1.5;
         ctx.stroke();
 
         // Simple music note drawing or text
@@ -2684,7 +2729,7 @@ export default function Component() {
         ctx.font = `${noteSize}px Arial`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('♫', center.x, center.y + (1 * scale * zoom)); // Minor vertical adjustment
+        ctx.fillText('♫', center.x, center.y + 1);
 
         // Draw label
         ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
@@ -2711,9 +2756,6 @@ export default function Component() {
         ctx.fillStyle = '#fff';
         ctx.textBaseline = 'top';
         ctx.fillText(zone.name, center.x, labelY + (2 * zoom));
-
-        ctx.fillStyle = '#fff';
-        ctx.fillText(zone.name, center.x, center.y + noteSize / 2 + 22);
       });
     }
 
@@ -3308,78 +3350,59 @@ export default function Component() {
 
     // 🎯 DRAW MEASUREMENT RULER
     if (measureMode && measureStart) {
-      // Draw a line from start to current mouse position (measureEnd)
-      // If measureEnd is null, we might be just starting click, so nothing to draw yet or draw point.
       const p1 = measureStart;
       const p2 = measureEnd;
 
       if (p1 && p2) {
+        // Convert world coordinates to screen coordinates
         const x1 = (p1.x / imgWidth) * scaledWidth - offset.x;
         const y1 = (p1.y / imgHeight) * scaledHeight - offset.y;
         const x2 = (p2.x / imgWidth) * scaledWidth - offset.x;
         const y2 = (p2.y / imgHeight) * scaledHeight - offset.y;
 
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.strokeStyle = '#FFD700'; // Gold
-        ctx.lineWidth = 3 * zoom;
-        ctx.setLineDash([15, 10]);
-        ctx.stroke();
-        ctx.setLineDash([]);
+        const screenStart = { x: x1, y: y1 };
+        const screenEnd = { x: x2, y: y2 };
 
-        // Draw Endpoints
-        ctx.fillStyle = '#FFD700';
-        ctx.beginPath();
-        ctx.arc(x1, y1, 5 * zoom, 0, 2 * Math.PI);
-        ctx.arc(x2, y2, 5 * zoom, 0, 2 * Math.PI);
-        ctx.fill();
+        // Render based on selected shape
+        const renderOptions = {
+          ctx,
+          start: screenStart,
+          end: screenEnd,
+          zoom,
+          pixelsPerUnit,
+          unitName,
+          isCalibrating,
+          coneAngle: 53, // Standard D&D cone angle
+          coneWidth: coneWidth // Custom cone width if set
+        };
 
-        // Draw Label
-        // Calculate pixel distance
-        const pixelDist = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-        const unitDist = pixelDist / pixelsPerUnit;
-        const text = isCalibrating
-          ? `Calibration: ${pixelDist.toFixed(0)} px`
-          : `${unitDist.toFixed(1)} ${unitName}`;
-
-        const midX = (x1 + x2) / 2;
-        const midY = (y1 + y2) / 2;
-
-        ctx.font = `bold ${14 * zoom}px Arial`;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        const textMetrics = ctx.measureText(text);
-        const padding = 6 * zoom;
-
-        ctx.fillRect(midX - textMetrics.width / 2 - padding, midY - 25 * zoom, textMetrics.width + padding * 2, 30 * zoom);
-
-        ctx.fillStyle = '#FFD700';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(text, midX, midY - 10 * zoom);
+        switch (measurementShape) {
+          case 'line':
+            renderLineMeasurement(renderOptions);
+            break;
+          case 'cone':
+            renderConeMeasurement(renderOptions);
+            break;
+          case 'circle':
+            renderCircleMeasurement(renderOptions);
+            break;
+          case 'cube':
+            renderCubeMeasurement(renderOptions);
+            break;
+        }
       } else if (p1 && !p2) {
         // Draw just the start point
         const x1 = (p1.x / imgWidth) * scaledWidth - offset.x;
         const y1 = (p1.y / imgHeight) * scaledHeight - offset.y;
 
-        ctx.fillStyle = '#FFD700';
-        ctx.beginPath();
-        ctx.arc(x1, y1, 7 * zoom, 0, 2 * Math.PI);
-        ctx.fill();
+        const shapeNames = {
+          line: 'line',
+          cone: 'cone',
+          circle: 'circle',
+          cube: 'cube'
+        };
 
-        // Draw a small label
-        ctx.font = `bold ${12 * zoom}px Arial`;
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-        const text = 'Click to set end point';
-        const textMetrics = ctx.measureText(text);
-        const padding = 6 * zoom;
-
-        ctx.fillRect(x1 - textMetrics.width / 2 - padding, y1 - 35 * zoom, textMetrics.width + padding * 2, 25 * zoom);
-
-        ctx.fillStyle = '#FFD700';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(text, x1, y1 - 22 * zoom);
+        renderStartPoint(ctx, { x: x1, y: y1 }, zoom, shapeNames[measurementShape]);
       }
     }
   };
@@ -3458,10 +3481,24 @@ export default function Component() {
   // 🎯 CALIBRATION SUBMIT
   const handleCalibrationSubmit = async () => {
     const distanceVal = parseFloat(tempCalibrationDistance);
-    if (!isNaN(distanceVal) && distanceVal > 0 && measureStart && measureEnd && roomId) {
-      // Calculate pixel distance
-      const pixelDist = calculateDistance(measureStart.x, measureStart.y, measureEnd.x, measureEnd.y);
-      const newPixelsPerUnit = pixelDist / distanceVal;
+    if (!isNaN(distanceVal) && distanceVal > 0 && measureStart && measureEnd && roomId && bgImageObject) {
+      // Convert world coordinates to screen coordinates (same as in rendering)
+      const image = bgImageObject;
+      const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+      const containerWidth = containerSize.width || containerRef.current?.clientWidth || 0;
+      const containerHeight = containerSize.height || containerRef.current?.clientHeight || 0;
+      const zoomScale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+      const scaledWidth = imgWidth * zoomScale * zoom;
+      const scaledHeight = imgHeight * zoomScale * zoom;
+
+      const x1 = (measureStart.x / imgWidth) * scaledWidth - offset.x;
+      const y1 = (measureStart.y / imgHeight) * scaledHeight - offset.y;
+      const x2 = (measureEnd.x / imgWidth) * scaledWidth - offset.x;
+      const y2 = (measureEnd.y / imgHeight) * scaledHeight - offset.y;
+
+      // Calculate pixel distance in screen space
+      const pixelDist = calculateDistance(x1, y1, x2, y2);
+      const newPixelsPerUnit = pixelDist / (distanceVal * zoom);
 
       // Save to Firebase
       try {
@@ -3674,6 +3711,9 @@ export default function Component() {
         if (clickedZone) {
           e.preventDefault();
 
+          // Tracking for click vs drag
+          mouseClickStartRef.current = { x: e.clientX, y: e.clientY };
+
           // MULTI-SELECTION: Shift/Ctrl + Click
           if (e.shiftKey || e.ctrlKey) {
             setSelectedMusicZoneIds(prev => {
@@ -3688,14 +3728,10 @@ export default function Component() {
             return;
           }
 
-          // SINGLE SELECTION (no modifier key)
-          // If clicking on an unselected zone, clear selection and select only this one
           if (!selectedMusicZoneIds.includes(clickedZone.id)) {
             setSelectedMusicZoneIds([clickedZone.id]);
           }
-          // If clicking on already selected zone, keep the selection (prepare for drag)
 
-          // START DRAGGING ALL SELECTED ZONES
           setIsDraggingMusicZone(true);
           setDraggedMusicZoneId(clickedZone.id); // Reference zone
           setDragStart({ x: e.clientX, y: e.clientY });
@@ -4776,16 +4812,58 @@ export default function Component() {
     if (isDraggingMusicZone && draggedMusicZoneId) {
       setIsDraggingMusicZone(false);
 
-      // Save all dragged zones to Firebase
-      draggedMusicZonesOriginalPositions.forEach(originalPos => {
-        const zone = musicZones.find(z => z.id === originalPos.id);
-        if (zone) {
-          updateMusicZonePosition(zone.id, zone.x, zone.y);
+      // Check if it was a click (distance < 5px)
+      const start = mouseClickStartRef.current;
+      if (isMJ && start) {
+        // rect is top-left of canvas
+        // current mouse clientX/Y
+        // Wait, handleCanvasMouseUp doesn't get "e" passed in usually? 
+        // Ah, it relies on window mouse up listeners or current state?
+        // Actually in this file handleCanvasMouseUp is detached from event object in some versions?
+        // Let's check signature. It is `const handleCanvasMouseUp = async () => {`
+        // So we don't have `e.clientX`.
+        // We need to store `dragStart` which is clientX/Y.
+      }
+
+      // Better approach: Calculate distance moved from dragStart
+      if (dragStart.x !== 0 && dragStart.y !== 0) {
+        // We have mouse tracker?
+        // Actually we rely on `draggedMusicZonesOriginalPositions`.
+        // If no movement happened, we can detect it by comparing current pos with original pos.
+        // But that's hard if we don't have current mouse pos here.
+
+        // Let's use a flag isDragging that is set to true only after moving > threshold in MouseMove?
+        // Or check if positions changed.
+
+        const zone = musicZones.find(z => z.id === draggedMusicZoneId);
+        const originalPos = draggedMusicZonesOriginalPositions.find(p => p.id === draggedMusicZoneId);
+
+        if (zone && originalPos) {
+          const dx = zone.x - originalPos.x;
+          const dy = zone.y - originalPos.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist < 1 && isMJ) {
+            // Considered a CLICK
+            setContextMenuMusicZoneId(zone.id);
+            setContextMenuMusicZoneOpen(true);
+          } else {
+            // Real drag, save positions
+            draggedMusicZonesOriginalPositions.forEach(originalPos => {
+              const z = musicZones.find(zz => zz.id === originalPos.id);
+              if (z) {
+                updateMusicZonePosition(z.id, z.x, z.y);
+              }
+            });
+          }
         }
-      });
+      } else {
+        // If dragStart was 0? Should not happen if isDraggingMusicZone is true.
+      }
 
       setDraggedMusicZoneId(null);
       setDraggedMusicZonesOriginalPositions([]);
+      setDragStart({ x: 0, y: 0 }); // Clean up
       return;
     }
 
@@ -5474,6 +5552,28 @@ export default function Component() {
     }
   };
 
+  const handleMusicZoneAction = async (action: string, zoneId: string, value?: any) => {
+    if (!roomId) return;
+
+    // Optimistic / Direct update for simpler actions if needed, or just standard Firebase update
+    try {
+      if (action === 'delete') {
+        await deleteDoc(doc(db, 'cartes', String(roomId), 'musicZones', zoneId));
+        setContextMenuMusicZoneOpen(false);
+        setContextMenuMusicZoneId(null);
+        setSelectedMusicZoneIds(prev => prev.filter(id => id !== zoneId));
+      } else if (action === 'rename') {
+        await updateDoc(doc(db, 'cartes', String(roomId), 'musicZones', zoneId), { name: value });
+      } else if (action === 'updateVolume') {
+        await updateDoc(doc(db, 'cartes', String(roomId), 'musicZones', zoneId), { volume: value });
+      } else if (action === 'updateRadius') {
+        await updateDoc(doc(db, 'cartes', String(roomId), 'musicZones', zoneId), { radius: value });
+      }
+    } catch (e) {
+      console.error("Error updating music zone:", e);
+    }
+  };
+
   const handleSelection = (type: SelectionType) => {
     if (!selectionCandidates) return;
 
@@ -5561,6 +5661,26 @@ export default function Component() {
         onAction={handleObjectAction}
         isMJ={isMJ}
         isBackgroundEditMode={isBackgroundEditMode}
+      />
+
+      {/* 🎵 Music Zone Context Menu */}
+      <MusicZoneContextMenu
+        zone={contextMenuMusicZoneId ? musicZones.find(z => z.id === contextMenuMusicZoneId) || null : null}
+        isOpen={contextMenuMusicZoneOpen}
+        onClose={() => setContextMenuMusicZoneOpen(false)}
+        onAction={handleMusicZoneAction}
+        isMJ={isMJ}
+      />
+
+      {/* 🎯 Cone Configuration Dialog */}
+      <ConeConfigDialog
+        isOpen={coneConfigDialogOpen}
+        onClose={() => setConeConfigDialogOpen(false)}
+        onConfirm={(length, width) => {
+          setConeWidth(width);
+          setConeConfigDialogOpen(false);
+        }}
+        unitName={unitName}
       />
 
       {/* Styles pour l'animation de livre */}
@@ -6510,85 +6630,11 @@ export default function Component() {
               </DialogContent >
             </Dialog >
 
-            <Dialog open={showEditMusicDialog} onOpenChange={setShowEditMusicDialog}>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Modifier la zone musicale</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-m-name" className="text-right">Nom</Label>
-                    <Input id="edit-m-name" value={tempZoneData.name} onChange={e => setTempZoneData({ ...tempZoneData, name: e.target.value })} className="col-span-3" />
-                  </div>
-
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-m-upload" className="text-right">Fichier MP3</Label>
-                    <div className="col-span-3 flex gap-2">
-                      <Input
-                        id="edit-m-upload"
-                        type="file"
-                        accept="audio/*"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const storage = getStorage();
-                            const storageRef = ref(storage, `audio/${roomId}/${Date.now()}_${file.name}`);
-                            try {
-                              const snapshot = await uploadBytes(storageRef, file);
-                              const downloadURL = await getDownloadURL(snapshot.ref);
-                              setTempZoneData(prev => ({ ...prev, url: downloadURL }));
-                            } catch (error) {
-                              console.error("Upload failed", error);
-                              alert("Upload failed!");
-                            }
-                          }
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="edit-m-radius" className="text-right">Rayon</Label>
-                    <Input id="edit-m-radius" type="number" value={tempZoneData.radius} onChange={e => setTempZoneData({ ...tempZoneData, radius: Number(e.target.value) })} className="col-span-3" />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button onClick={saveEditedMusicZone}>Sauvegarder</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
 
 
 
-            {/* 🎵 Music Zone Selection Panel */}
-            {
-              selectedMusicZoneIds.length > 0 && (
-                <div className="absolute bottom-3 left-1/2 -translate-x-1/2 max-w-[90vw]">
-                  <div className="flex flex-wrap gap-2 items-center justify-center bg-black/50 backdrop-blur-sm p-3 rounded-lg border border-gray-600">
-                    {selectedMusicZoneIds.length === 1 && (
-                      <>
-                        <span className="text-white text-sm mr-2">
-                          {musicZones.find(z => z.id === selectedMusicZoneIds[0])?.name}
-                        </span>
-                        <Button onClick={() => openEditDialog(selectedMusicZoneIds[0])}>
-                          <Edit className="w-4 h-4 mr-2" /> Modifier
-                        </Button>
-                      </>
-                    )}
-                    {selectedMusicZoneIds.length > 1 && (
-                      <span className="text-white text-sm mr-2">
-                        {selectedMusicZoneIds.length} zones sélectionnées
-                      </span>
-                    )}
-                    <Button onClick={() => {
-                      selectedMusicZoneIds.forEach(id => deleteMusicZone(id));
-                    }}>
-                      <X className="w-4 h-4 mr-2" /> Supprimer
-                    </Button>
-                  </div>
-                </div>
-              )
-            }
+
+
           </>
         )
       }
