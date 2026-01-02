@@ -39,3 +39,12 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Assets migrated to Cloudflare R2 - no need to commit
+# Keep asset-mappings.json as it's needed by the app
+/public/Map/
+/public/Cartes/
+/public/Photos/
+/public/Token/
+/public/items/
+/public/Musics/
