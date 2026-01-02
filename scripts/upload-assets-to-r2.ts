@@ -65,6 +65,7 @@ const ASSET_DIRECTORIES = [
     'Token',
     'items',
     'tabs',
+    'Assets',  // Character portraits
 ];
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
@@ -242,7 +243,7 @@ async function main() {
         return;
     }
 
-    // Step 2: Upload to R2
+    // Step 2: Upload to R2  
     console.log('☁️  Uploading to Cloudflare R2...\n');
     const assetMappings: AssetMapping[] = [];
     let successCount = 0;
@@ -258,6 +259,20 @@ async function main() {
             const publicUrl = await uploadAsset(asset);
 
             if (publicUrl === 'SKIPPED') {
+                // File already exists - generate URL anyway
+                const url = process.env.R2_PUBLIC_URL
+                    ? `${process.env.R2_PUBLIC_URL}/${asset.relativePath}`
+                    : `${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${asset.relativePath}`;
+
+                assetMappings.push({
+                    name: asset.name,
+                    path: url,
+                    localPath: `/${asset.relativePath}`,
+                    category: asset.category,
+                    type: asset.type,
+                    size: asset.size,
+                    uploadedAt: new Date().toISOString(),
+                });
                 skippedCount++;
                 console.log('⏭️  (already exists)');
             } else if (publicUrl) {
@@ -284,14 +299,36 @@ async function main() {
     console.log(`  ⏭️  Skipped: ${skippedCount}`);
     console.log(`  ❌ Errors: ${errorCount}`);
 
-    // Step 3: Save mapping to JSON file
-    if (assetMappings.length > 0) {
+    // Step 3: Merge with existing mappings and save
+    if (assetMappings.length > 0 || skippedCount > 0) {
         const outputPath = path.join(process.cwd(), 'public', 'asset-mappings.json');
-        console.log(`\n💾 Saving asset mapping to ${outputPath}...`);
-        writeFileSync(outputPath, JSON.stringify(assetMappings, null, 2), 'utf-8');
+
+        // Load existing mappings
+        let existingMappings: AssetMapping[] = [];
+        try {
+            const existingContent = readFileSync(outputPath, 'utf-8');
+            existingMappings = JSON.parse(existingContent);
+            console.log(`\n📂 Found ${existingMappings.length} existing mappings`);
+        } catch {
+            console.log(`\n📂 No existing mappings found, creating new file`);
+        }
+
+        // Merge: remove duplicates by localPath, keep newest
+        const allMappings = [...existingMappings];
+        for (const newMapping of assetMappings) {
+            const existingIndex = allMappings.findIndex(m => m.localPath === newMapping.localPath);
+            if (existingIndex >= 0) {
+                allMappings[existingIndex] = newMapping; // Update
+            } else {
+                allMappings.push(newMapping); // Add
+            }
+        }
+
+        console.log(`\n💾 Saving ${allMappings.length} total asset mappings to ${outputPath}...`);
+        writeFileSync(outputPath, JSON.stringify(allMappings, null, 2), 'utf-8');
         console.log('✅ Mapping saved successfully!');
-        console.log('\n📝 Next step: Import this data into Firestore');
-        console.log('   Run: npx tsx scripts/import-to-firestore.ts');
+        console.log(`   New uploads: ${successCount}`);
+        console.log(`   Total in file: ${allMappings.length}`);
     }
 
     console.log('\n🎉 Migration complete!');
