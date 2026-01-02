@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { db, collection, getDocs, query, where } from '@/lib/firebase';
+import { readFileSync } from 'fs';
+import path from 'path';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,13 +11,22 @@ interface AssetFile {
     type: 'image' | 'video' | 'json';
 }
 
+interface AssetMapping {
+    name: string;
+    path: string;
+    localPath: string;
+    category: string;
+    type: string;
+    size: number;
+    uploadedAt: string;
+}
+
 /**
- * help
  * GET /api/assets?category=Photos
  * GET /api/assets?category=Token
  * GET /api/assets?category=items
  * 
- * Fetch assets by category from Vercel Blob via Firestore
+ * Fetch assets by category from R2 via local JSON mapping
  * 
  * Query parameters:
  *   - category: string (optional) - Filter by category prefix (e.g., "Photos", "Token", "items")
@@ -28,35 +38,38 @@ export async function GET(request: Request) {
         const categoryFilter = searchParams.get('category');
         const typeFilter = searchParams.get('type');
 
-        // Query Firestore for assets
-        const assetsCollection = collection(db, 'assets-mapping');
-        const snapshot = await getDocs(assetsCollection);
+        // Read the asset mappings JSON file
+        const jsonPath = path.join(process.cwd(), 'public', 'asset-mappings.json');
+        let mappings: AssetMapping[];
 
-        let assets: AssetFile[] = [];
+        try {
+            const jsonContent = readFileSync(jsonPath, 'utf-8');
+            mappings = JSON.parse(jsonContent);
+        } catch (error) {
+            console.error('Error reading asset-mappings.json:', error);
+            return NextResponse.json(
+                { error: 'Asset mappings not found. Please run the R2 migration script first.' },
+                { status: 404 }
+            );
+        }
 
-        snapshot.forEach((doc) => {
-            const data = doc.data();
+        // Filter assets based on query parameters
+        let assets: AssetFile[] = mappings.map(m => ({
+            name: m.name,
+            path: m.path, // R2 public URL
+            category: m.category,
+            type: m.type as 'image' | 'video' | 'json',
+        }));
 
-            // Apply filters
-            let include = true;
+        // Apply category filter
+        if (categoryFilter) {
+            assets = assets.filter(a => a.category?.startsWith(categoryFilter));
+        }
 
-            if (categoryFilter && !data.category?.startsWith(categoryFilter)) {
-                include = false;
-            }
-
-            if (typeFilter && data.type !== typeFilter) {
-                include = false;
-            }
-
-            if (include) {
-                assets.push({
-                    name: data.name,
-                    path: data.path, // Vercel Blob URL
-                    category: data.category,
-                    type: data.type,
-                });
-            }
-        });
+        // Apply type filter
+        if (typeFilter) {
+            assets = assets.filter(a => a.type === typeFilter);
+        }
 
         // Group by category
         const grouped = assets.reduce((acc, asset) => {

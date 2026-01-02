@@ -1,13 +1,35 @@
 import { NextResponse } from 'next/server';
-import { put } from '@vercel/blob';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import { db, collection, addDoc, serverTimestamp } from '@/lib/firebase';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+// Initialize R2 client
+const r2Client = new S3Client({
+    region: 'auto',
+    endpoint: process.env.R2_ENDPOINT,
+    credentials: {
+        accessKeyId: process.env.R2_ACCESS_KEY_ID || '',
+        secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || '',
+    },
+});
+
+// Content type mapping
+const CONTENT_TYPES: Record<string, string> = {
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.png': 'image/png',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.webm': 'video/webm',
+    '.mp4': 'video/mp4',
+    '.json': 'application/json',
+};
+
 /**
  * POST /api/upload-asset
- * Upload a new asset (background, token, item, etc.) to Vercel Blob
+ * Upload a new asset (background, token, item, etc.) to Cloudflare R2
  * 
  * Request body (FormData):
  *   - file: File - The file to upload
@@ -15,7 +37,7 @@ export const dynamic = 'force-dynamic';
  *   - type: 'image' | 'video' | 'json' - Asset type
  * 
  * Response:
- *   - url: string - Vercel Blob URL
+ *   - url: string - R2 public URL
  *   - id: string - Firestore document ID
  */
 export async function POST(request: Request) {
@@ -47,18 +69,35 @@ export async function POST(request: Request) {
             );
         }
 
-        // Upload to Vercel Blob
-        const pathname = `/${category}/${file.name}`;
-        const blob = await put(pathname, file, {
-            access: 'public',
-            addRandomSuffix: false, // Keep original filename
-        });
+        // Generate R2 key (path)
+        const key = `${category}/${file.name}`;
+
+        // Get content type
+        const ext = '.' + file.name.split('.').pop()?.toLowerCase();
+        const contentType = CONTENT_TYPES[ext] || 'application/octet-stream';
+
+        // Convert file to buffer
+        const arrayBuffer = await file.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        // Upload to R2
+        await r2Client.send(new PutObjectCommand({
+            Bucket: process.env.R2_BUCKET_NAME,
+            Key: key,
+            Body: buffer,
+            ContentType: contentType,
+        }));
+
+        // Generate public URL
+        const publicUrl = process.env.R2_PUBLIC_URL
+            ? `${process.env.R2_PUBLIC_URL}/${key}`
+            : `${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${key}`;
 
         // Store metadata in Firestore
         const assetDoc = await addDoc(collection(db, 'assets-mapping'), {
             name: file.name,
-            path: blob.url,
-            localPath: pathname,
+            path: publicUrl,
+            localPath: `/${key}`,
             category,
             type,
             size: file.size,
@@ -66,9 +105,9 @@ export async function POST(request: Request) {
         });
 
         return NextResponse.json({
-            url: blob.url,
+            url: publicUrl,
             id: assetDoc.id,
-            pathname,
+            key,
         });
     } catch (error) {
         console.error('Error uploading asset:', error);
