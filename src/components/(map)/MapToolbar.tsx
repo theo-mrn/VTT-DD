@@ -12,7 +12,6 @@ import {
     CircleUserRound,
     Package,
     Baseline,
-    Music,
     Pencil,
     Ruler,
     Eye,
@@ -25,7 +24,9 @@ import {
     Plus,
     Minus,
     MapPin,
-    SquareDashedMousePointer
+    SquareDashedMousePointer,
+    Volume2,
+    Sliders
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -72,6 +73,7 @@ export const TOOLS = {
     VISIBILITY: 'visibility',
     CLEAR_DRAWINGS: 'clear_drawings',
     MULTI_SELECT: 'multi_select',
+    AUDIO_MIXER: 'audio_mixer',
 };
 
 export default function MapToolbar({
@@ -284,8 +286,8 @@ export default function MapToolbar({
                                 />
                                 <ToolButton
                                     id={TOOLS.MUSIC}
-                                    icon={Music}
-                                    label="Ambiance & Musique"
+                                    icon={Volume2}
+                                    label="Sons"
                                     isActive={activeTools.includes(TOOLS.MUSIC)}
                                 />
                                 <ToolButton
@@ -305,9 +307,17 @@ export default function MapToolbar({
                                     label="Options Globales"
                                     isActive={activeTools.includes(TOOLS.SETTINGS)}
                                 />
+
                             </div>
                         </>
                     )}
+
+                    <ToolButton
+                        id={TOOLS.AUDIO_MIXER}
+                        icon={Sliders}
+                        label="Mixeur Audio"
+                        isActive={activeTools.includes(TOOLS.AUDIO_MIXER)}
+                    />
 
                     {/* Collapse Button */}
                     <div className="ml-2 pl-2 border-l border-white/10">
