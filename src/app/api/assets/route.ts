@@ -11,6 +11,7 @@ interface AssetFile {
 }
 
 /**
+ * help
  * GET /api/assets?category=Photos
  * GET /api/assets?category=Token
  * GET /api/assets?category=items
