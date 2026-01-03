@@ -130,7 +130,7 @@ export default function MapToolbar({
 
     return (
         <div className={cn(
-            "fixed bottom-6 left-1/2 -translate-x-1/2 z-[40] transition-all duration-300 ease-in-out",
+            "fixed bottom-4 left-1/2 -translate-x-1/2 z-10 transition-all duration-300 ease-in-out",
             isCollapsed ? "translate-y-[calc(100%+24px)]" : "translate-y-0",
             className || ""
         )}>
@@ -297,20 +297,19 @@ export default function MapToolbar({
                                     isActive={activeTools.includes(TOOLS.BACKGROUND_EDIT)}
                                 />
                             </div>
-
-                            {/* Global Settings (kept separately at end) */}
-                            <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
-                            <div className="flex items-center gap-1">
-                                <ToolButton
-                                    id={TOOLS.SETTINGS}
-                                    icon={Settings}
-                                    label="Options Globales"
-                                    isActive={activeTools.includes(TOOLS.SETTINGS)}
-                                />
-
-                            </div>
                         </>
                     )}
+
+                    {/* Global Settings (Available to ALL) */}
+                    <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+                    <div className="flex items-center gap-1">
+                        <ToolButton
+                            id={TOOLS.SETTINGS}
+                            icon={Settings}
+                            label="Options Globales"
+                            isActive={activeTools.includes(TOOLS.SETTINGS)}
+                        />
+                    </div>
 
                     <ToolButton
                         id={TOOLS.AUDIO_MIXER}

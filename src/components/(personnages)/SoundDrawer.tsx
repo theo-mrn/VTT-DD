@@ -216,12 +216,23 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
     }
 
     const playMusicTrack = async (sound: SoundTemplate | PlaylistTrack) => {
-        await update(dbRef(realtimeDb, `rooms/${roomId}/music`), { videoId: sound.soundUrl, videoTitle: sound.name, isPlaying: true, timestamp: 0, lastUpdate: Date.now() })
+        if (musicState.videoId === sound.soundUrl) {
+            await update(dbRef(realtimeDb, `rooms/${roomId}/music`), { isPlaying: !musicState.isPlaying, lastUpdate: Date.now() })
+        } else {
+            await update(dbRef(realtimeDb, `rooms/${roomId}/music`), { videoId: sound.soundUrl, videoTitle: sound.name, isPlaying: true, timestamp: 0, lastUpdate: Date.now() })
+        }
     }
 
     const removeFromPlaylist = async (trackId: string) => {
         const newPlaylist = playlist.filter(t => t.id !== trackId)
         await set(dbRef(realtimeDb, `rooms/${roomId}/playlist`), newPlaylist)
+    }
+
+    // --- Handlers --- (Adding drag start)
+    const handleDragStart = (e: React.DragEvent, sound: SoundTemplate) => {
+        e.dataTransfer.effectAllowed = 'copy'
+        e.dataTransfer.setData('application/json', JSON.stringify({ ...sound, type: 'sound_template' }))
+        onDragStart(sound)
     }
 
     // --- Render Helpers ---
@@ -303,7 +314,9 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                                         <div className="text-[10px] uppercase font-bold text-gray-500 px-2">Playlist en cours</div>
                                         {playlist.map(track => (
                                             <div key={track.id} className={`flex items-center gap-2 p-2 rounded bg-[#1f1f1f] border ${musicState.videoId === track.soundUrl ? 'border-[#c0a080] text-[#c0a080]' : 'border-[#333] text-gray-300'}`}>
-                                                <button onClick={() => playMusicTrack(track)} className="hover:text-white"><Play className="w-3 h-3" /></button>
+                                                <button onClick={() => playMusicTrack(track)} className="hover:text-white">
+                                                    {musicState.videoId === track.soundUrl && musicState.isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
+                                                </button>
                                                 <div className="flex-1 truncate text-xs">{track.name}</div>
                                                 <button onClick={() => removeFromPlaylist(track.id)} className="text-gray-500 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
                                             </div>
@@ -329,7 +342,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                         {activeTab !== 'music' && filteredTemplates.map(sound => {
                             const isPlaying = activeTab === 'quick' && globalPlayingId === sound.id;
                             return (
-                                <div key={sound.id} draggable={activeTab === 'zones'} onDragStart={() => activeTab === 'zones' && onDragStart(sound)}
+                                <div key={sound.id} draggable={activeTab === 'zones'} onDragStart={(e) => activeTab === 'zones' && handleDragStart(e, sound)}
                                     className={`flex items-center gap-3 p-3 rounded-lg border transition-all group ${isPlaying ? 'bg-[#c0a080]/10 border-[#c0a080]/30' : 'bg-[#1e1e1e] border-[#333] hover:border-[#444]'} ${activeTab === 'zones' ? 'cursor-grab active:cursor-grabbing' : ''}`}
                                 >
                                     {activeTab === 'zones' ? (<div className="text-gray-500 cursor-grab"><GripVertical className="w-4 h-4" /></div>) : (
