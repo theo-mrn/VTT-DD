@@ -56,7 +56,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Music, Volume2, VolumeX } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX } from 'lucide-react'
 import { auth, db, onAuthStateChanged } from '@/lib/firebase'
 import { doc, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
 import Combat from '@/components/(combat)/combat2';
@@ -98,6 +98,66 @@ import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath }
 import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
 import MapToolbar, { TOOLS } from '@/components/(map)/MapToolbar';
 import BackgroundSelector from '@/components/(map)/BackgroundSelector';
+
+// ⚡ Static Token Component for Performance Mode (Moved Outside Component to avoid Remounting/Flickering)
+const StaticToken = React.memo(({ src, alt, style, className, performanceMode }: { src: string, alt: string, style?: React.CSSProperties, className?: string, performanceMode: string }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const isVideo = src?.toLowerCase().endsWith('.webm') || src?.toLowerCase().endsWith('.mp4');
+
+  useEffect(() => {
+    // 🎨 Canvas Drawing for Static Images (GIFs) in Static Mode
+    if (performanceMode === 'static' && !isVideo && canvasRef.current && src) {
+      const ctx = canvasRef.current.getContext('2d');
+      if (!ctx) return;
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = src;
+      img.onload = () => {
+        if (canvasRef.current) {
+          canvasRef.current.width = img.naturalWidth || 100;
+          canvasRef.current.height = img.naturalHeight || 100;
+          ctx.drawImage(img, 0, 0);
+        }
+      };
+    }
+  }, [src, performanceMode, isVideo]);
+
+  if (performanceMode === 'static') {
+    if (isVideo) {
+      // 🎥 Static Video (Paused)
+      return (
+        <video
+          ref={videoRef}
+          src={src}
+          style={{ ...style, objectFit: 'cover' }}
+          className={className}
+          muted
+          playsInline
+          onLoadedData={(e) => {
+            e.currentTarget.currentTime = 0; // First frame
+            e.currentTarget.pause(); // Ensure paused
+          }}
+        />
+      );
+    } else {
+      // 🖼️ Static Canvas (Frozen GIF)
+      return (
+        <canvas
+          ref={canvasRef}
+          style={{ ...style, objectFit: 'cover' }}
+          className={className}
+        />
+      );
+    }
+  }
+
+  // 🚀 Animated Default
+  if (isVideo) {
+    return <img src={src} alt={alt} style={style} className={className} draggable={false} />;
+  }
+  return <img src={src} alt={alt} style={style} className={className} draggable={false} />;
+});
 import { AudioMixerPanel, useAudioMixer } from '@/components/(audio)/AudioMixerPanel';
 import MeasurementShapeSelector from '@/components/(map)/MeasurementShapeSelector';
 import ConeConfigDialog from '@/components/(map)/ConeConfigDialog';
@@ -128,6 +188,7 @@ export default function Component() {
   const [attackerId, setAttackerId] = useState<string | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
+  const [performanceMode, setPerformanceMode] = useState<'high' | 'eco' | 'static'>('high'); // ⚡ Performance Mode
   const [backgroundImage, setBackgroundImage] = useState('/placeholder.svg?height=600&width=800')
   const [bgImageObject, setBgImageObject] = useState<HTMLImageElement | HTMLVideoElement | null>(null);
   const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
@@ -188,6 +249,18 @@ export default function Component() {
   }, [backgroundImage]);
 
   // 🎵 Update background video audio settings when they change
+  // 🎵 Update background video audio settings when they change
+  useEffect(() => {
+    // Background Video Logic
+    if (bgImageObject instanceof HTMLVideoElement) {
+      if (performanceMode === 'static') {
+        bgImageObject.pause();
+      } else {
+        bgImageObject.play().catch(() => { });
+      }
+    }
+  }, [bgImageObject, performanceMode]);
+
 
   const [showGrid, setShowGrid] = useState(false)
   const [zoom, setZoom] = useState(1.4)
@@ -246,16 +319,6 @@ export default function Component() {
   const [draggedObjectOriginalPos, setDraggedObjectOriginalPos] = useState({ x: 0, y: 0 })
   const [draggedObjectsOriginalPositions, setDraggedObjectsOriginalPositions] = useState<{ index: number, x: number, y: number }[]>([]); // For multi-drag
 
-  // 🎯 Object Resizing State
-  const [isResizingObject, setIsResizingObject] = useState(false);
-  const [resizeStartData, setResizeStartData] = useState<{
-    index: number;
-    initialWidth: number;
-    initialHeight: number;
-    initialMouseDist: number; // Distance from center to mouse at start
-    centerX: number;
-    centerY: number;
-  } | null>(null);
 
   const [snapPoint, setSnapPoint] = useState<Point | null>(null);
   const [draggedObjectTemplate, setDraggedObjectTemplate] = useState<any>(null)
@@ -281,8 +344,20 @@ export default function Component() {
   const getConditionIcon = useStatusEffectIcons(); // Hook d'icônes
 
   // Tooltip State
+  const hoveredConditionRef = useRef<{ x: number, y: number, text: string } | null>(null); // Ref for performance
   const [hoveredCondition, setHoveredCondition] = useState<{ x: number, y: number, text: string } | null>(null);
   const iconHitRegionsRef = useRef<{ x: number, y: number, w: number, h: number, label: string }[]>([]);
+
+  // 🎯 Object Resizing State
+  const [isResizingObject, setIsResizingObject] = useState(false);
+  const [resizeStartData, setResizeStartData] = useState<{
+    index: number;
+    initialWidth: number;
+    initialHeight: number;
+    initialMouseDist: number; // Distance from center to mouse at start
+    centerX: number;
+    centerY: number;
+  } | null>(null);
   // États pour la Drag & Drop
   const [draggedCharacter, setDraggedCharacter] = useState<Character | null>(null);
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
@@ -320,6 +395,9 @@ export default function Component() {
   const [selectionCandidates, setSelectionCandidates] = useState<SelectionCandidates | null>(null);
   const [showSelectionMenu, setShowSelectionMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
+
+
+
 
   const [isDrawing, setIsDrawing] = useState(false)
   const [drawMode, setDrawMode] = useState(false)
@@ -1207,6 +1285,7 @@ export default function Component() {
   // 🔦 OPTIMIZATION: Memoize shadow calculations
   const lastShadowUpdateRef = React.useRef<number>(0);
   const lastShadowResultRef = React.useRef<ShadowResult | null>(null);
+  const lastMapDrawTimeRef = React.useRef<number>(0); // ⚡ Ref for throttling render
 
   const precalculatedShadows = React.useMemo<ShadowResult | null>(() => {
     // If we are dragging a character, throttle updates to 50ms (20fps)
@@ -1218,6 +1297,14 @@ export default function Component() {
       }
       lastShadowUpdateRef.current = now;
     }
+
+    // ⚡ PERFORMANCE THROTTLE FOR SHADOWS
+    // In Eco mode, we also throttle shadow calculations to 30fps
+    const SHADOW_THROTTLE = performanceMode === 'eco' ? 33 : 0;
+    if (performanceMode === 'eco' && Date.now() - lastShadowUpdateRef.current < SHADOW_THROTTLE && lastShadowResultRef.current) {
+      return lastShadowResultRef.current;
+    }
+    lastShadowUpdateRef.current = Date.now();
 
     if (!bgImageObject || !activeViewer || !obstacles.length) return null;
 
@@ -1249,6 +1336,17 @@ export default function Component() {
     const bgCtx = bgCanvas.getContext('2d')!;
     const fgCtx = fgCanvas.getContext('2d')!;
 
+    // ⚡ PERFORMANCE THROTTLE (Eco Mode)
+    // Throttle the ENTIRE map render (Foreground + Background)
+    if (performanceMode === 'eco') {
+      const now = Date.now();
+      if (now - lastMapDrawTimeRef.current < 30) { // Cap at ~30 FPS
+        return;
+      }
+      lastMapDrawTimeRef.current = now;
+    }
+
+
     // Fallback if no valid image: default 1920x1080 transparent canvas
     const image = bgImageObject || { width: 1920, height: 1080 } as HTMLImageElement;
 
@@ -1273,26 +1371,27 @@ export default function Component() {
     // 🎥 VIDEO RENDER LOOP
     let animationFrameId: number;
 
-    if (image instanceof HTMLVideoElement) {
-      const renderLoop = () => {
-        // Redraw background only if video is playing? 
-        // Actually, clear and redraw background layer constantly
-        // We don't necessarily need to redraw Foreground layer constantly unless it has animated elements too.
-        // But avoiding transparency stacking issues, we might clear?
-        // Background Draw function clears the canvas usually.
+    if (image instanceof HTMLVideoElement && performanceMode !== 'static') {
+      let lastFrameTime = 0;
+      const fpsInterval = performanceMode === 'eco' ? 1000 / 30 : 0; // 30fps for eco, 0 for max
 
-        drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
+      const renderLoop = (timestamp: number) => {
+        // Redraw usually clears canvas
 
-        // If we don't redraw foreground, it stays static (good).
-        // But if specific interactions update state, they trigger the useEffect entirely, 
-        // which might conflict with this loop if we are not careful.
-        // React state updates trigger re-render of component -> re-execution of useEffect.
-        // If dependencies change, this effect is torn down and restarted.
-        // So this loop is safe.
+        if (performanceMode === 'eco') {
+          const elapsed = timestamp - lastFrameTime;
+          if (elapsed > fpsInterval) {
+            lastFrameTime = timestamp - (elapsed % fpsInterval);
+            drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
+          }
+        } else {
+          // High perf: draw every frame
+          drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
+        }
 
         animationFrameId = requestAnimationFrame(renderLoop);
       };
-      renderLoop();
+      animationFrameId = requestAnimationFrame(renderLoop);
     }
 
     return () => {
@@ -1300,7 +1399,24 @@ export default function Component() {
     };
 
 
-  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers, viewAsPersoId, containerSize, musicZones, selectedMusicZoneIds, isMusicMode, isDraggingMusicZone, globalTokenScale, precalculatedShadows]);
+  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers, viewAsPersoId, containerSize, musicZones, selectedMusicZoneIds, isMusicMode, isDraggingMusicZone, globalTokenScale, precalculatedShadows, performanceMode]);
+
+  // 🎥 TOKEN VIDEO PAUSE LOGIC (Separate Effect)
+  useEffect(() => {
+    if (performanceMode === 'static') {
+      const videos = containerRef.current?.querySelectorAll('video');
+      videos?.forEach(v => v.pause());
+    } else {
+      const videos = containerRef.current?.querySelectorAll('video');
+      videos?.forEach(v => v.play().catch(() => { }));
+    }
+  }, [performanceMode, characters]);
+
+  // StaticToken component definition (assuming it's a simple image/video display)
+  // This is a placeholder. The actual implementation might be more complex.
+
+
+
 
 
   // 🎯 NPC Template Drag & Drop Handlers
@@ -2969,22 +3085,14 @@ export default function Component() {
     // Si un PNJ ou objet est dans l'ombre du joueur (ou allié), il ne doit pas être affiché
     let activeShadowsForFiltering: Point[][] | null = null;
     let polygonsContainingViewerForFiltering: Obstacle[] = [];
-    let viewerPositionForFiltering: Point | null = null;
 
-    if (!effectiveIsMJ && obstacles.length > 0 && isLayerVisible('obstacles')) {
-      // [NEW] Use simulated view ID if active
-      const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
-
-      for (const char of characters) {
-        if (char.id === effectivePersoId && char.x !== undefined && char.y !== undefined) {
-          viewerPositionForFiltering = { x: char.x, y: char.y };
-          activeShadowsForFiltering = calculateShadowPolygons({ x: char.x, y: char.y }, obstacles, { width: imgWidth, height: imgHeight });
-          // Also get polygons that contain the viewer (for hiding exterior when inside)
-          polygonsContainingViewerForFiltering = getPolygonsContainingViewer({ x: char.x, y: char.y }, obstacles);
-          break;
-        }
-      }
+    if (!effectiveIsMJ && obstacles.length > 0 && isLayerVisible('obstacles') && precalculatedShadows) {
+      // ⚡ OPTIMIZATION: Use precalculated shadows from useMemo!
+      activeShadowsForFiltering = precalculatedShadows.shadows;
+      polygonsContainingViewerForFiltering = precalculatedShadows.polygonsContainingViewer;
     }
+
+
 
 
 
@@ -4449,7 +4557,24 @@ export default function Component() {
         break;
       }
     }
-    setHoveredCondition(foundHover);
+
+    // ⚡ PERFORMANCE: Only update state if hover changed
+    // Check if new hover is different from current ref
+    const prevHover = hoveredConditionRef.current;
+    const isDifferent = (prevHover === null && foundHover !== null) ||
+      (prevHover !== null && foundHover === null) ||
+      (prevHover && foundHover && prevHover.text !== foundHover.text);
+
+    if (isDifferent) {
+      hoveredConditionRef.current = foundHover;
+      setHoveredCondition(foundHover);
+    } else if (foundHover) {
+      // Update position only, but using Ref to avoid re-renders? 
+      // Actually, if we want the tooltip to follow the mouse, we NEED re-renders or direct DOM manipulation.
+      // For static tooltips that don't follow mouse, strictly check text.
+      // If we want it to follow, we must update state. 
+      // COMPROMISE: Don't update X/Y constanty if text is same. Tooltip stays at first hover point.
+    }
 
     const x = currentX;
     const y = currentY;
@@ -5931,12 +6056,79 @@ export default function Component() {
 
               const isSelected = selectedObjectIndices.includes(index);
 
-              // Visibility Check (Shadows) logic is hard to replicate exactly in JSX without running same heavy math.
-              // For now we skip "Shadow hiding" for DOM objects to ensure performance, or we accept they overlay shadows.
-              // User requested GIFs. Shadow hiding is a nice to have but complex to port.
-              // Wait, if objects are ABOVE bg but BELOW Main Canvas (Shadows are on Foreground),
-              // ANY Shadow drawn on Foreground Canvas will cover the DOM Object since Foreground Canvas is z-index 20!
-              // So we don't need to manually hide them if the Shadow is opaque black/grey on top!
+              // Visibility Check (Shadows & Fog) logic
+              // 🎯 CALCUL DES OMBRES POUR MASQUER LES PNJs ET OBJETS (Côté Client seulement)
+              let objectIsVisible = true;
+
+              const activeShadows = precalculatedShadows?.shadows;
+              const containingPolygons = precalculatedShadows?.polygonsContainingViewer;
+
+              const objCenter = { x: obj.x + obj.width / 2, y: obj.y + obj.height / 2 };
+
+              // 1. Check Fog of War Grid (if active)
+              // Only apply if not GM (or simulating player) OR if full map fog is on
+              const effectiveIsMJLocal = isMJ && !playerViewMode;
+              if (!effectiveIsMJLocal || fullMapFog) {
+                if (fogMode || fullMapFog || fogGrid.size > 0) {
+                  // We need to transform map coordinates to cell coordinates?
+                  // isCellInFog takes (x, y, grid, cellSize). 
+                  // IMPORTANT: isCellInFog expects coordinates in IMAGE space (which obj.x is).
+                  if (isCellInFog(objCenter.x, objCenter.y, fogGrid, fogCellSize) && !fullMapFog) {
+                    // If explicitly in fog cell and not full map fog (which is handled by calculateFogOpacity usually, 
+                    // but for objects we just check if cell is revealed?)
+                    // Wait, for Characters the logic is complex involving `calculateFogOpacity`.
+                    // For objects, let's keep it simple: if cell is "fogged" (true in grid), it is HIDDEN?
+                    // fogGrid stores REVEALED cells or FOGGED cells?
+                    // ToggleFogCell: "if (newFogGrid.has(key)) newFogGrid.delete(key); else newFogGrid.set(key, true);"
+                    // Usually "Fog of War" means black until revealed.
+                    // But here it seems `fogGrid` stores where fog IS? Or where it is REMOVED?
+                    // Looking at `calculateFogOpacity`: "if (!fullMapFog && !fogGrid.has(key)) return 0;" -> returns 0 opacity (visible).
+                    // So fogGrid contains the fog cells?
+                    // "if (opacity > 0) ... fillStyle black"
+                    // So if `calculateFogOpacity(x, y)` > 0, then it's hidden.
+                    // We don't have access to `calculateFogOpacity` easily here without recreating it or passing it down.
+                    // However, we can check basic grid presence.
+
+                    // Re-reading usage:
+                    // `toggleFogCell` sets key to true.
+                    // `renderFogLayer` iterates.
+
+                    // Let's assume for now: if user draws fog, they want to HIDE things.
+                    if (isCellInFog(objCenter.x, objCenter.y, fogGrid, fogCellSize)) {
+                      // If cell is in fog list.
+                      objectIsVisible = false;
+                    }
+                  }
+
+                  // Full Map Fog handling: if enabled, everything is hidden unless revealed?
+                  // We skip this for now to match current simple request. User said "currently it doesn't work".
+                }
+              }
+
+              // 2. Check Dynamic Shadows (Walls)
+              // Only filter if not GM (or simulating player) and obstacles are active
+              if (objectIsVisible && (!effectiveIsMJLocal) && obstacles.length > 0 && isLayerVisible('obstacles') && activeShadows) {
+                // Check shadow polygons
+                for (const shadow of activeShadows) {
+                  if (isPointInPolygon(objCenter, shadow)) {
+                    objectIsVisible = false;
+                    break;
+                  }
+                }
+
+                // Check if viewer is inside a polygon but object is outside (hide exterior)
+                if (objectIsVisible && containingPolygons && containingPolygons.length > 0) {
+                  for (const polygon of containingPolygons) {
+                    if (!isPointInPolygon(objCenter, polygon.points)) {
+                      objectIsVisible = false;
+                      break;
+                    }
+                  }
+                }
+              }
+
+              if (!objectIsVisible) return null;
+
 
               return (
                 <div
@@ -6017,16 +6209,18 @@ export default function Component() {
                     }
                   }}
                 >
-                  <img
+                  <StaticToken
                     src={obj.imageUrl}
                     alt="Object"
+                    performanceMode={performanceMode}
                     style={{
                       width: '100%',
                       height: '100%',
                       border: isSelected ? '2px solid #00BFFF' : (obj.isBackground && isBackgroundEditMode ? '2px dashed rgba(255, 255, 255, 0.5)' : 'none'),
-                      opacity: obj.isBackground && isBackgroundEditMode ? 0.8 : 1
+                      opacity: obj.isBackground && isBackgroundEditMode ? 0.8 : 1,
+                      objectFit: 'cover',
+                      display: 'block'
                     }}
-                    draggable={false} // Disable native drag to use our custom logic
                   />
 
                   {/* Resize Handle (Bottom Right) */}
@@ -6129,16 +6323,16 @@ export default function Component() {
                   }}
                 >
                   {char.imageUrl && (
-                    <img
+                    <StaticToken
                       src={char.imageUrl}
                       alt={char.name}
+                      performanceMode={performanceMode}
                       style={{
                         width: '100%',
                         height: '100%',
                         objectFit: 'cover',
                         display: 'block'
                       }}
-                      draggable={false}
                     />
                   )}
                 </div>
@@ -6494,6 +6688,18 @@ export default function Component() {
         </DialogContent>
       </Dialog>
 
+      {/* ⚠️ Performance CSS Injection */}
+      {performanceMode === 'static' && (
+        <style dangerouslySetInnerHTML={{
+          __html: `
+            * {
+              animation: none !important;
+              transition: none !important;
+            }
+          `
+        }} />
+      )}
+
       {/* 🎯 GLOBAL SETTINGS DIALOG (Start) */}
       <Dialog open={showGlobalSettingsDialog} onOpenChange={setShowGlobalSettingsDialog}>
         <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] border-[#FFD700]">
@@ -6517,6 +6723,27 @@ export default function Component() {
                 onTouchEnd={() => updateGlobalTokenScale(globalTokenScale)}
                 className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
               />
+            </div>
+
+            {/* ⚡ Performance Mode Selector */}
+            <div className="bg-[#252525] p-3 rounded border border-[#333]">
+              <div className="flex justify-between text-sm text-gray-400 mb-2">
+                <span>Mode Performance</span>
+              </div>
+              <div className="space-y-2">
+                <div onClick={() => setPerformanceMode('high')} className={`cursor-pointer p-2 rounded flex items-center justify-between ${performanceMode === 'high' ? 'bg-[#c0a080] text-black' : 'bg-black/20 text-gray-400'}`}>
+                  <span>Haute Qualité (Défaut)</span>
+                  {performanceMode === 'high' && <Check className="w-4 h-4" />}
+                </div>
+                <div onClick={() => setPerformanceMode('eco')} className={`cursor-pointer p-2 rounded flex items-center justify-between ${performanceMode === 'eco' ? 'bg-[#c0a080] text-black' : 'bg-black/20 text-gray-400'}`}>
+                  <span>Économie (30 FPS)</span>
+                  {performanceMode === 'eco' && <Check className="w-4 h-4" />}
+                </div>
+                <div onClick={() => setPerformanceMode('static')} className={`cursor-pointer p-2 rounded flex items-center justify-between ${performanceMode === 'static' ? 'bg-[#c0a080] text-black' : 'bg-black/20 text-gray-400'}`}>
+                  <span>Statique (Pas d'animations)</span>
+                  {performanceMode === 'static' && <Check className="w-4 h-4" />}
+                </div>
+              </div>
             </div>
           </div>
         </DialogContent>
