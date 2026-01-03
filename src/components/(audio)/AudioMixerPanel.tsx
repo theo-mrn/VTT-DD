@@ -94,7 +94,7 @@ export function AudioMixerPanel({ isOpen, onClose }: AudioMixerProps) {
     ]
 
     return (
-        <div className="fixed right-0 top-16 bottom-4 w-72 bg-[#141414] border border-[#333] z-50 flex flex-col shadow-2xl rounded-l-xl overflow-hidden mr-2">
+        <div className="fixed right-0 top-16 h-auto w-72 bg-[#141414] border border-[#333] z-50 flex flex-col shadow-2xl rounded-l-xl overflow-hidden mr-2">
 
             {/* Header Compact */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-[#333] bg-[#1a1a1a]">
