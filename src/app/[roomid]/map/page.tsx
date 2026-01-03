@@ -192,61 +192,136 @@ export default function Component() {
   const [backgroundImage, setBackgroundImage] = useState('/placeholder.svg?height=600&width=800')
   const [bgImageObject, setBgImageObject] = useState<HTMLImageElement | HTMLVideoElement | null>(null);
   const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0); // 🆕 Progress state
   const videoRef = useRef<HTMLVideoElement | null>(null); // Ref to keep track of video element for cleanup
 
   useEffect(() => {
-    if (!backgroundImage) {
+    if (backgroundImage) {
+      loadBackground(backgroundImage);
+    } else {
       setIsBackgroundLoading(false);
-      return;
     }
 
+    // Cleanup function
+    return () => {
+      if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.src = "";
+        videoRef.current = null;
+      }
+    };
+  }, [backgroundImage]);
+
+  const loadBackground = async (url: string) => {
     setIsBackgroundLoading(true);
+    setLoadingProgress(0);
 
     // Cleanup previous video if exists
     if (videoRef.current) {
       videoRef.current.pause();
       videoRef.current.src = "";
       videoRef.current = null;
+      // Revoke object URL if it was a blob (optional but good practice if we track it)
     }
 
-    const isVideo = backgroundImage.toLowerCase().includes('.webm');
+    try {
+      // 1. Fetch with progress
+      const response = await fetch(url);
+      const contentLength = response.headers.get('content-length');
+      const total = parseInt(contentLength || '0', 10);
 
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("Impossible de lire le flux");
+
+      const chunks = [];
+      let receivedLength = 0;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        chunks.push(value);
+        receivedLength += value.length;
+
+        if (total > 0) {
+          setLoadingProgress(Math.round((receivedLength / total) * 100));
+        }
+      }
+
+      const blob = new Blob(chunks);
+      const objectUrl = URL.createObjectURL(blob);
+
+      // 2. Setup Media
+      const isVideo = url.toLowerCase().includes('.webm') || url.toLowerCase().includes('.mp4');
+
+      if (isVideo) {
+        const video = document.createElement('video');
+        video.src = objectUrl;
+        video.autoplay = true;
+        video.loop = true;
+        video.muted = !isBackgroundAudioEnabled;
+        video.volume = backgroundAudioVolume;
+        video.playsInline = true;
+        // video.crossOrigin = "anonymous"; // Not needed for Blob URL
+
+        video.onloadedmetadata = () => {
+          setBgImageObject(video);
+          setIsBackgroundLoading(false);
+          video.play().catch(e => console.error("Video play error:", e));
+        };
+        video.onerror = () => {
+          console.error("Video load error");
+          setIsBackgroundLoading(false);
+        };
+        videoRef.current = video;
+      } else {
+        const img = new Image();
+        img.src = objectUrl;
+        img.onload = () => {
+          setBgImageObject(img);
+          setIsBackgroundLoading(false);
+        }
+        img.onerror = () => {
+          console.error("Image load error");
+          setIsBackgroundLoading(false);
+        }
+      }
+
+    } catch (error) {
+      console.error("Erreur de chargement (fetch):", error);
+      // Fallback: Default standard load
+      loadBackgroundFallback(url);
+    }
+  };
+
+  const loadBackgroundFallback = (url: string) => {
+    const isVideo = url.toLowerCase().includes('.webm');
     if (isVideo) {
       const video = document.createElement('video');
-      video.src = backgroundImage;
+      video.src = url;
       video.autoplay = true;
       video.loop = true;
-      // Initialement muté pour l'autoplay, sera ajusté par l'effet suivant
       video.muted = !isBackgroundAudioEnabled;
       video.volume = backgroundAudioVolume;
       video.playsInline = true;
-      video.crossOrigin = "anonymous"; // Important for canvas
+      video.crossOrigin = "anonymous";
 
       video.onloadedmetadata = () => {
         setBgImageObject(video);
         setIsBackgroundLoading(false);
         video.play().catch(e => console.error("Video play error:", e));
       };
-      video.onerror = () => {
-        setIsBackgroundLoading(false);
-        console.error("Video load error");
-      };
       videoRef.current = video;
     } else {
       const img = new Image();
-      img.src = backgroundImage;
+      img.src = url;
       img.onload = () => {
         setBgImageObject(img);
         setIsBackgroundLoading(false);
       }
-      img.onerror = () => {
-        setIsBackgroundLoading(false);
-
-      }
-      img.crossOrigin = "anonymous"; // Helps with potential CORS issues
-
+      img.crossOrigin = "anonymous";
     }
-  }, [backgroundImage]);
+  }
 
   // 🎵 Update background video audio settings when they change
   // 🎵 Update background video audio settings when they change
@@ -1890,7 +1965,7 @@ export default function Component() {
           setPlayerViewMode(!playerViewMode);
         }
         break;
-      case TOOLS.SETTINGS: if (isMJ) setShowGlobalSettingsDialog(true); break;
+      case TOOLS.SETTINGS: setShowGlobalSettingsDialog(true); break;
       case TOOLS.AUDIO_MIXER: setIsAudioMixerOpen(!isAudioMixerOpen); break;
       case TOOLS.ADD_CHAR: if (isMJ) { deactivateIncompatible(TOOLS.ADD_CHAR); setIsNPCDrawerOpen(!isNPCDrawerOpen); setIsObjectDrawerOpen(false); setIsSoundDrawerOpen(false); } break;
       case TOOLS.ADD_OBJ: if (isMJ) { deactivateIncompatible(TOOLS.ADD_OBJ); setIsObjectDrawerOpen(!isObjectDrawerOpen); setIsNPCDrawerOpen(false); setIsSoundDrawerOpen(false); } break;
@@ -6707,23 +6782,25 @@ export default function Component() {
             <DialogTitle>Paramètres de la Carte</DialogTitle>
           </DialogHeader>
           <div className="py-4 space-y-4">
-            <div className="bg-[#252525] p-3 rounded border border-[#333]">
-              <div className="flex justify-between text-sm text-gray-400 mb-2">
-                <span>Échelle Globale des Pions</span>
-                <span>x{globalTokenScale.toFixed(1)}</span>
+            {isMJ && (
+              <div className="bg-[#252525] p-3 rounded border border-[#333]">
+                <div className="flex justify-between text-sm text-gray-400 mb-2">
+                  <span>Échelle Globale des Pions</span>
+                  <span>x{globalTokenScale.toFixed(1)}</span>
+                </div>
+                <input
+                  type="range"
+                  min="0.5"
+                  max="3"
+                  step="0.1"
+                  value={globalTokenScale}
+                  onChange={(e) => setGlobalTokenScale(parseFloat(e.target.value))}
+                  onMouseUp={() => updateGlobalTokenScale(globalTokenScale)}
+                  onTouchEnd={() => updateGlobalTokenScale(globalTokenScale)}
+                  className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                />
               </div>
-              <input
-                type="range"
-                min="0.5"
-                max="3"
-                step="0.1"
-                value={globalTokenScale}
-                onChange={(e) => setGlobalTokenScale(parseFloat(e.target.value))}
-                onMouseUp={() => updateGlobalTokenScale(globalTokenScale)}
-                onTouchEnd={() => updateGlobalTokenScale(globalTokenScale)}
-                className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-              />
-            </div>
+            )}
 
             {/* ⚡ Performance Mode Selector */}
             <div className="bg-[#252525] p-3 rounded border border-[#333]">
@@ -6882,9 +6959,26 @@ export default function Component() {
       {/* Background Loader Overlay */}
       {
         isBackgroundLoading && (
-          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/50 backdrop-blur-sm">
-            <Loader2 className="w-12 h-12 text-white animate-spin mb-4" />
-            <p className="text-white text-lg font-medium">Chargement du fond...</p>
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md">
+            <div className="flex flex-col items-center gap-4 max-w-sm w-full px-6">
+              <Loader2 className="w-12 h-12 text-[#c0a080] animate-spin" />
+
+              <div className="text-center space-y-2">
+                <h3 className="text-xl font-bold text-[#c0a080] tracking-wider uppercase">
+                  {selectedCityId ? cities.find(c => c.id === selectedCityId)?.name || 'Ville Inconnue' : 'Carte du Monde'}
+                </h3>
+                <p className="text-neutral-400 text-sm">Chargement du fond de carte...</p>
+              </div>
+
+              {/* Barre de progression */}
+              <div className="w-full h-2 bg-neutral-800 rounded-full overflow-hidden border border-neutral-700">
+                <div
+                  className="h-full bg-[#c0a080] transition-all duration-300 ease-out"
+                  style={{ width: `${loadingProgress}%` }}
+                />
+              </div>
+              <span className="text-[#c0a080] font-mono text-sm">{loadingProgress}%</span>
+            </div>
           </div>
         )
       }
