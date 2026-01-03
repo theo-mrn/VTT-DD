@@ -5579,11 +5579,10 @@ export default function Component() {
   const handleFullMapFogChange = async (newValue: boolean) => {
     setFullMapFog(newValue);
 
-    // Sauvegarder dans Firebase pour synchronisation
+    // Sauvegarder dans Firebase pour synchronisation via le hook unifié
     if (roomId) {
       try {
-        const fogDocRef = doc(db, 'cartes', String(roomId), 'fog', 'fogData');
-        await setDoc(fogDocRef, { fullMapFog: newValue }, { merge: true });
+        await saveFullMapFog(newValue);
       } catch (error) {
         console.error('Erreur lors de la sauvegarde du mode brouillard complet:', error);
       }
