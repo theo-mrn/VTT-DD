@@ -1945,8 +1945,21 @@ export default function Component() {
           setCurrentObstaclePoints([]);
           setFogMode(false);
         }
+
+        // 🎯 MUTUAL EXCLUSION: Close other drawers
         if (currentTool !== TOOLS.ADD_OBJ && isObjectDrawerOpen) setIsObjectDrawerOpen(false);
         if (currentTool !== TOOLS.ADD_CHAR && isNPCDrawerOpen) setIsNPCDrawerOpen(false);
+        if (currentTool !== TOOLS.MUSIC && isSoundDrawerOpen) setIsSoundDrawerOpen(false);
+        if (currentTool !== TOOLS.AUDIO_MIXER && isAudioMixerOpen) setIsAudioMixerOpen(false);
+
+        // If opening a tool that requires the map view, switch back from 'world' mode
+        if ((currentTool === TOOLS.ADD_OBJ ||
+          currentTool === TOOLS.ADD_CHAR ||
+          currentTool === TOOLS.MUSIC ||
+          currentTool === TOOLS.AUDIO_MIXER) && viewMode === 'world') {
+          setViewMode('city');
+        }
+
         if (currentTool !== TOOLS.MUSIC && isMusicMode) setIsMusicMode(false);
         if (currentTool !== TOOLS.MULTI_SELECT && multiSelectMode) setMultiSelectMode(false);
       }
@@ -1966,11 +1979,11 @@ export default function Component() {
         }
         break;
       case TOOLS.SETTINGS: setShowGlobalSettingsDialog(true); break;
-      case TOOLS.AUDIO_MIXER: setIsAudioMixerOpen(!isAudioMixerOpen); break;
-      case TOOLS.ADD_CHAR: if (isMJ) { deactivateIncompatible(TOOLS.ADD_CHAR); setIsNPCDrawerOpen(!isNPCDrawerOpen); setIsObjectDrawerOpen(false); setIsSoundDrawerOpen(false); } break;
-      case TOOLS.ADD_OBJ: if (isMJ) { deactivateIncompatible(TOOLS.ADD_OBJ); setIsObjectDrawerOpen(!isObjectDrawerOpen); setIsNPCDrawerOpen(false); setIsSoundDrawerOpen(false); } break;
+      case TOOLS.AUDIO_MIXER: deactivateIncompatible(TOOLS.AUDIO_MIXER); setIsAudioMixerOpen(!isAudioMixerOpen); break;
+      case TOOLS.ADD_CHAR: if (isMJ) { deactivateIncompatible(TOOLS.ADD_CHAR); setIsNPCDrawerOpen(!isNPCDrawerOpen); } break;
+      case TOOLS.ADD_OBJ: if (isMJ) { deactivateIncompatible(TOOLS.ADD_OBJ); setIsObjectDrawerOpen(!isObjectDrawerOpen); } break;
       case TOOLS.ADD_NOTE: handleAddNote(); break;
-      case TOOLS.MUSIC: if (isMJ) { deactivateIncompatible(TOOLS.MUSIC); setIsSoundDrawerOpen(!isSoundDrawerOpen); setIsNPCDrawerOpen(false); setIsObjectDrawerOpen(false); } break;
+      case TOOLS.MUSIC: if (isMJ) { deactivateIncompatible(TOOLS.MUSIC); setIsSoundDrawerOpen(!isSoundDrawerOpen); } break;
       case TOOLS.MULTI_SELECT: if (isMJ) { deactivateIncompatible(TOOLS.MULTI_SELECT); setMultiSelectMode(!multiSelectMode); } break;
       case TOOLS.BACKGROUND_EDIT: if (isMJ) setIsBackgroundEditMode(!isBackgroundEditMode); break;
       case TOOLS.DRAW: deactivateIncompatible(TOOLS.DRAW); toggleDrawMode(); break;
@@ -2582,6 +2595,12 @@ export default function Component() {
 
       return;
     }
+
+    // Close other drawers
+    setIsAudioMixerOpen(false);
+    setIsNPCDrawerOpen(false);
+    setIsObjectDrawerOpen(false);
+    setIsSoundDrawerOpen(false);
 
     // setSelectedCityId(null); // Keep the current city selected so we can "cancel" back to it
     setViewMode('world');
