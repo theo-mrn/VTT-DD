@@ -514,7 +514,8 @@ export function DiceRoller() {
         await addDoc(collection(db, `rolls/${roomId}/rolls`), firebaseRoll);
         setFirebaseRolls((prevRolls) => [firebaseRoll, ...prevRolls]);
 
-        // 🎯 SYNC WITH CHAT
+        // 🎯 SYNC WITH CHAT (DISABLED per user request to reduce noise)
+        /*
         if (!isPrivate) {
           const chatMessage = {
             text: `🎲 Lancer de dé (${originalNotation}) : ${output}`,
@@ -526,6 +527,7 @@ export function DiceRoller() {
           };
           await addDoc(collection(db, `rooms/${roomId}/chat`), chatMessage);
         }
+        */
       }
 
     } catch (err) {

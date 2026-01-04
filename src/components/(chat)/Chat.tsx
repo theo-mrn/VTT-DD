@@ -43,6 +43,7 @@ export default function Chat() {
     const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]); // Empty = Everyone
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
 
     // 🎯 SUGGESTIONS STATE
     const [showSuggestions, setShowSuggestions] = useState(false);
@@ -576,8 +577,8 @@ export default function Chat() {
                                             <img
                                                 src={msg.imageUrl}
                                                 alt="Shared image"
-                                                className="max-w-full rounded-md max-h-[200px] object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                                                onClick={() => window.open(msg.imageUrl, '_blank')}
+                                                className="max-w-full rounded-md max-h-[300px] object-cover cursor-pointer hover:opacity-90 transition-all border-2 border-transparent hover:border-[#c0a080]"
+                                                onClick={() => setFullscreenImage(msg.imageUrl!)}
                                             />
                                         </div>
                                     )}
@@ -620,161 +621,199 @@ export default function Chat() {
                     </div>
                 )}
 
-                {/* Identity Indicator */}
-                <div className="flex items-center justify-between mb-2 px-1">
-                    <div className="text-xs text-muted-foreground flex items-center gap-1">
-                        <span>En tant que :</span>
-                        {isMJ ? (
-                            <Popover open={isIdentityPopoverOpen} onOpenChange={setIsIdentityPopoverOpen}>
-                                <PopoverTrigger asChild>
-                                    <button className="font-bold text-[#c0a080] hover:underline focus:outline-none">
-                                        {identity}
-                                    </button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-56 bg-[#242424] border-[#3a3a3a] text-[#d4d4d4] p-2" align="start" side="top">
-                                    <div className="space-y-1">
-                                        <h4 className="font-medium text-sm mb-2 px-2">Identité</h4>
-                                        <button
-                                            onClick={() => { setIdentity("MJ"); setIsIdentityPopoverOpen(false); }}
-                                            className={`w-full text-left px-2 py-1.5 rounded text-sm flex items-center justify-between hover:bg-[#333] ${identity === "MJ" ? "bg-[#333]" : ""}`}
-                                        >
-                                            <span>MJ</span>
-                                            {identity === "MJ" && <Check className="h-4 w-4 text-[#c0a080]" />}
-                                        </button>
-                                        {playerData?.Nomperso && (
-                                            <button
-                                                onClick={() => { setIdentity(playerData.Nomperso); setIsIdentityPopoverOpen(false); }}
-                                                className={`w-full text-left px-2 py-1.5 rounded text-sm flex items-center justify-between hover:bg-[#333] ${identity === playerData.Nomperso ? "bg-[#333]" : ""}`}
-                                            >
-                                                <span>{playerData.Nomperso}</span>
-                                                {identity === playerData.Nomperso && <Check className="h-4 w-4 text-[#c0a080]" />}
-                                            </button>
-                                        )}
-                                        <div className="h-px bg-[#3a3a3a] my-1" />
-                                        <form onSubmit={handleCustomIdentitySubmit} className="px-2 pb-1">
-                                            <label className="text-[10px] text-muted-foreground block mb-1">Autre nom (PNJ)</label>
-                                            <div className="flex gap-1">
-                                                <Input
-                                                    value={customIdentity}
-                                                    onChange={(e) => setCustomIdentity(e.target.value)}
-                                                    className="h-7 text-xs bg-[#1c1c1c] border-[#3a3a3a]"
-                                                    placeholder="Nom..."
-                                                />
-                                                <Button type="submit" size="sm" className="h-7 w-7 p-0 bg-[#c0a080] text-black hover:bg-[#b09070]">
-                                                    <Check className="h-3 w-3" />
-                                                </Button>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </PopoverContent>
-                            </Popover>
-                        ) : (
-                            <span className="font-bold text-[#d4d4d4]">{identity}</span>
-                        )}
-                    </div>
-                </div>
-
-                <form onSubmit={handleSendMessage} className="flex gap-2 items-end relative">
-                    {showSuggestions && (
-                        <div className="absolute bottom-full left-0 w-64 mb-2 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg shadow-xl overflow-hidden z-50">
-                            <div className="px-3 py-2 text-xs font-semibold text-[#c0a080] bg-[#333] border-b border-[#3a3a3a]">
-                                Suggestions de destinataires
-                            </div>
-                            <div className="max-h-48 overflow-y-auto">
-                                {filteredPlayers.map((player, index) => (
-                                    <button
-                                        key={player.uid}
-                                        type="button"
-                                        onClick={() => confirmSuggestion(player)}
-                                        className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-[#3a3a3a] transition-colors ${index === suggestionIndex ? "bg-[#3a3a3a] text-[#c0a080]" : "text-[#d4d4d4]"
-                                            }`}
-                                    >
-                                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                                        {player.name}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-                    <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        ref={fileInputRef}
-                        onChange={handleFileSelect}
-                    />
-
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                                type="button"
-                                size="icon"
-                                variant="ghost"
-                                className={`shrink-0 ${selectedRecipients.length > 0 ? "text-[#c0a080]" : "text-[#d4d4d4]"} hover:text-[#c0a080] hover:bg-[#333]`}
-                                title="Choisir les destinataires"
-                            >
-                                <Users className="h-5 w-5" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-56 bg-[#242424] border-[#3a3a3a] text-[#d4d4d4] p-2" align="start" side="top">
-                            <div className="space-y-1">
-                                <h4 className="font-medium text-sm mb-2 px-2">Visible par :</h4>
-                                <button
+                <form onSubmit={handleSendMessage} className="flex flex-col gap-2 relative">
+                    {/* Top Row: Recipients & Image Upload Emphasis */}
+                    <div className="flex items-center gap-2">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button
                                     type="button"
-                                    onClick={() => setSelectedRecipients([])}
-                                    className={`w-full text-left px-2 py-1.5 rounded text-sm flex items-center justify-between hover:bg-[#333] ${selectedRecipients.length === 0 ? "bg-[#333]" : ""}`}
+                                    size="sm"
+                                    variant="outline"
+                                    className={`shrink-0 border-[#3a3a3a] bg-[#2a2a2a] ${selectedRecipients.length > 0 ? "text-[#c0a080] border-[#c0a080]/50" : "text-[#d4d4d4]"}`}
+                                    title="Choisir les destinataires"
                                 >
-                                    <span>Tout le monde</span>
-                                    {selectedRecipients.length === 0 && <Check className="h-4 w-4 text-[#c0a080]" />}
-                                </button>
-                                <div className="h-px bg-[#3a3a3a] my-1" />
-                                {players.filter(player => player.name !== identity).map(player => (
+                                    <Users className="h-4 w-4 mr-2" />
+                                    {selectedRecipients.length > 0 ? `Privé (${selectedRecipients.length})` : "Tout le monde"}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-56 bg-[#242424] border-[#3a3a3a] text-[#d4d4d4] p-2" align="start" side="top">
+                                <div className="space-y-1">
+                                    <h4 className="font-medium text-sm mb-2 px-2">Visible par :</h4>
                                     <button
-                                        key={player.uid}
                                         type="button"
-                                        onClick={() => toggleRecipient(player.uid)}
-                                        className={`w-full text-left px-2 py-1.5 rounded text-sm flex items-center justify-between hover:bg-[#333] ${selectedRecipients.includes(player.uid) ? "bg-[#333]" : ""}`}
+                                        onClick={() => setSelectedRecipients([])}
+                                        className={`w-full text-left px-2 py-1.5 rounded text-sm flex items-center justify-between hover:bg-[#333] ${selectedRecipients.length === 0 ? "bg-[#333]" : ""}`}
                                     >
-                                        <span className="truncate">{player.name}</span>
-                                        {selectedRecipients.includes(player.uid) && <Check className="h-4 w-4 text-[#c0a080]" />}
+                                        <span>Tout le monde</span>
+                                        {selectedRecipients.length === 0 && <Check className="h-4 w-4 text-[#c0a080]" />}
                                     </button>
-                                ))}
-                                {players.length === 0 && (
-                                    <div className="px-2 py-1.5 text-xs text-muted-foreground">Aucun autre joueur</div>
-                                )}
+                                    <div className="h-px bg-[#3a3a3a] my-1" />
+                                    {players.filter(player => player.name !== identity).map(player => (
+                                        <button
+                                            key={player.uid}
+                                            type="button"
+                                            onClick={() => toggleRecipient(player.uid)}
+                                            className={`w-full text-left px-2 py-1.5 rounded text-sm flex items-center justify-between hover:bg-[#333] ${selectedRecipients.includes(player.uid) ? "bg-[#333]" : ""}`}
+                                        >
+                                            <span className="truncate">{player.name}</span>
+                                            {selectedRecipients.includes(player.uid) && <Check className="h-4 w-4 text-[#c0a080]" />}
+                                        </button>
+                                    ))}
+                                    {players.length === 0 && (
+                                        <div className="px-2 py-1.5 text-xs text-muted-foreground">Aucun autre joueur</div>
+                                    )}
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+
+                        <div className="flex-1" />
+
+                        {/* Identity Badge moving here */}
+                        <div className="text-xs text-muted-foreground flex items-center gap-1 bg-[#1a1a1a] px-2 py-1 rounded border border-[#3a3a3a]">
+                            <span>En tant que :</span>
+                            {isMJ ? (
+                                <Popover open={isIdentityPopoverOpen} onOpenChange={setIsIdentityPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                        <button className="font-bold text-[#c0a080] hover:underline focus:outline-none">
+                                            {identity}
+                                        </button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-56 bg-[#242424] border-[#3a3a3a] text-[#d4d4d4] p-2" align="end" side="top">
+                                        <div className="space-y-1">
+                                            <h4 className="font-medium text-sm mb-2 px-2">Identité</h4>
+                                            <button
+                                                onClick={() => { setIdentity("MJ"); setIsIdentityPopoverOpen(false); }}
+                                                className={`w-full text-left px-2 py-1.5 rounded text-sm flex items-center justify-between hover:bg-[#333] ${identity === "MJ" ? "bg-[#333]" : ""}`}
+                                            >
+                                                <span>MJ</span>
+                                                {identity === "MJ" && <Check className="h-4 w-4 text-[#c0a080]" />}
+                                            </button>
+                                            {playerData?.Nomperso && (
+                                                <button
+                                                    onClick={() => { setIdentity(playerData.Nomperso); setIsIdentityPopoverOpen(false); }}
+                                                    className={`w-full text-left px-2 py-1.5 rounded text-sm flex items-center justify-between hover:bg-[#333] ${identity === playerData.Nomperso ? "bg-[#333]" : ""}`}
+                                                >
+                                                    <span>{playerData.Nomperso}</span>
+                                                    {identity === playerData.Nomperso && <Check className="h-4 w-4 text-[#c0a080]" />}
+                                                </button>
+                                            )}
+                                            <div className="h-px bg-[#3a3a3a] my-1" />
+                                            <form onSubmit={handleCustomIdentitySubmit} className="px-2 pb-1">
+                                                <label className="text-[10px] text-muted-foreground block mb-1">Autre nom (PNJ)</label>
+                                                <div className="flex gap-1">
+                                                    <Input
+                                                        value={customIdentity}
+                                                        onChange={(e) => setCustomIdentity(e.target.value)}
+                                                        className="h-7 text-xs bg-[#1c1c1c] border-[#3a3a3a]"
+                                                        placeholder="Nom..."
+                                                    />
+                                                    <Button type="submit" size="sm" className="h-7 w-7 p-0 bg-[#c0a080] text-black hover:bg-[#b09070]">
+                                                        <Check className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    </PopoverContent>
+                                </Popover>
+                            ) : (
+                                <span className="font-bold text-[#d4d4d4]">{identity}</span>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Main Input Area */}
+                    <div className="flex gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className={`flex-1 h-12 border-dashed border-2 ${selectedImage
+                                ? "bg-[#c0a080]/20 border-[#c0a080] text-[#c0a080]"
+                                : "bg-[#2a2a2a] border-[#3a3a3a] text-muted-foreground hover:bg-[#333] hover:text-[#d4d4d4] hover:border-[#555]"} transition-all`}
+                            onClick={() => fileInputRef.current?.click()}
+                        >
+                            <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                ref={fileInputRef}
+                                onChange={handleFileSelect}
+                            />
+                            <div className="flex items-center justify-center gap-2">
+                                <ImageIcon className="h-5 w-5" />
+                                <span className="font-medium">
+                                    {selectedImage ? "Changer l'image" : "Partager une image"}
+                                </span>
                             </div>
-                        </PopoverContent>
-                    </Popover>
+                        </Button>
+                    </div>
 
-                    <Button
-                        type="button"
-                        size="icon"
-                        variant="ghost"
-                        className="text-[#d4d4d4] hover:text-[#c0a080] hover:bg-[#333] shrink-0"
-                        onClick={() => fileInputRef.current?.click()}
-                    >
-                        <ImageIcon className="h-5 w-5" />
-                    </Button>
+                    {/* Text Input & Send */}
+                    <div className="flex gap-2 items-center">
+                        {showSuggestions && (
+                            <div className="absolute bottom-full left-0 w-64 mb-2 bg-[#2a2a2a] border border-[#3a3a3a] rounded-lg shadow-xl overflow-hidden z-50">
+                                <div className="px-3 py-2 text-xs font-semibold text-[#c0a080] bg-[#333] border-b border-[#3a3a3a]">
+                                    Suggestions de destinataires
+                                </div>
+                                <div className="max-h-48 overflow-y-auto">
+                                    {filteredPlayers.map((player, index) => (
+                                        <button
+                                            key={player.uid}
+                                            type="button"
+                                            onClick={() => confirmSuggestion(player)}
+                                            className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-[#3a3a3a] transition-colors ${index === suggestionIndex ? "bg-[#3a3a3a] text-[#c0a080]" : "text-[#d4d4d4]"
+                                                }`}
+                                        >
+                                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                                            {player.name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
-                    <Input
-                        ref={inputRef}
-                        value={newMessage}
-                        onChange={handleInputChange}
-                        onKeyDown={handleKeyDown}
-                        placeholder={selectedRecipients.length > 0 ? "Message privé..." : "Votre message... (/roll, /w)"}
-                        className="bg-[#1c1c1c] border-[#3a3a3a] text-[#d4d4d4] focus-visible:ring-[#c0a080]"
-                        disabled={isUploading}
-                    />
-                    <Button
-                        type="submit"
-                        size="icon"
-                        className="bg-[#c0a080] hover:bg-[#b09070] text-black shrink-0"
-                        disabled={isUploading || (!newMessage.trim() && !selectedImage)}
-                    >
-                        <Send className="h-4 w-4" />
-                    </Button>
+                        <Input
+                            ref={inputRef}
+                            value={newMessage}
+                            onChange={handleInputChange}
+                            onKeyDown={handleKeyDown}
+                            placeholder={selectedImage ? "Ajouter une description..." : "Message, /roll, /w ..."}
+                            className="bg-[#1c1c1c] border-[#3a3a3a] text-[#d4d4d4] focus-visible:ring-[#c0a080]"
+                            disabled={isUploading}
+                        />
+                        <Button
+                            type="submit"
+                            size="icon"
+                            className="bg-[#c0a080] hover:bg-[#b09070] text-black shrink-0 w-10 h-10"
+                            disabled={isUploading || (!newMessage.trim() && !selectedImage)}
+                        >
+                            <Send className="h-5 w-5" />
+                        </Button>
+                    </div>
                 </form>
+
             </div>
+
+            {/* Lightbox Overlay */}
+            {fullscreenImage && (
+                <div
+                    className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={() => setFullscreenImage(null)}
+                >
+                    <button
+                        className="absolute top-4 right-4 text-white/70 hover:text-white bg-black/50 rounded-full p-2 transition-colors"
+                        onClick={() => setFullscreenImage(null)}
+                    >
+                        <X className="h-8 w-8" />
+                    </button>
+                    <img
+                        src={fullscreenImage}
+                        alt="Full screen"
+                        className="max-w-full max-h-full object-contain rounded-sm shadow-2xl animate-in zoom-in-95 duration-200"
+                        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking image
+                    />
+                </div>
+            )}
         </div>
     );
 }
