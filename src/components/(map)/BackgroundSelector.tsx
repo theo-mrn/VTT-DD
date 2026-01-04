@@ -75,7 +75,12 @@ const MediaItem = ({ map, onClick }: { map: MapFile, onClick: () => void }) => {
 
     return (
         <button
-            onClick={onClick}
+            onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onClick();
+            }}
+
             disabled={isLoading || hasError}
             className="group relative aspect-video rounded-xl overflow-hidden border-2 border-[#333] hover:border-[#c0a080] transition-all duration-200 bg-[#0a0a0a] hover:scale-105 hover:shadow-2xl hover:shadow-[#c0a080]/20 disabled:hover:scale-100 disabled:cursor-not-allowed"
         >
@@ -261,7 +266,12 @@ export default function BackgroundSelector({
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-sm">
+        <div
+            className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-sm"
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+        >
+
             <div className="h-full w-full flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between px-8 py-6 border-b border-[#333] bg-[#0a0a0a]/80">

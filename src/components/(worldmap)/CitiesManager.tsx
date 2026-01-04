@@ -2,6 +2,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+
+
+
 import { useGame } from "@/contexts/GameContext";
 import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where, writeBatch } from "@/lib/firebase";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -89,6 +93,11 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
     const [moveTargetCity, setMoveTargetCity] = useState<Scene | null>(null);
     const [moveMode, setMoveMode] = useState<'all' | 'select'>('all');
     const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
+
+
+
 
     // Charger les scènes
     useEffect(() => {
@@ -624,95 +633,118 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                     </div>
                 </div>
 
-                {/* Form Dialog */}
-                <Dialog open={showForm} onOpenChange={setShowForm}>
-                    <DialogContent className="bg-[#111] border border-white/10 text-white sm:max-w-[500px] shadow-2xl z-[60]">
-                        <DialogHeader>
-                            <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                                {editingId ? "Modifier la scène" : "Nouvelle scène"}
-                            </DialogTitle>
-                        </DialogHeader>
+                {/* Form Overlay - Custom instead of Shadcn Dialog to avoid modal constraints */}
+                <AnimatePresence>
+                    {showForm && (
+                        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={() => setShowForm(false)}
+                                className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+                            />
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                                className="relative w-full max-w-[500px] bg-[#111] border border-white/10 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+                            >
+                                <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                                    <h2 className="text-xl font-bold flex items-center gap-2 text-white">
+                                        {editingId ? "Modifier la scène" : "Nouvelle scène"}
+                                    </h2>
+                                    <Button size="icon" variant="ghost" className="rounded-full h-8 w-8 hover:bg-white/10" onClick={() => setShowForm(false)}>
+                                        <X className="w-4 h-4" />
+                                    </Button>
+                                </div>
 
-                        <div className="space-y-6 mt-4">
-                            <div className="space-y-2">
-                                <Label className="uppercase text-xs font-bold text-gray-500 tracking-wider">Visuel</Label>
-                                <div className="relative w-full aspect-video bg-white/5 border border-white/10 rounded-lg overflow-hidden group hover:border-[#c0a080]/50 transition-colors cursor-pointer" onClick={() => setShowBackgroundSelector(true)}>
-
-                                    {isUploadingImage ? (
-                                        <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2">
-                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#c0a080]"></div>
-                                            <span className="text-xs">Upload en cours...</span>
-                                        </div>
-                                    ) : formData.backgroundUrl ? (
-                                        <>
-                                            {isVideo(formData.backgroundUrl) ? (
-                                                <video
-                                                    src={formData.backgroundUrl}
-                                                    className="w-full h-full object-cover"
-                                                    autoPlay
-                                                    muted
-                                                    loop
-                                                    playsInline
-                                                />
+                                <div className="p-6 space-y-6 overflow-y-auto max-h-[80vh] custom-scrollbar">
+                                    <div className="space-y-2">
+                                        <Label className="uppercase text-xs font-bold text-gray-500 tracking-wider">Visuel</Label>
+                                        <div
+                                            className="relative w-full aspect-video bg-white/5 border border-white/10 rounded-lg overflow-hidden group hover:border-[#c0a080]/50 transition-colors cursor-pointer"
+                                            onClick={(e) => { e.stopPropagation(); setShowBackgroundSelector(true); }}
+                                        >
+                                            {isUploadingImage ? (
+                                                <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2">
+                                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#c0a080]"></div>
+                                                    <span className="text-xs">Upload en cours...</span>
+                                                </div>
+                                            ) : formData.backgroundUrl ? (
+                                                <>
+                                                    {isVideo(formData.backgroundUrl) ? (
+                                                        <video
+                                                            src={formData.backgroundUrl}
+                                                            className="w-full h-full object-cover"
+                                                            autoPlay
+                                                            muted
+                                                            loop
+                                                            playsInline
+                                                        />
+                                                    ) : (
+                                                        <img src={formData.backgroundUrl} className="w-full h-full object-cover" alt="Preview" />
+                                                    )}
+                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                        <span className="text-white font-medium flex items-center gap-2"><Upload className="w-4 h-4" /> Changer</span>
+                                                    </div>
+                                                </>
                                             ) : (
-                                                <img src={formData.backgroundUrl} className="w-full h-full object-cover" alt="Preview" />
+                                                <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-2">
+                                                    <ImageIcon className="w-10 h-10 opacity-50" />
+                                                    <span className="text-xs">Ajouter image/vidéo</span>
+                                                </div>
                                             )}
-                                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                <span className="text-white font-medium flex items-center gap-2"><Upload className="w-4 h-4" /> Changer</span>
-                                            </div>
-                                        </>
-                                    ) : (
-                                        <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-2"><ImageIcon className="w-10 h-10 opacity-50" /><span className="text-xs">Ajouter image/vidéo</span></div>
-                                    )}
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <Label className="uppercase text-xs font-bold text-gray-500 tracking-wider text-white">Nom</Label>
+                                            <Input
+                                                value={formData.name}
+                                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                                className="bg-white/5 border-white/10 focus:border-[#c0a080]/50 text-white"
+                                                placeholder="Nom du lieu..."
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label className="uppercase text-xs font-bold text-gray-500 tracking-wider text-white">Groupe</Label>
+                                            <select
+                                                value={formData.groupId}
+                                                onChange={(e) => setFormData({ ...formData, groupId: e.target.value })}
+                                                className="w-full h-10 px-3 rounded-md bg-[#1a1a1a] border border-white/10 text-white focus:outline-none focus:border-[#c0a080]/50"
+                                            >
+                                                <option value="" className="bg-[#111]">Non classé</option>
+                                                {groups.map(g => (
+                                                    <option key={g.id} value={g.id} className="bg-[#111]">{g.name}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="uppercase text-xs font-bold text-gray-500 tracking-wider text-white">Description</Label>
+                                        <Textarea
+                                            value={formData.description}
+                                            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                            className="bg-white/5 border-white/10 focus:border-[#c0a080]/50 min-h-[80px] resize-none text-white"
+                                            placeholder="Description rapide..."
+                                        />
+                                    </div>
                                 </div>
-                            </div>
 
-
-
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label className="uppercase text-xs font-bold text-gray-500 tracking-wider">Nom</Label>
-                                    <Input
-                                        value={formData.name}
-                                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                        className="bg-white/5 border-white/10 focus:border-[#c0a080]/50"
-                                        placeholder="Nom du lieu..."
-                                    />
+                                <div className="p-6 bg-white/[0.02] border-t border-white/5 flex justify-end gap-3">
+                                    <Button variant="ghost" onClick={() => setShowForm(false)} className="text-white/50 hover:text-white">Annuler</Button>
+                                    <Button onClick={handleSave} className="bg-[#c0a080] text-black hover:bg-[#d4b594] font-bold px-6">
+                                        {editingId ? "Enregistrer" : "Créer"}
+                                    </Button>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label className="uppercase text-xs font-bold text-gray-500 tracking-wider">Groupe</Label>
-                                    <select
-                                        value={formData.groupId}
-                                        onChange={(e) => setFormData({ ...formData, groupId: e.target.value })}
-                                        className="w-full h-10 px-3 rounded-md bg-white/5 border border-white/10 text-white focus:outline-none focus:border-[#c0a080]/50"
-                                    >
-                                        <option value="" className="bg-[#111]">Non classé</option>
-                                        {groups.map(g => (
-                                            <option key={g.id} value={g.id} className="bg-[#111]">{g.name}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <Label className="uppercase text-xs font-bold text-gray-500 tracking-wider">Description</Label>
-                                <Textarea
-                                    value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                                    className="bg-white/5 border-white/10 focus:border-[#c0a080]/50 min-h-[80px] resize-none"
-                                    placeholder="Description rapide..."
-                                />
-                            </div>
+                            </motion.div>
                         </div>
+                    )}
+                </AnimatePresence>
 
-                        <DialogFooter className="mt-6">
-                            <Button variant="ghost" onClick={() => setShowForm(false)} className="text-white/50 hover:text-white">Annuler</Button>
-                            <Button onClick={handleSave} className="bg-[#c0a080] text-black hover:bg-[#d4b594]">
-                                {editingId ? "Enregistrer" : "Créer"}
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
 
                 {/* Group Form Dialog */}
                 <Dialog open={showGroupForm} onOpenChange={setShowGroupForm}>
@@ -841,12 +873,18 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
 
             </motion.div >
 
-            <BackgroundSelector
-                isOpen={showBackgroundSelector}
-                onClose={() => setShowBackgroundSelector(false)}
-                onSelectLocal={(path) => setFormData(prev => ({ ...prev, backgroundUrl: path }))}
-                onUpload={handleSceneBackgroundUpload}
-            />
+            {mounted && createPortal(
+                <BackgroundSelector
+                    isOpen={showBackgroundSelector}
+                    onClose={() => setShowBackgroundSelector(false)}
+                    onSelectLocal={(path) => setFormData(prev => ({ ...prev, backgroundUrl: path }))}
+                    onUpload={handleSceneBackgroundUpload}
+                />,
+                document.body
+            )}
         </>
+
+
+
     );
 }
