@@ -20,7 +20,6 @@ export const useAudioMixer = () => {
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved)
-                    console.log('🔊 [useAudioMixer] Loaded from localStorage:', parsed)
                     return parsed
                 } catch (e) {
                     console.error('Error loading audio mixer preferences:', e)
@@ -28,7 +27,6 @@ export const useAudioMixer = () => {
             }
         }
         // Default values
-        console.log('🔊 [useAudioMixer] Using default volumes')
         return {
             quickSounds: 1,
             musicZones: 1,
@@ -42,7 +40,6 @@ export const useAudioMixer = () => {
         const handleVolumeChange = (e: Event) => {
             const customEvent = e as CustomEvent
             if (customEvent.detail) {
-                console.log('🔊 [useAudioMixer] Received volume update:', customEvent.detail)
                 setVolumes(customEvent.detail)
             }
         }
@@ -54,7 +51,6 @@ export const useAudioMixer = () => {
     // Sauvegarder les préférences
     const updateVolume = (key: keyof typeof volumes, value: number) => {
         const newVolumes = { ...volumes, [key]: value }
-        console.log('🔊 [useAudioMixer] Updating volume:', key, value, newVolumes)
         setVolumes(newVolumes)
         localStorage.setItem('audioMixerVolumes', JSON.stringify(newVolumes))
 

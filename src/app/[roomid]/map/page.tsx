@@ -894,7 +894,6 @@ export default function Component() {
   useEffect(() => {
     if (globalAudioRef.current) {
       globalAudioRef.current.volume = audioVolumes.quickSounds;
-      console.log('🔊 [Page] Updated global audio volume to:', audioVolumes.quickSounds);
     }
   }, [audioVolumes.quickSounds]);
 
@@ -1078,6 +1077,7 @@ export default function Component() {
       imageUrl: imageUrl,
       visibility: data.visibility || 'hidden',
       visibilityRadius: parseFloat(data.visibilityRadius) || 100,
+      visibleToPlayerIds: data.visibleToPlayerIds || undefined, // 🆕 Charger la liste des joueurs autorisés
       type: data.type || 'pnj',
       PV: data.PV || 10,
       PV_Max: data.PV_Max || data.PV || 10,
@@ -1279,9 +1279,13 @@ export default function Component() {
           height: data.height || 100,
           rotation: data.rotation || 0,
           imageUrl: data.imageUrl || '',
+          name: data.name,
           cityId: data.cityId || null,
           image: img,
-          isBackground: data.isBackground || false
+          isBackground: data.isBackground || false,
+          isLocked: data.isLocked || false, // 🆕 Charger l'état de verrouillage
+          visibility: data.visibility || undefined,
+          visibleToPlayerIds: data.visibleToPlayerIds || undefined
         });
       });
       setObjects(objs);
@@ -1537,6 +1541,7 @@ export default function Component() {
           height: 100,
           rotation: 0,
           imageUrl: template.imageUrl,
+          name: template.name,
           cityId: selectedCityId,
           createdAt: new Date()
         })
@@ -2564,7 +2569,6 @@ export default function Component() {
 
   // 🎯 NAVIGATION FUNCTIONS
   const navigateToCity = async (cityId: string) => {
-    console.log('🗺️ [Navigation] Navigating to city:', cityId);
     setSelectedCityId(cityId);
     setViewMode('city');
     // Reset tool modes when entering city
@@ -2573,19 +2577,15 @@ export default function Component() {
     setPanMode(false);
     setMeasureMode(false);
 
-    // 🆕 Sauvegarder la ville actuelle dans Firebase (pour synchroniser tous les joueurs)
+    // Sauvegarder la ville actuelle dans Firebase (pour synchroniser tous les joueurs)
     if (roomId && isMJ) {
-      console.log('💾 [Navigation] Saving currentCityId to Firebase:', cityId);
       try {
         await updateDoc(doc(db, 'cartes', roomId, 'settings', 'general'), {
           currentCityId: cityId,
         });
-        console.log('✅ [Navigation] currentCityId saved successfully');
       } catch (error) {
         console.error('❌ [Navigation] Error saving currentCityId:', error);
       }
-    } else {
-      console.log('ℹ️ [Navigation] Not saving currentCityId (isMJ:', isMJ, ')');
     }
   };
 
@@ -2638,11 +2638,9 @@ export default function Component() {
 
         // Synchroniser la ville actuelle
         if (data.currentCityId) {
-          console.log('🔄 [Settings Listener] Loaded currentCityId from Firebase:', data.currentCityId);
           setSelectedCityId(data.currentCityId);
           setViewMode('city');
         } else {
-          console.log('🔄 [Settings Listener] No currentCityId in Firebase');
           if (!isMJ) {
             // Si pas de ville définie et qu'on n'est pas MJ, on reste sur une vue par défaut
           }
@@ -2652,14 +2650,12 @@ export default function Component() {
     unsubscribers.push(settingsUnsub);
 
     // 🆕 Charger les villes pour la world map
-    console.log('🏙️ [Cities Listener] Setting up cities listener for roomId:', room.toString());
     const citiesRef = collection(db, 'cartes', room.toString(), 'cities');
     const citiesUnsub = onSnapshot(citiesRef, (snapshot) => {
       const loadedCities: any[] = [];
       snapshot.forEach((doc) => {
         loadedCities.push({ id: doc.id, ...doc.data() });
       });
-      console.log('🏙️ [Cities Listener] Cities loaded:', loadedCities.length, 'cities:', loadedCities.map(c => ({ id: c.id, name: c.name })));
       setCities(loadedCities);
     });
     unsubscribers.push(citiesUnsub);
@@ -2683,6 +2679,13 @@ export default function Component() {
     // Les joueurs et alliés sont toujours visibles
     if (char.type === 'joueurs' || char.visibility === 'ally') {
       return true;
+    }
+
+    // 🆕 Mode Custom : vérifier si le joueur actuel est dans la liste des joueurs autorisés
+    if (char.visibility === 'custom') {
+      const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
+      if (!effectivePersoId) return false;
+      return char.visibleToPlayerIds?.includes(effectivePersoId) ?? false;
     }
 
     // 🔦 Vérifier si le personnage est dans l'ombre d'un obstacle
@@ -2746,6 +2749,35 @@ export default function Component() {
     // Sinon, visible
     return true;
   };
+
+  // 🎯 NOUVELLE FONCTION : Vérifier si un objet est visible pour l'utilisateur actuel
+  const isObjectVisibleToUser = (obj: MapObject): boolean => {
+
+    // Le MJ en mode normal voit toujours tout
+    const effectiveIsMJ = isMJ && !playerViewMode;
+    if (effectiveIsMJ) return true;
+
+    // Si l'objet n'a pas de visibilité définie, il est visible par défaut (rétrocompatibilité)
+    if (!obj.visibility || obj.visibility === 'visible') {
+      return true;
+    }
+
+    // Objets cachés
+    if (obj.visibility === 'hidden') {
+      return false;
+    }
+
+    // 🆕 Mode Custom : vérifier si le joueur actuel est dans la liste des joueurs autorisés
+    if (obj.visibility === 'custom') {
+      const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
+      if (!effectivePersoId) return false;
+      return obj.visibleToPlayerIds?.includes(effectivePersoId) ?? false;
+    }
+
+    // Par défaut, visible
+    return true;
+  };
+
 
 
 
@@ -3302,7 +3334,11 @@ export default function Component() {
 
         // 🎯 Pour les PNJ (non joueurs et non alliés) : s'ils sont dans le brouillard, ils deviennent automatiquement cachés
         let effectiveVisibility = char.visibility;
-        if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
+
+        // 🆕 Vérifier la visibilité custom AVANT le fog
+        if (!isCharacterVisibleToUser(char)) {
+          effectiveVisibility = 'hidden';
+        } else if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
           effectiveVisibility = 'hidden';
         }
 
@@ -4969,25 +5005,26 @@ export default function Component() {
     // 🎯 DRAG & DROP OBJET
     // 🎯 DRAG & DROP OBJET (MULTI)
     if (isDraggingObject && draggedObjectIndex !== null && draggedObjectsOriginalPositions.length > 0) {
-      const originalRefObj = draggedObjectsOriginalPositions.find(pos => pos.index === draggedObjectIndex);
-      if (originalRefObj) {
-        // Current mouse position in map coords (currentX, currentY is already map coords)
-        const deltaX = currentX - originalRefObj.x;
-        const deltaY = currentY - originalRefObj.y;
+      // Calculate start mouse position in MAP coordinates
+      const startMapX = ((dragStart.x - rect.left + offset.x) / scaledWidth) * imgWidth;
+      const startMapY = ((dragStart.y - rect.top + offset.y) / scaledHeight) * imgHeight;
 
-        setObjects(prev => prev.map((obj, index) => {
-          const originalPos = draggedObjectsOriginalPositions.find(pos => pos.index === index);
-          if (originalPos) {
-            return {
-              ...obj,
-              x: originalPos.x + deltaX,
-              y: originalPos.y + deltaY
-            };
-          }
-          return obj;
-        }));
-      }
-      return;
+      // Calculate the movement of the mouse
+      const deltaX = currentX - startMapX;
+      const deltaY = currentY - startMapY;
+
+      setObjects(prev => prev.map((obj, index) => {
+        const originalPos = draggedObjectsOriginalPositions.find(pos => pos.index === index);
+        if (originalPos) {
+          return {
+            ...obj,
+            x: originalPos.x + deltaX,
+            y: originalPos.y + deltaY
+          };
+        }
+        return obj;
+      }));
+      return; // Return here is correct as we handled the event
     }
 
     // 🎯 DRAG & DROP PERSONNAGE
@@ -5856,6 +5893,26 @@ export default function Component() {
         await updateDoc(doc(db, 'cartes', String(roomId), 'objects', objectId), {
           rotation: value
         });
+      } else if (action === 'setObjectVisibility') {
+        // 🆕 Nouvelle action pour définir la visibilité d'un objet
+        await updateDoc(doc(db, 'cartes', String(roomId), 'objects', objectId), {
+          visibility: value
+        });
+      } else if (action === 'updateObjectVisiblePlayers') {
+        // 🆕 Nouvelle action pour mettre à jour la liste des joueurs autorisés pour un objet
+        await updateDoc(doc(db, 'cartes', String(roomId), 'objects', objectId), {
+          visibleToPlayerIds: value
+        });
+      } else if (action === 'toggleLock') {
+        // 🆕 Verrouiller/Déverrouiller l'objet pour les joueurs
+        await updateDoc(doc(db, 'cartes', String(roomId), 'objects', objectId), {
+          isLocked: !obj.isLocked
+        });
+      } else if (action === 'rename') {
+        // 🆕 Renommer l'objet
+        await updateDoc(doc(db, 'cartes', String(roomId), 'objects', objectId), {
+          name: value
+        });
       }
     } catch (error) {
       console.error("Error handling object action:", error);
@@ -5971,6 +6028,7 @@ export default function Component() {
         onAction={handleObjectAction}
         isMJ={isMJ}
         isBackgroundEditMode={isBackgroundEditMode}
+        players={characters.filter(c => c.type === 'joueurs')} // 🆕 Liste des joueurs pour la sélection custom
       />
 
       {/* 🎵 Music Zone Context Menu */}
@@ -6126,7 +6184,11 @@ export default function Component() {
           />
           <div className="objects-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' }}>
             {isLayerVisible('objects') && objects.map((obj, index) => {
+              // 🆕 Vérifier la visibilité de l'objet pour l'utilisateur actuel
+              if (!isObjectVisibleToUser(obj)) return null;
+
               if (!bgImageObject) return null;
+
               const image = bgImageObject;
               const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
               const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
@@ -6234,17 +6296,22 @@ export default function Component() {
                     height: h,
                     transform: `rotate(${obj.rotation}deg)`,
                     pointerEvents: obj.isBackground && !isBackgroundEditMode ? 'none' : 'auto', // Allow interactions only if not background or in edit mode
-                    cursor: isResizingObject ? 'nwse-resize' : 'move', // Change cursor if resizing
+                    cursor: isResizingObject ? 'nwse-resize' : (obj.isLocked && !isMJ ? 'default' : 'move'), // Change cursor if resizing or locked
                     zIndex: obj.isBackground ? 0 : 10 // Background objects lower in stack
                   }}
                   onMouseDown={(e) => {
-                    // Handle Object Selection & Drag Start logic here or delegate?
-                    // If we want to move, we can bubble up or handle here.
-                    // For now, let's just allow selection.
-                    // Existing logic uses handleCanvasMouseDown checking for intersection.
-                    // But now objects are DOM elements blocking the canvas!
-                    // So we MUST handle MouseDown here to trigger selection/drag.
+                    // Prevent canvas from picking up this click
+                    e.stopPropagation();
+
                     if (e.button === 0) {
+                      // Tracking for click vs drag - ALWAYS set this even if locked
+                      mouseClickStartRef.current = { x: e.clientX, y: e.clientY };
+
+                      // 🆕 Empêcher le drag si objet verrouillé et utilisateur non-MJ
+                      if (obj.isLocked && !isMJ) {
+                        return;
+                      }
+
                       // Select
                       if (!e.shiftKey) {
                         setSelectedObjectIndices([index]);
@@ -6263,28 +6330,20 @@ export default function Component() {
                         ? selectedObjectIndices.map(idx => ({ index: idx, x: objects[idx].x, y: objects[idx].y }))
                         : [{ index, x: obj.x, y: obj.y }];
                       setDraggedObjectsOriginalPositions(originalPositions);
-
-                      // Prevent canvas from picking up this click as a "click on empty space"
-                      e.stopPropagation();
-
-                      // Tracking for click vs drag
-                      mouseClickStartRef.current = { x: e.clientX, y: e.clientY };
                     }
                   }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    if (isMJ) {
-                      const start = mouseClickStartRef.current;
-                      if (start) {
-                        const dist = Math.sqrt(Math.pow(e.clientX - start.x, 2) + Math.pow(e.clientY - start.y, 2));
-                        if (dist < 5) {
-                          // It was a click, not a drag
-                          setContextMenuObjectId(obj.id);
-                          setContextMenuObjectOpen(true);
-                          // Ensure selection if not already (handled in mousedown but good to be safe)
-                          if (!selectedObjectIndices.includes(index)) {
-                            setSelectedObjectIndices([index]);
-                          }
+                    const start = mouseClickStartRef.current;
+                    if (start) {
+                      const dist = Math.sqrt(Math.pow(e.clientX - start.x, 2) + Math.pow(e.clientY - start.y, 2));
+                      if (dist < 5) {
+                        // It was a click, not a drag
+                        setContextMenuObjectId(obj.id);
+                        setContextMenuObjectOpen(true);
+                        // Ensure selection if not already (handled in mousedown but good to be safe)
+                        if (!selectedObjectIndices.includes(index) && isMJ) {
+                          setSelectedObjectIndices([index]);
                         }
                       }
                     }
@@ -6292,13 +6351,11 @@ export default function Component() {
                   onContextMenu={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    if (isMJ) {
-                      setContextMenuObjectId(obj.id);
-                      setContextMenuObjectOpen(true);
-                      // Also select it if not selected
-                      if (!selectedObjectIndices.includes(index)) {
-                        setSelectedObjectIndices([index]);
-                      }
+                    setContextMenuObjectId(obj.id);
+                    setContextMenuObjectOpen(true);
+                    // Also select it if not selected (MJ only)
+                    if (!selectedObjectIndices.includes(index) && isMJ) {
+                      setSelectedObjectIndices([index]);
                     }
                   }}
                 >
@@ -6362,7 +6419,11 @@ export default function Component() {
               let isVisible = true;
               const isInFog = fullMapFog || isCellInFog(char.x, char.y, fogGrid, fogCellSize);
               let effectiveVisibility = char.visibility;
-              if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
+
+              // 🆕 Vérifier la visibilité custom AVANT le fog
+              if (!isCharacterVisibleToUser(char)) {
+                effectiveVisibility = 'hidden';
+              } else if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
                 effectiveVisibility = 'hidden';
               }
 
@@ -6854,6 +6915,7 @@ export default function Component() {
           setSelectedCharacterIndex(null); // Désélectionner aussi sur la map si on ferme le menu
         }}
         isMJ={isMJ}
+        players={characters.filter(c => c.type === 'joueurs')} // 🆕 Liste des joueurs pour la sélection custom
         onAction={(action, characterId, value) => {
           // Gestion des actions du menu contextuel
           const char = characters.find(c => c.id === characterId);
@@ -6898,7 +6960,16 @@ export default function Component() {
             if (isMJ && roomId) {
               const newVisibility = value;
               const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
-              updateDoc(charRef, { visibility: newVisibility });
+              // 🆕 Si on passe en mode custom, initialiser visibleToPlayerIds si non défini
+              if (newVisibility === 'custom') {
+                const currentPlayerIds = char.visibleToPlayerIds || [];
+                updateDoc(charRef, {
+                  visibility: newVisibility,
+                  visibleToPlayerIds: currentPlayerIds
+                });
+              } else {
+                updateDoc(charRef, { visibility: newVisibility });
+              }
             }
           } else if (action === 'updateRadius') {
             if (isMJ && roomId) {
@@ -6924,6 +6995,13 @@ export default function Component() {
               }
               const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
               updateDoc(charRef, { conditions: newConditions });
+            }
+          } else if (action === 'updateVisiblePlayers') {
+            // 🆕 Nouvelle action pour mettre à jour la liste des joueurs autorisés
+            if (isMJ && roomId) {
+              const newPlayerIds = value; // array de player IDs
+              const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
+              updateDoc(charRef, { visibleToPlayerIds: newPlayerIds });
             }
           }
         }}

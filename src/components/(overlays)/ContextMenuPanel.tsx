@@ -21,7 +21,8 @@ import {
     User,
     Sparkles,
     ChevronRight,
-    Plus
+    Plus,
+    Check
 } from 'lucide-react';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
 import { Input } from "@/components/ui/input";
@@ -38,6 +39,7 @@ interface ContextMenuPanelProps {
     onClose: () => void;
     onAction: (action: string, characterId: string, value?: any) => void;
     isMJ: boolean;
+    players: Character[]; // 🆕 Liste des joueurs pour la sélection custom
 }
 
 export default function ContextMenuPanel({
@@ -45,10 +47,22 @@ export default function ContextMenuPanel({
     isOpen,
     onClose,
     onAction,
-    isMJ
+    isMJ,
+    players
 }: ContextMenuPanelProps) {
     const dragControls = useDragControls();
     const [customCondition, setCustomCondition] = useState("");
+    // 🆕 State local pour feedback visuel immédiat de la sélection de joueurs
+    const [localSelectedPlayerIds, setLocalSelectedPlayerIds] = useState<string[]>([]);
+
+    // 🆕 Sync local state with Firebase data when character changes
+    useEffect(() => {
+        if (character?.visibleToPlayerIds) {
+            setLocalSelectedPlayerIds(character.visibleToPlayerIds);
+        } else if (character?.visibility === 'custom') {
+            setLocalSelectedPlayerIds([]);
+        }
+    }, [character?.id, character?.visibleToPlayerIds, character?.visibility]);
 
     if (!character) return null;
 
@@ -96,7 +110,7 @@ export default function ContextMenuPanel({
                                 <X size={16} />
                             </Button>
 
-                            <Avatar className="h-24 w-24 border-4 border-[#c0a080] shadow-lg">
+                            <Avatar className={`${!isMJ && character.type !== 'joueurs' ? 'h-32 w-32' : 'h-24 w-24'} border-4 border-[#c0a080] shadow-lg`}>
                                 <AvatarImage src={character.image?.src} className="object-cover" />
                                 <AvatarFallback className="bg-[#2a2a2a] text-2xl">{character.name[0]}</AvatarFallback>
                             </Avatar>
@@ -223,7 +237,7 @@ export default function ContextMenuPanel({
                             <div className="space-y-4">
                                 <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Actions</h3>
 
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className={`grid ${!isMJ && character.type !== 'joueurs' ? 'grid-cols-1' : 'grid-cols-2'} gap-2`}>
                                     {canViewDetails && (
                                         <Button
                                             variant="outline"
@@ -277,7 +291,7 @@ export default function ContextMenuPanel({
                                                 <>
                                                     <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Visibilité</h3>
 
-                                                    <div className="grid grid-cols-3 gap-1">
+                                                    <div className="grid grid-cols-2 gap-1">
                                                         <Button
                                                             variant="outline"
                                                             size="sm"
@@ -302,7 +316,62 @@ export default function ContextMenuPanel({
                                                         >
                                                             Caché
                                                         </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className={`text-xs ${character.visibility === 'custom' ? 'bg-purple-900/50 border-purple-700 text-purple-200' : 'bg-[#252525] border-[#333] text-gray-400'}`}
+                                                            onClick={() => onAction('setVisibility', character.id, 'custom')}
+                                                        >
+                                                            Custom
+                                                        </Button>
                                                     </div>
+
+                                                    {/* 🆕 Player Selection for Custom Visibility */}
+                                                    {character.visibility === 'custom' && (
+                                                        <div className="mt-2 bg-[#1a1a1a] p-2 rounded border border-[#444] space-y-1 max-h-40 overflow-y-auto">
+                                                            <p className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">Visible pour:</p>
+                                                            {players.length === 0 ? (
+                                                                <p className="text-xs text-gray-500 italic">Aucun joueur disponible</p>
+                                                            ) : (
+                                                                players.map(player => {
+                                                                    // 🆕 Utiliser l'état local pour un feedback immédiat
+                                                                    const isSelected = localSelectedPlayerIds.includes(player.id);
+                                                                    return (
+                                                                        <div
+                                                                            key={player.id}
+                                                                            className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-all duration-150 ${isSelected ? 'bg-purple-900/40 border border-purple-600/50' : 'hover:bg-[#252525] border border-transparent'
+                                                                                }`}
+                                                                            onClick={() => {
+                                                                                console.log('🖱️ Player clicked:', player.id, player.name);
+                                                                                const currentIds = localSelectedPlayerIds;
+                                                                                const newIds = isSelected
+                                                                                    ? currentIds.filter(id => id !== player.id)
+                                                                                    : [...currentIds, player.id];
+                                                                                console.log('📋 New IDs:', newIds);
+                                                                                // 🆕 Mettre à jour l'état local immédiatement pour le feedback visuel
+                                                                                setLocalSelectedPlayerIds(newIds);
+                                                                                // Puis envoyer à Firebase
+                                                                                onAction('updateVisiblePlayers', character.id, newIds);
+                                                                            }}
+                                                                        >
+                                                                            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${isSelected ? 'bg-purple-600 border-purple-600' : 'border-gray-500 bg-transparent'
+                                                                                }`}>
+                                                                                {isSelected && <Check size={12} className="text-white" strokeWidth={3} />}
+                                                                            </div>
+                                                                            {player.image && player.image.src ? (
+                                                                                <img src={player.image.src} className="w-6 h-6 rounded-full object-cover" alt={player.name} />
+                                                                            ) : (
+                                                                                <div className="w-6 h-6 rounded-full bg-blue-900 flex items-center justify-center text-[10px] text-white font-bold">
+                                                                                    {player.name[0]}
+                                                                                </div>
+                                                                            )}
+                                                                            <span className="text-xs text-gray-300 flex-1">{player.name}</span>
+                                                                        </div>
+                                                                    );
+                                                                })
+                                                            )}
+                                                        </div>
+                                                    )}
                                                 </>
                                             )}
 

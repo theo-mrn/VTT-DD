@@ -10,8 +10,9 @@ export type Character = {
     y: number;
     image: HTMLImageElement;
     imageUrl: string;
-    visibility: 'visible' | 'hidden' | 'ally';
+    visibility: 'visible' | 'hidden' | 'ally' | 'custom';
     visibilityRadius: number;
+    visibleToPlayerIds?: string[];
     type: string;
     PV: number;
     PV_Max?: number;
@@ -57,7 +58,8 @@ export type NewCharacter = {
     niveau: number;
     name: string;
     image: { src: string } | null;
-    visibility: 'visible' | 'hidden' | 'ally';
+    visibility: 'visible' | 'hidden' | 'ally' | 'custom';
+    visibleToPlayerIds?: string[];
     PV: number;
     PV_Max?: number;
     Defense: number;
@@ -87,10 +89,14 @@ export type MapObject = {
     height: number;
     rotation: number;
     imageUrl: string;
+    name?: string; // 🆕 Nom de l'objet depuis le template
     cityId: string | null;
     image?: HTMLImageElement; // Preloaded image for rendering
     isAnimated?: boolean;
     isBackground?: boolean;
+    isLocked?: boolean; // 🆕 Verrouiller le déplacement pour les joueurs
+    visibility?: 'visible' | 'hidden' | 'custom';
+    visibleToPlayerIds?: string[];
 };
 
 export type ObjectTemplate = {

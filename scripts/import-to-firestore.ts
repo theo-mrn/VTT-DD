@@ -42,9 +42,6 @@ interface AssetMapping {
 }
 
 async function importToFirestore() {
-    console.log('📥 Importing Asset Mappings to Firestore');
-    console.log('==========================================\n');
-
     // Initialize Firebase
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
