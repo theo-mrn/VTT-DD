@@ -184,6 +184,7 @@ export default function Component() {
   const params = useParams();
   const roomId = params.roomid as string;
   const { isMJ, persoId, viewAsPersoId, setViewAsPersoId } = useGame();
+  const { volumes: audioVolumes } = useAudioMixer();
   const [combatOpen, setCombatOpen] = useState(false);
   const [attackerId, setAttackerId] = useState<string | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
@@ -259,8 +260,9 @@ export default function Component() {
         video.src = objectUrl;
         video.autoplay = true;
         video.loop = true;
-        video.muted = !isBackgroundAudioEnabled;
-        video.volume = backgroundAudioVolume;
+        video.loop = true;
+        video.muted = audioVolumes.backgroundAudio === 0;
+        video.volume = audioVolumes.backgroundAudio;
         video.playsInline = true;
         // video.crossOrigin = "anonymous"; // Not needed for Blob URL
 
@@ -270,7 +272,6 @@ export default function Component() {
           video.play().catch(e => console.error("Video play error:", e));
         };
         video.onerror = () => {
-          console.error("Video load error");
           setIsBackgroundLoading(false);
         };
         videoRef.current = video;
@@ -282,7 +283,6 @@ export default function Component() {
           setIsBackgroundLoading(false);
         }
         img.onerror = () => {
-          console.error("Image load error");
           setIsBackgroundLoading(false);
         }
       }
@@ -301,8 +301,9 @@ export default function Component() {
       video.src = url;
       video.autoplay = true;
       video.loop = true;
-      video.muted = !isBackgroundAudioEnabled;
-      video.volume = backgroundAudioVolume;
+      video.loop = true;
+      video.muted = audioVolumes.backgroundAudio === 0;
+      video.volume = audioVolumes.backgroundAudio;
       video.playsInline = true;
       video.crossOrigin = "anonymous";
 
@@ -328,13 +329,17 @@ export default function Component() {
   useEffect(() => {
     // Background Video Logic
     if (bgImageObject instanceof HTMLVideoElement) {
+      // Sync Volume
+      bgImageObject.volume = audioVolumes.backgroundAudio;
+      bgImageObject.muted = audioVolumes.backgroundAudio === 0;
+
       if (performanceMode === 'static') {
         bgImageObject.pause();
       } else {
         bgImageObject.play().catch(() => { });
       }
     }
-  }, [bgImageObject, performanceMode]);
+  }, [bgImageObject, performanceMode, audioVolumes.backgroundAudio]);
 
 
   const [showGrid, setShowGrid] = useState(false)
@@ -386,7 +391,7 @@ export default function Component() {
   const [isAudioMixerOpen, setIsAudioMixerOpen] = useState(false)
 
   // Audio mixer volumes
-  const { volumes: audioVolumes } = useAudioMixer();
+
   const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [measurementScale, setMeasurementScale] = useState<number>(50); // px per unit
   const [isDraggingObject, setIsDraggingObject] = useState(false)
@@ -611,7 +616,6 @@ export default function Component() {
     { id: 'fog', label: 'Brouillard', isVisible: true, order: 6 },
     { id: 'obstacles', label: 'Obstacle', isVisible: true, order: 7 },
     { id: 'music', label: 'Musique (Zones)', isVisible: true, order: 8 },
-    { id: 'background_audio', label: 'Audio Fond', isVisible: true, order: 9 },
   ]);
 
   // 🎵 MUSIC ZONES STATE
@@ -632,13 +636,7 @@ export default function Component() {
   const [isResizingMusicZone, setIsResizingMusicZone] = useState(false);
   const [resizingMusicZoneId, setResizingMusicZoneId] = useState<string | null>(null);
 
-  // 🎵 BACKGROUND AUDIO STATE
-  const [backgroundAudioUrl, setBackgroundAudioUrl] = useState<string | null>(null);
-  const [backgroundAudioVolume, setBackgroundAudioVolume] = useState(0.5);
-  const [isBackgroundAudioEnabled, setIsBackgroundAudioEnabled] = useState(true);
-  const [showBackgroundAudioDialog, setShowBackgroundAudioDialog] = useState(false);
 
-  // 🎵 Update background video audio settings when they change
 
   // 🔊 AUDIO MANAGER - Moved after isLayerVisible declaration
 
@@ -704,28 +702,7 @@ export default function Component() {
     await updateDoc(doc(db, 'cartes', roomId, 'musicZones', id), { x, y });
   };
 
-  // 🎵 BACKGROUND AUDIO FUNCTIONS
-  const saveBackgroundAudio = async (url: string, volume: number, enabled: boolean) => {
-    if (!roomId) return;
-    const bgAudioDocId = selectedCityId ? `bgAudio_\${selectedCityId}` : 'bgAudio';
-    const bgAudioRef = doc(db, 'cartes', roomId, 'bgAudio', bgAudioDocId);
-    await setDoc(bgAudioRef, { url, volume, enabled }, { merge: true });
-  };
 
-  const updateBackgroundAudioVolume = async (volume: number) => {
-    if (!roomId) return;
-    const bgAudioDocId = selectedCityId ? `bgAudio_${selectedCityId}` : 'bgAudio';
-    const bgAudioRef = doc(db, 'cartes', roomId, 'bgAudio', bgAudioDocId);
-    await setDoc(bgAudioRef, { volume }, { merge: true });
-  };
-
-  const toggleBackgroundAudio = async () => {
-    if (!roomId) return;
-    const bgAudioDocId = selectedCityId ? `bgAudio_${selectedCityId}` : 'bgAudio';
-    const bgAudioRef = doc(db, 'cartes', roomId, 'bgAudio', bgAudioDocId);
-    const newState = !isBackgroundAudioEnabled;
-    await setDoc(bgAudioRef, { enabled: newState }, { merge: true });
-  };
 
   // 🔄 SYNC LAYERS AVEC FIREBASE
   useEffect(() => {
@@ -741,10 +718,11 @@ export default function Component() {
       { id: 'fog', label: 'Brouillard', isVisible: true, order: 6 },
       { id: 'obstacles', label: 'Obstacle', isVisible: true, order: 7 },
       { id: 'music', label: 'Musique (Zones)', isVisible: true, order: 8 },
-      { id: 'background_audio', label: 'Audio Fond', isVisible: true, order: 9 },
     ];
 
-    const layersRef = doc(db, 'cartes', roomId, 'settings', 'layers');
+    const getLayerDocId = () => selectedCityId ? `layers_${selectedCityId}` : 'layers';
+    const layersRef = doc(db, 'cartes', roomId, 'settings', getLayerDocId());
+
     const unsubscribe = onSnapshot(layersRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -764,14 +742,17 @@ export default function Component() {
           });
         }
       } else {
-        // Init default layers if doc doesn't exist
+        // Init default layers if doc doesn't exist used default visibility
+        // But for per-city, maybe we want to inherit from global? 
+        // For now let's just init defaults as requested: "independant de chaque ville"
         setDoc(layersRef, { layers: localLayersDef }, { merge: true });
+        // Don't necessarily reset local state if we just switched, but here we do to sync with "default" state of that city
         setLayers(localLayersDef);
       }
     });
 
     return () => unsubscribe();
-  }, [roomId]);
+  }, [roomId, selectedCityId]);
 
   const toggleLayer = async (layerId: LayerType) => {
     // Optimistic update (optional, but good for UI responsiveness)
@@ -782,7 +763,8 @@ export default function Component() {
 
     // Update in Firebase
     if (roomId) {
-      const layersRef = doc(db, 'cartes', roomId, 'settings', 'layers');
+      const getLayerDocId = () => selectedCityId ? `layers_${selectedCityId}` : 'layers';
+      const layersRef = doc(db, 'cartes', roomId, 'settings', getLayerDocId());
       await setDoc(layersRef, { layers: newLayers }, { merge: true });
     }
   };
@@ -2490,36 +2472,7 @@ export default function Component() {
 
           <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1 hidden sm:block" />
 
-          {/* Audio Mixer */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Fond</span>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`h-8 w-8 rounded-full transition-all ${!isBackgroundAudioEnabled ? 'text-red-400 bg-red-400/10' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
-              onClick={toggleBackgroundAudio}
-              title={isBackgroundAudioEnabled ? "Désactiver le son du fond" : "Activer le son du fond"}
-            >
-              {isBackgroundAudioEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-            </Button>
 
-            <div className="flex items-center gap-2 w-24">
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={backgroundAudioVolume}
-                onChange={(e) => {
-                  const vol = parseFloat(e.target.value);
-                  setBackgroundAudioVolume(vol);
-                }}
-                onMouseUp={() => updateBackgroundAudioVolume(backgroundAudioVolume)}
-                onTouchEnd={() => updateBackgroundAudioVolume(backgroundAudioVolume)}
-                className="h-1 w-full bg-gray-700 rounded-full appearance-none cursor-pointer accent-fuchsia-500"
-              />
-            </div>
-          </div>
         </div>
       );
     }
@@ -2992,7 +2945,7 @@ export default function Component() {
 
 
     // 🎵 DRAW MUSIC ZONES (Visible only for MJ, and not in Player View mode)
-    if (isMJ && !viewAsPersoId) {
+    if (isMJ && !viewAsPersoId && isLayerVisible('music')) {
       musicZones.forEach(zone => {
         const center = transformPoint({ x: zone.x, y: zone.y });
         const isSelected = selectedMusicZoneIds.includes(zone.id);
