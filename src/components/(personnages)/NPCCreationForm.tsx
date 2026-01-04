@@ -107,8 +107,8 @@ export const NPCCreationForm = React.memo(({
                             {/* Token Preview */}
                             <div className="relative z-10 group cursor-pointer" onClick={() => setIsImageDialogOpen(true)}>
                                 <div className="w-32 h-32 lg:w-48 lg:h-48 rounded-full border-4 shadow-[0_0_30px_rgba(0,0,0,0.5)] flex items-center justify-center overflow-hidden bg-[#222] transition-all duration-300 group-hover:shadow-[0_0_50px_rgba(192,160,128,0.3)] border-[#c0a080]">
-                                    {char.image ? (
-                                        <img src={char.image.src} alt="Token" className="w-full h-full object-cover" />
+                                    {char.image && (typeof char.image === 'object' ? char.image.src : char.image) ? (
+                                        <img src={typeof char.image === 'object' ? char.image.src : char.image} alt="Token" className="w-full h-full object-cover" />
                                     ) : (
                                         <User className="w-16 h-16 lg:w-20 lg:h-20 text-gray-600 opacity-50" />
                                     )}
@@ -325,7 +325,7 @@ export const NPCCreationForm = React.memo(({
                 isOpen={isImageDialogOpen}
                 onClose={() => setIsImageDialogOpen(false)}
                 onSelectImage={handleImageSelect}
-                currentImage={char.image?.src}
+                currentImage={typeof char.image === 'object' ? char.image?.src : char.image}
             />
         </div>
     )

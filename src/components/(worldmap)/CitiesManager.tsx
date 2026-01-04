@@ -3,14 +3,14 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useGame } from "@/contexts/GameContext";
-import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "@/lib/firebase";
+import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where, writeBatch } from "@/lib/firebase";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Trash2, Edit2, Plus, Image as ImageIcon, Search, MoreVertical, Map as MapIcon, Upload, FolderPlus, Folder, X, ChevronRight } from "lucide-react";
+import { Trash2, Edit2, Plus, Image as ImageIcon, Search, MoreVertical, Map as MapIcon, Upload, FolderPlus, Folder, X, ChevronRight, Users, User as UserIcon, Navigation } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -32,18 +32,27 @@ interface SceneGroup {
     order?: number;
 }
 
+interface PlayerCharacter {
+    id: string;
+    name: string;
+    image?: string;
+    currentSceneId?: string; // To track where they currently are
+}
+
 interface CitiesManagerProps {
     onCitySelect?: (cityId: string) => void;
     roomId?: string;
     onClose?: () => void; // New prop to close drawer
+    globalCityId?: string | null;
 }
 
-export default function CitiesManager({ onCitySelect, roomId, onClose }: CitiesManagerProps) {
+export default function CitiesManager({ onCitySelect, roomId, onClose, globalCityId }: CitiesManagerProps) {
     const { user, isMJ } = useGame();
     const effectiveRoomId = roomId || user?.roomId;
 
     const [scenes, setScenes] = useState<Scene[]>([]);
     const [groups, setGroups] = useState<SceneGroup[]>([]);
+    const [players, setPlayers] = useState<PlayerCharacter[]>([]); // Liste des joueurs pour le déplacement
     const [searchQuery, setSearchQuery] = useState("");
 
     // Safety: Prevent immediate closing on mount (e.g. from lingering click events)
@@ -71,6 +80,12 @@ export default function CitiesManager({ onCitySelect, roomId, onClose }: CitiesM
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
     const [isUploadingImage, setIsUploadingImage] = useState(false); // État de chargement pour l'upload
 
+    // Déplacement
+    const [showMoveDialog, setShowMoveDialog] = useState(false);
+    const [moveTargetCity, setMoveTargetCity] = useState<Scene | null>(null);
+    const [moveMode, setMoveMode] = useState<'all' | 'select'>('all');
+    const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set());
+
     // Charger les scènes
     useEffect(() => {
         if (!effectiveRoomId) return;
@@ -90,6 +105,27 @@ export default function CitiesManager({ onCitySelect, roomId, onClose }: CitiesM
             const loadedGroups: SceneGroup[] = [];
             snapshot.forEach((doc) => loadedGroups.push({ id: doc.id, ...doc.data() } as SceneGroup));
             setGroups(loadedGroups);
+        });
+        return () => unsubscribe();
+        return () => unsubscribe();
+    }, [effectiveRoomId]);
+
+    // Charger les joueurs (pour le menu de déplacement)
+    useEffect(() => {
+        if (!effectiveRoomId) return;
+        const q = query(collection(db, `cartes/${effectiveRoomId}/characters`), where("type", "==", "joueurs"));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const loadedPlayers: PlayerCharacter[] = [];
+            snapshot.forEach((doc) => {
+                const data = doc.data();
+                loadedPlayers.push({
+                    id: doc.id,
+                    name: data.Nomperso || "Inconnu",
+                    image: data.imageURLFinal || data.imageURL || data.imageURL2,
+                    currentSceneId: data.currentSceneId
+                });
+            });
+            setPlayers(loadedPlayers);
         });
         return () => unsubscribe();
     }, [effectiveRoomId]);
@@ -202,6 +238,67 @@ export default function CitiesManager({ onCitySelect, roomId, onClose }: CitiesM
         await deleteDoc(doc(db, `cartes/${effectiveRoomId}/cities/${id}`));
     };
 
+    // --- Gestion des Déplacements ---
+
+    const handleMoveClick = (scene: Scene, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMoveTargetCity(scene);
+        setMoveMode('all');
+        setSelectedPlayerIds(new Set()); // Reset selection
+        setShowMoveDialog(true);
+    };
+
+    const togglePlayerSelection = (playerId: string) => {
+        const newSet = new Set(selectedPlayerIds);
+        if (newSet.has(playerId)) {
+            newSet.delete(playerId);
+        } else {
+            newSet.add(playerId);
+        }
+        setSelectedPlayerIds(newSet);
+    };
+
+    const handleExecuteMove = async () => {
+        if (!effectiveRoomId || !moveTargetCity) return;
+
+        try {
+            const batch = writeBatch(db);
+            const charactersRef = collection(db, `cartes/${effectiveRoomId}/characters`);
+
+            // 1. Si mode "groupe" (Classique)
+            if (moveMode === 'all') {
+                // A. Mettre à jour le setting global
+                const settingsRef = doc(db, `cartes/${effectiveRoomId}/settings/general`);
+                batch.update(settingsRef, { currentCityId: moveTargetCity.id });
+
+                // B. Réinitialiser les positions individuelles de TOUS les joueurs (pour qu'ils suivent le global)
+                // On doit le faire pour tous les joueurs trouvés
+                players.forEach(p => {
+                    const charRef = doc(charactersRef, p.id);
+                    batch.update(charRef, { currentSceneId: null }); // Remove override
+                });
+
+                if (onCitySelect) onCitySelect(moveTargetCity.id);
+            }
+            // 2. Si mode "sélection" (Individuel)
+            else {
+                // Mettre à jour uniquement les joueurs sélectionnés avec l'ID de la scène
+                selectedPlayerIds.forEach(pId => {
+                    const charRef = doc(charactersRef, pId);
+                    batch.update(charRef, { currentSceneId: moveTargetCity.id });
+                });
+            }
+
+            await batch.commit();
+            console.log(`✅ [CitiesManager] Moved ${moveMode === 'all' ? 'everyone' : selectedPlayerIds.size + ' players'} to ${moveTargetCity.name}`);
+            setShowMoveDialog(false);
+
+        } catch (error) {
+            console.error("❌ [CitiesManager] Error executing move:", error);
+            alert("Erreur lors du déplacement.");
+        }
+    };
+
 
     const handleSceneBackgroundUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -255,73 +352,132 @@ export default function CitiesManager({ onCitySelect, roomId, onClose }: CitiesM
         }
     });
 
-    const renderSceneCard = (scene: Scene, index: number) => (
-        <motion.div
-            key={scene.id}
-            layout
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.2, delay: index * 0.05 }}
-            onClick={() => onCitySelect && onCitySelect(scene.id)}
-            className="group relative h-40 bg-[#121212] border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-[#c0a080]/50 hover:shadow-xl hover:shadow-[#c0a080]/10 transition-all duration-300"
-        >
-            <div className="absolute inset-0">
-                {scene.backgroundUrl ? (
-                    isVideo(scene.backgroundUrl) ? (
-                        <video
-                            src={scene.backgroundUrl}
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                            autoPlay
-                            muted
-                            loop
-                            playsInline
-                        />
+    const renderSceneCard = (scene: Scene, index: number) => {
+        // Logic to find players in this scene
+        const playersExplicitlyHere = players.filter(p => p.currentSceneId === scene.id);
+        const playersImplicitlyHere = players.filter(p => !p.currentSceneId && globalCityId === scene.id);
+        const allPlayersHere = [...playersExplicitlyHere, ...playersImplicitlyHere];
+        const isGlobalLocation = globalCityId === scene.id;
+
+        return (
+            <motion.div
+                key={scene.id}
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ duration: 0.2, delay: index * 0.05 }}
+                onClick={() => onCitySelect && onCitySelect(scene.id)}
+                className="group relative h-40 bg-[#121212] border border-white/10 rounded-xl overflow-hidden cursor-pointer hover:border-[#c0a080]/50 hover:shadow-xl hover:shadow-[#c0a080]/10 transition-all duration-300"
+            >
+                <div className="absolute inset-0">
+                    {scene.backgroundUrl ? (
+                        isVideo(scene.backgroundUrl) ? (
+                            <video
+                                src={scene.backgroundUrl}
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                                autoPlay
+                                muted
+                                loop
+                                playsInline
+                            />
+                        ) : (
+                            <img
+                                src={scene.backgroundUrl}
+                                alt={scene.name}
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                            />
+                        )
                     ) : (
-                        <img
-                            src={scene.backgroundUrl}
-                            alt={scene.name}
-                            className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                        />
+                        <div className="w-full h-full bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] flex items-center justify-center">
+                            <MapIcon className="w-8 h-8 text-white/5 group-hover:text-[#c0a080]/20 transition-colors" />
+                        </div>
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-80" />
+                </div>
+
+
+
+                {/* Move Button (Bottom Right) */}
+                {
+                    isMJ && (
+                        <div className="absolute bottom-3 right-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                            <Button
+                                size="sm"
+                                className="h-8 bg-[#c0a080] text-black hover:bg-[#d4b594] font-bold shadow-lg text-xs"
+                                onClick={(e) => handleMoveClick(scene, e)}
+                            >
+                                <Navigation className="w-3 h-3 mr-1" /> Aller
+                            </Button>
+                        </div>
                     )
-                ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-[#1a1a1a] to-[#0a0a0a] flex items-center justify-center">
-                        <MapIcon className="w-8 h-8 text-white/5 group-hover:text-[#c0a080]/20 transition-colors" />
+                }
+
+                <div className="absolute bottom-0 left-0 right-0 p-4 pt-10 text-left">
+                    <h3 className="text-base font-bold text-white group-hover:text-[#c0a080] transition-colors leading-none mb-1 shadow-black drop-shadow-md truncate">
+                        {scene.name}
+                    </h3>
+                    {/* 📍 Location Status */}
+                    {isGlobalLocation && (
+                        <div className="flex items-center gap-1 text-[10px] text-[#c0a080] font-medium uppercase tracking-wider mt-1">
+                            <MapIcon className="w-3 h-3" /> Position Groupe
+                        </div>
+                    )}
+                </div>
+
+                {/* 👤 Players Avatars */}
+                {allPlayersHere.length > 0 && (
+                    <div className="absolute top-2 left-2 flex -space-x-2 z-20">
+                        {allPlayersHere.map((p, i) => (
+                            <div key={p.id} className="relative group/avatar" style={{ zIndex: 10 + i }}>
+                                <div className={cn(
+                                    "w-6 h-6 rounded-full border border-white/20 bg-black overflow-hidden shadow-lg",
+                                    p.currentSceneId ? "ring-2 ring-blue-500/50" : "ring-1 ring-white/10"
+                                )}>
+                                    {p.image ? (
+                                        <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center bg-zinc-800 text-[8px] text-white">
+                                            {p.name.substring(0, 2)}
+                                        </div>
+                                    )}
+                                </div>
+                                {/* Tooltip Name */}
+                                <div className="absolute left-1/2 -bottom-4 -translate-x-1/2 opacity-0 group-hover/avatar:opacity-100 bg-black/80 text-[10px] text-white px-1.5 py-0.5 rounded pointer-events-none whitespace-nowrap transition-opacity">
+                                    {p.name}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 )}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-80" />
-            </div>
 
-            <div className="absolute bottom-0 left-0 right-0 p-4 pt-10 text-left">
-                <h3 className="text-base font-bold text-white group-hover:text-[#c0a080] transition-colors leading-none mb-1 shadow-black drop-shadow-md truncate">
-                    {scene.name}
-                </h3>
-            </div>
-
-            {isMJ && (
-                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button size="icon" variant="secondary" className="h-6 w-6 bg-black/40 text-white hover:bg-black/60 shadow-md backdrop-blur-md border border-white/10" onClick={(e) => e.stopPropagation()}>
-                                <MoreVertical className="w-3 h-3" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-[#1a1a1a] border-white/10 text-white">
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(scene); }}>
-                                <Edit2 className="w-4 h-4 mr-2" /> Modifier
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                                onClick={(e) => { e.stopPropagation(); handleDelete(scene.id, e); }}
-                                className="text-red-400 focus:text-red-400 focus:bg-red-400/10"
-                            >
-                                <Trash2 className="w-4 h-4 mr-2" /> Supprimer
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
-            )}
-        </motion.div>
-    );
+                {
+                    isMJ && (
+                        <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button size="icon" variant="secondary" className="h-6 w-6 bg-black/40 text-white hover:bg-black/60 shadow-md backdrop-blur-md border border-white/10" onClick={(e) => e.stopPropagation()}>
+                                        <MoreVertical className="w-3 h-3" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="bg-[#1a1a1a] border-white/10 text-white">
+                                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(scene); }}>
+                                        <Edit2 className="w-4 h-4 mr-2" /> Modifier
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                        onClick={(e) => { e.stopPropagation(); handleDelete(scene.id, e); }}
+                                        className="text-red-400 focus:text-red-400 focus:bg-red-400/10"
+                                    >
+                                        <Trash2 className="w-4 h-4 mr-2" /> Supprimer
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                    )
+                }
+            </motion.div >
+        );
+    };
 
     return (
         <>
@@ -573,6 +729,106 @@ export default function CitiesManager({ onCitySelect, roomId, onClose }: CitiesM
                         <DialogFooter>
                             <Button variant="ghost" onClick={() => setShowGroupForm(false)}>Annuler</Button>
                             <Button onClick={handleSaveGroup} className="bg-[#c0a080] text-black">Valider</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+
+
+                {/* Move Selection Dialog */}
+                <Dialog open={showMoveDialog} onOpenChange={setShowMoveDialog}>
+                    <DialogContent className="bg-[#111] border border-white/10 text-white sm:max-w-[450px] z-[60]">
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2">
+                                <Navigation className="w-5 h-5 text-[#c0a080]" />
+                                Déplacement vers : <span className="text-[#c0a080]">{moveTargetCity?.name}</span>
+                            </DialogTitle>
+                            <DialogDescription>
+                                Choisissez qui doit être déplacé vers ce lieu.
+                            </DialogDescription>
+                        </DialogHeader>
+
+                        <div className="space-y-4 py-4">
+                            <div className="flex bg-white/5 p-1 rounded-lg">
+                                <button
+                                    onClick={() => setMoveMode('all')}
+                                    className={cn(
+                                        "flex-1 py-2 text-sm font-medium rounded-md transition-all",
+                                        moveMode === 'all' ? "bg-[#c0a080] text-black shadow" : "text-gray-400 hover:text-white"
+                                    )}
+                                >
+                                    Tout le groupe
+                                </button>
+                                <button
+                                    onClick={() => setMoveMode('select')}
+                                    className={cn(
+                                        "flex-1 py-2 text-sm font-medium rounded-md transition-all",
+                                        moveMode === 'select' ? "bg-[#c0a080] text-black shadow" : "text-gray-400 hover:text-white"
+                                    )}
+                                >
+                                    Sélection
+                                </button>
+                            </div>
+
+                            {moveMode === 'all' ? (
+                                <div className="p-4 border border-white/10 rounded-lg bg-white/5 text-center text-sm text-gray-300">
+                                    <p>Déplacer tout le groupe vers <strong>{moveTargetCity?.name}</strong>.</p>
+                                    <p className="text-xs text-gray-500 mt-2">Cela réinitialisera aussi les positions individuelles.</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2 max-h-[250px] overflow-y-auto custom-scrollbar p-1">
+                                    {players.map(player => (
+                                        <div
+                                            key={player.id}
+                                            onClick={() => togglePlayerSelection(player.id)}
+                                            className={cn(
+                                                "flex items-center gap-3 p-2 rounded-lg border cursor-pointer transition-all",
+                                                selectedPlayerIds.has(player.id)
+                                                    ? "bg-[#c0a080]/10 border-[#c0a080] shadow-[0_0_10px_rgba(192,160,128,0.1)]"
+                                                    : "bg-white/5 border-transparent hover:bg-white/10"
+                                            )}
+                                        >
+                                            <div className="w-5 h-5 rounded border border-white/30 flex items-center justify-center flex-shrink-0 transition-colors">
+                                                {selectedPlayerIds.has(player.id) && (
+                                                    <div className="w-3 h-3 bg-[#c0a080] rounded-[2px]" />
+                                                )}
+                                            </div>
+
+                                            {player.image ? (
+                                                <img src={player.image} alt={player.name} className="w-8 h-8 rounded-full object-cover bg-black" />
+                                            ) : (
+                                                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                                                    <UserIcon className="w-4 h-4 text-white/50" />
+                                                </div>
+                                            )}
+
+                                            <div className="flex-1">
+                                                <p className={cn("text-sm font-medium", selectedPlayerIds.has(player.id) ? "text-[#c0a080]" : "text-white")}>
+                                                    {player.name}
+                                                </p>
+                                                {player.currentSceneId && (
+                                                    <p className="text-xs text-gray-500">
+                                                        Actuellement à : {scenes.find(s => s.id === player.currentSceneId)?.name || 'Inconnu'}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {players.length === 0 && (
+                                        <p className="text-sm text-gray-500 text-center py-4">Aucun joueur trouvé.</p>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        <DialogFooter>
+                            <Button variant="ghost" onClick={() => setShowMoveDialog(false)}>Annuler</Button>
+                            <Button
+                                onClick={handleExecuteMove}
+                                className="bg-[#c0a080] text-black hover:bg-[#d4b594]"
+                                disabled={moveMode === 'select' && selectedPlayerIds.size === 0}
+                            >
+                                Confirmer
+                            </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>

@@ -93,7 +93,7 @@ export default function ContextMenuPanel({
                         <div className="absolute inset-0 bg-[#111] opacity-50 z-0">
                             {character.image && (
                                 <img
-                                    src={character.image.src || ""}
+                                    src={typeof character.image === 'object' ? character.image.src : character.image}
                                     className="w-full h-full object-cover blur-sm opacity-30"
                                     alt=""
                                 />
@@ -111,7 +111,7 @@ export default function ContextMenuPanel({
                             </Button>
 
                             <Avatar className={`${!isMJ && character.type !== 'joueurs' ? 'h-32 w-32' : 'h-24 w-24'} border-4 border-[#c0a080] shadow-lg`}>
-                                <AvatarImage src={character.image?.src} className="object-cover" />
+                                <AvatarImage src={typeof character.image === 'object' ? character.image.src : character.image} className="object-cover" />
                                 <AvatarFallback className="bg-[#2a2a2a] text-2xl">{character.name[0]}</AvatarFallback>
                             </Avatar>
 
@@ -358,8 +358,8 @@ export default function ContextMenuPanel({
                                                                                 }`}>
                                                                                 {isSelected && <Check size={12} className="text-white" strokeWidth={3} />}
                                                                             </div>
-                                                                            {player.image && player.image.src ? (
-                                                                                <img src={player.image.src} className="w-6 h-6 rounded-full object-cover" alt={player.name} />
+                                                                            {player.image && (typeof player.image === 'object' ? player.image.src : player.image) ? (
+                                                                                <img src={typeof player.image === 'object' ? player.image.src : player.image} className="w-6 h-6 rounded-full object-cover" alt={player.name} />
                                                                             ) : (
                                                                                 <div className="w-6 h-6 rounded-full bg-blue-900 flex items-center justify-center text-[10px] text-white font-bold">
                                                                                     {player.name[0]}

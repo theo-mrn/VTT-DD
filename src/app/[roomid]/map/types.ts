@@ -1,65 +1,89 @@
+
 export type ViewMode = 'world' | 'city';
 
-export type Point = { x: number; y: number };
+export interface Point {
+    x: number;
+    y: number;
+}
 
-export type Character = {
-    niveau: number;
+export interface Character {
     id: string;
+    type: 'joueurs' | 'pnj' | 'monster';
     name: string;
     x: number;
     y: number;
-    image: HTMLImageElement;
-    imageUrl: string;
-    visibility: 'visible' | 'hidden' | 'ally' | 'custom';
-    visibilityRadius: number;
-    visibleToPlayerIds?: string[];
-    type: string;
-    PV: number;
+    scale?: number;
+    imageUrl?: string | { src: string };
+    image?: string | { src: string };
+    PV?: number;
     PV_Max?: number;
-    Defense: number;
-    Contact: number;
+    visible?: boolean;
+    niveau?: number;
+    conditions?: string[];
+    visibility?: 'public' | 'gm_only' | 'ally' | 'hidden' | 'visible' | 'custom';
+    visibilityRadius?: number;
+
+    visibleToPlayerIds?: string[];
+    rotation?: number;
+    size?: number;
+    currentSceneId?: string | null;
+    cityId?: string;
+    stats?: {
+        str: number;
+        dex: number;
+        con: number;
+        int: number;
+        wis: number;
+        cha: number;
+    };
+    initiative?: number;
+    Actions?: any[];
+    Contactable?: boolean;
+    Contact?: number;
+    Defense?: number;
     Distance: number;
     Magie: number;
     INIT: number;
+    nombre: number;
     FOR: number;
     DEX: number;
     CON: number;
     SAG: number;
     INT: number;
     CHA: number;
-    scale?: number;
-    conditions?: string[];
-    Actions?: Array<{
-        Nom: string;
-        Description: string;
-        Toucher: number;
-    }>;
-};
+}
 
-export type MapText = {
+export interface MapText {
     id: string;
-    text: string;
     x: number;
     y: number;
+    text: string;
     color: string;
-    fontSize?: number;
+    fontSize: number;
     fontFamily?: string;
-};
+    isVisible?: boolean;
+}
 
-export type SavedDrawing = {
+export type DrawingTool = 'pen' | 'brush' | 'eraser' | 'line' | 'rectangle' | 'circle';
+
+export interface SavedDrawing {
     id: string;
     points: Point[];
     color: string;
     width: number;
-    type?: 'pen' | 'line' | 'rectangle' | 'circle';
-};
+    type: DrawingTool;
+    fill?: string;
+    closed?: boolean;
+    smooth?: boolean;
+    cityId?: string | null;
+}
 
-export type NewCharacter = {
-    niveau: number;
+export interface NewCharacter {
     name: string;
-    image: { src: string } | null;
-    visibility: 'visible' | 'hidden' | 'ally' | 'custom';
-    visibleToPlayerIds?: string[];
+    image: string | { src: string } | null;
+    niveau: number;
+    visibility: 'hidden' | 'visible' | 'public' | 'gm_only' | 'custom' | 'ally';
+    visibilityRadius?: number;
     PV: number;
     PV_Max?: number;
     Defense: number;
@@ -74,69 +98,84 @@ export type NewCharacter = {
     SAG: number;
     INT: number;
     CHA: number;
-    Actions?: Array<{
-        Nom: string;
-        Description: string;
-        Toucher: number;
-    }>;
-};
+    Actions?: any[];
+    type?: 'joueurs' | 'pnj' | 'monster';
+}
 
-export type MapObject = {
+export interface Note {
+    id: string;
+    x: number;
+    y: number;
+    text: string;
+    title?: string;
+    color?: string;
+    authorId?: string;
+    visibleToPlayers?: boolean;
+}
+
+export interface MapObject {
     id: string;
     x: number;
     y: number;
     width: number;
+    name: string;
     height: number;
     rotation: number;
     imageUrl: string;
-    name?: string; // 🆕 Nom de l'objet depuis le template
-    cityId: string | null;
-    image?: HTMLImageElement; // Preloaded image for rendering
-    isAnimated?: boolean;
+    image?: CanvasImageSource | null;
+    type: 'decors' | 'weapon' | 'item';
+    visible?: boolean;
+    locked?: boolean;
+    visibility?: 'visible' | 'hidden' | 'public' | 'gm_only' | 'custom';
     isBackground?: boolean;
-    isLocked?: boolean; // 🆕 Verrouiller le déplacement pour les joueurs
-    visibility?: 'visible' | 'hidden' | 'custom';
+    isLocked?: boolean;
     visibleToPlayerIds?: string[];
-};
+    cityId?: string | null;
+}
 
-export type ObjectTemplate = {
+export interface ObjectTemplate {
     id: string;
     name: string;
     imageUrl: string;
-    width?: number; // Default width
-    height?: number; // Default height
     category?: string;
-    isAnimated?: boolean;
-};
-
-export type Note = {
-    text?: string;
-    id?: string;
-    color?: string;
-    fontSize?: number;
-    fontFamily?: string;
-};
-
-export type DrawingTool = 'pen' | 'eraser' | 'line' | 'rectangle' | 'circle';
-
-export type DrawingMode = 'drawing' | 'view';
-
-export type LayerType = 'background' | 'grid' | 'drawings' | 'objects' | 'characters' | 'fog' | 'notes' | 'obstacles' | 'music' | 'background_audio';
+    defaultWidth?: number;
+    defaultHeight?: number;
+}
 
 export interface Layer {
-    id: LayerType;
+    id: string;
     label: string;
     isVisible: boolean;
     order: number;
+    type?: LayerType;
+    locked?: boolean;
+    opacity?: number;
+    // New fields for fog
+    grid?: Map<string, boolean>; // or similar
 }
 
-export type MusicZone = {
+export type LayerType = 'background' | 'grid' | 'tokens' | 'objects' | 'drawings' | 'fog' | 'notes' | 'music' | 'background_audio' | 'obstacles' | 'characters';
+
+export interface MusicZone {
     id: string;
     x: number;
     y: number;
     radius: number;
-    url: string;
-    name: string;
+    trackId?: string;
     volume: number;
-    cityId: string | null;
-};
+    name?: string;
+    color?: string;
+    url?: string | null;
+    cityId?: string | null;
+}
+
+export interface Scene {
+    id: string;
+    name: string;
+    description?: string;
+    visibleToPlayers?: boolean;
+    backgroundUrl?: string;
+    groupId?: string;
+    x?: number;
+    y?: number;
+}
