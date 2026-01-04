@@ -83,7 +83,7 @@ export default function Layout({ children }: LayoutProps) {
       case "NewComponent":
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1200px]";
       case "Chat":
-        return "w-full sm:w-[90vw] md:w-[500px] lg:w-[600px]";
+        return "w-full sm:w-[500px] md:w-[600px] lg:w-[800px]";
       default:
         return "w-full sm:w-[90vw] md:w-[80vw] lg:w-[700px]";
     }
