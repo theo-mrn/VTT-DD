@@ -1119,13 +1119,27 @@ export default function Component() {
 
   // 🆕 EFFET DE SYNCHRONISATION DE SCÈNE (PRIORITÉ AU PERSONNAGE)
   useEffect(() => {
-    // Si MJ, on ne force pas (sauf si on veut suivre, mais généralement MJ est libre)
-    // On peut ajouter une option "Suivre le groupe" plus tard pour le MJ
-    if (isMJ) return;
+    // Si MJ, on autorise la navigation automatique si aucune ville n'est déjà sélectionnée
+    // On force aussi le mode 'world' (drawer) si aucune ville n'est définie
+    if (isMJ) {
+      if (!selectedCityId) {
+        if (globalCityId) {
+          console.log('🔀 [Sync MJ] Navigation vers la ville du groupe:', globalCityId);
+          setSelectedCityId(globalCityId);
+          setViewMode('city');
+        } else if (viewMode === 'city') {
+          console.log('🌍 [Sync MJ] Pas de ville définie, retour à la carte du monde');
+          setViewMode('world');
+        }
+      }
+      return;
+    }
 
-    // 🔍 Find my character in the RAW loaded players (because 'characters' state might filter me out if I'm not in this scene!)
+    // 🔍 Find my character in the RAW loaded players
     const myPlayerDoc = loadedPlayersRef.current.find(doc => doc.id === persoId);
-    const mySceneId = myPlayerDoc ? myPlayerDoc.data().currentSceneId : null;
+    if (!myPlayerDoc) return;
+
+    const mySceneId = myPlayerDoc.data().currentSceneId || null;
 
     // 1. Si mon personnage a une scène assignée, j'y vais
     if (mySceneId) {
@@ -1137,14 +1151,14 @@ export default function Component() {
     }
     // 2. Sinon, je suis le groupe (globalCityId)
     else if (globalCityId) {
-      // Seulement si je ne suis pas déjà dessus (et que je n'ai pas d'override perso)
+      // Seulement si je ne suis pas déjà dessus
       if (selectedCityId !== globalCityId) {
         console.log('🔀 [Sync] Moving to global group scene:', globalCityId);
         setSelectedCityId(globalCityId);
         setViewMode('city');
       }
     }
-  }, [globalCityId, characters, persoId, isMJ, selectedCityId]);
+  }, [globalCityId, persoId, isMJ, selectedCityId, viewMode, characters]);
 
   // 2. NOW USE THEM IN EFFECT
   useEffect(() => {

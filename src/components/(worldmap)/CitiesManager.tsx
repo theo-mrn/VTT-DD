@@ -14,6 +14,8 @@ import { Trash2, Edit2, Plus, Image as ImageIcon, Search, MoreVertical, Map as M
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import BackgroundSelector from "@/components/(map)/BackgroundSelector";
+
 
 interface Scene {
     id: string;
@@ -79,6 +81,8 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
     const [groupFormData, setGroupFormData] = useState({ name: "" });
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
     const [isUploadingImage, setIsUploadingImage] = useState(false); // État de chargement pour l'upload
+    const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
+
 
     // Déplacement
     const [showMoveDialog, setShowMoveDialog] = useState(false);
@@ -632,7 +636,8 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                         <div className="space-y-6 mt-4">
                             <div className="space-y-2">
                                 <Label className="uppercase text-xs font-bold text-gray-500 tracking-wider">Visuel</Label>
-                                <div className="relative w-full aspect-video bg-white/5 border border-white/10 rounded-lg overflow-hidden group hover:border-[#c0a080]/50 transition-colors cursor-pointer" onClick={() => !isUploadingImage && sceneBackgroundInputRef.current?.click()}>
+                                <div className="relative w-full aspect-video bg-white/5 border border-white/10 rounded-lg overflow-hidden group hover:border-[#c0a080]/50 transition-colors cursor-pointer" onClick={() => setShowBackgroundSelector(true)}>
+
                                     {isUploadingImage ? (
                                         <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2">
                                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#c0a080]"></div>
@@ -660,8 +665,9 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                         <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-2"><ImageIcon className="w-10 h-10 opacity-50" /><span className="text-xs">Ajouter image/vidéo</span></div>
                                     )}
                                 </div>
-                                <input ref={sceneBackgroundInputRef} type="file" accept="image/*,video/webm" className="hidden" onChange={handleSceneBackgroundUpload} disabled={isUploadingImage} />
                             </div>
+
+
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -833,7 +839,14 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                     </DialogContent>
                 </Dialog>
 
-            </motion.div>
+            </motion.div >
+
+            <BackgroundSelector
+                isOpen={showBackgroundSelector}
+                onClose={() => setShowBackgroundSelector(false)}
+                onSelectLocal={(path) => setFormData(prev => ({ ...prev, backgroundUrl: path }))}
+                onUpload={handleSceneBackgroundUpload}
+            />
         </>
     );
 }
