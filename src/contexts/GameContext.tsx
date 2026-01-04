@@ -202,34 +202,25 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Fonction pour restaurer les données du joueur depuis Firebase
   const restorePlayerDataFromFirebase = useCallback(async (uid: string) => {
     try {
-      console.log('🔍 Restoring player data from Firebase for uid:', uid);
       const userRef = doc(db, 'users', uid);
       const userDoc = await getDoc(userRef);
 
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        console.log('📊 User data from Firebase:', userData);
-        console.log('🎭 Role:', userData.role);
-        console.log('👤 PersoId:', userData.persoId);
-        console.log('🏠 RoomId:', userData.room_id);
 
         // Logique corrigée : Prioriser le champ 'role' pour déterminer si l'utilisateur est MJ
         if (userData.role === 'MJ') {
-          console.log('✅ User has MJ role, treating as MJ');
           setIsMJ(true);
           setPersoId(userData.persoId || null);
           setPlayerData(null);
-          console.log("🎭 User restored as MJ");
 
           // Si le MJ a aussi un persoId, charger les données du personnage pour référence
           if (userData.persoId && userData.room_id) {
-            console.log('📥 Loading MJ character data for reference:', userData.persoId);
             const characterRef = doc(db, `cartes/${userData.room_id}/characters`, userData.persoId);
             const characterDoc = await getDoc(characterRef);
 
             if (characterDoc.exists()) {
               const characterData = characterDoc.data();
-              console.log('🧙‍♂️ MJ character data loaded for reference:', characterData);
 
               const fullCharacterData: PlayerData = {
                 id: userData.persoId,
@@ -260,16 +251,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
             }
           }
         } else if (userData.persoId && userData.room_id) {
-          console.log('✅ User has persoId and no MJ role, treating as PLAYER');
-
           // Récupérer les données complètes du personnage
-          console.log('📥 Loading character data for persoId:', userData.persoId);
           const characterRef = doc(db, `cartes/${userData.room_id}/characters`, userData.persoId);
           const characterDoc = await getDoc(characterRef);
 
           if (characterDoc.exists()) {
             const characterData = characterDoc.data();
-            console.log('🧙‍♂️ Character data loaded:', characterData);
 
             const fullCharacterData: PlayerData = {
               id: userData.persoId,
@@ -355,11 +342,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setIsHydrated(true);
     }
   }, []);
-
-  // Debug: Log des changements d'état
-  useEffect(() => {
-    console.log('Game Context State:', { isMJ, persoId, playerData: playerData?.Nomperso, isHydrated });
-  }, [isMJ, persoId, playerData, isHydrated]);
 
   // Gestion de l'authentification avec restauration automatique
   useEffect(() => {

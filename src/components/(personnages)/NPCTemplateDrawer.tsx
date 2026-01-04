@@ -60,7 +60,6 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
 
     // Update filter when current city changes
     useEffect(() => {
-        console.log('CurrentCityId updated:', currentCityId)
         setSelectedCityFilter(currentCityId || 'all')
     }, [currentCityId])
 

@@ -74,11 +74,9 @@ export default function CitiesManager({ onCitySelect, roomId, onClose }: CitiesM
     // Charger les scènes
     useEffect(() => {
         if (!effectiveRoomId) return;
-        console.log('🏰 [CitiesManager] Setting up scenes listener for roomId:', effectiveRoomId);
         const unsubscribe = onSnapshot(collection(db, `cartes/${effectiveRoomId}/cities`), (snapshot) => {
             const loaded: Scene[] = [];
             snapshot.forEach((doc) => loaded.push({ id: doc.id, ...doc.data() } as Scene));
-            console.log('🏰 [CitiesManager] Scenes loaded from Firebase:', loaded.length, 'scenes:', loaded.map(s => ({ id: s.id, name: s.name })));
             setScenes(loaded);
         });
         return () => unsubscribe();

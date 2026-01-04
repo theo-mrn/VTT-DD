@@ -85,7 +85,6 @@ export const useAudioZones = (
                     const normalizedDistance = distance / audioRadius; // 0 at center, 1 at edge
                     const falloff = 1 - (normalizedDistance * normalizedDistance); // Quadratic
                     vol = zone.volume * falloff * masterVolume; // Apply master volume from mixer
-                    console.log(`🔊 [useAudioZones] Zone "${zone.name}": zoneVol=${zone.volume}, falloff=${falloff.toFixed(2)}, master=${masterVolume}, final=${vol.toFixed(3)}`);
                 }
 
                 // Exponential/Logarithmic falloff feels more natural usually, but let's stick to linear for now as requested "plus ou moins"
