@@ -283,8 +283,8 @@ export default function ObjectContextMenu({
                                                                 }`}>
                                                                 {isSelected && <Check size={12} className="text-white" strokeWidth={3} />}
                                                             </div>
-                                                            {player.image && player.image.src ? (
-                                                                <img src={player.image.src} className="w-6 h-6 rounded-full object-cover" alt={player.name} />
+                                                            {player.image && (typeof player.image === 'object' ? player.image.src : player.image) ? (
+                                                                <img src={typeof player.image === 'object' ? player.image.src : player.image} className="w-6 h-6 rounded-full object-cover" alt={player.name} />
                                                             ) : (
                                                                 <div className="w-6 h-6 rounded-full bg-blue-900 flex items-center justify-center text-[10px] text-white font-bold">
                                                                     {player.name[0]}

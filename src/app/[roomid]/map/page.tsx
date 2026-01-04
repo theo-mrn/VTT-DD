@@ -92,7 +92,7 @@ import {
 } from '@/lib/visibility';
 import { LayerControl } from '@/components/(map)/LayerControl';
 import { SelectionMenu, type SelectionCandidates, type SelectionType } from '@/components/(map)/SelectionMenu';
-import { type ViewMode, type Point, type Character, type MapText as Text, type SavedDrawing, type NewCharacter, type Note, type MapObject, type ObjectTemplate, type Layer, type LayerType, type MusicZone } from './types';
+import { type ViewMode, type Point, type Character, type MapText, type SavedDrawing, type NewCharacter, type Note, type MapObject, type ObjectTemplate, type Layer, type LayerType, type MusicZone, type Scene, type DrawingTool } from './types';
 import { useAudioZones } from '@/hooks/map/useAudioZones';
 import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath } from './drawings';
 import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
@@ -351,7 +351,7 @@ export default function Component() {
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [characters, setCharacters] = useState<Character[]>([]);
   const [objects, setObjects] = useState<MapObject[]>([]);
-  const [notes, setNotes] = useState<Text[]>([]);
+  const [notes, setNotes] = useState<MapText[]>([]);
 
   const [activeInfoSection, setActiveInfoSection] = useState<InfoSection>(null); // 🆕 State for Info Sections
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
@@ -441,7 +441,7 @@ export default function Component() {
   // États pour la Drag & Drop
   const [draggedCharacter, setDraggedCharacter] = useState<Character | null>(null);
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
-  const [editingNote, setEditingNote] = useState<Note | null>(null);
+  const [editingNote, setEditingNote] = useState<MapText | null>(null);
 
   // 🎯 Context Menu State
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
@@ -484,7 +484,7 @@ export default function Component() {
   const [drawings, setDrawings] = useState<SavedDrawing[]>([]);
 
   // 🎯 Drawing Tools State
-  const [currentTool, setCurrentTool] = useState<'pen' | 'eraser' | 'line' | 'rectangle' | 'circle'>('pen');
+  const [currentTool, setCurrentTool] = useState<DrawingTool>('pen');
   const [drawingColor, setDrawingColor] = useState('#000000');
   const [drawingSize, setDrawingSize] = useState(5);
 
@@ -558,7 +558,8 @@ export default function Component() {
 
   const [viewMode, setViewMode] = useState<ViewMode>('world'); // 'world' = world map, 'city' = city map
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null); // null = world map
-  const [cities, setCities] = useState<any[]>([]); // Villes disponibles
+  const [globalCityId, setGlobalCityId] = useState<string | null>(null); // Global party location
+  const [cities, setCities] = useState<Scene[]>([]); // Villes disponibles
 
   // 🆕 RANDOM STAT GENERATOR STATE
   const [difficulty, setDifficulty] = useState(3); // 1-5
@@ -572,7 +573,7 @@ export default function Component() {
       return Math.max(0, base + Math.floor(Math.random() * (variation * 2 + 1)) - variation);
     };
 
-    setNewCharacter(prev => ({
+    setNewCharacter((prev: NewCharacter) => ({
       ...prev,
       PV: vary((level * 5) + (diffMultiplier * 10), 5), // Example: Lvl 1, Diff 3 => 5 + 30 = 35 +/- 5
       PV_Max: vary((level * 5) + (diffMultiplier * 10), 5),
@@ -665,8 +666,8 @@ export default function Component() {
     if (zone) {
       setEditingMusicZoneId(zoneId);
       setTempZoneData({
-        name: zone.name,
-        url: zone.url,
+        name: zone.name || '',
+        url: zone.url || '',
         radius: zone.radius,
         volume: zone.volume
       });
@@ -1049,8 +1050,10 @@ export default function Component() {
       charY = data.positions[cityId].y;
     }
 
-    return {
+    // Cast as any to avoid TS error if Character interface is missing currentSceneId
+    const charObj: any = {
       id: doc.id,
+      currentSceneId: data.currentSceneId, // 🆕 Suivi de la scène actuelle du personnage
       niveau: data.niveau || 1,
       name: data.Nomperso || '',
       x: charX,
@@ -1078,6 +1081,7 @@ export default function Component() {
       scale: data.scale || 1,
       Actions: data.Actions || []
     };
+    return charObj;
   }, []);
 
   const mergeAndSetCharacters = useCallback(() => {
@@ -1090,15 +1094,57 @@ export default function Component() {
     // Parse Global Players dynamically
     const parsedPlayers = loadedPlayersRef.current.map(doc => parseCharacterDoc(doc, currentCityId));
 
-    [...parsedPlayers, ...loadedNPCsRef.current].forEach(char => {
+    // Filter Players: Check if they should be visible in this scene
+    const visiblePlayers = parsedPlayers.filter(player => {
+      // 1. Explicitly assigned to this scene
+      if (player.currentSceneId === currentCityId) return true;
+
+      // 2. Implicitly following the group (no assignment) AND this is the group scene
+      if (!player.currentSceneId && globalCityId === currentCityId) return true;
+
+      // 3. Otherwise, hidden from this view
+      return false;
+    });
+
+    [...visiblePlayers, ...loadedNPCsRef.current].forEach(char => {
       if (!visibleIds.has(char.id)) {
         visibleIds.add(char.id);
         combined.push(char);
       }
     });
+
     setCharacters(combined);
     setLoading(false);
-  }, [parseCharacterDoc]);
+  }, [globalCityId, parseCharacterDoc]);
+
+  // 🆕 EFFET DE SYNCHRONISATION DE SCÈNE (PRIORITÉ AU PERSONNAGE)
+  useEffect(() => {
+    // Si MJ, on ne force pas (sauf si on veut suivre, mais généralement MJ est libre)
+    // On peut ajouter une option "Suivre le groupe" plus tard pour le MJ
+    if (isMJ) return;
+
+    // 🔍 Find my character in the RAW loaded players (because 'characters' state might filter me out if I'm not in this scene!)
+    const myPlayerDoc = loadedPlayersRef.current.find(doc => doc.id === persoId);
+    const mySceneId = myPlayerDoc ? myPlayerDoc.data().currentSceneId : null;
+
+    // 1. Si mon personnage a une scène assignée, j'y vais
+    if (mySceneId) {
+      if (selectedCityId !== mySceneId) {
+        console.log('🔀 [Sync] Moving to character scene:', mySceneId);
+        setSelectedCityId(mySceneId);
+        setViewMode('city');
+      }
+    }
+    // 2. Sinon, je suis le groupe (globalCityId)
+    else if (globalCityId) {
+      // Seulement si je ne suis pas déjà dessus (et que je n'ai pas d'override perso)
+      if (selectedCityId !== globalCityId) {
+        console.log('🔀 [Sync] Moving to global group scene:', globalCityId);
+        setSelectedCityId(globalCityId);
+        setViewMode('city');
+      }
+    }
+  }, [globalCityId, characters, persoId, isMJ, selectedCityId]);
 
   // 2. NOW USE THEM IN EFFECT
   useEffect(() => {
@@ -1172,7 +1218,7 @@ export default function Component() {
     const notesRef = collection(db, 'cartes', roomId, 'text');
     const notesQuery = query(notesRef, where('cityId', '==', selectedCityId));
     const notesUnsub = onSnapshot(notesQuery, (snapshot) => {
-      const texts: Text[] = [];
+      const texts: MapText[] = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
         texts.push({
@@ -1267,6 +1313,7 @@ export default function Component() {
           isBackground: data.isBackground || false,
           isLocked: data.isLocked || false, // 🆕 Charger l'état de verrouillage
           visibility: data.visibility || undefined,
+          type: (data.type || 'decors') as 'decors' | 'weapon' | 'item',
           visibleToPlayerIds: data.visibleToPlayerIds || undefined
         });
       });
@@ -1594,7 +1641,9 @@ export default function Component() {
     setDraggedSoundTemplate(sound)
   }
 
-  const handlePlaceConfirm = async (config: { nombre: number; visibility: 'visible' | 'hidden' | 'ally' }) => {
+  const handlePlaceConfirm = async (config: {
+    nombre: number; visibility?: 'public' | 'gm_only' | 'ally' | 'hidden' | 'visible' | 'custom';
+  }) => {
     if (!draggedTemplate || !dropPosition) return
 
     try {
@@ -2390,8 +2439,8 @@ export default function Component() {
                     className={`relative w-8 h-8 rounded-full overflow-hidden border-2 cursor-pointer transition-all duration-200 ${isSelected ? 'border-[#c0a080] scale-110 shadow-[0_0_10px_rgba(192,160,128,0.4)]' : 'border-white/10 hover:border-white/40 hover:scale-105 opacity-70 hover:opacity-100'}`}
                     title={char.name}
                   >
-                    {char.image && char.image.src ? (
-                      <img src={char.image.src} alt={char.name} className="w-full h-full object-cover" />
+                    {char.image && (typeof char.image === 'object' ? (char.image as any).src : char.image) ? (
+                      <img src={typeof char.image === 'object' ? (char.image as any).src : char.image} alt={char.name} className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-[10px] text-zinc-400 font-bold">
                         {char.name[0]}
@@ -2530,16 +2579,8 @@ export default function Component() {
     setPanMode(false);
     setMeasureMode(false);
 
-    // Sauvegarder la ville actuelle dans Firebase (pour synchroniser tous les joueurs)
-    if (roomId && isMJ) {
-      try {
-        await updateDoc(doc(db, 'cartes', roomId, 'settings', 'general'), {
-          currentCityId: cityId,
-        });
-      } catch (error) {
-        console.error('❌ [Navigation] Error saving currentCityId:', error);
-      }
-    }
+
+
   };
 
   const navigateToWorldMap = async () => {
@@ -2591,8 +2632,8 @@ export default function Component() {
 
         // Synchroniser la ville actuelle
         if (data.currentCityId) {
-          setSelectedCityId(data.currentCityId);
-          setViewMode('city');
+          setGlobalCityId(data.currentCityId); // Update global state
+          // La redirection est gérée par le useEffect de synchronisation
         } else {
           if (!isMJ) {
             // Si pas de ville définie et qu'on n'est pas MJ, on reste sur une vue par défaut
@@ -2635,7 +2676,7 @@ export default function Component() {
     }
 
     // 🆕 Mode Custom : vérifier si le joueur actuel est dans la liste des joueurs autorisés
-    if (char.visibility === 'custom') {
+    if ((char.visibility as string) === 'custom') {
       const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
       if (!effectivePersoId) return false;
       return char.visibleToPlayerIds?.includes(effectivePersoId) ?? false;
@@ -2665,7 +2706,7 @@ export default function Component() {
     // Déterminer la visibilité effective (les PNJ dans le brouillard deviennent cachés)
     // Note: Les alliés et joueurs sont déjà traités au-dessus
     let effectiveVisibility = char.visibility;
-    if (char.type !== 'joueurs' && isInFog) {
+    if (isInFog) {
       effectiveVisibility = 'hidden';
     }
 
@@ -2694,7 +2735,7 @@ export default function Component() {
         const playerScreenY = (player.y / imgHeight) * scaledHeight - offset.y;
         return (
           (player.id === persoId || player.visibility === 'ally') &&
-          calculateDistance(charScreenX, charScreenY, playerScreenX, playerScreenY) <= player.visibilityRadius * zoom
+          calculateDistance(charScreenX, charScreenY, playerScreenX, playerScreenY) <= (player.visibilityRadius ?? 100) * zoom
         );
       });
     }
@@ -2721,7 +2762,7 @@ export default function Component() {
     }
 
     // 🆕 Mode Custom : vérifier si le joueur actuel est dans la liste des joueurs autorisés
-    if (obj.visibility === 'custom') {
+    if ((obj.visibility as string) === 'custom') {
       const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
       if (!effectivePersoId) return false;
       return obj.visibleToPlayerIds?.includes(effectivePersoId) ?? false;
@@ -2848,7 +2889,7 @@ export default function Component() {
         if ((character.type === 'joueurs' || character.visibility === 'ally') && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
           const playerScreenX = (character.x / imgWidth) * scaledWidth - offset.x;
           const playerScreenY = (character.y / imgHeight) * scaledHeight - offset.y;
-          const radiusScreen = (character.visibilityRadius / imgWidth) * scaledWidth;
+          const radiusScreen = ((character.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
 
           // Couleur différente pour les alliés (vert) vs joueurs (jaune)
           ctx.strokeStyle = character.visibility === 'ally' ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 255, 0, 0.3)';
@@ -3024,7 +3065,7 @@ export default function Component() {
         ctx.textAlign = 'center';
 
         // Background for label
-        const textWidth = ctx.measureText(zone.name).width;
+        const textWidth = ctx.measureText(zone.name || '').width;
         const labelPadding = 4 * zoom;
         const labelHeight = (isSelected ? 16 : 14) * zoom;
         const labelY = center.y + (noteSize / 2) + padding + (4 * zoom);
@@ -3042,7 +3083,7 @@ export default function Component() {
 
         ctx.fillStyle = '#fff';
         ctx.textBaseline = 'top';
-        ctx.fillText(zone.name, center.x, labelY + (2 * zoom));
+        ctx.fillText(zone.name || '', center.x, labelY + (2 * zoom));
       });
     }
 
@@ -3316,7 +3357,7 @@ export default function Component() {
               const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
               const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
               const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-              isVisible = dist <= viewer.visibilityRadius * zoom;
+              isVisible = dist <= (viewer.visibilityRadius ?? 100) * zoom;
             } else {
               isVisible = false;
             }
@@ -3328,7 +3369,7 @@ export default function Component() {
               const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
               const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
               const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-              return dist <= viewer.visibilityRadius * zoom;
+              return dist <= (viewer.visibilityRadius ?? 100) * zoom;
             })();
           }
         }
@@ -3551,7 +3592,7 @@ export default function Component() {
           if (activeConditions.length > 0) {
             currentCursorX += condGap;
 
-            activeConditions.forEach((condId) => {
+            activeConditions.forEach((condId: string) => {
               const iconImg = getConditionIcon(condId);
 
               if (iconImg) {
@@ -3616,7 +3657,7 @@ export default function Component() {
           ctx.strokeStyle = 'rgba(0, 0, 255, 0.9)'; // Bright blue outline
           ctx.lineWidth = 2 * zoom;
           ctx.beginPath();
-          ctx.arc(x, y, char.visibilityRadius * zoom, 0, 2 * Math.PI);
+          ctx.arc(x, y, (char.visibilityRadius ?? 100) * zoom, 0, 2 * Math.PI);
           ctx.stroke();
         }
 
@@ -3625,7 +3666,7 @@ export default function Component() {
           ctx.strokeStyle = 'rgba(0, 255, 0, 0.9)'; // Bright green outline
           ctx.lineWidth = 2 * zoom;
           ctx.beginPath();
-          ctx.arc(x, y, char.visibilityRadius * zoom, 0, 2 * Math.PI);
+          ctx.arc(x, y, (char.visibilityRadius ?? 100) * zoom, 0, 2 * Math.PI);
           ctx.stroke();
         }
       });
@@ -3816,7 +3857,7 @@ export default function Component() {
         // Obtenez l'URL de téléchargement de l'image
         const downloadURL = await getDownloadURL(imageRef);
         // Mettez à jour l'état avec l'URL de téléchargement au lieu du Data URL
-        setNewCharacter((prevCharacter) => ({
+        setNewCharacter((prevCharacter: NewCharacter) => ({
           ...prevCharacter,
           image: { src: downloadURL } // Stockez uniquement l'URL ici
         }));
@@ -4117,7 +4158,7 @@ export default function Component() {
                   const epsilon = 2 / zoom; // Tolérance pour considérer les points comme identiques
 
                   obstacles.forEach(obs => {
-                    obs.points.forEach((p, idx) => {
+                    obs.points.forEach((p: Point, idx: number) => {
                       if (Math.abs(p.x - clickedPoint.x) < epsilon && Math.abs(p.y - clickedPoint.y) < epsilon) {
                         connected.push({ obstacleId: obs.id, pointIndex: idx });
                       }
@@ -4471,7 +4512,7 @@ export default function Component() {
           setIsDraggingDrawing(true);
           setDragStart({ x: e.clientX, y: e.clientY });
           // Clone points to avoid reference issues
-          const pointsCopy = drawings[clickedDrawingIndex].points.map(p => ({ ...p }));
+          const pointsCopy = drawings[clickedDrawingIndex].points.map((p: Point) => ({ ...p }));
           setDraggedDrawingOriginalPoints(pointsCopy);
 
         } else if (clickedFogIndex !== -1) {
@@ -5624,7 +5665,7 @@ export default function Component() {
         await Promise.all(deletePromises);
 
         // 3. Update local state safely using IDs
-        const deletedIds = charsToDelete.map(c => c.id);
+        const deletedIds = charsToDelete.map((c: Character) => c.id);
         setCharacters(prev => prev.filter(c => !deletedIds.includes(c.id)));
       } else {
         // Clear selection if only players were selected (and ignored)
@@ -5734,10 +5775,13 @@ export default function Component() {
             visibilityRadius: editingCharacter.visibilityRadius,
           };
 
-          if (editingCharacter.image?.src !== charToUpdate.image.src) {
+          const editingCharImageSrc = editingCharacter?.image ? (typeof editingCharacter.image === 'string' ? editingCharacter.image : editingCharacter.image.src) : null;
+          const charToUpdateImageSrc = charToUpdate.image ? (typeof charToUpdate.image === 'string' ? charToUpdate.image : charToUpdate.image.src) : null;
+
+          if (editingCharImageSrc !== charToUpdateImageSrc) {
             const storage = getStorage();
             const imageRef = ref(storage, `characters/${editingCharacter.name}-${Date.now()}`);
-            const response = await fetch(editingCharacter.image.src);
+            const response = await fetch(editingCharImageSrc as string);
             const blob = await response.blob();
             await uploadBytes(imageRef, blob);
             const imageURL = await getDownloadURL(imageRef);
@@ -6392,7 +6436,7 @@ export default function Component() {
                     const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
                     const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
                     const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-                    isVisible = dist <= viewer.visibilityRadius * zoom;
+                    isVisible = dist <= (viewer?.visibilityRadius ?? 100) * zoom;
                   } else {
                     isVisible = false;
                   }
@@ -6403,7 +6447,7 @@ export default function Component() {
                     const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
                     const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
                     const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-                    return dist <= viewer.visibilityRadius * zoom;
+                    return dist <= (viewer.visibilityRadius ?? 100) * zoom;
                   })();
                 }
               }
@@ -6431,7 +6475,7 @@ export default function Component() {
                 >
                   {char.imageUrl && (
                     <StaticToken
-                      src={char.imageUrl}
+                      src={typeof char.imageUrl === 'object' ? char.imageUrl.src : char.imageUrl}
                       alt={char.name}
                       performanceMode={performanceMode}
                       style={{
@@ -6942,7 +6986,7 @@ export default function Component() {
               const currentConditions = char.conditions || [];
               let newConditions;
               if (currentConditions.includes(condition)) {
-                newConditions = currentConditions.filter(c => c !== condition);
+                newConditions = currentConditions.filter((c: string) => c !== condition);
               } else {
                 newConditions = [...currentConditions, condition];
               }
@@ -7067,7 +7111,7 @@ export default function Component() {
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="m-name" className="text-right">Nom</Label>
-                    <Input id="m-name" value={tempZoneData.name} onChange={e => setTempZoneData({ ...tempZoneData, name: e.target.value })} className="col-span-3" />
+                    <Input id="m-name" value={tempZoneData.name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempZoneData({ ...tempZoneData, name: e.target.value })} className="col-span-3" />
                   </div>
 
                   <div className="grid grid-cols-4 items-center gap-4">
@@ -7077,7 +7121,7 @@ export default function Component() {
                         id="m-upload"
                         type="file"
                         accept="audio/*"
-                        onChange={async (e) => {
+                        onChange={async (e: React.ChangeEvent<HTMLInputElement>) => {
                           const file = e.target.files?.[0];
                           if (file) {
                             const storage = getStorage();
@@ -7098,7 +7142,7 @@ export default function Component() {
 
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="m-radius" className="text-right">Rayon</Label>
-                    <Input id="m-radius" type="number" value={tempZoneData.radius} onChange={e => setTempZoneData({ ...tempZoneData, radius: Number(e.target.value) })} className="col-span-3" />
+                    <Input id="m-radius" type="number" value={tempZoneData.radius} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempZoneData({ ...tempZoneData, radius: Number(e.target.value) })} className="col-span-3" />
                   </div>
                 </div >
                 <DialogFooter>
@@ -7141,6 +7185,7 @@ export default function Component() {
             onCitySelect={navigateToCity}
             roomId={roomId}
             onClose={() => setViewMode('city')}
+            globalCityId={globalCityId}
           />
         )}
       </AnimatePresence>

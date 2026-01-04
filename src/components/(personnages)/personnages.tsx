@@ -195,15 +195,16 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
 
         try {
             // Handle image upload
-            if (char.image && char.image.src) {
-                if (char.image.src.startsWith('data:')) {
+            const currentImg = typeof char.image === 'object' ? char.image?.src : char.image;
+            if (currentImg) {
+                if (currentImg.startsWith('data:')) {
                     const imageRef = ref(storage, `characters/${char.name}-${Date.now()}`)
-                    const response = await fetch(char.image.src)
+                    const response = await fetch(currentImg)
                     const blob = await response.blob()
                     await uploadBytes(imageRef, blob)
                     imageURL = await getDownloadURL(imageRef)
                 } else {
-                    imageURL = char.image.src
+                    imageURL = currentImg
                 }
             }
 

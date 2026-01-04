@@ -38,7 +38,7 @@ export default function MusicZoneContextMenu({
 
     useEffect(() => {
         if (zone) {
-            setName(zone.name);
+            setName(zone.name || "");
             setVolume(zone.volume);
             setRadius(zone.radius);
         }
@@ -70,7 +70,7 @@ export default function MusicZoneContextMenu({
                                 <Music size={20} />
                             </div>
                             <div className="flex-1 overflow-hidden">
-                                <h3 className="font-bold text-gray-200 truncate">{zone.name}</h3>
+                                <h3 className="font-bold text-gray-200 truncate">{zone.name || "Sans nom"}</h3>
                                 <p className="text-xs text-gray-500 truncate">Zone musicale</p>
                             </div>
                         </div>

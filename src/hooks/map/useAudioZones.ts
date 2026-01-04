@@ -27,23 +27,28 @@ export const useAudioZones = (
             let audio = audioMap.get(zone.id);
             if (!audio) {
                 // New zone
-                audio = new Audio(zone.url);
+                audio = new Audio(zone.url || undefined);
                 audio.loop = true;
                 // audio.crossOrigin = 'anonymous'; // Generally good for CORS
                 audioMap.set(zone.id, audio);
 
                 // Attempt to play (browser interaction policies may block this)
-                audio.play().catch(e => {
-                    console.warn(`Autoplay failed for zone ${zone.name} (${zone.id}):`, e);
-                });
+                if (zone.url) {
+                    audio.play().catch(e => {
+                        console.warn(`Autoplay failed for zone ${zone.name} (${zone.id}):`, e);
+                    });
+                }
             } else {
                 // Update URL if changed
                 // Note: zone.url might be relative, audio.src absolute. 
                 // Simple check using inclusion if relative, or full check.
                 // Assuming standard URLs:
-                if (audio.src !== zone.url && !audio.src.endsWith(zone.url)) {
-                    audio.src = zone.url;
-                    audio.play().catch(e => console.warn("Play failed after src change:", e));
+                const targetUrl = zone.url || "";
+                if (audio.src !== targetUrl && !audio.src.endsWith(targetUrl)) {
+                    audio.src = targetUrl;
+                    if (targetUrl) {
+                        audio.play().catch(e => console.warn("Play failed after src change:", e));
+                    }
                 }
             }
         });

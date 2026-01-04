@@ -25,10 +25,10 @@ export const LayerControl: React.FC<LayerControlProps> = ({ layers, onToggle }) 
                             {layer.label}
                         </span>
                         <button
-                            onClick={() => onToggle(layer.id)}
+                            onClick={() => onToggle(layer.id as LayerType)}
                             className={`p-1.5 rounded-md transition-all duration-200 ${layer.isVisible
-                                    ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
-                                    : 'bg-white/5 text-gray-500 hover:bg-white/10'
+                                ? 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
+                                : 'bg-white/5 text-gray-500 hover:bg-white/10'
                                 }`}
                             title={layer.isVisible ? 'Hide layer' : 'Show layer'}
                         >

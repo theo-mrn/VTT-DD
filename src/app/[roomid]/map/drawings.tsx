@@ -1,4 +1,4 @@
-import { type Point, type SavedDrawing, type DrawingTool, type DrawingMode } from './types';
+import { type Point, type SavedDrawing, type DrawingTool } from './types';
 
 // ... (existing functions isPointOnDrawing, getResizeHandles)
 
