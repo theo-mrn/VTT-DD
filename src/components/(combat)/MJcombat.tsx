@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer"
 import { Plus, Minus, Dice1, ChevronRight, Sword, Skull, Shield, Heart, X, Pencil, Zap, EyeOff, Ghost, Anchor, Flame, Snowflake, Sparkles } from "lucide-react"
-import { auth, db, doc, getDoc, onSnapshot, updateDoc, deleteDoc, collection, onAuthStateChanged, writeBatch } from "@/lib/firebase"
+import { auth, db, doc, getDoc, onSnapshot, updateDoc, setDoc, deleteDoc, collection, onAuthStateChanged, writeBatch } from "@/lib/firebase"
 import { Dialog, DialogTrigger, DialogPortal, DialogOverlay, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
@@ -19,6 +19,7 @@ import otherIcon from '../../app/[roomid]/map/icons/other.svg';
 
 type Character = {
   cityId?: string
+  currentSceneId?: string // Track which scene/city the character is in
   id: string
   name: string
   avatar: string
@@ -206,7 +207,7 @@ export function GMDashboard() {
     fetchRoomId()
   }, [userId])
 
-  // 1. Listen to Room Settings (Active Player & Current City)
+  // 1. Listen to Current City from Settings
   useEffect(() => {
     if (!roomId) return
 
@@ -214,13 +215,32 @@ export function GMDashboard() {
     const unsubscribe = onSnapshot(settingsRef, (doc) => {
       if (doc.exists()) {
         const data = doc.data()
-        setActivePlayerId(data.tour_joueur || null)
         setCurrentCityId(data.currentCityId || null)
       }
     })
 
     return () => unsubscribe()
   }, [roomId])
+
+  // 2. Listen to Active Player for Current City
+  useEffect(() => {
+    if (!roomId || !currentCityId) {
+      setActivePlayerId(null)
+      return
+    }
+
+    const combatRef = doc(db, `cartes/${roomId}/cities/${currentCityId}/combat/state`)
+    const unsubscribe = onSnapshot(combatRef, (doc) => {
+      if (doc.exists()) {
+        const data = doc.data()
+        setActivePlayerId(data.activePlayer || null)
+      } else {
+        setActivePlayerId(null)
+      }
+    })
+
+    return () => unsubscribe()
+  }, [roomId, currentCityId])
 
   // 2. Listen to All Characters (Raw Data)
   useEffect(() => {
@@ -232,7 +252,8 @@ export function GMDashboard() {
         const data = doc.data()
         return {
           id: doc.id,
-          cityId: data.cityId, // Capture cityId
+          cityId: data.cityId, // Capture cityId (legacy)
+          currentSceneId: data.currentSceneId, // Capture current scene location
           name: data.Nomperso || "absente",
           avatar: data.imageURLFinal || data.imageURL || data.imageURL2 || `/placeholder.svg?height=40&width=40&text=${data.Nomperso ? data.Nomperso[0] : "?"}`,
           pv: data.PV ?? 0,
@@ -260,55 +281,38 @@ export function GMDashboard() {
 
   // 3. Compute Display Characters (Filter & Sort)
   useEffect(() => {
-    let filteredChars = rawCharacters
-
-    // Filter by City:
-    // Keep characters if:
-    // - They are PLAYERS (type === 'joueurs')
-    // - OR (currentCityId matches character.cityId)
-    // - OR (activePlayerId matches character.id) - safety to ensure turn player is always visible? Optional but good practice.
-    if (currentCityId) {
-      filteredChars = rawCharacters.filter(char => {
-        const isPlayer = char.type === 'joueurs';
-        const isAlly = char.type === 'allié'; // Assuming 'allié' exists or handled? User said 'pnj' only. 
-        // Let's stick to strict: Players kept, others filtered by city.
-        // Also check if type is 'joueurs' vs 'pnj'
-        if (isPlayer) return true;
-
-        // For NPCs:
-        return char.cityId === currentCityId;
-      });
-    } else {
-      // If NO city is selected (World Map mode?), maybe show all? 
-      // Or only global ones?
-      // User request: "pnj de la ville en cours, et non pas des autres villes"
-      // If currentCityId is null, we are likely on World Map.
-      // Maybe show NO NPCs? Or all? 
-      // Let's assume we filter strictly. If no city selected, maybe only players?
-      // But usually combat happens in a city.
-      // Let's keep logic: if cityId matches.
-      // If currentCityId is null, char.cityId === null ?
-    }
-
-    // Refining the filter logic based on user request:
-    filteredChars = rawCharacters.filter(char => {
-      // Always show players
-      if (char.type === 'joueurs' || char.type === 'allié') return true;
-
-      // If we have a current City, show NPCs of that city
-      if (currentCityId) {
-        return char.cityId === currentCityId;
+    const filteredChars = rawCharacters.filter(char => {
+      // For PLAYERS: show if following group (no assignment) OR explicitly in this scene
+      if (char.type === 'joueurs') {
+        // Always show players following the group (no specific scene assignment)
+        if (!char.currentSceneId) {
+          return true;
+        }
+        // Show players explicitly assigned to this scene
+        if (char.currentSceneId === currentCityId) {
+          return true;
+        }
+        return false;
       }
 
-      // If no current city (World Map), show global NPCs (no cityId?) or everything?
-      // Let's default to showing everything if no city filter is active (legacy behavior support), 
-      // UNLESS user strictly implies "world map has no city NPCs".
-      // But typically we don't want to break "All" view if something is wrong.
-      // However, to be "modified to ONLY show...", I should filter.
-      // If currentCityId is null, I'll filter out city-bound NPCs?
-      // Let's check if 'cityId' is present on char.
-      if (char.cityId) return false; // Hide city-specific NPCs on world map
-      return true; // Show global NPCs
+      // For ALLIES: same logic as players
+      if (char.type === 'allié') {
+        // Always show allies following the group
+        if (!char.currentSceneId) return true;
+        // Show allies explicitly assigned to this scene
+        if (char.currentSceneId === currentCityId) return true;
+        return false;
+      }
+
+      // For NPCs: only show if explicitly in this scene
+      if (currentCityId) {
+        const showBySceneId = char.currentSceneId === currentCityId;
+        const showByCityId = char.cityId === currentCityId;
+        return showBySceneId || showByCityId; // Check both properties
+      }
+
+      // If no current city (World Map mode), don't show any NPCs
+      return false;
     });
 
     const sortedCharacters = filteredChars.sort((a, b) => (b.currentInit ?? 0) - (a.currentInit ?? 0))
@@ -414,8 +418,10 @@ export function GMDashboard() {
         await batch.commit()
 
         const newActiveCharacterId = sortedCharacters[0].id
-        const settingsRef = doc(db, `cartes/${roomId}/settings/general`)
-        await updateDoc(settingsRef, { tour_joueur: newActiveCharacterId })
+        if (currentCityId) {
+          const combatRef = doc(db, `cartes/${roomId}/cities/${currentCityId}/combat/state`)
+          await setDoc(combatRef, { activePlayer: newActiveCharacterId }, { merge: true })
+        }
       } catch (error) {
         console.error("Erreur lors de la mise à jour des initiatives :", error)
       }
@@ -447,10 +453,12 @@ export function GMDashboard() {
 
     try {
       const newActiveCharacterId = characters[1].id
-      const settingsRef = doc(db, `cartes/${roomId}/settings/general`)
-      await updateDoc(settingsRef, { tour_joueur: newActiveCharacterId })
+      if (currentCityId) {
+        const combatRef = doc(db, `cartes/${roomId}/cities/${currentCityId}/combat/state`)
+        await setDoc(combatRef, { activePlayer: newActiveCharacterId }, { merge: true })
+      }
     } catch (error) {
-      console.error("Erreur lors de la mise à jour de tour_joueur :", error)
+      console.error("Erreur lors de la mise à jour de activePlayer :", error)
     }
 
     setIsConfirmDialogOpen(false)
@@ -474,10 +482,12 @@ export function GMDashboard() {
 
     try {
       const newActiveCharacterId = newCharacters[0].id
-      const settingsRef = doc(db, `cartes/${roomId}/settings/general`)
-      await updateDoc(settingsRef, { tour_joueur: newActiveCharacterId })
+      if (currentCityId) {
+        const combatRef = doc(db, `cartes/${roomId}/cities/${currentCityId}/combat/state`)
+        await setDoc(combatRef, { activePlayer: newActiveCharacterId }, { merge: true })
+      }
     } catch (error) {
-      console.error("Erreur lors de la mise à jour de tour_joueur :", error)
+      console.error("Erreur lors de la mise à jour de activePlayer :", error)
     }
   }
 
