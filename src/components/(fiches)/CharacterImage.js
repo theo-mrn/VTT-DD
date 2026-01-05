@@ -1,21 +1,13 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Cropper from 'react-easy-crop';
-import { doc, updateDoc, getDoc, db, auth, onAuthStateChanged } from '@/lib/firebase';
-import { getCroppedImg, createCompositeImage } from '@/lib/cropImageHelper';
+import { doc, updateDoc, getDoc, db, auth, onAuthStateChanged, storage, ref, uploadBytes, getDownloadURL } from '@/lib/firebase';
+import { getCroppedImg, createCompositeImage, getCroppedGif, createCompositeGif } from '@/lib/cropImageHelper';
 import { Slider } from '@/components/ui/slider';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Image as ImageIcon, Check, X, RotateCcw, Sparkles } from 'lucide-react';
+import { Image as ImageIcon, Check, X, RotateCcw, Sparkles, Upload } from 'lucide-react';
 
-// Générer la liste des tokens de 1 à 70 (en excluant certains tokens)
-const excludedTokens = [5, 19, 24, 34, 45, 46, 48, 49, 58];
-const tokenList = Array.from({ length: 70 }, (_, i) => i + 1)
-  .filter(id => !excludedTokens.includes(id))
-  .map(id => ({
-    id,
-    name: `Token ${id}`,
-    src: `/Token/Token${id}.png`
-  }));
+
 
 export default function CharacterImage({ imageUrl, altText, characterId }) {
   const [currentUser, setCurrentUser] = useState(null);
@@ -30,6 +22,11 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
   const [previewTokenUrl, setPreviewTokenUrl] = useState("/Token/Token1.png");
   const [previewImage, setPreviewImage] = useState(null);
   const [roomId, setRoomId] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [isGif, setIsGif] = useState(false);
+  const [processingProgress, setProcessingProgress] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [tokenList, setTokenList] = useState([]);
 
   useEffect(() => {
     const fetchRoomId = async () => {
@@ -63,12 +60,25 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
           const data = characterDoc.data();
           setCroppedImageUrl(data.imageURL2 || imageUrl || "/api/placeholder/192/192");
           setFinalImageUrl(data.imageURLFinal || null);
-          const tokenUrl = `/Token/${data.Token || "Token1"}.png`;
-          setOverlayUrl(tokenUrl);
-          setPreviewTokenUrl(tokenUrl);
+
+          // Load token from R2 if available
+          if (data.Token) {
+            // Fetch token URL from API
+            const tokenResponse = await fetch('/api/assets?category=Token&type=image');
+            const tokenData = await tokenResponse.json();
+            const tokenAsset = tokenData.assets?.find(asset => asset.name === `${data.Token}.png`);
+
+            if (tokenAsset) {
+              setOverlayUrl(tokenAsset.path);
+              setPreviewTokenUrl(tokenAsset.path);
+            }
+          }
+
+          setIsGif(data.isGif || false);
         } else {
           setCroppedImageUrl(imageUrl || "/api/placeholder/192/192");
           setFinalImageUrl(null);
+          setIsGif(false);
         }
       } catch (error) {
         console.error("Failed to fetch character data:", error);
@@ -83,6 +93,46 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
       setCurrentUser(user || null);
     });
     return () => unsubscribe();
+  }, []);
+
+  // Load tokens from API
+  useEffect(() => {
+    const loadTokens = async () => {
+      try {
+        const response = await fetch('/api/assets?category=Token&type=image');
+        const data = await response.json();
+
+        if (data.assets && Array.isArray(data.assets)) {
+          // Extract token number from filename (Token1.png -> 1)
+          const tokens = data.assets
+            .map(asset => {
+              const match = asset.name.match(/Token(\d+)\.png/);
+              if (match) {
+                return {
+                  id: parseInt(match[1]),
+                  name: asset.name.replace('.png', ''),
+                  src: asset.path // R2 URL
+                };
+              }
+              return null;
+            })
+            .filter(token => token !== null)
+            .sort((a, b) => a.id - b.id);
+
+          setTokenList(tokens);
+
+          // Set default token if not already set
+          if (tokens.length > 0 && !overlayUrl) {
+            setOverlayUrl(tokens[0].src);
+            setPreviewTokenUrl(tokens[0].src);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load tokens:', error);
+      }
+    };
+
+    loadTokens();
   }, []);
 
   const onCropComplete = useCallback(async (croppedArea, croppedAreaPixels) => {
@@ -103,24 +153,76 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
       return;
     }
 
-    try {
-      // First, get the cropped image
-      const croppedImage = await getCroppedImg(croppedImageUrl, croppedAreaPixels);
+    setIsProcessing(true);
+    setProcessingProgress(0);
 
-      // Then create the composite image with the token overlay
-      const compositeImage = await createCompositeImage(croppedImage, previewTokenUrl);
+    try {
+      let croppedImage;
+      let compositeImage;
+
+      if (isGif) {
+        // For GIFs, use the new GIF processing functions
+        // First crop the GIF
+        croppedImage = await getCroppedGif(
+          croppedImageUrl,
+          croppedAreaPixels,
+          (progress) => setProcessingProgress(progress * 50) // 50% for cropping
+        );
+
+        // Then create composite with token
+        compositeImage = await createCompositeGif(
+          croppedImage,
+          previewTokenUrl,
+          (progress) => setProcessingProgress(50 + progress * 50) // Next 50% for compositing
+        );
+
+        // Convert blob URL to blob for upload
+        const response = await fetch(compositeImage);
+        const blob = await response.blob();
+
+        // Upload the final GIF to Firebase Storage
+        const storageRef = ref(storage, `characters/${characterId}_final_${Date.now()}.gif`);
+        await uploadBytes(storageRef, blob);
+        const finalUrl = await getDownloadURL(storageRef);
+
+        // Also upload the cropped version (without token)
+        const croppedResponse = await fetch(croppedImage);
+        const croppedBlob = await croppedResponse.blob();
+        const croppedStorageRef = ref(storage, `characters/${characterId}_cropped_${Date.now()}.gif`);
+        await uploadBytes(croppedStorageRef, croppedBlob);
+        const croppedUrl = await getDownloadURL(croppedStorageRef);
+
+        croppedImage = croppedUrl;
+        compositeImage = finalUrl;
+      } else {
+        // For non-GIF images, use the existing logic
+        croppedImage = await getCroppedImg(croppedImageUrl, croppedAreaPixels);
+        compositeImage = await createCompositeImage(croppedImage, previewTokenUrl, false);
+      }
 
       const characterDocRef = doc(db, `cartes/${roomId}/characters`, characterId);
 
-      // Extract token number from previewTokenUrl
-      const tokenMatch = previewTokenUrl.match(/Token(\d+)\.png/);
-      const tokenName = tokenMatch ? `Token${tokenMatch[1]}` : 'Token1';
+      // Extract token number/name from previewTokenUrl
+      let tokenName = 'Token1';
+
+      // If using R2 URL, extract from path
+      if (previewTokenUrl.includes('r2.dev')) {
+        const match = previewTokenUrl.match(/Token(\d+)\.png/);
+        if (match) {
+          tokenName = `Token${match[1]}`;
+        }
+      } else {
+        // Fallback for local URLs
+        const match = previewTokenUrl.match(/Token(\d+)\.png/);
+        tokenName = match ? `Token${match[1]}` : 'Token1';
+      }
 
       // Save both the cropped image and the composite final image
       await updateDoc(characterDocRef, {
         imageURL2: croppedImage,      // Original cropped image (for re-editing)
         imageURLFinal: compositeImage, // Final composite with token
-        Token: tokenName
+        Token: tokenName,
+        isGif: isGif
       });
 
       setCroppedImageUrl(croppedImage);
@@ -129,9 +231,12 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
       setShowCropper(false);
     } catch (e) {
       console.error('Failed to save cropped image:', e);
-      alert('Erreur lors de la sauvegarde de l\'image');
+      alert('Erreur lors de la sauvegarde de l\'image: ' + e.message);
+    } finally {
+      setIsProcessing(false);
+      setProcessingProgress(0);
     }
-  }, [croppedAreaPixels, croppedImageUrl, characterId, currentUser, roomId, previewTokenUrl]);
+  }, [croppedAreaPixels, croppedImageUrl, characterId, currentUser, roomId, previewTokenUrl, isGif]);
 
   const handleResetImage = useCallback(async () => {
     if (!currentUser || !roomId) {
@@ -149,9 +254,42 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
     }
   }, [imageUrl, characterId, currentUser, roomId]);
 
-  const handleSelectToken = async (tokenNumber) => {
-    // Update preview only without saving to database
-    setPreviewTokenUrl(`/Token/Token${tokenNumber}.png`);
+  const handleSelectToken = async (tokenId) => {
+    // Find the token in the token list
+    const token = tokenList.find(t => t.id === tokenId);
+    if (token) {
+      setPreviewTokenUrl(token.src);
+    }
+  };
+
+  const handleImageUpload = async (e) => {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+
+    // Check if it's a GIF
+    const isGifFile = file.type === 'image/gif';
+    setIsGif(isGifFile);
+    setUploading(true);
+
+    try {
+      // Upload to Firebase Storage
+      const storageRef = ref(storage, `characters/${characterId}_${Date.now()}_${file.name}`);
+      await uploadBytes(storageRef, file);
+      const downloadUrl = await getDownloadURL(storageRef);
+
+      // Update the cropped image URL with the new uploaded image
+      setCroppedImageUrl(downloadUrl);
+
+      // Reset crop and zoom
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setPreviewImage(null);
+    } catch (error) {
+      console.error('Failed to upload image:', error);
+      alert('Erreur lors de l\'upload de l\'image');
+    } finally {
+      setUploading(false);
+    }
   };
 
   if (!currentUser) {
@@ -161,8 +299,48 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
   return (
     <div className="relative w-full h-full flex justify-center items-center mx-auto group min-h-0 min-w-0">
       <div className="relative max-w-full max-h-full aspect-square w-full h-full flex items-center justify-center">
-        {finalImageUrl ? (
-          /* Display composite final image */
+        {finalImageUrl && !isGif ? (
+          /* Display composite final image for non-GIF images */
+          <div
+            className="relative w-full h-full cursor-pointer transition-all duration-300"
+            onClick={() => setShowCropper(true)}
+          >
+            <img
+              src={finalImageUrl}
+              alt={altText || "Character Image"}
+              className="w-full h-full object-contain"
+            />
+            {/* Hover overlay */}
+            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-full">
+              <ImageIcon className="text-[#c0a0a0]" size={32} />
+            </div>
+          </div>
+        ) : isGif && croppedImageUrl ? (
+          /* Display GIF with CSS overlay */
+          <>
+            <div
+              className="relative w-[80%] h-[80%] rounded-full overflow-hidden cursor-pointer z-10 hover:border-[#c0a0a0] transition-all duration-300"
+              onClick={() => setShowCropper(true)}
+            >
+              <img
+                src={croppedImageUrl}
+                alt={altText || "Character Image"}
+                className="w-full h-full object-cover"
+              />
+              {/* Hover overlay */}
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                <ImageIcon className="text-[#c0a0a0]" size={32} />
+              </div>
+            </div>
+
+            {/* Decorative Overlay */}
+            <div
+              className="absolute inset-0 w-full h-full bg-center bg-cover z-20 pointer-events-none"
+              style={{ backgroundImage: `url(${overlayUrl})` }}
+            />
+          </>
+        ) : finalImageUrl ? (
+          /* Display composite final image (fallback for existing non-GIF composites) */
           <div
             className="relative w-full h-full cursor-pointer transition-all duration-300"
             onClick={() => setShowCropper(true)}
@@ -267,13 +445,42 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
               />
             </div>
 
+            {isProcessing && (
+              <div className="mt-4 sm:mt-6 w-full max-w-lg px-2">
+                <div className="bg-[#1c1c1c] rounded-lg p-3 border border-[#3a3a3a]">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[#c0a0a0] text-sm font-semibold">Traitement du GIF...</span>
+                    <span className="text-[#a0a0a0] text-xs">{Math.round(processingProgress)}%</span>
+                  </div>
+                  <div className="w-full bg-[#2a2a2a] rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-full transition-all duration-300"
+                      style={{ width: `${processingProgress}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="mt-4 sm:mt-6 flex flex-wrap justify-center gap-2 sm:gap-3">
+              <label className="bg-[#2a2a2a] hover:bg-[#3a3a3a] border border-[#4a4a4a] hover:border-purple-500/50 text-purple-400 px-4 sm:px-6 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg cursor-pointer">
+                <Upload size={18} />
+                {uploading ? 'Upload...' : 'Changer Photo'}
+                <input
+                  type="file"
+                  accept="image/*,.gif"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  disabled={uploading}
+                />
+              </label>
               <button
                 onClick={handleSaveCroppedImage}
                 className="bg-[#2a2a2a] hover:bg-[#3a3a3a] border border-[#4a4a4a] hover:border-green-500/50 text-green-500 px-4 sm:px-6 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg"
+                disabled={uploading || isProcessing}
               >
                 <Check size={18} />
-                Valider
+                {isProcessing ? 'Traitement...' : 'Valider'}
               </button>
               <button
                 onClick={() => setShowCropper(false)}
