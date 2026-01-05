@@ -86,6 +86,14 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
     const [isUploadingImage, setIsUploadingImage] = useState(false); // État de chargement pour l'upload
     const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
+    // Confirmations & Alerts States
+    const [alertConfig, setAlertConfig] = useState<{ open: boolean, title: string, message: string }>({ open: false, title: "", message: "" });
+    const [confirmConfig, setConfirmConfig] = useState<{ open: boolean, title: string, message: string, onConfirm: () => void }>({ open: false, title: "", message: "", onConfirm: () => { } });
+
+    // Helper functions
+    const showAlert = (title: string, message: string) => setAlertConfig({ open: true, title, message });
+    const showConfirm = (title: string, message: string, onConfirm: () => void) => setConfirmConfig({ open: true, title, message, onConfirm });
+
 
 
     // Déplacement
@@ -175,8 +183,15 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
     };
 
     const handleDeleteGroup = async (groupId: string) => {
-        if (!effectiveRoomId || !confirm("Supprimer ce groupe ? Les scènes seront déplacées dans 'Non classé'.")) return;
-        await deleteDoc(doc(db, `cartes/${effectiveRoomId}/groups/${groupId}`));
+        if (!effectiveRoomId) return;
+
+        showConfirm(
+            "Supprimer ce groupe ?",
+            "Les scènes seront déplacées dans 'Non classé'. Cette action est irréversible.",
+            async () => {
+                await deleteDoc(doc(db, `cartes/${effectiveRoomId}/groups/${groupId}`));
+            }
+        );
     };
 
 
@@ -193,13 +208,13 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
 
         if (!effectiveRoomId) {
             console.error('❌ [CitiesManager] No roomId available');
-            alert('Erreur: Impossible de sauvegarder (pas de roomId)');
+            showAlert('Erreur', 'Impossible de sauvegarder (pas de roomId)');
             return;
         }
 
         if (!formData.name?.trim()) {
             console.error('❌ [CitiesManager] No name provided');
-            alert('Veuillez entrer un nom pour la scène');
+            showAlert('Attention', 'Veuillez entrer un nom pour la scène');
             return;
         }
 
@@ -226,7 +241,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
             }
         } catch (error) {
             console.error('❌ [CitiesManager] Error saving scene:', error);
-            alert('Erreur lors de la sauvegarde: ' + (error as Error).message);
+            showAlert('Erreur', 'Erreur lors de la sauvegarde: ' + (error as Error).message);
         }
 
         setShowForm(false);
@@ -247,8 +262,33 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
 
     const handleDelete = async (id: string, e?: React.MouseEvent) => {
         e?.stopPropagation();
-        if (!effectiveRoomId || !confirm("Supprimer cette scène ?")) return;
-        await deleteDoc(doc(db, `cartes/${effectiveRoomId}/cities/${id}`));
+
+        // 🛡️ SECURITY CHECK: Is anyone in this scene?
+        const playersInScene = players.filter(p => {
+            // 1. Explicitly in this scene
+            if (p.currentSceneId === id) return true;
+            // 2. Implicitly in this scene (global group location) AND no override
+            if (!p.currentSceneId && globalCityId === id) return true;
+            return false;
+        });
+
+        if (playersInScene.length > 0) {
+            showAlert(
+                "Suppression Impossible",
+                `Impossible de supprimer cette scène : ${playersInScene.length} joueur(s) y sont actuellement présents (${playersInScene.map(p => p.name).join(', ')}). Déplacez-les d'abord.`
+            );
+            return;
+        }
+
+        if (!effectiveRoomId) return;
+
+        showConfirm(
+            "Supprimer cette scène ?",
+            "Êtes-vous sûr de vouloir supprimer cette scène ? Cette action est irréversible.",
+            async () => {
+                await deleteDoc(doc(db, `cartes/${effectiveRoomId}/cities/${id}`));
+            }
+        );
     };
 
     // --- Gestion des Déplacements ---
@@ -308,7 +348,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
 
         } catch (error) {
             console.error("❌ [CitiesManager] Error executing move:", error);
-            alert("Erreur lors du déplacement.");
+            showAlert("Erreur", "Erreur lors du déplacement.");
         }
     };
 
@@ -341,7 +381,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
             setFormData({ ...formData, backgroundUrl: downloadUrl });
         } catch (error) {
             console.error('❌ [CitiesManager] Error uploading image:', error);
-            alert('Erreur lors de l\'upload de l\'image. Veuillez réessayer.');
+            showAlert('Erreur', 'Erreur lors de l\'upload de l\'image. Veuillez réessayer.');
         } finally {
             setIsUploadingImage(false);
         }
@@ -872,6 +912,48 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                 </Dialog>
 
             </motion.div >
+
+            {/* Dialogues Shadcn Simples pour Alertes et Confirmations */}
+            <Dialog open={alertConfig.open} onOpenChange={(open) => setAlertConfig(prev => ({ ...prev, open }))}>
+                <DialogContent className="bg-[#111] border border-white/10 text-white sm:max-w-[400px] z-[100]">
+                    <DialogHeader>
+                        <DialogTitle className="text-[#c0a080]">{alertConfig.title}</DialogTitle>
+                        <DialogDescription className="text-gray-400">
+                            {alertConfig.message}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button onClick={() => setAlertConfig(prev => ({ ...prev, open: false }))} className="bg-[#c0a080] text-black hover:bg-[#d4b594]">
+                            Compris
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={confirmConfig.open} onOpenChange={(open) => setConfirmConfig(prev => ({ ...prev, open }))}>
+                <DialogContent className="bg-[#111] border border-white/10 text-white sm:max-w-[400px] z-[100]">
+                    <DialogHeader>
+                        <DialogTitle className="text-white">{confirmConfig.title}</DialogTitle>
+                        <DialogDescription className="text-gray-400">
+                            {confirmConfig.message}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="ghost" onClick={() => setConfirmConfig(prev => ({ ...prev, open: false }))} className="hover:text-white">
+                            Annuler
+                        </Button>
+                        <Button
+                            onClick={() => {
+                                confirmConfig.onConfirm();
+                                setConfirmConfig(prev => ({ ...prev, open: false }));
+                            }}
+                            className="bg-red-500 hover:bg-red-600 text-white"
+                        >
+                            Confirmer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {mounted && createPortal(
                 <BackgroundSelector

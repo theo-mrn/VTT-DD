@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import Image from 'next/image';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,13 +15,40 @@ interface MapFile {
     type: 'image' | 'video';
 }
 
-const MediaItem = ({ map, onClick }: { map: MapFile, onClick: () => void }) => {
+const MediaItem = React.memo(({ map, onClick }: { map: MapFile, onClick: () => void }) => {
     const [isLoading, setIsLoading] = useState(true);
     const [progress, setProgress] = useState(0);
     const [hasError, setHasError] = useState(false);
     const [objectUrl, setObjectUrl] = useState<string | null>(null);
+    const [isVisible, setIsVisible] = useState(false);
+    const containerRef = useRef<HTMLButtonElement>(null);
 
     useEffect(() => {
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting) {
+                    setIsVisible(true);
+                    observer.disconnect();
+                }
+            },
+            { threshold: 0.1, rootMargin: '100px' }
+        );
+
+        if (containerRef.current) {
+            observer.observe(containerRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, []);
+
+    useEffect(() => {
+        if (!isVisible || map.type !== 'video') {
+            if (map.type === 'image') {
+                setIsLoading(false);
+            }
+            return;
+        }
+
         let xhr: XMLHttpRequest | null = null;
         let url: string | null = null;
 
@@ -71,70 +99,83 @@ const MediaItem = ({ map, onClick }: { map: MapFile, onClick: () => void }) => {
                 URL.revokeObjectURL(url);
             }
         };
-    }, [map.path]);
+    }, [map.path, isVisible, map.type]);
 
     return (
         <button
+            ref={containerRef}
             onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 onClick();
             }}
-
-            disabled={isLoading || hasError}
+            disabled={(isLoading || hasError) && isVisible && map.type === 'video'}
             className="group relative aspect-video rounded-xl overflow-hidden border-2 border-[#333] hover:border-[#c0a080] transition-all duration-200 bg-[#0a0a0a] hover:scale-105 hover:shadow-2xl hover:shadow-[#c0a080]/20 disabled:hover:scale-100 disabled:cursor-not-allowed"
         >
             <div className="absolute inset-0 flex items-center justify-center">
-                {isLoading && !hasError && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-[#0a0a0a]/90 backdrop-blur-sm">
-                        <div className="relative w-16 h-16 flex items-center justify-center mb-2">
-                            <Loader2 className="w-8 h-8 animate-spin text-[#c0a080] absolute" />
-                            <span className="text-[10px] font-bold text-white z-10">{progress}%</span>
-                        </div>
-                        <div className="w-1/2 h-1 bg-gray-800 rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-[#c0a080] transition-all duration-300 ease-out"
-                                style={{ width: `${progress}%` }}
-                            />
-                        </div>
+                {!isVisible ? (
+                    <div className="flex items-center justify-center">
+                        <Loader2 className="w-6 h-6 animate-spin text-[#333]" />
                     </div>
-                )}
+                ) : (
+                    <>
+                        {map.type === 'video' ? (
+                            <>
+                                {isLoading && !hasError && (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-[#0a0a0a]/90 backdrop-blur-sm">
+                                        <div className="relative w-16 h-16 flex items-center justify-center mb-2">
+                                            <Loader2 className="w-8 h-8 animate-spin text-[#c0a080] absolute" />
+                                            <span className="text-[10px] font-bold text-white z-10">{progress}%</span>
+                                        </div>
+                                        <div className="w-1/2 h-1 bg-gray-800 rounded-full overflow-hidden">
+                                            <div
+                                                className="h-full bg-[#c0a080] transition-all duration-300 ease-out"
+                                                style={{ width: `${progress}%` }}
+                                            />
+                                        </div>
+                                    </div>
+                                )}
 
-                {hasError && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-[#1a0505] text-red-500 p-2 text-center">
-                        <AlertCircle className="w-8 h-8 mb-2" />
-                        <span className="text-xs">Échec du chargement</span>
-                    </div>
-                )}
+                                {hasError && (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-[#1a0505] text-red-500 p-2 text-center">
+                                        <AlertCircle className="w-8 h-8 mb-2" />
+                                        <span className="text-xs">Échec du chargement</span>
+                                    </div>
+                                )}
 
-                {objectUrl && (
-                    map.type === 'video' ? (
-                        <>
-                            <video
-                                src={objectUrl}
-                                className="w-full h-full object-cover"
-                                muted
-                                autoPlay
-                                loop
-                                playsInline
+                                {objectUrl && (
+                                    <>
+                                        <video
+                                            src={objectUrl}
+                                            className="w-full h-full object-cover"
+                                            muted
+                                            autoPlay
+                                            loop
+                                            playsInline
+                                        />
+                                        <div className="absolute top-2 right-2 bg-black/70 rounded-full p-2">
+                                            <Film className="w-4 h-4 text-white" />
+                                        </div>
+                                    </>
+                                )}
+                            </>
+                        ) : (
+                            <Image
+                                src={map.path}
+                                alt={map.name}
+                                fill
+                                sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 20vw"
+                                className="object-cover"
+                                quality={10}
+                                loading="lazy"
                             />
-                            <div className="absolute top-2 right-2 bg-black/70 rounded-full p-2">
-                                <Film className="w-4 h-4 text-white" />
-                            </div>
-                        </>
-                    ) : (
-                        <img
-                            src={objectUrl}
-                            alt={map.name}
-                            className="w-full h-full object-cover"
-                            loading="lazy"
-                        />
-                    )
+                        )}
+                    </>
                 )}
             </div>
 
             {/* Overlay */}
-            {!isLoading && !hasError && (
+            {isVisible && !isLoading && !hasError && (
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="absolute bottom-0 left-0 right-0 p-3">
                         <p className="text-sm text-white font-medium truncate">{map.name}</p>
@@ -143,7 +184,7 @@ const MediaItem = ({ map, onClick }: { map: MapFile, onClick: () => void }) => {
             )}
         </button>
     );
-}
+});
 
 interface BackgroundSelectorProps {
     isOpen: boolean;
@@ -185,38 +226,8 @@ export default function BackgroundSelector({
         }
     };
 
-    // Get all unique main categories
-    // - Everything from /Cartes -> "Autres"
-    // - Everything from /Map -> actual subcategory (Camps, Lake, etc.)
-    const getAllCategories = () => {
-        const categoryMap = new Map<string, number>();
-        maps.forEach(map => {
-            const parts = map.category.split('/');
-            let categoryName: string;
-
-            if (parts[0] === 'Cartes') {
-                // Everything from Cartes goes to "Autres"
-                categoryName = 'Autres';
-            } else if (parts[0] === 'Map' && parts[1]) {
-                // From Map, use the subcategory (Camps, Lake, etc.)
-                categoryName = parts[1];
-            } else {
-                // Fallback
-                categoryName = parts[parts.length - 1] || parts[0];
-            }
-
-            categoryMap.set(categoryName, (categoryMap.get(categoryName) || 0) + 1);
-        });
-
-        return Array.from(categoryMap.entries())
-            .map(([name, count]) => ({ name, count }))
-            .sort((a, b) => a.name.localeCompare(b.name));
-    };
-
-    const allCategories = getAllCategories();
-
     // Helper function to get category name from map
-    const getMapCategory = (map: MapFile): string => {
+    const getMapCategory = useCallback((map: MapFile): string => {
         const parts = map.category.split('/');
         if (parts[0] === 'Cartes') {
             return 'Autres';
@@ -225,31 +236,44 @@ export default function BackgroundSelector({
         } else {
             return parts[parts.length - 1] || parts[0];
         }
-    };
+    }, []);
 
-    // Filter maps based on selected category and media type
-    const filteredMaps = maps.filter(map => {
-        const matchesSearch = map.name.toLowerCase().includes(search.toLowerCase());
+    // Get all unique main categories memoized
+    const allCategories = useMemo(() => {
+        const categoryMap = new Map<string, number>();
+        maps.forEach(map => {
+            const categoryName = getMapCategory(map);
+            categoryMap.set(categoryName, (categoryMap.get(categoryName) || 0) + 1);
+        });
 
-        // Get category for this map
-        const mapCategory = getMapCategory(map);
-        const matchesCategory = !selectedCategory || mapCategory === selectedCategory;
+        return Array.from(categoryMap.entries())
+            .map(([name, count]) => ({ name, count }))
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [maps, getMapCategory]);
 
-        // Filter by media type within the selected category
-        let matchesMediaType = false;
-        if (activeMediaType === 'animated') {
-            matchesMediaType = map.type === 'video';
-        } else if (activeMediaType === 'static') {
-            matchesMediaType = map.type === 'image' && !map.name.toLowerCase().includes('illustration');
-        } else if (activeMediaType === 'illustration') {
-            matchesMediaType = map.type === 'image' && map.name.toLowerCase().includes('illustration');
-        }
+    // Filter maps based on selected category and media type memoized
+    const filteredMaps = useMemo(() => {
+        const searchTerm = search.toLowerCase();
+        return maps.filter(map => {
+            const matchesSearch = map.name.toLowerCase().includes(searchTerm);
+            const mapCategory = getMapCategory(map);
+            const matchesCategory = !selectedCategory || mapCategory === selectedCategory;
 
-        return matchesSearch && matchesCategory && matchesMediaType;
-    });
+            let matchesMediaType = false;
+            if (activeMediaType === 'animated') {
+                matchesMediaType = map.type === 'video';
+            } else if (activeMediaType === 'static') {
+                matchesMediaType = map.type === 'image' && !map.name.toLowerCase().includes('illustration');
+            } else if (activeMediaType === 'illustration') {
+                matchesMediaType = map.type === 'image' && map.name.toLowerCase().includes('illustration');
+            }
 
-    // Count available items per media type for the selected category
-    const getMediaTypeCounts = () => {
+            return matchesSearch && matchesCategory && matchesMediaType;
+        });
+    }, [maps, search, selectedCategory, activeMediaType, getMapCategory]);
+
+    // Count available items per media type for the selected category memoized
+    const mediaTypeCounts = useMemo(() => {
         const categoryMaps = selectedCategory
             ? maps.filter(map => getMapCategory(map) === selectedCategory)
             : maps;
@@ -259,9 +283,7 @@ export default function BackgroundSelector({
             animated: categoryMaps.filter(m => m.type === 'video').length,
             illustration: categoryMaps.filter(m => m.type === 'image' && m.name.toLowerCase().includes('illustration')).length,
         };
-    };
-
-    const mediaTypeCounts = getMediaTypeCounts();
+    }, [maps, selectedCategory, getMapCategory]);
 
     if (!isOpen) return null;
 
@@ -441,9 +463,9 @@ export default function BackgroundSelector({
                             ) : (
                                 <ScrollArea className="h-full">
                                     <div className="grid grid-cols-4 gap-6 pb-4">
-                                        {filteredMaps.map((map, index) => (
+                                        {filteredMaps.map((map) => (
                                             <MediaItem
-                                                key={index}
+                                                key={map.path}
                                                 map={map}
                                                 onClick={() => {
                                                     onSelectLocal(map.path);
