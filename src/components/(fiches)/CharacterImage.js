@@ -1,549 +1,392 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Cropper from 'react-easy-crop';
 import { doc, updateDoc, getDoc, db, auth, onAuthStateChanged, storage, ref, uploadBytes, getDownloadURL } from '@/lib/firebase';
 import { getCroppedImg, createCompositeImage, getCroppedGif, createCompositeGif } from '@/lib/cropImageHelper';
 import { Slider } from '@/components/ui/slider';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Image as ImageIcon, Check, X, RotateCcw, Sparkles, Upload } from 'lucide-react';
-
-
+import {
+  Image as ImageIcon,
+  Check,
+  X,
+  RotateCcw,
+  Sparkles,
+  Upload,
+  ZoomIn,
+  Loader2,
+  Maximize2,
+  Minimize2,
+  Wand2,
+  Palette
+} from 'lucide-react';
 
 export default function CharacterImage({ imageUrl, altText, characterId }) {
+  // --- State Management ---
   const [currentUser, setCurrentUser] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
-  const [showCropper, setShowCropper] = useState(false);
-  const [showDecorationModal, setShowDecorationModal] = useState(false);
+  const [showForge, setShowForge] = useState(false); // "Forge" = The new Editor
+
+  // Image Data
   const [croppedImageUrl, setCroppedImageUrl] = useState(imageUrl || "/api/placeholder/192/192");
   const [finalImageUrl, setFinalImageUrl] = useState(null);
+
+  // Decoration / Tokens
   const [overlayUrl, setOverlayUrl] = useState("/Token/Token1.png");
   const [previewTokenUrl, setPreviewTokenUrl] = useState("/Token/Token1.png");
+  const [tokenList, setTokenList] = useState([]);
+
+  // Previews
   const [previewImage, setPreviewImage] = useState(null);
+
+  // Context
   const [roomId, setRoomId] = useState(null);
+
+  // Processing Status
   const [uploading, setUploading] = useState(false);
   const [isGif, setIsGif] = useState(false);
   const [processingProgress, setProcessingProgress] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [tokenList, setTokenList] = useState([]);
 
-  useEffect(() => {
-    const fetchRoomId = async () => {
-      try {
-        const userDocRef = doc(db, `users/${auth.currentUser.uid}`);
-        const userDoc = await getDoc(userDocRef);
+  // --- Effects ---
 
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          setRoomId(data.room_id);
-        } else {
-          console.error("User document does not exist.");
-        }
-      } catch (error) {
-        console.error("Failed to fetch user data:", error);
-      }
-    };
-
-    if (auth.currentUser) fetchRoomId();
-  }, [auth.currentUser]);
-
-  useEffect(() => {
-    const fetchImageURL = async () => {
-      if (!roomId) return;
-
-      try {
-        const characterDocRef = doc(db, `cartes/${roomId}/characters`, characterId);
-        const characterDoc = await getDoc(characterDocRef);
-
-        if (characterDoc.exists()) {
-          const data = characterDoc.data();
-          setCroppedImageUrl(data.imageURL2 || imageUrl || "/api/placeholder/192/192");
-          setFinalImageUrl(data.imageURLFinal || null);
-
-          // Load token from R2 if available
-          if (data.Token) {
-            // Fetch token URL from API
-            const tokenResponse = await fetch('/api/assets?category=Token&type=image');
-            const tokenData = await tokenResponse.json();
-            const tokenAsset = tokenData.assets?.find(asset => asset.name === `${data.Token}.png`);
-
-            if (tokenAsset) {
-              const tokenUrl = tokenAsset.localPath || tokenAsset.path;
-              setOverlayUrl(tokenUrl);
-              setPreviewTokenUrl(tokenUrl);
-            }
-          }
-
-          setIsGif(data.isGif || false);
-        } else {
-          setCroppedImageUrl(imageUrl || "/api/placeholder/192/192");
-          setFinalImageUrl(null);
-          setIsGif(false);
-        }
-      } catch (error) {
-        console.error("Failed to fetch character data:", error);
-      }
-    };
-
-    if (characterId && roomId) fetchImageURL();
-  }, [characterId, imageUrl, roomId]);
-
+  // 1. Auth & Room
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user || null);
+      if (user) fetchRoomId(user.uid);
     });
     return () => unsubscribe();
   }, []);
 
-  // Load tokens from API
+  const fetchRoomId = async (uid) => {
+    try {
+      const userDoc = await getDoc(doc(db, `users/${uid}`));
+      if (userDoc.exists()) setRoomId(userDoc.data().room_id);
+    } catch (e) { console.error(e); }
+  };
+
+  // 2. Character Data
+  useEffect(() => {
+    if (!characterId || !roomId) return;
+    const fetchChar = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, `cartes/${roomId}/characters`, characterId));
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setCroppedImageUrl(data.imageURL2 || imageUrl || "/api/placeholder/192/192");
+          setFinalImageUrl(data.imageURLFinal || null);
+          setIsGif(data.isGif || false);
+
+          if (data.Token) {
+            // Try to resolve token URL (optimistic)
+            // In a real app we might want to wait for the token list, but for now we'll load it when tokens load
+            // or just set the name and let the matcher find it.
+          }
+        }
+      } catch (e) { console.error(e); }
+    };
+    fetchChar();
+  }, [characterId, roomId, imageUrl]);
+
+  // 3. Load Tokens (The Armory)
   useEffect(() => {
     const loadTokens = async () => {
       try {
-        const response = await fetch('/api/assets?category=Token&type=image');
-        const data = await response.json();
-
-        if (data.assets && Array.isArray(data.assets)) {
-          // Extract token number from filename (Token1.png -> 1)
-          const tokens = data.assets
-            .map(asset => {
-              const match = asset.name.match(/Token(\d+)\.png/);
-              if (match) {
-                return {
-                  id: parseInt(match[1]),
-                  name: asset.name.replace('.png', ''),
-                  src: asset.localPath || asset.path // Prefer local path to avoid CORS, fallback to R2
-                };
-              }
-              return null;
-            })
-            .filter(token => token !== null)
-            .sort((a, b) => a.id - b.id);
+        const res = await fetch('/api/assets?category=Token&type=image');
+        const data = await res.json();
+        if (data.assets) {
+          const tokens = data.assets.map(a => {
+            const m = a.name.match(/Token(\d+)\.png/);
+            return m ? { id: parseInt(m[1]), name: a.name.replace('.png', ''), src: a.localPath || a.path } : null;
+          }).filter(Boolean).sort((a, b) => a.id - b.id);
 
           setTokenList(tokens);
-
-          // Set default token if not already set
           if (tokens.length > 0 && !overlayUrl) {
             setOverlayUrl(tokens[0].src);
             setPreviewTokenUrl(tokens[0].src);
           }
         }
-      } catch (error) {
-        console.error('Failed to load tokens:', error);
-      }
+      } catch (e) { console.error(e); }
     };
-
     loadTokens();
   }, []);
 
-  const onCropComplete = useCallback(async (croppedArea, croppedAreaPixels) => {
-    setCroppedAreaPixels(croppedAreaPixels);
+  // --- Logic ---
 
-    // Generate preview image
+  const onCropComplete = useCallback(async (_, croppedAreaPixels) => {
+    setCroppedAreaPixels(croppedAreaPixels);
     try {
       const preview = await getCroppedImg(croppedImageUrl, croppedAreaPixels);
       setPreviewImage(preview);
-    } catch (e) {
-      console.error('Failed to generate preview:', e);
-    }
+    } catch (e) { console.error(e); }
   }, [croppedImageUrl]);
 
-  const handleSaveCroppedImage = useCallback(async () => {
-    if (!currentUser || !roomId) {
-      alert("Please log in to save changes.");
-      return;
+  const handleResetImage = async () => {
+    if (!currentUser || !roomId) return;
+    try {
+      await updateDoc(doc(db, `cartes/${roomId}/characters`, characterId), { imageURL2: imageUrl });
+      setCroppedImageUrl(imageUrl);
+      setShowForge(false);
+    } catch (e) {
+      console.error(e);
     }
+  };
 
+  const handleSave = async () => {
+    if (!currentUser || !roomId) return;
     setIsProcessing(true);
     setProcessingProgress(0);
 
     try {
-      let croppedImage;
-      let compositeImage;
-
+      // 1. Process Image/GIF
+      let cropped, composite;
       if (isGif) {
-        // For GIFs, use the new GIF processing functions
-        // First crop the GIF
-        croppedImage = await getCroppedGif(
-          croppedImageUrl,
-          croppedAreaPixels,
-          (progress) => setProcessingProgress(progress * 50) // 50% for cropping
-        );
+        cropped = await getCroppedGif(croppedImageUrl, croppedAreaPixels, p => setProcessingProgress(p * 50));
+        composite = await createCompositeGif(cropped, previewTokenUrl, p => setProcessingProgress(50 + p * 50));
 
-        // Then create composite with token
-        compositeImage = await createCompositeGif(
-          croppedImage,
-          previewTokenUrl,
-          (progress) => setProcessingProgress(50 + progress * 50) // Next 50% for compositing
-        );
+        // Upload GIFs
+        const [cBlob, fBlob] = await Promise.all([fetch(cropped).then(r => r.blob()), fetch(composite).then(r => r.blob())]);
+        const cRef = ref(storage, `characters/${characterId}_cropped_${Date.now()}.gif`);
+        const fRef = ref(storage, `characters/${characterId}_final_${Date.now()}.gif`);
 
-        // Convert blob URL to blob for upload
-        const response = await fetch(compositeImage);
-        const blob = await response.blob();
-
-        // Upload the final GIF to Firebase Storage
-        const storageRef = ref(storage, `characters/${characterId}_final_${Date.now()}.gif`);
-        await uploadBytes(storageRef, blob);
-        const finalUrl = await getDownloadURL(storageRef);
-
-        // Also upload the cropped version (without token)
-        const croppedResponse = await fetch(croppedImage);
-        const croppedBlob = await croppedResponse.blob();
-        const croppedStorageRef = ref(storage, `characters/${characterId}_cropped_${Date.now()}.gif`);
-        await uploadBytes(croppedStorageRef, croppedBlob);
-        const croppedUrl = await getDownloadURL(croppedStorageRef);
-
-        croppedImage = croppedUrl;
-        compositeImage = finalUrl;
+        await Promise.all([uploadBytes(cRef, cBlob), uploadBytes(fRef, fBlob)]);
+        [cropped, composite] = await Promise.all([getDownloadURL(cRef), getDownloadURL(fRef)]);
       } else {
-        // For non-GIF images, use the existing logic
-        croppedImage = await getCroppedImg(croppedImageUrl, croppedAreaPixels);
-        compositeImage = await createCompositeImage(croppedImage, previewTokenUrl, false);
+        cropped = await getCroppedImg(croppedImageUrl, croppedAreaPixels);
+        composite = await createCompositeImage(cropped, previewTokenUrl, false);
       }
 
-      const characterDocRef = doc(db, `cartes/${roomId}/characters`, characterId);
+      // 2. Identify Token
+      const tokenName = tokenList.find(t => t.src === previewTokenUrl)?.name || 'Token1';
 
-      // Extract token number/name from previewTokenUrl
-      let tokenName = 'Token1';
-
-      // If using R2 URL, extract from path
-      if (previewTokenUrl.includes('r2.dev')) {
-        const match = previewTokenUrl.match(/Token(\d+)\.png/);
-        if (match) {
-          tokenName = `Token${match[1]}`;
-        }
-      } else {
-        // Fallback for local URLs
-        const match = previewTokenUrl.match(/Token(\d+)\.png/);
-        tokenName = match ? `Token${match[1]}` : 'Token1';
-      }
-
-      // Save both the cropped image and the composite final image
-      await updateDoc(characterDocRef, {
-        imageURL2: croppedImage,      // Original cropped image (for re-editing)
-        imageURLFinal: compositeImage, // Final composite with token
+      // 3. Update DB
+      await updateDoc(doc(db, `cartes/${roomId}/characters`, characterId), {
+        imageURL2: cropped,
+        imageURLFinal: composite,
         Token: tokenName,
-        isGif: isGif
+        isGif
       });
 
-      setCroppedImageUrl(croppedImage);
-      setFinalImageUrl(compositeImage);
+      // 4. Update Local State
+      setCroppedImageUrl(cropped);
+      setFinalImageUrl(composite);
       setOverlayUrl(previewTokenUrl);
-      setShowCropper(false);
+      setShowForge(false);
+
     } catch (e) {
-      console.error('Failed to save cropped image:', e);
-      alert('Erreur lors de la sauvegarde de l\'image: ' + e.message);
+      console.error(e);
+      alert("Error saving: " + e.message);
     } finally {
       setIsProcessing(false);
-      setProcessingProgress(0);
-    }
-  }, [croppedAreaPixels, croppedImageUrl, characterId, currentUser, roomId, previewTokenUrl, isGif]);
-
-  const handleResetImage = useCallback(async () => {
-    if (!currentUser || !roomId) {
-      alert("Please log in to reset image.");
-      return;
-    }
-
-    try {
-      const characterDocRef = doc(db, `cartes/${roomId}/characters`, characterId);
-      await updateDoc(characterDocRef, { imageURL2: imageUrl });
-      setCroppedImageUrl(imageUrl);
-      setShowCropper(false);
-    } catch (e) {
-      console.error('Failed to reset image:', e);
-    }
-  }, [imageUrl, characterId, currentUser, roomId]);
-
-  const handleSelectToken = async (tokenId) => {
-    // Find the token in the token list
-    const token = tokenList.find(t => t.id === tokenId);
-    if (token) {
-      setPreviewTokenUrl(token.src);
     }
   };
 
-  const handleImageUpload = async (e) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const file = e.target.files[0];
+  const handleUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-    // Check if it's a GIF
-    const isGifFile = file.type === 'image/gif';
-    setIsGif(isGifFile);
     setUploading(true);
+    setIsGif(file.type === 'image/gif');
 
     try {
-      // Upload to Firebase Storage
-      const storageRef = ref(storage, `characters/${characterId}_${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const downloadUrl = await getDownloadURL(storageRef);
+      const sRef = ref(storage, `characters/${characterId}_${Date.now()}_${file.name}`);
+      await uploadBytes(sRef, file);
+      const url = await getDownloadURL(sRef);
 
-      // Update the cropped image URL with the new uploaded image
-      setCroppedImageUrl(downloadUrl);
-
-      // Reset crop and zoom
+      setCroppedImageUrl(url);
       setCrop({ x: 0, y: 0 });
       setZoom(1);
       setPreviewImage(null);
-    } catch (error) {
-      console.error('Failed to upload image:', error);
-      alert('Erreur lors de l\'upload de l\'image');
+    } catch (e) {
+      console.error(e);
+      alert("Upload failed");
     } finally {
       setUploading(false);
     }
   };
 
-  if (!currentUser) {
-    return <div>Please log in to edit your character image.</div>;
-  }
+  if (!currentUser) return <div className="text-xs text-neutral-500">Log in to edit</div>;
+
+  // --- RENDER ---
 
   return (
-    <div className="relative w-full h-full flex justify-center items-center mx-auto group min-h-0 min-w-0">
-      <div className="relative max-w-full max-h-full aspect-square w-full h-full flex items-center justify-center">
-        {finalImageUrl && !isGif ? (
-          /* Display composite final image for non-GIF images */
-          <div
-            className="relative w-full h-full cursor-pointer transition-all duration-300"
-            onClick={() => setShowCropper(true)}
-          >
-            <img
-              src={finalImageUrl}
-              alt={altText || "Character Image"}
-              className="w-full h-full object-contain"
-            />
-            {/* Hover overlay */}
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-full">
-              <ImageIcon className="text-[#c0a0a0]" size={32} />
-            </div>
-          </div>
-        ) : isGif && croppedImageUrl ? (
-          /* Display GIF with CSS overlay */
-          <>
-            <div
-              className="relative w-[80%] h-[80%] rounded-full overflow-hidden cursor-pointer z-10 hover:border-[#c0a0a0] transition-all duration-300"
-              onClick={() => setShowCropper(true)}
-            >
-              <img
-                src={croppedImageUrl}
-                alt={altText || "Character Image"}
-                className="w-full h-full object-cover"
-              />
-              {/* Hover overlay */}
-              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <ImageIcon className="text-[#c0a0a0]" size={32} />
-              </div>
-            </div>
+    <>
+      {/* 1. THE PORTAL (Avatar on Sheet) */}
+      <div
+        onClick={() => setShowForge(true)}
+        className="relative group cursor-pointer w-full h-full flex items-center justify-center transition-all duration-500 hover:scale-[1.02]"
+      >
+        {/* Subtle Glow */}
+        <div className="absolute inset-0 rounded-full bg-white/0 group-hover:bg-white/5 transition-colors duration-500" />
 
-            {/* Decorative Overlay */}
-            <div
-              className="absolute inset-0 w-full h-full bg-center bg-cover z-20 pointer-events-none"
-              style={{ backgroundImage: `url(${overlayUrl})` }}
-            />
-          </>
-        ) : finalImageUrl ? (
-          /* Display composite final image (fallback for existing non-GIF composites) */
-          <div
-            className="relative w-full h-full cursor-pointer transition-all duration-300"
-            onClick={() => setShowCropper(true)}
-          >
-            <img
-              src={finalImageUrl}
-              alt={altText || "Character Image"}
-              className="w-full h-full object-contain"
-            />
-            {/* Hover overlay */}
-            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center rounded-full">
-              <ImageIcon className="text-[#c0a0a0]" size={32} />
+        {/* Main Image Container */}
+        <div className="relative w-full h-full z-10 drop-shadow-md transition-all duration-300">
+          {finalImageUrl ? (
+            <img src={finalImageUrl} alt={altText} className="w-full h-full object-contain" />
+          ) : (
+            <div className="w-full h-full rounded-full bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 flex items-center justify-center">
+              <ImageIcon className="text-neutral-400" />
             </div>
-          </div>
-        ) : (
-          /* Fallback: Display character image with overlay (for backwards compatibility) */
-          <>
-            <div
-              className="relative w-[80%] h-[80%] rounded-full overflow-hidden cursor-pointer z-10 hover:border-[#c0a0a0] transition-all duration-300"
-              onClick={() => setShowCropper(true)}
-            >
-              <img
-                src={croppedImageUrl}
-                alt={altText || "Character Image"}
-                className="w-full h-full object-cover"
-              />
-              {/* Hover overlay */}
-              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                <ImageIcon className="text-[#c0a0a0]" size={32} />
-              </div>
-            </div>
+          )}
+        </div>
 
-            {/* Decorative Overlay */}
-            <div
-              className="absolute inset-0 w-full h-full bg-center bg-cover z-20 pointer-events-none"
-              style={{ backgroundImage: `url(${overlayUrl})` }}
-            />
-          </>
-        )}
+        {/* Hover Action */}
+        <div className="absolute inset-0 z-20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 pt-10 pointer-events-none">
+          <div className="bg-neutral-900/90 backdrop-blur-sm border border-white/10 px-3 py-1.5 rounded-full shadow-xl flex items-center gap-2">
+            <Wand2 className="text-white w-3 h-3" />
+            <span className="text-[10px] font-medium text-white tracking-wide">EDIT</span>
+          </div>
+        </div>
       </div>
 
-      {/* Cropper Modal with Token Grid */}
-      {showCropper && croppedImageUrl && createPortal(
-        <div className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex flex-col lg:flex-row">
-          {/* Left side - Cropper */}
-          <div className="flex-1 flex flex-col justify-center items-center p-3 sm:p-4 lg:p-6 bg-[#1a1a1a]">
-            <div className="w-full max-w-3xl mb-4">
-              <h2 className="text-2xl font-bold text-[#c0a0a0] mb-2 flex items-center gap-2">
-                <ImageIcon size={28} />
-                Éditer l'image du personnage
-              </h2>
-              <p className="text-[#a0a0a0] text-sm">Recadrez votre image et choisissez un cadre décoratif</p>
+      {/* 2. THE FORGE (Studio Editor) */}
+      {showForge && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-[#09090b] animate-in fade-in duration-300 flex flex-col overflow-hidden font-sans text-neutral-200">
+
+          {/* Background Texture */}
+          <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-[0.02] pointer-events-none" />
+
+          {/* --- HEADER --- */}
+          <header className="relative z-50 flex items-center justify-between px-6 py-5 bg-[#09090b]/50 backdrop-blur-sm border-b border-white/5">
+            <div className="flex items-center gap-3">
+              <div className="h-8 w-8 bg-neutral-800 rounded flex items-center justify-center border border-white/5">
+                <ImageIcon className="text-neutral-400 w-4 h-4" />
+              </div>
+              <div>
+                <h1 className="text-sm font-semibold text-white tracking-wide">
+                  Avatar Studio
+                </h1>
+              </div>
             </div>
 
-            {/* Preview Section */}
-            <div className="mb-4">
-              <p className="text-[#c0a0a0] text-sm font-semibold mb-2 text-center">Aperçu final</p>
-              <div className="relative w-40 h-40 sm:w-48 sm:h-48 flex justify-center items-center mx-auto">
-                <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden shadow-2xl z-10 border-2 border-[#c0a0a0]">
-                  {previewImage ? (
-                    <img
-                      src={previewImage}
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <img
-                      src={croppedImageUrl}
-                      alt="Preview"
-                      className="w-full h-full object-cover"
-                    />
-                  )}
-                </div>
+            <button
+              onClick={() => setShowForge(false)}
+              className="p-2 hover:bg-neutral-800 rounded-md transition-colors text-neutral-500 hover:text-white"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </header>
+
+          {/* --- MAIN WORKSPACE --- */}
+          <main className="flex-1 relative flex flex-col lg:flex-row items-stretch overflow-hidden">
+
+            {/* CENTER: Canvas */}
+            <div className="flex-1 relative flex flex-col items-center justify-center p-6 bg-[#0c0c0e]">
+
+              {/* Cropper Frame */}
+              <div className="relative w-full max-w-xl aspect-square bg-[#050505] rounded-xl overflow-hidden shadow-2xl border border-white/10 group">
+                <Cropper
+                  image={croppedImageUrl}
+                  crop={crop}
+                  zoom={zoom}
+                  aspect={1}
+                  onCropChange={setCrop}
+                  onZoomChange={setZoom}
+                  onCropComplete={onCropComplete}
+                  classes={{
+                    containerClassName: "bg-[#050505]",
+                    mediaClassName: "opacity-80 transition-opacity duration-300 group-hover:opacity-100"
+                  }}
+                />
+
+                {/* Live Token Overlay (The "Real" Result) */}
                 <div
-                  className="absolute inset-0 w-40 h-40 sm:w-48 sm:h-48 bg-center bg-cover z-20 pointer-events-none"
+                  className="pointer-events-none absolute inset-0 z-10 bg-contain bg-center bg-no-repeat"
                   style={{ backgroundImage: `url(${previewTokenUrl})` }}
                 />
-              </div>
-            </div>
 
-            <div className="relative w-full h-[40vh] sm:h-[50vh] lg:h-2/3 max-w-3xl bg-[#242424] rounded-lg overflow-hidden border-2 border-[#3a3a3a] shadow-2xl">
-              <Cropper
-                image={croppedImageUrl}
-                crop={crop}
-                zoom={zoom}
-                aspect={1}
-                onCropChange={setCrop}
-                onZoomChange={setZoom}
-                onCropComplete={onCropComplete}
-              />
-            </div>
-
-            <div className="mt-4 sm:mt-6 w-full max-w-lg px-2">
-              <label className="text-[#c0a0a0] text-sm font-semibold mb-2 block">Zoom</label>
-              <Slider
-                value={[zoom]}
-                min={1}
-                max={3}
-                step={0.1}
-                onValueChange={(value) => setZoom(value[0])}
-                className="cursor-pointer"
-              />
-            </div>
-
-            {isProcessing && (
-              <div className="mt-4 sm:mt-6 w-full max-w-lg px-2">
-                <div className="bg-[#1c1c1c] rounded-lg p-3 border border-[#3a3a3a]">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[#c0a0a0] text-sm font-semibold">Traitement du GIF...</span>
-                    <span className="text-[#a0a0a0] text-xs">{Math.round(processingProgress)}%</span>
-                  </div>
-                  <div className="w-full bg-[#2a2a2a] rounded-full h-2 overflow-hidden">
-                    <div
-                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-full transition-all duration-300"
-                      style={{ width: `${processingProgress}%` }}
-                    />
-                  </div>
+                {/* Minimal Guide (Optional: fade out when interacting if needed, but the token is the guide now) */}
+                <div className="pointer-events-none absolute inset-0 flex items-center justify-center select-none opacity-50">
+                  <div className="w-[100%] h-[100%] rounded-full border border-white/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.85)]" />
                 </div>
               </div>
-            )}
 
-            <div className="mt-4 sm:mt-6 flex flex-wrap justify-center gap-2 sm:gap-3">
-              <label className="bg-[#2a2a2a] hover:bg-[#3a3a3a] border border-[#4a4a4a] hover:border-purple-500/50 text-purple-400 px-4 sm:px-6 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg cursor-pointer">
-                <Upload size={18} />
-                {uploading ? 'Upload...' : 'Changer Photo'}
-                <input
-                  type="file"
-                  accept="image/*,.gif"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  disabled={uploading}
-                />
-              </label>
-              <button
-                onClick={handleSaveCroppedImage}
-                className="bg-[#2a2a2a] hover:bg-[#3a3a3a] border border-[#4a4a4a] hover:border-green-500/50 text-green-500 px-4 sm:px-6 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg"
-                disabled={uploading || isProcessing}
-              >
-                <Check size={18} />
-                {isProcessing ? 'Traitement...' : 'Valider'}
-              </button>
-              <button
-                onClick={() => setShowCropper(false)}
-                className="bg-[#2a2a2a] hover:bg-[#3a3a3a] border border-[#4a4a4a] hover:border-red-500/50 text-[#d4d4d4] hover:text-red-400 px-4 sm:px-6 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg"
-              >
-                <X size={18} />
-                Annuler
-              </button>
-              <button
-                onClick={handleResetImage}
-                className="bg-[#2a2a2a] hover:bg-[#3a3a3a] border border-[#4a4a4a] hover:border-blue-500/50 text-blue-400 px-4 sm:px-6 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-2 shadow-lg"
-              >
-                <RotateCcw size={18} />
-                Réinitialiser
-              </button>
-            </div>
-          </div>
+              {/* Toolbar */}
+              <div className="absolute bottom-8 z-50">
+                <div className="bg-[#18181b] border border-white/5 px-4 py-2 rounded-full shadow-2xl flex items-center gap-4">
 
-          {/* Right side - Token Grid */}
-          <div className="w-full lg:w-96 bg-[#242424] h-[40vh] lg:h-full overflow-y-auto border-l border-[#3a3a3a]">
-            <div className="h-full">
-              <div className="p-4 sm:p-6 border-b border-[#3a3a3a] bg-[#2a2a2a]">
-                <h3 className="text-lg font-bold text-[#c0a0a0] flex items-center gap-2">
-                  <Sparkles size={20} />
-                  Cadres décoratifs
-                </h3>
-                <p className="text-[#a0a0a0] text-sm mt-1">Choisissez un cadre pour votre portrait</p>
+                  <div className="flex items-center gap-3 w-40 border-r border-white/5 pr-4">
+                    <ZoomIn size={14} className="text-neutral-500" />
+                    <Slider
+                      value={[zoom]}
+                      min={1}
+                      max={3}
+                      step={0.1}
+                      onValueChange={(v) => setZoom(v[0])}
+                      className="flex-1"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="p-2 rounded-full hover:bg-white/5 text-neutral-400 hover:text-white cursor-pointer transition-colors" title="Upload">
+                      <Upload size={16} />
+                      <input type="file" className="hidden" accept="image/*,.gif" onChange={handleUpload} disabled={uploading} />
+                    </label>
+                    <button onClick={handleResetImage} className="p-2 rounded-full hover:bg-white/5 text-neutral-400 hover:text-white transition-colors" title="Reset">
+                      <RotateCcw size={16} />
+                    </button>
+                  </div>
+
+                  <button
+                    onClick={handleSave}
+                    disabled={isProcessing}
+                    className="ml-2 px-5 py-1.5 bg-white hover:bg-neutral-200 text-black text-xs font-bold rounded-full transition-all flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isProcessing ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />}
+                    <span>{isProcessing ? 'Saving...' : 'Save Changes'}</span>
+                  </button>
+                </div>
               </div>
-              <div className="p-3 sm:p-4">
-                <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-3 gap-2">
+            </div>
+
+            {/* RIGHT: Token List */}
+            <div className="w-full lg:w-80 bg-[#09090b] border-l border-white/5 flex flex-col h-[30vh] lg:h-auto z-10">
+              <div className="p-4 border-b border-white/5 bg-[#09090b]">
+                <h2 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">
+                  Frames
+                </h2>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                <div className="grid grid-cols-2 gap-3">
                   {tokenList.map((token) => (
                     <button
                       key={token.id}
-                      onClick={() => handleSelectToken(token.id)}
-                      className="relative aspect-square rounded-lg overflow-hidden bg-[#2a2a2a] border-2 border-[#3a3a3a] hover:border-[#c0a0a0] focus:outline-none focus:border-[#c0a0a0] transition-all duration-200 hover:scale-105 hover:shadow-xl group"
+                      onClick={() => setPreviewTokenUrl(token.src)}
+                      className={`group relative aspect-square rounded-xl transition-all duration-200 overflow-hidden flex items-center justify-center p-2 ${previewTokenUrl === token.src
+                          ? 'bg-neutral-800 ring-2 ring-white/20'
+                          : 'bg-neutral-900/40 hover:bg-neutral-800 border border-transparent hover:border-white/5'
+                        }`}
+                      title={token.name}
                     >
                       <img
                         src={token.src}
+                        className={`w-full h-full object-contain transition-all duration-300 ${previewTokenUrl === token.src ? 'scale-90 opacity-100' : 'opacity-60 group-hover:scale-105 group-hover:opacity-100'
+                          }`}
                         alt={token.name}
-                        className="w-full h-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <div className="absolute bottom-0 left-0 right-0 p-1.5 text-center">
-                          <span className="text-white text-[10px] sm:text-xs font-semibold drop-shadow-lg">
-                            {token.name}
-                          </span>
-                        </div>
-                      </div>
+
                       {previewTokenUrl === token.src && (
-                        <div className="absolute top-1 right-1 bg-[#c0a0a0] rounded-full p-1">
-                          <Check size={12} className="text-[#242424]" />
-                        </div>
+                        <div className="absolute top-2 right-2 w-2 h-2 rounded-full bg-white shadow-[0_0_8px_white]" />
                       )}
                     </button>
                   ))}
                 </div>
               </div>
             </div>
-          </div>
+
+          </main>
+
+          {/* Loader Overlay */}
+          {isProcessing && (
+            <div className="absolute inset-0 z-[10000] bg-black/50 backdrop-blur-sm flex items-center justify-center">
+              <Loader2 className="text-white w-8 h-8 animate-spin" />
+            </div>
+          )}
         </div>,
         document.body
       )}
-    </div>
+    </>
   );
 }
