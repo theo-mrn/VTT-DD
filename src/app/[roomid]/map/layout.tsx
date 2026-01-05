@@ -77,7 +77,7 @@ export default function Layout({ children }: LayoutProps) {
       case "GMDashboard":
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] h-auto";
       case "NPCManager":
-        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[900px]";
+        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[1200px]";
       case "DiceRoller":
         return "w-full sm:w-[400px] md:w-[400px] lg:w-[380px]";
       case "NewComponent":
