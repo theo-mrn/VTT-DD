@@ -66,6 +66,7 @@ const ASSET_DIRECTORIES = [
     'items',
     'tabs',
     'Assets',  // Character portraits
+    'images',  // Race and profile images
 ];
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
