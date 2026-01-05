@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic';
 interface AssetFile {
     name: string;
     path: string;
+    localPath?: string;
     category: string;
     type: 'image' | 'video' | 'json';
 }
@@ -57,6 +58,7 @@ export async function GET(request: Request) {
         let assets: AssetFile[] = mappings.map(m => ({
             name: m.name,
             path: m.path, // R2 public URL
+            localPath: m.localPath, // Local path for CORS avoidance
             category: m.category,
             type: m.type as 'image' | 'video' | 'json',
         }));

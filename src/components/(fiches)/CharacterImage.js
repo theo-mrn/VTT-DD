@@ -69,8 +69,9 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
             const tokenAsset = tokenData.assets?.find(asset => asset.name === `${data.Token}.png`);
 
             if (tokenAsset) {
-              setOverlayUrl(tokenAsset.path);
-              setPreviewTokenUrl(tokenAsset.path);
+              const tokenUrl = tokenAsset.localPath || tokenAsset.path;
+              setOverlayUrl(tokenUrl);
+              setPreviewTokenUrl(tokenUrl);
             }
           }
 
@@ -111,7 +112,7 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
                 return {
                   id: parseInt(match[1]),
                   name: asset.name.replace('.png', ''),
-                  src: asset.path // R2 URL
+                  src: asset.localPath || asset.path // Prefer local path to avoid CORS, fallback to R2
                 };
               }
               return null;

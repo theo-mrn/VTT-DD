@@ -74,6 +74,7 @@ export const TOOLS = {
     CLEAR_DRAWINGS: 'clear_drawings',
     MULTI_SELECT: 'multi_select',
     AUDIO_MIXER: 'audio_mixer',
+    TOGGLE_CHAR_BORDERS: 'toggle_char_borders',
 };
 
 export default function MapToolbar({

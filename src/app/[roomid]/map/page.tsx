@@ -98,30 +98,12 @@ import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath }
 import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
 import MapToolbar, { TOOLS } from '@/components/(map)/MapToolbar';
 import BackgroundSelector from '@/components/(map)/BackgroundSelector';
+import GlobalSettingsDialog from '@/components/(map)/GlobalSettingsDialog';
 
 // ⚡ Static Token Component for Performance Mode (Moved Outside Component to avoid Remounting/Flickering)
 const StaticToken = React.memo(({ src, alt, style, className, performanceMode }: { src: string, alt: string, style?: React.CSSProperties, className?: string, performanceMode: string }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const isVideo = src?.toLowerCase().endsWith('.webm') || src?.toLowerCase().endsWith('.mp4');
-
-  useEffect(() => {
-    // 🎨 Canvas Drawing for Static Images (GIFs) in Static Mode
-    if (performanceMode === 'static' && !isVideo && canvasRef.current && src) {
-      const ctx = canvasRef.current.getContext('2d');
-      if (!ctx) return;
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.src = src;
-      img.onload = () => {
-        if (canvasRef.current) {
-          canvasRef.current.width = img.naturalWidth || 100;
-          canvasRef.current.height = img.naturalHeight || 100;
-          ctx.drawImage(img, 0, 0);
-        }
-      };
-    }
-  }, [src, performanceMode, isVideo]);
 
   if (performanceMode === 'static') {
     if (isVideo) {
@@ -141,12 +123,14 @@ const StaticToken = React.memo(({ src, alt, style, className, performanceMode }:
         />
       );
     } else {
-      // 🖼️ Static Canvas (Frozen GIF)
+      // 🖼️ Static Image (Frozen GIF) - Use img instead of canvas for proper objectFit support
       return (
-        <canvas
-          ref={canvasRef}
-          style={{ ...style, objectFit: 'cover' }}
+        <img
+          src={src}
+          alt={alt}
+          style={style}
           className={className}
+          draggable={false}
         />
       );
     }
@@ -343,6 +327,7 @@ export default function Component() {
 
 
   const [showGrid, setShowGrid] = useState(false)
+  const [showCharBorders, setShowCharBorders] = useState(true) // Show character borders & labels
   const [zoom, setZoom] = useState(1.4)
   const [globalTokenScale, setGlobalTokenScale] = useState(1);
   const [showGlobalSettingsDialog, setShowGlobalSettingsDialog] = useState(false);
@@ -510,6 +495,7 @@ export default function Component() {
   }, []);
 
   const bgCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const characterBordersCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const fgCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const shadowTempCanvas = useRef<HTMLCanvasElement | null>(null);
   const shadowExteriorCanvas = useRef<HTMLCanvasElement | null>(null);
@@ -1472,10 +1458,12 @@ export default function Component() {
 
   useEffect(() => {
     const bgCanvas = bgCanvasRef.current;
+    const characterBordersCanvas = characterBordersCanvasRef.current;
     const fgCanvas = fgCanvasRef.current;
-    if (!bgCanvas || !fgCanvas) return;
+    if (!bgCanvas || !characterBordersCanvas || !fgCanvas) return;
 
     const bgCtx = bgCanvas.getContext('2d')!;
+    const borderCtx = characterBordersCanvas.getContext('2d')!;
     const fgCtx = fgCanvas.getContext('2d')!;
 
     // ⚡ PERFORMANCE THROTTLE (Eco Mode)
@@ -1497,17 +1485,21 @@ export default function Component() {
     const containerWidth = containerSize.width || containerRef.current?.clientWidth || bgCanvas.width;
     const containerHeight = containerSize.height || containerRef.current?.clientHeight || bgCanvas.height;
 
-    // Set dimensions for BOTH canvases
+    // Set dimensions for THREE canvases
     bgCanvas.width = containerWidth * sizeMultiplier;
     bgCanvas.height = containerHeight * sizeMultiplier;
+    characterBordersCanvas.width = containerWidth * sizeMultiplier;
+    characterBordersCanvas.height = containerHeight * sizeMultiplier;
     fgCanvas.width = containerWidth * sizeMultiplier;
     fgCanvas.height = containerHeight * sizeMultiplier;
 
     bgCtx.scale(sizeMultiplier, sizeMultiplier);
+    borderCtx.scale(sizeMultiplier, sizeMultiplier);
     fgCtx.scale(sizeMultiplier, sizeMultiplier);
 
     // Initial draw
     drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
+    drawCharacterBorders(borderCtx, image, containerWidth, containerHeight);
     drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
 
     // 🎥 VIDEO RENDER LOOP
@@ -2037,6 +2029,7 @@ export default function Component() {
     switch (actionId) {
       case TOOLS.PAN: deactivateIncompatible(TOOLS.PAN); togglePanMode(); break;
       case TOOLS.GRID: setShowGrid(!showGrid); break;
+      case TOOLS.TOGGLE_CHAR_BORDERS: setShowCharBorders(!showCharBorders); break;
       case TOOLS.LAYERS: setShowLayerControl(!showLayerControl); break;
       case TOOLS.BACKGROUND: if (isMJ) setShowBackgroundSelector(true); break;
       case TOOLS.VIEW_MODE:
@@ -2071,6 +2064,7 @@ export default function Component() {
     if (drawMode) active.push(TOOLS.DRAW);
     if (visibilityMode) active.push(TOOLS.VISIBILITY);
     if (showGrid) active.push(TOOLS.GRID);
+    if (showCharBorders) active.push(TOOLS.TOGGLE_CHAR_BORDERS);
     if (panMode) active.push(TOOLS.PAN);
     if (playerViewMode) active.push(TOOLS.VIEW_MODE);
     if (measureMode) active.push(TOOLS.MEASURE);
@@ -2894,6 +2888,142 @@ export default function Component() {
 
   };
 
+  // 🎯 Draw character borders only (rendered on separate canvas BEFORE character images)
+  const drawCharacterBorders = (ctx: CanvasRenderingContext2D, image: CanvasImageSource, containerWidth: number, containerHeight: number) => {
+    const canvas = ctx.canvas;
+    const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Don't draw borders if disabled
+    if (!showCharBorders) return;
+
+    const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+    const scaledWidth = imgWidth * scale * zoom;
+    const scaledHeight = imgHeight * scale * zoom;
+
+    const effectiveIsMJ = isMJ && !playerViewMode;
+
+    if (isLayerVisible('characters')) {
+      characters.forEach((char, index) => {
+        const x = (char.x / imgWidth) * scaledWidth - offset.x;
+        const y = (char.y / imgHeight) * scaledHeight - offset.y;
+
+        let isVisible = true;
+
+        // Copy visibility logic from drawForegroundLayers
+        const isInFog = fullMapFog || isCellInFog(char.x, char.y, fogGrid, fogCellSize);
+        let effectiveVisibility = char.visibility;
+
+        if (!isCharacterVisibleToUser(char)) {
+          effectiveVisibility = 'hidden';
+        } else if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
+          effectiveVisibility = 'hidden';
+        }
+
+        if (char.visibility === 'ally') {
+          isVisible = true;
+        } else if (effectiveVisibility === 'hidden') {
+          const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
+          const isInPlayerViewMode = playerViewMode && viewAsPersoId;
+
+          if (isInPlayerViewMode) {
+            const viewer = characters.find(c => c.id === effectivePersoId);
+            if (viewer) {
+              const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
+              const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
+              const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
+              isVisible = dist <= (viewer.visibilityRadius ?? 100) * zoom;
+            } else {
+              isVisible = false;
+            }
+          } else {
+            isVisible = effectiveIsMJ || (() => {
+              const viewer = characters.find(c => c.id === effectivePersoId);
+              if (!viewer) return false;
+              const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
+              const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
+              const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
+              return dist <= (viewer.visibilityRadius ?? 100) * zoom;
+            })();
+          }
+        }
+
+        if (isVisible) {
+          // Determine border color and width
+          let borderColor;
+          let lineWidth = 3;
+
+          if (selectedCharacters.includes(index)) {
+            borderColor = 'rgba(0, 255, 0, 1)';
+            lineWidth = 4;
+          } else if (isSelectingArea && selectionStart && selectionEnd) {
+            const minX = Math.min(selectionStart.x, selectionEnd.x);
+            const maxX = Math.max(selectionStart.x, selectionEnd.x);
+            const minY = Math.min(selectionStart.y, selectionEnd.y);
+            const maxY = Math.max(selectionStart.y, selectionEnd.y);
+
+            if (char.x >= minX && char.x <= maxX && char.y >= minY && char.y <= maxY) {
+              borderColor = 'rgba(0, 150, 255, 1)';
+              lineWidth = 4;
+            } else {
+              if (isMJ) {
+                borderColor = char.id === activePlayerId
+                  ? 'rgba(255, 0, 0, 1)'
+                  : char.visibility === 'ally'
+                    ? 'rgba(0, 255, 0, 0.8)'
+                    : char.type === 'joueurs'
+                      ? 'rgba(0, 0, 255, 0.8)'
+                      : 'rgba(255, 165, 0, 0.8)';
+              } else {
+                borderColor = char.id === persoId
+                  ? 'rgba(255, 0, 0, 1)'
+                  : char.visibility === 'ally'
+                    ? 'rgba(0, 255, 0, 0.8)'
+                    : char.type === 'joueurs'
+                      ? 'rgba(0, 0, 255, 0.8)'
+                      : 'rgba(255, 165, 0, 0.8)';
+              }
+            }
+          } else {
+            if (isMJ) {
+              borderColor = char.id === activePlayerId
+                ? 'rgba(255, 0, 0, 1)'
+                : char.visibility === 'ally'
+                  ? 'rgba(0, 255, 0, 0.8)'
+                  : char.type === 'joueurs'
+                    ? 'rgba(0, 0, 255, 0.8)'
+                    : 'rgba(255, 165, 0, 0.8)';
+            } else {
+              borderColor = char.id === persoId
+                ? 'rgba(255, 0, 0, 1)'
+                : char.visibility === 'ally'
+                  ? 'rgba(0, 255, 0, 0.8)'
+                  : char.type === 'joueurs'
+                    ? 'rgba(0, 0, 255, 0.8)'
+                    : 'rgba(255, 165, 0, 0.8)';
+            }
+          }
+
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = lineWidth;
+
+          const isPlayerCharacter = char.type === 'joueurs';
+          const charScale = char.scale || 1;
+          const finalScale = charScale * globalTokenScale;
+
+          const baseBorderRadius = isPlayerCharacter ? 32 : 22;
+          const borderRadius = baseBorderRadius * finalScale * zoom;
+
+          // Draw character border circle
+          ctx.beginPath();
+          ctx.arc(x, y, borderRadius, 0, 2 * Math.PI);
+          ctx.stroke();
+        }
+      });
+    }
+  };
+
   const drawForegroundLayers = (ctx: CanvasRenderingContext2D, image: CanvasImageSource, containerWidth: number, containerHeight: number) => {
     const canvas = ctx.canvas;
     iconHitRegionsRef.current = [];
@@ -3483,14 +3613,12 @@ export default function Component() {
           // const iconRadius = baseRadius * finalScale * zoom; // Not used locally?
           const borderRadius = baseBorderRadius * finalScale * zoom;
 
-          // Draw character border circle
-          ctx.beginPath();
-          ctx.arc(x, y, borderRadius, 0, 2 * Math.PI);
-          ctx.stroke();
+          // ⚠️ Border circle is now drawn on characterBordersCanvasRef (separate layer BEFORE character images)
+          // This allows the circle to appear UNDERNEATH the character image
 
           // Note: Character image is now rendered as a DOM element (see characters-layer in JSX)
           // This allows animated GIFs to work properly
-          // The canvas still renders the border circle and other UI elements
+          // The canvas still renders other UI elements
 
 
 
@@ -3502,157 +3630,160 @@ export default function Component() {
           const isSelected = index === selectedCharacterIndex;
           const canSeeHP = (isMJ && !playerViewMode) || char.id === persoId; // Visible MJ or Owner
 
-          // --- DIMENSIONS & POSITIONS ---
-          // On place la pilule en HAUT du cercle ("en dessus")
-          // Centre de la pilule = x, y - borderRadius (moins une petite marge)
-          const pillCenterX = x;
-          const pillCenterY = y + borderRadius + (12 * uiScale); // En dessous du cercle (pillHeight/2 approx)
+          // Only render labels if showCharBorders is true
+          if (showCharBorders) {
+            // --- DIMENSIONS & POSITIONS ---
+            // On place la pilule en HAUT du cercle ("en dessus")
+            // Centre de la pilule = x, y - borderRadius (moins une petite marge)
+            const pillCenterX = x;
+            const pillCenterY = y + borderRadius + (12 * uiScale); // En dessous du cercle (pillHeight/2 approx)
 
-          const fontSize = 10 * uiScale;
-          const iconSize = 10 * uiScale;
-          const paddingX = 8 * uiScale;
-          const paddingY = 4 * uiScale;
-          const gap = 8 * uiScale; // Espace entre PV et Nom
-          const condGap = 4 * uiScale; // Espace entre Nom et Conditions
+            const fontSize = 10 * uiScale;
+            const iconSize = 10 * uiScale;
+            const paddingX = 8 * uiScale;
+            const paddingY = 4 * uiScale;
+            const gap = 8 * uiScale; // Espace entre PV et Nom
+            const condGap = 4 * uiScale; // Espace entre Nom et Conditions
 
-          // Pré-calcul des tailles de texte
-          ctx.font = `600 ${fontSize}px "Geist Mono", system-ui, sans-serif`;
+            // Pré-calcul des tailles de texte
+            ctx.font = `600 ${fontSize}px "Geist Mono", system-ui, sans-serif`;
 
-          // Partie PV
-          let pvText = "";
-          let pvWidth = 0;
-          if (canSeeHP && char.PV !== undefined) {
-            const current = char.PV || 0;
-            pvText = `${current}`;
-            pvWidth = ctx.measureText(pvText).width + 4; // Text + Gap (no icon)
-          }
+            // Partie PV
+            let pvText = "";
+            let pvWidth = 0;
+            if (canSeeHP && char.PV !== undefined) {
+              const current = char.PV || 0;
+              pvText = `${current}`;
+              pvWidth = ctx.measureText(pvText).width + 4; // Text + Gap (no icon)
+            }
 
-          // Partie Nom
-          const nameText = char.name;
-          ctx.font = `500 ${fontSize}px system-ui, -apple-system, sans-serif`;
-          const nameWidth = ctx.measureText(nameText).width;
+            // Partie Nom
+            const nameText = char.name;
+            ctx.font = `500 ${fontSize}px system-ui, -apple-system, sans-serif`;
+            const nameWidth = ctx.measureText(nameText).width;
 
-          // Partie Conditions
-          let condWidth = 0;
-          const activeConditions = char.conditions || [];
-          if (activeConditions.length > 0) {
-            // width = (num * actualImgSize) + ((num-1) * spacing) + margin-left
-            // Actual Img Size used in draw is iconSize + (4 * uiScale)
-            const actualImgSize = iconSize + (4 * uiScale);
-            condWidth = (activeConditions.length * actualImgSize) + ((activeConditions.length - 1) * 2 * uiScale) + condGap;
-          }
+            // Partie Conditions
+            let condWidth = 0;
+            const activeConditions = char.conditions || [];
+            if (activeConditions.length > 0) {
+              // width = (num * actualImgSize) + ((num-1) * spacing) + margin-left
+              // Actual Img Size used in draw is iconSize + (4 * uiScale)
+              const actualImgSize = iconSize + (4 * uiScale);
+              condWidth = (activeConditions.length * actualImgSize) + ((activeConditions.length - 1) * 2 * uiScale) + condGap;
+            }
 
-          // Largeur totale
-          const separatorWidth = canSeeHP ? (1 * uiScale) + (gap * 2) : 0;
-          const totalContentWidth = (canSeeHP ? pvWidth : 0) + separatorWidth + nameWidth + condWidth;
-          const pillWidth = totalContentWidth + (paddingX * 2);
-          const pillHeight = fontSize + (paddingY * 2) + 2;
+            // Largeur totale
+            const separatorWidth = canSeeHP ? (1 * uiScale) + (gap * 2) : 0;
+            const totalContentWidth = (canSeeHP ? pvWidth : 0) + separatorWidth + nameWidth + condWidth;
+            const pillWidth = totalContentWidth + (paddingX * 2);
+            const pillHeight = fontSize + (paddingY * 2) + 2;
 
-          // --- DESSIN DU FOND (PILL) ---
-          const pillX = pillCenterX - (pillWidth / 2);
-          const pillY = pillCenterY - (pillHeight / 2);
+            // --- DESSIN DU FOND (PILL) ---
+            const pillX = pillCenterX - (pillWidth / 2);
+            const pillY = pillCenterY - (pillHeight / 2);
 
-          // Ombre portée
-          ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-          ctx.shadowBlur = 8;
-          ctx.shadowOffsetY = 3;
+            // Ombre portée
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
+            ctx.shadowBlur = 8;
+            ctx.shadowOffsetY = 3;
 
-          // Fond (Gris foncé/Noir style "Interface")
-          ctx.fillStyle = 'rgba(20, 22, 26, 0.95)';
-          ctx.beginPath();
-          ctx.roundRect(pillX, pillY, pillWidth, pillHeight, pillHeight / 2);
-          ctx.fill();
-
-          // Reset shadow
-          ctx.shadowBlur = 0;
-          ctx.shadowOffsetY = 0;
-
-          // Bordure subtile
-          ctx.strokeStyle = isSelected ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.15)';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-
-          // --- DESSIN DU CONTENU ---
-          let currentCursorX = pillX + paddingX;
-          const textY = pillY + (pillHeight / 2); // Center vertical
-
-          // 1. PV SECTION (Si visible)
-          if (canSeeHP) {
-            const current = char.PV || 0;
-            const max = char.PV_Max || char.PV || 100;
-            const healthPct = Math.max(0, Math.min(100, (current / max) * 100));
-
-            let healthColor = '#ffffff';
-            if (healthPct < 25) healthColor = '#ef4444';
-            else if (healthPct < 50) healthColor = '#fbbf24';
-            else healthColor = '#4ade80';
-
-            ctx.fillStyle = healthColor;
-            ctx.font = `700 ${fontSize}px "Geist Mono", monospace`;
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(pvText, currentCursorX, textY + 1);
-
-            currentCursorX += pvWidth;
-
-            // Séparateur
-            const sepX = currentCursorX + gap;
+            // Fond (Gris foncé/Noir style "Interface")
+            ctx.fillStyle = 'rgba(20, 22, 26, 0.95)';
             ctx.beginPath();
-            ctx.moveTo(sepX, pillY + 4);
-            ctx.lineTo(sepX, pillY + pillHeight - 4);
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.roundRect(pillX, pillY, pillWidth, pillHeight, pillHeight / 2);
+            ctx.fill();
+
+            // Reset shadow
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+
+            // Bordure subtile
+            ctx.strokeStyle = isSelected ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.15)';
             ctx.lineWidth = 1;
             ctx.stroke();
 
-            currentCursorX += separatorWidth;
-          }
+            // --- DESSIN DU CONTENU ---
+            let currentCursorX = pillX + paddingX;
+            const textY = pillY + (pillHeight / 2); // Center vertical
 
-          // 2. NOM SECTION
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-          ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
-          ctx.textAlign = 'left';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(nameText, currentCursorX, textY + 0.5);
+            // 1. PV SECTION (Si visible)
+            if (canSeeHP) {
+              const current = char.PV || 0;
+              const max = char.PV_Max || char.PV || 100;
+              const healthPct = Math.max(0, Math.min(100, (current / max) * 100));
 
-          currentCursorX += nameWidth;
+              let healthColor = '#ffffff';
+              if (healthPct < 25) healthColor = '#ef4444';
+              else if (healthPct < 50) healthColor = '#fbbf24';
+              else healthColor = '#4ade80';
 
-          // 3. CONDITIONS SECTION
-          if (activeConditions.length > 0) {
-            currentCursorX += condGap;
+              ctx.fillStyle = healthColor;
+              ctx.font = `700 ${fontSize}px "Geist Mono", monospace`;
+              ctx.textAlign = 'left';
+              ctx.textBaseline = 'middle';
+              ctx.fillText(pvText, currentCursorX, textY + 1);
 
-            activeConditions.forEach((condId: string) => {
-              const iconImg = getConditionIcon(condId);
+              currentCursorX += pvWidth;
 
-              if (iconImg) {
-                // Draw pre-rendered SVG Icon
-                const imgSize = iconSize + (4 * uiScale);
-                const imgY = textY - (imgSize / 2);
+              // Séparateur
+              const sepX = currentCursorX + gap;
+              ctx.beginPath();
+              ctx.moveTo(sepX, pillY + 4);
+              ctx.lineTo(sepX, pillY + pillHeight - 4);
+              ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+              ctx.lineWidth = 1;
+              ctx.stroke();
 
-                ctx.drawImage(iconImg, currentCursorX, imgY, imgSize, imgSize);
+              currentCursorX += separatorWidth;
+            }
 
-                // Add Hit Region (World Coordinates)
-                // We try to resolve a label: Predefined or Custom
-                const predefined = CONDITIONS.find(c => c.id === condId);
-                const label = predefined ? predefined.label : condId;
+            // 2. NOM SECTION
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(nameText, currentCursorX, textY + 0.5);
 
-                iconHitRegionsRef.current.push({
-                  x: currentCursorX,
-                  y: imgY,
-                  w: imgSize,
-                  h: imgSize,
-                  label: label
-                });
+            currentCursorX += nameWidth;
 
-                currentCursorX += imgSize + (2 * uiScale);
-              } else {
-                // Loading placeholder
-                ctx.beginPath();
-                ctx.arc(currentCursorX + (iconSize / 2), textY, 2 * uiScale, 0, 2 * Math.PI);
-                ctx.fillStyle = 'rgba(255,255,255,0.5)';
-                ctx.fill();
-                currentCursorX += iconSize + (2 * uiScale);
-              }
-            });
+            // 3. CONDITIONS SECTION
+            if (activeConditions.length > 0) {
+              currentCursorX += condGap;
+
+              activeConditions.forEach((condId: string) => {
+                const iconImg = getConditionIcon(condId);
+
+                if (iconImg) {
+                  // Draw pre-rendered SVG Icon
+                  const imgSize = iconSize + (4 * uiScale);
+                  const imgY = textY - (imgSize / 2);
+
+                  ctx.drawImage(iconImg, currentCursorX, imgY, imgSize, imgSize);
+
+                  // Add Hit Region (World Coordinates)
+                  // We try to resolve a label: Predefined or Custom
+                  const predefined = CONDITIONS.find(c => c.id === condId);
+                  const label = predefined ? predefined.label : condId;
+
+                  iconHitRegionsRef.current.push({
+                    x: currentCursorX,
+                    y: imgY,
+                    w: imgSize,
+                    h: imgSize,
+                    label: label
+                  });
+
+                  currentCursorX += imgSize + (2 * uiScale);
+                } else {
+                  // Loading placeholder
+                  ctx.beginPath();
+                  ctx.arc(currentCursorX + (iconSize / 2), textY, 2 * uiScale, 0, 2 * Math.PI);
+                  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+                  ctx.fill();
+                  currentCursorX += iconSize + (2 * uiScale);
+                }
+              });
+            }
           }
         }
 
@@ -6395,6 +6526,10 @@ export default function Component() {
               )
             })}
           </div>
+          <canvas
+            ref={characterBordersCanvasRef}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+          />
           <div className="characters-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' }}>
             {isLayerVisible('characters') && characters.map((char, index) => {
               if (!bgImageObject) return null;
@@ -6479,7 +6614,7 @@ export default function Component() {
                     width: iconRadius * 2,
                     height: iconRadius * 2,
                     pointerEvents: 'none',
-                    borderRadius: '50%',
+                    borderRadius: isPlayerCharacter ? '0' : '50%', // Only NPCs are circular
                     overflow: 'hidden'
                   }}
                 >
@@ -6861,57 +6996,19 @@ export default function Component() {
         }} />
       )}
 
-      {/* 🎯 GLOBAL SETTINGS DIALOG (Start) */}
-      <Dialog open={showGlobalSettingsDialog} onOpenChange={setShowGlobalSettingsDialog}>
-        <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] border-[#FFD700]">
-          <DialogHeader>
-            <DialogTitle>Paramètres de la Carte</DialogTitle>
-          </DialogHeader>
-          <div className="py-4 space-y-4">
-            {isMJ && (
-              <div className="bg-[#252525] p-3 rounded border border-[#333]">
-                <div className="flex justify-between text-sm text-gray-400 mb-2">
-                  <span>Échelle Globale des Pions</span>
-                  <span>x{globalTokenScale.toFixed(1)}</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.5"
-                  max="3"
-                  step="0.1"
-                  value={globalTokenScale}
-                  onChange={(e) => setGlobalTokenScale(parseFloat(e.target.value))}
-                  onMouseUp={() => updateGlobalTokenScale(globalTokenScale)}
-                  onTouchEnd={() => updateGlobalTokenScale(globalTokenScale)}
-                  className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                />
-              </div>
-            )}
-
-            {/* ⚡ Performance Mode Selector */}
-            <div className="bg-[#252525] p-3 rounded border border-[#333]">
-              <div className="flex justify-between text-sm text-gray-400 mb-2">
-                <span>Mode Performance</span>
-              </div>
-              <div className="space-y-2">
-                <div onClick={() => setPerformanceMode('high')} className={`cursor-pointer p-2 rounded flex items-center justify-between ${performanceMode === 'high' ? 'bg-[#c0a080] text-black' : 'bg-black/20 text-gray-400'}`}>
-                  <span>Haute Qualité (Défaut)</span>
-                  {performanceMode === 'high' && <Check className="w-4 h-4" />}
-                </div>
-                <div onClick={() => setPerformanceMode('eco')} className={`cursor-pointer p-2 rounded flex items-center justify-between ${performanceMode === 'eco' ? 'bg-[#c0a080] text-black' : 'bg-black/20 text-gray-400'}`}>
-                  <span>Économie (30 FPS)</span>
-                  {performanceMode === 'eco' && <Check className="w-4 h-4" />}
-                </div>
-                <div onClick={() => setPerformanceMode('static')} className={`cursor-pointer p-2 rounded flex items-center justify-between ${performanceMode === 'static' ? 'bg-[#c0a080] text-black' : 'bg-black/20 text-gray-400'}`}>
-                  <span>Statique (Pas d'animations)</span>
-                  {performanceMode === 'static' && <Check className="w-4 h-4" />}
-                </div>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-      {/* 🎯 GLOBAL SETTINGS DIALOG (End) */}
+      {/* 🎯 GLOBAL SETTINGS DIALOG */}
+      <GlobalSettingsDialog
+        isOpen={showGlobalSettingsDialog}
+        onOpenChange={setShowGlobalSettingsDialog}
+        isMJ={isMJ}
+        globalTokenScale={globalTokenScale}
+        setGlobalTokenScale={setGlobalTokenScale}
+        updateGlobalTokenScale={updateGlobalTokenScale}
+        performanceMode={performanceMode}
+        setPerformanceMode={setPerformanceMode}
+        showCharBorders={showCharBorders}
+        setShowCharBorders={setShowCharBorders}
+      />
 
       <ContextMenuPanel
         character={contextMenuCharacterId ? characters.find(c => c.id === contextMenuCharacterId) || null : null}

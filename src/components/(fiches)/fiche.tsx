@@ -16,7 +16,6 @@ import { Heart, Shield, Edit, TrendingUp, ChartColumn, Palette, Upload, ChevronL
 import InventoryManagement2 from '@/components/(inventaire)/inventaire2';
 import CompetencesDisplay from "@/components/(competences)/competencesD";
 import Competences from "@/components/(competences)/competences";
-import CharacterImage from '@/components/(fiches)/CharacterImage';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCharacter, Character } from '@/contexts/CharacterContext';
 import { Statistiques } from '@/components/Statistiques';
