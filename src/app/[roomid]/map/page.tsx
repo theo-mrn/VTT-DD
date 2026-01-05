@@ -6248,40 +6248,16 @@ export default function Component() {
               // 1. Check Fog of War Grid (if active)
               // Only apply if not GM (or simulating player) OR if full map fog is on
               const effectiveIsMJLocal = isMJ && !playerViewMode;
-              if (!effectiveIsMJLocal || fullMapFog) {
-                if (fogMode || fullMapFog || fogGrid.size > 0) {
-                  // We need to transform map coordinates to cell coordinates?
-                  // isCellInFog takes (x, y, grid, cellSize). 
-                  // IMPORTANT: isCellInFog expects coordinates in IMAGE space (which obj.x is).
-                  if (isCellInFog(objCenter.x, objCenter.y, fogGrid, fogCellSize) && !fullMapFog) {
-                    // If explicitly in fog cell and not full map fog (which is handled by calculateFogOpacity usually, 
-                    // but for objects we just check if cell is revealed?)
-                    // Wait, for Characters the logic is complex involving `calculateFogOpacity`.
-                    // For objects, let's keep it simple: if cell is "fogged" (true in grid), it is HIDDEN?
-                    // fogGrid stores REVEALED cells or FOGGED cells?
-                    // ToggleFogCell: "if (newFogGrid.has(key)) newFogGrid.delete(key); else newFogGrid.set(key, true);"
-                    // Usually "Fog of War" means black until revealed.
-                    // But here it seems `fogGrid` stores where fog IS? Or where it is REMOVED?
-                    // Looking at `calculateFogOpacity`: "if (!fullMapFog && !fogGrid.has(key)) return 0;" -> returns 0 opacity (visible).
-                    // So fogGrid contains the fog cells?
-                    // "if (opacity > 0) ... fillStyle black"
-                    // So if `calculateFogOpacity(x, y)` > 0, then it's hidden.
-                    // We don't have access to `calculateFogOpacity` easily here without recreating it or passing it down.
-                    // However, we can check basic grid presence.
 
-                    // Re-reading usage:
-                    // `toggleFogCell` sets key to true.
-                    // `renderFogLayer` iterates.
+              if (fogMode || fullMapFog || fogGrid.size > 0) {
+                const cellX = Math.floor(objCenter.x / fogCellSize);
+                const cellY = Math.floor(objCenter.y / fogCellSize);
+                const opacity = calculateFogOpacity(cellX, cellY);
 
-                    // Let's assume for now: if user draws fog, they want to HIDE things.
-                    if (isCellInFog(objCenter.x, objCenter.y, fogGrid, fogCellSize)) {
-                      // If cell is in fog list.
-                      objectIsVisible = false;
-                    }
-                  }
-
-                  // Full Map Fog handling: if enabled, everything is hidden unless revealed?
-                  // We skip this for now to match current simple request. User said "currently it doesn't work".
+                // If fog is opaque (>= 1), hide object completely.
+                // This handles both fullMapFog and manual fog cells, plus character vision revealing it.
+                if (opacity >= 0.99) {
+                  objectIsVisible = false;
                 }
               }
 

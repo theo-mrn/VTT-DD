@@ -113,7 +113,7 @@ export const useFogManager = ({
         // [NEW] Determine effective ID for vision
         const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
 
-        let minOpacity = effectiveIsMJ ? 0.5 : 0.9;
+        let minOpacity = effectiveIsMJ ? 0.5 : 1.0;
         const cellDiagonalHalf = fogCellSize * Math.SQRT2 * 0.5;
 
         for (const character of characters) {
