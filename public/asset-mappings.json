@@ -21607,5 +21607,14 @@
     "type": "image",
     "size": 3147861,
     "uploadedAt": "2026-01-05T13:59:16.258Z"
+  },
+  {
+    "name": "test.gif",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/test.gif",
+    "localPath": "/test.gif",
+    "category": "root",
+    "type": "image",
+    "size": 6268676,
+    "uploadedAt": "2026-01-05T14:05:30.052Z"
   }
 ]

@@ -1,4 +1,5 @@
 import React from 'react';
+import { mapImagePath } from '@/utils/imagePathMapper';
 
 interface ImageAutoSliderProps {
   images?: string[];
@@ -6,8 +7,8 @@ interface ImageAutoSliderProps {
 }
 
 export const ImageAutoSlider = ({ images: customImages, className = '' }: ImageAutoSliderProps) => {
-  // Default images for the infinite scroll
-  const defaultImages = [
+  // Default local paths that will be mapped to R2
+  const defaultLocalPaths = [
     "/Photos/Nain/Nain235.webp",
     "/Photos/Elfe/Elfe34.webp",
     "/Photos/Humain/Humain1.webp",
@@ -18,8 +19,21 @@ export const ImageAutoSlider = ({ images: customImages, className = '' }: ImageA
     "/Photos/Humain/Humain200.webp",
   ];
 
-  const images = customImages || defaultImages;
-  
+  const [images, setImages] = React.useState<string[]>(customImages || []);
+
+  React.useEffect(() => {
+    if (!customImages) {
+      // Map local paths to R2 URLs
+      const loadImages = async () => {
+        const mappedImages = await Promise.all(
+          defaultLocalPaths.map(path => mapImagePath(path))
+        );
+        setImages(mappedImages);
+      };
+      loadImages();
+    }
+  }, [customImages]);
+
   // Duplicate images for seamless loop
   const duplicatedImages = [...images, ...images];
 
@@ -65,7 +79,7 @@ export const ImageAutoSlider = ({ images: customImages, className = '' }: ImageA
           filter: brightness(1.1);
         }
       `}</style>
-      
+
       <div className={`w-full relative overflow-hidden ${className}`}>
         {/* Scrolling images container */}
         <div className="scroll-container w-full">

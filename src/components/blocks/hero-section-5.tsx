@@ -13,6 +13,7 @@ import { auth } from '../../lib/firebase'
 import { Features1 } from '@/components/blocks/features1'
 import { Features2 } from '@/components/blocks/features2'
 import { Features3 } from '@/components/blocks/features3'
+import { mapImagePath } from '@/utils/imagePathMapper'
 
 
 const aclonica = Aclonica({
@@ -86,6 +87,8 @@ const Logo = () => {
 export function HeroSection() {
     const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false)
     const [isUserLoggedIn, setIsUserLoggedIn] = React.useState<boolean | null>(null)
+    const [backgroundImage, setBackgroundImage] = React.useState<string>('')
+    const [maskImage, setMaskImage] = React.useState<string>('')
     const router = useRouter()
 
     React.useEffect(() => {
@@ -93,6 +96,17 @@ export function HeroSection() {
             setIsUserLoggedIn(!!user)
         })
         return () => unsubscribe()
+    }, [])
+
+    // Load images from R2
+    React.useEffect(() => {
+        const loadImages = async () => {
+            const bgImage = await mapImagePath('/images/index9.webp')
+            const mask = await mapImagePath('/test.gif')
+            setBackgroundImage(bgImage)
+            setMaskImage(mask)
+        }
+        loadImages()
     }, [])
 
     const handleStartAdventure = () => {
@@ -132,20 +146,20 @@ export function HeroSection() {
                             <div
                                 className="size-full"
                                 style={{
-                                    backgroundImage: "url('/images/index9.webp')",
+                                    backgroundImage: backgroundImage ? `url('${backgroundImage}')` : undefined,
                                     backgroundSize: 'cover',
                                     backgroundPosition: 'center',
-                                    maskImage: "url('/test.gif')",
+                                    maskImage: maskImage ? `url('${maskImage}')` : undefined,
                                     maskSize: 'cover',
                                     maskPosition: 'center',
-                                    WebkitMaskImage: "url('/test.gif')",
+                                    WebkitMaskImage: maskImage ? `url('${maskImage}')` : undefined,
                                     opacity: 0.75,
                                 }}
                             ></div>
                         </div>
                     </div>
                 </section>
-                
+
                 <section>
                     <div className="lg:pt-64 lg:pb-16">
                         <div className="aspect-[2/3] relative mx-5 overflow-hidden rounded-3xl border border-black/10 sm:aspect-video lg:rounded-[3rem] dark:border-white/5">
@@ -155,7 +169,7 @@ export function HeroSection() {
                         </div>
                     </div>
                 </section>
-                
+
                 {/* Troisième carte avec le composant Features */}
                 <section>
                     <div className="lg:pb-16">
@@ -177,11 +191,11 @@ export function HeroSection() {
                     </div>
                 </section>
             </main>
-            
+
             {/* Modal d'authentification */}
             {isAuthModalOpen && (
                 <div className="fixed inset-0 z-50">
-                    <div 
+                    <div
                         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
                         onClick={() => setIsAuthModalOpen(false)}
                     />
