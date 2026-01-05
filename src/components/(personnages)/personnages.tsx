@@ -25,6 +25,7 @@ import { collection, addDoc, onSnapshot, query, where, deleteDoc, doc, updateDoc
 import { db } from '@/lib/firebase'
 import { NPCListView } from './NPCListView'
 import { NPCCreationForm } from './NPCCreationForm'
+import { CategoryManager } from './CategoryManager'
 
 interface NPCManagerProps {
     isOpen?: boolean
@@ -33,9 +34,17 @@ interface NPCManagerProps {
     difficulty?: number
 }
 
+export interface Category {
+    id: string
+    name: string
+    color?: string
+    icon?: string
+}
+
 export interface NPC {
     id: string
     Nomperso: string
+    categoryId?: string
     imageURL2?: string
     niveau: number
     PV: number
@@ -64,11 +73,14 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
 
     // State
     const [npcs, setNpcs] = useState<NPC[]>([])
+    const [categories, setCategories] = useState<Category[]>([])
     const [loading, setLoading] = useState(true)
     const [showCreateForm, setShowCreateForm] = useState(false)
     const [editingNpcId, setEditingNpcId] = useState<string | null>(null)
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isCategoryManagerOpen, setIsCategoryManagerOpen] = useState(false)
+    const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>(undefined)
 
     // Creation form state
     const defaultCharacter: NewCharacter = {
@@ -108,6 +120,23 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
             })
             setNpcs(npcList)
             setLoading(false)
+        })
+
+        return () => unsubscribe()
+    }, [roomId])
+
+    // Fetch Categories from Firebase
+    useEffect(() => {
+        if (!roomId) return
+
+        const categoriesRef = collection(db, 'npc_templates', roomId, 'categories')
+
+        const unsubscribe = onSnapshot(categoriesRef, (snapshot) => {
+            const categoryList: Category[] = []
+            snapshot.forEach((doc) => {
+                categoryList.push({ id: doc.id, ...doc.data() } as Category)
+            })
+            setCategories(categoryList)
         })
 
         return () => unsubscribe()
@@ -179,6 +208,7 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
             CON: npc.CON,
             SAG: npc.SAG
         })
+        setSelectedCategoryId(npc.categoryId)
         setEditingNpcId(npc.id)
         setShowCreateForm(true)
     }
@@ -211,6 +241,7 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
             const npcData = {
                 Nomperso: char.name,
                 ...(imageURL && { imageURL2: imageURL }),
+                ...(selectedCategoryId && { categoryId: selectedCategoryId }),
                 niveau: char.niveau,
                 PV: char.PV,
                 PV_F: char.PV,
@@ -240,6 +271,7 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
 
             // Reset form
             setChar(defaultCharacter)
+            setSelectedCategoryId(undefined)
             setShowCreateForm(false)
 
             if (onSubmit) onSubmit({ ...char } as any)
@@ -271,11 +303,16 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                     editingNpcId={editingNpcId}
                     difficulty={difficulty}
                     isSubmitting={isSubmitting}
+                    categories={categories}
+                    selectedCategoryId={selectedCategoryId}
+                    onCategoryChange={setSelectedCategoryId}
+                    onOpenCategoryManager={() => setIsCategoryManagerOpen(true)}
                     onCharChange={setChar}
                     onReset={() => setChar(defaultCharacter)}
                     onCancel={() => {
                         setShowCreateForm(false)
                         setEditingNpcId(null)
+                        setSelectedCategoryId(undefined)
                         setChar(defaultCharacter)
                     }}
                     onSubmit={handleSubmit}
@@ -286,10 +323,12 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
             ) : (
                 <NPCListView
                     npcs={npcs}
+                    categories={categories}
                     loading={loading}
                     onCreateNew={() => setShowCreateForm(true)}
                     onEdit={handleEdit}
                     onDelete={(id) => setDeleteConfirmId(id)}
+                    onManageCategories={() => setIsCategoryManagerOpen(true)}
                 />
             )}
 
@@ -323,6 +362,15 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Category Manager Modal */}
+            <CategoryManager
+                isOpen={isCategoryManagerOpen}
+                onClose={() => setIsCategoryManagerOpen(false)}
+                roomId={roomId}
+                categories={categories}
+                onCategoriesChange={setCategories}
+            />
         </div>
     )
 
