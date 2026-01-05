@@ -953,6 +953,26 @@ export default function Component() {
     };
   }, [roomId]);
 
+  // 🆕 Écouter le personnage actif de la ville actuelle (indépendant)
+  useEffect(() => {
+    if (!roomId || !selectedCityId) {
+      setActivePlayerId(null);
+      return;
+    }
+
+    const combatRef = doc(db, 'cartes', roomId, 'cities', selectedCityId, 'combat', 'state');
+    const unsubscribe = onSnapshot(combatRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setActivePlayerId(data.activePlayer || null);
+      } else {
+        setActivePlayerId(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [roomId, selectedCityId]);
+
   // 🆕 CHARGER LE FOND SELON LA VILLE SÉLECTIONNÉE
   useEffect(() => {
     if (!roomId) return;
@@ -2593,8 +2613,12 @@ export default function Component() {
     setPanMode(false);
     setMeasureMode(false);
 
-
-
+    // 🆕 Synchroniser la ville actuelle dans Firebase pour MJcombat et autres composants
+    if (roomId) {
+      await updateDoc(doc(db, 'cartes', roomId, 'settings', 'general'), {
+        currentCityId: cityId,
+      });
+    }
   };
 
   const navigateToWorldMap = async () => {
@@ -2632,26 +2656,16 @@ export default function Component() {
 
     // Le chargement du fond est maintenant géré par un useEffect séparé (voir ligne ~165)
 
-    // Écouter le personnage actif (tour_joueur)
+    // Listener pour les paramètres généraux (pas le personnage actif)
     const settingsRef = doc(db, 'cartes', room.toString(), 'settings', 'general');
     const settingsUnsub = onSnapshot(settingsRef, (doc) => {
-      if (doc.exists() && doc.data().tour_joueur) {
-        setActivePlayerId(doc.data().tour_joueur);
-      }
-      // 🆕 CHARGER LA VILLE ACTUELLE (synchronisée pour tous les utilisateurs)
       if (doc.exists()) {
         const data = doc.data();
         if (data.pixelsPerUnit) setPixelsPerUnit(data.pixelsPerUnit);
         if (data.unitName) setUnitName(data.unitName);
-
         // Synchroniser la ville actuelle
         if (data.currentCityId) {
-          setGlobalCityId(data.currentCityId); // Update global state
-          // La redirection est gérée par le useEffect de synchronisation
-        } else {
-          if (!isMJ) {
-            // Si pas de ville définie et qu'on n'est pas MJ, on reste sur une vue par défaut
-          }
+          setGlobalCityId(data.currentCityId);
         }
       }
     });
@@ -6427,6 +6441,12 @@ export default function Component() {
               const x = (char.x / imgWidth) * scaledWidth - offset.x;
               const y = (char.y / imgHeight) * scaledHeight - offset.y;
 
+              // Vérifier que les positions calculées sont valides
+              if (!isFinite(x) || !isFinite(y)) {
+                console.warn('⚠️ [Character Render] Skipping character with invalid calculated position:', char.id, char.name, 'x:', x, 'y:', y);
+                return null;
+              }
+
               let isVisible = true;
               const isInFog = fullMapFog || isCellInFog(char.x, char.y, fogGrid, fogCellSize);
               let effectiveVisibility = char.visibility;
@@ -7198,7 +7218,17 @@ export default function Component() {
           <CitiesManager
             onCitySelect={navigateToCity}
             roomId={roomId}
-            onClose={() => setViewMode('city')}
+            onClose={() => {
+              console.log('🚪 [CitiesManager] onClose called, selectedCityId:', selectedCityId, 'viewMode:', viewMode);
+              // Si on est déjà dans une ville, retourner en mode ville ET synchroniser Firebase
+              if (selectedCityId) {
+                console.log('✅ [CitiesManager] Returning to city mode and syncing Firebase');
+                navigateToCity(selectedCityId); // ← IMPORTANT: Synchroniser Firebase !
+                setViewMode('city');
+              } else {
+                console.log('⚠️ [CitiesManager] No selectedCityId, staying in world mode');
+              }
+            }}
             globalCityId={globalCityId}
           />
         )}
