@@ -1,4 +1,6 @@
 import { cn } from "@/lib/utils";
+import React from 'react';
+import { mapImagePath } from '@/utils/imagePathMapper';
 
 interface ImageGalleryProps {
   images?: string[];
@@ -6,8 +8,8 @@ interface ImageGalleryProps {
 }
 
 export function ImageGallery({ images: customImages, className = '' }: ImageGalleryProps) {
-  // Default images - using local map images
-  const defaultImages = [
+  // Default local paths that will be mapped to R2
+  const defaultLocalPaths = [
     "/Cartes/Foret/image2.webp",
     "/Cartes/Village/image2.webp",
     "/Cartes/Camps/image3.webp",
@@ -16,7 +18,20 @@ export function ImageGallery({ images: customImages, className = '' }: ImageGall
     "/Cartes/Foret/image3.webp",
   ];
 
-  const images = customImages || defaultImages;
+  const [images, setImages] = React.useState<string[]>(customImages || []);
+
+  React.useEffect(() => {
+    if (!customImages) {
+      // Map local paths to R2 URLs
+      const loadImages = async () => {
+        const mappedImages = await Promise.all(
+          defaultLocalPaths.map(path => mapImagePath(path))
+        );
+        setImages(mappedImages);
+      };
+      loadImages();
+    }
+  }, [customImages]);
 
   return (
     <div className={`flex items-center gap-2 h-[400px] w-full ${className}`}>
