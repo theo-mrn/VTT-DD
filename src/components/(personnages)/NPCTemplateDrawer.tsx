@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { type NPC } from '@/components/(personnages)/personnages'
+import { type NPC, type Category } from '@/components/(personnages)/personnages'
 import { NPCCreationForm } from './NPCCreationForm'
 import { CreatureLibraryModal } from './CreatureLibraryModal'
 import { type NewCharacter } from '@/app/[roomid]/map/types'
@@ -48,6 +48,7 @@ interface ExistingNPC {
 export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, currentCityId }: NPCTemplateDrawerProps) {
     const [activeTab, setActiveTab] = useState<'templates' | 'npcs'>('templates')
     const [templates, setTemplates] = useState<NPC[]>([])
+    const [categories, setCategories] = useState<Category[]>([])
     const [existingNPCs, setExistingNPCs] = useState<ExistingNPC[]>([])
     const [searchQuery, setSearchQuery] = useState('')
     const [loading, setLoading] = useState(true)
@@ -57,6 +58,7 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [cities, setCities] = useState<{ id: string; name: string }[]>([])
     const [selectedCityFilter, setSelectedCityFilter] = useState<string>(currentCityId || 'all')
+    const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all')
 
     // Update filter when current city changes
     useEffect(() => {
@@ -101,6 +103,23 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
             })) as NPC[]
             setTemplates(templatesData)
             setLoading(false)
+        })
+
+        return () => unsubscribe()
+    }, [roomId, isOpen])
+
+    // Load Categories
+    useEffect(() => {
+        if (!roomId || !isOpen) return
+
+        const categoriesRef = collection(db, 'npc_templates', roomId, 'categories')
+
+        const unsubscribe = onSnapshot(categoriesRef, (snapshot) => {
+            const categoryList: Category[] = []
+            snapshot.forEach((doc) => {
+                categoryList.push({ id: doc.id, ...doc.data() } as Category)
+            })
+            setCategories(categoryList)
         })
 
         return () => unsubscribe()
@@ -330,7 +349,12 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
 
     // Filter items based on active tab
     const filteredItems = activeTab === 'templates'
-        ? templates.filter(t => t.Nomperso.toLowerCase().includes(searchQuery.toLowerCase()))
+        ? templates.filter(t => {
+            const matchesSearch = t.Nomperso.toLowerCase().includes(searchQuery.toLowerCase())
+            const matchesCategory = selectedCategoryFilter === 'all' ||
+                (selectedCategoryFilter === 'none' ? !t.categoryId : t.categoryId === selectedCategoryFilter)
+            return matchesSearch && matchesCategory
+        })
         : existingNPCs
             .filter(n => {
                 // Filter by search query
@@ -357,6 +381,10 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                     editingNpcId={editingNpcId}
                     difficulty={3}
                     isSubmitting={isSubmitting}
+                    categories={categories}
+                    selectedCategoryId={undefined}
+                    onCategoryChange={() => { }} // Not needed in drawer context
+                    onOpenCategoryManager={() => { }} // Not needed in drawer context  
                     onCharChange={setChar}
                     onReset={() => setChar(defaultCharacter)}
                     onCancel={() => {
@@ -426,6 +454,40 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
 
             {/* Search Bar with Add Button */}
             <div className="p-4 border-b border-[#333] shrink-0">
+                {/* Category filter for Templates tab */}
+                {activeTab === 'templates' && categories.length > 0 && (
+                    <div className="mb-3">
+                        <Select
+                            value={selectedCategoryFilter}
+                            onValueChange={(val) => setSelectedCategoryFilter(val)}
+                        >
+                            <SelectTrigger className="bg-[#252525] border-[#444] text-[#e0e0e0] focus:border-[#c0a080] h-9">
+                                <SelectValue placeholder="Toutes les catégories" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-[#1a1a1a] border-[#444]">
+                                <SelectItem value="all" className="text-[#e0e0e0] focus:bg-[#c0a080]/20 focus:text-white">
+                                    Toutes les catégories
+                                </SelectItem>
+                                <SelectItem value="none" className="text-[#e0e0e0] focus:bg-[#c0a080]/20 focus:text-white">
+                                    Sans catégorie
+                                </SelectItem>
+                                {categories.map((category) => (
+                                    <SelectItem
+                                        key={category.id}
+                                        value={category.id}
+                                        className="text-[#e0e0e0] focus:bg-[#c0a080]/20 focus:text-white"
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: category.color || '#c0a080' }} />
+                                            {category.name}
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+
                 {/* City filter for NPCs tab */}
                 {activeTab === 'npcs' && cities.length > 0 && (
                     <div className="mb-3">

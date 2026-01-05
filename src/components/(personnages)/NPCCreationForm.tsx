@@ -1,21 +1,27 @@
 "use client"
 
 import React, { useState } from 'react'
-import { UserPlus, Heart, Shield, Zap, Dices, Image as ImageIcon, User, Check, RotateCcw, Loader2, ImagePlus, Upload } from 'lucide-react'
+import { UserPlus, Heart, Shield, Zap, Dices, Image as ImageIcon, User, Check, RotateCcw, Loader2, ImagePlus, Upload, Folder, Plus } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Card, CardContent } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { ImageSelectorDialog } from './ImageSelectorDialog'
+import { type Category } from './personnages'
 
 interface NPCCreationFormProps {
     char: NewCharacter
     editingNpcId: string | null
     difficulty: number
     isSubmitting?: boolean
+    categories: Category[]
+    selectedCategoryId?: string
+    onCategoryChange: (categoryId: string | undefined) => void
+    onOpenCategoryManager: () => void
     onCharChange: (char: NewCharacter) => void
     onReset: () => void
     onCancel: () => void
@@ -30,6 +36,10 @@ export const NPCCreationForm = React.memo(({
     editingNpcId,
     difficulty,
     isSubmitting = false,
+    categories,
+    selectedCategoryId,
+    onCategoryChange,
+    onOpenCategoryManager,
     onCharChange,
     onReset,
     onCancel,
@@ -182,6 +192,43 @@ export const NPCCreationForm = React.memo(({
                                                 className="w-full bg-transparent border-none text-right font-mono text-[#e0e0e0] focus:ring-0 p-0"
                                             />
                                         </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <Label className="text-gray-400 text-xs uppercase">Catégorie</Label>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={onOpenCategoryManager}
+                                                className="h-6 px-2 text-[#c0a080] hover:text-[#b09070] hover:bg-[#c0a080]/10"
+                                            >
+                                                <Plus className="w-3 h-3 mr-1" />
+                                                <span className="text-xs">Gérer</span>
+                                            </Button>
+                                        </div>
+                                        <Select value={selectedCategoryId || "none"} onValueChange={(val) => onCategoryChange(val === "none" ? undefined : val)}>
+                                            <SelectTrigger className="bg-[#252525] border-[#444] text-[#e0e0e0] focus:border-[#c0a080] h-9">
+                                                <SelectValue placeholder="Sans catégorie" />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-[#252525] border-[#444]">
+                                                <SelectItem value="none" className="text-[#e0e0e0] hover:bg-[#333]">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-3 h-3 rounded-full bg-gray-500" />
+                                                        <span>Sans catégorie</span>
+                                                    </div>
+                                                </SelectItem>
+                                                {categories.map((category) => (
+                                                    <SelectItem key={category.id} value={category.id} className="text-[#e0e0e0] hover:bg-[#333]">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: category.color || '#c0a080' }} />
+                                                            <span>{category.name}</span>
+                                                        </div>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                 </div>
                             </div>
