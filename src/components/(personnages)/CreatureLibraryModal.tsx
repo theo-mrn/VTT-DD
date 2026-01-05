@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { Search, Info, User, Upload, BookOpen, X, Check, Dna, Shield, Heart, Swords, Filter, Pencil } from 'lucide-react'
 import { type NewCharacter } from '@/app/[roomid]/map/types'
+import { mapImagePath } from '@/utils/imagePathMapper'
 
 // Types based on the JSON files
 interface RaceData {
@@ -98,16 +99,36 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                     fetch('/tabs/profile.json'),
                     fetch('/tabs/bestiairy.json')
                 ])
-                setRaces(await racesRes.json())
-                setProfiles(await profilesRes.json())
-                setBestiary(await bestiaryRes.json())
+                const racesData: Record<string, RaceData> = await racesRes.json()
+                const profilesData: Record<string, ProfileData> = await profilesRes.json()
+                const bestiaryData: Record<string, BestiaryData> = await bestiaryRes.json()
+
+                // Map local image paths to R2 URLs for races and profiles
+                const racesWithMappedImages: Record<string, RaceData> = {}
+                for (const [key, race] of Object.entries(racesData)) {
+                    racesWithMappedImages[key] = {
+                        ...race,
+                        image: await mapImagePath(race.image)
+                    }
+                }
+
+                const profilesWithMappedImages: Record<string, ProfileData> = {}
+                for (const [key, profile] of Object.entries(profilesData)) {
+                    profilesWithMappedImages[key] = {
+                        ...profile,
+                        image: await mapImagePath(profile.image)
+                    }
+                }
+
+                setRaces(racesWithMappedImages)
+                setProfiles(profilesWithMappedImages)
+                setBestiary(bestiaryData)
             } catch (error) {
                 console.error("Error loading library data:", error)
             } finally {
                 setLoading(false)
             }
         }
-        if (isOpen) loadData()
         if (isOpen) loadData()
     }, [isOpen])
 
