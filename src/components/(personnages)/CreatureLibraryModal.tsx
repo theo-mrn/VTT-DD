@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react'
 import { Search, Info, User, Upload, BookOpen, X, Check, Dna, Shield, Heart, Swords, Filter, Pencil } from 'lucide-react'
 import { type NewCharacter } from '@/app/[roomid]/map/types'
-import Image from 'next/image'
 
 // Types based on the JSON files
 interface RaceData {
@@ -713,13 +712,10 @@ function Card({ title, subtitle, image, isSelected, onClick, footer }: CardProps
             {/* Image Layer */}
             <div className="absolute inset-0 bg-[#1a1a1a]">
                 {image ? (
-                    <Image
+                    <img
                         src={image}
                         alt={title}
-                        fill
-                        sizes="(max-width: 768px) 50vw, 20vw"
-                        quality={10}
-                        className="object-cover transition-transform duration-500 group-hover:scale-110"
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                     />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center bg-[#202022]">
