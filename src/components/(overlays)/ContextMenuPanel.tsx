@@ -73,6 +73,106 @@ export default function ContextMenuPanel({
 
     const hasAudio = !!character.audio?.url;
 
+    // 🆕 PLAYER VIEW (Simplified)
+    if (!isMJ) {
+        return (
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        drag
+                        dragControls={dragControls}
+                        dragListener={false}
+                        dragMomentum={false}
+                        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                        className="fixed right-20 top-20 w-[280px] bg-[#1a1a1a]/95 backdrop-blur-xl border border-[#333] rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden ring-1 ring-white/5"
+                    >
+                        {/* Draggable Header with Large Image */}
+                        <div
+                            className="relative h-80 w-full cursor-move group"
+                            onPointerDown={(e) => dragControls.start(e)}
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#1a1a1a] via-transparent to-transparent z-10" />
+                            {character.image && (
+                                <img
+                                    src={typeof character.image === 'object' ? character.image.src : character.image}
+                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                    alt={character.name}
+                                />
+                            )}
+
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="absolute top-2 right-2 z-20 h-8 w-8 text-white/70 hover:text-white hover:bg-black/40 rounded-full backdrop-blur-sm"
+                                onClick={onClose}
+                            >
+                                <X size={18} />
+                            </Button>
+
+                            <div className="absolute bottom-0 left-0 right-0 p-4 z-20">
+                                <h2 className="text-2xl font-bold text-white font-serif tracking-wide text-shadow-lg leading-none mb-1">{character.name}</h2>
+                                <Badge variant="outline" className="bg-black/40 text-gray-300 border-white/10 backdrop-blur-md text-[10px] px-2 h-5">
+                                    {character.type === 'joueurs' ? 'Joueur' : 'PNJ'}
+                                </Badge>
+                            </div>
+                        </div>
+
+                        {/* Content Body */}
+                        <div className="p-4 space-y-4">
+                            {/* Stats Row */}
+                            {canViewDetails && (
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="bg-[#252525]/50 p-2 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-1 group hover:bg-[#2a2a2a] transition-colors">
+                                        <div className="flex items-center gap-1.5 text-gray-400">
+                                            <Heart size={12} className="text-red-500" fill="currentColor" />
+                                            <span className="text-[10px] uppercase font-bold tracking-wider">PV</span>
+                                        </div>
+                                        <span className="text-xl font-bold text-gray-100 font-mono leading-none">{character.PV}</span>
+                                    </div>
+                                    <div className="bg-[#252525]/50 p-2 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-1 group hover:bg-[#2a2a2a] transition-colors">
+                                        <div className="flex items-center gap-1.5 text-gray-400">
+                                            <Shield size={12} className="text-blue-500" fill="currentColor" />
+                                            <span className="text-[10px] uppercase font-bold tracking-wider">DEF</span>
+                                        </div>
+                                        <span className="text-xl font-bold text-gray-100 font-mono leading-none">{character.Defense}</span>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Main Action: ATTACK */}
+                            <Button
+                                className="w-full h-14 text-lg font-bold bg-gradient-to-r from-red-900 via-red-800 to-red-900 border border-red-700/50 hover:border-red-500 text-red-100 shadow-lg shadow-red-900/20 group relative overflow-hidden transition-all hover:scale-[1.02]"
+                                onClick={() => onAction('attack', character.id)}
+                            >
+                                <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay" />
+                                <div className="absolute inset-0 bg-red-500/0 group-hover:bg-red-500/10 transition-colors" />
+                                <Sword className="mr-3 h-6 w-6 group-hover:rotate-12 transition-transform" />
+                                ATTAQUER
+                            </Button>
+
+                            {/* Secondary Actions */}
+                            {canViewDetails && (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="w-full h-9 text-xs text-gray-400 hover:text-white hover:bg-[#252525] border border-transparent hover:border-white/5"
+                                    onClick={() => onAction('openSheet', character.id)}
+                                >
+                                    <FileText size={14} className="mr-2" />
+                                    Voir la fiche de personnage
+                                </Button>
+                            )}
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        );
+    }
+
+    // 🛡️ MJ VIEW (Full)
     return (
         <>
             <AnimatePresence>
