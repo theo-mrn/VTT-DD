@@ -58,6 +58,7 @@ export function DiceRoller() {
   const [error, setError] = useState("");
   const [showHistory] = useState(true);
   const [showStats, setShowStats] = useState(false);
+  const [show3DAnimations, setShow3DAnimations] = useState(true);
 
   // États utilisateur et personnage - récupérés directement de Firebase
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -72,11 +73,16 @@ export function DiceRoller() {
   const [selectedSkinId, setSelectedSkinId] = useState("gold");
   const [isSkinDialogOpen, setIsSkinDialogOpen] = useState(false);
 
-  // Charger le skin depuis le localStorage au chargement
+  // Charger le skin et les préférences depuis le localStorage au chargement
   useEffect(() => {
     const savedSkin = localStorage.getItem("vtt_dice_skin");
+    const saved3D = localStorage.getItem("vtt_3d_enabled");
+
     if (savedSkin && DICE_SKINS[savedSkin]) {
       setSelectedSkinId(savedSkin);
+    }
+    if (saved3D !== null) {
+      setShow3DAnimations(saved3D === "true");
     }
   }, []);
 
@@ -282,9 +288,22 @@ export function DiceRoller() {
       }
     });
 
-    // Si aucun dé 3D n'est requis, on retourne direct les résultats instantanés
-    if (requests3D.length === 0) {
-      return Promise.resolve(instantResults);
+    // Si aucun dé 3D n'est requis OU si les animations sont désactivées
+    if (requests3D.length === 0 || !show3DAnimations) {
+      // Si on veut aussi simuler les dés 3D instantanément quand animation désactivée :
+      const simulated3DResults: { type: string, value: number }[] = [];
+      if (!show3DAnimations && requests3D.length > 0) {
+        requests3D.forEach(req => {
+          const faces = parseInt(req.type.substring(1));
+          for (let i = 0; i < req.count; i++) {
+            simulated3DResults.push({
+              type: req.type,
+              value: Math.floor(Math.random() * faces) + 1
+            });
+          }
+        });
+      }
+      return Promise.resolve([...simulated3DResults, ...instantResults]);
     }
 
     const rollId = crypto.randomUUID();
@@ -600,6 +619,18 @@ export function DiceRoller() {
                 <Switch id="private-switch" checked={isPrivate} onCheckedChange={setIsPrivate} />
                 <Label htmlFor="private-switch" className="text-[var(--text-primary)] text-sm">Privé</Label>
               </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="3d-switch"
+                  checked={show3DAnimations}
+                  onCheckedChange={(checked) => {
+                    setShow3DAnimations(checked);
+                    localStorage.setItem("vtt_3d_enabled", String(checked));
+                  }}
+                />
+                <Label htmlFor="3d-switch" className="text-[var(--text-primary)] text-sm hidden sm:inline">3D</Label>
+              </div>
+
               {userName && (
                 <div className="flex items-center gap-2">
                   {userAvatar && (

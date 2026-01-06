@@ -505,7 +505,18 @@ export default function Component() {
   // 🎯 NOUVEAU SYSTÈME DE BROUILLARD PAR QUADRILLAGE
   const [fogMode, setFogMode] = useState(false);
   const [fogGrid, setFogGrid] = useState<Map<string, boolean>>(new Map()); // clé: "x,y", valeur: true = brouillard
-  const fogCellSize = 100; // Taille d'une cellule de brouillard en pixels
+
+  // 🔧 Calcul dynamique de la taille de cellule de brouillard basé sur la taille de la carte
+  // Divise la plus petite dimension par un nombre fixe pour avoir toujours ~20 cellules
+  // Cela garantit que les cellules sont vraiment proportionnelles à la carte
+  const fogCellSize = useMemo(() => {
+    if (!bgImageObject) return 100; // Valeur par défaut si pas d'image
+    const { width, height } = getMediaDimensions(bgImageObject);
+    const minDimension = Math.min(width, height);
+    // Toujours avoir environ 20 cellules dans la plus petite dimension
+    return Math.round(minDimension / 20);
+  }, [bgImageObject]);
+
   const [showFogGrid, setShowFogGrid] = useState(false); // Pour afficher/masquer la grille
   const [isFogDragging, setIsFogDragging] = useState(false); // Pour le placement continu de brouillard
   const [lastFogCell, setLastFogCell] = useState<string | null>(null); // Dernière cellule touchée pour éviter les doublons
@@ -4246,8 +4257,12 @@ export default function Component() {
       if (visibilityMode && currentVisibilityTool === 'fog' && (e.button === 0 || e.button === 2)) {
         e.preventDefault(); // Empêcher le menu contextuel sur clic droit
         setIsFogDragging(true);
-        // Clic gauche (0) = ajouter brouillard, Clic droit (2) = retirer brouillard
-        const addMode = e.button === 0;
+
+        // Détection intelligente : si la cellule a du brouillard, on retire, sinon on ajoute
+        const firstCellKey = getCellKey(clickX, clickY, fogCellSize);
+        const isCurrentlyFogged = fogGrid.has(firstCellKey);
+        const addMode = !isCurrentlyFogged; // Toggle automatique
+
         setLastFogCell(null);
         await addFogCellIfNew(clickX, clickY, addMode);
         setIsFogAddMode(addMode);
@@ -4290,8 +4305,12 @@ export default function Component() {
         if (visibilityMode && currentVisibilityTool === 'fog' && (e.button === 0 || e.button === 2)) {
           e.preventDefault(); // Empêcher le menu contextuel sur clic droit
           setIsFogDragging(true);
-          // Clic gauche (0) = ajouter brouillard, Clic droit (2) = retirer brouillard
-          const addMode = e.button === 0;
+
+          // Détection intelligente : si la cellule a du brouillard, on retire, sinon on ajoute
+          const firstCellKey = getCellKey(clickX, clickY, fogCellSize);
+          const isCurrentlyFogged = fogGrid.has(firstCellKey);
+          const addMode = !isCurrentlyFogged; // Toggle automatique
+
           setLastFogCell(null);
           await addFogCellIfNew(clickX, clickY, addMode);
           setIsFogAddMode(addMode);
@@ -6429,7 +6448,7 @@ export default function Component() {
                     transform: `rotate(${obj.rotation}deg)`,
                     pointerEvents: obj.isBackground && !isBackgroundEditMode ? 'none' : 'auto', // Allow interactions only if not background or in edit mode
                     cursor: isResizingObject ? 'nwse-resize' : (obj.isLocked && !isMJ ? 'default' : 'move'), // Change cursor if resizing or locked
-                    zIndex: obj.isBackground ? 0 : 10 // Background objects lower in stack
+                    zIndex: obj.isBackground ? 1 : 5 // Background objects: 1, Normal objects: 5
                   }}
                   onMouseDown={(e) => {
                     // Prevent canvas from picking up this click
@@ -6517,7 +6536,7 @@ export default function Component() {
                         backgroundColor: '#00BFFF',
                         borderRadius: '50%',
                         cursor: 'nwse-resize',
-                        zIndex: 10
+                        zIndex: 6 // Resize handles above objects
                       }}
                       onMouseDown={(e) => handleResizeStart(e, index)}
                     />
@@ -6641,7 +6660,7 @@ export default function Component() {
           />
         </div>
         {combatOpen && (
-          <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-10">
+          <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-20">
             <div className="text-black p-6 rounded-lg shadow-lg w-1/3 h-2/5">
               <Combat
                 attackerId={attackerId || ''}
@@ -6905,7 +6924,7 @@ export default function Component() {
       {/* 🎯 PAN MODE OVERLAY */}
       {
         panMode && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-50 backdrop-blur-sm">
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-40 backdrop-blur-sm">
             <div className="flex items-center gap-2">
               <Move className="w-4 h-4 text-neutral-400" />
               <span className="font-medium text-sm">Mode Déplacement</span>
@@ -6917,7 +6936,7 @@ export default function Component() {
       {/* 🎯 FOG MODE OVERLAY */}
       {
         fogMode && (
-          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-50 backdrop-blur-sm">
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-40 backdrop-blur-sm">
             <div className="flex items-center gap-2">
               <Cloud className="w-4 h-4 text-neutral-400" />
               <span className="font-medium text-sm">Mode Brouillard</span>
@@ -7159,7 +7178,7 @@ export default function Component() {
       {/* Background Loader Overlay */}
       {
         isBackgroundLoading && (
-          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md">
+          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md">
             <div className="flex flex-col items-center gap-4 max-w-sm w-full px-6">
               <Loader2 className="w-12 h-12 text-[#c0a080] animate-spin" />
 
@@ -7186,7 +7205,7 @@ export default function Component() {
       {/* Layer Control Panel */}
       {
         showLayerControl && (
-          <div className="absolute top-24 left-24 z-50">
+          <div className="absolute top-24 left-24 z-40">
             <LayerControl layers={layers} onToggle={toggleLayer} />
           </div>
         )
@@ -7204,7 +7223,7 @@ export default function Component() {
       {
         isMJ && (
           <>
-            <div className="absolute top-24 left-4 z-50 flex flex-col gap-2">
+            <div className="absolute top-24 left-4 z-40 flex flex-col gap-2">
               {/* Radial Menu replaces this button generally, but we keep it if needed or remove it? User asked to place from Radial Menu */
                 /* Removing the button as requested to use Radial Menu "d'abord les placer depuis la menu radial" implies this is the primary way */
               }
@@ -7275,7 +7294,7 @@ export default function Component() {
               position: 'fixed',
               left: hoveredCondition.x + 10,
               top: hoveredCondition.y + 10,
-              zIndex: 9999,
+              zIndex: 100, // Tooltips at the very top
               pointerEvents: 'none'
             }}
             className="bg-black/90 text-white text-xs px-2 py-1 rounded shadow-xl border border-white/20"

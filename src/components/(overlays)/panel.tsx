@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { User, LogOut, X, Clipboard, Share2,SquareUserRound } from "lucide-react";
+import { User, LogOut, X, Clipboard, Share2, SquareUserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { auth, db, doc, getDoc, onAuthStateChanged, updateDoc, signOut } from "@/lib/firebase";
 
@@ -55,7 +55,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const handlechangecharacter = () => {
     router.push("/personnages");
   };
-  
+
   const handleVoirProfil = () => {
     router.push("/profile");
   };
@@ -77,7 +77,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   };
 
   return (
-    <div className="fixed left-0 top-0 w-80 z-[101] bg-[#242424] shadow-lg flex text-[#d4d4d4] flex-col h-screen animate-slideInFromLeft">
+    <div className="fixed left-0 top-0 w-80 z-[300] bg-[#242424] shadow-lg flex text-[#d4d4d4] flex-col h-screen animate-slideInFromLeft">
       <button
         className="absolute top-3 right-3 p-1 text-[#d4d4d4] hover:text-[#c0a080] transition-colors"
         onClick={onClose}
@@ -114,8 +114,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <SquareUserRound className="w-5 h-5 text-[#d4d4d4] hover:text-[#c0a080]" />
           <span className="text-[#d4d4d4] hover:text-[#c0a080]">Changer de personnage</span>
         </button>
-        
-        
+
+
         {/* Invite Button with Inline Room ID and Copy Icon */}
         <div className="relative">
           <button
@@ -127,7 +127,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
           </button>
           {showPopover && (
             <div className="absolute left-0 mt-2 w-full bg-[#2a2a2a] p-2 rounded shadow-lg flex items-center justify-between">
-              Code salle : 
+              Code salle :
               <p className="text-white text-sm font-semibold">{roomId || "Aucun room_id disponible"}</p>
               <button onClick={handleCopyRoomId}>
                 <Clipboard className="w-5 h-6 text-white hover:text-[#c0a080]" />
@@ -156,7 +156,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
         </button>
       </div>
 
-     
+
     </div>
   );
 }
