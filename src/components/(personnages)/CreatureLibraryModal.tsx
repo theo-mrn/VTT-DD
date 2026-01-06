@@ -1,9 +1,12 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Search, Info, User, Upload, BookOpen, X, Check, Dna, Shield, Heart, Swords, Filter, Pencil } from 'lucide-react'
+import { Search, Info, User, Upload, BookOpen, X, Check, Dna, Shield, Heart, Swords, Filter, Pencil, Crop as CropIcon, ZoomIn, Crop, Loader2, Ghost } from 'lucide-react'
 import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { mapImagePath } from '@/utils/imagePathMapper'
+import Cropper from 'react-easy-crop'
+import { getCroppedImg, createCompositeImage } from '@/lib/cropImageHelper'
+import { Slider } from '@/components/ui/slider'
 
 // Types based on the JSON files
 interface RaceData {
@@ -48,6 +51,13 @@ interface BestiaryData {
     }>;
 }
 
+interface TokenData {
+    name: string;
+    path: string;
+    localPath: string;
+    category: string;
+}
+
 interface CreatureLibraryModalProps {
     isOpen: boolean
     onClose: () => void
@@ -58,7 +68,16 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     const [races, setRaces] = useState<Record<string, RaceData>>({})
     const [profiles, setProfiles] = useState<Record<string, ProfileData>>({})
     const [bestiary, setBestiary] = useState<Record<string, BestiaryData>>({})
+    const [tokens, setTokens] = useState<TokenData[]>([])
     const [loading, setLoading] = useState(true)
+
+    // Cropping State
+    const [crop, setCrop] = useState({ x: 0, y: 0 })
+    const [zoom, setZoom] = useState(1)
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
+    const [isEditing, setIsEditing] = useState(false)
+    const [editingImageSrc, setEditingImageSrc] = useState<string | null>(null)
+    const [isCreating, setIsCreating] = useState(false)
 
     // Stats State
     const [stats, setStats] = useState({
@@ -77,17 +96,17 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     })
 
     // Selection State
-    const [activeTab, setActiveTab] = useState<'custom' | 'bestiary'>('custom')
-    const [customSubTab, setCustomSubTab] = useState<'race' | 'profile'>('race') // For the grid view context
+    const [activeTab, setActiveTab] = useState<'bestiary' | 'race' | 'profile' | 'token'>('bestiary')
 
     const [selectedRace, setSelectedRace] = useState<string | null>(null)
     const [selectedProfile, setSelectedProfile] = useState<string | null>(null)
+    const [selectedToken, setSelectedToken] = useState<TokenData | null>(null)
     const [selectedCreature, setSelectedCreature] = useState<string | null>(null)
 
     const [targetLevel, setTargetLevel] = useState<number>(1)
     const [customImage, setCustomImage] = useState<string>('')
     const [customName, setCustomName] = useState<string>('')
-    const [activeImageSource, setActiveImageSource] = useState<'race' | 'profile' | 'custom'>('race')
+    const [activeImageSource, setActiveImageSource] = useState<'race' | 'profile' | 'creature' | 'custom'>('creature')
     const [searchQuery, setSearchQuery] = useState('')
 
     // Fetch Data
@@ -102,6 +121,11 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                 const racesData: Record<string, RaceData> = await racesRes.json()
                 const profilesData: Record<string, ProfileData> = await profilesRes.json()
                 const bestiaryData: Record<string, BestiaryData> = await bestiaryRes.json()
+                const assetsRes = await fetch('/asset-mappings.json')
+                const assetsData = await assetsRes.json()
+
+                // Filter for Token category
+                const tokenList = assetsData.filter((asset: any) => asset.category === 'Token')
 
                 // Map local image paths to R2 URLs for races and profiles
                 const racesWithMappedImages: Record<string, RaceData> = {}
@@ -120,9 +144,19 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                     }
                 }
 
+                // Proxy bestiary images to avoid CORS issues and ensure loading
+                const bestiaryWithProxiedImages: Record<string, BestiaryData> = {}
+                for (const [key, creature] of Object.entries(bestiaryData)) {
+                    bestiaryWithProxiedImages[key] = {
+                        ...creature,
+                        image: creature.image ? `/api/proxy-image?url=${encodeURIComponent(creature.image)}` : ''
+                    }
+                }
+
                 setRaces(racesWithMappedImages)
                 setProfiles(profilesWithMappedImages)
-                setBestiary(bestiaryData)
+                setBestiary(bestiaryWithProxiedImages)
+                setTokens(tokenList)
             } catch (error) {
                 console.error("Error loading library data:", error)
             } finally {
@@ -138,8 +172,8 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
 
         let newStats = { ...stats }
 
-        // CASE 1: BESTIARY
-        if (activeTab === 'bestiary' && selectedCreature && bestiary[selectedCreature]) {
+        // PRIORITY 1: BESTIARY (if a creature is selected)
+        if (selectedCreature && bestiary[selectedCreature]) {
             const creature = bestiary[selectedCreature]
             const safeRefLevel = Math.max(1, creature.niveau)
 
@@ -167,7 +201,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                 CHA: scaleStat(creature.CHA),
             }
         }
-        // CASE 2: CUSTOM (Race/Profile)
+        // PRIORITY 2: CUSTOM (Race + Profile)
         else {
             const raceData = selectedRace ? races[selectedRace] : null
             const profileData = selectedProfile ? profiles[selectedProfile] : null
@@ -220,6 +254,14 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
         setStats(newStats)
     }, [selectedRace, selectedProfile, selectedCreature, targetLevel, activeTab, races, profiles, bestiary])
 
+    // Reset crop when selection changes
+    useEffect(() => {
+        setIsEditing(false)
+        setCrop({ x: 0, y: 0 })
+        setZoom(1)
+        setEditingImageSrc(null)
+    }, [selectedRace, selectedProfile, selectedCreature, selectedToken, activeImageSource])
+
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -233,41 +275,77 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
         }
     }
 
-    const handleImport = () => {
+    const onCropComplete = (croppedArea: any, croppedAreaPixels: any) => {
+        setCroppedAreaPixels(croppedAreaPixels)
+    }
+
+
+    const handleImport = async () => {
         if (!selectedCreature && !selectedProfile && !selectedRace) return
+        setIsCreating(true)
 
-        // --- IMPORT LOGIC IDENTICAL TO PREVIOUS VERSION ---
+        try {
+            // Name Generation
+            const charName = customName || getPreviewName()
 
-        // CASE 1: BESTIARY IMPORT
-        // Create Character using STATE stats
+            const baseImage = getPreviewImage() || '';
+            let finalImage = baseImage;
 
-        // Name Generation
-        const charName = customName || getPreviewName()
+            // If token selected, we need to composite
+            // --- COMPOSITING / CROPPING LOGIC ---
+            try {
+                if (selectedToken) {
+                    let sourceForComposite = finalImage;
 
-        const newChar: NewCharacter = {
-            name: charName,
-            niveau: targetLevel,
-            image: { src: getPreviewImage() || '' },
-            visibility: 'visible',
-            PV: stats.PV_Max,
-            PV_Max: stats.PV_Max,
-            Defense: stats.Defense,
-            Contact: stats.Contact,
-            Distance: stats.Distance,
-            Magie: stats.Magie,
-            INIT: stats.INIT,
-            FOR: stats.FOR,
-            DEX: stats.DEX,
-            CON: stats.CON,
-            SAG: stats.SAG,
-            INT: stats.INT,
-            CHA: stats.CHA,
-            nombre: 1,
-            Actions: (activeTab === 'bestiary' && selectedCreature) ? (bestiary[selectedCreature]?.Actions || []) : []
+                    // If the user used the cropper, use that result
+                    if (croppedAreaPixels && (isEditing || editingImageSrc)) {
+                        sourceForComposite = await getCroppedImg(editingImageSrc || finalImage, croppedAreaPixels);
+                    }
+
+                    finalImage = await createCompositeImage(sourceForComposite, selectedToken.path);
+                }
+                else if (croppedAreaPixels && (isEditing || editingImageSrc)) {
+                    finalImage = await getCroppedImg(editingImageSrc || finalImage, croppedAreaPixels);
+                }
+
+            } catch (e: any) {
+                console.error("Error processing image:", e);
+                alert(`Erreur lors de la création du token : ${e.message || e}`);
+                setIsCreating(false)
+                return
+            }
+
+            const newChar: NewCharacter = {
+                name: charName,
+                niveau: targetLevel,
+                image: { src: finalImage },
+                imageURL: selectedToken ? baseImage : '',
+                visibility: 'visible',
+                PV: stats.PV_Max,
+                PV_Max: stats.PV_Max,
+                Defense: stats.Defense,
+                Contact: stats.Contact,
+                Distance: stats.Distance,
+                Magie: stats.Magie,
+                INIT: stats.INIT,
+                FOR: stats.FOR,
+                DEX: stats.DEX,
+                CON: stats.CON,
+                SAG: stats.SAG,
+                INT: stats.INT,
+                CHA: stats.CHA,
+                nombre: 1,
+                Actions: (activeTab === 'bestiary' && selectedCreature) ? (bestiary[selectedCreature]?.Actions || []) : []
+            }
+
+            await onImport(newChar)
+            onClose()
+
+        } catch (error) {
+            console.error("Error creating character:", error)
+        } finally {
+            setIsCreating(false)
         }
-
-        onImport(newChar)
-        onClose()
     }
 
     // Filtering
@@ -286,6 +364,10 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
         val.Nom.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
+    const filteredTokens = tokens.filter(t =>
+        t.name.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+
     if (!isOpen) return null
 
     // Determine current grid items based on active tabs
@@ -301,20 +383,17 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                     isSelected={selectedCreature === key}
                     onClick={() => {
                         setSelectedCreature(key)
-                        setSelectedRace(null)
-                        setSelectedProfile(null)
-                        setTargetLevel(1)
-                        setCustomImage('')
-                        setCustomName('')
-                        setActiveImageSource('custom')
+                        // MIX & MATCH ALLOWED: Do not clear selectedProfile
+                        setSelectedRace(null) // Clear Race as it conflicts with "Creature Base"
+                        setTargetLevel(data.niveau)
+                        setActiveImageSource('creature')
                     }}
                     footer={<span className="text-xs bg-black/60 px-2 py-0.5 rounded text-[#c0a080] border border-[#c0a080]/30">Ne: {Math.max(1, data.niveau)}</span>}
                 />
             ))
         }
 
-        // Custom Tab
-        if (customSubTab === 'race') {
+        if (activeTab === 'race') {
             return filteredRaces.map(([key, data]) => (
                 <Card
                     key={key}
@@ -325,8 +404,8 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                     onClick={() => {
                         const isSelected = selectedRace === key
                         setSelectedRace(isSelected ? null : key)
-                        setSelectedCreature(null)
-                        setActiveImageSource(isSelected ? 'profile' : 'race') // Fallback to profile if deselecting race
+                        setSelectedCreature(null) // Custom Mode -> Clear Creature
+                        setActiveImageSource('race')
                     }}
                     footer={
                         <div className="flex gap-1">
@@ -339,7 +418,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
             ))
         }
 
-        if (customSubTab === 'profile') {
+        if (activeTab === 'profile') {
             return filteredProfiles.map(([key, data]) => (
                 <Card
                     key={key}
@@ -350,10 +429,26 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                     onClick={() => {
                         const isSelected = selectedProfile === key
                         setSelectedProfile(isSelected ? null : key)
-                        setSelectedCreature(null)
-                        setActiveImageSource(isSelected ? 'race' : 'profile') // Fallback to race if deselecting profile
+                        // MIX & MATCH ALLOWED: Do not clear creature
+                        setActiveImageSource('profile')
                     }}
                     footer={<span className="text-xs text-red-300">DV: {data.hitDie}</span>}
+                />
+            ))
+        }
+
+        if (activeTab === 'token') {
+            return filteredTokens.map((token) => (
+                <Card
+                    key={token.name}
+                    title={token.name.replace('.png', '').replace('Token', 'Token ')}
+                    subtitle="Token"
+                    image={token.path}
+                    isSelected={selectedToken?.name === token.name}
+                    onClick={() => {
+                        const isSelected = selectedToken?.name === token.name
+                        setSelectedToken(isSelected ? null : token)
+                    }}
                 />
             ))
         }
@@ -362,35 +457,33 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     // --- RENDER HELPERS ---
 
     const getPreviewImage = () => {
-        // CASE 1: BESTIARY TAB
-        if (activeTab === 'bestiary') {
-            if (selectedCreature && bestiary[selectedCreature]) {
-                return customImage || bestiary[selectedCreature].image
-            }
-            return customImage || ''
-        }
+        // Priority: Custom > Active Source Selection > Hierarchy(Creature > Race > Profile > Custom)
 
-        // CASE 2: CUSTOM TAB
+        // If user explicitly chose a source in the preview UI controls, try to honor it if available
         if (activeImageSource === 'custom' && customImage) return customImage
-        if (activeImageSource === 'profile' && selectedProfile) return profiles[selectedProfile]?.image || ''
-        if (activeImageSource === 'race' && selectedRace) return races[selectedRace]?.image || ''
+        if (activeImageSource === 'creature' && selectedCreature && bestiary[selectedCreature]?.image) return bestiary[selectedCreature].image
+        if (activeImageSource === 'profile' && selectedProfile && profiles[selectedProfile]?.image) return profiles[selectedProfile].image
+        if (activeImageSource === 'race' && selectedRace && races[selectedRace]?.image) return races[selectedRace].image
 
-        // Fallbacks
-        const pImg = selectedProfile && profiles[selectedProfile]?.image
-        const rImg = selectedRace && races[selectedRace]?.image
-        return rImg || pImg || customImage
+
+        // Fallback Hierarchy
+        if (customImage) return customImage
+        if (selectedCreature && bestiary[selectedCreature]?.image) return bestiary[selectedCreature].image
+        if (selectedProfile && profiles[selectedProfile]?.image) return profiles[selectedProfile].image
+        if (selectedRace && races[selectedRace]?.image) return races[selectedRace].image
+
+        return ''
     }
 
     const getPreviewName = () => {
-        // CASE 1: BESTIARY TAB
-        if (activeTab === 'bestiary') {
-            if (selectedCreature && bestiary[selectedCreature]) {
-                return bestiary[selectedCreature].Nom
-            }
-            return 'Sélectionnez une créature'
+        // CASE 1: BESTIARY + optionally Profile
+        if (selectedCreature && bestiary[selectedCreature]) {
+            const creatureName = bestiary[selectedCreature].Nom
+            const profileName = selectedProfile ? selectedProfile.charAt(0).toUpperCase() + selectedProfile.slice(1) : ''
+            return [creatureName, profileName].filter(Boolean).join(' ')
         }
 
-        // CASE 2: CUSTOM TAB
+        // CASE 2: CUSTOM (Race + Profile)
         const pName = selectedProfile ? selectedProfile.charAt(0).toUpperCase() + selectedProfile.slice(1) : ''
         const rName = selectedRace ? selectedRace.charAt(0).toUpperCase() + selectedRace.slice(1).replace('_', ' ') : ''
         return [pName, rName].filter(Boolean).join(' ') || 'Nouveau Personnage'
@@ -429,54 +522,69 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                             />
                         </div>
 
-                        {/* Top Level Tabs */}
+                        {/* Unified Tabs */}
                         <div className="flex bg-[#18181b] p-1 rounded-lg border border-[#27272a]">
-                            <button
-                                onClick={() => setActiveTab('custom')}
-                                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'custom' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
-                            >
-                                Personnalisé
-                            </button>
                             <button
                                 onClick={() => setActiveTab('bestiary')}
                                 className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'bestiary' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
                             >
                                 Bestiaire
                             </button>
+                            <button
+                                onClick={() => setActiveTab('race')}
+                                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'race' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
+                            >
+                                Races
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('profile')}
+                                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'profile' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
+                            >
+                                Classes
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('token')}
+                                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'token' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
+                            >
+                                Tokens
+                            </button>
                         </div>
                     </div>
 
-                    {/* Secondary Tabs (Sub-navigation for Custom) with Status Bar Interaction */}
-                    {activeTab === 'custom' && (
-                        <div className="px-6 py-3 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-4">
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => setCustomSubTab('race')}
-                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold uppercase tracking-wider transition-all 
-                                        ${customSubTab === 'race' ? 'bg-[#c0a080]/10 border-[#c0a080] text-[#c0a080]' : 'bg-transparent border-[#27272a] text-zinc-500 hover:border-zinc-500'}
-                                        ${selectedRace && customSubTab !== 'race' ? 'text-[#c0a080] border-[#c0a080]/50' : ''}`}
-                                >
-                                    <Dna className="w-3.5 h-3.5" />
-                                    {selectedRace ? selectedRace.replace('_', ' ') : 'Races'}
-                                    {selectedRace && <Check className="w-3 h-3 ml-1" />}
-                                </button>
-                                <button
-                                    onClick={() => setCustomSubTab('profile')}
-                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold uppercase tracking-wider transition-all 
-                                        ${customSubTab === 'profile' ? 'bg-[#c0a080]/10 border-[#c0a080] text-[#c0a080]' : 'bg-transparent border-[#27272a] text-zinc-500 hover:border-zinc-500'}
-                                        ${selectedProfile && customSubTab !== 'profile' ? 'text-[#c0a080] border-[#c0a080]/50' : ''}`}
-                                >
-                                    <Swords className="w-3.5 h-3.5" />
-                                    {selectedProfile ? selectedProfile : 'Classes'}
-                                    {selectedProfile && <Check className="w-3 h-3 ml-1" />}
-                                </button>
-                            </div>
-                            <div className="w-px h-6 bg-[#27272a]" />
-                            <div className="text-xs text-zinc-600 font-medium">
-                                {(selectedRace || selectedProfile) ? 'Cliquez pour modifier votre sélection.' : 'Configurez votre personnage en combinant une race et un profil.'}
-                            </div>
-                        </div>
-                    )}
+                    {/* Selection Summary Bar */}
+                    <div className="px-6 py-2 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-4 text-xs text-zinc-500 h-10">
+                        {selectedCreature ? (
+                            <span className="flex items-center gap-1 text-[#c0a080] font-bold bg-[#c0a080]/10 px-2 py-0.5 rounded border border-[#c0a080]/30">
+                                {bestiary[selectedCreature]?.Nom}
+                                <button onClick={(e) => { e.stopPropagation(); setSelectedCreature(null); }} className="hover:text-white"><X className="w-3 h-3" /></button>
+                            </span>
+                        ) : null}
+
+                        {selectedRace ? (
+                            <span className="flex items-center gap-1 text-zinc-300 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                                Race: {selectedRace.replace('_', ' ')}
+                                <button onClick={(e) => { e.stopPropagation(); setSelectedRace(null); }} className="hover:text-white"><X className="w-3 h-3" /></button>
+                            </span>
+                        ) : null}
+
+                        {selectedProfile ? (
+                            <span className="flex items-center gap-1 text-zinc-300 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                                Classe: {selectedProfile}
+                                <button onClick={(e) => { e.stopPropagation(); setSelectedProfile(null); }} className="hover:text-white"><X className="w-3 h-3" /></button>
+                            </span>
+                        ) : null}
+
+                        {selectedToken ? (
+                            <span className="flex items-center gap-1 text-zinc-300 bg-white/5 px-2 py-0.5 rounded border border-white/10">
+                                Token: {selectedToken.name.replace('.png', '')}
+                                <button onClick={(e) => { e.stopPropagation(); setSelectedToken(null); }} className="hover:text-white"><X className="w-3 h-3" /></button>
+                            </span>
+                        ) : null}
+
+                        {!selectedCreature && !selectedRace && !selectedProfile && !selectedToken &&
+                            <span>Sélectionnez des éléments pour composer votre personnage.</span>
+                        }
+                    </div>
 
                     {/* Content Grid */}
                     <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-[url('/grid-pattern.svg')] bg-repeat opacity-90">
@@ -508,20 +616,90 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar relative">
                         {/* 1. Portrait Header - Larger Image */}
-                        <div className="relative h-80 bg-black group overflow-hidden border-b border-[#2a2a2a]">
+                        <div className="relative h-[400px] bg-black group overflow-hidden border-b border-[#2a2a2a]">
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-800 to-black opacity-30" />
-                            {getPreviewImage() ? (
-                                <img src={getPreviewImage() || ''} className="w-full h-full object-cover object-top transition-transform duration-700 group-hover:scale-105" />
+                            {isEditing ? (
+                                <div className="absolute inset-0 z-10">
+                                    <Cropper
+                                        image={editingImageSrc || ''}
+                                        crop={crop}
+                                        zoom={zoom}
+                                        aspect={1}
+                                        onCropChange={setCrop}
+                                        onZoomChange={setZoom}
+                                        onCropComplete={onCropComplete}
+                                        classes={{
+                                            containerClassName: "bg-black",
+                                            mediaClassName: ""
+                                        }}
+                                    />
+                                </div>
                             ) : (
-                                <div className="w-full h-full flex items-center justify-center bg-[#151515]">
-                                    <User className="w-20 h-20 text-[#333]" strokeWidth={1} />
+                                getPreviewImage() ? (
+                                    <img src={getPreviewImage() || ''} className="w-full h-full object-cover object-top" />
+                                ) : (
+                                    <div className="w-full h-full flex items-center justify-center bg-[#151515]">
+                                        <User className="w-20 h-20 text-[#333]" strokeWidth={1} />
+                                    </div>
+                                )
+                            )}
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/60 to-transparent pointer-events-none z-20" />
+
+                            {/* Token Overlay Preview */}
+                            {selectedToken && (
+                                <div
+                                    className="absolute inset-0 z-20 pointer-events-none bg-contain bg-center bg-no-repeat transition-transform"
+                                    style={{ backgroundImage: `url(${selectedToken.path})` }}
+                                />
+                            )}
+
+                            {/* Edit / Controls Overlay */}
+                            {!isEditing && getPreviewImage() && (
+                                <button
+                                    onClick={() => {
+                                        setEditingImageSrc(getPreviewImage() || '')
+                                        setIsEditing(true)
+                                    }}
+                                    className="absolute top-4 right-4 z-30 p-2 bg-black/60 text-white/70 hover:text-white rounded-full hover:bg-black/80 backdrop-blur-sm border border-white/10 transition-all"
+                                    title="Recadrer / Ajuster"
+                                >
+                                    <CropIcon className="w-4 h-4" />
+                                </button>
+                            )}
+
+                            {/* Edit Mode Controls */}
+                            {isEditing && (
+                                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-2 bg-[#18181b] border border-white/10 rounded-full px-4 py-2 shadow-xl w-3/4">
+                                    <ZoomIn className="w-4 h-4 text-zinc-400" />
+                                    <Slider
+                                        value={[zoom]}
+                                        min={1}
+                                        max={3}
+                                        step={0.1}
+                                        onValueChange={(v) => setZoom(v[0])}
+                                        className="flex-1"
+                                    />
+                                    <button
+                                        onClick={() => setIsEditing(false)}
+                                        className="ml-2 p-1 bg-white text-black rounded-full hover:bg-zinc-200"
+                                    >
+                                        <Check className="w-3 h-3" />
+                                    </button>
                                 </div>
                             )}
-                            <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/60 to-transparent" />
 
                             {/* Image Selector Controls */}
-                            {((selectedRace && selectedProfile) || customImage) && !selectedCreature && (
+                            {((selectedRace || selectedProfile || selectedCreature) || customImage) && (
                                 <div className="absolute top-4 left-4 z-20 flex gap-2 bg-black/60 backdrop-blur-md p-1.5 rounded-full border border-white/10">
+                                    {selectedCreature && (
+                                        <button
+                                            onClick={() => setActiveImageSource('creature')}
+                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${activeImageSource === 'creature' ? 'bg-[#c0a080] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
+                                            title="Image de Créature"
+                                        >
+                                            <Ghost className="w-4 h-4" />
+                                        </button>
+                                    )}
                                     {selectedRace && (
                                         <button
                                             onClick={() => setActiveImageSource('race')}
@@ -549,25 +727,39 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                             <User className="w-4 h-4" />
                                         </button>
                                     )}
+                                    <button
+                                        onClick={() => {
+                                            if (getPreviewImage()) {
+                                                setEditingImageSrc(getPreviewImage() || '')
+                                                setIsEditing(true)
+                                            }
+                                        }}
+                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all text-zinc-400 hover:text-white hover:bg-white/10`}
+                                        title="Ajuster le Token"
+                                    >
+                                        <Crop className="w-4 h-4" />
+                                    </button>
                                 </div>
                             )}
 
-                            {/* Title overlay - Editable */}
-                            <div className="absolute bottom-6 left-6 right-6 group">
-                                <div className="relative flex items-center mb-1">
-                                    <input
-                                        type="text"
-                                        value={customName}
-                                        onChange={(e) => setCustomName(e.target.value)}
-                                        placeholder={getPreviewName()}
-                                        className="w-full bg-transparent text-3xl font-serif font-bold text-white drop-shadow-md leading-tight focus:outline-none border-b-2 border-white/10 hover:border-white/30 focus:border-[#c0a080] placeholder:text-white transition-all py-1"
-                                    />
-                                    <Pencil className="absolute right-0 w-5 h-5 text-white/30 group-hover:text-white/80 pointer-events-none transition-colors" />
+                            {/* Title overlay - Editable (Hidden in Edit Mode) */}
+                            {!isEditing && (
+                                <div className="absolute bottom-6 left-6 right-6 group z-20">
+                                    <div className="relative flex items-center mb-1">
+                                        <input
+                                            type="text"
+                                            value={customName}
+                                            onChange={(e) => setCustomName(e.target.value)}
+                                            placeholder={getPreviewName()}
+                                            className="w-full bg-transparent text-3xl font-serif font-bold text-white drop-shadow-md leading-tight focus:outline-none border-b-2 border-white/10 hover:border-white/30 focus:border-[#c0a080] placeholder:text-white transition-all py-1"
+                                        />
+                                        <Pencil className="absolute right-0 w-5 h-5 text-white/30 group-hover:text-white/80 pointer-events-none transition-colors" />
+                                    </div>
+                                    <div className="flex items-center gap-2 text-[#c0a080] text-sm font-medium uppercase tracking-wider">
+                                        {selectedCreature ? bestiary[selectedCreature]?.Type : 'Nouvelle Créature'}
+                                    </div>
                                 </div>
-                                <div className="flex items-center gap-2 text-[#c0a080] text-sm font-medium uppercase tracking-wider">
-                                    {selectedCreature ? bestiary[selectedCreature]?.Type : 'Nouvelle Créature'}
-                                </div>
-                            </div>
+                            )}
                         </div>
 
                         {/* 2. Interactive Controls (Level/Image) - Available for ALL */}
@@ -690,14 +882,23 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                         </button>
                         <button
                             onClick={handleImport}
-                            disabled={!((selectedRace || selectedProfile) || selectedCreature)}
-                            className={`flex-1 flex items-center justify-center gap-2 rounded-xl text-sm font-bold tracking-wide transition-all ${((selectedRace || selectedProfile) || selectedCreature)
+                            disabled={!((selectedRace || selectedProfile) || selectedCreature) || isCreating}
+                            className={`flex-1 flex items-center justify-center gap-2 rounded-xl text-sm font-bold tracking-wide transition-all ${((selectedRace || selectedProfile) || selectedCreature) && !isCreating
                                 ? 'bg-[#c0a080] hover:bg-[#e0c0a0] text-black shadow-lg shadow-[#c0a080]/10'
                                 : 'bg-[#1a1a1a] text-zinc-600 cursor-not-allowed border border-[#2a2a2a]'
                                 }`}
                         >
-                            <span>Invoquer</span>
-                            <Check className="w-4 h-4" />
+                            {isCreating ? (
+                                <>
+                                    <span>Invocation...</span>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                </>
+                            ) : (
+                                <>
+                                    <span>Invoquer</span>
+                                    <Check className="w-4 h-4" />
+                                </>
+                            )}
                         </button>
                     </div>
                 </div>
