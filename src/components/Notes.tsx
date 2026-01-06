@@ -1,88 +1,19 @@
 'use client'
 
-import * as React from "react";
-import Image from "next/image";
-import { useState, useEffect } from "react";
-import { X, Tag, Search, Book, MapPin, User, Plus, Upload, MoreVertical, Edit, Trash2, Loader2, ChevronDown, ChevronUp, Scroll, CheckCircle2, Circle, Clock } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { motion, AnimatePresence } from "framer-motion";
-import { db, auth, addDoc, collection, doc, updateDoc, deleteDoc, onSnapshot, getDoc, onAuthStateChanged } from "@/lib/firebase";
+  Search, Plus, Book, X, Trash2, Edit, Save,
+  MapPin, User, Scroll, Tag, Image as ImageIcon,
+  Calendar, CheckCircle2, AlertTriangle, GripVertical,
+  Maximize2, Minimize2, MoreVertical, LayoutGrid, List as ListIcon
+} from 'lucide-react'
+import Image from "next/image"
+import { motion, AnimatePresence } from "framer-motion"
 
-interface Tag {
-  id: string;
-  label: string;
-  color?: string;
-}
+import { db, auth, addDoc, collection, doc, updateDoc, deleteDoc, onSnapshot, getDoc, onAuthStateChanged } from "@/lib/firebase"
+import { cn } from "@/lib/utils"
 
-interface UseTagsProps {
-  onChange?: (tags: Tag[]) => void;
-  defaultTags?: Tag[];
-  maxTags?: number;
-  defaultColors?: string[];
-}
-
-function useTags({
-  onChange,
-  defaultTags = [],
-  maxTags = 10,
-  defaultColors = [
-    "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300",
-    "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300",
-    "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300",
-    "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300",
-    "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300",
-  ],
-}: UseTagsProps = {}) {
-  const [tags, setTags] = useState<Tag[]>(defaultTags);
-
-  function addTag(tag: Tag) {
-    if (tags.length >= maxTags) return;
-
-    const newTags = [
-      ...tags,
-      {
-        ...tag,
-        color: tag.color || defaultColors[tags.length % defaultColors.length],
-      },
-    ];
-    setTags(newTags);
-    onChange?.(newTags);
-    return newTags;
-  }
-
-  function removeTag(tagId: string) {
-    const newTags = tags.filter((t) => t.id !== tagId);
-    setTags(newTags);
-    onChange?.(newTags);
-    return newTags;
-  }
-
-  function removeLastTag() {
-    if (tags.length === 0) return;
-    return removeTag(tags[tags.length - 1].id);
-  }
-
-  return {
-    tags,
-    setTags,
-    addTag,
-    removeTag,
-    removeLastTag,
-    hasReachedMax: tags.length >= maxTags,
-  };
-}
-
+// --- TYPES ---
 interface SubQuest {
   id: string;
   title: string;
@@ -90,1193 +21,531 @@ interface SubQuest {
   status: "not-started" | "in-progress" | "completed";
 }
 
+interface Tag {
+  id: string;
+  label: string;
+}
+
 interface Note {
   id: string;
   title: string;
   content: string;
-  type: "character" | "location" | "item" | "quest" | "other";
+  type: "character" | "location" | "item" | "quest" | "other" | "journal";
   tags: Tag[];
   createdAt: Date;
   updatedAt: Date;
   image?: string;
-  // Champs spécifiques aux personnages
   race?: string;
   class?: string;
-  // Champs spécifiques aux lieux
   region?: string;
-  // Champs spécifiques aux objets
   itemType?: string;
-  // Champs spécifiques aux quêtes
   questType?: "principale" | "annexe";
   questStatus?: "not-started" | "in-progress" | "completed";
   subQuests?: SubQuest[];
 }
 
-interface TagsInputProps {
-  onChange?: (tags: Tag[]) => void;
-  defaultTags?: Tag[];
-  maxTags?: number;
-}
+const NOTE_TYPES = [
+  { id: 'character', label: 'Personnage', icon: User, color: '#f59e0b' },
+  { id: 'location', label: 'Lieu', icon: MapPin, color: '#10b981' },
+  { id: 'item', label: 'Objet', icon: Book, color: '#3b82f6' },
+  { id: 'quest', label: 'Quête', icon: Scroll, color: '#8b5cf6' },
+  { id: 'journal', label: 'Journal', icon: Calendar, color: '#ec4899' },
+  { id: 'other', label: 'Autre', icon: Tag, color: '#6b7280' },
+] as const;
 
-function TagsInput({ onChange, defaultTags = [], maxTags = 10 }: TagsInputProps) {
-  const [inputValue, setInputValue] = useState("");
-  const { tags, addTag, removeTag, removeLastTag, hasReachedMax } = useTags({
-    maxTags,
-    defaultTags,
-    onChange,
-  });
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Backspace" && !inputValue) {
-      e.preventDefault();
-      removeLastTag();
-    }
-    if (e.key === "Enter" && inputValue) {
-      e.preventDefault();
-      addTag({ id: inputValue.toLowerCase(), label: inputValue });
-      setInputValue("");
-    }
-  };
-
-  return (
-    <div className="w-full space-y-2">
-      <div className="rounded-lg border border-input bg-background p-1">
-        <div className="flex flex-wrap gap-1">
-          {tags.map((tag) => (
-            <span
-              key={tag.id}
-              className={cn(
-                "inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm",
-                tag.color || "bg-primary/10 text-primary"
-              )}
-            >
-              {tag.label}
-              <button
-                onClick={() => removeTag(tag.id)}
-                className="rounded-full p-0.5 hover:bg-black/10 dark:hover:bg-white/20"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
-          <input
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={hasReachedMax ? "Max tags reached" : "Add tag..."}
-            disabled={hasReachedMax}
-            className="flex-1 bg-transparent px-2 py-1 text-sm outline-none placeholder:text-[var(--text-primary)] disabled:cursor-not-allowed"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ImageUpload({ image, onImageChange }: { image?: string; onImageChange: (image: string | undefined) => void }) {
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        onImageChange(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const removeImage = () => {
-    onImageChange(undefined);
-  };
-
-  return (
-    <div className="space-y-2">
-      <label className="text-sm font-medium">Image</label>
-      {image ? (
-        <div className="relative h-48">
-          <Image src={image} alt="Note" fill className="object-cover rounded-lg" sizes="100vw" />
-          <Button
-            type="button"
-            variant="destructive"
-            size="sm"
-            onClick={removeImage}
-            className="absolute top-2 right-2"
-          >
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
-      ) : (
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-            className="hidden"
-            id="image-upload"
-          />
-          <label
-            htmlFor="image-upload"
-            className="cursor-pointer flex flex-col items-center gap-2"
-          >
-            <Upload className="h-8 w-8 text-gray-400" />
-            <span className="text-sm text-gray-500">Cliquez pour ajouter une image</span>
-          </label>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function NoteCard({ note, onEdit, onDelete, onUpdateSubQuest, className = "", index = 0 }: { note: Note; onEdit: (note: Note) => void; onDelete: (noteId: string) => void; onUpdateSubQuest: (noteId: string, subQuestId: string) => void; className?: string; index?: number }) {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isContentTruncated, setIsContentTruncated] = useState(false);
-  const contentRef = React.useRef<HTMLDivElement>(null);
-
-  // Déterminer la taille de la carte selon le contenu réel pour un vrai style bento
-  const getCardSize = () => {
-    const contentLength = note.content.length;
-    const lineCount = (note.content.match(/\n/g) || []).length + 1;
-    const hasImage = !!note.image;
-    const titleLength = note.title.length;
-    const tagsCount = note.tags.length;
-    
-    // Estimer les lignes de titre (environ 30 caractères par ligne sur mobile)
-    const titleLines = Math.ceil(titleLength / 30);
-    
-    // Estimer les lignes de contenu (environ 40 caractères par ligne visible)
-    const estimatedContentLines = Math.max(lineCount, Math.ceil(contentLength / 40));
-    
-    // Score basé sur la richesse du contenu
-    const titleScore = titleLines * 20;
-    const contentScore = estimatedContentLines * 12;
-    const imageScore = hasImage ? 60 : 0;
-    const tagsScore = tagsCount * 8;
-    
-    const totalScore = titleScore + contentScore + imageScore + tagsScore;
-    
-    // Style bento dynamique avec variété basée sur l'index
-    const isEvenPosition = index % 2 === 0;
-    const isSpecialPosition = index % 5 === 0 || index % 7 === 0; // Positions spéciales pour plus de variété
-    
-    if (hasImage) {
-      // Toutes les cartes avec image prennent de la place
-      if (totalScore > 120 || estimatedContentLines > 5) return "large"; // Grande carte avec image
-      return "wide"; // Carte large avec image
-    }
-    
-    // Logique plus agressive pour créer de la variété
-    if (titleLength > 40 || estimatedContentLines > 6) return "large"; // Contenu très riche
-    if (titleLength > 25 || estimatedContentLines > 4 || tagsCount > 2) return "wide"; // Contenu riche
-    
-    // Ajouter de la variété avec les positions spéciales
-    if (isSpecialPosition && (titleLength > 20 || estimatedContentLines > 3)) return "wide";
-    if (isEvenPosition && estimatedContentLines > 3) return "tall"; // Cartes hautes en position paire
-    if (estimatedContentLines > 2 || titleLength > 15) return "medium"; // Contenu court
-    return "small"; // Contenu minimal
-  };
-
-  const cardSize = getCardSize();
-
-  // Classes CSS pour le layout bento
-  const getCardClasses = () => {
-    const baseClasses = "group transition-all duration-300 hover:scale-[1.02] hover:shadow-xl";
-    
-    switch (cardSize) {
-      case "large":
-        return `${baseClasses} bento-large`;
-      case "wide":
-        return `${baseClasses} bento-wide`;
-      case "tall":
-        return `${baseClasses} bento-tall`;
-      case "medium":
-        return `${baseClasses} bento-medium`;
-      default:
-        return `${baseClasses} bento-small`;
-    }
-  };
-
-  // Vérifier si le contenu est tronqué
-  useEffect(() => {
-    if (contentRef.current) {
-      const element = contentRef.current;
-      setIsContentTruncated(element.scrollHeight > element.clientHeight);
-    }
-  }, [note.content, isExpanded]);
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, scale: 0.9 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.3 }}
-      className={getCardClasses()}
-    >
-      <Card className={`card overflow-hidden rounded-xl border border-[var(--border-color)] hover:shadow-lg transition-all duration-200 hover:border-[var(--accent-brown)]/30 h-full ${className}`}>
-        <CardContent className="p-4 h-full flex flex-col">
-        {/* En-tête: icône + titre + menu actions */}
-        <div className="flex items-start justify-between mb-3 gap-3">
-          <div className="flex items-start gap-2 min-w-0 flex-1">
-            {(() => {
-              const typeColorClass = note.type === "character"
-                ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
-                : note.type === "location"
-                ? "bg-green-500/10 border-green-500/30 text-green-400"
-                : note.type === "item"
-                ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                : note.type === "quest"
-                ? "bg-orange-500/10 border-orange-500/30 text-orange-400"
-                : "bg-purple-500/10 border-purple-500/30 text-purple-400";
-              return (
-                <div className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-full border flex-shrink-0 mt-0.5",
-                  typeColorClass
-                )}>
-                  {note.type === "character" && <User className="h-4 w-4" />}
-                  {note.type === "location" && <MapPin className="h-4 w-4" />}
-                  {note.type === "item" && <Book className="h-4 w-4" />}
-                  {note.type === "quest" && <Scroll className="h-4 w-4" />}
-                  {note.type === "other" && <Tag className="h-4 w-4" />}
-                </div>
-              );
-            })()}
-            <h3 className="font-semibold text-base sm:text-lg text-[var(--accent-brown)] leading-tight break-words hyphens-auto">
-              {note.title}
-            </h3>
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-[var(--accent-brown)]/10 flex-shrink-0">
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="rounded-lg">
-              <DropdownMenuItem onClick={() => onEdit(note)}>
-                <Edit className="mr-2 h-4 w-4" />
-                Modifier
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onDelete(note.id)} className="text-red-600 focus:text-red-600">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Supprimer
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
-        {/* Méta-informations sous le titre */}
-        {(note.type === "character" || note.type === "location" || note.type === "item" || note.type === "quest") && (
-          <div className="text-[10px] sm:text-xs text-[var(--text-primary)] mb-3 opacity-75 flex flex-wrap gap-2">
-            {note.type === "character" && note.race && (
-              <span className="bg-blue-900/20 px-2 py-1 rounded text-blue-300">Race: {note.race}</span>
-            )}
-            {note.type === "character" && note.class && (
-              <span className="bg-green-900/20 px-2 py-1 rounded text-green-300">Classe: {note.class}</span>
-            )}
-            {note.type === "location" && note.region && (
-              <span className="bg-purple-900/20 px-2 py-1 rounded text-purple-300">Région: {note.region}</span>
-            )}
-            {note.type === "item" && note.itemType && (
-              <span className="bg-amber-900/20 px-2 py-1 rounded text-amber-300">Type: {note.itemType}</span>
-            )}
-            {note.type === "quest" && note.questType && (
-              <span className={cn(
-                "px-2 py-1 rounded flex items-center gap-1 font-semibold",
-                note.questType === "principale" ? "bg-purple-900/30 text-purple-300 border border-purple-500/30" :
-                "bg-blue-900/20 text-blue-300"
-              )}>
-                {note.questType === "principale" ? " Quête Principale" : " Quête Annexe"}
-              </span>
-            )}
-            {note.type === "quest" && note.questStatus && (
-              <span className={cn(
-                "px-2 py-1 rounded flex items-center gap-1",
-                note.questStatus === "completed" ? "bg-green-900/20 text-green-300" :
-                note.questStatus === "in-progress" ? "bg-yellow-900/20 text-yellow-300" :
-                "bg-gray-900/20 text-gray-300"
-              )}>
-                {note.questStatus === "completed" && <CheckCircle2 className="h-3 w-3" />}
-                {note.questStatus === "in-progress" && <Clock className="h-3 w-3" />}
-                {note.questStatus === "not-started" && <Circle className="h-3 w-3" />}
-                {note.questStatus === "completed" ? "Terminée" : 
-                 note.questStatus === "in-progress" ? "En cours" : 
-                 "Non commencée"}
-              </span>
-            )}
-            {note.type === "quest" && note.subQuests && note.subQuests.length > 0 && (
-              <span className="bg-orange-900/20 px-2 py-1 rounded text-orange-300">
-                {note.subQuests.filter(sq => sq.status === "completed").length}/{note.subQuests.length} sous-quêtes
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Corps: vignette + contenu */}
-        <div className={cn(
-          "flex-1 mb-3",
-          note.image ? "grid grid-cols-1 md:grid-cols-3 gap-3" : ""
-        )}>
-          {note.image && (
-            <div className="relative rounded-lg overflow-hidden md:col-span-1 aspect-square md:aspect-auto h-32 md:h-full">
-              <Image src={note.image} alt={note.title} fill className="object-cover" sizes="(max-width: 768px) 100vw, 33vw" />
-            </div>
-          )}
-          <div className={cn(note.image ? "md:col-span-2" : "", "flex flex-col")}>
-            <div 
-              ref={contentRef}
-              className={cn(
-                "text-sm text-[var(--text-primary)] whitespace-pre-wrap leading-relaxed break-words hyphens-auto flex-1",
-                !isExpanded ? "line-clamp-6" : ""
-              )}
-            >
-              {note.content}
-            </div>
-            {isContentTruncated && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsExpanded(!isExpanded)}
-                className="mt-2 h-6 px-2 text-xs self-start text-[var(--accent-brown)] hover:bg-[var(--accent-brown)]/10"
-              >
-                {isExpanded ? (
-                  <>
-                    <ChevronUp className="h-3 w-3 mr-1" />
-                    Voir moins
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-3 w-3 mr-1" />
-                    Voir plus
-                  </>
-                )}
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Sous-quêtes */}
-        {note.type === "quest" && note.subQuests && note.subQuests.length > 0 && (
-          <div className="mb-3 space-y-2">
-            <h4 className="text-xs font-semibold text-[var(--accent-brown)] mb-2">Sous-quêtes :</h4>
-            {note.subQuests.map((subQuest) => (
-              <div key={subQuest.id} className="bg-[var(--bg-medium)]/50 rounded-lg p-2 border border-[var(--border-color)]/30">
-                <div className="flex items-start gap-2">
-                  <button 
-                    className="mt-0.5 cursor-pointer hover:scale-110 transition-transform focus:outline-none"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onUpdateSubQuest(note.id, subQuest.id);
-                    }}
-                    title="Changer le statut"
-                  >
-                    {subQuest.status === "completed" && <CheckCircle2 className="h-4 w-4 text-green-400" />}
-                    {subQuest.status === "in-progress" && <Clock className="h-4 w-4 text-yellow-400" />}
-                    {subQuest.status === "not-started" && <Circle className="h-4 w-4 text-gray-400" />}
-                  </button>
-                  <div className="flex-1 min-w-0">
-                    <p className={cn(
-                      "text-sm font-medium",
-                      subQuest.status === "completed" ? "line-through opacity-60" : ""
-                    )}>
-                      {subQuest.title}
-                    </p>
-                    {subQuest.description && (
-                      <p className="text-xs text-[var(--text-primary)] opacity-75 mt-1">{subQuest.description}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Tags */}
-        {note.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-3 flex-shrink-0">
-            {note.tags.map((tag) => (
-              <span
-                key={tag.id}
-                className={cn(
-                  "inline-flex items-center rounded-full px-2 py-1 text-[10px] sm:text-xs",
-                  tag.color || "bg-primary/10 text-primary"
-                )}
-              >
-                {tag.label}
-              </span>
-            ))}
-          </div>
-        )}
-
-        {/* Pied de carte */}
-        <div className="flex justify-between items-center mt-auto pt-3 border-t border-[var(--border-color)]/30 flex-shrink-0">
-          <div className="text-xs text-[var(--text-primary)] opacity-60">
-            {note.updatedAt.toLocaleDateString('fr-FR', {
-              day: '2-digit',
-              month: '2-digit',
-              year: '2-digit'
-            })}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-    </motion.div>
-  );
-}
-
-function NoteEditor({ 
-  note, 
-  onSave, 
-  onCancel 
-}: { 
-  note?: Note; 
-  onSave: (note: Note) => void; 
-  onCancel: () => void 
-}) {
-  const [title, setTitle] = useState(note?.title || "");
-  const [content, setContent] = useState(note?.content || "");
-  const [type, setType] = useState<"character" | "location" | "item" | "quest" | "other">(note?.type || "character");
-  const [tags, setTags] = useState<Tag[]>(note?.tags || []);
-  const [image, setImage] = useState<string | undefined>(note?.image);
-  
-  // Champs spécifiques aux personnages
-  const [race, setRace] = useState(note?.race || "");
-  const [characterClass, setCharacterClass] = useState(note?.class || "");
-  
-  // Champs spécifiques aux lieux
-  const [region, setRegion] = useState(note?.region || "");
-  
-  // Champs spécifiques aux objets
-  const [itemType, setItemType] = useState(note?.itemType || "");
-  
-  // Champs spécifiques aux quêtes
-  const [questType, setQuestType] = useState<"principale" | "annexe">(note?.questType || "principale");
-  const [questStatus, setQuestStatus] = useState<"not-started" | "in-progress" | "completed">(note?.questStatus || "not-started");
-  const [subQuests, setSubQuests] = useState<SubQuest[]>(note?.subQuests || []);
-
-  const handleSave = () => {
-    if (!title.trim()) return;
-    
-    const updatedNote: Note = {
-      id: note?.id || Date.now().toString(),
-      title,
-      content,
-      type,
-      tags,
-      image,
-      createdAt: note?.createdAt || new Date(),
-      updatedAt: new Date(),
-      // Champs conditionnels selon le type
-      ...(type === "character" && { race, class: characterClass }),
-      ...(type === "location" && { region }),
-      ...(type === "item" && { itemType }),
-      ...(type === "quest" && { questType, questStatus, subQuests }),
-    };
-    
-    onSave(updatedNote);
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Titre</label>
-        <Input 
-          value={title} 
-          onChange={(e) => setTitle(e.target.value)} 
-          placeholder="Titre de la note" 
-        />
-      </div>
-    
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Type</label>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant={type === "character" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setType("character")}
-            className="flex gap-2"
-          >
-            <User className="h-4 w-4" /> Personnage
-          </Button>
-          <Button
-            type="button"
-            variant={type === "location" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setType("location")}
-            className="flex gap-2"
-          >
-            <MapPin className="h-4 w-4" /> Lieu
-          </Button>
-          <Button
-            type="button"
-            variant={type === "item" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setType("item")}
-            className="flex gap-2"
-          >
-            <Book className="h-4 w-4" /> Objet
-          </Button>
-          <Button
-            type="button"
-            variant={type === "quest" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setType("quest")}
-            className="flex gap-2"
-          >
-            <Scroll className="h-4 w-4" /> Quête
-          </Button>
-          <Button
-            type="button"
-            variant={type === "other" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setType("other")}
-            className="flex gap-2"
-          >
-            <Tag className="h-4 w-4" /> Autre
-          </Button>
-        </div>
-      </div>
-    
-      {/* Champs spécifiques selon le type */}
-      {type === "character" && (
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Race</label>
-            <Input 
-              value={race} 
-              onChange={(e) => setRace(e.target.value)} 
-              placeholder="Elfe, Humain, Nain..."
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Classe</label>
-            <Input 
-              value={characterClass} 
-              onChange={(e) => setCharacterClass(e.target.value)} 
-              placeholder="Guerrier, Magicien, Voleur..."
-            />
-          </div>
-        </div>
-      )}
-
-      {type === "location" && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Région</label>
-          <Input 
-            value={region} 
-            onChange={(e) => setRegion(e.target.value)} 
-            placeholder="Forêt, Montagne, Désert..."
-          />
-        </div>
-      )}
-
-      {type === "item" && (
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Type d&apos;objet</label>
-          <Input 
-            value={itemType} 
-            onChange={(e) => setItemType(e.target.value)} 
-            placeholder="Arme, Armure, Potion..."
-          />
-        </div>
-      )}
-
-      {type === "quest" && (
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Type de quête</label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={questType === "principale" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setQuestType("principale")}
-                className="flex gap-2"
-              >
-                Principale
-              </Button>
-              <Button
-                type="button"
-                variant={questType === "annexe" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setQuestType("annexe")}
-                className="flex gap-2"
-              >
-                Annexe
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Statut de la quête</label>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant={questStatus === "not-started" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setQuestStatus("not-started")}
-                className="flex gap-2"
-              >
-                <Circle className="h-4 w-4" /> Non commencée
-              </Button>
-              <Button
-                type="button"
-                variant={questStatus === "in-progress" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setQuestStatus("in-progress")}
-                className="flex gap-2"
-              >
-                <Clock className="h-4 w-4" /> En cours
-              </Button>
-              <Button
-                type="button"
-                variant={questStatus === "completed" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setQuestStatus("completed")}
-                className="flex gap-2"
-              >
-                <CheckCircle2 className="h-4 w-4" /> Terminée
-              </Button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex justify-between items-center">
-              <label className="text-sm font-medium">Sous-quêtes</label>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setSubQuests([...subQuests, {
-                    id: Date.now().toString(),
-                    title: "",
-                    description: "",
-                    status: "not-started"
-                  }]);
-                }}
-                className="flex gap-2"
-              >
-                <Plus className="h-4 w-4" /> Ajouter
-              </Button>
-            </div>
-            {subQuests.length > 0 && (
-              <div className="space-y-3">
-                {subQuests.map((subQuest, index) => (
-                  <Card key={subQuest.id} className="p-3">
-                    <div className="space-y-2">
-                      <div className="flex gap-2 items-start">
-                        <Input
-                          placeholder="Titre de la sous-quête"
-                          value={subQuest.title}
-                          onChange={(e) => {
-                            const newSubQuests = [...subQuests];
-                            newSubQuests[index].title = e.target.value;
-                            setSubQuests(newSubQuests);
-                          }}
-                          className="flex-1"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSubQuests(subQuests.filter((_, i) => i !== index));
-                          }}
-                          className="h-10 w-10 p-0"
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      <Textarea
-                        placeholder="Description de la sous-quête"
-                        value={subQuest.description}
-                        onChange={(e) => {
-                          const newSubQuests = [...subQuests];
-                          newSubQuests[index].description = e.target.value;
-                          setSubQuests(newSubQuests);
-                        }}
-                        className="min-h-[60px]"
-                      />
-                      <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant={subQuest.status === "not-started" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => {
-                            const newSubQuests = [...subQuests];
-                            newSubQuests[index].status = "not-started";
-                            setSubQuests(newSubQuests);
-                          }}
-                        >
-                          <Circle className="h-3 w-3 mr-1" /> Non commencée
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={subQuest.status === "in-progress" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => {
-                            const newSubQuests = [...subQuests];
-                            newSubQuests[index].status = "in-progress";
-                            setSubQuests(newSubQuests);
-                          }}
-                        >
-                          <Clock className="h-3 w-3 mr-1" /> En cours
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={subQuest.status === "completed" ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => {
-                            const newSubQuests = [...subQuests];
-                            newSubQuests[index].status = "completed";
-                            setSubQuests(newSubQuests);
-                          }}
-                        >
-                          <CheckCircle2 className="h-3 w-3 mr-1" /> Terminée
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      <ImageUpload image={image} onImageChange={setImage} />
-
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Description</label>
-        <Textarea 
-          value={content} 
-          onChange={(e) => setContent(e.target.value)} 
-          placeholder="Écrivez votre description ici..." 
-          className="min-h-[200px]"
-        />
-      </div>
-      
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Tags</label>
-        <TagsInput 
-          defaultTags={tags} 
-          onChange={setTags} 
-        />
-      </div>
-        
-              <div className="flex justify-end gap-2 pt-4">
-          <Button variant="outline" onClick={onCancel} className="button-cancel">Annuler</Button>
-          <Button onClick={handleSave} className="button-primary">Sauvegarder</Button>
-        </div>
-    </div>
-  );
-}
+// --- MAIN COMPONENT ---
 
 export default function Notes() {
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [editingNote, setEditingNote] = useState<Note | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
-  const [roomId, setRoomId] = useState<string | null>(null);
-  const [character, setCharacter] = useState<string | null>(null);
+  // Data
+  const [notes, setNotes] = useState<Note[]>([])
+  const [loading, setLoading] = useState(true)
+  const [roomId, setRoomId] = useState<string | null>(null)
+  const [characterId, setCharacterId] = useState<string | null>(null)
 
+  // View
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('grid')
+
+  // Editor (Custom Modal)
+  const [editorOpen, setEditorOpen] = useState(false)
+  const [editingNote, setEditingNote] = useState<Partial<Note> | null>(null)
+
+  // Deletion
+  const [deleteId, setDeleteId] = useState<string | null>(null)
+
+  // Auth & Data Fetching
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        try {
-          const userDocRef = doc(db, 'users', user.uid);
-          const userDoc = await getDoc(userDocRef);
-
-          if (userDoc.exists()) {
-            const userData = userDoc.data();
-            setRoomId(String(userData.room_id));
-            setCharacter(String(userData.perso));
-          } else {
-            setError("Données utilisateur non trouvées");
-          }
-        } catch (err) {
-          setError("Erreur lors du chargement des données utilisateur");
-          console.error(err);
+        const userDoc = await getDoc(doc(db, 'users', user.uid))
+        if (userDoc.exists()) {
+          setRoomId(userDoc.data().room_id)
+          setCharacterId(userDoc.data().perso)
         }
-      } else {
-        setError("Utilisateur non connecté");
       }
-      setLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
+      setLoading(false)
+    })
+    return () => unsubscribe()
+  }, [])
 
   useEffect(() => {
-    if (roomId && character) {
-      const notesCollectionRef = collection(db, 'Notes', roomId, character);
+    if (!roomId || !characterId) return
+    const q = collection(db, 'Notes', roomId, characterId)
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const list = snapshot.docs.map(doc => ({
+        id: doc.id, ...doc.data(),
+        tags: doc.data().tags || [],
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+      })) as Note[]
+      setNotes(list.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()))
+    })
+    return () => unsubscribe()
+  }, [roomId, characterId])
 
-      const unsubscribe = onSnapshot(notesCollectionRef, (snapshot) => {
-        try {
-          const notesData = snapshot.docs.map((doc) => {
-            const data = doc.data();
-            return {
-              id: doc.id,
-              title: data.title || "",
-              content: data.content || "",
-              type: data.type || "other",
-              tags: data.tags || [],
-              image: data.image,
-              race: data.race,
-              class: data.class,
-              region: data.region,
-              itemType: data.itemType,
-              questType: data.questType,
-              questStatus: data.questStatus,
-              subQuests: data.subQuests,
-              createdAt: data.createdAt?.toDate() || new Date(),
-              updatedAt: data.updatedAt?.toDate() || new Date(),
-            } as Note;
-          });
-          setNotes(notesData);
-          setError(null);
-        } catch (err) {
-          setError("Erreur lors du chargement des notes");
-          console.error(err);
-        }
-      });
-
-      return () => unsubscribe();
-    }
-  }, [roomId, character]);
-  
-  const filteredNotes = notes.filter((note: Note) => {
-    const matchesSearch = searchTerm === "" || 
-      note.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      note.content.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    return matchesSearch;
-  });
-  
-  type FirestoreNoteUpdate = Partial<Pick<Note,
-    'title' | 'content' | 'type' | 'tags' | 'image' | 'race' | 'class' | 'region' | 'itemType' | 'questType' | 'questStatus' | 'subQuests'
-  >> & { updatedAt: Date; createdAt?: Date };
-
-  const handleSaveNote = async (updatedNote: Note) => {
-    if (!roomId || !character) return;
-    
-    try {
-      const notesCollectionRef = collection(db, 'Notes', roomId, character);
-      
-      // Créer l'objet de base avec les champs obligatoires
-      const noteData: FirestoreNoteUpdate = {
-        title: updatedNote.title,
-        content: updatedNote.content,
-        type: updatedNote.type,
-        tags: updatedNote.tags,
-        updatedAt: new Date(),
-      };
-
-      // Ajouter les champs optionnels seulement s'ils ne sont pas undefined
-      if (updatedNote.image !== undefined) {
-        noteData.image = updatedNote.image;
-      }
-      if (updatedNote.race !== undefined) {
-        noteData.race = updatedNote.race;
-      }
-      if (updatedNote.class !== undefined) {
-        noteData.class = updatedNote.class;
-      }
-      if (updatedNote.region !== undefined) {
-        noteData.region = updatedNote.region;
-      }
-      if (updatedNote.itemType !== undefined) {
-        noteData.itemType = updatedNote.itemType;
-      }
-      if (updatedNote.questType !== undefined) {
-        noteData.questType = updatedNote.questType;
-      }
-      if (updatedNote.questStatus !== undefined) {
-        noteData.questStatus = updatedNote.questStatus;
-      }
-      if (updatedNote.subQuests !== undefined) {
-        noteData.subQuests = updatedNote.subQuests;
-      }
-
-      if (editingNote) {
-        const noteDocRef = doc(db, 'Notes', roomId, character, updatedNote.id);
-        await updateDoc(noteDocRef, noteData);
-        setEditingNote(null);
-      } else {
-        await addDoc(notesCollectionRef, {
-          ...noteData,
-          createdAt: new Date(),
-        });
-        setIsCreating(false);
-      }
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
-      setError("Erreur lors de la sauvegarde de la note");
-    }
-  };
-
-  const handleDeleteNote = async (noteId: string) => {
-    if (!roomId || !character) return;
-    
-    try {
-      const noteDocRef = doc(db, 'Notes', roomId, character, noteId);
-      await deleteDoc(noteDocRef);
-    } catch (error) {
-      console.error('Erreur lors de la suppression:', error);
-      setError("Erreur lors de la suppression de la note");
-    }
-  };
-
-  const handleUpdateSubQuest = async (noteId: string, subQuestId: string) => {
-    if (!roomId || !character) return;
-    
-    try {
-      const note = notes.find(n => n.id === noteId);
-      if (!note || !note.subQuests) return;
-
-      const updatedSubQuests = note.subQuests.map(sq => {
-        if (sq.id === subQuestId) {
-          // Cycle des statuts : not-started → in-progress → completed → not-started
-          let newStatus: "not-started" | "in-progress" | "completed";
-          if (sq.status === "not-started") {
-            newStatus = "in-progress";
-          } else if (sq.status === "in-progress") {
-            newStatus = "completed";
-          } else {
-            newStatus = "not-started";
-          }
-          return { ...sq, status: newStatus };
-        }
-        return sq;
-      });
-
-      const noteDocRef = doc(db, 'Notes', roomId, character, noteId);
-      await updateDoc(noteDocRef, { subQuests: updatedSubQuests });
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour de la sous-quête:', error);
-      setError("Erreur lors de la mise à jour de la sous-quête");
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="max-w-6xl mx-auto p-4 min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)]">
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-[var(--accent-brown)]" />
-          <span className="ml-2 text-[var(--text-primary)]">Chargement...</span>
-        </div>
-      </div>
-    );
+  // Actions
+  const handleNew = () => {
+    setEditingNote({
+      title: '', content: '', type: 'other', tags: [], subQuests: [],
+      questStatus: 'not-started', questType: 'principale'
+    })
+    setEditorOpen(true)
   }
 
-  if (error) {
-    return (
-      <div className="max-w-6xl mx-auto p-4 min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)]">
-        <div className="flex justify-center items-center h-64">
-          <div className="text-center">
-            <div className="text-red-500 mb-2">❌ Erreur</div>
-            <p className="text-[var(--text-primary)]">{error}</p>
-            <p className="text-sm text-[var(--text-primary)] mt-2">
-              Vérifiez votre connexion et réessayez dans quelques instants.
-            </p>
+  const handleEdit = (note: Note) => {
+    setEditingNote({ ...note })
+    setEditorOpen(true)
+  }
+
+  const handleSave = async (data: Partial<Note>) => {
+    if (!data.title?.trim() || !roomId || !characterId) return
+
+    const payload: any = {
+      ...data,
+      title: data.title,
+      updatedAt: new Date(),
+      content: data.content || '',
+      tags: data.tags || []
+    }
+    delete payload.id
+
+    if (data.id) {
+      await updateDoc(doc(db, 'Notes', roomId, characterId, data.id), payload)
+    } else {
+      payload.createdAt = new Date()
+      await addDoc(collection(db, 'Notes', roomId, characterId), payload)
+    }
+    setEditorOpen(false)
+  }
+
+  const handleDelete = async () => {
+    if (!deleteId || !roomId || !characterId) return
+    await deleteDoc(doc(db, 'Notes', roomId, characterId, deleteId))
+    setDeleteId(null)
+    setEditorOpen(false)
+  }
+
+  // Filtering
+  const filtered = useMemo(() => notes.filter(n => {
+    const matchesSearch = n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      n.tags.some(t => t.label.toLowerCase().includes(searchQuery.toLowerCase()))
+    const matchesType = activeFilter ? n.type === activeFilter : true
+    return matchesSearch && matchesType
+  }), [notes, searchQuery, activeFilter])
+
+  if (loading) return <div className="h-full flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-[#c0a080] border-t-transparent animate-spin" /></div>
+
+  return (
+    <div className="h-full flex flex-col bg-[#09090b] text-[#e0e0e0] font-sans relative overflow-hidden">
+
+      {/* TOP BAR */}
+      <div className="px-8 py-6 border-b border-[#2a2a2a] bg-[#0c0c0e] flex flex-col gap-6 z-10 shrink-0">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-serif font-bold text-[#e4e4e7] tracking-tight">Grimoire</h1>
+            <p className="text-sm text-zinc-500 font-medium">Archives & Connaissances</p>
+          </div>
+          <button
+            onClick={handleNew}
+            className="group relative px-6 py-2.5 bg-[#c0a080] text-black font-bold uppercase tracking-widest text-xs rounded shadow-[0_0_20px_rgba(192,160,128,0.2)] hover:shadow-[0_0_30px_rgba(192,160,128,0.4)] hover:bg-[#d4b490] transition-all overflow-hidden"
+          >
+            <span className="relative z-10 flex items-center gap-2"><Plus className="w-4 h-4" /> Nouvelle entrée</span>
+            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+          </button>
+        </div>
+
+        <div className="flex flex-col md:flex-row items-center gap-4">
+          <div className="relative flex-1 w-full group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[#c0a080] transition-colors" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Rechercher dans les archives..."
+              className="w-full bg-[#18181b] border border-[#27272a] rounded-xl py-3 pl-11 pr-4 text-zinc-200 focus:outline-none focus:border-[#c0a080] focus:ring-1 focus:ring-[#c0a080]/20 transition-all font-medium placeholder:text-zinc-600"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 bg-[#18181b] p-1 rounded-xl border border-[#27272a]">
+            <button onClick={() => setViewLayout('grid')} className={cn("p-2 rounded-lg transition-all", viewLayout === 'grid' ? "bg-[#c0a080]/20 text-[#c0a080]" : "text-zinc-500 hover:text-zinc-300")}><LayoutGrid className="w-4 h-4" /></button>
+            <button onClick={() => setViewLayout('list')} className={cn("p-2 rounded-lg transition-all", viewLayout === 'list' ? "bg-[#c0a080]/20 text-[#c0a080]" : "text-zinc-500 hover:text-zinc-300")}><ListIcon className="w-4 h-4" /></button>
           </div>
         </div>
+
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => setActiveFilter(null)} className={cn("px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border", activeFilter === null ? "bg-[#c0a080] text-black border-[#c0a080]" : "bg-transparent border-[#27272a] text-zinc-500 hover:border-zinc-500")}>Tout</button>
+          {NOTE_TYPES.map(t => (
+            <button key={t.id} onClick={() => setActiveFilter(t.id)} className={cn("px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border flex items-center gap-2", activeFilter === t.id ? "bg-[#c0a080] text-black border-[#c0a080]" : "bg-transparent border-[#27272a] text-zinc-500 hover:border-zinc-500")}>
+              <t.icon className="w-3 h-3" /> {t.label}
+            </button>
+          ))}
+        </div>
       </div>
-    );
-  }
-  
-  return (
-    <div className="max-w-6xl mx-auto p-4 min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)]">
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-[var(--accent-brown)]">Notes</h1>
-        <Button onClick={() => setIsCreating(true)} className="button-primary flex items-center gap-2">
-          <Plus className="h-4 w-4" /> Nouvelle Note
-        </Button>
+
+      {/* CONTENT GRID */}
+      <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-[url('/grid-pattern.svg')] opacity-95">
+        {notes.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-zinc-600 opacity-50">
+            <Book className="w-16 h-16 mb-4" strokeWidth={1} />
+            <p className="font-serif italic text-lg">Le grimoire est vide...</p>
+          </div>
+        ) : (
+          <div className={cn(
+            "grid gap-6 pb-20",
+            viewLayout === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" : "grid-cols-1 max-w-4xl mx-auto"
+          )}>
+            {filtered.map(note => (
+              <NoteCard key={note.id} note={note} onClick={() => handleEdit(note)} layout={viewLayout} />
+            ))}
+          </div>
+        )}
       </div>
-      
-      {(isCreating || editingNote) ? (
-        <Card className="card mb-4">
-          <CardContent className="pt-6">
-            <h2 className="text-xl font-bold mb-4 text-[var(--accent-brown)]">{editingNote ? "Modifier la Note" : "Créer une Nouvelle Note"}</h2>
-            <NoteEditor 
-              note={editingNote || undefined} 
-              onSave={handleSaveNote} 
-              onCancel={() => {
-                setEditingNote(null);
-                setIsCreating(false);
-              }} 
-            />
-          </CardContent>
-        </Card>
-      ) : (
-        <>
-          <div className="flex gap-3 mb-4">
-            <div className="relative flex-1">
-              <Search className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[var(--text-primary)] opacity-60" />
-              <Input
-                placeholder="Rechercher des notes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="input-field pl-9 h-10"
-              />
+
+      {/* CUSTOM IMMERSIVE MODAL */}
+      <AnimatePresence>
+        {editorOpen && editingNote && (
+          <CustomEditorModal
+            data={editingNote}
+            onClose={() => setEditorOpen(false)}
+            onSave={handleSave}
+            onDelete={(id) => setDeleteId(id)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* DELETE CONFIRMATION OVERLAY */}
+      {deleteId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
+          <div className="bg-[#121212] border border-[#2a2a2a] p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-red-500"><AlertTriangle /><h3 className="font-bold">Supprimer définitivement ?</h3></div>
+            <p className="text-zinc-400 text-sm">Cette action est irréversible.</p>
+            <div className="flex justify-end gap-3">
+              <button onClick={() => setDeleteId(null)} className="px-4 py-2 hover:bg-white/5 rounded-lg text-sm font-medium">Annuler</button>
+              <button onClick={handleDelete} className="px-4 py-2 bg-red-900/50 hover:bg-red-900 text-red-200 border border-red-900/50 rounded-lg text-sm font-bold">Supprimer</button>
             </div>
           </div>
-          
-          <Tabs defaultValue="all">
-            <TabsList className="mb-3 h-9">
-              <TabsTrigger value="all" className="text-xs px-3 py-1">Toutes les Notes</TabsTrigger>
-              <TabsTrigger value="characters" className="text-xs px-3 py-1">Personnages</TabsTrigger>
-              <TabsTrigger value="locations" className="text-xs px-3 py-1">Lieux</TabsTrigger>
-              <TabsTrigger value="items" className="text-xs px-3 py-1">Objets</TabsTrigger>
-              <TabsTrigger value="quests" className="text-xs px-3 py-1">Quêtes</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="all" className="mt-0">
-              <div className="bento-grid">
-                <AnimatePresence>
-                  {filteredNotes.length > 0 ? (
-                    filteredNotes.map((note: Note, index: number) => (
-                      <NoteCard
-                        key={note.id}
-                        note={note}
-                        onEdit={setEditingNote}
-                        onDelete={handleDeleteNote}
-                        onUpdateSubQuest={handleUpdateSubQuest}
-                        index={index}
-                      />
-                    ))
-                  ) : (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="col-span-full text-center py-12"
-                    >
-                      <p className="text-[var(--text-primary)]">Aucune note trouvée. Essayez d&apos;ajuster vos filtres ou créez une nouvelle note.</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="characters" className="mt-0">
-              <div className="bento-grid">
-                <AnimatePresence>
-                  {filteredNotes.filter((note: Note) => note.type === "character").length > 0 ? (
-                    filteredNotes
-                      .filter((note: Note) => note.type === "character")
-                      .map((note: Note, index: number) => (
-                        <NoteCard
-                          key={note.id}
-                          note={note}
-                          onEdit={setEditingNote}
-                          onDelete={handleDeleteNote}
-                          onUpdateSubQuest={handleUpdateSubQuest}
-                          index={index}
-                        />
-                      ))
-                  ) : (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="col-span-full text-center py-12"
-                    >
-                      <p className="text-[var(--text-primary)]">Aucune note de personnage trouvée.</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="locations" className="mt-0">
-              <div className="bento-grid">
-                <AnimatePresence>
-                  {filteredNotes.filter((note: Note) => note.type === "location").length > 0 ? (
-                    filteredNotes
-                      .filter((note: Note) => note.type === "location")
-                      .map((note: Note, index: number) => (
-                        <NoteCard
-                          key={note.id}
-                          note={note}
-                          onEdit={setEditingNote}
-                          onDelete={handleDeleteNote}
-                          onUpdateSubQuest={handleUpdateSubQuest}
-                          index={index}
-                        />
-                      ))
-                  ) : (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="col-span-full text-center py-12"
-                    >
-                      <p className="text-[var(--text-primary)]">Aucune note de lieu trouvée.</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="items" className="mt-0">
-              <div className="bento-grid">
-                <AnimatePresence>
-                  {filteredNotes.filter((note: Note) => note.type === "item").length > 0 ? (
-                    filteredNotes
-                      .filter((note: Note) => note.type === "item")
-                      .map((note: Note, index: number) => (
-                        <NoteCard
-                          key={note.id}
-                          note={note}
-                          onEdit={setEditingNote}
-                          onDelete={handleDeleteNote}
-                          onUpdateSubQuest={handleUpdateSubQuest}
-                          index={index}
-                        />
-                      ))
-                  ) : (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="col-span-full text-center py-12"
-                    >
-                      <p className="text-[var(--text-primary)]">Aucune note d&apos;objet trouvée.</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="quests" className="mt-0">
-              <div className="bento-grid">
-                <AnimatePresence>
-                  {filteredNotes.filter((note: Note) => note.type === "quest").length > 0 ? (
-                    filteredNotes
-                      .filter((note: Note) => note.type === "quest")
-                      .map((note: Note, index: number) => (
-                        <NoteCard
-                          key={note.id}
-                          note={note}
-                          onEdit={setEditingNote}
-                          onDelete={handleDeleteNote}
-                          onUpdateSubQuest={handleUpdateSubQuest}
-                          index={index}
-                        />
-                      ))
-                  ) : (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      className="col-span-full text-center py-12"
-                    >
-                      <p className="text-[var(--text-primary)]">Aucune quête trouvée.</p>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </>
+        </div>
       )}
     </div>
-  );
+  )
+}
+
+// --- SUB-COMPONENTS ---
+
+function NoteCard({ note, onClick, layout }: { note: Note, onClick: () => void, layout: 'grid' | 'list' }) {
+  const TypeIcon = NOTE_TYPES.find(t => t.id === note.type)?.icon || Tag
+  const hasImage = !!note.image
+
+  return (
+    <motion.div
+      layoutId={`card-${note.id}`}
+      onClick={onClick}
+      className={cn(
+        "group relative bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden cursor-pointer hover:border-[#c0a080] hover:shadow-[0_0_20px_rgba(192,160,128,0.2)] transition-all duration-300 flex",
+        layout === 'list' ? "h-24 flex-row" : (hasImage ? "flex-col aspect-[3/4]" : "flex-col h-auto")
+      )}
+    >
+      {/* --- BACKGROUND LAYER --- */}
+      {hasImage ? (
+        <div className="absolute inset-0 bg-[#121212]">
+          <Image
+            src={note.image!}
+            alt={note.title}
+            fill
+            className="object-cover transition-transform duration-700 group-hover:scale-110 opacity-60 group-hover:opacity-100"
+          />
+          <div className={cn("absolute inset-0 bg-gradient-to-t from-black via-[#09090b]/80 to-transparent", layout === 'list' ? "via-[#09090b]/90" : "")} />
+        </div>
+      ) : (
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#25252a] to-transparent opacity-50" />
+          <TypeIcon className="absolute top-4 right-4 w-24 h-24 text-[#202022] -rotate-12 opacity-50" />
+        </div>
+      )}
+
+      {/* --- CONTENT LAYER --- */}
+      <div className="relative flex-1 flex flex-col p-5 z-10">
+
+        {/* Top Badge */}
+        <div className="flex justify-between items-start mb-4">
+          <span className={cn(
+            "px-2 py-1 rounded backdrop-blur border text-[10px] font-bold uppercase tracking-wider",
+            hasImage ? "bg-black/40 border-white/5 text-[#c0a080]" : "bg-[#25252a] border-[#2a2a2a] text-zinc-400"
+          )}>
+            {NOTE_TYPES.find(t => t.id === note.type)?.label}
+          </span>
+        </div>
+
+        {/* Text Preview (Only for No-Image) */}
+        {!hasImage && note.content && (
+          <p className="text-zinc-400 text-sm leading-relaxed line-clamp-4 mb-6 font-serif opacity-80 group-hover:opacity-100 transition-opacity">
+            {note.content}
+          </p>
+        )}
+
+        {/* Bottom Info */}
+        <div className="mt-auto">
+          <h3 className={cn(
+            "font-serif font-bold text-lg leading-tight mb-1 transition-colors line-clamp-2",
+            hasImage ? "text-white group-hover:text-[#c0a080]" : "text-zinc-200 group-hover:text-[#c0a080]"
+          )}>
+            {note.title || "Sans Titre"}
+          </h3>
+
+          <div className="flex flex-wrap items-center gap-2 text-[10px] text-zinc-500 font-medium">
+            {note.type === 'character' && (
+              <>
+                {note.race && <span>{note.race}</span>}
+                {note.race && note.class && <span className="opacity-50">•</span>}
+                {note.class && <span>{note.class}</span>}
+              </>
+            )}
+            {note.type === 'location' && note.region && <span>{note.region}</span>}
+          </div>
+
+          {/* Tags */}
+          {note.tags && note.tags.length > 0 && layout !== 'list' && (
+            <div className={cn(
+              "flex flex-wrap gap-1 mt-3 transition-opacity duration-300",
+              hasImage ? "opacity-0 group-hover:opacity-100" : "pt-3 border-t border-[#2a2a2a]"
+            )}>
+              {note.tags.slice(0, 3).map(t => (
+                <span key={t.id} className={cn(
+                  "text-[9px] px-1.5 py-0.5 rounded",
+                  hasImage ? "bg-white/10 text-zinc-300" : "bg-[#25252a] text-zinc-400"
+                )}>#{t.label}</span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  )
+}
+
+function CustomEditorModal({ data, onClose, onSave, onDelete }: { data: Partial<Note>, onClose: () => void, onSave: (d: Partial<Note>) => void, onDelete: (id: string) => void }) {
+  const [note, setNote] = useState(data)
+  const [scrolled, setScrolled] = useState(false)
+  const contentRef = useRef<HTMLDivElement>(null)
+
+  const handleScroll = () => {
+    if (contentRef.current) {
+      setScrolled(contentRef.current.scrollTop > 50)
+    }
+  }
+
+  // Auto-save tags
+  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      const val = e.currentTarget.value.trim()
+      if (val && !note.tags?.find(t => t.label === val)) {
+        setNote(prev => ({ ...prev, tags: [...(prev.tags || []), { id: val.toLowerCase(), label: val }] }))
+        e.currentTarget.value = ''
+      }
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        onClick={onClose}
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+      />
+
+      {/* Modal Window */}
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 20 }}
+        className="relative w-full max-w-6xl h-[90vh] bg-[#09090b] border border-[#2a2a2a] rounded-xl shadow-2xl overflow-hidden flex flex-row"
+      >
+        {/* --- LEFT SIDEBAR: PROPERTIES --- */}
+        <div className="w-[320px] bg-[#0c0c0e] border-r border-[#2a2a2a] flex flex-col overflow-y-auto custom-scrollbar">
+          <div className="p-6 border-b border-[#2a2a2a]">
+            <h2 className="text-[#c0a080] text-xs font-bold uppercase tracking-widest mb-4">Type d'archive</h2>
+            <div className="grid grid-cols-2 gap-2">
+              {NOTE_TYPES.map(t => (
+                <button
+                  key={t.id}
+                  onClick={() => setNote(prev => ({ ...prev, type: t.id as any }))}
+                  className={cn(
+                    "flex flex-col items-center justify-center p-3 rounded-lg border transition-all gap-2",
+                    note.type === t.id ? "bg-[#c0a080]/10 border-[#c0a080] text-[#c0a080]" : "border-[#27272a] text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
+                  )}
+                >
+                  <t.icon className="w-5 h-5" />
+                  <span className="text-[10px] font-bold uppercase">{t.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="p-6 space-y-6 flex-1">
+            {/* Context Fields */}
+            <div className="space-y-4">
+              {note.type === 'character' && (
+                <>
+                  <div className="space-y-1"><label className="text-[10px] uppercase font-bold text-zinc-500">Race</label><input value={note.race || ''} onChange={e => setNote(p => ({ ...p, race: e.target.value }))} className="w-full bg-[#18181b] border border-[#27272a] rounded px-3 py-2 text-sm text-white focus:border-[#c0a080] outline-none" /></div>
+                  <div className="space-y-1"><label className="text-[10px] uppercase font-bold text-zinc-500">Classe</label><input value={note.class || ''} onChange={e => setNote(p => ({ ...p, class: e.target.value }))} className="w-full bg-[#18181b] border border-[#27272a] rounded px-3 py-2 text-sm text-white focus:border-[#c0a080] outline-none" /></div>
+                </>
+              )}
+              {note.type === 'location' && (
+                <div className="space-y-1"><label className="text-[10px] uppercase font-bold text-zinc-500">Région</label><input value={note.region || ''} onChange={e => setNote(p => ({ ...p, region: e.target.value }))} className="w-full bg-[#18181b] border border-[#27272a] rounded px-3 py-2 text-sm text-white focus:border-[#c0a080] outline-none" /></div>
+              )}
+              {note.type === 'quest' && (
+                <div className="space-y-2">
+                  <label className="text-[10px] uppercase font-bold text-zinc-500">Statut de quête</label>
+                  <div className="flex bg-[#18181b] p-1 rounded border border-[#27272a]">
+                    {['not-started', 'in-progress', 'completed'].map(s => (
+                      <button key={s} onClick={() => setNote(p => ({ ...p, questStatus: s as any }))} className={cn("flex-1 py-1 rounded text-[10px] font-bold uppercase", note.questStatus === s ? "bg-[#c0a080] text-black" : "text-zinc-500")}>
+                        {s === 'not-started' ? 'À faire' : s === 'in-progress' ? 'En cours' : 'Fini'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Tags */}
+            <div className="pt-6 border-t border-[#2a2a2a]">
+              <label className="text-[10px] uppercase font-bold text-zinc-500 mb-3 block">Mots-clés</label>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {note.tags?.map(t => (
+                  <span key={t.id} className="text-xs bg-[#18181b] border border-[#27272a] px-2 py-1 rounded flex items-center gap-1 text-zinc-300">
+                    #{t.label}
+                    <button onClick={() => setNote(p => ({ ...p, tags: p.tags?.filter(x => x.id !== t.id) }))} className="hover:text-red-400 ml-1"><X className="w-3 h-3" /></button>
+                  </span>
+                ))}
+              </div>
+              <input placeholder="+ Ajouter..." onKeyDown={handleAddTag} className="w-full bg-transparent border-b border-[#27272a] py-1 text-sm outline-none focus:border-[#c0a080] placeholder:text-zinc-700" />
+            </div>
+          </div>
+
+          {/* Delete Action */}
+          {note.id && (
+            <div className="p-6 mt-auto border-t border-[#2a2a2a]">
+              <button onClick={() => onDelete(note.id!)} className="flex items-center gap-2 text-red-500 text-xs font-bold uppercase hover:text-red-400 transition-colors">
+                <Trash2 className="w-4 h-4" /> Supprimer ce document
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* --- RIGHT CONTENT: CANVAS --- */}
+        <div className="flex-1 flex flex-col relative bg-[#121212]">
+
+          {/* Floating Actions */}
+          <div className={cn("absolute top-0 right-0 left-0 p-6 flex justify-between items-start z-20 transition-all duration-300", scrolled ? "bg-[#121212]/90 backdrop-blur border-b border-[#2a2a2a] py-3" : "")}>
+            <div className="flex items-center gap-4">
+              <button onClick={onClose} className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
+                <X className="w-5 h-5 text-zinc-400" />
+              </button>
+            </div>
+            <button onClick={() => onSave(note)} className="bg-[#c0a080] hover:bg-[#b09070] text-black font-bold uppercase tracking-widest text-xs px-6 py-3 rounded shadow-lg shadow-[#c0a080]/10 transition-all flex items-center gap-2">
+              <Save className="w-4 h-4" /> Enregistrer
+            </button>
+          </div>
+
+          {/* Scrollable Canvas */}
+          <div ref={contentRef} onScroll={handleScroll} className="flex-1 overflow-y-auto custom-scrollbar">
+
+            {/* Header Image */}
+            <div className="h-[350px] w-full relative bg-[#09090b] shrink-0 group">
+              {note.image ? (
+                <img src={note.image} className="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center opacity-10 bg-[url('/grid-pattern.svg')]">
+                  <ImageIcon className="w-20 h-20 text-white" strokeWidth={1} />
+                </div>
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/40 to-transparent" />
+
+              <label className="absolute bottom-6 right-6 bg-black/60 backdrop-blur px-4 py-2 rounded-full border border-white/10 text-xs font-bold uppercase tracking-wider text-white cursor-pointer hover:bg-black/80 flex items-center gap-2 transition-all">
+                <ImageIcon className="w-4 h-4" /> Modifier l'image
+                <input type="file" accept="image/*" className="hidden" onChange={e => {
+                  const f = e.target.files?.[0];
+                  if (f) { const r = new FileReader(); r.onloadend = () => setNote(p => ({ ...p, image: r.result as string })); r.readAsDataURL(f); }
+                }} />
+              </label>
+            </div>
+
+            {/* Editor Body */}
+            <div className="max-w-4xl mx-auto px-10 py-12">
+              <input
+                value={note.title}
+                onChange={e => setNote(p => ({ ...p, title: e.target.value }))}
+                placeholder="Titre du document..."
+                className="w-full bg-transparent text-5xl font-serif font-bold text-[#e0e0e0] placeholder:text-zinc-700 outline-none mb-8"
+              />
+
+              <textarea
+                value={note.content}
+                onChange={e => setNote(p => ({ ...p, content: e.target.value }))}
+                placeholder="Commencez à rédiger..."
+                className="w-full min-h-[500px] bg-transparent text-lg text-zinc-300 font-serif leading-loose outline-none resize-none placeholder:text-zinc-700"
+              />
+
+              {/* Quest Steps if applicable */}
+              {note.type === 'quest' && (
+                <div className="mt-12 pt-8 border-t border-[#2a2a2a]">
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-[#c0a080] text-sm font-bold uppercase tracking-widest">Chroniques & Étapes</h3>
+                    <button onClick={() => setNote(p => ({ ...p, subQuests: [...(p.subQuests || []), { id: Date.now().toString(), title: '', description: '', status: 'not-started' }] }))} className="text-xs text-[#c0a080] border border-[#c0a080] px-3 py-1 rounded hover:bg-[#c0a080]/10">
+                      + Ajouter une étape
+                    </button>
+                  </div>
+                  <div className="space-y-3">
+                    {note.subQuests?.map((sq, i) => (
+                      <div key={sq.id} className="flex items-center gap-4 p-4 bg-[#1a1a1a] rounded-lg border border-[#2a2a2a] group">
+                        <button onClick={() => {
+                          const ns = [...(note.subQuests || [])];
+                          ns[i].status = sq.status === 'not-started' ? 'in-progress' : sq.status === 'in-progress' ? 'completed' : 'not-started';
+                          setNote(p => ({ ...p, subQuests: ns }));
+                        }} className={cn("w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors", sq.status === 'completed' ? "bg-green-900 border-green-500 text-green-500" : sq.status === 'in-progress' ? "bg-amber-900 border-amber-500 text-amber-500" : "border-zinc-600 text-transparent")}>
+                          <CheckCircle2 className="w-4 h-4" />
+                        </button>
+                        <input
+                          value={sq.title}
+                          onChange={e => { const ns = [...note.subQuests || []]; ns[i].title = e.target.value; setNote(p => ({ ...p, subQuests: ns })) }}
+                          placeholder="Description de l'étape..."
+                          className="flex-1 bg-transparent text-zinc-200 outline-none"
+                        />
+                        <button onClick={() => setNote(p => ({ ...p, subQuests: p.subQuests?.filter((_, x) => x !== i) }))} className="text-zinc-600 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Spacer */}
+            <div className="h-20" />
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  )
 }

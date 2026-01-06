@@ -1,7 +1,7 @@
 // Sidebar.tsx
 "use client";
 
-import { Swords, FileText, Edit, Dice5, List, Search, MessageSquare, UsersRound, Music } from "lucide-react";
+import { Swords, FileText, Edit, Dice5, List, Search, MessageSquare, UsersRound, Music, ImagePlay } from "lucide-react";
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useCompetences } from "@/contexts/CompetencesContext";
 import { useGame } from "@/contexts/GameContext";
@@ -132,7 +132,7 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
           <Dice5 className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "DiceRoller" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button>
         <button onClick={() => handleIconClick("Chat")} className="p-1.5 sm:p-2">
-          <MessageSquare className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Chat" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
+          <ImagePlay className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Chat" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
         </button>
 
       </aside>
