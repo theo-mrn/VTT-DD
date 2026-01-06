@@ -176,6 +176,7 @@ export function DiceRoller() {
   }, []);
 
   const fetchFirebaseRolls = async (roomId: string) => {
+
     try {
       const rollsRef = collection(db, `rolls/${roomId}/rolls`);
       const rollsQuery = query(rollsRef, orderBy("timestamp", "desc"), limit(50));
@@ -195,7 +196,6 @@ export function DiceRoller() {
   const replaceCharacteristics = (notation: string): string => {
     const modifiers = getCharacterModifiers();
     if (!modifiers || Object.keys(modifiers).length === 0) {
-      console.log("CharacterModifiers not available for:", notation);
       return notation;
     }
 
@@ -481,7 +481,21 @@ export function DiceRoller() {
 
       // 2. Lancer les dés 3D et attendre le résultat physique
       // (Si aucune dé trouvé ex: "1+2", requests est vide, perform3DRoll retourne direct [])
-      const physicalResults = await perform3DRoll(requests);
+      let physicalResults = await perform3DRoll(requests);
+
+      // Cheat code via console: window.CHEAT_DICE = 20 (or { d20: 20 })
+      // @ts-ignore
+      if (typeof window !== "undefined" && window.CHEAT_DICE !== undefined) {
+        // @ts-ignore
+        const cheat = window.CHEAT_DICE;
+        console.log("CHEAT MODE:", cheat);
+        physicalResults = physicalResults.map((r) => {
+          let newVal = r.value;
+          if (typeof cheat === "number") newVal = cheat;
+          else if (typeof cheat === "object" && cheat[r.type]) newVal = cheat[r.type];
+          return { ...r, value: newVal };
+        });
+      }
 
       // 3. Calculer le résultat logique BASÉ sur le résultat physique
       const { total, output } = calculateFinalResult(processedNotation, physicalResults);
@@ -499,6 +513,7 @@ export function DiceRoller() {
       setResult(result);
 
       if (roomId && userName) {
+
         // Note: parseNotation était utilisé pour extraire diceFaces pour les stats firebase
         // On peut essayer de deviner le "dé principal" pour les stats
         // Prenons le premier dé de la notation
@@ -532,21 +547,6 @@ export function DiceRoller() {
 
         await addDoc(collection(db, `rolls/${roomId}/rolls`), firebaseRoll);
         setFirebaseRolls((prevRolls) => [firebaseRoll, ...prevRolls]);
-
-        // 🎯 SYNC WITH CHAT (DISABLED per user request to reduce noise)
-        /*
-        if (!isPrivate) {
-          const chatMessage = {
-            text: `🎲 Lancer de dé (${originalNotation}) : ${output}`,
-            sender: userName,
-            uid: auth.currentUser?.uid || "unknown",
-            timestamp: serverTimestamp(),
-            imageUrl: null,
-            recipients: []
-          };
-          await addDoc(collection(db, `rooms/${roomId}/chat`), chatMessage);
-        }
-        */
       }
 
     } catch (err) {
