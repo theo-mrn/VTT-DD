@@ -142,10 +142,8 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
 
     // Handlers
     const handleCreateNew = () => {
-        setChar(defaultCharacter)
-        generateStats(difficulty) // Pre-fill with difficulty
-        setSelectedNpcId(null)
-        setViewMode('create')
+        // Open the improved CreatureLibraryModal instead of the old inspector create mode
+        setShowLibraryModal(true)
     }
 
     const handleEdit = (npc: NPC) => {
@@ -371,15 +369,7 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setShowLibraryModal(true)}
-                            className="text-[#c0a080] hover:text-white hover:bg-[#c0a080]/20 border border-[#c0a080]/30 hover:border-[#c0a080]/50 transition-all h-9 w-9"
-                            title="Ouvrir le grimoire de monstres"
-                        >
-                            <BookOpen className="w-5 h-5" />
-                        </Button>
+
 
                         <Button onClick={handleCreateNew} className="bg-[#c0a080] text-black font-bold hover:bg-[#b09070] h-9 px-4 text-xs uppercase tracking-wide">
                             <Plus className="w-3 h-3 mr-2" />
@@ -677,7 +667,25 @@ function InspectorView({
                 )}
 
                 <div className="absolute bottom-6 left-6 right-6 z-10">
-                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                    {/* Name Input/Title */}
+                    {isEditing ? (
+                        <div className="relative group/input mb-2">
+                            <input
+                                type="text"
+                                value={getVal('name', '')}
+                                onChange={(e) => onChange('name', e.target.value)}
+                                placeholder="Nom du personnage"
+                                className="w-full bg-transparent text-3xl font-serif font-bold text-white leading-none drop-shadow-md outline-none border-b border-transparent hover:border-white/20 focus:border-[#c0a080] transition-colors placeholder:text-white/30"
+                            />
+                            <Pencil className="absolute right-0 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30 pointer-events-none opacity-0 group-hover/input:opacity-100 transition-opacity" />
+                        </div>
+                    ) : (
+                        <h2 className="text-3xl font-serif font-bold text-white leading-none drop-shadow-md mb-2">
+                            {getVal('name')}
+                        </h2>
+                    )}
+
+                    <div className="flex flex-wrap items-center gap-2">
                         {/* Category Selector/Badge */}
                         {isEditing ? (
                             <select
@@ -716,24 +724,6 @@ function InspectorView({
                             </Badge>
                         )}
                     </div>
-
-                    {/* Name Input/Title */}
-                    {isEditing ? (
-                        <div className="relative group/input">
-                            <input
-                                type="text"
-                                value={getVal('name', '')}
-                                onChange={(e) => onChange('name', e.target.value)}
-                                placeholder="Nom du personnage"
-                                className="w-full bg-transparent text-3xl font-serif font-bold text-white leading-none drop-shadow-md outline-none border-b border-transparent hover:border-white/20 focus:border-[#c0a080] transition-colors placeholder:text-white/30"
-                            />
-                            <Pencil className="absolute right-0 top-1/2 -translate-y-1/2 w-5 h-5 text-white/30 pointer-events-none opacity-0 group-hover/input:opacity-100 transition-opacity" />
-                        </div>
-                    ) : (
-                        <h2 className="text-3xl font-serif font-bold text-white leading-none drop-shadow-md">
-                            {getVal('name')}
-                        </h2>
-                    )}
                 </div>
             </div>
 

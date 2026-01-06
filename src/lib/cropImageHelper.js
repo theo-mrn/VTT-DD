@@ -44,17 +44,24 @@ export const getCroppedImg = (imageSrc, pixelCrop) => {
       canvas.height = pixelCrop.height;
       const ctx = canvas.getContext('2d');
 
-      ctx.drawImage(
-        image,
-        pixelCrop.x,
-        pixelCrop.y,
-        pixelCrop.width,
-        pixelCrop.height,
-        0,
-        0,
-        pixelCrop.width,
-        pixelCrop.height
-      );
+      // Safe draw logic to prevent stretching when crop is out of bounds
+      const px = pixelCrop.x;
+      const py = pixelCrop.y;
+      const pw = pixelCrop.width;
+      const ph = pixelCrop.height;
+
+      // Calculate intersection with image
+      const ix = Math.max(0, px);
+      const iy = Math.max(0, py);
+      const iw = Math.min(px + pw, image.width) - ix;
+      const ih = Math.min(py + ph, image.height) - iy;
+
+      // Draw intersection if valid
+      if (iw > 0 && ih > 0) {
+        const dx = ix - px;
+        const dy = iy - py;
+        ctx.drawImage(image, ix, iy, iw, ih, dx, dy, iw, ih);
+      }
 
       const base64Image = canvas.toDataURL('image/png');
       resolve(base64Image);
@@ -172,9 +179,9 @@ export const getCroppedGif = async (gifUrl, pixelCrop, onProgress = null) => {
 // Create composite image with token overlay
 export const createCompositeImage = (croppedImageSrc, tokenSrc, isGif = false) => {
   return new Promise((resolve, reject) => {
-    const tokenSize = VIEWPORT_SIZE * TOKEN_SCALE; // Token is larger
+    const tokenSize = VIEWPORT_SIZE * TOKEN_SCALE; // Token is larger (400px)
     const targetSize = tokenSize; // Canvas must fit the full token
-    const imageSize = VIEWPORT_SIZE; // Character fills the box
+    const imageSize = VIEWPORT_SIZE; // Character should be 320px
 
     // For GIFs, we can't composite directly without losing animation
     // Return the GIF as-is to handle overlay via CSS
@@ -196,6 +203,7 @@ export const createCompositeImage = (croppedImageSrc, tokenSrc, isGif = false) =
         const characterImage = await loadImage(croppedImageSrc);
 
         // Draw character image (centered)
+        // We always scale the cropped content to fit the 320px viewport
         const imageX = (targetSize - imageSize) / 2;
         const imageY = (targetSize - imageSize) / 2;
 
@@ -206,7 +214,7 @@ export const createCompositeImage = (croppedImageSrc, tokenSrc, isGif = false) =
         ctx.closePath();
         ctx.clip();
 
-        // Draw the character image
+        // Draw the character image forced to imageSize
         ctx.drawImage(characterImage, imageX, imageY, imageSize, imageSize);
         ctx.restore();
 
