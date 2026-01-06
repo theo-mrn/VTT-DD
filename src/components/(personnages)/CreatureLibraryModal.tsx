@@ -149,7 +149,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                 for (const [key, creature] of Object.entries(bestiaryData)) {
                     bestiaryWithProxiedImages[key] = {
                         ...creature,
-                        image: creature.image ? `/api/proxy-image?url=${encodeURIComponent(creature.image)}` : ''
+                        image: creature.image ? `/api/proxy-image?url=${encodeURIComponent(creature.image)}&quality=10` : ''
                     }
                 }
 
