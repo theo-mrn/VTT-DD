@@ -162,6 +162,7 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
 
       // 3. Update DB
       await updateDoc(doc(db, `cartes/${roomId}/characters`, characterId), {
+        imageURL: croppedImageUrl, // Save base image
         imageURL2: cropped,
         imageURLFinal: composite,
         Token: tokenName,
@@ -355,8 +356,8 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
                       key={token.id}
                       onClick={() => setPreviewTokenUrl(token.src)}
                       className={`group relative aspect-square rounded-xl transition-all duration-200 overflow-hidden flex items-center justify-center p-2 ${previewTokenUrl === token.src
-                          ? 'bg-neutral-800 ring-2 ring-white/20'
-                          : 'bg-neutral-900/40 hover:bg-neutral-800 border border-transparent hover:border-white/5'
+                        ? 'bg-neutral-800 ring-2 ring-white/20'
+                        : 'bg-neutral-900/40 hover:bg-neutral-800 border border-transparent hover:border-white/5'
                         }`}
                       title={token.name}
                     >

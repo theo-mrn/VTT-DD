@@ -107,6 +107,7 @@ export interface NewCharacter {
     CHA: number;
     Actions?: any[];
     type?: 'joueurs' | 'pnj' | 'monster';
+    imageURL?: string; // Standardized casing
 }
 
 export interface Note {

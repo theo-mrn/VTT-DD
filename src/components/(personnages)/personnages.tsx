@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react'
 import {
     Users, Shield, Heart, Zap, UserPlus, Plus,
     Dices, Image as ImageIcon, User, Check, X, RotateCcw, Trash2, Edit,
-    AlertTriangle, Search, BookOpen, Swords, Dna, Pencil
+    AlertTriangle, Search, BookOpen, Swords, Dna, Pencil, ScanFace
 } from 'lucide-react'
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
@@ -38,11 +38,13 @@ export interface Category {
     icon?: string
 }
 
+// Update NPC interface to include imageURL
 export interface NPC {
     id: string
     Nomperso: string
     categoryId?: string
-    imageURL2?: string
+    imageURL?: string // Base image
+    imageURL2?: string // Token/Composite
     niveau: number
     PV: number
     PV_Max: number
@@ -274,21 +276,32 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
         setIsSubmitting(true)
         try {
             const templatesRef = collection(db, 'npc_templates', roomId, 'templates')
+            const storage = getStorage()
 
-            // Image handling (upload if Base64/DataURL)
-            let imageURL = (typeof importedChar.image === 'object' ? importedChar.image?.src : importedChar.image) || ''
-            if (imageURL.startsWith('data:')) {
-                const storage = getStorage()
-                const imageRef = ref(storage, `characters/${importedChar.name}-${Date.now()}`)
-                const response = await fetch(imageURL)
+            // 1. Handle Final Image (Token) -> imageURL2
+            let tokenURL = (typeof importedChar.image === 'object' ? importedChar.image?.src : importedChar.image) || ''
+            if (tokenURL.startsWith('data:')) {
+                const imageRef = ref(storage, `characters/token_${importedChar.name}-${Date.now()}`)
+                const response = await fetch(tokenURL)
                 const blob = await response.blob()
                 await uploadBytes(imageRef, blob)
-                imageURL = await getDownloadURL(imageRef)
+                tokenURL = await getDownloadURL(imageRef)
+            }
+
+            // 2. Handle Base Image -> imageURL
+            let baseURL = importedChar.imageURL || ''
+            if (baseURL.startsWith('data:')) {
+                const imageRef = ref(storage, `characters/base_${importedChar.name}-${Date.now()}`)
+                const response = await fetch(baseURL)
+                const blob = await response.blob()
+                await uploadBytes(imageRef, blob)
+                baseURL = await getDownloadURL(imageRef)
             }
 
             const npcData = {
                 Nomperso: importedChar.name,
-                imageURL2: imageURL,
+                imageURL: baseURL,
+                imageURL2: tokenURL,
                 niveau: importedChar.niveau,
                 PV: importedChar.PV,
                 PV_F: importedChar.PV,
@@ -591,9 +604,24 @@ function InspectorView({
         return fallback
     }
 
-    const imageSrc = isEditing
-        ? (char?.image && typeof char.image === 'object' ? (char.image as any).src : char?.image)
-        : npc?.imageURL2
+    const hasBaseImage = !!(isEditing ? char?.imageURL : npc?.imageURL)
+    const [showToken, setShowToken] = useState(!hasBaseImage)
+
+    // Reset view preference when character changes
+    useEffect(() => {
+        setShowToken(!hasBaseImage)
+    }, [npc?.id, hasBaseImage])
+
+    const getTokenUrl = () => {
+        if (isEditing && char) return (typeof char?.image === 'object' ? (char.image as any)?.src : char?.image)
+        return npc?.imageURL2
+    }
+    const getBaseUrl = () => {
+        if (isEditing && char) return char?.imageURL
+        return npc?.imageURL
+    }
+
+    const imageSrc = showToken ? (getTokenUrl() || getBaseUrl()) : (getBaseUrl() || getTokenUrl())
 
     return (
         <div className="flex flex-col h-full overflow-hidden relative">
@@ -602,14 +630,40 @@ function InspectorView({
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-zinc-800 to-black opacity-30" />
 
                 {imageSrc ? (
-                    <img src={imageSrc} className="w-full h-full object-cover object-top transition-transform duration-700 hover:scale-105" />
+                    <img
+                        src={imageSrc}
+                        className={cn(
+                            "transition-all duration-700",
+                            showToken ? "w-full h-full object-contain object-center p-8" : "w-full h-full object-cover object-top hover:scale-105"
+                        )}
+                    />
                 ) : (
                     <div className="w-full h-full flex items-center justify-center bg-[#151515]">
                         <User className="w-20 h-20 text-[#333]" strokeWidth={1} />
                     </div>
                 )}
 
-                <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/60 to-transparent" />
+                <div className={cn("absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/60 to-transparent pointer-events-none transition-opacity duration-500", showToken ? "opacity-0" : "")} />
+
+                {/* View Toggle (Token / Image) - Only if base image exists */}
+                {hasBaseImage && (
+                    <div className="absolute top-4 left-4 z-20 flex gap-2 bg-black/60 backdrop-blur-md p-1.5 rounded-full border border-white/10">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setShowToken(true) }}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${showToken ? 'bg-[#c0a080] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
+                            title="Vue Token"
+                        >
+                            <ScanFace className="w-4 h-4" />
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setShowToken(false) }}
+                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${!showToken ? 'bg-[#c0a080] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
+                            title="Vue Image Complète"
+                        >
+                            <ImageIcon className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
 
                 {/* Edit overlay for Image */}
                 {isEditing && (

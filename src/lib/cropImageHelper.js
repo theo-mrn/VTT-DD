@@ -2,13 +2,43 @@
 import { parseGIF, decompressFrames } from 'gifuct-js';
 import GIF from 'gif.js';
 
-export const getCroppedImg = (imageSrc, pixelCrop) => {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.src = imageSrc;
+const VIEWPORT_SIZE = 320; // Standard size for all processing
+const TOKEN_SCALE = 1.25; // Scale token up to give more room for character
 
-    image.onload = () => {
+const loadImage = (url) => new Promise((resolve, reject) => {
+  const loadWithProxy = (originalUrl) => {
+    const proxyUrl = `/api/proxy-image?url=${encodeURIComponent(originalUrl)}`;
+    const imgProxy = new Image();
+    imgProxy.crossOrigin = 'anonymous';
+    imgProxy.onload = () => resolve(imgProxy);
+    imgProxy.onerror = (e) => reject(new Error(`Failed to load image via proxy: ${originalUrl}`));
+    imgProxy.src = proxyUrl;
+  };
+
+  const img = new Image();
+  // Only set crossOrigin if it's not a data URL
+  if (url && !url.startsWith('data:')) {
+    img.crossOrigin = 'anonymous';
+  }
+
+  img.onload = () => resolve(img);
+  img.onerror = () => {
+    // If direct load fails and it's not a data URL, try the proxy
+    if (url && !url.startsWith('data:')) {
+      console.warn(`Direct load failed for ${url}, trying proxy...`);
+      loadWithProxy(url);
+    } else {
+      reject(new Error(`Failed to load image: ${url.substring(0, 100)}`));
+    }
+  };
+  img.src = url;
+});
+
+export const getCroppedImg = (imageSrc, pixelCrop) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const image = await loadImage(imageSrc);
+
       const canvas = document.createElement('canvas');
       canvas.width = pixelCrop.width;
       canvas.height = pixelCrop.height;
@@ -26,12 +56,11 @@ export const getCroppedImg = (imageSrc, pixelCrop) => {
         pixelCrop.height
       );
 
-      // Get the base64-encoded string of the cropped image
-      const base64Image = canvas.toDataURL('image/jpeg');
+      const base64Image = canvas.toDataURL('image/png');
       resolve(base64Image);
-    };
-
-    image.onerror = () => reject(new Error('Failed to load image'));
+    } catch (e) {
+      reject(e);
+    }
   });
 };
 
@@ -143,9 +172,9 @@ export const getCroppedGif = async (gifUrl, pixelCrop, onProgress = null) => {
 // Create composite image with token overlay
 export const createCompositeImage = (croppedImageSrc, tokenSrc, isGif = false) => {
   return new Promise((resolve, reject) => {
-    const targetSize = 320; // Final composite size
-    const imageSize = 256; // Size of the circular character image
-    const tokenSize = 320; // Size of the token overlay
+    const tokenSize = VIEWPORT_SIZE * TOKEN_SCALE; // Token is larger
+    const targetSize = tokenSize; // Canvas must fit the full token
+    const imageSize = VIEWPORT_SIZE; // Character fills the box
 
     // For GIFs, we can't composite directly without losing animation
     // Return the GIF as-is to handle overlay via CSS
@@ -162,30 +191,28 @@ export const createCompositeImage = (croppedImageSrc, tokenSrc, isGif = false) =
     // Ensure the canvas is completely transparent
     ctx.clearRect(0, 0, targetSize, targetSize);
 
-    const characterImage = new Image();
-    characterImage.crossOrigin = "anonymous";
+    const loadImages = async () => {
+      try {
+        const characterImage = await loadImage(croppedImageSrc);
 
-    characterImage.onload = () => {
-      // Draw circular character image in the center
-      const imageX = (targetSize - imageSize) / 2;
-      const imageY = (targetSize - imageSize) / 2;
+        // Draw character image (centered)
+        const imageX = (targetSize - imageSize) / 2;
+        const imageY = (targetSize - imageSize) / 2;
 
-      // Create circular clipping path for the character image
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(targetSize / 2, targetSize / 2, imageSize / 2, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.clip();
+        // Create circular clipping path for the character image
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(targetSize / 2, targetSize / 2, (imageSize / 2) - 2, 0, Math.PI * 2); // Slight inset to avoid bleed
+        ctx.closePath();
+        ctx.clip();
 
-      // Draw the character image
-      ctx.drawImage(characterImage, imageX, imageY, imageSize, imageSize);
-      ctx.restore();
+        // Draw the character image
+        ctx.drawImage(characterImage, imageX, imageY, imageSize, imageSize);
+        ctx.restore();
 
-      // Load and draw token overlay
-      const tokenImage = new Image();
-      tokenImage.crossOrigin = "anonymous";
+        // Load and draw token overlay
+        const tokenImage = await loadImage(tokenSrc);
 
-      tokenImage.onload = () => {
         // Draw token overlay centered (preserving its transparency)
         const tokenX = (targetSize - tokenSize) / 2;
         const tokenY = (targetSize - tokenSize) / 2;
@@ -194,22 +221,22 @@ export const createCompositeImage = (croppedImageSrc, tokenSrc, isGif = false) =
         // Convert to base64 PNG with maximum quality (preserves transparency)
         const base64Image = canvas.toDataURL('image/png', 1.0);
         resolve(base64Image);
-      };
 
-      tokenImage.onerror = () => reject(new Error('Failed to load token image'));
-      tokenImage.src = tokenSrc;
+      } catch (e) {
+        reject(e);
+      }
     };
 
-    characterImage.onerror = () => reject(new Error('Failed to load character image'));
-    characterImage.src = croppedImageSrc;
+    loadImages();
   });
 };
 
 // Create composite GIF with token overlay on each frame
 export const createCompositeGif = async (gifUrl, tokenSrc, onProgress = null) => {
   try {
-    const targetSize = 320;
-    const imageSize = 256;
+    const tokenSize = VIEWPORT_SIZE * TOKEN_SCALE; // Token is larger
+    const targetSize = tokenSize; // Canvas must fit the full token
+    const imageSize = VIEWPORT_SIZE; // Use full size for GIFs now too
 
     // Load the GIF
     const response = await fetch(gifUrl);
@@ -278,20 +305,22 @@ export const createCompositeGif = async (gifUrl, tokenSrc, onProgress = null) =>
 
       tempCtx.putImageData(imageData, 0, 0);
 
-      // Draw character image in circle
+      // Draw character image (centered and full size)
       const imageX = (targetSize - imageSize) / 2;
       const imageY = (targetSize - imageSize) / 2;
 
       ctx.save();
       ctx.beginPath();
-      ctx.arc(targetSize / 2, targetSize / 2, imageSize / 2, 0, Math.PI * 2);
+      ctx.arc(targetSize / 2, targetSize / 2, (imageSize / 2) - 2, 0, Math.PI * 2);
       ctx.closePath();
       ctx.clip();
       ctx.drawImage(tempCanvas, imageX, imageY, imageSize, imageSize);
       ctx.restore();
 
       // Draw token overlay
-      ctx.drawImage(tokenImage, 0, 0, targetSize, targetSize);
+      const tokenX = (targetSize - tokenSize) / 2;
+      const tokenY = (targetSize - tokenSize) / 2;
+      ctx.drawImage(tokenImage, tokenX, tokenY, tokenSize, tokenSize);
 
       // Add frame to encoder
       encoder.addFrame(ctx, {
