@@ -299,6 +299,11 @@ const getDieValue = (type: string, index: number) => {
         const val = index % 10;
         return val === 0 ? "10" : val.toString();
     }
+    if (type === 'd20') {
+        // Standard D20 balanced layout (approximate) to avoid geometric bias
+        const map = [20, 8, 14, 2, 12, 10, 6, 4, 16, 18, 1, 13, 7, 19, 9, 11, 15, 17, 3, 5];
+        return (map[index % 20] || index + 1).toString();
+    }
     if (type === 'd6') {
         return (index + 1).toString();
     }
@@ -988,8 +993,8 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult }: {
         position,
         args: [vertices as any, faces],
         material: { friction: 0.1, restitution: 0.5 },
-        linearDamping: 0.2,
-        angularDamping: 0.2,
+        linearDamping: 0.05,
+        angularDamping: 0.05,
         allowSleep: false
     }));
 
@@ -1004,7 +1009,7 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult }: {
 
     useEffect(() => {
         if (api) {
-            const randomSpin = [Math.random() * 30, Math.random() * 30, Math.random() * 30] as [number, number, number];
+            const randomSpin = [(Math.random() - 0.5) * 60, (Math.random() - 0.5) * 60, (Math.random() - 0.5) * 60] as [number, number, number];
             api.angularVelocity.set(...randomSpin);
             api.velocity.set(...impulse);
         }
