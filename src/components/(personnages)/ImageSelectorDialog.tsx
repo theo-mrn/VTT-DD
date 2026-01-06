@@ -8,6 +8,7 @@ interface ImageSelectorDialogProps {
     onClose: () => void
     onSelectImage: (imageUrl: string) => void
     currentImage?: string
+    initialRace?: string
 }
 
 interface AssetMapping {
@@ -19,9 +20,9 @@ interface AssetMapping {
 
 const RACES = ['Drakonide', 'Elfe', 'Halfelin', 'Humain', 'Minotaure', 'Nain', 'Orc']
 
-export function ImageSelectorDialog({ isOpen, onClose, onSelectImage, currentImage }: ImageSelectorDialogProps) {
+export function ImageSelectorDialog({ isOpen, onClose, onSelectImage, currentImage, initialRace }: ImageSelectorDialogProps) {
     const [mode, setMode] = useState<'token' | 'image'>('token')
-    const [selectedRace, setSelectedRace] = useState('Humain')
+    const [selectedRace, setSelectedRace] = useState(initialRace || 'Humain')
     const [selectedCategory, setSelectedCategory] = useState('all')
     const [assets, setAssets] = useState<AssetMapping[]>([])
     const [photos, setPhotos] = useState<AssetMapping[]>([])

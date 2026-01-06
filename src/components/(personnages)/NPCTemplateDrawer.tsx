@@ -530,19 +530,11 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                             className="pl-10 bg-[#252525] border-[#444] text-[#e0e0e0] placeholder-gray-500 focus:border-[#c0a080] h-9"
                         />
                     </div>
+
                     <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setShowLibraryModal(true)}
-                        className="h-9 w-9 p-0 text-[#c0a080] hover:text-white hover:bg-[#c0a080]/20 border border-[#c0a080]/30 hover:border-[#c0a080]/50 transition-all mr-2"
-                        title="Ouvrir le grimoire"
-                    >
-                        <Book className="w-5 h-5" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowCreateForm(true)}
                         className="h-9 w-9 p-0 text-[#c0a080] hover:text-white hover:bg-[#c0a080]/20 border border-[#c0a080]/30 hover:border-[#c0a080]/50 transition-all"
                         title="Créer un nouveau template"
                     >

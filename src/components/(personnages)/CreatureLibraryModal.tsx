@@ -1,12 +1,13 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Search, Info, User, Upload, BookOpen, X, Check, Dna, Shield, Heart, Swords, Filter, Pencil, Crop as CropIcon, ZoomIn, Crop, Loader2, Ghost } from 'lucide-react'
+import { Search, Info, User, Upload, BookOpen, X, Check, Dna, Shield, Heart, Swords, Filter, Pencil, Crop as CropIcon, ZoomIn, Crop, Loader2, Ghost, Images } from 'lucide-react'
 import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { mapImagePath } from '@/utils/imagePathMapper'
 import Cropper from 'react-easy-crop'
 import { getCroppedImg, createCompositeImage } from '@/lib/cropImageHelper'
 import { Slider } from '@/components/ui/slider'
+import { RaceImageSelector } from './RaceImageSelector'
 
 // Types based on the JSON files
 interface RaceData {
@@ -108,6 +109,9 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     const [customName, setCustomName] = useState<string>('')
     const [activeImageSource, setActiveImageSource] = useState<'race' | 'profile' | 'creature' | 'custom'>('creature')
     const [searchQuery, setSearchQuery] = useState('')
+
+    // Image Selector Dialog State
+    const [isImageSelectorOpen, setIsImageSelectorOpen] = useState(false)
 
     // Fetch Data
     useEffect(() => {
@@ -247,11 +251,43 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
 
     // Reset crop when selection changes
     useEffect(() => {
-        setIsEditing(false)
-        setCrop({ x: 0, y: 0 })
-        setZoom(1)
-        setEditingImageSrc(null)
-    }, [selectedRace, selectedProfile, selectedCreature, selectedToken, activeImageSource])
+        // Don't reset if we're in token tab (crop mode should stay active)
+        if (activeTab !== 'token') {
+            setIsEditing(false)
+            setCrop({ x: 0, y: 0 })
+            setZoom(1)
+            setEditingImageSrc(null)
+        }
+    }, [selectedRace, selectedProfile, selectedCreature, selectedToken, activeImageSource, activeTab])
+
+    // Auto-enable crop mode when Token tab is opened or when token is selected
+    useEffect(() => {
+        if (activeTab === 'token') {
+            // Calculate current preview image inline (same logic as getPreviewImage)
+            let currentPreview = ''
+
+            if (activeImageSource === 'custom' && customImage) currentPreview = customImage
+            else if (activeImageSource === 'creature' && selectedCreature && bestiary[selectedCreature]?.image) currentPreview = bestiary[selectedCreature].image
+            else if (activeImageSource === 'profile' && selectedProfile && profiles[selectedProfile]?.image) currentPreview = profiles[selectedProfile].image
+            else if (activeImageSource === 'race') {
+                if (customImage) currentPreview = customImage
+                else if (selectedRace && races[selectedRace]?.image) currentPreview = races[selectedRace].image
+            }
+            else if (customImage) currentPreview = customImage
+            else if (selectedCreature && bestiary[selectedCreature]?.image) currentPreview = bestiary[selectedCreature].image
+            else if (selectedProfile && profiles[selectedProfile]?.image) currentPreview = profiles[selectedProfile].image
+            else if (selectedRace && races[selectedRace]?.image) currentPreview = races[selectedRace].image
+
+            if (currentPreview) {
+                setEditingImageSrc(currentPreview)
+                setZoom(0.5) // Start with smaller zoom for better token framing
+                setIsEditing(true)
+            }
+        } else {
+            // Exit crop mode when not in Token tab
+            setIsEditing(false)
+        }
+    }, [activeTab, selectedToken, customImage, activeImageSource, selectedCreature, selectedProfile, selectedRace, bestiary, profiles, races])
 
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -272,7 +308,6 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
 
 
     const handleImport = async () => {
-        if (!selectedCreature && !selectedProfile && !selectedRace) return
         setIsCreating(true)
 
         try {
@@ -394,9 +429,15 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                     isSelected={selectedRace === key}
                     onClick={() => {
                         const isSelected = selectedRace === key
-                        setSelectedRace(isSelected ? null : key)
-                        setSelectedCreature(null) // Custom Mode -> Clear Creature
-                        setActiveImageSource('race')
+                        if (!isSelected) {
+                            setSelectedRace(key)
+                            setSelectedCreature(null) // Custom Mode -> Clear Creature
+                            setActiveImageSource('race')
+                            // Open image selector automatically
+                            setIsImageSelectorOpen(true)
+                        } else {
+                            setSelectedRace(null)
+                        }
                     }}
                     footer={
                         <div className="flex gap-1">
@@ -454,7 +495,11 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
         if (activeImageSource === 'custom' && customImage) return customImage
         if (activeImageSource === 'creature' && selectedCreature && bestiary[selectedCreature]?.image) return bestiary[selectedCreature].image
         if (activeImageSource === 'profile' && selectedProfile && profiles[selectedProfile]?.image) return profiles[selectedProfile].image
-        if (activeImageSource === 'race' && selectedRace && races[selectedRace]?.image) return races[selectedRace].image
+        // For race source: prioritize customImage (gallery selection) over default race image
+        if (activeImageSource === 'race') {
+            if (customImage) return customImage
+            if (selectedRace && races[selectedRace]?.image) return races[selectedRace].image
+        }
 
 
         // Fallback Hierarchy
@@ -496,8 +541,8 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                 <BookOpen className="w-5 h-5 text-[#c0a080]" />
                             </div>
                             <div>
-                                <h1 className="text-2xl font-serif font-bold text-[#e4e4e7] tracking-tight">Le Grimoire</h1>
-                                <p className="text-xs text-zinc-500 uppercase tracking-widest font-medium">Biliothèque de Créatures</p>
+                                <h1 className="text-2xl font-serif font-bold text-[#e4e4e7] tracking-tight">Mes PNJ</h1>
+                                <p className="text-xs text-zinc-500 uppercase tracking-widest font-medium"></p>
                             </div>
                         </div>
 
@@ -616,6 +661,10 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                         crop={crop}
                                         zoom={zoom}
                                         aspect={1}
+                                        cropShape="round"
+                                        showGrid={false}
+                                        restrictPosition={false}
+                                        cropSize={{ width: 320, height: 320 }}
                                         onCropChange={setCrop}
                                         onZoomChange={setZoom}
                                         onCropComplete={onCropComplete}
@@ -624,10 +673,37 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                             mediaClassName: ""
                                         }}
                                     />
+                                    {/* Token Overlay for WYSIWYG preview */}
+                                    {selectedToken && (
+                                        <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center">
+                                            <img
+                                                src={selectedToken.path}
+                                                alt="Token Frame"
+                                                className="w-full h-full object-contain opacity-80"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             ) : (
                                 getPreviewImage() ? (
-                                    <img src={getPreviewImage() || ''} className="w-full h-full object-cover object-top" />
+                                    <div className="relative w-full h-full">
+                                        <img src={getPreviewImage() || ''} className="w-full h-full object-cover object-top" />
+                                        {/* Show token overlay in preview too if token is selected */}
+                                        {activeTab === 'token' && selectedToken && (
+                                            <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center">
+                                                <img
+                                                    src={selectedToken.path}
+                                                    alt="Token Frame"
+                                                    // Use same scaling visual as the crop view logic implies (though preview is full cover)
+                                                    // Actually preview here is just valid image. 
+                                                    // If we are in token tab, we show the composition result usually?
+                                                    // But getPreviewImage returns the raw image.
+                                                    // For now just showing raw image is fine as they enter crop mode auto.
+                                                    className="w-full h-full object-contain opacity-80 hidden" // Hidden for now to avoid confusion if not composited
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center bg-[#151515]">
                                         <User className="w-20 h-20 text-[#333]" strokeWidth={1} />
@@ -709,7 +785,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                             <Swords className="w-4 h-4" />
                                         </button>
                                     )}
-                                    {customImage && (
+                                    {customImage && activeImageSource === 'custom' && (
                                         <button
                                             onClick={() => setActiveImageSource('custom')}
                                             className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${activeImageSource === 'custom' ? 'bg-[#c0a080] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'}`}
@@ -718,18 +794,6 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                             <User className="w-4 h-4" />
                                         </button>
                                     )}
-                                    <button
-                                        onClick={() => {
-                                            if (getPreviewImage()) {
-                                                setEditingImageSrc(getPreviewImage() || '')
-                                                setIsEditing(true)
-                                            }
-                                        }}
-                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all text-zinc-400 hover:text-white hover:bg-white/10`}
-                                        title="Ajuster le Token"
-                                    >
-                                        <Crop className="w-4 h-4" />
-                                    </button>
                                 </div>
                             )}
 
@@ -753,36 +817,34 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                             )}
                         </div>
 
-                        {/* 2. Interactive Controls (Level/Image) - Available for ALL */}
+                        {/* 2. Interactive Controls (Level/Image) - Always Available */}
                         <div className="px-6 py-4 space-y-4">
-                            {(selectedCreature || selectedRace || selectedProfile) && (
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div className="bg-[#1a1a1a] border border-[#2a2a2a] p-3 rounded-lg flex flex-col gap-2">
-                                        <span className="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Niveau</span>
-                                        <div className="flex items-center gap-3">
-                                            <input
-                                                type="range" min="1" max="20"
-                                                value={targetLevel}
-                                                onChange={(e) => setTargetLevel(parseInt(e.target.value))}
-                                                className="flex-1 accent-[#c0a080] h-1.5 bg-[#333] rounded-lg appearance-none cursor-pointer"
-                                            />
-                                            <span className="text-[#c0a080] font-mono font-bold text-lg">{targetLevel}</span>
-                                        </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-[#1a1a1a] border border-[#2a2a2a] p-3 rounded-lg flex flex-col gap-2">
+                                    <span className="text-[10px] uppercase text-zinc-500 font-bold tracking-wider">Niveau</span>
+                                    <div className="flex items-center gap-3">
+                                        <input
+                                            type="range" min="1" max="20"
+                                            value={targetLevel}
+                                            onChange={(e) => setTargetLevel(parseInt(e.target.value))}
+                                            className="flex-1 accent-[#c0a080] h-1.5 bg-[#333] rounded-lg appearance-none cursor-pointer"
+                                        />
+                                        <span className="text-[#c0a080] font-mono font-bold text-lg">{targetLevel}</span>
                                     </div>
-                                    <label className="bg-[#1a1a1a] border border-[#2a2a2a] p-3 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[#c0a080]/50 transition-colors group">
-                                        <Upload className="w-4 h-4 text-zinc-500 group-hover:text-[#c0a080] mb-1" />
-                                        <span className="text-[10px] uppercase text-zinc-500 font-bold tracking-wider group-hover:text-zinc-300">Modifier Image</span>
-                                        <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                                    </label>
                                 </div>
-                            )}
+                                <label className="bg-[#1a1a1a] border border-[#2a2a2a] p-3 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[#c0a080]/50 transition-colors group">
+                                    <Upload className="w-4 h-4 text-zinc-500 group-hover:text-[#c0a080] mb-1" />
+                                    <span className="text-[10px] uppercase text-zinc-500 font-bold tracking-wider group-hover:text-zinc-300">Modifier Image</span>
+                                    <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                                </label>
+                            </div>
                         </div>
 
                         {/* 3. Stats & Info */}
                         <div className="px-6 pb-24 space-y-8">
 
                             {/* Description Text */}
-                            {(selectedCreature || selectedRace || selectedProfile) ? (
+                            {(selectedCreature || selectedRace || selectedProfile) && (
                                 <div className="prose prose-invert prose-sm">
                                     <p className="text-zinc-400 leading-relaxed text-sm">
                                         {selectedRace && races[selectedRace]?.description}
@@ -793,75 +855,68 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                         )}
                                     </p>
                                 </div>
-                            ) : (
-                                <div className="text-center py-10 text-zinc-600">
-                                    <Info className="w-8 h-8 mx-auto mb-3 opacity-20" />
-                                    <p className="text-sm">Sélectionnez une carte pour voir les détails.</p>
-                                </div>
                             )}
 
-                            {/* Stat Grid (Only if valid selection) */}
-                            {((selectedRace || selectedProfile) || selectedCreature) && (
-                                <div className="space-y-6">
-                                    <h3 className="text-[#c0a080] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                                        <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
-                                        Statistiques
-                                    </h3>
+                            {/* Stat Grid - Always Available */}
+                            <div className="space-y-6">
+                                <h3 className="text-[#c0a080] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
+                                    Statistiques
+                                </h3>
 
-                                    {/* Main Vitals */}
-                                    <div className="grid grid-cols-3 gap-3">
-                                        {[
-                                            { label: 'PV', key: 'PV_Max', color: 'text-green-400' },
-                                            { label: 'DEF', key: 'Defense', color: 'text-blue-400' },
-                                            { label: 'INIT', key: 'INIT', color: 'text-yellow-400' },
-                                        ].map(stat => (
-                                            <div key={stat.key} className="bg-[#1e1e20] p-2 rounded border border-[#2a2a2a] flex flex-col items-center">
-                                                <span className="text-zinc-500 text-[10px] uppercase font-bold">{stat.label}</span>
-                                                <input
-                                                    type="number"
-                                                    value={(stats as any)[stat.key]}
-                                                    onChange={(e) => setStats(prev => ({ ...prev, [stat.key]: parseInt(e.target.value) || 0 }))}
-                                                    className={`w-full bg-transparent text-center font-mono font-bold text-lg focus:outline-none ${stat.color}`}
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* Combat Stats */}
-                                    <div className="grid grid-cols-3 gap-3">
-                                        {[
-                                            { label: 'Contact', key: 'Contact', color: 'text-red-400' },
-                                            { label: 'Distance', key: 'Distance', color: 'text-emerald-400' },
-                                            { label: 'Magie', key: 'Magie', color: 'text-purple-400' },
-                                        ].map(stat => (
-                                            <div key={stat.key} className="bg-[#1e1e20] p-2 rounded border border-[#2a2a2a] flex flex-col items-center">
-                                                <span className="text-zinc-500 text-[10px] uppercase font-bold">{stat.label}</span>
-                                                <input
-                                                    type="number"
-                                                    value={(stats as any)[stat.key]}
-                                                    onChange={(e) => setStats(prev => ({ ...prev, [stat.key]: parseInt(e.target.value) || 0 }))}
-                                                    className={`w-full bg-transparent text-center font-mono font-bold text-lg focus:outline-none ${stat.color}`}
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* Attributes */}
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].map((attr) => (
-                                            <div key={attr} className="flex items-center justify-between bg-[#1a1a1a] px-2 py-1.5 rounded border border-[#2a2a2a]">
-                                                <span className="text-[10px] font-bold text-zinc-400">{attr}</span>
-                                                <input
-                                                    type="number"
-                                                    value={(stats as any)[attr]}
-                                                    onChange={(e) => setStats(prev => ({ ...prev, [attr]: parseInt(e.target.value) || 0 }))}
-                                                    className="w-12 bg-transparent text-right font-mono text-sm text-[#e0e0e0] focus:outline-none focus:text-[#c0a080]"
-                                                />
-                                            </div>
-                                        ))}
-                                    </div>
+                                {/* Main Vitals */}
+                                <div className="grid grid-cols-3 gap-3">
+                                    {[
+                                        { label: 'PV', key: 'PV_Max', color: 'text-green-400' },
+                                        { label: 'DEF', key: 'Defense', color: 'text-blue-400' },
+                                        { label: 'INIT', key: 'INIT', color: 'text-yellow-400' },
+                                    ].map(stat => (
+                                        <div key={stat.key} className="bg-[#1e1e20] p-2 rounded border border-[#2a2a2a] flex flex-col items-center">
+                                            <span className="text-zinc-500 text-[10px] uppercase font-bold">{stat.label}</span>
+                                            <input
+                                                type="number"
+                                                value={(stats as any)[stat.key]}
+                                                onChange={(e) => setStats(prev => ({ ...prev, [stat.key]: parseInt(e.target.value) || 0 }))}
+                                                className={`w-full bg-transparent text-center font-mono font-bold text-lg focus:outline-none ${stat.color}`}
+                                            />
+                                        </div>
+                                    ))}
                                 </div>
-                            )}
+
+                                {/* Combat Stats */}
+                                <div className="grid grid-cols-3 gap-3">
+                                    {[
+                                        { label: 'Contact', key: 'Contact', color: 'text-red-400' },
+                                        { label: 'Distance', key: 'Distance', color: 'text-emerald-400' },
+                                        { label: 'Magie', key: 'Magie', color: 'text-purple-400' },
+                                    ].map(stat => (
+                                        <div key={stat.key} className="bg-[#1e1e20] p-2 rounded border border-[#2a2a2a] flex flex-col items-center">
+                                            <span className="text-zinc-500 text-[10px] uppercase font-bold">{stat.label}</span>
+                                            <input
+                                                type="number"
+                                                value={(stats as any)[stat.key]}
+                                                onChange={(e) => setStats(prev => ({ ...prev, [stat.key]: parseInt(e.target.value) || 0 }))}
+                                                className={`w-full bg-transparent text-center font-mono font-bold text-lg focus:outline-none ${stat.color}`}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Attributes */}
+                                <div className="grid grid-cols-3 gap-2">
+                                    {['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].map((attr) => (
+                                        <div key={attr} className="flex items-center justify-between bg-[#1a1a1a] px-2 py-1.5 rounded border border-[#2a2a2a]">
+                                            <span className="text-[10px] font-bold text-zinc-400">{attr}</span>
+                                            <input
+                                                type="number"
+                                                value={(stats as any)[attr]}
+                                                onChange={(e) => setStats(prev => ({ ...prev, [attr]: parseInt(e.target.value) || 0 }))}
+                                                className="w-12 bg-transparent text-right font-mono text-sm text-[#e0e0e0] focus:outline-none focus:text-[#c0a080]"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
 
                         </div>
                     </div>
@@ -873,8 +928,8 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                         </button>
                         <button
                             onClick={handleImport}
-                            disabled={!((selectedRace || selectedProfile) || selectedCreature) || isCreating}
-                            className={`flex-1 flex items-center justify-center gap-2 rounded-xl text-sm font-bold tracking-wide transition-all ${((selectedRace || selectedProfile) || selectedCreature) && !isCreating
+                            disabled={!getPreviewImage() || isCreating}
+                            className={`flex-1 flex items-center justify-center gap-2 rounded-xl text-sm font-bold tracking-wide transition-all ${getPreviewImage() && !isCreating
                                 ? 'bg-[#c0a080] hover:bg-[#e0c0a0] text-black shadow-lg shadow-[#c0a080]/10'
                                 : 'bg-[#1a1a1a] text-zinc-600 cursor-not-allowed border border-[#2a2a2a]'
                                 }`}
@@ -894,6 +949,22 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                     </div>
                 </div>
             </div>
+
+            {/* Race Image Selector */}
+            {selectedRace && (
+                <RaceImageSelector
+                    isOpen={isImageSelectorOpen}
+                    onClose={() => setIsImageSelectorOpen(false)}
+                    onSelectImage={(imageUrl) => {
+                        // All images from race gallery should use 'race' source
+                        setCustomImage(imageUrl)
+                        setActiveImageSource('race')
+                    }}
+                    raceName={selectedRace}
+                    currentImage={customImage}
+                    raceDefaultImage={selectedRace ? races[selectedRace]?.image : undefined}
+                />
+            )}
         </div>
     )
 }
