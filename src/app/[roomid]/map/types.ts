@@ -51,6 +51,13 @@ export interface Character {
     SAG: number;
     INT: number;
     CHA: number;
+    audio?: {
+        url: string;
+        radius: number;
+        volume: number;
+        loop?: boolean;
+        name?: string;
+    };
 }
 
 export interface MapText {
