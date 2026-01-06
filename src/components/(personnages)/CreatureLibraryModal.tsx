@@ -144,18 +144,9 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                     }
                 }
 
-                // Proxy bestiary images to avoid CORS issues and ensure loading
-                const bestiaryWithProxiedImages: Record<string, BestiaryData> = {}
-                for (const [key, creature] of Object.entries(bestiaryData)) {
-                    bestiaryWithProxiedImages[key] = {
-                        ...creature,
-                        image: creature.image ? `/api/proxy-image?url=${encodeURIComponent(creature.image)}&quality=10` : ''
-                    }
-                }
-
                 setRaces(racesWithMappedImages)
                 setProfiles(profilesWithMappedImages)
-                setBestiary(bestiaryWithProxiedImages)
+                setBestiary(bestiaryData)
                 setTokens(tokenList)
             } catch (error) {
                 console.error("Error loading library data:", error)
