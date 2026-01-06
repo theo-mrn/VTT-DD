@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import {
     Trash2,
@@ -8,7 +8,9 @@ import {
     Music,
     Volume2,
     Radio,
-    Disc
+    Disc,
+    Play,
+    Pause
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -36,13 +38,62 @@ export default function MusicZoneContextMenu({
     const [volume, setVolume] = useState(0.5);
     const [radius, setRadius] = useState(100);
 
+    // Local Audio State
+    const [isPlaying, setIsPlaying] = useState(false);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
     useEffect(() => {
         if (zone) {
             setName(zone.name || "");
             setVolume(zone.volume);
             setRadius(zone.radius);
+            // Reset audio if zone changes
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+                setIsPlaying(false);
+            }
         }
     }, [zone]);
+
+    // Cleanup on unmount or close
+    useEffect(() => {
+        return () => {
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current = null;
+            }
+        };
+    }, []);
+
+    // Stop audio if closed
+    useEffect(() => {
+        if (!isOpen && audioRef.current) {
+            audioRef.current.pause();
+            setIsPlaying(false);
+        }
+    }, [isOpen]);
+
+    const toggleLocalPlay = () => {
+        if (!zone?.url) return;
+
+        if (isPlaying) {
+            audioRef.current?.pause();
+            setIsPlaying(false);
+        } else {
+            if (!audioRef.current) {
+                audioRef.current = new Audio(zone.url);
+                audioRef.current.loop = true;
+                audioRef.current.addEventListener('ended', () => setIsPlaying(false));
+            }
+            audioRef.current.volume = volume; // Use current volume slider? Or keep separate?
+            // If using standard preview, usually max volume or reasonable default. 
+            // Let's use the zone's volume setting to preview exactly as it would sound at "max distance"?
+            // Actually, zone volume is just a multiplier. Let's stick to simple preview at 0.5 or current slider.
+            audioRef.current.play().catch(e => console.error("Error playing audio:", e));
+            setIsPlaying(true);
+        }
+    };
 
     if (!zone) return null;
 
@@ -91,6 +142,29 @@ export default function MusicZoneContextMenu({
                             {/* Actions */}
                             {isMJ && (
                                 <>
+                                    {/* Play Button - Local Preview */}
+                                    <Button
+                                        className={`w-full font-medium flex items-center justify-center gap-2 transition-colors ${isPlaying
+                                            ? "bg-red-900/50 hover:bg-red-900/70 text-red-200 border border-red-900/50"
+                                            : "bg-purple-600 hover:bg-purple-700 text-white"
+                                            }`}
+                                        onClick={toggleLocalPlay}
+                                    >
+                                        {isPlaying ? (
+                                            <>
+                                                <Pause size={16} fill="currentColor" />
+                                                Pause
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Play size={16} fill="currentColor" />
+                                                Jouer
+                                            </>
+                                        )}
+                                    </Button>
+
+                                    <Separator className="bg-[#333]" />
+
                                     {/* Name Edit */}
                                     <div className="space-y-1">
                                         <label className="text-xs text-gray-500 font-medium ml-1">Nom</label>
@@ -131,6 +205,10 @@ export default function MusicZoneContextMenu({
                                                 const v = parseFloat(e.target.value);
                                                 setVolume(v);
                                                 onAction('updateVolume', zone.id, v);
+                                                // Update local audio volume if playing
+                                                if (audioRef.current) {
+                                                    audioRef.current.volume = v;
+                                                }
                                             }}
                                             className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-purple-500"
                                         />

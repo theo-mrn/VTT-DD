@@ -76,6 +76,7 @@ import { SoundDrawer } from '@/components/(personnages)/SoundDrawer';
 import { PlaceNPCModal } from '@/components/(personnages)/PlaceNPCModal';
 import { CreateNoteModal } from '@/components/(map)/CreateNoteModal';
 import { NoBackgroundModal } from '@/components/(map)/NoBackgroundModal';
+
 import { doc as firestoreDoc } from 'firebase/firestore'
 import InfoComponent, { type InfoSection } from "@/components/(infos)/info";
 import { type NPC } from '@/components/(personnages)/personnages';
@@ -638,8 +639,48 @@ export default function Component() {
 
   // 🔊 AUDIO MANAGER - Moved after isLayerVisible declaration
 
+  // 🔊 AUDIO MANAGER - Moved after isLayerVisible declaration
+
+  const [audioCharacterId, setAudioCharacterId] = useState<string | null>(null);
+
+  const handleConfigureCharacterAudio = (characterId: string) => {
+    const char = characters.find(c => c.id === characterId);
+    if (!char) return;
+    setAudioCharacterId(characterId);
+    setTempZoneData({
+      name: char.audio?.name || char.name,
+      url: char.audio?.url || '',
+      radius: char.audio?.radius || 200,
+      volume: char.audio?.volume ?? 0.5
+    });
+    setShowMusicDialog(true);
+  };
+
   const saveMusicZone = async () => {
-    if (!newMusicZonePos || !tempZoneData.name || !tempZoneData.url || !roomId) return;
+    if (!roomId) return;
+
+    // Character Audio Mode
+    if (audioCharacterId) {
+      if (!tempZoneData.url) return; // Name optional?
+
+      const updates = {
+        audio: {
+          name: tempZoneData.name,
+          url: tempZoneData.url,
+          radius: Number(tempZoneData.radius),
+          volume: Number(tempZoneData.volume),
+          loop: true
+        }
+      };
+      await updateDoc(doc(db, 'cartes', roomId, 'characters', audioCharacterId), updates);
+      setShowMusicDialog(false);
+      setAudioCharacterId(null);
+      setTempZoneData({ name: '', url: '', radius: 200, volume: 0.5 });
+      return;
+    }
+
+    // Standard Music Zone Mode
+    if (!newMusicZonePos || !tempZoneData.name || !tempZoneData.url) return;
 
     const newZone: Omit<MusicZone, 'id'> = {
       x: newMusicZonePos.x,
@@ -796,7 +837,24 @@ export default function Component() {
   // 🔊 AUDIO MANAGER - Call useAudioZones after isLayerVisible is defined
   const listenerCharacter = characters.find(c => c.id === (viewAsPersoId || persoId));
   const listenerPos = listenerCharacter ? { x: listenerCharacter.x, y: listenerCharacter.y } : null;
-  useAudioZones(musicZones, listenerPos, isLayerVisible('music'), audioVolumes.musicZones);
+
+  const effectiveMusicZones = useMemo(() => {
+    const charZones = characters
+      .filter(c => c.audio && c.audio.url)
+      .map(c => ({
+        id: `char-${c.id}`,
+        x: c.x,
+        y: c.y,
+        radius: c.audio!.radius,
+        url: c.audio!.url,
+        volume: c.audio!.volume,
+        name: c.audio!.name || c.name,
+        // Inherit city check implicitly by character presence
+      } as MusicZone));
+    return [...musicZones, ...charZones];
+  }, [musicZones, characters]);
+
+  useAudioZones(effectiveMusicZones, listenerPos, true, audioVolumes.musicZones);
 
   // 🎵 Update background video audio settings when they change
   useEffect(() => {
@@ -1096,7 +1154,8 @@ export default function Component() {
       CHA: data.CHA || 0,
       conditions: data.conditions || [],
       scale: data.scale || 1,
-      Actions: data.Actions || []
+      Actions: data.Actions || [],
+      audio: data.audio || undefined // 🆕 Audio data assignment
     };
     return charObj;
   }, []);
@@ -3154,11 +3213,20 @@ export default function Component() {
     }
 
 
-    // 🎵 DRAW MUSIC ZONES (Visible only for MJ, and not in Player View mode)
-    if (isMJ && !viewAsPersoId && isLayerVisible('music')) {
-      musicZones.forEach(zone => {
+    // 🎵 DRAW MUSIC ZONES (Visible if music layer is ON OR if the specific zone belongs to the selected character)
+    if (isMJ && !viewAsPersoId) {
+      effectiveMusicZones.forEach(zone => {
+        // Skip drawing the saved zone for this character if we are currently configuring it (avoid double draw)
+        if (audioCharacterId && zone.id === `char-${audioCharacterId}`) return;
+
+        const isMusicLayerOn = isLayerVisible('music');
+        const isCharSelected = selectedCharacterIndex !== null && zone.id === `char-${characters[selectedCharacterIndex]?.id}`;
+
+        // Only draw if layer is on OR this specific character is selected
+        if (!isMusicLayerOn && !isCharSelected) return;
+
         const center = transformPoint({ x: zone.x, y: zone.y });
-        const isSelected = selectedMusicZoneIds.includes(zone.id);
+        const isSelected = selectedMusicZoneIds.includes(zone.id) || isCharSelected;
         // VISUALISATION RAYON (Gradient) (Toujours visible en mode musique, plus fort si sélectionné)
         let screenRadius = (zone.radius || 0) * scale * zoom;
 
@@ -3196,7 +3264,7 @@ export default function Component() {
         if (isSelected) {
           const handleX = center.x + screenRadius;
           const handleY = center.y;
-          const handleRadius = 6 * zoom; // Scales with interface zoom? Or keep constant size? Usually UI handles constant or slight scale. 
+          const handleRadius = 6 * zoom; // Scales with interface zoom? Or keep constant size? Usually UI handles constant or slight scale.
           // Using zoom makes it easy to grab when zoomed in.
 
           ctx.beginPath();
@@ -3212,47 +3280,50 @@ export default function Component() {
         const noteSize = baseSize;
         const padding = 4;
 
-        // Draw background circle for icon
-        ctx.beginPath();
-        ctx.arc(center.x, center.y, noteSize / 2 + padding, 0, Math.PI * 2);
-        ctx.fillStyle = isSelected ? 'rgba(217, 70, 239, 1)' : 'rgba(217, 70, 239, 0.7)'; // Slightly more opaque
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+        // Skip Icon and Text for Character Audio Zones (as requested)
+        if (!zone.id.startsWith('char-')) {
+          // Draw background circle for icon
+          ctx.beginPath();
+          ctx.arc(center.x, center.y, noteSize / 2 + padding, 0, Math.PI * 2);
+          ctx.fillStyle = isSelected ? 'rgba(217, 70, 239, 1)' : 'rgba(217, 70, 239, 0.7)'; // Slightly more opaque
+          ctx.fill();
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
 
-        // Simple music note drawing or text
-        ctx.fillStyle = '#fff';
-        ctx.font = `${noteSize}px Arial`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText('♫', center.x, center.y + 1);
+          // Simple music note drawing or text
+          ctx.fillStyle = '#fff';
+          ctx.font = `${noteSize}px Arial`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('♫', center.x, center.y + 1);
 
-        // Draw label
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.font = isSelected ? `bold ${12 * zoom}px sans-serif` : `${10 * zoom}px sans-serif`; // Scale font too!
-        ctx.textAlign = 'center';
+          // Draw label
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.font = isSelected ? `bold ${12 * zoom}px sans-serif` : `${10 * zoom}px sans-serif`; // Scale font too!
+          ctx.textAlign = 'center';
 
-        // Background for label
-        const textWidth = ctx.measureText(zone.name || '').width;
-        const labelPadding = 4 * zoom;
-        const labelHeight = (isSelected ? 16 : 14) * zoom;
-        const labelY = center.y + (noteSize / 2) + padding + (4 * zoom);
+          // Background for label
+          const textWidth = ctx.measureText(zone.name || '').width;
+          const labelPadding = 4 * zoom;
+          const labelHeight = (isSelected ? 16 : 14) * zoom;
+          const labelY = center.y + (noteSize / 2) + padding + (4 * zoom);
 
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-        ctx.beginPath();
-        ctx.roundRect(
-          center.x - textWidth / 2 - labelPadding,
-          labelY,
-          textWidth + (labelPadding * 2),
-          labelHeight,
-          4 * zoom
-        );
-        ctx.fill();
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+          ctx.beginPath();
+          ctx.roundRect(
+            center.x - textWidth / 2 - labelPadding,
+            labelY,
+            textWidth + (labelPadding * 2),
+            labelHeight,
+            4 * zoom
+          );
+          ctx.fill();
 
-        ctx.fillStyle = '#fff';
-        ctx.textBaseline = 'top';
-        ctx.fillText(zone.name || '', center.x, labelY + (2 * zoom));
+          ctx.fillStyle = '#fff';
+          ctx.textBaseline = 'top';
+          ctx.fillText(zone.name || '', center.x, labelY + (2 * zoom));
+        }
       });
     }
 
@@ -4189,6 +4260,29 @@ export default function Component() {
           }
         }
 
+        // 1b. Check for CHARACTER AUDIO RESIZE HANDLE (if a character is selected)
+        if (selectedCharacterIndex !== null) {
+          const char = characters[selectedCharacterIndex];
+          if (char && char.audio && char.id) {
+            // Calculate Handle Position
+            const charScreenX = ((char.x / imgWidth) * scaledWidth) - offset.x + rect.left;
+            const charScreenY = ((char.y / imgHeight) * scaledHeight) - offset.y + rect.top;
+            const screenRadius = char.audio.radius * scale * zoom;
+
+            const handleX = charScreenX + screenRadius;
+            const handleY = charScreenY;
+
+            const outputDist = Math.sqrt(Math.pow(e.clientX - handleX, 2) + Math.pow(e.clientY - handleY, 2));
+
+            if (outputDist < (10 * zoom)) {
+              e.preventDefault();
+              setIsResizingMusicZone(true);
+              setResizingMusicZoneId(`char-${char.id}`);
+              return;
+            }
+          }
+        }
+
         // 2. Check if clicked on a zone icon
         const clickedZone = musicZones.find(z => {
           const dx = z.x - clickX;
@@ -5043,8 +5137,30 @@ export default function Component() {
       return;
     }
 
-    // 🎵 HANDLE MUSIC ZONE RESIZING
+    // 🎵 HANDLE MUSIC ZONE RESIZING (Standard & Character)
     if (isResizingMusicZone && resizingMusicZoneId && isMJ) {
+
+      // A. Character Audio Zone
+      if (resizingMusicZoneId.startsWith('char-')) {
+        const charId = resizingMusicZoneId.replace('char-', '');
+        setCharacters(prev => prev.map(c => {
+          if (c.id === charId && c.audio) {
+            const dx = currentX - c.x;
+            const dy = currentY - c.y;
+            const newRadius = Math.sqrt(dx * dx + dy * dy);
+            if (newRadius < 10) return c;
+
+            return {
+              ...c,
+              audio: { ...c.audio, radius: newRadius }
+            };
+          }
+          return c;
+        }));
+        return;
+      }
+
+      // B. Standard Music Zone
       setMusicZones(prev => prev.map(z => {
         if (z.id === resizingMusicZoneId) {
           // Calculate distance from center to current mouse (Map Coords)
@@ -5390,13 +5506,27 @@ export default function Component() {
     // 🎵 END RESIZE MUSIC ZONE
     if (isResizingMusicZone && resizingMusicZoneId && roomId) {
       setIsResizingMusicZone(false);
-      const zone = musicZones.find(z => z.id === resizingMusicZoneId);
-      if (zone) {
-        // Save new radius
-        updateDoc(doc(db, 'cartes', roomId, 'musicZones', resizingMusicZoneId), {
-          radius: zone.radius
-        }).catch(err => console.error("Error saving music zone radius:", err));
+
+      // A. Character Audio Zone
+      if (resizingMusicZoneId.startsWith('char-')) {
+        const charId = resizingMusicZoneId.replace('char-', '');
+        const char = characters.find(c => c.id === charId);
+        if (char && char.audio) {
+          updateDoc(doc(db, 'cartes', roomId, 'characters', charId), {
+            'audio.radius': char.audio.radius
+          }).catch(err => console.error("Error saving character audio radius:", err));
+        }
       }
+      // B. Standard Music Zone
+      else {
+        const zone = musicZones.find(z => z.id === resizingMusicZoneId);
+        if (zone) {
+          updateDoc(doc(db, 'cartes', roomId, 'musicZones', resizingMusicZoneId), {
+            radius: zone.radius
+          }).catch(err => console.error("Error saving music zone radius:", err));
+        }
+      }
+
       setResizingMusicZoneId(null);
       return;
     }
@@ -6110,6 +6240,32 @@ export default function Component() {
         await updateDoc(doc(db, 'cartes', String(roomId), 'musicZones', zoneId), { volume: value });
       } else if (action === 'updateRadius') {
         await updateDoc(doc(db, 'cartes', String(roomId), 'musicZones', zoneId), { radius: value });
+      } else if (action === 'togglePlay') {
+        // 🆕 QUICK PLAY LOGIC
+        console.log("Handling togglePlay action for zoneId:", zoneId);
+        const zone = musicZones.find(z => z.id === zoneId);
+        console.log("Found zone:", zone);
+
+        if (zone && zone.url) {
+          console.log("Updating currentMusic with url:", zone.url);
+          try {
+            await updateDoc(doc(db, 'cartes', String(roomId)), {
+              currentMusic: {
+                url: zone.url,
+                title: zone.name || "Zone Ambience",
+                volume: zone.volume,
+                loop: true,
+                isPlaying: true,
+                startTime: Date.now()
+              }
+            });
+            console.log("Successfully updated currentMusic");
+          } catch (err) {
+            console.error("Error updating currentMusic:", err);
+          }
+        } else {
+          console.warn("Zone not found or has no URL");
+        }
       }
     } catch (e) {
       console.error("Error updating music zone:", e);
@@ -7038,8 +7194,16 @@ export default function Component() {
           setSelectedCharacterIndex(null); // Désélectionner aussi sur la map si on ferme le menu
         }}
         isMJ={isMJ}
-        players={characters.filter(c => c.type === 'joueurs')} // 🆕 Liste des joueurs pour la sélection custom
-        onAction={(action, characterId, value) => {
+        players={characters.filter(c => c.type === 'joueurs')}
+        onUploadFile={async (file) => {
+          if (!roomId) throw new Error("No Room ID");
+          const storage = getStorage();
+          const storageRef = ref(storage, `audio/${roomId}/${file.name}-${Date.now()}`);
+          await uploadBytes(storageRef, file);
+          const url = await getDownloadURL(storageRef);
+          return url;
+        }}
+        onAction={async (action, characterId, value) => {
           // Gestion des actions du menu contextuel
           const char = characters.find(c => c.id === characterId);
           if (!char) return;
@@ -7058,12 +7222,33 @@ export default function Component() {
                 alert("Aucun personnage actif sélectionné pour attaquer (Tour du joueur)");
               }
             } else {
+              // Player attack
               if (persoId) {
                 setAttackerId(persoId);
                 setTargetId(characterId);
                 setCombatOpen(true);
               }
             }
+          } else if (action === 'updateCharacterAudio') {
+            // value is audioData
+            await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {
+              audio: value
+            });
+          } else if (action === 'deleteCharacterAudio') {
+            await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {
+              audio: null
+            });
+            // Also stop if playing currently? handled by snapshot listener usually
+          } else if (action === 'toggleAudioPlay') {
+            // Toggle loop or volume or remove?
+            // For now maybe we just toggle loop or volume to 0/1?
+            // Let's assume it means "Stop" if playing, or "Start" if stopped.
+            // But the audio model is state-based.
+            // If volume > 0, mute it?
+            const newVolume = (char.audio?.volume || 0) > 0 ? 0 : 0.5;
+            await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {
+              'audio.volume': newVolume
+            });
           } else if (action === 'delete') {
             if (isMJ) {
               setCharacterToDelete(char);
@@ -7229,10 +7414,13 @@ export default function Component() {
               }
             </div>
 
-            <Dialog open={showMusicDialog} onOpenChange={setShowMusicDialog}>
+            <Dialog open={showMusicDialog} onOpenChange={(open) => {
+              setShowMusicDialog(open);
+              if (!open) setAudioCharacterId(null);
+            }}>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Ajouter une zone musicale</DialogTitle>
+                  <DialogTitle>{audioCharacterId ? "Configurer Audio du Personnage" : "Ajouter une zone musicale"}</DialogTitle>
                 </DialogHeader>
                 <div className="grid gap-4 py-4">
                   <div className="grid grid-cols-4 items-center gap-4">
@@ -7272,7 +7460,7 @@ export default function Component() {
                   </div>
                 </div >
                 <DialogFooter>
-                  <Button onClick={saveMusicZone}>Créer</Button>
+                  <Button onClick={saveMusicZone}>{audioCharacterId ? "Enregistrer" : "Créer"}</Button>
                 </DialogFooter>
               </DialogContent >
             </Dialog >
