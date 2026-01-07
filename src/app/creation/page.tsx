@@ -16,6 +16,7 @@ import { onAuthStateChanged } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
 import { RaceImageSelector } from '@/components/(personnages)/RaceImageSelector'
 import CompetenceCreator, { Voie, CustomCompetence } from '@/components/(competences)/CompetenceCreator'
+import { toast } from 'sonner'
 
 
 
@@ -77,6 +78,8 @@ export default function CharacterCreationPage() {
     INIT: 10,
     imageURL: '',
     level: 1,
+    Taille: 175,
+    Poids: 75,
   })
 
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
@@ -208,23 +211,8 @@ export default function CharacterCreationPage() {
         imageURL = await getDownloadURL(imageRef)
       }
 
-      // Calculate random height and weight based on race
-      const raceInfo = raceData[character.Race];
-      let taille = 175;
-      let poids = 75;
+      // (Height/Weight now managed in state)
 
-      if (raceInfo) {
-        // +/- 10% variation
-        const heightVar = 0.9 + Math.random() * 0.2; // 0.9 to 1.1
-        const weightVar = 0.9 + Math.random() * 0.2;
-
-        // Use defaults if data missing in json (safety)
-        const avgHeight = (raceInfo as any).tailleMoyenne || 175;
-        const avgWeight = (raceInfo as any).poidsMoyen || 75;
-
-        taille = Math.floor(avgHeight * heightVar);
-        poids = Math.floor(avgWeight * weightVar);
-      }
 
       // Prepare Voies data
       const voiesData: Record<string, any> = {};
@@ -244,8 +232,9 @@ export default function CharacterCreationPage() {
         y: 500,
         PV_Max: character.PV,
         niveau: 1,
-        Taille: taille,
-        Poids: poids
+        // Taille & Poids already in character object, but ensuring they are numbers
+        Taille: Number(character.Taille),
+        Poids: Number(character.Poids)
       }
 
       await addDoc(collection(db, `users/${userId}/characters`), characterData)
@@ -265,6 +254,7 @@ export default function CharacterCreationPage() {
       // Update user's current character ID
       await setDoc(doc(db, 'users', userId), { persoId: docRef.id }, { merge: true })
       // Redirect to /map after successful creation (change page)
+      toast.success("Personnage créé avec succès !")
       router.push(`/${roomId}/map`)
     } catch (error) {
       console.error("Error creating character:", error)
@@ -333,6 +323,10 @@ export default function CharacterCreationPage() {
       const currentRace = raceData[raceName]
       const mods = currentRace.modificateurs || {}
 
+      // Calculate default height/weight based on race average
+      const avgHeight = (currentRace as any).tailleMoyenne || 175;
+      const avgWeight = (currentRace as any).poidsMoyen || 75;
+
       setCharacter(prev => ({
         ...prev,
         Race: raceName,
@@ -342,6 +336,8 @@ export default function CharacterCreationPage() {
         INT: baseStats.INT + (mods.INT || 0),
         SAG: baseStats.SAG + (mods.SAG || 0),
         CHA: baseStats.CHA + (mods.CHA || 0),
+        Taille: avgHeight,
+        Poids: avgWeight,
       }))
       setActiveImageSource('race')
       setIsRaceImageSelectorOpen(true)
@@ -742,36 +738,63 @@ export default function CharacterCreationPage() {
 
           {/* Combat Stats */}
           <div className="lg:col-span-2 bg-[#121212] rounded-2xl border border-[#27272a] overflow-hidden">
-            <div className="px-6 py-4 border-b border-[#27272a] bg-[#18181b] flex items-center gap-2">
-              <Crosshair className="w-5 h-5 text-[#c0a080]" />
-              <h3 className="font-serif font-bold text-zinc-200">Bonus d'Attaque</h3>
+            <div className="px-6 py-4 border-b border-[#27272a] bg-[#18181b] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Crosshair className="w-5 h-5 text-[#c0a080]" />
+                <h3 className="font-serif font-bold text-zinc-200">Bonus d'Attaque & Physionomie</h3>
+              </div>
             </div>
-            <div className="p-6 grid grid-cols-3 gap-6">
-              <div className="flex items-center gap-4 p-3 rounded-xl bg-[#18181b] border border-[#27272a]">
-                <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                  <Swords className="w-5 h-5 text-red-400" />
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Attack Column */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 p-3 rounded-xl bg-[#18181b] border border-[#27272a]">
+                  <div className="w-10 h-10 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                    <Swords className="w-5 h-5 text-red-400" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-zinc-500 uppercase">Contact</div>
+                    <div className="text-xl font-bold text-white">+{character.Contact}</div>
+                  </div>
                 </div>
-                <div>
-                  <div className="text-xs text-zinc-500 uppercase">Contact</div>
-                  <div className="text-xl font-bold text-white">+{character.Contact}</div>
+                <div className="flex items-center gap-4 p-3 rounded-xl bg-[#18181b] border border-[#27272a]">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                    <Crosshair className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-zinc-500 uppercase">Distance</div>
+                    <div className="text-xl font-bold text-white">+{character.Distance}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 p-3 rounded-xl bg-[#18181b] border border-[#27272a]">
+                  <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+                    <Sparkles className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <div className="text-xs text-zinc-500 uppercase">Magie</div>
+                    <div className="text-xl font-bold text-white">+{character.Magie}</div>
+                  </div>
                 </div>
               </div>
-              <div className="flex items-center gap-4 p-3 rounded-xl bg-[#18181b] border border-[#27272a]">
-                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
-                  <Crosshair className="w-5 h-5 text-blue-400" />
+
+              {/* Physionomie Column */}
+              <div className="space-y-4">
+                <div className="p-4 rounded-xl bg-[#18181b] border border-[#27272a] flex flex-col gap-2">
+                  <Label className="text-zinc-400 text-xs uppercase tracking-wider">Taille (cm)</Label>
+                  <Input
+                    type="number"
+                    value={character.Taille}
+                    onChange={(e) => setCharacter(prev => ({ ...prev, Taille: Number(e.target.value) }))}
+                    className="bg-[#121212] border-[#333] text-white focus:border-[#c0a080]"
+                  />
                 </div>
-                <div>
-                  <div className="text-xs text-zinc-500 uppercase">Distance</div>
-                  <div className="text-xl font-bold text-white">+{character.Distance}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 p-3 rounded-xl bg-[#18181b] border border-[#27272a]">
-                <div className="w-10 h-10 rounded-full bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
-                  <Sparkles className="w-5 h-5 text-purple-400" />
-                </div>
-                <div>
-                  <div className="text-xs text-zinc-500 uppercase">Magie</div>
-                  <div className="text-xl font-bold text-white">+{character.Magie}</div>
+                <div className="p-4 rounded-xl bg-[#18181b] border border-[#27272a] flex flex-col gap-2">
+                  <Label className="text-zinc-400 text-xs uppercase tracking-wider">Poids (kg)</Label>
+                  <Input
+                    type="number"
+                    value={character.Poids}
+                    onChange={(e) => setCharacter(prev => ({ ...prev, Poids: Number(e.target.value) }))}
+                    className="bg-[#121212] border-[#333] text-white focus:border-[#c0a080]"
+                  />
                 </div>
               </div>
             </div>

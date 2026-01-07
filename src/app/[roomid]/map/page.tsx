@@ -4059,17 +4059,15 @@ export default function Component() {
         }
 
         // Draw hidden status badge if character is hidden (soit par défaut, soit par le brouillard) - uniquement en mode MJ normal, pas en vue joueur
-        if (effectiveVisibility === 'hidden' && effectiveIsMJ) {
-          const isPlayerCharacter = char.type === 'joueurs';
-          const hiddenBadgeOffsetMultiplier = isPlayerCharacter ? 24 : 16;
+        if (effectiveVisibility === 'hidden' && effectiveIsMJ && char.type != "joueurs") {
+          console.log(effectiveVisibility, effectiveIsMJ);
+          const hiddenBadgeOffsetMultiplier = 16;
           const badgeX = x + hiddenBadgeOffsetMultiplier * zoom; // Positioning the badge at the top-right
           const badgeY = y - hiddenBadgeOffsetMultiplier * zoom;
 
           ctx.fillStyle = char.id === persoId
             ? 'rgba(255, 0, 0, 1)'             // Red for the player's character
-            : char.type === 'joueurs'
-              ? 'rgba(0, 0, 255, 1)'             // Blue for 'joueurs'
-              : 'rgba(255, 165, 0, 1)';          // Orange for other characters
+            : 'rgba(255, 165, 0, 1)';          // Orange for other characters
 
           ctx.beginPath();
           ctx.arc(badgeX, badgeY, 8 * zoom, 0, 2 * Math.PI);

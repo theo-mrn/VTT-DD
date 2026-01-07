@@ -293,7 +293,23 @@ export default function CompetenceCreator({ initialProfile, initialRace, onVoies
 
             if (initialRace) {
                 // Load race voie
-                const raceFile = `${initialRace}.json`;
+                let raceFilename = initialRace;
+
+                // Map of specific keys to filenames
+                const raceFileMap: Record<string, string> = {
+                    'ame_forgee': 'Ame-forgee',
+                    'elfe_noir': 'Elfenoir',
+                    'elfe_sylvain': 'Elfesylvain'
+                };
+
+                if (raceFileMap[initialRace]) {
+                    raceFilename = raceFileMap[initialRace];
+                } else {
+                    // Default behavior: Capitalize first letter
+                    raceFilename = initialRace.charAt(0).toUpperCase() + initialRace.slice(1);
+                }
+
+                const raceFile = `${raceFilename}.json`;
                 const raceVoie = await loadVoieFromFile(raceFile);
                 if (raceVoie) loadedVoies.push(raceVoie);
             }

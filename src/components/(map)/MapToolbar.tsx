@@ -199,12 +199,6 @@ export function ToolbarSkinSelector({ selectedSkin, onSkinChange, shape = 'circl
                                     />
                                 )}
 
-                                {/* Overlay Label on Hover */}
-                                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent pt-4 pb-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-30">
-                                    <span className="text-[9px] text-white/90 font-medium block text-center truncate px-1">
-                                        {option.label}
-                                    </span>
-                                </div>
 
                                 {/* Active Indicator */}
                                 {selectedSkin === option.value && (
@@ -273,7 +267,7 @@ export default function MapToolbar({
 
     return (
         <div className={cn(
-            "fixed bottom-4 left-1/2 -translate-x-1/2 z-[90] transition-all duration-300 ease-in-out",
+            "fixed bottom-4 left-1/2 -translate-x-1/2 z-[10] transition-all duration-300 ease-in-out",
             isCollapsed ? "translate-y-[calc(100%+24px)]" : "translate-y-0",
             className || ""
         )}>
