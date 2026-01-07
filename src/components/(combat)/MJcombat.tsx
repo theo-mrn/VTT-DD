@@ -387,6 +387,10 @@ export function GMDashboard() {
       setCharacters(prevChars =>
         prevChars.map(char => char.id === targetId ? { ...char, pv: newPv } : char)
       )
+
+      if (newPv <= 0 && targetCharacter.type !== 'joueurs') {
+        confirmDeleteCharacter(targetCharacter)
+      }
     } catch (error) {
       console.error("Erreur lors de l'application des dégâts :", error)
     }
@@ -513,6 +517,10 @@ export function GMDashboard() {
         setCharacters(prevChars =>
           prevChars.map(char => char.id === selectedCharacter.id ? { ...char, pv: newPv } : char)
         )
+
+        if (newPv <= 0 && selectedCharacter.type !== 'joueurs') {
+          confirmDeleteCharacter(selectedCharacter)
+        }
       } catch (error) {
         console.error("Erreur lors de la mise à jour des PV :", error)
       } finally {
@@ -988,9 +996,9 @@ export function GMDashboard() {
           <DialogOverlay className="bg-black/50 backdrop-blur-sm" />
           <DialogContent className="bg-[var(--bg-card)] border-[var(--border-color)]">
             <DialogHeader>
-              <DialogTitle className="text-[var(--text-primary)]">Confirmation de suppression</DialogTitle>
+              <DialogTitle className="text-[var(--text-primary)]">Confirmer la mort (supprimer)</DialogTitle>
               <DialogDescription className="text-[var(--text-secondary)]">
-                Êtes-vous sûr de vouloir supprimer le personnage <span className="font-bold text-[var(--text-primary)]">{characterToDelete?.name}</span> ?
+                <span className="font-bold text-[var(--text-primary)]">{characterToDelete?.name} n'a plus de PV, le supprimer ? </span>
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>

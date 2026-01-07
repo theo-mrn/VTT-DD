@@ -1139,7 +1139,7 @@ export default function Component() {
       visibilityRadius: parseFloat(data.visibilityRadius) || 100,
       visibleToPlayerIds: data.visibleToPlayerIds || undefined, // 🆕 Charger la liste des joueurs autorisés
       type: data.type || 'pnj',
-      PV: data.PV || 10,
+      PV: data.PV || 0,
       PV_Max: data.PV_Max || data.PV || 10,
       Defense: data.Defense || 5,
       Contact: data.Contact || 5,
