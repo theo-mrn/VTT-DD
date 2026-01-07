@@ -14,7 +14,9 @@ export interface SharedMeasurement {
     color: string;
     unitName: string;
     coneWidth?: number | null;
+    skin?: string | null;
     timestamp: number;
+    permanent?: boolean; // If true, persists. If false, auto-deletes after 6s.
 }
 
 export interface Point {
@@ -33,6 +35,8 @@ export interface MeasurementRenderOptions {
     isCalibrating: boolean;
     coneAngle?: number;
     coneWidth?: number | null; // Width at the end of the cone in units
+    skin?: string | null;
+    skinElement?: HTMLVideoElement | HTMLImageElement | null;
 }
 
 /**
@@ -107,7 +111,7 @@ export function renderLineMeasurement(options: MeasurementRenderOptions): void {
  * Render cone measurement (spell cone)
  */
 export function renderConeMeasurement(options: MeasurementRenderOptions): void {
-    const { ctx, start, end, zoom, scale, pixelsPerUnit, unitName, isCalibrating, coneWidth } = options;
+    const { ctx, start, end, zoom, scale, pixelsPerUnit, unitName, isCalibrating, coneWidth, skinElement } = options;
 
     const angle = calculateAngle(start, end);
     const pixelDist = calculateDistance(start.x, start.y, end.x, end.y);
@@ -146,14 +150,47 @@ export function renderConeMeasurement(options: MeasurementRenderOptions): void {
         y: start.y + Math.sin(rightAngle) * pixelDist
     };
 
-    // Draw filled cone
-    ctx.fillStyle = 'rgba(255, 140, 0, 0.25)'; // Semi-transparent orange
-    ctx.beginPath();
-    ctx.moveTo(start.x, start.y);
-    ctx.lineTo(leftEnd.x, leftEnd.y);
-    ctx.arc(start.x, start.y, pixelDist, leftAngle, rightAngle);
-    ctx.lineTo(start.x, start.y);
-    ctx.fill();
+    if (skinElement) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(leftEnd.x, leftEnd.y);
+        ctx.arc(start.x, start.y, pixelDist, leftAngle, rightAngle);
+        ctx.lineTo(start.x, start.y);
+        ctx.clip(); // Clip to cone shape
+
+        // Transform for video alignment
+        ctx.translate(start.x, start.y);
+        ctx.rotate(angle); // Rotate to face direction of cone
+
+        // Video Scaling:
+        // Assuming video fits in a square where the cone is inscribed or covers ample area.
+        // If we want the video to "emanate" from center (0,0 of video) to the right.
+        // We draw it such that the radius of the cone roughly matches the size of value.
+        // Let's assume video width covers 2 * pixelDist (diameter).
+        const scaleFactor = 1.35; // Same boost as circle
+        const radius = pixelDist * scaleFactor;
+
+        // Center the video at origin? No, usually cone effects start at one edge.
+        // If it's a "blast" it might be centered. 
+        // Let's try centered draw first (same as circle) but rotated.
+        // If the video content is a cone pointing UP, we need -PI/2 rotation offset.
+        // Validating with user asset would be ideal but let's stick to consistent "Right = 0" assumption or "Centered burst".
+        // If it is a centered burst, drawing it centered at Origin is correct.
+        const diameter = radius * 2;
+        ctx.drawImage(skinElement, -radius, -radius, diameter, diameter);
+
+        ctx.restore();
+    } else {
+        // Draw filled cone
+        ctx.fillStyle = 'rgba(255, 140, 0, 0.25)'; // Semi-transparent orange
+        ctx.beginPath();
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(leftEnd.x, leftEnd.y);
+        ctx.arc(start.x, start.y, pixelDist, leftAngle, rightAngle);
+        ctx.lineTo(start.x, start.y);
+        ctx.fill();
+    }
 
     // Draw cone outline
     ctx.strokeStyle = '#FFD700';
@@ -194,18 +231,33 @@ export function renderConeMeasurement(options: MeasurementRenderOptions): void {
  * Render circle/sphere measurement
  */
 export function renderCircleMeasurement(options: MeasurementRenderOptions): void {
-    const { ctx, start, end, zoom, scale, pixelsPerUnit, unitName, isCalibrating } = options;
+    const { ctx, start, end, zoom, scale, pixelsPerUnit, unitName, isCalibrating, skinElement } = options;
 
     const pixelDist = calculateDistance(start.x, start.y, end.x, end.y);
     const validScale = (scale && scale > 0) ? scale : 1;
     const validPPU = (pixelsPerUnit && pixelsPerUnit > 0) ? pixelsPerUnit : 50;
     const unitDist = pixelDist / (validPPU * validScale * zoom);
 
-    // Draw filled circle
-    ctx.fillStyle = 'rgba(0, 140, 255, 0.2)'; // Semi-transparent blue
-    ctx.beginPath();
-    ctx.arc(start.x, start.y, pixelDist, 0, 2 * Math.PI);
-    ctx.fill();
+    if (skinElement) {
+        // Draw skin (centered)
+        ctx.save();
+        // Calculate dimensions: diameter = 2 * radius (pixelDist)
+        // ⚡ Scale up the video slightly (1.35x) because the effect often has padding/transparency
+        const scaleFactor = 1.35;
+        const adjustedRadius = pixelDist * scaleFactor;
+        const adjustedDiameter = adjustedRadius * 2;
+
+        // Draw image centered at start.x, start.y
+        ctx.translate(start.x, start.y);
+        ctx.drawImage(skinElement, -adjustedRadius, -adjustedRadius, adjustedDiameter, adjustedDiameter);
+        ctx.restore();
+    } else {
+        // Draw filled circle
+        ctx.fillStyle = 'rgba(0, 140, 255, 0.2)'; // Semi-transparent blue
+        ctx.beginPath();
+        ctx.arc(start.x, start.y, pixelDist, 0, 2 * Math.PI);
+        ctx.fill();
+    }
 
     // Draw circle outline
     ctx.strokeStyle = '#FFD700';
