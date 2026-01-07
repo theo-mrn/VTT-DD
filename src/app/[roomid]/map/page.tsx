@@ -2511,6 +2511,7 @@ export default function Component() {
             isCalibrating={isCalibrating}
             onStartCalibration={() => {
               setIsCalibrating(true);
+              setMeasurementShape('line'); // Force line shape for calibration
               setMeasureStart(null);
               setMeasureEnd(null);
             }}
@@ -4168,22 +4169,10 @@ export default function Component() {
   // 🎯 CALIBRATION SUBMIT
   const handleCalibrationSubmit = async () => {
     const distanceVal = parseFloat(tempCalibrationDistance);
-    if (!isNaN(distanceVal) && distanceVal > 0 && measureStart && measureEnd && roomId && bgImageObject) {
-      // Convert world coordinates to screen coordinates (same as in rendering)
-      const image = bgImageObject;
-      const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-      const containerWidth = containerSize.width || containerRef.current?.clientWidth || 0;
-      const containerHeight = containerSize.height || containerRef.current?.clientHeight || 0;
-      const zoomScale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
-      const scaledWidth = imgWidth * zoomScale * zoom;
-      const scaledHeight = imgHeight * zoomScale * zoom;
-
-      const x1 = (measureStart.x / imgWidth) * scaledWidth - offset.x;
-      const y1 = (measureStart.y / imgHeight) * scaledHeight - offset.y;
-      const x2 = (measureEnd.x / imgWidth) * scaledWidth - offset.x;
-      const y2 = (measureEnd.y / imgHeight) * scaledHeight - offset.y;
-
-      // Calculate pixel distance in WORLD space (original image pixels)
+    console.log('🎯 Calibration submit:', { distanceVal, measureStart, measureEnd, roomId });
+    if (!isNaN(distanceVal) && distanceVal > 0 && measureStart && measureEnd && roomId) {
+      // Calculate pixel distance in WORLD space (image coordinates)
+      // measureStart and measureEnd are already in world/image pixel coordinates
       const worldPixelDist = calculateDistance(measureStart.x, measureStart.y, measureEnd.x, measureEnd.y);
       const newPixelsPerUnit = worldPixelDist / distanceVal;
 
@@ -4192,11 +4181,12 @@ export default function Component() {
         const settingsRef = doc(db, 'cartes', String(roomId), 'settings', 'general');
         await setDoc(settingsRef, {
           pixelsPerUnit: newPixelsPerUnit
-        }, { merge: true }); // Merge to keep other settings
+        }, { merge: true });
 
-        // Also update local state immediately for responsiveness
+        // Update local state immediately
         setPixelsPerUnit(newPixelsPerUnit);
 
+        // Reset calibration state
         setIsCalibrating(false);
         setMeasureStart(null);
         setMeasureEnd(null);
@@ -5665,8 +5655,8 @@ export default function Component() {
       }
     }
 
-    // 🆕 FINISH MEASUREMENT
-    if (measureMode && currentMeasurementId) {
+    // 🆕 FINISH MEASUREMENT (skip if calibrating to preserve start/end for dialog)
+    if (measureMode && currentMeasurementId && !isCalibrating) {
       // Always open menu to allow Attack or Delete
       setContextMenuMeasurementId(currentMeasurementId);
       setContextMenuMeasurementOpen(true);
