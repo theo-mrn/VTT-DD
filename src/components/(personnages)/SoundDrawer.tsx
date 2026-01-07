@@ -65,6 +65,9 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
     const lastPlayedTimestamp = useRef<number>(0)
     const activeAudioRef = useRef<HTMLAudioElement | null>(null)
 
+    // Track if this is the first snapshot (to ignore initial state on page load)
+    const isFirstSoundSnapshotRef = useRef(true)
+
     // --- Creation States ---
     const [showCreateForm, setShowCreateForm] = useState(false)
     const [creationType, setCreationType] = useState<'file' | 'youtube'>('file')
@@ -101,7 +104,17 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
     // 3. Listeners for Playback Status
     useEffect(() => {
         if (!roomId) return
+
+        // Reset flag when effect mounts
+        isFirstSoundSnapshotRef.current = true
+
         const unsubQuick = onSnapshot(firestoreDoc(db, 'global_sounds', roomId), (docSnap) => {
+            // Skip the first snapshot (initial state) to avoid replaying old sounds
+            if (isFirstSoundSnapshotRef.current) {
+                isFirstSoundSnapshotRef.current = false
+                return
+            }
+
             const data = docSnap.data()
             const newSoundUrl = data?.soundUrl
             const newTimestamp = data?.timestamp || 0
