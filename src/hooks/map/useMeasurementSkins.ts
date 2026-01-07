@@ -1,12 +1,18 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { SharedMeasurement } from '@/app/[roomid]/map/measurements';
+import { useEffects, getEffectUrl } from './useEffects';
 
 export const useMeasurementSkins = (measurements: SharedMeasurement[]) => {
   const [skinElements, setSkinElements] = useState<Record<string, HTMLVideoElement>>({});
   const loadedSkins = useRef<Set<string>>(new Set());
 
+  // Load all effects from R2
+  const { effects, isLoading } = useEffects();
+
   useEffect(() => {
+    if (isLoading || effects.length === 0) return;
+
     const requiredSkins = new Set<string>();
 
     // Identify all unique skins needed
@@ -19,7 +25,8 @@ export const useMeasurementSkins = (measurements: SharedMeasurement[]) => {
       if (!loadedSkins.current.has(skinFilename)) {
 
         const video = document.createElement('video');
-        video.src = `/Effect/${skinFilename}`;
+        // Get the R2 URL for this effect
+        video.src = getEffectUrl(skinFilename, effects);
         video.loop = true;
         video.muted = true;
         video.playsInline = true;
@@ -41,7 +48,7 @@ export const useMeasurementSkins = (measurements: SharedMeasurement[]) => {
     // For now, keep them cached to avoid reloading if they toggle visibility.
     // In a long session, might want to prune.
 
-  }, [measurements]);
+  }, [measurements, effects, isLoading]);
 
   return skinElements;
 };
