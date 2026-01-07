@@ -351,7 +351,7 @@ export function GMDashboard() {
             }
           }
 
-          const isSuccess = data.réussite ?? (data.type === "Success" || data.type === "success")
+          const isSuccess = data.réussite === true || data.resultat === "Success" || data.resultat === "success"
 
           return {
             cible_nom: targetName,

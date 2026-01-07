@@ -61,6 +61,10 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
     const [libraryAudio, setLibraryAudio] = useState<HTMLAudioElement | null>(null)
     const [addedLibraryIds, setAddedLibraryIds] = useState<Set<string>>(new Set()) // Visual feedback
 
+    // Playback Ref
+    const lastPlayedTimestamp = useRef<number>(0)
+    const activeAudioRef = useRef<HTMLAudioElement | null>(null)
+
     // --- Creation States ---
     const [showCreateForm, setShowCreateForm] = useState(false)
     const [creationType, setCreationType] = useState<'file' | 'youtube'>('file')
@@ -99,7 +103,29 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
         if (!roomId) return
         const unsubQuick = onSnapshot(firestoreDoc(db, 'global_sounds', roomId), (docSnap) => {
             const data = docSnap.data()
-            setGlobalPlayingId(data?.soundUrl ? data.soundId : null)
+            const newSoundUrl = data?.soundUrl
+            const newTimestamp = data?.timestamp || 0
+
+            // Update UI state
+            setGlobalPlayingId(newSoundUrl ? data.soundId : null)
+
+            // Play Sound if new timestamp and we have a URL and it is a file
+            if (newSoundUrl && newTimestamp > lastPlayedTimestamp.current && data?.type === 'file') {
+                lastPlayedTimestamp.current = newTimestamp
+
+                // Stop previous if exists (optional, maybe we want overlap for attacks? let's stop for now to be clean)
+                // actually for attacks often we want overlap, but for "quick sound" mode it seems like a player
+                // Let's create a new Audio instance for new sound
+                const audio = new Audio(newSoundUrl)
+                audio.volume = 0.5 // Default volume
+                audio.play().catch(e => console.error("Error auto-playing sound:", e))
+
+                // Stop after 5 seconds max
+                setTimeout(() => {
+                    audio.pause()
+                    audio.currentTime = 0
+                }, 5000)
+            }
         })
         const unsubMusic = onValue(dbRef(realtimeDb, `rooms/${roomId}/music`), (snapshot) => {
             const data = snapshot.val()

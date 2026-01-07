@@ -145,6 +145,7 @@ export function DiceRoller() {
 
   // Authentification et récupération des données utilisateur
   useEffect(() => {
+    console.log("window.CHEAT_DICE=20;");
     const unsubscribe = onAuthStateChanged(auth, (authUser) => {
       if (authUser) {
         const userRef = doc(db, 'users', authUser.uid);

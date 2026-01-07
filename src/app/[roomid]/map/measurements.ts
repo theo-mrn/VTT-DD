@@ -4,6 +4,19 @@
 
 export type MeasurementShape = 'line' | 'cone' | 'circle' | 'cube';
 
+export interface SharedMeasurement {
+    id: string;
+    type: MeasurementShape;
+    start: Point;
+    end: Point;
+    ownerId: string;
+    cityId: string | null;
+    color: string;
+    unitName: string;
+    coneWidth?: number | null;
+    timestamp: number;
+}
+
 export interface Point {
     x: number;
     y: number;
@@ -14,11 +27,12 @@ export interface MeasurementRenderOptions {
     start: Point;
     end: Point;
     zoom: number;
+    scale: number; // Base image scale (container/image ratio)
     pixelsPerUnit: number;
     unitName: string;
     isCalibrating: boolean;
     coneAngle?: number;
-    coneWidth?: number; // Width at the end of the cone in units
+    coneWidth?: number | null; // Width at the end of the cone in units
 }
 
 /**
@@ -46,11 +60,11 @@ function formatMeasurement(
     pixelDist: number
 ): string {
     if (isCalibrating) {
-        return `Calibration: ${pixelDist.toFixed(0)} px`;
+        return `${pixelDist.toFixed(0)} px (Calibration)`;
     }
 
     if (area !== null) {
-        return `${distance.toFixed(1)} ${unitName}\n${area.toFixed(1)} ${unitName}²`;
+        return `${distance.toFixed(1)} ${unitName}\nAire: ${area.toFixed(1)} ${unitName}²`;
     }
 
     return `${distance.toFixed(1)} ${unitName}`;
@@ -60,7 +74,7 @@ function formatMeasurement(
  * Render line measurement (ruler)
  */
 export function renderLineMeasurement(options: MeasurementRenderOptions): void {
-    const { ctx, start, end, zoom, pixelsPerUnit, unitName, isCalibrating } = options;
+    const { ctx, start, end, zoom, scale, pixelsPerUnit, unitName, isCalibrating } = options;
 
     // Draw line
     ctx.beginPath();
@@ -81,7 +95,9 @@ export function renderLineMeasurement(options: MeasurementRenderOptions): void {
 
     // Calculate and display distance
     const pixelDist = calculateDistance(start.x, start.y, end.x, end.y);
-    const unitDist = pixelDist / (pixelsPerUnit * zoom);
+    const validScale = (scale && scale > 0) ? scale : 1;
+    const validPPU = (pixelsPerUnit && pixelsPerUnit > 0) ? pixelsPerUnit : 50;
+    const unitDist = pixelDist / (validPPU * validScale * zoom);
     const text = formatMeasurement(unitDist, null, unitName, isCalibrating, pixelDist);
 
     drawLabel(ctx, text, (start.x + end.x) / 2, (start.y + end.y) / 2, zoom);
@@ -91,16 +107,18 @@ export function renderLineMeasurement(options: MeasurementRenderOptions): void {
  * Render cone measurement (spell cone)
  */
 export function renderConeMeasurement(options: MeasurementRenderOptions): void {
-    const { ctx, start, end, zoom, pixelsPerUnit, unitName, isCalibrating, coneWidth } = options;
+    const { ctx, start, end, zoom, scale, pixelsPerUnit, unitName, isCalibrating, coneWidth } = options;
 
     const angle = calculateAngle(start, end);
     const pixelDist = calculateDistance(start.x, start.y, end.x, end.y);
-    const unitDist = pixelDist / (pixelsPerUnit * zoom);
+    const validScale = (scale && scale > 0) ? scale : 1;
+    const validPPU = (pixelsPerUnit && pixelsPerUnit > 0) ? pixelsPerUnit : 50;
+    const unitDist = pixelDist / (validPPU * validScale * zoom);
 
     let halfAngleRad: number;
     let actualConeWidth: number;
 
-    if (coneWidth !== undefined && coneWidth > 0) {
+    if (coneWidth && coneWidth > 0) {
         // If width is specified, calculate angle from width and length
         // width = 2 * length * tan(halfAngle)
         // halfAngle = atan(width / (2 * length))
@@ -166,7 +184,8 @@ export function renderConeMeasurement(options: MeasurementRenderOptions): void {
     const area = (unitDist * actualConeWidth) / 2;
 
     // Format with length and width info
-    const text = `L:${unitDist.toFixed(1)} W:${actualConeWidth.toFixed(1)} ${unitName}\n${area.toFixed(1)} ${unitName}²`;
+    // Format with length and width info
+    const text = `${unitDist.toFixed(1)} ${unitName} (L) x ${actualConeWidth.toFixed(1)} ${unitName} (W)\nAire: ${area.toFixed(1)} ${unitName}²`;
 
     drawLabel(ctx, text, end.x, end.y, zoom);
 }
@@ -175,10 +194,12 @@ export function renderConeMeasurement(options: MeasurementRenderOptions): void {
  * Render circle/sphere measurement
  */
 export function renderCircleMeasurement(options: MeasurementRenderOptions): void {
-    const { ctx, start, end, zoom, pixelsPerUnit, unitName, isCalibrating } = options;
+    const { ctx, start, end, zoom, scale, pixelsPerUnit, unitName, isCalibrating } = options;
 
     const pixelDist = calculateDistance(start.x, start.y, end.x, end.y);
-    const unitDist = pixelDist / (pixelsPerUnit * zoom);
+    const validScale = (scale && scale > 0) ? scale : 1;
+    const validPPU = (pixelsPerUnit && pixelsPerUnit > 0) ? pixelsPerUnit : 50;
+    const unitDist = pixelDist / (validPPU * validScale * zoom);
 
     // Draw filled circle
     ctx.fillStyle = 'rgba(0, 140, 255, 0.2)'; // Semi-transparent blue
@@ -219,10 +240,12 @@ export function renderCircleMeasurement(options: MeasurementRenderOptions): void
  * Render cube/square measurement
  */
 export function renderCubeMeasurement(options: MeasurementRenderOptions): void {
-    const { ctx, start, end, zoom, pixelsPerUnit, unitName, isCalibrating } = options;
+    const { ctx, start, end, zoom, scale, pixelsPerUnit, unitName, isCalibrating } = options;
 
     const pixelDist = calculateDistance(start.x, start.y, end.x, end.y);
-    const unitDist = pixelDist / (pixelsPerUnit * zoom);
+    const validScale = (scale && scale > 0) ? scale : 1;
+    const validPPU = (pixelsPerUnit && pixelsPerUnit > 0) ? pixelsPerUnit : 50;
+    const unitDist = pixelDist / (validPPU * validScale * zoom);
 
     // For a cube, we interpret the distance as the radius (half-width)
     // So the full side length is 2 * distance
@@ -276,35 +299,57 @@ export function renderCubeMeasurement(options: MeasurementRenderOptions): void {
 /**
  * Draw measurement label with background
  */
-function drawLabel(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, zoom: number): void {
+// Draw measurement label with background
+const drawLabel = (ctx: CanvasRenderingContext2D, text: string, x: number, y: number, zoom: number): void => {
     const lines = text.split('\n');
-    const fontSize = 14 * zoom;
-    ctx.font = `bold ${fontSize}px Arial`;
+    const fontSize = 11 * zoom; // Smaller font
+    ctx.font = `500 ${fontSize}px "Inter", sans-serif`; // Normal weight
 
-    // Calculate max width for background
+    // Calculate dimensions
     const textMetrics = lines.map(line => ctx.measureText(line));
     const maxWidth = Math.max(...textMetrics.map(m => m.width));
-    const lineHeight = fontSize * 1.2;
+    const lineHeight = fontSize * 1.3;
     const totalHeight = lineHeight * lines.length;
-    const padding = 6 * zoom;
+    const horizontalPadding = 8 * zoom; // Reduced padding
+    const verticalPadding = 5 * zoom;   // Reduced padding
 
-    // Draw background
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-    ctx.fillRect(
-        x - maxWidth / 2 - padding,
-        y - totalHeight / 2 - padding - 15 * zoom,
-        maxWidth + padding * 2,
-        totalHeight + padding * 2
-    );
+    const boxWidth = maxWidth + horizontalPadding * 2;
+    const boxHeight = totalHeight + verticalPadding * 2;
+    const boxX = x - boxWidth / 2;
+    const boxY = y - boxHeight / 2 - 20 * zoom; // Closer to point
+
+    // Draw shadow (very subtle)
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+    ctx.shadowBlur = 4 * zoom;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 2 * zoom;
+
+    // Draw background (Rounded Rectangle, more transparent)
+    ctx.fillStyle = 'rgba(15, 15, 20, 0.65)'; // More transparent
+    ctx.beginPath();
+    if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 6 * zoom); // Smaller radius
+    } else {
+        ctx.rect(boxX, boxY, boxWidth, boxHeight);
+    }
+    ctx.fill();
+
+    // Reset shadow
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+
+    // Borders removed for discretion
 
     // Draw text
-    ctx.fillStyle = '#FFD700';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
     lines.forEach((line, index) => {
         const offsetY = (index - (lines.length - 1) / 2) * lineHeight;
-        ctx.fillText(line, x, y - 15 * zoom + offsetY);
+        ctx.fillStyle = index === 0 ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 255, 255, 0.7)';
+        ctx.fillText(line, x, boxY + boxHeight / 2 + offsetY);
     });
 }
 
@@ -341,4 +386,69 @@ export function renderStartPoint(
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, start.x, start.y - 22 * zoom);
+}
+
+/**
+ * Distance from point to line segment
+ */
+function distanceToSegment(p: Point, v: Point, w: Point): number {
+    const l2 = Math.pow(w.x - v.x, 2) + Math.pow(w.y - v.y, 2);
+    if (l2 === 0) return calculateDistance(p.x, p.y, v.x, v.y);
+    let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return calculateDistance(p.x, p.y, v.x + t * (w.x - v.x), v.y + t * (w.y - v.y));
+}
+
+/**
+ * Check if a point is within a measurement shape
+ */
+export function isPointInMeasurement(
+    point: Point,
+    measurement: SharedMeasurement,
+    pixelsPerUnit: number,
+    scale: number,
+    zoom: number
+): boolean {
+    const { start, end, type, coneWidth } = measurement;
+
+    const dist = calculateDistance(start.x, start.y, end.x, end.y);
+    const validScale = (scale && scale > 0) ? scale : 1;
+    const validPPU = (pixelsPerUnit && pixelsPerUnit > 0) ? pixelsPerUnit : 50;
+
+    // Threshold for interaction (give it some buffer)
+    // 15 screen pixels tolerance
+    const threshold = 15 / (zoom * validScale);
+
+    if (type === 'line') {
+        return distanceToSegment(point, start, end) <= threshold;
+    } else if (type === 'circle') {
+        const d = calculateDistance(point.x, point.y, start.x, start.y);
+        return d <= dist;
+    } else if (type === 'cube') {
+        const halfSide = dist;
+        return point.x >= start.x - halfSide && point.x <= start.x + halfSide &&
+            point.y >= start.y - halfSide && point.y <= start.y + halfSide;
+    } else if (type === 'cone') {
+        const d = calculateDistance(point.x, point.y, start.x, start.y);
+        if (d > dist) return false;
+
+        const pointAngle = Math.atan2(point.y - start.y, point.x - start.x);
+        const coneAngle = Math.atan2(end.y - start.y, end.x - start.x);
+
+        let halfAngleRad: number;
+        if (coneWidth && coneWidth > 0) {
+            const unitDist = dist / (validPPU * validScale); // World Units
+            halfAngleRad = Math.atan(coneWidth / (2 * unitDist));
+        } else {
+            halfAngleRad = (53 / 2) * (Math.PI / 180);
+        }
+
+        let diff = Math.abs(pointAngle - coneAngle);
+        while (diff > Math.PI) diff -= 2 * Math.PI;
+        while (diff < -Math.PI) diff += 2 * Math.PI;
+
+        return Math.abs(diff) <= halfAngleRad;
+    }
+
+    return false;
 }

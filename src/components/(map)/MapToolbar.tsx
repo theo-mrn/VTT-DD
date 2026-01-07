@@ -13,7 +13,7 @@ import {
     Package,
     Baseline,
     Pencil,
-    Ruler,
+    Target,
     Eye,
     Trash2,
     Lock,
@@ -214,8 +214,8 @@ export default function MapToolbar({
                         />
                         <ToolButton
                             id={TOOLS.MEASURE}
-                            icon={Ruler}
-                            label="Mesure"
+                            icon={Target}
+                            label="Attaque de Zone"
                             isActive={activeTools.includes(TOOLS.MEASURE)}
                         />
                     </div>
