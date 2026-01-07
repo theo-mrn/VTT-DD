@@ -40,8 +40,8 @@ export const getCroppedImg = (imageSrc, pixelCrop) => {
       const image = await loadImage(imageSrc);
 
       const canvas = document.createElement('canvas');
-      canvas.width = pixelCrop.width;
-      canvas.height = pixelCrop.height;
+      canvas.width = VIEWPORT_SIZE;
+      canvas.height = VIEWPORT_SIZE;
       const ctx = canvas.getContext('2d');
 
       // Safe draw logic to prevent stretching when crop is out of bounds
@@ -49,6 +49,10 @@ export const getCroppedImg = (imageSrc, pixelCrop) => {
       const py = pixelCrop.y;
       const pw = pixelCrop.width;
       const ph = pixelCrop.height;
+
+      // Calculate scale to fit VIEWPORT_SIZE
+      const scaleX = VIEWPORT_SIZE / pw;
+      const scaleY = VIEWPORT_SIZE / ph;
 
       // Calculate intersection with image
       const ix = Math.max(0, px);
@@ -60,7 +64,10 @@ export const getCroppedImg = (imageSrc, pixelCrop) => {
       if (iw > 0 && ih > 0) {
         const dx = ix - px;
         const dy = iy - py;
-        ctx.drawImage(image, ix, iy, iw, ih, dx, dy, iw, ih);
+        ctx.drawImage(image,
+          ix, iy, iw, ih,
+          dx * scaleX, dy * scaleY, iw * scaleX, ih * scaleY
+        );
       }
 
       const base64Image = canvas.toDataURL('image/png');
@@ -88,8 +95,8 @@ export const getCroppedGif = async (gifUrl, pixelCrop, onProgress = null) => {
     const encoder = new GIF({
       workers: 2,
       quality: 10,
-      width: pixelCrop.width,
-      height: pixelCrop.height,
+      width: VIEWPORT_SIZE,
+      height: VIEWPORT_SIZE,
       workerScript: '/gif.worker.js'
     });
 
@@ -127,8 +134,8 @@ export const getCroppedGif = async (gifUrl, pixelCrop, onProgress = null) => {
 
       // Create cropped canvas
       const croppedCanvas = document.createElement('canvas');
-      croppedCanvas.width = pixelCrop.width;
-      croppedCanvas.height = pixelCrop.height;
+      croppedCanvas.width = VIEWPORT_SIZE;
+      croppedCanvas.height = VIEWPORT_SIZE;
       const croppedCtx = croppedCanvas.getContext('2d');
 
       // Draw cropped region
@@ -140,8 +147,8 @@ export const getCroppedGif = async (gifUrl, pixelCrop, onProgress = null) => {
         pixelCrop.height,
         0,
         0,
-        pixelCrop.width,
-        pixelCrop.height
+        VIEWPORT_SIZE,
+        VIEWPORT_SIZE
       );
 
       // Add frame to encoder

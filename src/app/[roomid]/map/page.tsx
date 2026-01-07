@@ -2774,9 +2774,9 @@ export default function Component() {
 
     // 🆕 Synchroniser la ville actuelle dans Firebase pour MJcombat et autres composants
     if (roomId) {
-      await updateDoc(doc(db, 'cartes', roomId, 'settings', 'general'), {
+      await setDoc(doc(db, 'cartes', roomId, 'settings', 'general'), {
         currentCityId: cityId,
-      });
+      }, { merge: true });
     }
   };
 
@@ -2803,9 +2803,9 @@ export default function Component() {
     // 🆕 Effacer la ville actuelle dans Firebase (pour indiquer qu'on est sur la world map)
     if (roomId) {
 
-      await updateDoc(doc(db, 'cartes', roomId, 'settings', 'general'), {
+      await setDoc(doc(db, 'cartes', roomId, 'settings', 'general'), {
         currentCityId: null,
-      });
+      }, { merge: true });
     }
   };
 
@@ -7856,30 +7856,6 @@ export default function Component() {
             }}
             globalCityId={globalCityId}
           />
-        )}
-        {viewMode === 'world' && !isMJ && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/95 text-white p-4"
-          >
-            <div className="max-w-md text-center space-y-6">
-              <div className="w-24 h-24 bg-[#c0a080]/10 rounded-full flex items-center justify-center mx-auto ring-1 ring-[#c0a080]/30 animate-pulse">
-                <MapPin className="w-10 h-10 text-[#c0a080]" />
-              </div>
-              <div className="space-y-2">
-                <h2 className="text-2xl font-bold tracking-tight text-[#c0a080]">En attente du MJ...</h2>
-                <p className="text-gray-400">Le Maître du Jeu prépare la prochaine scène. Veuillez patienter.</p>
-              </div>
-
-              <div className="flex justify-center gap-1">
-                <div className="w-2 h-2 bg-[#c0a080] rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
-                <div className="w-2 h-2 bg-[#c0a080] rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
-                <div className="w-2 h-2 bg-[#c0a080] rounded-full animate-bounce" style={{ animationDelay: '0.4s' }} />
-              </div>
-            </div>
-          </motion.div>
         )}
       </AnimatePresence>
 

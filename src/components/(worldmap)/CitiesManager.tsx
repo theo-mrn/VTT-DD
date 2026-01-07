@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 
 
 import { useGame } from "@/contexts/GameContext";
-import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where, writeBatch } from "@/lib/firebase";
+import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where, writeBatch, getDoc, setDoc } from "@/lib/firebase";
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -238,6 +238,28 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
             } else {
                 const docRef = await addDoc(collection(db, `cartes/${effectiveRoomId}/cities`), dataToSave);
                 console.log('✅ [CitiesManager] Scene created successfully with ID:', docRef.id);
+
+                // 🆕 Initialize Default Settings if needed (pixelsPerUnit, globalTokenScale, donjon)
+                const settingsRef = doc(db, `cartes/${effectiveRoomId}/settings/general`);
+                const settingsSnap = await getDoc(settingsRef);
+
+                if (!settingsSnap.exists()) {
+                    await setDoc(settingsRef, {
+                        pixelsPerUnit: 1,
+                        globalTokenScale: 1,
+                        donjon: false
+                    });
+                } else {
+                    const data = settingsSnap.data();
+                    const updates: any = {};
+                    if (data.pixelsPerUnit === undefined) updates.pixelsPerUnit = 1;
+                    if (data.globalTokenScale === undefined) updates.globalTokenScale = 1;
+                    if (data.donjon === undefined) updates.donjon = false;
+
+                    if (Object.keys(updates).length > 0) {
+                        await updateDoc(settingsRef, updates);
+                    }
+                }
             }
         } catch (error) {
             console.error('❌ [CitiesManager] Error saving scene:', error);
@@ -322,7 +344,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
             if (moveMode === 'all') {
                 // A. Mettre à jour le setting global
                 const settingsRef = doc(db, `cartes/${effectiveRoomId}/settings/general`);
-                batch.update(settingsRef, { currentCityId: moveTargetCity.id });
+                batch.set(settingsRef, { currentCityId: moveTargetCity.id }, { merge: true });
 
                 // B. Réinitialiser les positions individuelles de TOUS les joueurs (pour qu'ils suivent le global)
                 // On doit le faire pour tous les joueurs trouvés
