@@ -129,8 +129,8 @@ export function renderConeMeasurement(options: MeasurementRenderOptions): void {
         halfAngleRad = Math.atan(coneWidth / (2 * unitDist));
         actualConeWidth = coneWidth;
     } else {
-        // Default 53° cone
-        const defaultAngle = 53;
+        // Default 30° cone (narrower per user request)
+        const defaultAngle = 30;
         halfAngleRad = (defaultAngle / 2) * (Math.PI / 180);
         // Calculate width from angle: width = 2 * length * tan(halfAngle)
         actualConeWidth = 2 * unitDist * Math.tan(halfAngleRad);
@@ -164,21 +164,16 @@ export function renderConeMeasurement(options: MeasurementRenderOptions): void {
         ctx.rotate(angle); // Rotate to face direction of cone
 
         // Video Scaling:
-        // Assuming video fits in a square where the cone is inscribed or covers ample area.
-        // If we want the video to "emanate" from center (0,0 of video) to the right.
-        // We draw it such that the radius of the cone roughly matches the size of value.
-        // Let's assume video width covers 2 * pixelDist (diameter).
-        const scaleFactor = 1.35; // Same boost as circle
-        const radius = pixelDist * scaleFactor;
+        // Adjust scale to cover the cone area.
+        const scaleFactor = 0.5; // Reduced to 0.5 to exactly fit length (1.0 * dist)
+        const adjustedRadius = pixelDist * scaleFactor;
+        const adjustedDiameter = adjustedRadius * 2;
 
-        // Center the video at origin? No, usually cone effects start at one edge.
-        // If it's a "blast" it might be centered. 
-        // Let's try centered draw first (same as circle) but rotated.
-        // If the video content is a cone pointing UP, we need -PI/2 rotation offset.
-        // Validating with user asset would be ideal but let's stick to consistent "Right = 0" assumption or "Centered burst".
-        // If it is a centered burst, drawing it centered at Origin is correct.
-        const diameter = radius * 2;
-        ctx.drawImage(skinElement, -radius, -radius, diameter, diameter);
+        // Draw video aligned to the cone tip (start point)
+        // We assume the video effect starts from the left side (if pointing right)
+        // or we visually center it vertically.
+        // Drawing at (0, -radius) puts the left-center of the video at the cone tip (0,0).
+        ctx.drawImage(skinElement, 0, -adjustedRadius, adjustedDiameter, adjustedDiameter);
 
         ctx.restore();
     } else {
