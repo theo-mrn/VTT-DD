@@ -157,6 +157,9 @@ import {
   isPointInMeasurement,
   type SharedMeasurement
 } from './measurements';
+import { useSkinVideo } from '@/hooks/map/useSkinVideo';
+import { useMeasurementSkins } from '@/hooks/map/useMeasurementSkins';
+import { ToolbarSkinSelector } from '@/components/(map)/MapToolbar';
 
 const getMediaDimensions = (media: HTMLImageElement | HTMLVideoElement | CanvasImageSource) => {
   if (media instanceof HTMLVideoElement) {
@@ -167,6 +170,8 @@ const getMediaDimensions = (media: HTMLImageElement | HTMLVideoElement | CanvasI
   }
   return { width: (media as any).width || 0, height: (media as any).height || 0 };
 };
+
+
 
 export default function Component() {
   const params = useParams();
@@ -184,6 +189,10 @@ export default function Component() {
   const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0); // 🆕 Progress state
   const videoRef = useRef<HTMLVideoElement | null>(null); // Ref to keep track of video element for cleanup
+  const [selectedSkin, setSelectedSkin] = useState<string>('Fireballs/explosioin1.webm');
+  const [isPermanent, setIsPermanent] = useState(false); // 🆕 Permanent measurement toggle
+  const fireballVideo = useSkinVideo(selectedSkin); // For LOCAL active measurement
+
 
   useEffect(() => {
     if (backgroundImage) {
@@ -559,7 +568,30 @@ export default function Component() {
   const [coneConfigDialogOpen, setConeConfigDialogOpen] = useState(false);
   const [coneWidth, setConeWidth] = useState<number | undefined>(undefined); // Custom cone width
   const [measurements, setMeasurements] = useState<SharedMeasurement[]>([]);
+  const measurementSkins = useMeasurementSkins(measurements); // For SHARED measurements
   const [currentMeasurementId, setCurrentMeasurementId] = useState<string | null>(null);
+
+  // 🆕 AUTO-DELETE TEMPORARY MEASUREMENTS
+  useEffect(() => {
+    // Check every 1s
+    const interval = setInterval(() => {
+      const now = Date.now();
+      measurements.forEach(m => {
+        // If not permanent and expired (> 6s)
+        if (m.permanent === false && (now - m.timestamp > 6000)) {
+          // Verify ownership (only the creator cleans it up to avoid conflicts)
+          // Or simpler: anyone can clean up local state, but for Firebase:
+          const isOwner = m.ownerId === (userId || 'unknown');
+          if (isOwner || isMJ) {
+            const docRef = doc(db, 'cartes', roomId, 'measurements', m.id);
+            deleteDoc(docRef).catch(console.error);
+          }
+        }
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [measurements, roomId, userId, isMJ]);
 
   // 🆕 VIEW MODE & CITY NAVIGATION STATE
 
@@ -1596,7 +1628,13 @@ export default function Component() {
     // 🎥 VIDEO RENDER LOOP
     let animationFrameId: number;
 
-    if (image instanceof HTMLVideoElement && performanceMode !== 'static') {
+    const hasAnimatedMeasurement =
+      (!!fireballVideo && measureMode && (measurementShape === 'circle' || measurementShape === 'cone')) ||
+      measurements.some(m => (m.type === 'circle' || m.type === 'cone') && m.skin);
+
+    const shouldAnimate = performanceMode !== 'static' && (image instanceof HTMLVideoElement || hasAnimatedMeasurement);
+
+    if (shouldAnimate) {
       let lastFrameTime = 0;
       const fpsInterval = performanceMode === 'eco' ? 1000 / 30 : 0; // 30fps for eco, 0 for max
 
@@ -1607,17 +1645,28 @@ export default function Component() {
           const elapsed = timestamp - lastFrameTime;
           if (elapsed > fpsInterval) {
             lastFrameTime = timestamp - (elapsed % fpsInterval);
-            drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
+            if (image instanceof HTMLVideoElement) {
+              drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
+            }
+            if (hasAnimatedMeasurement) {
+              drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
+            }
           }
         } else {
           // High perf: draw every frame
-          drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
+          if (image instanceof HTMLVideoElement) {
+            drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
+          }
+          if (hasAnimatedMeasurement) {
+            drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
+          }
         }
 
         animationFrameId = requestAnimationFrame(renderLoop);
       };
       animationFrameId = requestAnimationFrame(renderLoop);
     }
+
 
     return () => {
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
@@ -2450,19 +2499,28 @@ export default function Component() {
     // 🎯 MODE : Mesure
     if (measureMode) {
       return (
-        <MeasurementShapeSelector
-          selectedShape={measurementShape}
-          onShapeChange={setMeasurementShape}
-          onConeConfig={() => setConeConfigDialogOpen(true)}
-          isCalibrating={isCalibrating}
-          onStartCalibration={() => {
-            setIsCalibrating(true);
-            setMeasureStart(null);
-            setMeasureEnd(null);
-          }}
-          onCancelCalibration={() => setIsCalibrating(false)}
-          onClearMeasurements={handleClearMeasurements}
-        />
+        <div className="flex flex-col items-center gap-2">
+          {(measurementShape === 'circle' || measurementShape === 'cone') && (
+            <ToolbarSkinSelector selectedSkin={selectedSkin} onSkinChange={setSelectedSkin} shape={measurementShape === 'circle' ? 'circle' : 'cone'} />
+          )}
+
+          <MeasurementShapeSelector
+            selectedShape={measurementShape}
+            onShapeChange={setMeasurementShape}
+            onConeConfig={() => setConeConfigDialogOpen(true)}
+            isCalibrating={isCalibrating}
+            onStartCalibration={() => {
+              setIsCalibrating(true);
+              setMeasureStart(null);
+              setMeasureEnd(null);
+            }}
+            onCancelCalibration={() => setIsCalibrating(false)}
+
+            onClearMeasurements={handleClearMeasurements}
+            isPermanent={isPermanent}
+            onPermanentChange={setIsPermanent}
+          />
+        </div>
       );
     }
 
@@ -2979,6 +3037,100 @@ export default function Component() {
     }
 
   };
+
+  // 🎯 DRAW MEASUREMENTS (Shared + Local) - NOW RENDERED LAST (ON TOP)
+  const drawMeasurements = (
+    ctx: CanvasRenderingContext2D,
+    imgWidth: number,
+    imgHeight: number,
+    scaledWidth: number,
+    scaledHeight: number
+  ) => {
+    // 1. Shared Measurements
+    measurements.forEach(m => {
+      if (m.id === currentMeasurementId) return; // Skip active being drawn
+
+      const p1 = m.start;
+      const p2 = m.end;
+      if (!p1 || !p2) return;
+
+      const x1 = (p1.x / imgWidth) * scaledWidth - offset.x;
+      const y1 = (p1.y / imgHeight) * scaledHeight - offset.y;
+      const x2 = (p2.x / imgWidth) * scaledWidth - offset.x;
+      const y2 = (p2.y / imgHeight) * scaledHeight - offset.y;
+
+      const screenStart = { x: x1, y: y1 };
+      const screenEnd = { x: x2, y: y2 };
+      const currentScale = scaledWidth / (imgWidth * zoom);
+
+      const renderOptions = {
+        ctx,
+        start: screenStart,
+        end: screenEnd,
+        zoom,
+        scale: currentScale,
+        pixelsPerUnit,
+        unitName: m.unitName || unitName,
+        isCalibrating: false,
+        coneAngle: 53,
+        coneWidth: m.coneWidth,
+        skinElement: (m.skin && measurementSkins[m.skin]) ? measurementSkins[m.skin] : null
+      };
+
+      switch (m.type) {
+        case 'line': renderLineMeasurement(renderOptions); break;
+        case 'cone': renderConeMeasurement(renderOptions); break;
+        case 'circle': renderCircleMeasurement(renderOptions); break;
+        case 'cube': renderCubeMeasurement(renderOptions); break;
+      }
+    });
+
+    // 2. Active Local Measurement
+    if (measureMode && measureStart) {
+      const p1 = measureStart;
+      const p2 = measureEnd;
+
+      if (p1 && p2) {
+        const x1 = (p1.x / imgWidth) * scaledWidth - offset.x;
+        const y1 = (p1.y / imgHeight) * scaledHeight - offset.y;
+        const x2 = (p2.x / imgWidth) * scaledWidth - offset.x;
+        const y2 = (p2.y / imgHeight) * scaledHeight - offset.y;
+
+        const screenStart = { x: x1, y: y1 };
+        const screenEnd = { x: x2, y: y2 };
+        const currentScale = scaledWidth / (imgWidth * zoom);
+
+        const renderOptions = {
+          ctx,
+          start: screenStart,
+          end: screenEnd,
+          zoom,
+          scale: currentScale,
+          pixelsPerUnit,
+          unitName,
+          isCalibrating,
+          coneAngle: 53,
+          coneWidth: coneWidth, // Custom
+          skinElement: ((measurementShape === 'circle' || measurementShape === 'cone') && fireballVideo) ? fireballVideo : null
+        };
+
+        switch (measurementShape) {
+          case 'line': renderLineMeasurement(renderOptions); break;
+          case 'cone': renderConeMeasurement(renderOptions); break;
+          case 'circle': renderCircleMeasurement(renderOptions); break;
+          case 'cube': renderCubeMeasurement(renderOptions); break;
+        }
+      } else if (p1 && !p2) {
+        // Start point only
+        const x1 = (p1.x / imgWidth) * scaledWidth - offset.x;
+        const y1 = (p1.y / imgHeight) * scaledHeight - offset.y;
+
+        const shapeNames = { line: 'line', cone: 'cone', circle: 'circle', cube: 'cube' };
+        renderStartPoint(ctx, { x: x1, y: y1 }, zoom, shapeNames[measurementShape]);
+      }
+    }
+  };
+
 
   // 🎯 Draw character borders only (rendered on separate canvas BEFORE character images)
   const drawCharacterBorders = (ctx: CanvasRenderingContext2D, image: CanvasImageSource, containerWidth: number, containerHeight: number) => {
@@ -3937,109 +4089,9 @@ export default function Component() {
 
 
 
-    // 🎯 DRAW SHARED MEASUREMENTS
-    measurements.forEach(m => {
-      // Skip current active measurement to avoid double rendering (local state "measureStart" handles it)
-      if (m.id === currentMeasurementId) return;
 
-      const p1 = m.start;
-      const p2 = m.end;
-      if (!p1 || !p2) return;
-
-      // Convert world coordinates to screen coordinates
-      const x1 = (p1.x / imgWidth) * scaledWidth - offset.x;
-      const y1 = (p1.y / imgHeight) * scaledHeight - offset.y;
-      const x2 = (p2.x / imgWidth) * scaledWidth - offset.x;
-      const y2 = (p2.y / imgHeight) * scaledHeight - offset.y;
-
-      const screenStart = { x: x1, y: y1 };
-      const screenEnd = { x: x2, y: y2 };
-
-      // Calculate current scale
-      const currentScale = scaledWidth / (imgWidth * zoom);
-
-      const renderOptions = {
-        ctx,
-        start: screenStart,
-        end: screenEnd,
-        zoom,
-        scale: currentScale,
-        pixelsPerUnit: pixelsPerUnit, // World pixels per unit
-        unitName: m.unitName || unitName,
-        isCalibrating: false,
-        coneAngle: 53,
-        coneWidth: m.coneWidth
-      };
-
-      switch (m.type) {
-        case 'line': renderLineMeasurement(renderOptions); break;
-        case 'cone': renderConeMeasurement(renderOptions); break;
-        case 'circle': renderCircleMeasurement(renderOptions); break;
-        case 'cube': renderCubeMeasurement(renderOptions); break;
-      }
-    });
-
-    // 🎯 DRAW MEASUREMENT RULER
-    if (measureMode && measureStart) {
-      const p1 = measureStart;
-      const p2 = measureEnd;
-
-      if (p1 && p2) {
-        // Convert world coordinates to screen coordinates
-        const x1 = (p1.x / imgWidth) * scaledWidth - offset.x;
-        const y1 = (p1.y / imgHeight) * scaledHeight - offset.y;
-        const x2 = (p2.x / imgWidth) * scaledWidth - offset.x;
-        const y2 = (p2.y / imgHeight) * scaledHeight - offset.y;
-
-        const screenStart = { x: x1, y: y1 };
-        const screenEnd = { x: x2, y: y2 };
-
-        // Calculate current scale
-        const currentScale = scaledWidth / (imgWidth * zoom);
-
-        // Render based on selected shape
-        const renderOptions = {
-          ctx,
-          start: screenStart,
-          end: screenEnd,
-          zoom,
-          scale: currentScale,
-          pixelsPerUnit,
-          unitName,
-          isCalibrating,
-          coneAngle: 53, // Standard D&D cone angle
-          coneWidth: coneWidth // Custom cone width if set
-        };
-
-        switch (measurementShape) {
-          case 'line':
-            renderLineMeasurement(renderOptions);
-            break;
-          case 'cone':
-            renderConeMeasurement(renderOptions);
-            break;
-          case 'circle':
-            renderCircleMeasurement(renderOptions);
-            break;
-          case 'cube':
-            renderCubeMeasurement(renderOptions);
-            break;
-        }
-      } else if (p1 && !p2) {
-        // Draw just the start point
-        const x1 = (p1.x / imgWidth) * scaledWidth - offset.x;
-        const y1 = (p1.y / imgHeight) * scaledHeight - offset.y;
-
-        const shapeNames = {
-          line: 'line',
-          cone: 'cone',
-          circle: 'circle',
-          cube: 'cube'
-        };
-
-        renderStartPoint(ctx, { x: x1, y: y1 }, zoom, shapeNames[measurementShape]);
-      }
-    }
+    // Draw measurements manually here (at end of foreground layers)
+    drawMeasurements(ctx, imgWidth, imgHeight, scaledWidth, scaledHeight);
   };
 
 
@@ -4564,7 +4616,9 @@ export default function Component() {
                 color: '#FFD700', // Default gold
                 unitName: unitName,
                 coneWidth: coneWidth ?? null,
-                timestamp: Date.now()
+                skin: (measurementShape === 'circle' || measurementShape === 'cone') ? selectedSkin : null,
+                timestamp: Date.now(),
+                permanent: isPermanent // 🆕 Persist flag
               };
 
               // Fire and forget (optimistic)
@@ -7096,7 +7150,7 @@ export default function Component() {
           </div>
           <canvas
             ref={fgCanvasRef}
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10 }}
           />
         </div>
         {combatOpen && (

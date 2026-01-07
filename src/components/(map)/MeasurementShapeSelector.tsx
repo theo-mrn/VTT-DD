@@ -21,6 +21,8 @@ interface MeasurementShapeSelectorProps {
     onStartCalibration?: () => void;
     onCancelCalibration?: () => void;
     onClearMeasurements?: () => void;
+    isPermanent?: boolean;
+    onPermanentChange?: (val: boolean) => void;
 }
 
 export default function MeasurementShapeSelector({
@@ -30,7 +32,9 @@ export default function MeasurementShapeSelector({
     isCalibrating = false,
     onStartCalibration,
     onCancelCalibration,
-    onClearMeasurements
+    onClearMeasurements,
+    isPermanent = false,
+    onPermanentChange
 }: MeasurementShapeSelectorProps) {
     const shapes: Array<{ id: MeasurementShape; icon: any; label: string; description: string }> = [
         {
@@ -59,8 +63,10 @@ export default function MeasurementShapeSelector({
         }
     ];
 
+
+
     return (
-        <div className="flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+        <div className="flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] pointer-events-auto">
             <span className="text-xs text-gray-400 font-medium mr-2">Forme:</span>
 
             <TooltipProvider delayDuration={300}>
@@ -152,6 +158,38 @@ export default function MeasurementShapeSelector({
                         </TooltipTrigger>
                         <TooltipContent side="top" className="bg-black/90 border-[#333] text-white">
                             <p className="font-medium">Supprimer mes mesures</p>
+                        </TooltipContent>
+                    </Tooltip>
+                )}
+
+                <div className="w-[1px] h-6 bg-white/10 mx-2" />
+
+                {/* Permanent Toggle */}
+                {onPermanentChange && (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant={isPermanent ? "secondary" : "ghost"}
+                                size="sm"
+                                onClick={() => onPermanentChange(!isPermanent)}
+                                className={cn(
+                                    "h-9 px-3 gap-2 transition-all duration-200",
+                                    isPermanent
+                                        ? "bg-[#c0a080] text-black hover:bg-[#d4b494]"
+                                        : "text-gray-400 hover:text-white hover:bg-white/10",
+                                    "rounded-lg border border-white/5"
+                                )}
+                            >
+                                <span className="font-bold text-xs uppercase tracking-wider">{isPermanent ? 'Permanent' : 'Temporaire'}</span>
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="bg-black/90 border-[#333] text-white">
+                            <p className="font-medium">Durée de l'effet</p>
+                            <p className="text-xs text-gray-400">
+                                {isPermanent
+                                    ? "L'effet restera affiché indéfiniment."
+                                    : "L'effet disparaîtra après 6 secondes."}
+                            </p>
                         </TooltipContent>
                     </Tooltip>
                 )}
