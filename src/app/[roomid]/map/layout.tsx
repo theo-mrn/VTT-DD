@@ -92,7 +92,7 @@ export default function Layout({ children }: LayoutProps) {
 
 
   return (
-    <div className="relative h-screen bg-[#1c1c1c] text-[#d4d4d4] flex">
+    <div className="relative h-screen bg-[#1c1c1c] text-[#d4d4d4] flex z-30">
       <div className="z-10">
         <Sidebar activeTab={activeTab} handleIconClick={handleIconClick} isMJ={isMJ} />
       </div>
@@ -142,7 +142,7 @@ export default function Layout({ children }: LayoutProps) {
       )}
 
 
-      <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c]">
+      <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c] z-0">
         <div className="w-full h-full">{children}</div>
       </main>
       {/* 3D Dice Overlay */}
