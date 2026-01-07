@@ -1,7 +1,8 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, memo } from 'react'
 import { X, ImageIcon, Loader2 } from 'lucide-react'
+import Image from 'next/image'
 
 interface RaceImageSelectorProps {
     isOpen: boolean
@@ -42,11 +43,77 @@ const getRaceFilePrefix = (raceName: string): string => {
     return lowerRace.split('_')[0]
 }
 
+const BATCH_SIZE = 20
+
+// Memoized Image Item Component
+const RaceImageItem = memo(({
+    asset,
+    isSelected,
+    handleSelect,
+    priority
+}: {
+    asset: AssetMapping,
+    isSelected: boolean,
+    handleSelect: (path: string) => void,
+    priority: boolean
+}) => {
+    return (
+        <div
+            onClick={() => handleSelect(asset.path)}
+            className={`group relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all hover:scale-105 hover:shadow-xl ${isSelected
+                ? 'border-[#c0a080] ring-2 ring-[#c0a080]/50 shadow-lg'
+                : 'border-[#2a2a2a] hover:border-[#c0a080]'
+                }`}
+        >
+            <Image
+                src={asset.path}
+                alt={asset.name}
+                fill
+                quality={1}
+                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                className="object-cover"
+                loading={priority ? "eager" : "lazy"}
+                priority={priority}
+                onLoad={(e) => console.log('Loaded image src:', e.currentTarget.currentSrc, 'Natural size:', e.currentTarget.naturalWidth, 'x', e.currentTarget.naturalHeight)}
+            />
+
+            {/* Hover overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute bottom-0 left-0 right-0 p-2">
+                    <p className="text-white text-xs font-medium truncate">
+                        {asset.name.replace(/\.[^.]+$/, '')}
+                    </p>
+                </div>
+            </div>
+
+            {/* Selected indicator */}
+            {isSelected && (
+                <div className="absolute inset-0 bg-[#c0a080]/20 flex items-center justify-center">
+                    <div className="bg-[#c0a080] rounded-full p-2 shadow-lg">
+                        <svg className="w-6 h-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+})
+
+RaceImageItem.displayName = 'RaceImageItem'
+
 export function RaceImageSelector({ isOpen, onClose, onSelectImage, raceName, currentImage, raceDefaultImage }: RaceImageSelectorProps) {
     const [mode, setMode] = useState<'token' | 'photo'>('token')
     const [assets, setAssets] = useState<AssetMapping[]>([])
     const [photos, setPhotos] = useState<AssetMapping[]>([])
     const [loading, setLoading] = useState(false)
+    const [visibleCount, setVisibleCount] = useState(BATCH_SIZE)
+    const observerTarget = useRef<HTMLDivElement>(null)
+
+    // Reset pagination when mode or race changes
+    useEffect(() => {
+        setVisibleCount(BATCH_SIZE)
+    }, [mode, raceName])
 
     // Load assets on mount
     useEffect(() => {
@@ -59,12 +126,9 @@ export function RaceImageSelector({ isOpen, onClose, onSelectImage, raceName, cu
             fetch('/api/assets?category=Photos').then(res => res.json())
         ])
             .then(([mappings, photosData]) => {
-                console.log('RaceImageSelector - raceName:', raceName)
-                console.log('RaceImageSelector - total mappings:', mappings.length)
 
                 // Get the file prefix for this race
                 const raceFilePrefix = getRaceFilePrefix(raceName)
-                console.log('RaceImageSelector - raceFilePrefix:', raceFilePrefix)
 
                 // Filter Assets (tokens) for this specific race
                 const raceTokens = mappings.filter((m: AssetMapping) => {
@@ -79,7 +143,6 @@ export function RaceImageSelector({ isOpen, onClose, onSelectImage, raceName, cu
                     return fileRaceName === raceFilePrefix
                 })
 
-                console.log('RaceImageSelector - filtered tokens:', raceTokens.length, raceTokens.slice(0, 3))
                 setAssets(raceTokens)
 
                 // Filter photos for this race (use raceFilePrefix for consistency)
@@ -87,7 +150,6 @@ export function RaceImageSelector({ isOpen, onClose, onSelectImage, raceName, cu
                     p.category.toLowerCase().includes(raceFilePrefix)
                 )
 
-                console.log('RaceImageSelector - filtered photos:', racePhotos.length)
                 setPhotos(racePhotos)
 
                 // Auto-select mode based on what's available
@@ -110,10 +172,28 @@ export function RaceImageSelector({ isOpen, onClose, onSelectImage, raceName, cu
         onClose()
     }
 
-
     // Calculate displayed images and total count
-    const displayedImages = mode === 'token' ? assets : photos
+    const allImages = mode === 'token' ? assets : photos
+    const displayedImages = allImages.slice(0, visibleCount)
     const totalCount = assets.length + photos.length
+
+    // Infinite scroll observer
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && displayedImages.length < allImages.length) {
+                    setVisibleCount((prev) => Math.min(prev + BATCH_SIZE, allImages.length))
+                }
+            },
+            { threshold: 0.1, rootMargin: '100px' }
+        )
+
+        if (observerTarget.current) {
+            observer.observe(observerTarget.current)
+        }
+
+        return () => observer.disconnect()
+    }, [displayedImages.length, allImages.length])
 
     if (!isOpen) return null
 
@@ -169,55 +249,31 @@ export function RaceImageSelector({ isOpen, onClose, onSelectImage, raceName, cu
                         <div className="flex items-center justify-center h-full">
                             <Loader2 className="w-8 h-8 text-[#c0a080] animate-spin" />
                         </div>
-                    ) : displayedImages.length > 0 ? (
+                    ) : allImages.length > 0 ? (
                         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                            {displayedImages.map((asset) => (
-                                <div
+                            {displayedImages.map((asset, index) => (
+                                <RaceImageItem
                                     key={asset.path}
-                                    onClick={() => handleImageSelect(asset.path)}
-                                    className={`group relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all hover:scale-105 hover:shadow-xl ${currentImage === asset.path
-                                        ? 'border-[#c0a080] ring-2 ring-[#c0a080]/50 shadow-lg'
-                                        : 'border-[#2a2a2a] hover:border-[#c0a080]'
-                                        }`}
-                                >
-                                    <img
-                                        src={asset.path}
-                                        alt={asset.name}
-                                        className="w-full h-full object-cover"
-                                        loading="lazy"
-                                    />
-
-                                    {/* Hover overlay */}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <div className="absolute bottom-0 left-0 right-0 p-2">
-                                            <p className="text-white text-xs font-medium truncate">
-                                                {asset.name.replace(/\.[^.]+$/, '')}
-                                            </p>
-                                        </div>
-                                    </div>
-
-                                    {/* Selected indicator */}
-                                    {currentImage === asset.path && (
-                                        <div className="absolute inset-0 bg-[#c0a080]/20 flex items-center justify-center">
-                                            <div className="bg-[#c0a080] rounded-full p-2 shadow-lg">
-                                                <svg className="w-6 h-6 text-black" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                                </svg>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
+                                    asset={asset}
+                                    isSelected={currentImage === asset.path}
+                                    handleSelect={handleImageSelect}
+                                    priority={index < 10}
+                                />
                             ))}
+                            {/* Sentinel for infinite scrolling */}
+                            <div ref={observerTarget} className="h-10 w-full col-span-full" />
                         </div>
                     ) : (
                         <div className="flex items-center justify-center h-full">
                             {raceDefaultImage ? (
                                 <div className="text-center max-w-md">
                                     <div className="relative w-64 h-64 mx-auto mb-6 rounded-xl overflow-hidden border-2 border-[#2a2a2a]">
-                                        <img
+                                        <Image
                                             src={raceDefaultImage}
                                             alt={raceName}
-                                            className="w-full h-full object-cover"
+                                            fill
+                                            className="object-cover"
+                                            sizes="(max-width: 640px) 100vw, 300px"
                                         />
                                     </div>
                                     <p className="text-zinc-400 text-lg mb-2">Aucune image supplémentaire disponible</p>
