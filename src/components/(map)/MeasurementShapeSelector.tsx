@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Minus, Triangle, Circle, Square, Settings } from 'lucide-react';
+import { Minus, Triangle, Circle, Square, Settings, Trash2 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -20,6 +20,7 @@ interface MeasurementShapeSelectorProps {
     isCalibrating?: boolean;
     onStartCalibration?: () => void;
     onCancelCalibration?: () => void;
+    onClearMeasurements?: () => void;
 }
 
 export default function MeasurementShapeSelector({
@@ -28,7 +29,8 @@ export default function MeasurementShapeSelector({
     onConeConfig,
     isCalibrating = false,
     onStartCalibration,
-    onCancelCalibration
+    onCancelCalibration,
+    onClearMeasurements
 }: MeasurementShapeSelectorProps) {
     const shapes: Array<{ id: MeasurementShape; icon: any; label: string; description: string }> = [
         {
@@ -133,6 +135,25 @@ export default function MeasurementShapeSelector({
                     >
                         Annuler
                     </Button>
+                )}
+
+                {/* Clear Measurements Button */}
+                {!isCalibrating && onClearMeasurements && (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={onClearMeasurements}
+                                className="h-9 px-2 ml-1 text-gray-500 hover:text-red-400 hover:bg-red-400/10 rounded-lg"
+                            >
+                                <Trash2 size={16} strokeWidth={2} />
+                            </Button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="bg-black/90 border-[#333] text-white">
+                            <p className="font-medium">Supprimer mes mesures</p>
+                        </TooltipContent>
+                    </Tooltip>
                 )}
             </TooltipProvider>
         </div>

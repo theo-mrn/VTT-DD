@@ -21,9 +21,6 @@ export const SOUND_CATEGORIES = [
 
 export const SUGGESTED_SOUNDS: SuggestedSound[] = [
     // Ambiance
-    { name: 'Forêt', path: '/Audio/foret.mp3', category: 'ambiance' },
-    { name: 'Eau', path: '/Audio/eau.mp3', category: 'ambiance' },
-    { name: 'Feu', path: '/Audio/feu.mp3', category: 'ambiance' },
     { name: 'Forêt de Nuit', path: '/Audio/Foret de_nuit.mp3', category: 'ambiance' },
     { name: 'Sonnette', path: '/Audio/sonette.mp3', category: 'ambiance' },
 

@@ -146,13 +146,16 @@ const StaticToken = React.memo(({ src, alt, style, className, performanceMode }:
 import { AudioMixerPanel, useAudioMixer } from '@/components/(audio)/AudioMixerPanel';
 import MeasurementShapeSelector from '@/components/(map)/MeasurementShapeSelector';
 import ConeConfigDialog from '@/components/(map)/ConeConfigDialog';
+import MeasurementContextMenu from '@/components/(overlays)/MeasurementContextMenu';
 import {
   type MeasurementShape,
   renderLineMeasurement,
   renderConeMeasurement,
   renderCircleMeasurement,
   renderCubeMeasurement,
-  renderStartPoint
+  renderStartPoint,
+  isPointInMeasurement,
+  type SharedMeasurement
 } from './measurements';
 
 const getMediaDimensions = (media: HTMLImageElement | HTMLVideoElement | CanvasImageSource) => {
@@ -173,6 +176,7 @@ export default function Component() {
   const [combatOpen, setCombatOpen] = useState(false);
   const [attackerId, setAttackerId] = useState<string | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
+  const [targetIds, setTargetIds] = useState<string[]>([]); // 🆕 Multiple targets for AoE
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
   const [performanceMode, setPerformanceMode] = useState<'high' | 'eco' | 'static'>('high'); // ⚡ Performance Mode
   const [backgroundImage, setBackgroundImage] = useState('/placeholder.svg?height=600&width=800')
@@ -435,6 +439,9 @@ export default function Component() {
   const [contextMenuObjectOpen, setContextMenuObjectOpen] = useState(false);
   const [contextMenuObjectId, setContextMenuObjectId] = useState<string | null>(null);
 
+  const [contextMenuMeasurementOpen, setContextMenuMeasurementOpen] = useState(false);
+  const [contextMenuMeasurementId, setContextMenuMeasurementId] = useState<string | null>(null);
+
   const [isRadialMenuOpen, setIsRadialMenuOpen] = useState(false);
   const [isRadialMenuCentered, setIsRadialMenuCentered] = useState(false);
 
@@ -551,6 +558,8 @@ export default function Component() {
   const [tempCalibrationDistance, setTempCalibrationDistance] = useState('');
   const [coneConfigDialogOpen, setConeConfigDialogOpen] = useState(false);
   const [coneWidth, setConeWidth] = useState<number | undefined>(undefined); // Custom cone width
+  const [measurements, setMeasurements] = useState<SharedMeasurement[]>([]);
+  const [currentMeasurementId, setCurrentMeasurementId] = useState<string | null>(null);
 
   // 🆕 VIEW MODE & CITY NAVIGATION STATE
 
@@ -1427,6 +1436,18 @@ export default function Component() {
 
     unsubscribers.push(musicZonesUnsub);
 
+    // 8. CHARGER MESURES PARTAGÉES
+    const measurementsRef = collection(db, 'cartes', roomId, 'measurements');
+    const measurementsQuery = query(measurementsRef, where('cityId', '==', selectedCityId));
+    const measurementsUnsub = onSnapshot(measurementsQuery, (snapshot) => {
+      const ms: SharedMeasurement[] = [];
+      snapshot.forEach((doc) => {
+        ms.push(doc.data() as SharedMeasurement);
+      });
+      setMeasurements(ms);
+    });
+    unsubscribers.push(measurementsUnsub);
+
     return () => {
       unsubscribers.forEach(unsub => unsub());
     };
@@ -1603,7 +1624,7 @@ export default function Component() {
     };
 
 
-  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers, viewAsPersoId, containerSize, musicZones, selectedMusicZoneIds, isMusicMode, isDraggingMusicZone, globalTokenScale, precalculatedShadows, performanceMode]);
+  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers, viewAsPersoId, containerSize, musicZones, selectedMusicZoneIds, isMusicMode, isDraggingMusicZone, globalTokenScale, precalculatedShadows, performanceMode, measurements, currentMeasurementId]);
 
   // 🎥 TOKEN VIDEO PAUSE LOGIC (Separate Effect)
   useEffect(() => {
@@ -2440,6 +2461,7 @@ export default function Component() {
             setMeasureEnd(null);
           }}
           onCancelCalibration={() => setIsCalibrating(false)}
+          onClearMeasurements={handleClearMeasurements}
         />
       );
     }
@@ -3913,6 +3935,50 @@ export default function Component() {
       });
     }
 
+
+
+    // 🎯 DRAW SHARED MEASUREMENTS
+    measurements.forEach(m => {
+      // Skip current active measurement to avoid double rendering (local state "measureStart" handles it)
+      if (m.id === currentMeasurementId) return;
+
+      const p1 = m.start;
+      const p2 = m.end;
+      if (!p1 || !p2) return;
+
+      // Convert world coordinates to screen coordinates
+      const x1 = (p1.x / imgWidth) * scaledWidth - offset.x;
+      const y1 = (p1.y / imgHeight) * scaledHeight - offset.y;
+      const x2 = (p2.x / imgWidth) * scaledWidth - offset.x;
+      const y2 = (p2.y / imgHeight) * scaledHeight - offset.y;
+
+      const screenStart = { x: x1, y: y1 };
+      const screenEnd = { x: x2, y: y2 };
+
+      // Calculate current scale
+      const currentScale = scaledWidth / (imgWidth * zoom);
+
+      const renderOptions = {
+        ctx,
+        start: screenStart,
+        end: screenEnd,
+        zoom,
+        scale: currentScale,
+        pixelsPerUnit: pixelsPerUnit, // World pixels per unit
+        unitName: m.unitName || unitName,
+        isCalibrating: false,
+        coneAngle: 53,
+        coneWidth: m.coneWidth
+      };
+
+      switch (m.type) {
+        case 'line': renderLineMeasurement(renderOptions); break;
+        case 'cone': renderConeMeasurement(renderOptions); break;
+        case 'circle': renderCircleMeasurement(renderOptions); break;
+        case 'cube': renderCubeMeasurement(renderOptions); break;
+      }
+    });
+
     // 🎯 DRAW MEASUREMENT RULER
     if (measureMode && measureStart) {
       const p1 = measureStart;
@@ -3928,12 +3994,16 @@ export default function Component() {
         const screenStart = { x: x1, y: y1 };
         const screenEnd = { x: x2, y: y2 };
 
+        // Calculate current scale
+        const currentScale = scaledWidth / (imgWidth * zoom);
+
         // Render based on selected shape
         const renderOptions = {
           ctx,
           start: screenStart,
           end: screenEnd,
           zoom,
+          scale: currentScale,
           pixelsPerUnit,
           unitName,
           isCalibrating,
@@ -4061,9 +4131,9 @@ export default function Component() {
       const x2 = (measureEnd.x / imgWidth) * scaledWidth - offset.x;
       const y2 = (measureEnd.y / imgHeight) * scaledHeight - offset.y;
 
-      // Calculate pixel distance in screen space
-      const pixelDist = calculateDistance(x1, y1, x2, y2);
-      const newPixelsPerUnit = pixelDist / (distanceVal * zoom);
+      // Calculate pixel distance in WORLD space (original image pixels)
+      const worldPixelDist = calculateDistance(measureStart.x, measureStart.y, measureEnd.x, measureEnd.y);
+      const newPixelsPerUnit = worldPixelDist / distanceVal;
 
       // Save to Firebase
       try {
@@ -4083,6 +4153,98 @@ export default function Component() {
       } catch (e) {
         console.error("Error saving calibration:", e);
       }
+    }
+  };
+
+  const handleClearMeasurements = () => {
+    // Delete ALL measurements (requested by user)
+    measurements.forEach(m => {
+      deleteDoc(doc(db, 'cartes', roomId, 'measurements', m.id)).catch(console.error);
+    });
+    // Also clear active
+    setMeasureStart(null);
+    setMeasureEnd(null);
+    setCurrentMeasurementId(null);
+  };
+
+  const handleMeasurementAction = (action: string, measurementId: string) => {
+    if (action === 'delete') {
+      deleteDoc(doc(db, 'cartes', roomId, 'measurements', measurementId)).catch(console.error);
+      if (currentMeasurementId === measurementId) {
+        setCurrentMeasurementId(null);
+        setMeasureStart(null);
+        setMeasureEnd(null);
+      }
+      setContextMenuMeasurementOpen(false);
+    } else if (action === 'attack') {
+      // Disable measure mode to prevent accidental new measurements
+      setMeasureMode(false);
+
+      const measurement = measurements.find(m => m.id === measurementId);
+      console.log("DEBUG: handleMeasurementAction", { measurementId, found: !!measurement });
+      if (!measurement || !bgImageObject) {
+        console.warn("DEBUG: Missing measurement or bgImageObject", { measurement, bgImageObject: !!bgImageObject });
+        return;
+      }
+
+      // Calculate inputs for isPointInMeasurement
+      const image = bgImageObject;
+      const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+      const containerWidth = containerSize.width || containerRef.current?.clientWidth || 0;
+      const containerHeight = containerSize.height || containerRef.current?.clientHeight || 0;
+      const zoomScale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+
+      // Find characters inside
+      const targetsInZone = characters.filter(char => {
+        // Ensure char has valid coordinates
+        if (typeof char.x !== 'number' || typeof char.y !== 'number') return false;
+
+        // Exclude self (attacker) if needed, but for now include all
+        // Maybe exclude dead ones?
+
+        const isInside = isPointInMeasurement(
+          { x: char.x, y: char.y },
+          measurement,
+          pixelsPerUnit,
+          zoomScale, // Pass the base scale used for rendering
+          zoom // Pass user zoom, though isPointInMeasurement math for circle/cone/cube might not strictly need it if world coords are used correctly, but passing for compatibility
+        );
+        // console.log(`DEBUG: Checking char ${char.name} (${char.id})`, isInside);
+        return isInside;
+      });
+
+      console.log("DEBUG: targetsInZone found", targetsInZone.length);
+
+      if (targetsInZone.length > 0) {
+        setTargetIds(targetsInZone.map(c => c.id));
+        setTargetId(null); // Clear single target
+
+        // Define attacker (current user's character or MJ selected)
+        const myCharId = viewAsPersoId || persoId;
+
+        if (myCharId) {
+          setAttackerId(myCharId);
+        } else if (isMJ) {
+          // Priority 1: Selected Token
+          if (selectedCharacterIndex !== null && characters[selectedCharacterIndex]) {
+            setAttackerId(characters[selectedCharacterIndex].id);
+          }
+          // Priority 2: Active Player in Combat (Red Token)
+          else if (activePlayerId) {
+            setAttackerId(activePlayerId);
+          }
+          // Priority 3: First character in list (Fallback)
+          else if (characters.length > 0) {
+            setAttackerId(characters[0].id);
+          }
+        }
+
+        setCombatOpen(true);
+      } else {
+        // notification? "Aucune cible dans la zone"
+        console.log("No targets in measurement zone");
+      }
+      setContextMenuMeasurementOpen(false);
     }
   };
 
@@ -4377,10 +4539,58 @@ export default function Component() {
 
             setMeasureStart({ x: clickX, y: clickY });
             setMeasureEnd(null);
+
+            // 🆕 CREATE SHARED MEASUREMENT
+            if (roomId) {
+              const measurementsRef = collection(db, 'cartes', roomId, 'measurements');
+
+              // 🆕 CLEANUP OLD MEASUREMENTS (Single Active Measurement per User)
+              measurements.forEach(m => {
+                if (m.ownerId === (userId || 'unknown')) {
+                  deleteDoc(doc(db, 'cartes', roomId, 'measurements', m.id)).catch(console.error);
+                }
+              });
+
+              const newDocRef = doc(measurementsRef); // Generate ID
+              setCurrentMeasurementId(newDocRef.id);
+
+              const newMeasurement: SharedMeasurement = {
+                id: newDocRef.id,
+                type: measurementShape,
+                start: { x: clickX, y: clickY },
+                end: { x: clickX, y: clickY }, // Start = End initially
+                ownerId: userId || 'unknown', // Need userId, fallback to 'unknown'
+                cityId: selectedCityId,
+                color: '#FFD700', // Default gold
+                unitName: unitName,
+                coneWidth: coneWidth ?? null,
+                timestamp: Date.now()
+              };
+
+              // Fire and forget (optimistic)
+              setDoc(newDocRef, newMeasurement).catch(console.error);
+            }
           } else {
             // Set end point
 
             setMeasureEnd({ x: clickX, y: clickY });
+
+            // 🆕 FINISH SHARED MEASUREMENT
+            if (currentMeasurementId && roomId) {
+              const docRef = doc(db, 'cartes', roomId, 'measurements', currentMeasurementId);
+              updateDoc(docRef, {
+                end: { x: clickX, y: clickY }
+              }).catch(console.error);
+
+              // 🆕 AUTO-DETECT & OPEN MENU
+              // Always open menu to allow Attack or Delete
+              setContextMenuMeasurementId(currentMeasurementId);
+              setContextMenuMeasurementOpen(true);
+
+              setCurrentMeasurementId(null);
+            } else {
+              // This else block was for a debug log, removing it as per instruction.
+            }
           }
           return;
         }
@@ -5105,6 +5315,16 @@ export default function Component() {
     // 🎯 MEASURE DRAG
     if (measureMode && measureStart && e.buttons === 1) {
       setMeasureEnd({ x: currentX, y: currentY });
+
+      // 🆕 UPDATE SHARED MEASUREMENT (THROTTLED OPTIONALLY, but for now direct)
+      if (currentMeasurementId && roomId) {
+        // We use a ref or just update. Firestore writes can be expensive if 60fps.
+        // For now, let's try direct update. If laggy, we'll throttle.
+        const docRef = doc(db, 'cartes', roomId, 'measurements', currentMeasurementId);
+        updateDoc(docRef, {
+          end: { x: currentX, y: currentY }
+        }).catch(console.error);
+      }
       return;
     }
 
@@ -5389,6 +5609,18 @@ export default function Component() {
       if (dist > 10) {
         setCalibrationDialogOpen(true);
       }
+    }
+
+    // 🆕 FINISH MEASUREMENT
+    if (measureMode && currentMeasurementId) {
+      // Always open menu to allow Attack or Delete
+      setContextMenuMeasurementId(currentMeasurementId);
+      setContextMenuMeasurementOpen(true);
+
+      // Just stop tracking it as "current", it remains in Firestore
+      setCurrentMeasurementId(null);
+      setMeasureStart(null);
+      setMeasureEnd(null);
     }
 
     setIsDragging(false);
@@ -5922,6 +6154,26 @@ export default function Component() {
 
 
 
+  // 🆕 Listen to Active Player (Synced with Combat)
+  useEffect(() => {
+    if (!roomId || !selectedCityId) {
+      setActivePlayerId(null);
+      return;
+    }
+
+    const combatStateRef = doc(db, 'cartes', roomId, 'cities', selectedCityId, 'combat', 'state');
+    const unsubscribe = onSnapshot(combatStateRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setActivePlayerId(data.activePlayer || null);
+      } else {
+        setActivePlayerId(null);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [roomId, selectedCityId]);
+
   // 🎯 SUPPRIMÉ : useEffect pour shadowOpacity
 
 
@@ -6371,6 +6623,13 @@ export default function Component() {
         isMJ={isMJ}
       />
 
+      <MeasurementContextMenu
+        measurement={contextMenuMeasurementId ? measurements.find(m => m.id === contextMenuMeasurementId) || null : null}
+        isOpen={contextMenuMeasurementOpen}
+        onClose={() => setContextMenuMeasurementOpen(false)}
+        onAction={handleMeasurementAction}
+      />
+
       {/* 🎯 Cone Configuration Dialog */}
       <ConeConfigDialog
         isOpen={coneConfigDialogOpen}
@@ -6462,6 +6721,31 @@ export default function Component() {
             const scaledHeight = imgHeight * scale * zoom;
             const mouseX = e.clientX;
             const mouseY = e.clientY;
+
+            // 🆕 MANUAL MEASUREMENT DELETION (Right Click)
+            // Check in reverse order (top to bottom)
+            const worldMouseX = (mouseX - rect.left + offset.x) / scaledWidth * imgWidth;
+            const worldMouseY = (mouseY - rect.top + offset.y) / scaledHeight * imgHeight;
+            const worldPoint = { x: worldMouseX, y: worldMouseY };
+
+            // Find measurement to delete
+            const clickedMeasurement = measurements.find(m =>
+              isPointInMeasurement(worldPoint, m, pixelsPerUnit, scale, zoom)
+            );
+
+            if (clickedMeasurement) {
+              // Only allow deleting own measurements (unless MJ?)
+              // For now, allow deleting own.
+              if (clickedMeasurement.ownerId === (userId || 'unknown')) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Open Context Menu instead of immediate delete
+                setContextMenuMeasurementId(clickedMeasurement.id);
+                setContextMenuMeasurementOpen(true);
+                return;
+              }
+            }
 
             const hoveredCharIndex = characters.findIndex(char => {
               const charX = (char.x / imgWidth) * scaledWidth - offset.x + rect.left;
@@ -6821,6 +7105,7 @@ export default function Component() {
               <Combat
                 attackerId={attackerId || ''}
                 targetId={targetId || ''}
+                targetIds={targetIds} /* 🆕 Pass multiple targets */
                 onClose={() => setCombatOpen(false)}
               />
             </div>
@@ -7217,6 +7502,7 @@ export default function Component() {
               if (activePlayerId) {
                 setAttackerId(activePlayerId);
                 setTargetId(characterId);
+                setTargetIds([]); // 🆕 Reset AoE targets
                 setCombatOpen(true);
               } else {
                 alert("Aucun personnage actif sélectionné pour attaquer (Tour du joueur)");
@@ -7226,6 +7512,7 @@ export default function Component() {
               if (persoId) {
                 setAttackerId(persoId);
                 setTargetId(characterId);
+                setTargetIds([]); // 🆕 Reset AoE targets
                 setCombatOpen(true);
               }
             }
