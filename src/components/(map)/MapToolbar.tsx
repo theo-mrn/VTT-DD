@@ -129,7 +129,7 @@ export function ToolbarSkinSelector({ selectedSkin, onSkinChange, shape = 'circl
     const [hoveredSkin, setHoveredSkin] = useState<string | null>(null);
 
     return (
-        <div className="flex flex-col gap-2 bg-[#0a0a0a]/90 backdrop-blur-xl border border-[#333] rounded-xl p-3 shadow-[0_20px_50px_rgba(0,0,0,0.8)] w-[340px] z-[100] relative pointer-events-auto transition-all duration-300">
+        <div className="flex flex-col gap-2 bg-[#0a0a0a]/90 backdrop-blur-xl border border-[#333] rounded-xl p-3 shadow-[0_20px_50px_rgba(0,0,0,0.8)] w-[340px] relative pointer-events-auto transition-all duration-300">
             <div
                 className="flex items-center justify-between border-b border-white/5 pb-2 cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => setIsOpen(!isOpen)}
@@ -255,13 +255,13 @@ export default function MapToolbar({
 
     return (
         <div className={cn(
-            "fixed bottom-4 left-1/2 -translate-x-1/2 z-[90] transition-all duration-300 ease-in-out pointer-events-none",
+            "fixed bottom-4 left-1/2 -translate-x-1/2 z-[90] transition-all duration-300 ease-in-out",
             isCollapsed ? "translate-y-[calc(100%+24px)]" : "translate-y-0",
             className || ""
         )}>
             {/* Active Tool Content (Sub-Menu) */}
             {activeToolContent && (
-                <div className="mb-2 animate-in slide-in-from-bottom-4 fade-in duration-300 relative z-[200]">
+                <div className="mb-2 animate-in slide-in-from-bottom-4 fade-in duration-300 relative z-[110] pointer-events-auto">
                     {activeToolContent}
                 </div>
             )}
