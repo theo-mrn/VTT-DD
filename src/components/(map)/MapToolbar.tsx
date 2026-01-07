@@ -47,6 +47,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { useEffects } from "@/hooks/map/useEffects";
 
 interface MapToolbarProps {
     isMJ: boolean;
@@ -128,6 +129,23 @@ export function ToolbarSkinSelector({ selectedSkin, onSkinChange, shape = 'circl
     const [isOpen, setIsOpen] = useState(true);
     const [hoveredSkin, setHoveredSkin] = useState<string | null>(null);
 
+    // Load effects from R2
+    const category = shape === 'cone' ? 'Cone' : 'Fireballs';
+    const { effects, isLoading } = useEffects(category);
+
+    // Helper to get the URL for an effect
+    const getUrl = (filename: string) => {
+        if (isLoading || effects.length === 0) {
+            // Fallback to local path while loading
+            return `/Effect/${filename}`;
+        }
+
+        const effect = effects.find((e: { name: string; localPath: string; path: string }) =>
+            e.name === filename || e.localPath.endsWith(filename)
+        );
+        return effect ? effect.path : `/Effect/${filename}`;
+    };
+
     return (
         <div className="flex flex-col gap-2 bg-[#0a0a0a]/90 backdrop-blur-xl border border-[#333] rounded-xl p-3 shadow-[0_20px_50px_rgba(0,0,0,0.8)] w-[340px] relative pointer-events-auto transition-all duration-300">
             <div
@@ -136,7 +154,7 @@ export function ToolbarSkinSelector({ selectedSkin, onSkinChange, shape = 'circl
             >
                 <span className="text-[#c0a080] text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                     <Sparkles className="w-3.5 h-3.5" />
-                    Effets Visuels
+                    Effets Visuels {isLoading && <Cloud className="w-3 h-3 animate-pulse" />}
                 </span>
                 <button className="text-gray-500 hover:text-white transition-colors">
                     {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -164,7 +182,7 @@ export function ToolbarSkinSelector({ selectedSkin, onSkinChange, shape = 'circl
                                 title={option.label}
                             >
                                 <Image
-                                    src={`/Effect/${option.value.replace('.webm', '.webp')}`}
+                                    src={getUrl(option.value.replace('.webm', '.webp'))}
                                     alt={option.label}
                                     fill
                                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -172,7 +190,7 @@ export function ToolbarSkinSelector({ selectedSkin, onSkinChange, shape = 'circl
                                 />
                                 {hoveredSkin === option.value && (
                                     <video
-                                        src={`/Effect/${option.value}`}
+                                        src={getUrl(option.value)}
                                         className="absolute inset-0 w-full h-full object-cover z-20"
                                         autoPlay
                                         loop

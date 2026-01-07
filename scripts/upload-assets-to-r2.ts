@@ -67,6 +67,7 @@ const ASSET_DIRECTORIES = [
     'tabs',
     'Assets',  // Character portraits
     'images',  // Race and profile images
+    'Effect',  // Visual effects (Cone, Fireballs)
 ];
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];

@@ -1,17 +1,22 @@
 
 import { useState, useEffect } from 'react';
+import { useEffects, getEffectUrl } from './useEffects';
 
 export const useSkinVideo = (selectedSkin: string) => {
     const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
 
+    // Load all effects from R2
+    const { effects, isLoading } = useEffects();
+
     useEffect(() => {
-        if (!selectedSkin) {
+        if (!selectedSkin || isLoading || effects.length === 0) {
             setVideoElement(null);
             return;
         }
 
         const video = document.createElement('video');
-        video.src = `/Effect/${selectedSkin}`;
+        // Get the R2 URL for this effect
+        video.src = getEffectUrl(selectedSkin, effects);
         video.loop = true;
         video.muted = true;
         video.playsInline = true;
@@ -25,7 +30,7 @@ export const useSkinVideo = (selectedSkin: string) => {
             video.pause();
             setVideoElement(null);
         };
-    }, [selectedSkin]);
+    }, [selectedSkin, effects, isLoading]);
 
     return videoElement;
 };
