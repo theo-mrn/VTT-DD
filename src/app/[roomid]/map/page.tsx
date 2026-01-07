@@ -969,6 +969,9 @@ export default function Component() {
   // 🎵 Global audio reference for quick sounds
   const globalAudioRef = useRef<HTMLAudioElement | null>(null);
 
+  // 🎵 Track if this is the first snapshot (to ignore initial state on page load)
+  const isFirstSnapshotRef = useRef(true);
+
   // 🎵 Update global audio volume when mixer changes
   useEffect(() => {
     if (globalAudioRef.current) {
@@ -980,9 +983,18 @@ export default function Component() {
   useEffect(() => {
     if (!roomId) return
 
+    // Reset the flag when the effect runs (on mount or roomId change)
+    isFirstSnapshotRef.current = true;
+
     const globalSoundRef = firestoreDoc(db, 'global_sounds', roomId)
 
     const unsubscribe = onSnapshot(globalSoundRef, (docSnap) => {
+      // Skip the first snapshot (initial state) to avoid replaying old sounds
+      if (isFirstSnapshotRef.current) {
+        isFirstSnapshotRef.current = false;
+        return;
+      }
+
       if (docSnap.exists()) {
         const data = docSnap.data()
 
@@ -997,13 +1009,15 @@ export default function Component() {
         }
 
         if (data.soundUrl && data.timestamp) {
-          // Check if this is a new sound event (not older than 2 seconds)
           const eventTime = data.timestamp.toMillis ? data.timestamp.toMillis() : data.timestamp
           const now = Date.now()
           const timeDiff = now - eventTime
 
-          // Tolerate up to 60 seconds of delay/clock drift
-          if (timeDiff < 60000) {
+          // Only play sounds that are very recent (within 5 seconds)
+          // This handles network latency while preventing old sounds from playing
+          // timeDiff > -2000 allows for small clock differences between client and server
+          if (timeDiff < 5000 && timeDiff > -2000) {
+
             // Stop previous audio if any
             if (globalAudioRef.current) {
               globalAudioRef.current.pause();
