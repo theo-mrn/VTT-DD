@@ -468,10 +468,12 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
         val.description.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-    const filteredBestiary = Object.entries(bestiary).filter(([key, val]) =>
-        key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        val.Nom.toLowerCase().includes(searchQuery.toLowerCase())
-    )
+    const filteredBestiary = Object.entries(bestiary)
+        .filter(([key, val]) =>
+            key.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            val.Nom.toLowerCase().includes(searchQuery.toLowerCase())
+        )
+        .sort((a, b) => a[1].Nom.localeCompare(b[1].Nom))
 
     const filteredTokens = tokens.filter(t =>
         t.name.toLowerCase().includes(searchQuery.toLowerCase())
