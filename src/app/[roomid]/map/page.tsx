@@ -5569,13 +5569,10 @@ export default function Component() {
     // 🎯 DRAG & DROP OBJET
     // 🎯 DRAG & DROP OBJET (MULTI)
     if (isDraggingObject && draggedObjectIndex !== null && draggedObjectsOriginalPositions.length > 0) {
-      // Calculate start mouse position in MAP coordinates
-      const startMapX = ((dragStart.x - rect.left + offset.x) / scaledWidth) * imgWidth;
-      const startMapY = ((dragStart.y - rect.top + offset.y) / scaledHeight) * imgHeight;
-
-      // Calculate the movement of the mouse
-      const deltaX = currentX - startMapX;
-      const deltaY = currentY - startMapY;
+      // dragStart now contains MAP coordinates (fixed), not client coordinates
+      // Calculate the movement directly
+      const deltaX = currentX - dragStart.x;
+      const deltaY = currentY - dragStart.y;
 
       setObjects(prev => prev.map((obj, index) => {
         const originalPos = draggedObjectsOriginalPositions.find(pos => pos.index === index);
@@ -6967,8 +6964,19 @@ export default function Component() {
                         setSelectedObjectIndices(prev => [...prev, index]);
                       }
 
-                      // Initiate Drag (reuse existing state or logic if compatible)
-                      setDragStart({ x: e.clientX, y: e.clientY });
+                      // Initiate Drag - Convert client coords to map coords for consistency
+                      const rect = bgCanvasRef.current?.getBoundingClientRect();
+                      if (!rect) return;
+                      const containerWidth = containerRef.current?.clientWidth || rect.width;
+                      const containerHeight = containerRef.current?.clientHeight || rect.height;
+                      const image = bgImageObject;
+                      const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+                      const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+                      const scaledWidth = imgWidth * scale * zoom;
+                      const scaledHeight = imgHeight * scale * zoom;
+                      const startMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
+                      const startMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
+                      setDragStart({ x: startMapX, y: startMapY });
                       setIsDraggingObject(true);
                       setDraggedObjectIndex(index);
                       setDraggedObjectOriginalPos({ x: obj.x, y: obj.y });
