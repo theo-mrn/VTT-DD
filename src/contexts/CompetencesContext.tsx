@@ -1,12 +1,19 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { mapImagePath } from '@/utils/imagePathMapper';
 
-type Competence = {
+export type Competence = {
   titre: string;
   description: string;
   type: string;
   source?: string;
+  // Extended fields for Stats
+  image?: string;
+  modificateurs?: Record<string, number>;
+  hitDie?: string;
+  tailleMoyenne?: number;
+  poidsMoyen?: number;
 };
 
 type Voie = {
@@ -34,11 +41,50 @@ export function CompetencesProvider({ children }: { children: React.ReactNode })
   const [races, setRaces] = useState<Voie[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [prestiges, setPrestiges] = useState<Profile[]>([]);
+  const [raceStats, setRaceStats] = useState<any[]>([]);
+  const [profileStats, setProfileStats] = useState<any[]>([]);
+  const [rules, setRules] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Mémoiser toutes les compétences pour éviter de les recalculer à chaque recherche
   const allCompetences = useMemo(() => {
     const competences: Competence[] = [];
+
+    // Ajouter les stats de base des races
+    raceStats.forEach(stat => {
+      competences.push({
+        titre: stat.name, // Nom de la race (ex: "Elfe")
+        description: stat.description,
+        type: "Race",
+        source: "Règles",
+        image: stat.image,
+        modificateurs: stat.modificateurs,
+        tailleMoyenne: stat.tailleMoyenne,
+        poidsMoyen: stat.poidsMoyen
+      });
+    });
+
+    // Ajouter les stats de base des profils
+    profileStats.forEach(stat => {
+      competences.push({
+        titre: stat.name, // Nom du profil (ex: "Barbare")
+        description: stat.description,
+        type: "Classe",
+        source: "Règles",
+        image: stat.image,
+        hitDie: stat.hitDie
+      });
+    });
+
+    // Ajouter les règles
+    rules.forEach(rule => {
+      competences.push({
+        titre: rule.title,
+        description: rule.description,
+        type: "Règle", // New type for filtering
+        source: "Règles"
+      });
+    });
 
     // Ajouter les compétences des races
     races.forEach(race => {
@@ -75,14 +121,53 @@ export function CompetencesProvider({ children }: { children: React.ReactNode })
     });
 
     return competences;
-  }, [races, profiles, prestiges]);
+  }, [races, profiles, prestiges, raceStats, profileStats, rules]);
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
+        // Fetch Base Stats (Race & Profile) & Rules
+        try {
+          const [raceRes, profileRes, rulesRes] = await Promise.all([
+            fetch('/tabs/race.json'),
+            fetch('/tabs/profile.json'),
+            fetch('/tabs/Rules.json')
+          ]);
+
+          if (raceRes.ok) {
+            const raceData = await raceRes.json();
+            const formattedRaces = await Promise.all(Object.entries(raceData).map(async ([key, data]: [string, any]) => ({
+              name: key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' '),
+              ...data,
+              image: data.image ? await mapImagePath(data.image) : undefined
+            })));
+            setRaceStats(formattedRaces);
+          }
+
+          if (profileRes.ok) {
+            const profileData = await profileRes.json();
+            const formattedProfiles = await Promise.all(Object.entries(profileData).map(async ([key, data]: [string, any]) => ({
+              name: key.charAt(0).toUpperCase() + key.slice(1),
+              ...data,
+              image: data.image ? await mapImagePath(data.image) : undefined
+            })));
+            setProfileStats(formattedProfiles);
+          }
+
+          if (rulesRes.ok) {
+            const rulesData = await rulesRes.json();
+            if (rulesData.rules && Array.isArray(rulesData.rules)) {
+              setRules(rulesData.rules);
+            }
+          }
+        } catch (e) {
+          console.error("Error fetching stats json", e);
+        }
+
         // Fetch profiles
-        const profileNames = ["Barbare", "Barde", "Chevalier", "Druide", "Samourai", "Ensorceleur", "Forgesort", "Guerrier", "Invocateur", "Moine", "Psionique", "Rodeur", "Voleur"];
+        const profileNames = ["Barbare", "Barde", "Chevalier", "Druide", "Ensorceleur", "Forgesort", "Guerrier", "Invocateur", "Magicien", "Moine", "Necromancien", "Pretre", "Psionique", "Rodeur", "Samourai", "Voleur"];
+        // Note: added missing profiles from list based on profile.json check if needed
         const profileData: Profile[] = [];
 
         for (const name of profileNames) {
@@ -122,7 +207,7 @@ export function CompetencesProvider({ children }: { children: React.ReactNode })
         setProfiles(profileData);
 
         // Fetch races
-        const raceNames = ["Ame-forgee", "Drakonide", "Elfe", "Elfesylvain", "Elfenoir", "Humain", "Minotaure", "Ogre", "Orque", "Nain"];
+        const raceNames = ["Ame-forgee", "Drakonide", "Elfe", "Elfesylvain", "Elfenoir", "Halfelin", "Humain", "Minotaure", "Ogre", "Orque", "Nain"];
         const raceData: Voie[] = [];
 
         for (const name of raceNames) {
