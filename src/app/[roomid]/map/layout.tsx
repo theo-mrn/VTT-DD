@@ -97,7 +97,7 @@ export default function Layout({ children }: LayoutProps) {
         <Sidebar activeTab={activeTab} handleIconClick={handleIconClick} isMJ={isMJ} />
       </div>
 
-      <div className="absolute left-0 z-10">
+      <div className="absolute left-0 z-0">
         <OverlayComponent />
       </div>
 
@@ -142,7 +142,7 @@ export default function Layout({ children }: LayoutProps) {
       )}
 
 
-      <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c] z-0">
+      <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c] -z-10">
         <div className="w-full h-full">{children}</div>
       </main>
       {/* 3D Dice Overlay */}
