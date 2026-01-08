@@ -2156,7 +2156,7 @@
         ]
     },
     "brass-dragon-wyrmling": {
-        "Nom": "Wyrmling dragon en laiton",
+        "Nom": "Dragon Wyrmling en laiton",
         "Type": "Dragon (Medium)",
         "description": "Dragon d'alignement chaotic good.",
         "image": "https://www.dnd5eapi.co/api/images/monsters/brass-dragon-wyrmling.png",
@@ -2701,7 +2701,7 @@
         ]
     },
     "commoner": {
-        "Nom": "Commoner",
+        "Nom": "Roturier",
         "Type": "Humanoïde (Medium)",
         "description": "Humanoïde d'alignement any alignment.",
         "image": "https://www.dnd5eapi.co/api/images/monsters/commoner.png",
@@ -6121,7 +6121,7 @@
         ]
     },
     "hydra": {
-        "Nom": "Hydra",
+        "Nom": "Hydre@",
         "Type": "Monstruosité (Huge)",
         "description": "Monstruosité d'alignement unaligned.",
         "image": "https://www.dnd5eapi.co/api/images/monsters/hydra.png",
@@ -7237,7 +7237,7 @@
         ]
     },
     "mummy": {
-        "Nom": "Maman",
+        "Nom": "Momie",
         "Type": "Mort-vivant (Medium)",
         "description": "Mort-vivant d'alignement lawful evil.",
         "image": "https://www.dnd5eapi.co/api/images/monsters/mummy.png",
@@ -10507,7 +10507,7 @@
         ]
     },
     "water-elemental": {
-        "Nom": "Élémentaire de l'eau",
+        "Nom": "Élémentaire d'eau",
         "Type": "Élémentaire (Large)",
         "description": "Élémentaire d'alignement neutral.",
         "image": "https://www.dnd5eapi.co/api/images/monsters/water-elemental.png",
@@ -11511,7 +11511,7 @@
         ]
     },
     "young-brass-dragon": {
-        "Nom": "Jeune dragon en laiton",
+        "Nom": "Jeune dragon de laiton",
         "Type": "Dragon (Large)",
         "description": "Dragon d'alignement chaotic good.",
         "image": "https://www.dnd5eapi.co/api/images/monsters/young-brass-dragon.png",
