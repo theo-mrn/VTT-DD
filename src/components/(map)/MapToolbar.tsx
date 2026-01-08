@@ -267,7 +267,7 @@ export default function MapToolbar({
 
     return (
         <div className={cn(
-            "fixed bottom-4 left-1/2 -translate-x-1/2 z-[10] transition-all duration-300 ease-in-out",
+            "fixed bottom-4 left-1/2 -translate-x-1/2 z-[50] transition-all duration-300 ease-in-out",
             isCollapsed ? "translate-y-[calc(100%+24px)]" : "translate-y-0",
             className || ""
         )}>
