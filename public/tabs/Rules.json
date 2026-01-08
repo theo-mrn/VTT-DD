@@ -1,15 +1,13 @@
 {
     "rules": [
-          {
+        {
             "title": "Jet de sauvegarde",
             "description": "test de dé (1d20 + modificateur) pour déterminer si un personnage résiste à un effet néfaste comme un sort, un piège ou un poison. Le type de sauvegarde (Force, Dextérité, etc.) dépend de la nature de la menace. Réussir un jet de sauvegarde permet de réduire ou d'éviter les conséquences négatives de l'effet."
         },
-         {
+        {
             "title": "Aveuglé",
             "description": "Un personnage aveuglé ne peut pas voir et échoue automatiquement à tout test de caractéristique qui nécessite la vue.Les attaques contre ce personnage ont l'avantage.Les attaques du personnage aveuglé ont un désavantage."
         },
-        
-        
         {
             "title": "Charmé",
             "description": "Un personnage charmé ne peut pas attaquer la créature qui l'a charmé, ni la prendre pour cible avec des capacités ou des effets magiques. La créature qui a charmé le personnage a l'avantage sur les tests de caractéristiques pour interagir socialement avec lui."
@@ -22,32 +20,26 @@
             "title": "Effrayé",
             "description": "Un personnage effrayé a un désavantage sur les tests de caractéristique et les jets d'attaque tant que la source de sa peur est dans sa ligne de vue. Le personnage ne peut volontairement se déplacer plus près de la source de sa peur."
         },
-       
         {
             "title": " Incapacité",
             "description": "Un personnage en incapacité ne peut pas entreprendre des actions ou des réactions."
         },
-       {
+        {
             "title": "Paralysé",
             "description": "Un personnage paralysé a Incapacitaté et ne peut ni bouger ni parler. Les jets d'attaque contre ce personnage ont l'avantage. Toute attaque qui touche le personnage paralysé est un coup critique si l'attaquant est à moins de 1,5 mètre (5 pieds) du personnage. Le personnage échoue automatiquement aux jets de sauvegarde de Force et de Dextérité."
         },
-        
-           {
+        {
             "title": "Empoisonné",
             "description": "Un personnage empoisonné a un désavantage sur les jets d'attaque et les tests de caractéristique."
         },
-          
-              {
+        {
             "title": "Etourdi",
             "description": "Le personnage étourdi a Incapacité, ne peut pas bouger, et ne peut parler que faiblement. Les jets d'attaque contre lui ont l'avantage. Le personnage échoue automatiquement aux jets de sauvegarde de Force et de Dextérité."
         },
-              {
+        {
             "title": "Inconscient",
             "description": "Le personnage inconscient a Incapacitaté, ne peut pas bouger ou parler, et est inconscient. Il laisse tomber tout ce qu'il tient et tombe à terre (prone). Les jets d'attaque contre le personnage ont l'avantage. Toute attaque qui touche le personnage inconscient est un coup critique si l'attaquant est à moins de 1,5 mètre (5 pieds). Le personnage échoue automatiquement aux jets de sauvegarde de Force et de Dextérité."
         },
-        
-        
-        
         {
             "title": "CON (Constitution)",
             "description": "La Constitution mesure la santé, l'endurance et la vitalité générale du personnage. Une haute constitution permet de mieux résister aux blessures et aux maladies."
@@ -73,7 +65,7 @@
             "description": "La Force mesure la puissance physique et la capacité à exercer une force brute. Elle est essentielle pour les actions nécessitant de la force physique, comme le combat au corps à corps."
         },
         {
-            "title": "Défense",
+            "title": "Défense (CA)",
             "description": "La Défense représente la capacité du personnage à éviter les attaques ou à réduire les dégâts reçus. Elle est calculée en fonction de l'armure et de la dextérité."
         },
         {
@@ -95,6 +87,86 @@
         {
             "title": "Magie",
             "description": "Le score de magie détermine si un personnage réussit à atteindre sa cible avec un sort. Ce score dépend souvent de l'intelligence, de la sagesse ou du charisme, selon la classe de lanceur de sorts."
+        },
+        {
+            "title": "Coup Critique",
+            "description": "Sur un jet d'attaque, si le d20 affiche un 20 (naturel), l'attaque touche indépendamment de la CA de la cible et devient un coup critique. Vous lancez deux fois tous les dés de dégâts de l'attaque, puis vous ajoutez vos modificateurs habituels (les modificateurs ne sont pas doublés)."
+        },
+        {
+            "title": "Echec Critique",
+            "description": "Sur un jet d'attaque, si le d20 affiche un 1 (naturel), l'attaque échoue automatiquement, quels que soient les modificateurs ou la CA de la cible."
+        },
+        {
+            "title": "Avantage",
+            "description": "Vous lancez deux d20 et gardez le résultat le plus élevé. Si vous avez plusieurs sources d'avantage, vous ne lancez toujours que deux dés. Si vous avez l'avantage et le désavantage en même temps, ils s'annulent (on lance un seul d20)."
+        },
+        {
+            "title": "Désavantage",
+            "description": "Vous lancez deux d20 et gardez le résultat le plus bas. Si vous avez plusieurs sources de désavantage, vous ne lancez toujours que deux dés."
+        },
+        {
+            "title": "Bonus de Maîtrise",
+            "description": "Bonus fixe (+2 au niveau 1) basé sur le niveau global du personnage. Il s'ajoute aux jets d'attaque avec des armes maîtrisées, aux jets de sorts et aux tests de compétence ou de sauvegarde que le personnage maîtrise."
+        },
+        {
+            "title": "Jet de Sauvegarde contre la Mort",
+            "description": "Si vous commencez votre tour avec 0 PV, lancez un d20 (sans modificateur). 10 ou plus : réussite. Moins de 10 : échec. 3 réussites : vous êtes stabilisé. 3 échecs : vous mourez. Un '1' naturel compte comme 2 échecs. Un '20' naturel vous fait regagner immédiatement 1 PV."
+        },
+        {
+            "title": "Concentration",
+            "description": "Nécessaire pour maintenir certains sorts. Elle est rompue si : 1) Vous lancez un autre sort nécessitant de la concentration. 2) Vous subissez des dégâts et échouez à un jet de sauvegarde de Constitution (DD 10 ou la moitié des dégâts, le plus élevé des deux). 3) Vous êtes en état d'Incapacité ou mourez."
+        },
+        {
+            "title": "Attaque d'Opportunité",
+            "description": "Réaction déclenchée quand une créature hostile sort de votre allonge. Vous effectuez une attaque au corps à corps contre elle avant qu'elle ne quitte sa case."
+        },
+        {
+            "title": "Terrain Difficile",
+            "description": "Chaque mètre de déplacement dans un terrain difficile coûte 1 mètre supplémentaire. (Exemple : se déplacer de 1,5m coûte 3m de mouvement)."
+        },
+        {
+            "title": "Abri (Couverture)",
+            "description": "Un abri partiel (+2 CA et sauvegardes DEX) couvre la moitié du corps. Un abri important (+5 CA et sauvegardes DEX) couvre les trois quarts. Un abri total empêche d'être ciblé directement par une attaque ou un sort."
+        },
+        {
+            "title": "Repos Court",
+            "description": "Période d'au moins 1 heure d'activité calme (manger, soigner les plaies). Un personnage peut dépenser des Dés de Vie pour récupérer des PV (résultat du dé + modificateur de Constitution par dé)."
+        },
+        {
+            "title": "Repos Long",
+            "description": "Période d'au moins 8 heures. À la fin, le personnage récupère tous ses Points de Vie et la moitié de son maximum de Dés de Vie. Il récupère aussi ses emplacements de sorts."
+        },
+        {
+            "title": "Action : Se Désengager",
+            "description": "Si vous prenez l'action Se Désengager, vos mouvements ne provoquent pas d'attaques d'opportunité pour le reste du tour."
+        },
+        {
+            "title": "Action : Esquiver",
+            "description": "Jusqu'au début de votre prochain tour, toute attaque contre vous a un désavantage si vous voyez l'attaquant, et vous avez l'avantage sur les jets de sauvegarde de Dextérité."
+        },
+        {
+            "title": "Action : Se tenir prêt (Ready)",
+            "description": "Vous choisissez une action et un déclencheur perceptible. Vous utilisez votre Réaction pour effectuer cette action juste après que le déclencheur se produise. Si c'est un sort, il nécessite de la concentration jusqu'au déclenchement."
+        },
+        {
+            "title": "Action : Foncer (Dash)",
+            "description": "Vous gagnez un mouvement supplémentaire égal à votre vitesse actuelle pour le tour (ce qui double généralement votre distance parcourable)."
+        },
+        {
+            "title": "Action : Aider",
+            "description": "Vous donnez l'avantage au prochain test de caractéristique d'une créature alliée, ou à sa prochaine attaque contre une cible située à 1,5m de vous, si elle a lieu avant votre prochain tour."
+        },
+        {
+            "title": "Agripper / Lutte (Grapple)",
+            "description": "Attaque spéciale au corps à corps qui remplace une de vos attaques. Test de Force (Athlétisme) contre la Force (Athlétisme) ou la Dextérité (Acrobatie) de la cible. Si réussi, la cible a l'état Agrippé (vitesse 0)."
+        },
+        {
+            "title": "Bousculer (Shove)",
+            "description": "Attaque spéciale qui remplace une de vos attaques. Test de Force (Athlétisme) contre Force (Athlétisme) ou Dextérité (Acrobatie). Si réussi, la cible est repoussée de 1,5m OU mise à terre (Prone)."
+        },
+        {
+            "title": "Points de Vie Temporaires",
+            "description": "Ces points ne sont pas des soins et ne s'ajoutent pas aux PV réels. Ils absorbent les dégâts en premier. Ils ne se cumulent pas (on garde la valeur la plus élevée reçue)."
         }
     ]
 }

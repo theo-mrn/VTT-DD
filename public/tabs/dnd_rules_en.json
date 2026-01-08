@@ -1,0 +1,22 @@
+{
+  "conditions": [
+    {
+      "id": "blinded",
+      "name": "Blinded",
+      "desc": [
+        "- A blinded creature can't see and automatically fails any ability check that requires sight.",
+        "- Attack rolls against the creature have advantage, and the creature's attack rolls have disadvantage."
+      ],
+      "full_data": {
+        "index": "blinded",
+        "name": "Blinded",
+        "desc": [
+          "- A blinded creature can't see and automatically fails any ability check that requires sight.",
+          "- Attack rolls against the creature have advantage, and the creature's attack rolls have disadvantage."
+        ],
+        "url": "/api/2014/conditions/blinded",
+        "updated_at": "2025-10-24T20:42:12.637Z"
+      }
+    }
+  ]
+}

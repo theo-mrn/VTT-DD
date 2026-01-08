@@ -120,14 +120,13 @@ export default function SearchMenu() {
 
     // Derived state for display
     const visibleResults = useMemo(() => {
-        // If no search term, show nothing? Or show all?
-        // User pattern usually expects empty start.
-        if (!searchTerm) {
-            // Can be modified to show recent or specific items if needed
-            return [];
+        if (!searchTerm.trim()) {
+            // By default, only show results for specific categories, not for "all"
+            if (activeTab === "all") return [];
+            return filterByTab(allCompetences, activeTab);
         }
         return filterByTab(searchResults, activeTab);
-    }, [searchResults, activeTab, searchTerm, filterByTab]);
+    }, [searchResults, allCompetences, activeTab, searchTerm, filterByTab]);
 
     if (!open) return null;
 
@@ -193,12 +192,17 @@ export default function SearchMenu() {
                     {/* Filtered List */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar">
                         {isLoading && <div className="p-8 text-center text-muted-foreground text-sm">Chargement...</div>}
-                        {!isLoading && searchTerm && visibleResults.length === 0 && (
-                            <div className="p-8 text-center text-muted-foreground text-sm">Aucun résultat</div>
-                        )}
-                        {!searchTerm && (
-                            <div className="p-8 text-center text-muted-foreground/40 text-sm flex flex-col items-center gap-2">
-                                <span>Commencez à taper pour chercher</span>
+                        {!isLoading && visibleResults.length === 0 && (
+                            <div className="p-8 text-center text-muted-foreground text-sm">
+                                {searchTerm ? (
+                                    "Aucun résultat"
+                                ) : activeTab === "all" ? (
+                                    <div className="flex flex-col items-center gap-2 opacity-40">
+                                        <span>Commencez à taper pour chercher</span>
+                                    </div>
+                                ) : (
+                                    "Aucun élément trouvé"
+                                )}
                             </div>
                         )}
 

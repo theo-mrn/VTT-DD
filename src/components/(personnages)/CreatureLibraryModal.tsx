@@ -1149,6 +1149,31 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                 </div>
                             </div>
 
+                            {/* Actions / Attacks Section */}
+                            {selectedCreature && bestiary[selectedCreature]?.Actions && bestiary[selectedCreature].Actions.length > 0 && (
+                                <div className="space-y-4 mt-6">
+                                    <h3 className="text-[#c0a080] text-xs font-bold uppercase tracking-widest flex items-center gap-2">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-[#c0a080]" />
+                                        Actions & Attaques
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {bestiary[selectedCreature].Actions.map((action, idx) => (
+                                            <div key={idx} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg p-3 space-y-2">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <h4 className="text-white font-bold text-sm">{action.Nom}</h4>
+                                                    {action.Toucher > 0 && (
+                                                        <span className="text-xs bg-[#c0a080]/20 text-[#c0a080] px-2 py-0.5 rounded border border-[#c0a080]/30 font-mono shrink-0">
+                                                            +{action.Toucher}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <p className="text-zinc-400 text-xs leading-relaxed">{action.Description}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                         </div>
                     </div>
 
