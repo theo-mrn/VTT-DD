@@ -889,6 +889,12 @@ export function GMDashboard() {
                             </CardDescription>
                           </CardHeader>
                           <CardContent className="p-3 pt-1 text-xs">
+                            {report.attaquant === report.cible && (
+                              <div className="mb-2 bg-red-500/20 text-red-500 border border-red-500/50 rounded px-2 py-1 font-bold text-center flex items-center justify-center gap-2">
+                                <Skull className="h-3 w-3" />
+                                AUTO-ATTAQUE
+                              </div>
+                            )}
                             <div className="flex justify-between mb-1">
                               <span className="text-[var(--text-secondary)]">Jet:</span>
                               <span className="font-mono font-bold">{report.attaque_result}</span>
