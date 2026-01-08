@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Search, Info, User, Upload, BookOpen, X, Check, Dna, Shield, Heart, Swords, Filter, Pencil, Crop as CropIcon, ZoomIn, Crop, Loader2, Ghost, Images } from 'lucide-react'
+import { Search, Info, User, Upload, BookOpen, X, Check, Dna, Shield, Heart, Swords, Filter, Pencil, Crop as CropIcon, ZoomIn, Crop, Loader2, Ghost, Images, Wand2 } from 'lucide-react'
 import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { mapImagePath } from '@/utils/imagePathMapper'
 import Cropper from 'react-easy-crop'
@@ -97,7 +97,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     })
 
     // Selection State
-    const [activeTab, setActiveTab] = useState<'bestiary' | 'race' | 'profile' | 'token'>('bestiary')
+    const [activeTab, setActiveTab] = useState<'bestiary' | 'race' | 'profile' | 'token' | 'generate'>('bestiary')
 
     const [selectedRace, setSelectedRace] = useState<string | null>(null)
     const [selectedProfile, setSelectedProfile] = useState<string | null>(null)
@@ -109,6 +109,13 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     const [customName, setCustomName] = useState<string>('')
     const [activeImageSource, setActiveImageSource] = useState<'race' | 'profile' | 'creature' | 'custom'>('creature')
     const [searchQuery, setSearchQuery] = useState('')
+
+    // Generation State
+    const [generationName, setGenerationName] = useState('')
+    const [generationLevel, setGenerationLevel] = useState<number>(1)
+    const [generationPrompt, setGenerationPrompt] = useState('')
+    const [isGenerating, setIsGenerating] = useState(false)
+    const [generationError, setGenerationError] = useState<string | null>(null)
 
     // Image Selector Dialog State
     const [isImageSelectorOpen, setIsImageSelectorOpen] = useState(false)
@@ -374,6 +381,82 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
         }
     }
 
+    const handleGenerate = async () => {
+        // Allow either prompt OR name/level to trigger (though UI enforces name usually)
+        if (!generationPrompt.trim() && !generationName.trim()) return;
+
+        setIsGenerating(true);
+        setGenerationError(null);
+
+        try {
+            const response = await fetch('/api/generate-creature', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: generationName,
+                    level: generationLevel,
+                    description: generationPrompt
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'Failed to generate');
+            }
+
+            const data: BestiaryData = await response.json();
+
+            // Populate everything with generated data
+            setCustomName(data.Nom);
+            setTargetLevel(data.niveau);
+
+            // Set Stats
+            setStats({
+                PV_Max: data.PV_Max,
+                Defense: data.Defense,
+                INIT: data.INIT,
+                Contact: data.Contact,
+                Distance: data.Distance,
+                Magie: data.Magie,
+                FOR: data.FOR,
+                DEX: data.DEX,
+                CON: data.CON,
+                INT: data.INT,
+                SAG: data.SAG,
+                CHA: data.CHA
+            });
+
+            if (data.image) {
+                setCustomImage(data.image);
+                setActiveImageSource('custom');
+                // Open crop/edit view automatically? 
+                // Maybe just show it.
+            }
+
+            // If actions are returned, we might want to store them temporarily or 
+            // since this modifies "Creation" state which relies on `bestiary[selectedCreature]` for actions usually,
+            // we might need a way to pass custom actions. 
+            // The current `handleImport` uses `bestiary[selectedCreature]?.Actions` if in bestiary tab.
+            // But here we are in 'generate' tab. 
+            // We should ensure `handleImport` logic handles 'generate' tab or just uses current state.
+            // For now, let's assume we proceed to import directly? 
+            // Or better: The user sees the result in the inspector?
+
+            // To make `handleImport` work with custom actions from generation, we need a way to store them.
+            // Let's add a state for customActions if strictly needed, OR, 
+            // easier: We treat this as a "Custom" creature but we fill the stats.
+
+            // Switch view to 'Token' or stay here? 
+            // Staying here allows further refinement.
+
+        } catch (error: any) {
+            console.error("Generation failed:", error);
+            setGenerationError(error.message);
+        } finally {
+            setIsGenerating(false);
+        }
+    }
+
     // Filtering
     const filteredRaces = Object.entries(races).filter(([key, val]) =>
         key.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -486,6 +569,127 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
         }
     }
 
+    const renderGenerateTab = () => {
+        return (
+            <div className="flex flex-col h-full">
+                {/* Header Section */}
+                <div className="px-6 py-6 border-b border-[#2a2a2a] bg-[#121214] flex items-center justify-between">
+                    <div>
+                        <div className="flex items-center gap-3 mb-2">
+                            <h2 className="text-xl font-serif text-[#e4e4e7] tracking-tight">Création Rapide</h2>
+                        </div>
+                        <p className="text-sm text-zinc-500 font-medium ml-8">
+                            En manque d'inspiration, laissez yner s'en occuper
+                        </p>
+                    </div>
+                    <button
+                        onClick={handleGenerate}
+                        disabled={isGenerating || (!generationPrompt.trim() && !generationName.trim())}
+                        className="bg-[#c0a080] hover:bg-[#b09070] text-[#09090b] font-bold px-6 py-2.5 rounded-lg shadow-lg shadow-[#c0a080]/10 hover:shadow-[#c0a080]/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isGenerating ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <span>Création...</span>
+                            </>
+                        ) : (
+                            <>
+                                <span>Générer</span>
+                            </>
+                        )}
+                    </button>
+                </div>
+
+                {/* Scrollable Content */}
+                <div className="flex-1 overflow-y-auto px-6 py-8 space-y-8">
+
+                    {/* Identity Section */}
+                    <div className="space-y-4">
+                        <div className="flex items-end justify-between border-b border-[#2a2a2a] pb-2">
+                            <label className="text-sm font-bold text-[#c0a080] uppercase tracking-wider">Identité</label>
+                        </div>
+
+                        <div className="grid grid-cols-12 gap-6">
+                            {/* Name Input */}
+                            <div className="col-span-9 space-y-2">
+                                <label className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Nom</label>
+                                <input
+                                    type="text"
+                                    className="w-full bg-[#0c0c0e] border border-[#2a2a2a] rounded-lg px-4 py-3 text-lg text-white placeholder-zinc-700 focus:outline-none focus:border-[#c0a080] transition-colors font-serif"
+                                    placeholder="Ex: Le Roi des Tombes..."
+                                    autoFocus
+                                    value={generationName}
+                                    onChange={(e) => setGenerationName(e.target.value)}
+                                />
+                            </div>
+
+                            {/* Level Input */}
+                            <div className="col-span-3 space-y-2">
+                                <label className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Niveau</label>
+                                <div className="relative h-[52px]">
+                                    <input
+                                        type="number"
+                                        min={1}
+                                        max={30}
+                                        className="w-full h-full bg-[#0c0c0e] border border-[#2a2a2a] rounded-lg text-center text-lg text-white font-mono focus:outline-none focus:border-[#c0a080] transition-colors appearance-none"
+                                        value={generationLevel}
+                                        onChange={(e) => setGenerationLevel(Number(e.target.value))}
+                                    />
+                                    {/* Custom Arrows */}
+                                    <div className="absolute right-1 top-1 bottom-1 flex flex-col w-6 border-l border-[#2a2a2a]">
+                                        <button
+                                            onClick={() => setGenerationLevel(l => Math.min(30, l + 1))}
+                                            className="flex-1 hover:bg-[#2a2a2a] text-zinc-500 hover:text-[#c0a080] flex items-center justify-center rounded-tr-md"
+                                        >
+                                            <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[4px] border-b-current" />
+                                        </button>
+                                        <button
+                                            onClick={() => setGenerationLevel(l => Math.max(1, l - 1))}
+                                            className="flex-1 hover:bg-[#2a2a2a] text-zinc-500 hover:text-[#c0a080] flex items-center justify-center rounded-br-md"
+                                        >
+                                            <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-t-[4px] border-t-current" />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Inspiration Section */}
+                    <div className="space-y-4 flex-1 flex flex-col min-h-[200px]">
+                        <div className="flex items-end justify-between border-b border-[#2a2a2a] pb-2">
+                            <label className="text-sm font-bold text-[#c0a080] uppercase tracking-wider">Inspiration</label>
+                            <span className="text-xs text-zinc-600 font-medium italic">Visuel, Capacités, Lore...</span>
+                        </div>
+
+                        <div className="relative flex-1">
+                            <textarea
+                                className="w-full h-full min-h-[160px] bg-[#0c0c0e] border border-[#2a2a2a] rounded-lg p-4 text-base text-zinc-300 placeholder-zinc-700 focus:outline-none focus:border-[#c0a080] resize-none leading-relaxed custom-scrollbar shadow-inner"
+                                placeholder="Décrivez votre créature ici. Plus vous serez précis sur l'ambiance et l'équipement, plus l'image sera fidèle."
+                                value={generationPrompt}
+                                onChange={(e) => setGenerationPrompt(e.target.value)}
+                            />
+                            <div className="absolute bottom-3 right-3 pointer-events-none">
+                                <Pencil className="w-4 h-4 text-[#c0a080]/20" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Error / Status Area */}
+                    {generationError && (
+                        <div className="bg-red-950/20 border border-red-900/50 rounded-lg p-4 flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2">
+                            <Info className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+                            <div className="space-y-1">
+                                <p className="text-sm font-medium text-red-400">Erreur lors de la génération</p>
+                                <p className="text-xs text-red-300/80">{generationError}</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )
+    }
+
     // --- RENDER HELPERS ---
 
     const getPreviewImage = () => {
@@ -557,33 +761,60 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                 className="w-full bg-[#18181b] border border-[#27272a] rounded-full py-2.5 pl-10 pr-4 text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-[#c0a080] focus:ring-1 focus:ring-[#c0a080]/50 transition-all font-medium text-sm"
                             />
                         </div>
+                    </div>
+                    {/* Top Navigation Bar - Split into Origins and Modifiers */}
+                    <div className="flex items-center justify-between mb-6 px-6 gap-4">
 
-                        {/* Unified Tabs */}
-                        <div className="flex bg-[#18181b] p-1 rounded-lg border border-[#27272a]">
-                            <button
-                                onClick={() => setActiveTab('bestiary')}
-                                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'bestiary' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
-                            >
-                                Bestiaire
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('race')}
-                                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'race' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
-                            >
-                                Races
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('profile')}
-                                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'profile' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
-                            >
-                                Classes
-                            </button>
-                            <button
-                                onClick={() => setActiveTab('token')}
-                                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'token' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
-                            >
-                                Tokens
-                            </button>
+                        {/* Group 1: Origins (Base) */}
+                        <div className="flex flex-col gap-1.5 flex-1">
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider ml-1">Origine</label>
+                            <div className="flex items-center p-1 bg-[#18181b] rounded-lg border border-[#27272a] w-fit">
+                                <button
+                                    onClick={() => setActiveTab('bestiary')}
+                                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'bestiary' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
+                                >
+                                    Bestiaire
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('race')}
+                                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'race' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
+                                >
+                                    Races
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('generate')}
+                                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${activeTab === 'generate' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
+                                >
+                                    Générer
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Visual Separator */}
+                        <div className="h-10 w-px bg-[#2a2a2a] rotate-12 mx-2" />
+
+                        {/* Group 2: Modifiers */}
+                        <div className="flex flex-col gap-1.5 flex-1 items-end">
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mr-1 text-right w-full">Ajouter / Personnaliser</label>
+                            <div className="flex items-center p-1 bg-[#18181b] rounded-lg border border-[#27272a] w-fit">
+                                <button
+                                    onClick={() => setActiveTab('profile')}
+                                    disabled={activeTab === 'generate'}
+                                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 
+                                        ${activeTab === 'profile' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}
+                                        ${activeTab === 'generate' ? 'opacity-30 cursor-not-allowed hover:text-zinc-500' : ''}
+                                    `}
+                                    title={activeTab === 'generate' ? "Impossible d'ajouter une classe à une créature générée" : "Ajouter une classe"}
+                                >
+                                    <span className="text-lg leading-none pb-1">+</span> Classes
+                                </button>
+                                <button
+                                    onClick={() => setActiveTab('token')}
+                                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${activeTab === 'token' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
+                                >
+                                    <span className="text-lg leading-none pb-1">+</span> Tokens
+                                </button>
+                            </div>
                         </div>
                     </div>
 
@@ -623,14 +854,14 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                     </div>
 
                     {/* Content Grid */}
-                    <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-[url('/grid-pattern.svg')] bg-repeat opacity-90">
+                    <div className={`flex-1 overflow-y-auto custom-scrollbar bg-[url('/grid-pattern.svg')] bg-repeat opacity-90 ${activeTab === 'generate' ? 'p-0' : 'p-6'}`}>
                         {loading ? (
                             <div className="w-full h-40 flex items-center justify-center">
                                 <div className="w-8 h-8 border-4 border-[#c0a080] border-t-transparent rounded-full animate-spin" />
                             </div>
                         ) : (
-                            <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5">
-                                {renderGridItems()}
+                            <div className={activeTab === 'generate' ? "min-h-full" : "grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5"}>
+                                {activeTab === 'generate' ? renderGenerateTab() : renderGridItems()}
                             </div>
                         )}
                     </div>
