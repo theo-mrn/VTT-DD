@@ -31,13 +31,15 @@ export const useMeasurementSkins = (measurements: SharedMeasurement[]) => {
         video.muted = true;
         video.playsInline = true;
 
+        // Add to state immediately so it's available for rendering
+        setSkinElements(prev => ({
+          ...prev,
+          [skinFilename]: video
+        }));
+
         // Autoplay when ready
         video.onloadeddata = () => {
           video.play().catch(e => console.error(`Autoplay failed for ${skinFilename}`, e));
-          setSkinElements(prev => ({
-            ...prev,
-            [skinFilename]: video
-          }));
         };
 
         loadedSkins.current.add(skinFilename);
