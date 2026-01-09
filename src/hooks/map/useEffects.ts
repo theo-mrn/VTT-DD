@@ -59,10 +59,25 @@ export function useEffects(category?: 'Cone' | 'Fireballs') {
  * This looks up the mapping and returns the R2 public URL
  */
 export function getEffectUrl(filename: string, effects: EffectMapping[]): string {
+    // Normalize the filename - ensure it doesn't start with / or /Effect/
+    let normalizedFilename = filename.replace(/^\/+/, ''); // Remove leading slashes
+    if (normalizedFilename.startsWith('Effect/')) {
+        normalizedFilename = normalizedFilename.substring(7); // Remove 'Effect/' prefix
+    }
+
     // Try to find the effect by matching the filename
     const effect = effects.find(e => {
-        // Match by name or by end of localPath
-        return e.name === filename || e.localPath.endsWith(filename);
+        // Normalize the localPath for comparison
+        let normalizedLocalPath = e.localPath.replace(/^\/+/, '');
+        if (normalizedLocalPath.startsWith('Effect/')) {
+            normalizedLocalPath = normalizedLocalPath.substring(7);
+        }
+
+        // Match by name (exact) or by normalized path (ends with)
+        return e.name === normalizedFilename ||
+            normalizedLocalPath === normalizedFilename ||
+            normalizedLocalPath.endsWith(normalizedFilename) ||
+            e.name === filename;
     });
 
     if (effect) {
@@ -70,6 +85,6 @@ export function getEffectUrl(filename: string, effects: EffectMapping[]): string
     }
 
     // Fallback to local path if not found in mappings
-    console.warn(`Effect "${filename}" not found in R2 mappings, using local fallback`);
-    return `/Effect/${filename}`;
+    console.warn(`[getEffectUrl] Effect "${filename}" not found in R2 mappings (${effects.length} effects loaded)`);
+    return `/Effect/${normalizedFilename}`;
 }

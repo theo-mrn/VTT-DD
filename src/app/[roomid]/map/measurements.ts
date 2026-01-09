@@ -150,7 +150,13 @@ export function renderConeMeasurement(options: MeasurementRenderOptions): void {
         y: start.y + Math.sin(rightAngle) * pixelDist
     };
 
-    if (skinElement) {
+    // Check if skinElement is ready to be drawn
+    const isVideoReady = skinElement && (
+        !(skinElement instanceof HTMLVideoElement) ||  // Images are always ready
+        skinElement.readyState >= 2  // Videos need HAVE_CURRENT_DATA or better
+    );
+
+    if (isVideoReady) {
         ctx.save();
         ctx.beginPath();
         ctx.moveTo(start.x, start.y);
@@ -173,7 +179,7 @@ export function renderConeMeasurement(options: MeasurementRenderOptions): void {
         // We assume the video effect starts from the left side (if pointing right)
         // or we visually center it vertically.
         // Drawing at (0, -radius) puts the left-center of the video at the cone tip (0,0).
-        ctx.drawImage(skinElement, 0, -adjustedRadius, adjustedDiameter, adjustedDiameter);
+        ctx.drawImage(skinElement!, 0, -adjustedRadius, adjustedDiameter, adjustedDiameter);
 
         ctx.restore();
     } else {
@@ -233,7 +239,13 @@ export function renderCircleMeasurement(options: MeasurementRenderOptions): void
     const validPPU = (pixelsPerUnit && pixelsPerUnit > 0) ? pixelsPerUnit : 50;
     const unitDist = pixelDist / (validPPU * validScale * zoom);
 
-    if (skinElement) {
+    // Check if skinElement is ready to be drawn
+    const isVideoReady = skinElement && (
+        !(skinElement instanceof HTMLVideoElement) ||  // Images are always ready
+        skinElement.readyState >= 2  // Videos need HAVE_CURRENT_DATA or better
+    );
+
+    if (isVideoReady) {
         // Draw skin (centered)
         ctx.save();
         // Calculate dimensions: diameter = 2 * radius (pixelDist)
@@ -244,7 +256,7 @@ export function renderCircleMeasurement(options: MeasurementRenderOptions): void
 
         // Draw image centered at start.x, start.y
         ctx.translate(start.x, start.y);
-        ctx.drawImage(skinElement, -adjustedRadius, -adjustedRadius, adjustedDiameter, adjustedDiameter);
+        ctx.drawImage(skinElement!, -adjustedRadius, -adjustedRadius, adjustedDiameter, adjustedDiameter);
         ctx.restore();
     } else {
         // Draw filled circle

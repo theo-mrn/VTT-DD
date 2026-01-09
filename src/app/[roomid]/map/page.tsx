@@ -191,7 +191,7 @@ export default function Component() {
   const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0); // 🆕 Progress state
   const videoRef = useRef<HTMLVideoElement | null>(null); // Ref to keep track of video element for cleanup
-  const [selectedSkin, setSelectedSkin] = useState<string>('Fireballs/explosioin1.webm');
+  const [selectedSkin, setSelectedSkin] = useState<string>('Fireballs/explosion1.webm');
   const [isPermanent, setIsPermanent] = useState(false); // 🆕 Permanent measurement toggle
   const fireballVideo = useSkinVideo(selectedSkin); // For LOCAL active measurement
 
@@ -604,6 +604,11 @@ export default function Component() {
   const [measurements, setMeasurements] = useState<SharedMeasurement[]>([]);
   const measurementSkins = useMeasurementSkins(measurements); // For SHARED measurements
   const [currentMeasurementId, setCurrentMeasurementId] = useState<string | null>(null);
+
+  // Reset skin when shape changes to prevent cone skins on circles and vice-versa
+  useEffect(() => {
+    setSelectedSkin(''); // Reset to no animation
+  }, [measurementShape]);
 
   // 🆕 AUTO-DELETE TEMPORARY MEASUREMENTS
   useEffect(() => {
@@ -1708,30 +1713,12 @@ export default function Component() {
     const fgCanvas = fgCanvasRef.current;
     if (!bgCanvas || !characterBordersCanvas || !fgCanvas) return;
 
-    const bgCtx = bgCanvas.getContext('2d')!;
-    const borderCtx = characterBordersCanvas.getContext('2d')!;
-    const fgCtx = fgCanvas.getContext('2d')!;
-
-    // ⚡ PERFORMANCE THROTTLE (Eco Mode)
-    // Throttle the ENTIRE map render (Foreground + Background)
-    if (performanceMode === 'eco') {
-      const now = Date.now();
-      if (now - lastMapDrawTimeRef.current < 30) { // Cap at ~30 FPS
-        return;
-      }
-      lastMapDrawTimeRef.current = now;
-    }
-
-
-    // Fallback if no valid image: default 1920x1080 transparent canvas
-    const image = bgImageObject || { width: 1920, height: 1080 } as HTMLImageElement;
-
     const sizeMultiplier = 1.5;
-    // Use state dimensions if available, else fallbacks
     const containerWidth = containerSize.width || containerRef.current?.clientWidth || bgCanvas.width;
     const containerHeight = containerSize.height || containerRef.current?.clientHeight || bgCanvas.height;
 
-    // Set dimensions for THREE canvases
+    // ONLY configure canvas dimensions and scaling
+    // Do NOT render here - rendering is handled by the second useEffect
     bgCanvas.width = containerWidth * sizeMultiplier;
     bgCanvas.height = containerHeight * sizeMultiplier;
     characterBordersCanvas.width = containerWidth * sizeMultiplier;
@@ -1739,77 +1726,23 @@ export default function Component() {
     fgCanvas.width = containerWidth * sizeMultiplier;
     fgCanvas.height = containerHeight * sizeMultiplier;
 
+    const bgCtx = bgCanvas.getContext('2d')!;
+    const borderCtx = characterBordersCanvas.getContext('2d')!;
+    const fgCtx = fgCanvas.getContext('2d')!;
+
     bgCtx.scale(sizeMultiplier, sizeMultiplier);
     borderCtx.scale(sizeMultiplier, sizeMultiplier);
     fgCtx.scale(sizeMultiplier, sizeMultiplier);
 
-    // Initial draw
-    drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
-    drawCharacterBorders(borderCtx, image, containerWidth, containerHeight);
-    drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
-
-    // 🎥 VIDEO RENDER LOOP
-    let animationFrameId: number;
-
-    const hasAnimatedMeasurement =
-      (!!fireballVideo && measureMode && (measurementShape === 'circle' || measurementShape === 'cone')) ||
-      measurements.some(m => (m.type === 'circle' || m.type === 'cone') && m.skin);
-
-    const shouldAnimate = performanceMode !== 'static' && (image instanceof HTMLVideoElement || hasAnimatedMeasurement);
-
-    if (shouldAnimate) {
-      let lastFrameTime = 0;
-      const fpsInterval = performanceMode === 'eco' ? 1000 / 30 : 0; // 30fps for eco, 0 for max
-
-      const renderLoop = (timestamp: number) => {
-        // Redraw usually clears canvas
-
-        if (performanceMode === 'eco') {
-          const elapsed = timestamp - lastFrameTime;
-          if (elapsed > fpsInterval) {
-            lastFrameTime = timestamp - (elapsed % fpsInterval);
-            if (image instanceof HTMLVideoElement) {
-              drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
-            }
-            if (hasAnimatedMeasurement) {
-              drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
-            }
-          }
-        } else {
-          // High perf: draw every frame
-          if (image instanceof HTMLVideoElement) {
-            drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
-          }
-          if (hasAnimatedMeasurement) {
-            drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
-          }
-        }
-
-        animationFrameId = requestAnimationFrame(renderLoop);
-      };
-      animationFrameId = requestAnimationFrame(renderLoop);
-    }
-
-
-    return () => {
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-    };
-
-
+    // Canvas is now configured - rendering will be handled by the second useEffect
   }, [
-    // ⚡ PERFORMANCE: Drastically reduced dependencies
-    // Only include values that require canvas reconfiguration
-    // All render data is now read from refs which are updated separately
-    bgImageObject,
+    // Only dependencies that affect canvas configuration
     containerSize,
-    fireballVideo,
-    precalculatedShadows
-    // REMOVED: 40+ dependencies that only needed redraw, not canvas reconfiguration
-    // The draw functions now read from refs (e.g., charactersRenderRef.current)
+    bgImageObject // Changing image may require reconfiguration
   ]);
 
-  // ⚡ PERFORMANCE: Separate effect to trigger redraws without recreating canvas
-  // CRITICAL: Throttled to prevent cascade re-renders (was causing 108 commits!)
+  // ⚡ UNIFIED RENDERING EFFECT - Handles ALL canvas rendering
+  // This effect triggers on data changes and manages both one-time draws and animation loops
   useEffect(() => {
     const bgCanvas = bgCanvasRef.current;
     const characterBordersCanvas = characterBordersCanvasRef.current;
@@ -1827,16 +1760,58 @@ export default function Component() {
     const containerWidth = containerSize.width || containerRef.current?.clientWidth || bgCanvas.width;
     const containerHeight = containerSize.height || containerRef.current?.clientHeight || bgCanvas.height;
 
-    // ⚡ PERFORMANCE: Use requestAnimationFrame directly instead of setTimeout
-    // This removes the 16ms lag between DOM updates (dragged image) and Canvas updates (border/circle)
-    // while still ensuring we only draw once per frame.
-    const animationFrameId = requestAnimationFrame(() => {
+    // Determine if we need continuous animation
+    const hasAnimatedMeasurement =
+      (selectedSkin && measureMode && (measurementShape === 'circle' || measurementShape === 'cone')) ||
+      measurements.some(m => (m.type === 'circle' || m.type === 'cone') && m.skin);
+
+    const shouldAnimate = performanceMode !== 'static' && (image instanceof HTMLVideoElement || hasAnimatedMeasurement);
+
+    let animationFrameId: number | undefined;
+
+    if (shouldAnimate) {
+      // ANIMATION LOOP MODE - for videos and animated measurements
+      // OPTIMIZATION: Only redraw what changes each frame
+
+      // Draw static layers ONCE
       drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
       drawCharacterBorders(borderCtx, image, containerWidth, containerHeight);
-      drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
-    });
 
-    return () => cancelAnimationFrame(animationFrameId);
+      let lastFrameTime = 0;
+      const fpsInterval = 1000 / 30; // 30fps for smooth animations with good performance
+
+      const renderLoop = (timestamp: number) => {
+        const elapsed = timestamp - lastFrameTime;
+        if (elapsed > fpsInterval) {
+          lastFrameTime = timestamp - (elapsed % fpsInterval);
+
+          // Only redraw background if it's a video (changes each frame)
+          if (image instanceof HTMLVideoElement) {
+            drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
+          }
+
+          // OPTIMIZATION: Only redraw foreground (where measurements are)
+          // Background and borders are static, no need to redraw every frame
+          drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
+        }
+
+        animationFrameId = requestAnimationFrame(renderLoop);
+      };
+
+      animationFrameId = requestAnimationFrame(renderLoop);
+    } else {
+      // ONE-TIME DRAW MODE - for static content
+      // Use requestAnimationFrame to ensure smooth rendering in sync with browser
+      animationFrameId = requestAnimationFrame(() => {
+        drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
+        drawCharacterBorders(borderCtx, image, containerWidth, containerHeight);
+        drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
+      });
+    }
+
+    return () => {
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    };
   }, [
     // Only the data that affects what's drawn, not canvas configuration
     characters, objects, notes, drawings, currentPath, fogGrid, obstacles,
@@ -1852,7 +1827,9 @@ export default function Component() {
     measureEnd, pixelsPerUnit, unitName, isCalibrating, visibilityMode,
     selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool,
     isDraggingObstaclePoint, isDraggingObstacle, isMusicMode, isDraggingMusicZone,
-    currentMeasurementId, bgImageObject, containerSize
+    currentMeasurementId, bgImageObject, containerSize,
+    // Animation-related dependencies
+    selectedSkin, measurementShape, fireballVideo
   ]);
 
   // 🎥 TOKEN VIDEO PAUSE LOGIC (Separate Effect)
@@ -3229,7 +3206,8 @@ export default function Component() {
   ) => {
     // 1. Shared Measurements
     measurements.forEach(m => {
-      if (m.id === currentMeasurementId) return; // Skip active being drawn
+      // REMOVED: Skip logic - let all measurements render
+      // The local measurement will draw on top if both exist
 
       const p1 = m.start;
       const p2 = m.end;

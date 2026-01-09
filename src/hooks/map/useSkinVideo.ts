@@ -21,13 +21,17 @@ export const useSkinVideo = (selectedSkin: string) => {
         video.muted = true;
         video.playsInline = true;
 
+        // Set immediately so it's available for rendering
+        setVideoElement(video);
+
+        // Autoplay when ready
         video.onloadeddata = () => {
             video.play().catch(e => console.error("Skin autoplay fail", e));
-            setVideoElement(video);
         };
 
         return () => {
             video.pause();
+            video.src = ''; // Clear the source to stop loading
             setVideoElement(null);
         };
     }, [selectedSkin, effects, isLoading]);

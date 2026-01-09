@@ -47,7 +47,7 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { useEffects } from "@/hooks/map/useEffects";
+import { useEffects, getEffectUrl } from "@/hooks/map/useEffects";
 
 interface MapToolbarProps {
     isMJ: boolean;
@@ -89,6 +89,7 @@ export const TOOLS = {
 };
 
 const FIREBALL_SKIN_OPTIONS = [
+    { label: 'Sans Animation', value: '' },
     { label: 'Explosion 1', value: 'Fireballs/explosion1.webm' },
     { label: 'Explosion 2', value: 'Fireballs/explosion2.webm' },
     { label: 'Explosion 3', value: 'Fireballs/explosion3.webm' },
@@ -106,6 +107,7 @@ const FIREBALL_SKIN_OPTIONS = [
 ];
 
 const CONE_SKIN_OPTIONS = [
+    { label: 'Sans Animation', value: '' },
     { label: 'Cone 1', value: 'Cone/cone1.webm' },
     { label: 'Cone 2', value: 'Cone/cone2.webm' },
     { label: 'Cone 3', value: 'Cone/cone3.webm' },
@@ -133,19 +135,6 @@ export function ToolbarSkinSelector({ selectedSkin, onSkinChange, shape = 'circl
     const category = shape === 'cone' ? 'Cone' : 'Fireballs';
     const { effects, isLoading } = useEffects(category);
 
-    // Helper to get the URL for an effect
-    const getUrl = (filename: string) => {
-        if (isLoading || effects.length === 0) {
-            // Fallback to local path while loading
-            return `/Effect/${filename}`;
-        }
-
-        const effect = effects.find((e: { name: string; localPath: string; path: string }) =>
-            e.name === filename || e.localPath.endsWith(filename)
-        );
-        return effect ? effect.path : `/Effect/${filename}`;
-    };
-
     return (
         <div className="flex flex-col gap-2 bg-[#0a0a0a]/90 backdrop-blur-xl border border-[#333] rounded-xl p-3 shadow-[0_20px_50px_rgba(0,0,0,0.8)] w-[340px] relative pointer-events-auto transition-all duration-300">
             <div
@@ -163,50 +152,65 @@ export function ToolbarSkinSelector({ selectedSkin, onSkinChange, shape = 'circl
 
             {isOpen && (
                 <ScrollArea className="w-full h-[240px] pr-3 animate-in slide-in-from-top-2 duration-200">
-                    <div className="grid grid-cols-4 gap-2 p-1">
-                        {options.map((option) => (
-                            <button
-                                key={option.value}
-                                onClick={() => {
-                                    onSkinChange(option.value);
-                                    setIsOpen(false);
-                                }}
-                                onMouseEnter={() => setHoveredSkin(option.value)}
-                                onMouseLeave={() => setHoveredSkin(null)}
-                                className={cn(
-                                    "group relative aspect-square rounded-lg overflow-hidden border-2 transition-all duration-200",
-                                    selectedSkin === option.value
-                                        ? "border-[#c0a080] shadow-[0_0_15px_rgba(192,160,128,0.4)] scale-100 z-10"
-                                        : "border-transparent border-white/5 hover:border-white/30 hover:scale-105 hover:z-10 bg-black/40"
-                                )}
-                                title={option.label}
-                            >
-                                <Image
-                                    src={getUrl(option.value.replace('.webm', '.webp'))}
-                                    alt={option.label}
-                                    fill
-                                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                    className="object-cover"
-                                />
-                                {hoveredSkin === option.value && (
-                                    <video
-                                        src={getUrl(option.value)}
-                                        className="absolute inset-0 w-full h-full object-cover z-20"
-                                        autoPlay
-                                        loop
-                                        muted
-                                        playsInline
-                                    />
-                                )}
+                    {isLoading ? (
+                        <div className="flex items-center justify-center h-full text-gray-500">
+                            <Cloud className="w-6 h-6 animate-pulse mr-2" />
+                            <span>Chargement des effets...</span>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-4 gap-2 p-1">
+                            {options.map((option) => (
+                                <button
+                                    key={option.value}
+                                    onClick={() => {
+                                        onSkinChange(option.value);
+                                        setIsOpen(false);
+                                    }}
+                                    onMouseEnter={() => setHoveredSkin(option.value)}
+                                    onMouseLeave={() => setHoveredSkin(null)}
+                                    className={cn(
+                                        "group relative aspect-square rounded-lg overflow-hidden border-2 transition-all duration-200",
+                                        selectedSkin === option.value
+                                            ? "border-[#c0a080] shadow-[0_0_15px_rgba(192,160,128,0.4)] scale-100 z-10"
+                                            : "border-transparent border-white/5 hover:border-white/30 hover:scale-105 hover:z-10 bg-black/40"
+                                    )}
+                                    title={option.label}
+                                >
+                                    {option.value === '' ? (
+                                        // No Animation option - show text instead of image
+                                        <div className="absolute inset-0 flex items-center justify-center text-xs text-gray-400 font-medium">
+                                            Sans Anim
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <Image
+                                                src={getEffectUrl(option.value.replace('.webm', '.webp'), effects)}
+                                                alt={option.label}
+                                                fill
+                                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                                className="object-cover"
+                                            />
+                                            {hoveredSkin === option.value && (
+                                                <video
+                                                    src={getEffectUrl(option.value, effects)}
+                                                    className="absolute inset-0 w-full h-full object-cover z-20"
+                                                    autoPlay
+                                                    loop
+                                                    muted
+                                                    playsInline
+                                                />
+                                            )}
+                                        </>
+                                    )}
 
-
-                                {/* Active Indicator */}
-                                {selectedSkin === option.value && (
-                                    <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#c0a080] rounded-full shadow-[0_0_8px_#c0a080] border border-black/50 z-30" />
-                                )}
-                            </button>
-                        ))}
-                    </div>
+                                    {/* Active Indicator */}
+                                    {selectedSkin === option.value && (
+                                        <div className="absolute top-1 right-1 w-2.5 h-2.5 bg-[#c0a080] rounded-full shadow-[0_0_8px_#c0a080] border border-black/50 z-30" />
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    )}
                 </ScrollArea>
             )}
         </div>
