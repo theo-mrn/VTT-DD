@@ -447,7 +447,8 @@ export default function Component() {
         lastFocusTimestampRef.current = focusTarget.timestamp;
       }
     }
-  }, [focusTarget, characters, bgImageObject, zoom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusTarget, bgImageObject, zoom]);
 
 
 
