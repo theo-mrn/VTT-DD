@@ -1775,10 +1775,8 @@ export default function Component() {
   ]);
 
   // ⚡ PERFORMANCE: Separate effect to trigger redraws without recreating canvas
-  // This runs when render data changes, but only requests a redraw
+  // CRITICAL: Throttled to prevent cascade re-renders (was causing 108 commits!)
   useEffect(() => {
-    // Simply set a flag that the next animation frame should redraw
-    // The animation loop will pick this up automatically
     const bgCanvas = bgCanvasRef.current;
     const characterBordersCanvas = characterBordersCanvasRef.current;
     const fgCanvas = fgCanvasRef.current;
@@ -1795,12 +1793,16 @@ export default function Component() {
     const containerWidth = containerSize.width || containerRef.current?.clientWidth || bgCanvas.width;
     const containerHeight = containerSize.height || containerRef.current?.clientHeight || bgCanvas.height;
 
-    // Just redraw, don't reconfigure canvas
-    requestAnimationFrame(() => {
+    // ⚡ PERFORMANCE: Use requestAnimationFrame directly instead of setTimeout
+    // This removes the 16ms lag between DOM updates (dragged image) and Canvas updates (border/circle)
+    // while still ensuring we only draw once per frame.
+    const animationFrameId = requestAnimationFrame(() => {
       drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
       drawCharacterBorders(borderCtx, image, containerWidth, containerHeight);
       drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
     });
+
+    return () => cancelAnimationFrame(animationFrameId);
   }, [
     // Only the data that affects what's drawn, not canvas configuration
     characters, objects, notes, drawings, currentPath, fogGrid, obstacles,
