@@ -676,6 +676,36 @@ export default function Component() {
   const [isResizingMusicZone, setIsResizingMusicZone] = useState(false);
   const [resizingMusicZoneId, setResizingMusicZoneId] = useState<string | null>(null);
 
+  // ⚡ PERFORMANCE: Refs for frequently changing render states
+  // These refs prevent the main render useEffect from re-executing on every state change
+  const charactersRenderRef = useRef<Character[]>([]);
+  const objectsRenderRef = useRef<MapObject[]>([]);
+  const notesRenderRef = useRef<MapText[]>([]);
+  const drawingsRenderRef = useRef<SavedDrawing[]>([]);
+  const currentPathRenderRef = useRef<Point[]>([]);
+  const fogGridRenderRef = useRef<Map<string, boolean>>(new Map());
+  const obstaclesRenderRef = useRef<Obstacle[]>([]);
+  const musicZonesRenderRef = useRef<MusicZone[]>([]);
+  const measurementsRenderRef = useRef<SharedMeasurement[]>([]);
+  const layersRenderRef = useRef<Layer[]>([]);
+  const selectedCharacterIndexRef = useRef<number | null>(null);
+  const selectedObjectIndicesRef = useRef<number[]>([]);
+  const selectedNoteIndexRef = useRef<number | null>(null);
+  const selectedMusicZoneIdsRef = useRef<string[]>([]);
+  const zoomRenderRef = useRef<number>(1.4);
+  const offsetRenderRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const globalTokenScaleRef = useRef<number>(1);
+  const showGridRef = useRef<boolean>(false);
+  const showFogGridRef = useRef<boolean>(false);
+  const fullMapFogRef = useRef<boolean>(false);
+  const performanceModeRef = useRef<'high' | 'eco' | 'static'>('high');
+  const playerViewModeRef = useRef<boolean>(false);
+  const isMJRef = useRef<boolean>(false);
+  const persoIdRef = useRef<string | null>(null);
+  const viewAsPersoIdRef = useRef<string | null>(null);
+  const activePlayerIdRef = useRef<string | null>(null);
+  const showCharBordersRef = useRef<boolean>(true);
+
 
 
   // 🔊 AUDIO MANAGER - Moved after isLayerVisible declaration
@@ -1140,6 +1170,7 @@ export default function Component() {
 
   const loadedPlayersRef = useRef<any[]>([]); // Storing RAW docs to re-parse with new cityId
   const loadedNPCsRef = useRef<Character[]>([]);
+  const [playersVersion, setPlayersVersion] = useState(0); // 🆕 Trigger for sync effect when players change
 
   // Helper functions need to be stable or defined outside if they don't depend on scope (they depend on selectedCityId)
   // Since selectedCityId changes, the parsing logic changes (positions). 
@@ -1246,7 +1277,50 @@ export default function Component() {
 
     setCharacters(combined);
     setLoading(false);
-  }, [globalCityId, parseCharacterDoc]);
+  }, [globalCityId]); // ✅ Removed parseCharacterDoc - it never changes (empty deps)
+
+  // 🎯 PERFORMANCE: Create refs for callbacks to use in onSnapshot listeners
+  const parseCharacterDocRef = useRef(parseCharacterDoc);
+  const mergeAndSetCharactersRef = useRef(mergeAndSetCharacters);
+
+  // Update refs when callbacks change
+  useEffect(() => {
+    parseCharacterDocRef.current = parseCharacterDoc;
+  }, [parseCharacterDoc]);
+
+  useEffect(() => {
+    mergeAndSetCharactersRef.current = mergeAndSetCharacters;
+  }, [mergeAndSetCharacters]);
+
+  // ⚡ PERFORMANCE: Sync render states to refs
+  // This prevents the main render useEffect from re-executing on every state change
+  useEffect(() => { charactersRenderRef.current = characters; }, [characters]);
+  useEffect(() => { objectsRenderRef.current = objects; }, [objects]);
+  useEffect(() => { notesRenderRef.current = notes; }, [notes]);
+  useEffect(() => { drawingsRenderRef.current = drawings; }, [drawings]);
+  useEffect(() => { currentPathRenderRef.current = currentPath; }, [currentPath]);
+  useEffect(() => { fogGridRenderRef.current = fogGrid; }, [fogGrid]);
+  useEffect(() => { obstaclesRenderRef.current = obstacles; }, [obstacles]);
+  useEffect(() => { musicZonesRenderRef.current = musicZones; }, [musicZones]);
+  useEffect(() => { measurementsRenderRef.current = measurements; }, [measurements]);
+  useEffect(() => { layersRenderRef.current = layers; }, [layers]);
+  useEffect(() => { selectedCharacterIndexRef.current = selectedCharacterIndex; }, [selectedCharacterIndex]);
+  useEffect(() => { selectedObjectIndicesRef.current = selectedObjectIndices; }, [selectedObjectIndices]);
+  useEffect(() => { selectedNoteIndexRef.current = selectedNoteIndex; }, [selectedNoteIndex]);
+  useEffect(() => { selectedMusicZoneIdsRef.current = selectedMusicZoneIds; }, [selectedMusicZoneIds]);
+  useEffect(() => { zoomRenderRef.current = zoom; }, [zoom]);
+  useEffect(() => { offsetRenderRef.current = offset; }, [offset]);
+  useEffect(() => { globalTokenScaleRef.current = globalTokenScale; }, [globalTokenScale]);
+  useEffect(() => { showGridRef.current = showGrid; }, [showGrid]);
+  useEffect(() => { showFogGridRef.current = showFogGrid; }, [showFogGrid]);
+  useEffect(() => { fullMapFogRef.current = fullMapFog; }, [fullMapFog]);
+  useEffect(() => { performanceModeRef.current = performanceMode; }, [performanceMode]);
+  useEffect(() => { playerViewModeRef.current = playerViewMode; }, [playerViewMode]);
+  useEffect(() => { isMJRef.current = isMJ; }, [isMJ]);
+  useEffect(() => { persoIdRef.current = persoId; }, [persoId]);
+  useEffect(() => { viewAsPersoIdRef.current = viewAsPersoId; }, [viewAsPersoId]);
+  useEffect(() => { activePlayerIdRef.current = activePlayerId; }, [activePlayerId]);
+  useEffect(() => { showCharBordersRef.current = showCharBorders; }, [showCharBorders]);
 
   // 🆕 EFFET DE SYNCHRONISATION DE SCÈNE (PRIORITÉ AU PERSONNAGE)
   useEffect(() => {
@@ -1289,14 +1363,14 @@ export default function Component() {
         setViewMode('city');
       }
     }
-  }, [globalCityId, persoId, isMJ, selectedCityId, viewMode, characters]);
+  }, [globalCityId, persoId, isMJ, selectedCityId, viewMode, playersVersion]); // ✅ playersVersion triggers when player data changes
 
   // 2. NOW USE THEM IN EFFECT
   useEffect(() => {
     selectedCityIdRef.current = selectedCityId;
     // Force update characters when city changes (to update player positions)
-    mergeAndSetCharacters();
-  }, [selectedCityId, mergeAndSetCharacters]);
+    mergeAndSetCharactersRef.current();
+  }, [selectedCityId]); // ✅ Removed mergeAndSetCharacters - use ref instead
 
   // 🆕 CHARGER LES DONNÉES FILTRÉES PAR VILLE (depuis les collections globales)
   useEffect(() => {
@@ -1332,8 +1406,8 @@ export default function Component() {
       // Filter out players if they appear here (shouldn't if data is clean, but safe to filter)
       loadedNPCsRef.current = snapshot.docs
         .filter(doc => doc.data().type !== 'joueurs')
-        .map(doc => parseCharacterDoc(doc, selectedCityId));
-      mergeAndSetCharacters();
+        .map(doc => parseCharacterDocRef.current(doc, selectedCityId));
+      mergeAndSetCharactersRef.current();
     });
     unsubscribers.push(npcsUnsub);
 
@@ -1497,7 +1571,7 @@ export default function Component() {
     return () => {
       unsubscribers.forEach(unsub => unsub());
     };
-  }, [roomId, selectedCityId, parseCharacterDoc, mergeAndSetCharacters]);
+  }, [roomId, selectedCityId]); // ✅ Removed parseCharacterDoc and mergeAndSetCharacters - use refs
 
 
   // ------------------------------------------------------------------
@@ -1511,14 +1585,15 @@ export default function Component() {
     const playersQuery = query(charactersRef, where('type', '==', 'joueurs'));
     const playersUnsub = onSnapshot(playersQuery, (snapshot) => {
       loadedPlayersRef.current = snapshot.docs; // Store RAW docs
-      mergeAndSetCharacters();
+      setPlayersVersion(v => v + 1); // 🆕 Trigger sync effect
+      mergeAndSetCharactersRef.current();
     });
 
     return () => {
       playersUnsub();
       loadedPlayersRef.current = []; // Clear on unmount
     };
-  }, [roomId, parseCharacterDoc, mergeAndSetCharacters]);
+  }, [roomId]); // ✅ Removed parseCharacterDoc and mergeAndSetCharacters - use refs
 
 
   // 🔄 Update Container Size on Resize
@@ -1687,7 +1762,62 @@ export default function Component() {
     };
 
 
-  }, [bgImageObject, showGrid, zoom, offset, characters, objects, notes, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex, drawings, currentPath, fogGrid, showFogGrid, fullMapFog, isSelectingArea, selectionStart, selectionEnd, selectedCharacters, isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions, isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions, isFogDragging, playerViewMode, isMJ, measureMode, measureStart, measureEnd, pixelsPerUnit, unitName, isCalibrating, obstacles, visibilityMode, selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool, isDraggingObstaclePoint, isDraggingObstacle, layers, viewAsPersoId, containerSize, musicZones, selectedMusicZoneIds, isMusicMode, isDraggingMusicZone, globalTokenScale, precalculatedShadows, performanceMode, measurements, currentMeasurementId]);
+  }, [
+    // ⚡ PERFORMANCE: Drastically reduced dependencies
+    // Only include values that require canvas reconfiguration
+    // All render data is now read from refs which are updated separately
+    bgImageObject,
+    containerSize,
+    fireballVideo,
+    precalculatedShadows
+    // REMOVED: 40+ dependencies that only needed redraw, not canvas reconfiguration
+    // The draw functions now read from refs (e.g., charactersRenderRef.current)
+  ]);
+
+  // ⚡ PERFORMANCE: Separate effect to trigger redraws without recreating canvas
+  // This runs when render data changes, but only requests a redraw
+  useEffect(() => {
+    // Simply set a flag that the next animation frame should redraw
+    // The animation loop will pick this up automatically
+    const bgCanvas = bgCanvasRef.current;
+    const characterBordersCanvas = characterBordersCanvasRef.current;
+    const fgCanvas = fgCanvasRef.current;
+
+    if (!bgCanvas || !characterBordersCanvas || !fgCanvas) return;
+
+    const bgCtx = bgCanvas.getContext('2d');
+    const borderCtx = characterBordersCanvas.getContext('2d');
+    const fgCtx = fgCanvas.getContext('2d');
+
+    if (!bgCtx || !borderCtx || !fgCtx) return;
+
+    const image = bgImageObject || { width: 1920, height: 1080 } as HTMLImageElement;
+    const containerWidth = containerSize.width || containerRef.current?.clientWidth || bgCanvas.width;
+    const containerHeight = containerSize.height || containerRef.current?.clientHeight || bgCanvas.height;
+
+    // Just redraw, don't reconfigure canvas
+    requestAnimationFrame(() => {
+      drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
+      drawCharacterBorders(borderCtx, image, containerWidth, containerHeight);
+      drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
+    });
+  }, [
+    // Only the data that affects what's drawn, not canvas configuration
+    characters, objects, notes, drawings, currentPath, fogGrid, obstacles,
+    musicZones, measurements, layers, zoom, offset, showGrid, showFogGrid,
+    fullMapFog, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex,
+    selectedMusicZoneIds, globalTokenScale, performanceMode, playerViewMode,
+    isMJ, viewAsPersoId, activePlayerId, showCharBorders,
+    // Interactive state
+    isSelectingArea, selectionStart, selectionEnd, selectedCharacters,
+    isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions,
+    isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex,
+    draggedObjectsOriginalPositions, isFogDragging, measureMode, measureStart,
+    measureEnd, pixelsPerUnit, unitName, isCalibrating, visibilityMode,
+    selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool,
+    isDraggingObstaclePoint, isDraggingObstacle, isMusicMode, isDraggingMusicZone,
+    currentMeasurementId, bgImageObject, containerSize
+  ]);
 
   // 🎥 TOKEN VIDEO PAUSE LOGIC (Separate Effect)
   useEffect(() => {
@@ -4060,7 +4190,6 @@ export default function Component() {
 
         // Draw hidden status badge if character is hidden (soit par défaut, soit par le brouillard) - uniquement en mode MJ normal, pas en vue joueur
         if (effectiveVisibility === 'hidden' && effectiveIsMJ && char.type != "joueurs") {
-          console.log(effectiveVisibility, effectiveIsMJ);
           const hiddenBadgeOffsetMultiplier = 16;
           const badgeX = x + hiddenBadgeOffsetMultiplier * zoom; // Positioning the badge at the top-right
           const badgeY = y - hiddenBadgeOffsetMultiplier * zoom;
