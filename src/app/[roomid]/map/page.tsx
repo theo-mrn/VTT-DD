@@ -1950,7 +1950,10 @@ export default function Component() {
 
 
       setDraggedTemplate(template)
-      setDropPosition({ x, y })
+      setDropPosition({
+        x: Math.max(0, Math.min(imgWidth, x)),
+        y: Math.max(0, Math.min(imgHeight, y))
+      })
       setShowPlaceModal(true)
     } catch (error) {
       console.error('❌ Error parsing template data:', error)
@@ -5721,8 +5724,9 @@ export default function Component() {
           if (originalPos) {
             return {
               ...char,
-              x: originalPos.x + deltaX,
-              y: originalPos.y + deltaY
+              // 🔒 Prevent moving outside map boundaries
+              x: Math.max(0, Math.min(imgWidth, originalPos.x + deltaX)),
+              y: Math.max(0, Math.min(imgHeight, originalPos.y + deltaY))
             };
           }
           return char;
