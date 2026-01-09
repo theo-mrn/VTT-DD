@@ -1,10 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Sidebar from "@/components/(overlays)/panel";
 import CharacterSheet from "@/components/(fiches)/CharacterSheet";
-import { auth, db, onAuthStateChanged, doc, getDoc, collection, query, where, onSnapshot } from "@/lib/firebase";
+import { db, collection, query, where, onSnapshot } from "@/lib/firebase";
 import { useMapControl } from "@/contexts/MapControlContext";
+import { useGame } from "@/contexts/GameContext";
+import { User, Users } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 type Player = {
   id: string;
@@ -17,35 +21,18 @@ type Player = {
 
 export default function Component() {
   const [players, setPlayers] = useState<Player[]>([]);
-  const [roomId, setRoomId] = useState<string | null>(null);
+  const [npcs, setNpcs] = useState<Player[]>([]);
+  const params = useParams();
+  const roomId = params.roomid as string;
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
-  const { centerOnCharacter } = useMapControl();
+  const { centerOnCharacter, selectedCityId } = useMapControl();
+  const { isMJ } = useGame();
+  const [mode, setMode] = useState<'joueurs' | 'pnj'>('joueurs');
 
-  // Étape 1 : Récupération du `room_id` de l'utilisateur connecté
-  useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
 
-        if (userDoc.exists()) {
-          const room_id = userDoc.data()?.room_id || null;
-          setRoomId(room_id);
-        } else {
-          console.error("Utilisateur non trouvé dans Firestore");
-          setRoomId(null);
-        }
-      } else {
-        setRoomId(null);
-      }
-    });
-
-    return () => unsubscribeAuth();
-  }, []);
-
-  // Étape 2 : Récupérer les informations des personnages depuis Firestore
+  // Étape 2 : Récupérer les joueurs
   useEffect(() => {
     if (!roomId) return;
 
@@ -71,14 +58,56 @@ export default function Component() {
     return () => unsubscribeSnapshot();
   }, [roomId]);
 
+  // Étape 3 : Récupérer les NPCs (uniquement de la carte active)
+  useEffect(() => {
+    if (!roomId) return;
+
+    const charactersRef = collection(db, `cartes/${roomId}/characters`);
+    // Filter by cityId to get NPCs on the current map
+    // Note: If selectedCityId is null (world map), we might need to handle that. 
+    // page.tsx seems to treat null as 'world' but let's check what data holds.
+    // If filtering by cityId where cityId is null, firebase might need standard equality.
+
+    // Assuming 'type' != 'joueurs' means NPC.
+    const q = query(
+      charactersRef,
+      where("cityId", "==", selectedCityId),
+      // where("type", "!=", "joueurs") // Compound queries need index. simpler to filter client side if needed or just trust cityId logic (players usually have cityId too?)
+      // In page.tsx, NPCs are queried by cityId. Players are queried globally.
+      // So if we query by cityId, we might get players too if they are assigned to that city.
+      // We should filter them out in memory to be safe/consistent with "NPC Mode".
+    );
+
+    const unsubscribeSnapshot = onSnapshot(q, (querySnapshot) => {
+      const fetchedNpcs: Player[] = querySnapshot.docs
+        .map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            name: data.Nomperso || "NPC",
+            image: data.imageURLFinal || data.imageURL2 || data.imageURL || "/placeholder.svg",
+            health: data.PV || 0,
+            maxHealth: data.PV_Max || 10,
+            type: data.type
+          };
+        })
+        .filter(p => p.type !== 'joueurs'); // Ensure only NPCs
+
+      setNpcs(fetchedNpcs);
+    });
+
+    return () => unsubscribeSnapshot();
+  }, [roomId, selectedCityId]);
+
   const handleDoubleClick = (playerId: string) => {
     setSelectedCharacterId(playerId);
     setShowCharacterSheet(true);
   };
 
-  // Étape 3 : Affichage des joueurs
+  const visibleList = mode === 'joueurs' ? players : npcs;
+
   return (
-    <>
+    <TooltipProvider delayDuration={0}>
       {isSidebarOpen && (
         <>
           <div className="fixed inset-0 bg-black/50 z-[100]" onClick={() => setIsSidebarOpen(false)} />
@@ -99,52 +128,80 @@ export default function Component() {
         />
       )}
 
-      <div className="fixed top-4 flex gap-3 p-3 bg-black/70 backdrop-blur-sm rounded-lg border border-white/10 items-center">
+      <div className="fixed top-4 flex gap-3 p-3 bg-black/70 backdrop-blur-sm rounded-lg border border-white/10 items-center max-w-[90vw] overflow-x-auto z-[90]">
         {/* Bouton pour ouvrir la sidebar */}
         <button
           onClick={() => setIsSidebarOpen(true)}
-          className="flex items-center justify-center h-10 w-10 bg-gray-900 text-white rounded-full hover:bg-gray-700 transition-transform transform hover:scale-105 shadow-lg focus:outline-none"
+          className="flex items-center justify-center h-10 w-10 flex-shrink-0 bg-gray-900 text-white rounded-full hover:bg-gray-700 transition-transform transform hover:scale-105 shadow-lg focus:outline-none"
         >
           <span className="text-xl">☰</span>
         </button>
 
-        {players.map((player) => (
-          <div
-            key={player.id}
-            className="flex flex-col items-center gap-1 group relative"
-            onClick={() => {
-              setSelectedCharacterId(player.id);
-              centerOnCharacter(player.id);
-            }}
-            onDoubleClick={() => handleDoubleClick(player.id)}
-          >
-            <div className="relative cursor-pointer">
-              <Avatar className="h-16 w-16 border-2 border-white/20 group-hover:border-white/40 transition-colors">
-                <AvatarImage src={player.image} alt={player.name} className="object-contain" />
-                <AvatarFallback className="bg-primary-foreground text-xs">
-                  {player.name[0]}
-                </AvatarFallback>
-              </Avatar>
-            </div>
+        {/* Toggle Mode Button (Only for MJ) */}
+        {isMJ && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => setMode(prev => prev === 'joueurs' ? 'pnj' : 'joueurs')}
+                className={`flex items-center justify-center h-10 w-10 flex-shrink-0 rounded-full transition-colors shadow-lg focus:outline-none ${mode === 'joueurs' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-red-600 hover:bg-red-500'
+                  }`}
+              >
+                {mode === 'joueurs' ? <User className="h-5 w-5 text-white" /> : <Users className="h-5 w-5 text-white" />}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{mode === 'joueurs' ? 'Afficher les PNJ' : 'Afficher les Joueurs'}</p>
+            </TooltipContent>
+          </Tooltip>
+        )}
 
-            {/* Barre de santé */}
-            <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+        <div className="h-8 w-[1px] bg-white/20 mx-1 flex-shrink-0" />
+
+        {visibleList.map((char) => (
+          <Tooltip key={char.id}>
+            <TooltipTrigger asChild>
               <div
-                className="h-full transition-all duration-300 ease-in-out rounded-full"
-                style={{
-                  width: `${(player.health / player.maxHealth) * 100}%`,
-                  backgroundColor: `hsl(${(player.health / player.maxHealth) * 120}, 100%, 50%)`,
+                className="flex flex-col items-center gap-1 group relative flex-shrink-0 cursor-pointer"
+                onClick={() => {
+                  setSelectedCharacterId(char.id);
+                  centerOnCharacter(char.id);
                 }}
-              />
-            </div>
+                onDoubleClick={() => handleDoubleClick(char.id)}
+              >
+                <div className="relative">
+                  <Avatar className={`h-16 w-16 border-2 transition-colors ${mode === 'pnj' ? 'border-red-500/50 group-hover:border-red-500' : 'border-blue-500/50 group-hover:border-blue-500'}`}>
+                    <AvatarImage src={char.image} alt={char.name} className="object-cover" />
+                    <AvatarFallback className="bg-primary-foreground text-xs">
+                      {char.name[0]}
+                    </AvatarFallback>
+                  </Avatar>
+                </div>
 
-            {/* Affichage de la santé en nombre */}
-            <span className="absolute top-full mt-1 text-xs text-white bg-black/80 px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
-              {player.health}/{player.maxHealth}
-            </span>
-          </div>
+                {/* Barre de santé */}
+                <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className="h-full transition-all duration-300 ease-in-out rounded-full"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, (char.health / char.maxHealth) * 100))}%`,
+                      backgroundColor: `hsl(${Math.min(120, Math.max(0, (char.health / char.maxHealth) * 120))}, 100%, 50%)`,
+                    }}
+                  />
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="text-center z-[110] bg-zinc-950 border-zinc-800 text-white">
+              <p className="font-bold text-white">{char.name}</p>
+              <p className="text-xs text-zinc-300">{char.health}/{char.maxHealth} PV</p>
+            </TooltipContent>
+          </Tooltip>
         ))}
+
+        {visibleList.length === 0 && (
+          <div className="text-white text-sm italic px-2">
+            Aucun {mode === 'joueurs' ? 'joueur' : 'PNJ'}
+          </div>
+        )}
       </div>
-    </>
+    </TooltipProvider>
   );
 }
