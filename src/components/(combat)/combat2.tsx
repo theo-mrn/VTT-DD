@@ -385,7 +385,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   // --- Render ---
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
 
       <motion.div
         layout
@@ -438,7 +438,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
             </div>
           </div>
 
-          <Button onClick={onClose} variant="ghost" className="absolute top-6 right-6 rounded-full hover:bg-white/10 text-gray-500 hover:text-white">
+          <Button onClick={onClose} variant="ghost" className="absolute top-6 right-6 rounded-full hover:bg-white/10 text-gray-500 hover:text-white z-50">
             <X className="w-6 h-6" />
           </Button>
         </div>
