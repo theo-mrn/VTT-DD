@@ -12,6 +12,7 @@ interface MapControlContextType {
     centerOnCharacter: (characterId: string) => void;
     selectedCityId: string | null;
     setSelectedCityId: (cityId: string | null) => void;
+    clearFocus: () => void;
 }
 
 const MapControlContext = createContext<MapControlContextType | undefined>(undefined);
@@ -24,8 +25,12 @@ export function MapControlProvider({ children }: { children: ReactNode }) {
         setFocusTarget({ characterId, timestamp: Date.now() });
     }, []);
 
+    const clearFocus = useCallback(() => {
+        setFocusTarget({ characterId: null, timestamp: 0 });
+    }, []);
+
     return (
-        <MapControlContext.Provider value={{ focusTarget, centerOnCharacter, selectedCityId, setSelectedCityId }}>
+        <MapControlContext.Provider value={{ focusTarget, centerOnCharacter, selectedCityId, setSelectedCityId, clearFocus }}>
             {children}
         </MapControlContext.Provider>
     );

@@ -178,7 +178,7 @@ export default function Component() {
   const params = useParams();
   const roomId = params.roomid as string;
   const { isMJ, persoId, viewAsPersoId, setViewAsPersoId } = useGame();
-  const { focusTarget, selectedCityId, setSelectedCityId } = useMapControl();
+  const { focusTarget, selectedCityId, setSelectedCityId, clearFocus } = useMapControl();
   const { volumes: audioVolumes } = useAudioMixer();
   const [combatOpen, setCombatOpen] = useState(false);
   const [attackerId, setAttackerId] = useState<string | null>(null);
@@ -411,8 +411,12 @@ export default function Component() {
   const [draggedNoteOriginalPos, setDraggedNoteOriginalPos] = useState({ x: 0, y: 0 })
 
   // 🎯 Focus on Character Logic
+  const lastFocusTimestampRef = useRef<number>(0);
+
   useEffect(() => {
-    if (focusTarget.characterId && bgImageObject && containerRef.current) {
+    // Only center if it's a NEW request (timestamp changed)
+    // This prevents the camera from following the character when dragging/moving (User Requirement)
+    if (focusTarget.characterId && focusTarget.timestamp > lastFocusTimestampRef.current && bgImageObject && containerRef.current) {
       const char = characters.find(c => c.id === focusTarget.characterId);
       if (char) {
         const { width: imgWidth, height: imgHeight } = getMediaDimensions(bgImageObject);
@@ -438,6 +442,9 @@ export default function Component() {
         const newOffsetY = charScreenY - centerY;
 
         setOffset({ x: newOffsetX, y: newOffsetY });
+
+        // Mark this focus request as handled
+        lastFocusTimestampRef.current = focusTarget.timestamp;
       }
     }
   }, [focusTarget, characters, bgImageObject, zoom]);
@@ -5258,6 +5265,7 @@ export default function Component() {
               setIsSelectingArea(true);
             } else {
               // Sinon : Déplacer la carte (comme le mode pan, comportement par défaut amélioré)
+              clearFocus(); // 🆕 Stop auto-focus when panning manually
               setIsDragging(true);
               setDragStart({ x: e.clientX, y: e.clientY });
             }
