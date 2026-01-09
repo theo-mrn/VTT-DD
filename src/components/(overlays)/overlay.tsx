@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Sidebar from "@/components/(overlays)/panel";
 import CharacterSheet from "@/components/(fiches)/CharacterSheet";
-import { db, collection, query, where, onSnapshot } from "@/lib/firebase";
+import { db, collection, query, where, onSnapshot, doc } from "@/lib/firebase";
 import { useMapControl } from "@/contexts/MapControlContext";
 import { useGame } from "@/contexts/GameContext";
 import { User, Users } from "lucide-react";
@@ -17,6 +17,7 @@ type Player = {
   health: number;
   maxHealth: number;
   type?: string;
+  currentSceneId?: string;
 };
 
 export default function Component() {
@@ -30,7 +31,19 @@ export default function Component() {
   const { centerOnCharacter, selectedCityId } = useMapControl();
   const { isMJ } = useGame();
   const [mode, setMode] = useState<'joueurs' | 'pnj'>('joueurs');
+  const [globalCityId, setGlobalCityId] = useState<string | null>(null);
 
+  // 🆕 Listen to Global Settings (Group Location)
+  useEffect(() => {
+    if (!roomId) return;
+    const settingsRef = doc(db, 'cartes', roomId, 'settings', 'general');
+    const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setGlobalCityId(docSnap.data().currentCityId || null);
+      }
+    });
+    return () => unsubscribe();
+  }, [roomId]);
 
   // Étape 2 : Récupérer les joueurs
   useEffect(() => {
@@ -48,7 +61,8 @@ export default function Component() {
           image: data.imageURLFinal || data.imageURL || "/placeholder.svg",
           health: data.PV || 0,
           maxHealth: data.PV_Max || 100,
-          type: data.type
+          type: data.type,
+          currentSceneId: data.currentSceneId
         };
       });
 
@@ -104,7 +118,16 @@ export default function Component() {
     setShowCharacterSheet(true);
   };
 
-  const visibleList = mode === 'joueurs' ? players : npcs;
+  const visibleList = mode === 'joueurs'
+    ? players.filter(player => {
+      // 1. Explicitly assigned to this scene
+      if (player.currentSceneId === selectedCityId) return true;
+      // 2. Implicitly following the group (no assignment) AND this is the group scene
+      if (!player.currentSceneId && globalCityId === selectedCityId) return true;
+
+      return false;
+    })
+    : npcs;
 
   return (
     <TooltipProvider delayDuration={0}>
