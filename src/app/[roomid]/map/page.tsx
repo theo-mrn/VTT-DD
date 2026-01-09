@@ -638,14 +638,6 @@ export default function Component() {
   const [selectedCityId, setSelectedCityId] = useState<string | null>(null); // null = world map
   const [globalCityId, setGlobalCityId] = useState<string | null>(null); // Global party location
   const [cities, setCities] = useState<Scene[]>([]); // Villes disponibles
-  const [isSelectionAnimating, setIsSelectionAnimating] = useState(false);
-  const selectionAnimationRef = useRef<{
-    startTime: number;
-    characterId: string;
-    startRadius: number;
-    targetRadius: number;
-    duration: number;
-  } | null>(null);
 
   // 🆕 RANDOM STAT GENERATOR STATE
   const [difficulty, setDifficulty] = useState(3); // 1-5
@@ -1778,7 +1770,7 @@ export default function Component() {
       (selectedSkin && measureMode && (measurementShape === 'circle' || measurementShape === 'cone')) ||
       measurements.some(m => (m.type === 'circle' || m.type === 'cone') && m.skin);
 
-    const shouldAnimate = performanceMode !== 'static' && (image instanceof HTMLVideoElement || hasAnimatedMeasurement || isSelectionAnimating);
+    const shouldAnimate = performanceMode !== 'static' && (image instanceof HTMLVideoElement || hasAnimatedMeasurement);
 
     let animationFrameId: number | undefined;
 
@@ -1806,18 +1798,6 @@ export default function Component() {
           // OPTIMIZATION: Only redraw foreground (where measurements are)
           // Background and borders are static, no need to redraw every frame
           drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
-        }
-
-        // Auto-stop animation if it's done
-        if (isSelectionAnimating && selectionAnimationRef.current) {
-          const elapsedAnim = performance.now() - selectionAnimationRef.current.startTime;
-          if (elapsedAnim > selectionAnimationRef.current.duration) {
-            setIsSelectionAnimating(false);
-            selectionAnimationRef.current = null;
-            // One last render to ensure final state is drawn
-            drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
-            return;
-          }
         }
 
         animationFrameId = requestAnimationFrame(renderLoop);
@@ -4224,22 +4204,7 @@ export default function Component() {
           ctx.strokeStyle = 'rgba(0, 0, 255, 0.9)'; // Bright blue outline
           ctx.lineWidth = 2 * zoom;
           ctx.beginPath();
-
-          let radiusScreen = ((char.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-
-          // 🆕 Animation Logic
-          if (selectionAnimationRef.current && selectionAnimationRef.current.characterId === char.id) {
-            const { startTime, startRadius, targetRadius, duration } = selectionAnimationRef.current;
-            const elapsed = performance.now() - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-
-            // Ease out quad
-            const ease = 1 - (1 - progress) * (1 - progress);
-
-            const currentRadius = startRadius + (targetRadius - startRadius) * ease;
-            radiusScreen = (currentRadius / imgWidth) * scaledWidth;
-          }
-
+          const radiusScreen = ((char.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
           ctx.arc(x, y, radiusScreen, 0, 2 * Math.PI);
           ctx.stroke();
         }
@@ -5122,25 +5087,6 @@ export default function Component() {
           } else {
             // 🎯 NOUVEAU : Commencer le drag & drop du personnage ou groupe
             const isAlreadySelected = selectedCharacters.includes(clickedCharIndex);
-
-            if (!isAlreadySelected) {
-              // 🆕 Trigger Animation on fresh selection
-              const char = characters[clickedCharIndex];
-              if (char && char.type === 'joueurs') { // Only animate for players
-                const startRadius = 30; // Base token radius (approx)
-                const targetRadius = char.visibilityRadius ?? 100;
-
-                selectionAnimationRef.current = {
-                  startTime: performance.now(),
-                  characterId: char.id,
-                  startRadius: startRadius,
-                  targetRadius: targetRadius,
-                  duration: 400 // 400ms duration
-                };
-                setIsSelectionAnimating(true);
-              }
-            }
-
             const charactersToMove = isAlreadySelected && selectedCharacters.length > 1
               ? selectedCharacters
               : [clickedCharIndex];
