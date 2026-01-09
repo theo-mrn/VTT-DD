@@ -100,6 +100,7 @@ import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLay
 import MapToolbar, { TOOLS } from '@/components/(map)/MapToolbar';
 import BackgroundSelector from '@/components/(map)/BackgroundSelector';
 import GlobalSettingsDialog from '@/components/(map)/GlobalSettingsDialog';
+import { useMapControl } from '@/contexts/MapControlContext';
 
 // ⚡ Static Token Component for Performance Mode (Moved Outside Component to avoid Remounting/Flickering)
 const StaticToken = React.memo(({ src, alt, style, className, performanceMode }: { src: string, alt: string, style?: React.CSSProperties, className?: string, performanceMode: string }) => {
@@ -177,6 +178,7 @@ export default function Component() {
   const params = useParams();
   const roomId = params.roomid as string;
   const { isMJ, persoId, viewAsPersoId, setViewAsPersoId } = useGame();
+  const { focusTarget } = useMapControl();
   const { volumes: audioVolumes } = useAudioMixer();
   const [combatOpen, setCombatOpen] = useState(false);
   const [attackerId, setAttackerId] = useState<string | null>(null);
@@ -407,6 +409,38 @@ export default function Component() {
   const [isDraggingNote, setIsDraggingNote] = useState(false)
   const [draggedNoteIndex, setDraggedNoteIndex] = useState<number | null>(null)
   const [draggedNoteOriginalPos, setDraggedNoteOriginalPos] = useState({ x: 0, y: 0 })
+
+  // 🎯 Focus on Character Logic
+  useEffect(() => {
+    if (focusTarget.characterId && bgImageObject && containerRef.current) {
+      const char = characters.find(c => c.id === focusTarget.characterId);
+      if (char) {
+        const { width: imgWidth, height: imgHeight } = getMediaDimensions(bgImageObject);
+        const { clientWidth: containerWidth, clientHeight: containerHeight } = containerRef.current;
+
+        const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+        const scaledWidth = imgWidth * scale * zoom;
+        const scaledHeight = imgHeight * scale * zoom;
+
+        // Calculate offset to center the character
+        // Formula: stored_pos * scale_factor - offset = screen_center
+        // Therefore: offset = stored_pos * scale_factor - screen_center
+
+        // Character position in "screen pixels" (relative to the scaled image)
+        const charScreenX = (char.x / imgWidth) * scaledWidth;
+        const charScreenY = (char.y / imgHeight) * scaledHeight;
+
+        // Center of the viewport
+        const centerX = containerWidth / 2;
+        const centerY = containerHeight / 2;
+
+        const newOffsetX = charScreenX - centerX;
+        const newOffsetY = charScreenY - centerY;
+
+        setOffset({ x: newOffsetX, y: newOffsetY });
+      }
+    }
+  }, [focusTarget, characters, bgImageObject, zoom]);
 
 
 
