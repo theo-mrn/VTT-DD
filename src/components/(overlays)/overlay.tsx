@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Sidebar from "@/components/(overlays)/panel";
 import CharacterSheet from "@/components/(fiches)/CharacterSheet";
 import { auth, db, onAuthStateChanged, doc, getDoc, collection, query, where, onSnapshot } from "@/lib/firebase";
+import { useMapControl } from "@/contexts/MapControlContext";
 
 type Player = {
   id: string;
@@ -20,6 +21,7 @@ export default function Component() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
+  const { centerOnCharacter } = useMapControl();
 
   // Étape 1 : Récupération du `room_id` de l'utilisateur connecté
   useEffect(() => {
@@ -110,7 +112,10 @@ export default function Component() {
           <div
             key={player.id}
             className="flex flex-col items-center gap-1 group relative"
-            onClick={() => setSelectedCharacterId(player.id)}
+            onClick={() => {
+              setSelectedCharacterId(player.id);
+              centerOnCharacter(player.id);
+            }}
             onDoubleClick={() => handleDoubleClick(player.id)}
           >
             <div className="relative cursor-pointer">
