@@ -7307,16 +7307,12 @@ export default function Component() {
           />
         </div>
         {combatOpen && (
-          <div className="absolute top-0 left-0 w-full h-full bg-black bg-opacity-50 flex items-center justify-center z-20">
-            <div className="text-black p-6 rounded-lg shadow-lg w-1/3 h-2/5">
-              <Combat
-                attackerId={attackerId || ''}
-                targetId={targetId || ''}
-                targetIds={targetIds} /* 🆕 Pass multiple targets */
-                onClose={() => setCombatOpen(false)}
-              />
-            </div>
-          </div>
+          <Combat
+            attackerId={attackerId || ''}
+            targetId={targetId || ''}
+            targetIds={targetIds} /* 🆕 Pass multiple targets */
+            onClose={() => setCombatOpen(false)}
+          />
         )}
       </div>
 
