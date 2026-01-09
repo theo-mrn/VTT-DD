@@ -1261,7 +1261,12 @@ export default function Component() {
       image: img,
       imageUrl: imageUrl,
       visibility: data.visibility || 'hidden',
-      visibilityRadius: parseFloat(data.visibilityRadius) || 100,
+      visibilityRadius: (() => {
+        const val = parseFloat(data.visibilityRadius);
+        console.log('[DEBUG] Reading visibilityRadius for', doc.id, 'Value:', val, 'Raw:', data.visibilityRadius);
+        if (val > 2000) return 2000; // Safety cap
+        return isNaN(val) ? 100 : val;
+      })(),
       visibleToPlayerIds: data.visibleToPlayerIds || undefined, // 🆕 Charger la liste des joueurs autorisés
       type: data.type || 'pnj',
       PV: data.PV || 0,
@@ -3065,7 +3070,7 @@ export default function Component() {
         const playerScreenY = (player.y / imgHeight) * scaledHeight - offset.y;
         return (
           (player.id === persoId || player.visibility === 'ally') &&
-          calculateDistance(charScreenX, charScreenY, playerScreenX, playerScreenY) <= (player.visibilityRadius ?? 100) * zoom
+          calculateDistance(charScreenX, charScreenY, playerScreenX, playerScreenY) <= ((player.visibilityRadius ?? 100) / imgWidth) * scaledWidth
         );
       });
     }
@@ -3336,7 +3341,8 @@ export default function Component() {
               const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
               const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
               const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-              isVisible = dist <= (viewer.visibilityRadius ?? 100) * zoom;
+              const radiusScreen = ((viewer.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
+              isVisible = dist <= radiusScreen;
             } else {
               isVisible = false;
             }
@@ -3347,7 +3353,8 @@ export default function Component() {
               const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
               const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
               const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-              return dist <= (viewer.visibilityRadius ?? 100) * zoom;
+              const radiusScreen = ((viewer.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
+              return dist <= radiusScreen;
             })();
           }
         }
@@ -3930,7 +3937,8 @@ export default function Component() {
               const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
               const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
               const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-              isVisible = dist <= (viewer.visibilityRadius ?? 100) * zoom;
+              const radiusScreen = ((viewer.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
+              isVisible = dist <= radiusScreen;
             } else {
               isVisible = false;
             }
@@ -3942,7 +3950,8 @@ export default function Component() {
               const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
               const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
               const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-              return dist <= (viewer.visibilityRadius ?? 100) * zoom;
+              const radiusScreen = ((viewer.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
+              return dist <= radiusScreen;
             })();
           }
         }
@@ -4228,7 +4237,8 @@ export default function Component() {
           ctx.strokeStyle = 'rgba(0, 0, 255, 0.9)'; // Bright blue outline
           ctx.lineWidth = 2 * zoom;
           ctx.beginPath();
-          ctx.arc(x, y, (char.visibilityRadius ?? 100) * zoom, 0, 2 * Math.PI);
+          const radiusScreen = ((char.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
+          ctx.arc(x, y, radiusScreen, 0, 2 * Math.PI);
           ctx.stroke();
         }
 
@@ -4237,7 +4247,8 @@ export default function Component() {
           ctx.strokeStyle = 'rgba(0, 255, 0, 0.9)'; // Bright green outline
           ctx.lineWidth = 2 * zoom;
           ctx.beginPath();
-          ctx.arc(x, y, (char.visibilityRadius ?? 100) * zoom, 0, 2 * Math.PI);
+          const radiusScreenAlly = ((char.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
+          ctx.arc(x, y, radiusScreenAlly, 0, 2 * Math.PI);
           ctx.stroke();
         }
       });
@@ -7247,7 +7258,8 @@ export default function Component() {
                     const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
                     const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
                     const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-                    isVisible = dist <= (viewer?.visibilityRadius ?? 100) * zoom;
+                    const radiusScreen = ((viewer?.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
+                    isVisible = dist <= radiusScreen;
                   } else {
                     isVisible = false;
                   }
@@ -7258,7 +7270,8 @@ export default function Component() {
                     const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
                     const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
                     const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-                    return dist <= (viewer.visibilityRadius ?? 100) * zoom;
+                    const radiusScreen = ((viewer.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
+                    return dist <= radiusScreen;
                   })();
                 }
               }
@@ -7520,9 +7533,15 @@ export default function Component() {
                           onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, visibilityRadius: parseInt(e.target.value) || 100 })}
                           className="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-[#c0a080]"
                         />
-                        <span className="text-xs font-mono text-[#c0a080] bg-[#1c1c1c] px-2 py-1 rounded border border-gray-600 min-w-[3rem] text-center">
-                          {Math.round(1 + ((editingCharacter?.visibilityRadius || 100) - 10) / 490 * 29)} c.
-                        </span>
+                        <div className="flex gap-2 items-center">
+                          <span className="text-xs font-mono text-[#c0a080] bg-[#1c1c1c] px-2 py-1 rounded border border-gray-600 min-w-[3rem] text-center">
+                            {Math.round(1 + ((editingCharacter?.visibilityRadius || 100) - 10) / 490 * 29)} c.
+                          </span>
+                          <span className="text-[10px] text-gray-500">•</span>
+                          <span className="text-xs font-mono text-blue-400 bg-[#1c1c1c] px-2 py-1 rounded border border-gray-600 min-w-[3rem] text-center">
+                            {((editingCharacter?.visibilityRadius || 100) / pixelsPerUnit).toFixed(1)} {unitName}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -7691,6 +7710,8 @@ export default function Component() {
           const url = await getDownloadURL(storageRef);
           return url;
         }}
+        pixelsPerUnit={pixelsPerUnit}
+        unitName={unitName}
         onAction={async (action, characterId, value) => {
           // Gestion des actions du menu contextuel
           const char = characters.find(c => c.id === characterId);
@@ -7780,6 +7801,17 @@ export default function Component() {
               const newScale = value;
               const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
               updateDoc(charRef, { scale: newScale });
+            }
+          } else if (action === 'updateVisibilityRadius') {
+            if (isMJ && roomId) {
+              const newRadius = Number(value);
+              console.log('[DEBUG] Updating visibilityRadius:', { characterId, oldValue: char.visibilityRadius, newValue: newRadius, type: typeof newRadius });
+              const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
+              updateDoc(charRef, { visibilityRadius: newRadius }).then(() => {
+                console.log('[DEBUG] visibilityRadius updated in Firebase');
+              }).catch((error) => {
+                console.error('[DEBUG] Error updating visibilityRadius:', error);
+              });
             }
           } else if (action === 'toggleCondition') {
             if (isMJ && roomId) {

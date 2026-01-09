@@ -37,6 +37,8 @@ interface ContextMenuPanelProps {
     isMJ: boolean;
     players: Character[]; // 🆕 Liste des joueurs pour la sélection custom
     onUploadFile?: (file: File) => Promise<string>; // New prop for uploads
+    pixelsPerUnit: number; // 🆕 For meter-based calculations
+    unitName: string; // 🆕 Unit name (e.g., 'm', 'ft')
 }
 
 export default function ContextMenuPanel({
@@ -46,7 +48,9 @@ export default function ContextMenuPanel({
     onAction,
     isMJ,
     players,
-    onUploadFile
+    onUploadFile,
+    pixelsPerUnit,
+    unitName
 }: ContextMenuPanelProps) {
     const dragControls = useDragControls();
     const [customCondition, setCustomCondition] = useState("");
@@ -493,6 +497,37 @@ export default function ContextMenuPanel({
                                                         value={character.scale || 1}
                                                         onChange={(e) => onAction('updateScale', character.id, parseFloat(e.target.value))}
                                                         className="w-full h-1.5 bg-[#333] rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
+
+                                        {/* Vision Radius Control for Players and Allies */}
+                                        {(character.type === 'joueurs' || character.visibility === 'ally') && (
+                                            <>
+                                                <Separator className="bg-white/5" />
+
+                                                <div className="space-y-3">
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-xs text-gray-400">Rayon de vision</span>
+                                                        <div className="flex gap-2 items-center">
+                                                            <span className="text-xs font-mono text-[#c0a080]" title={`Valeur brute: ${character.visibilityRadius}`}>
+                                                                {Math.round(1 + ((character.visibilityRadius || 100) - 10) / 490 * 29)} c.
+                                                            </span>
+                                                            <span className="text-[10px] text-gray-500">•</span>
+                                                            <span className="text-xs font-mono text-blue-400">
+                                                                {((character.visibilityRadius || 100) / pixelsPerUnit).toFixed(1)} {unitName}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <input
+                                                        type="range"
+                                                        min="10"
+                                                        max="500"
+                                                        step="10"
+                                                        value={character.visibilityRadius || 100}
+                                                        onChange={(e) => onAction('updateVisibilityRadius', character.id, parseInt(e.target.value))}
+                                                        className="w-full h-1.5 bg-[#333] rounded-lg appearance-none cursor-pointer accent-[#c0a080]"
                                                     />
                                                 </div>
 
