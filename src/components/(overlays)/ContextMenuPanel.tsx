@@ -430,77 +430,75 @@ export default function ContextMenuPanel({
 
                                     <TabsContent value="params" className="mt-0 space-y-4 focus-visible:ring-0">
                                         {character.type !== 'joueurs' && (
-                                            <>
-                                                <div className="space-y-3">
-                                                    <h3 className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Visibilité</h3>
-                                                    <div className="grid grid-cols-2 gap-2">
-                                                        {['visible', 'ally', 'hidden', 'custom'].map((mode) => (
-                                                            <Button
-                                                                key={mode}
-                                                                variant="outline"
-                                                                size="sm"
-                                                                className={`text-xs h-8 capitalize ${character.visibility === mode
-                                                                    ? 'bg-blue-600 border-blue-500 text-white'
-                                                                    : 'bg-[#252525] border-[#333] text-gray-400'}`}
-                                                                onClick={() => onAction('setVisibility', character.id, mode)}
-                                                            >
-                                                                {mode}
-                                                            </Button>
-                                                        ))}
-                                                    </div>
+                                            <div className="space-y-3">
+                                                <h3 className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Visibilité</h3>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {['visible', 'ally', 'hidden', 'custom'].map((mode) => (
+                                                        <Button
+                                                            key={mode}
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className={`text-xs h-8 capitalize ${character.visibility === mode
+                                                                ? 'bg-blue-600 border-blue-500 text-white'
+                                                                : 'bg-[#252525] border-[#333] text-gray-400'}`}
+                                                            onClick={() => onAction('setVisibility', character.id, mode)}
+                                                        >
+                                                            {mode}
+                                                        </Button>
+                                                    ))}
+                                                </div>
 
-                                                    {/* Custom Player Selection */}
-                                                    {character.visibility === 'custom' && (
-                                                        <div className="bg-[#1a1a1a] p-2 rounded-lg border border-[#444] space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
-                                                            {players.length === 0 ? (
-                                                                <p className="text-xs text-gray-500 italic text-center py-2">Aucun joueur</p>
-                                                            ) : (
-                                                                players.map(player => {
-                                                                    const isSelected = localSelectedPlayerIds.includes(player.id);
-                                                                    return (
-                                                                        <div
-                                                                            key={player.id}
-                                                                            className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-all ${isSelected ? 'bg-purple-900/40 border border-purple-500/30' : 'hover:bg-[#252525] border border-transparent'}`}
-                                                                            onClick={() => {
-                                                                                const currentIds = localSelectedPlayerIds;
-                                                                                const newIds = isSelected
-                                                                                    ? currentIds.filter(id => id !== player.id)
-                                                                                    : [...currentIds, player.id];
-                                                                                setLocalSelectedPlayerIds(newIds);
-                                                                                onAction('updateVisiblePlayers', character.id, newIds);
-                                                                            }}
-                                                                        >
-                                                                            <div className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-colors ${isSelected ? 'bg-purple-600 border-purple-600' : 'border-gray-600 bg-transparent'}`}>
-                                                                                {isSelected && <Check size={10} className="text-white" strokeWidth={4} />}
-                                                                            </div>
-                                                                            <span className="text-xs text-gray-300 truncate">{player.name}</span>
+                                                {/* Custom Player Selection */}
+                                                {character.visibility === 'custom' && (
+                                                    <div className="bg-[#1a1a1a] p-2 rounded-lg border border-[#444] space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
+                                                        {players.length === 0 ? (
+                                                            <p className="text-xs text-gray-500 italic text-center py-2">Aucun joueur</p>
+                                                        ) : (
+                                                            players.map(player => {
+                                                                const isSelected = localSelectedPlayerIds.includes(player.id);
+                                                                return (
+                                                                    <div
+                                                                        key={player.id}
+                                                                        className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-all ${isSelected ? 'bg-purple-900/40 border border-purple-500/30' : 'hover:bg-[#252525] border border-transparent'}`}
+                                                                        onClick={() => {
+                                                                            const currentIds = localSelectedPlayerIds;
+                                                                            const newIds = isSelected
+                                                                                ? currentIds.filter(id => id !== player.id)
+                                                                                : [...currentIds, player.id];
+                                                                            setLocalSelectedPlayerIds(newIds);
+                                                                            onAction('updateVisiblePlayers', character.id, newIds);
+                                                                        }}
+                                                                    >
+                                                                        <div className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-colors ${isSelected ? 'bg-purple-600 border-purple-600' : 'border-gray-600 bg-transparent'}`}>
+                                                                            {isSelected && <Check size={10} className="text-white" strokeWidth={4} />}
                                                                         </div>
-                                                                    );
-                                                                })
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                <Separator className="bg-white/5" />
-
-                                                <div className="space-y-3">
-                                                    <div className="flex justify-between items-center">
-                                                        <span className="text-xs text-gray-400">Taille</span>
-                                                        <span className="text-xs font-mono text-gray-300">x{character.scale || 1}</span>
+                                                                        <span className="text-xs text-gray-300 truncate">{player.name}</span>
+                                                                    </div>
+                                                                );
+                                                            })
+                                                        )}
                                                     </div>
-                                                    <input
-                                                        type="range"
-                                                        min="0.5"
-                                                        max="3"
-                                                        step="0.1"
-                                                        value={character.scale || 1}
-                                                        onChange={(e) => onAction('updateScale', character.id, parseFloat(e.target.value))}
-                                                        className="w-full h-1.5 bg-[#333] rounded-lg appearance-none cursor-pointer accent-blue-500"
-                                                    />
-                                                </div>
-                                            </>
+                                                )}
+                                            </div>
                                         )}
+
+                                        <Separator className="bg-white/5" />
+
+                                        <div className="space-y-3">
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-xs text-gray-400">Taille</span>
+                                                <span className="text-xs font-mono text-gray-300">x{character.scale || 1}</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="0.5"
+                                                max="3"
+                                                step="0.1"
+                                                value={character.scale || 1}
+                                                onChange={(e) => onAction('updateScale', character.id, parseFloat(e.target.value))}
+                                                className="w-full h-1.5 bg-[#333] rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                            />
+                                        </div>
 
                                         {/* Vision Radius Control for Players and Allies */}
                                         {(character.type === 'joueurs' || character.visibility === 'ally') && (
@@ -531,6 +529,12 @@ export default function ContextMenuPanel({
                                                     />
                                                 </div>
 
+                                            </>
+                                        )}
+
+                                        {(
+                                            <>
+                                                <Separator className="bg-white/5" />
                                                 <div className="grid grid-cols-2 gap-2 pt-2">
                                                     <Button
                                                         variant="outline"
@@ -555,18 +559,20 @@ export default function ContextMenuPanel({
                                                 </div>
                                             </>
                                         )}
+
                                     </TabsContent>
                                 </div>
                             </ScrollArea>
                         </Tabs>
                     </motion.div>
                 )}
-            </AnimatePresence>
+            </AnimatePresence >
 
             {/* Embedded Audio Dialog */}
-            <CharacterAudioDialog
+            < CharacterAudioDialog
                 isOpen={isAudioDialogOpen}
-                onClose={() => setIsAudioDialogOpen(false)}
+                onClose={() => setIsAudioDialogOpen(false)
+                }
                 character={character}
                 onUpload={onUploadFile}
                 onSave={async (audioData) => {

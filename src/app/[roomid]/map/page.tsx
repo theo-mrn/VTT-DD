@@ -2412,39 +2412,6 @@ export default function Component() {
       );
     }
 
-    // 🎯 SELECTION : Objets (MJ)
-    if (selectedObjectIndices.length > 0 && isMJ) {
-      return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-          <span className="text-white text-sm font-medium pr-2">{selectedObjectIndices.length} Objet(s)</span>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => {
-              if (selectedObjectIndices.length > 0 && roomId && isMJ) {
-                selectedObjectIndices.forEach(index => {
-                  const obj = objects[index];
-                  if (obj) deleteDoc(doc(db, 'cartes', String(roomId), 'objects', obj.id));
-                });
-                setObjects(prev => prev.filter((_, i) => !selectedObjectIndices.includes(i)));
-                setSelectedObjectIndices([]);
-              }
-            }}
-          >
-            <Trash2 className="w-4 h-4 mr-2" /> Supprimer
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSelectedObjectIndices([])}
-            className="text-gray-400 hover:text-white"
-          >
-            Fermer
-          </Button>
-        </div>
-      );
-    }
-
     // 🎯 SELECTION : Note
     if (selectedNoteIndex !== null) {
       return (
