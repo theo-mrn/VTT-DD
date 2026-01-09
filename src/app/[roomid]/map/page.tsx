@@ -178,7 +178,7 @@ export default function Component() {
   const params = useParams();
   const roomId = params.roomid as string;
   const { isMJ, persoId, viewAsPersoId, setViewAsPersoId } = useGame();
-  const { focusTarget } = useMapControl();
+  const { focusTarget, selectedCityId, setSelectedCityId } = useMapControl();
   const { volumes: audioVolumes } = useAudioMixer();
   const [combatOpen, setCombatOpen] = useState(false);
   const [attackerId, setAttackerId] = useState<string | null>(null);
@@ -635,7 +635,7 @@ export default function Component() {
   // 🆕 VIEW MODE & CITY NAVIGATION STATE
 
   const [viewMode, setViewMode] = useState<ViewMode>('world'); // 'world' = world map, 'city' = city map
-  const [selectedCityId, setSelectedCityId] = useState<string | null>(null); // null = world map
+
   const [globalCityId, setGlobalCityId] = useState<string | null>(null); // Global party location
   const [cities, setCities] = useState<Scene[]>([]); // Villes disponibles
 
