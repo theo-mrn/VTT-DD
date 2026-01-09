@@ -7,6 +7,7 @@ import { mapImagePath } from '@/utils/imagePathMapper'
 import Cropper from 'react-easy-crop'
 import { getCroppedImg, createCompositeImage } from '@/lib/cropImageHelper'
 import { Slider } from '@/components/ui/slider'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RaceImageSelector } from './RaceImageSelector'
 
 // Types based on the JSON files
@@ -27,6 +28,7 @@ interface ProfileData {
 
 interface BestiaryData {
     Nom: string;
+    Category?: string;
     Type: string;
     description: string;
     image?: string;
@@ -103,6 +105,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     const [selectedProfile, setSelectedProfile] = useState<string | null>(null)
     const [selectedToken, setSelectedToken] = useState<TokenData | null>(null)
     const [selectedCreature, setSelectedCreature] = useState<string | null>(null)
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
     const [targetLevel, setTargetLevel] = useState<number>(1)
     const [customImage, setCustomImage] = useState<string>('')
@@ -469,11 +472,42 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     )
 
     const filteredBestiary = Object.entries(bestiary)
-        .filter(([key, val]) =>
-            key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            val.Nom.toLowerCase().includes(searchQuery.toLowerCase())
-        )
+        .filter(([key, val]) => {
+            const matchesSearch = key.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                val.Nom.toLowerCase().includes(searchQuery.toLowerCase())
+            const matchesCategory = !selectedCategory || val.Category === selectedCategory
+            return matchesSearch && matchesCategory
+        })
         .sort((a, b) => a[1].Nom.localeCompare(b[1].Nom))
+
+    // Get unique categories from bestiary
+    const categories = Array.from(new Set(
+        Object.values(bestiary)
+            .map(creature => creature.Category)
+            .filter((cat): cat is string => Boolean(cat))
+    )).sort()
+
+    const categoryTranslations: Record<string, string> = {
+        'aberration': 'Aberration',
+        'beast': 'Bête',
+        'celestial': 'Céleste',
+        'construct': 'Créature artificielle',
+        'dragon': 'Dragon',
+        'elemental': 'Élémentaire',
+        'fey': 'Fée',
+        'fiend': 'Fiélon',
+        'giant': 'Géant',
+        'humanoid': 'Humanoïde',
+        'monstrosity': 'Monstruosité',
+        'ooze': 'Vase',
+        'plant': 'Plante',
+        'undead': 'Mort-vivant',
+        'swarm of tiny beasts': 'Nuée de bêtes',
+    }
+
+    const formatCategory = (cat: string) => {
+        return categoryTranslations[cat.toLowerCase()] || cat.charAt(0).toUpperCase() + cat.slice(1)
+    }
 
     const filteredTokens = tokens.filter(t =>
         t.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -822,6 +856,43 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
 
                     {/* Selection Summary Bar */}
                     <div className="px-6 py-2 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-4 text-xs text-zinc-500 h-10">
+                        {activeTab === 'bestiary' && (
+                            <div className="flex items-center gap-2">
+                                <Select
+                                    value={selectedCategory || "all"}
+                                    onValueChange={(value) => setSelectedCategory(value === "all" ? null : value)}
+                                >
+                                    <SelectTrigger className="h-8 min-w-[200px] bg-[#0c0c0e] border-[#2a2a2a] text-xs font-medium text-zinc-300 focus:ring-1 focus:ring-[#c0a080] focus:border-[#c0a080] px-3 shadow-sm hover:border-[#c0a080]/30 transition-all">
+                                        <div className="flex items-center gap-2.5">
+                                            <Filter className="w-3.5 h-3.5 text-[#c0a080]" />
+                                            <SelectValue placeholder="Toutes les catégories" />
+                                        </div>
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-[#0c0c0e] border-[#2a2a2a] text-zinc-300 max-h-[300px]">
+                                        <SelectItem value="all" className="focus:bg-[#c0a080]/10 focus:text-[#c0a080] text-xs py-2 font-medium">
+                                            Toutes les catégories
+                                        </SelectItem>
+                                        {categories.map(cat => (
+                                            <SelectItem key={cat} value={cat} className="focus:bg-[#c0a080]/10 focus:text-[#c0a080] text-xs py-2">
+                                                {formatCategory(cat)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {selectedCategory && (
+                                    <button
+                                        onClick={() => setSelectedCategory(null)}
+                                        className="w-6 h-6 flex items-center justify-center rounded-full bg-[#1a1a1a] border border-[#2a2a2a] text-zinc-500 hover:text-white hover:border-red-500/50 hover:bg-red-500/10 transition-all"
+                                        title="Réinitialiser le filtre"
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="h-4 w-px bg-[#2a2a2a]" />
+
                         {selectedCreature ? (
                             <span className="flex items-center gap-1 text-[#c0a080] font-bold bg-[#c0a080]/10 px-2 py-0.5 rounded border border-[#c0a080]/30">
                                 {bestiary[selectedCreature]?.Nom}
@@ -850,11 +921,12 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                             </span>
                         ) : null}
 
-                        {!selectedCreature && !selectedRace && !selectedProfile && !selectedToken &&
-                            <span>Sélectionnez des éléments pour composer votre personnage.</span>
-                        }
-                    </div>
+                        {!selectedCreature && !selectedRace && !selectedProfile && !selectedToken && activeTab !== 'bestiary' ? (
+                            <span className="italic text-zinc-600">Aucune sélection</span>
+                        ) : null}
 
+                        {/* <div className="flex-1" /> */}
+                    </div>
                     {/* Content Grid */}
                     <div className={`flex-1 overflow-y-auto custom-scrollbar bg-[url('/grid-pattern.svg')] bg-repeat opacity-90 ${activeTab === 'generate' ? 'p-0' : 'p-6'}`}>
                         {loading ? (

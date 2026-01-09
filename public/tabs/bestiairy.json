@@ -1,6 +1,7 @@
 {
     "aboleth": {
         "Nom": "Aboleth",
+        "Category": "aberration",
         "Type": "Aberration (Large)",
         "description": "Aberration d'alignement lawful evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/aboleth.png",
@@ -44,6 +45,7 @@
     },
     "acolyte": {
         "Nom": "Acolyte",
+        "Category": "humanoid",
         "Type": "Humanoïde (Medium)",
         "description": "Humanoïde d'alignement any alignment.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/acolyte.png",
@@ -72,6 +74,7 @@
     },
     "adult-black-dragon": {
         "Nom": "Dragon noir adulte",
+        "Category": "dragon",
         "Type": "Dragon (Huge)",
         "description": "Dragon d'alignement chaotic evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-black-dragon.png",
@@ -125,6 +128,7 @@
     },
     "adult-blue-dragon": {
         "Nom": "Dragon bleu adulte",
+        "Category": "dragon",
         "Type": "Dragon (Huge)",
         "description": "Dragon d'alignement lawful evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-blue-dragon.png",
@@ -178,6 +182,7 @@
     },
     "adult-brass-dragon": {
         "Nom": "Dragon adulte en laiton",
+        "Category": "dragon",
         "Type": "Dragon (Huge)",
         "description": "Dragon d'alignement chaotic good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-brass-dragon.png",
@@ -231,6 +236,7 @@
     },
     "adult-bronze-dragon": {
         "Nom": "Dragon de bronze adulte",
+        "Category": "dragon",
         "Type": "Dragon (Huge)",
         "description": "Dragon d'alignement lawful good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-bronze-dragon.png",
@@ -284,6 +290,7 @@
     },
     "adult-copper-dragon": {
         "Nom": "Dragon cuivré adulte",
+        "Category": "dragon",
         "Type": "Dragon (Huge)",
         "description": "Dragon d'alignement chaotic good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-copper-dragon.png",
@@ -337,6 +344,7 @@
     },
     "adult-gold-dragon": {
         "Nom": "Dragon d'or adulte",
+        "Category": "dragon",
         "Type": "Dragon (Huge)",
         "description": "Dragon d'alignement lawful good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-gold-dragon.png",
@@ -390,6 +398,7 @@
     },
     "adult-green-dragon": {
         "Nom": "Dragon vert adulte",
+        "Category": "dragon",
         "Type": "Dragon (Huge)",
         "description": "Dragon d'alignement lawful evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-green-dragon.png",
@@ -443,6 +452,7 @@
     },
     "adult-red-dragon": {
         "Nom": "Dragon rouge adulte",
+        "Category": "dragon",
         "Type": "Dragon (Huge)",
         "description": "Dragon d'alignement chaotic evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-red-dragon.png",
@@ -496,6 +506,7 @@
     },
     "adult-silver-dragon": {
         "Nom": "Dragon d'argent adulte",
+        "Category": "dragon",
         "Type": "Dragon (Huge)",
         "description": "Dragon d'alignement lawful good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-silver-dragon.png",
@@ -549,6 +560,7 @@
     },
     "adult-white-dragon": {
         "Nom": "Dragon blanc adulte",
+        "Category": "dragon",
         "Type": "Dragon (Huge)",
         "description": "Dragon d'alignement chaotic evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-white-dragon.png",
@@ -602,6 +614,7 @@
     },
     "air-elemental": {
         "Nom": "Élémentaire de l'air",
+        "Category": "elemental",
         "Type": "Élémentaire (Large)",
         "description": "Élémentaire d'alignement neutral.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/air-elemental.png",
@@ -640,6 +653,7 @@
     },
     "ancient-black-dragon": {
         "Nom": "Ancien dragon noir",
+        "Category": "dragon",
         "Type": "Dragon (Gargantuan)",
         "description": "Dragon d'alignement chaotic evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-black-dragon.png",
@@ -693,6 +707,7 @@
     },
     "ancient-blue-dragon": {
         "Nom": "Ancien dragon bleu",
+        "Category": "dragon",
         "Type": "Dragon (Gargantuan)",
         "description": "Dragon d'alignement lawful evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-blue-dragon.png",
@@ -746,6 +761,7 @@
     },
     "ancient-brass-dragon": {
         "Nom": "Dragon antique en laiton",
+        "Category": "dragon",
         "Type": "Dragon (Gargantuan)",
         "description": "Dragon d'alignement chaotic good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-brass-dragon.png",
@@ -804,6 +820,7 @@
     },
     "ancient-bronze-dragon": {
         "Nom": "Dragon de bronze ancien",
+        "Category": "dragon",
         "Type": "Dragon (Gargantuan)",
         "description": "Dragon d'alignement lawful good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-bronze-dragon.png",
@@ -862,6 +879,7 @@
     },
     "ancient-copper-dragon": {
         "Nom": "Ancien dragon de cuivre",
+        "Category": "dragon",
         "Type": "Dragon (Gargantuan)",
         "description": "Dragon d'alignement chaotic good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-copper-dragon.png",
@@ -920,6 +938,7 @@
     },
     "ancient-gold-dragon": {
         "Nom": "Dragon d'or ancien",
+        "Category": "dragon",
         "Type": "Dragon (Gargantuan)",
         "description": "Dragon d'alignement lawful good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-gold-dragon.png",
@@ -978,6 +997,7 @@
     },
     "ancient-green-dragon": {
         "Nom": "Ancien dragon vert",
+        "Category": "dragon",
         "Type": "Dragon (Gargantuan)",
         "description": "Dragon d'alignement lawful evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-green-dragon.png",
@@ -1031,6 +1051,7 @@
     },
     "ancient-red-dragon": {
         "Nom": "Ancien dragon rouge",
+        "Category": "dragon",
         "Type": "Dragon (Gargantuan)",
         "description": "Dragon d'alignement chaotic evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-red-dragon.png",
@@ -1084,6 +1105,7 @@
     },
     "ancient-silver-dragon": {
         "Nom": "Ancien dragon d'argent",
+        "Category": "dragon",
         "Type": "Dragon (Gargantuan)",
         "description": "Dragon d'alignement lawful good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-silver-dragon.png",
@@ -1142,6 +1164,7 @@
     },
     "ancient-white-dragon": {
         "Nom": "Ancien dragon blanc",
+        "Category": "dragon",
         "Type": "Dragon (Gargantuan)",
         "description": "Dragon d'alignement chaotic evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-white-dragon.png",
@@ -1196,6 +1219,7 @@
     "androsphinx": {
         "Nom": "Androsphinx",
         "Type": "Monstruosité (Large)",
+        "catgory": "creature",
         "description": "Monstruosité d'alignement lawful neutral.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/androsphinx.png",
         "niveau": 17,
@@ -1229,11 +1253,13 @@
                 "Description": "Le sphinx émet un rugissement magique. Chaque fois qu'il rugit avant de terminer un long repos, le rugissement est plus fort et l'effet est différent, comme détaillé ci-dessous. Chaque créature située à moins de 500 pieds du sphinx et capable d'entendre le rugissement doit effectuer un jet de sauvegarde.\n\nPremier rugissement. Chaque créature qui échoue à un jet de sauvegarde de sagesse DC 18 est effrayée pendant 1 minute. Une créature effrayée peut répéter son jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de succès.\n\nDeuxième rugissement. Chaque créature qui échoue à un jet de sauvegarde de sagesse DC 18 est assourdie et effrayée pendant 1 minute. Une créature effrayée est paralysée et peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de succès.\n\nTroisième rugissement. Chaque créature fait un jet de sauvegarde DC 18 de Constitution. En cas de sauvegarde ratée, la créature subit 44 (8d10) points de dégâts de tonnerre et est mise à terre. En cas de sauvegarde réussie, la créature subit la moitié des dégâts et n'est pas mise à terre.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "animated-armor": {
         "Nom": "Armure animée",
         "Type": "Artificiel (Medium)",
+        "category": "creature",
         "description": "Artificiel d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/animated-armor.png",
         "niveau": 1,
@@ -1262,11 +1288,13 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5 (1d6 + 2) points de dégâts de matraquage.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "ankheg": {
         "Nom": "Ankheg",
         "Type": "Monstruosité (Large)",
+        "categoy": "monstruosité",
         "description": "Monstruosité d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ankheg.png",
         "niveau": 2,
@@ -1295,11 +1323,13 @@
                 "Description": "L'ankheg crache de l'acide sur une ligne de 30 pieds de long et 5 pieds de large, à condition qu'aucune créature ne soit agrippée. Chaque créature de cette ligne doit effectuer un jet de sauvegarde de Dextérité DC 13, subissant 10 (3d6) points de dégâts d'acide en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "ape": {
         "Nom": "Singe",
         "Type": "Bête (Medium)",
+        "category": "bête",
         "description": "Bête d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ape.png",
         "niveau": 0.5,
@@ -1333,11 +1363,13 @@
                 "Description": "Attaque d'arme à distance : +5 pour toucher, portée 25/50 pieds, une cible. Touché : 6 (1d6 + 3) points de dégâts de matraquage.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "archmage": {
         "Nom": "Archimage",
         "Type": "Humanoïde (Medium)",
+        "category": "humain",
         "description": "Humanoïde d'alignement any alignment.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/archmage.png",
         "niveau": 12,
@@ -1361,11 +1393,13 @@
                 "Description": "Attaque en mêlée ou à distance : +6 pour toucher, portée de 5 pieds ou portée de 20/60 pieds, une cible. Touché : 4 (1d4 + 2) points de dégâts perforants.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "assassin": {
         "Nom": "Assassin",
         "Type": "Humanoïde (Medium)",
+        "category": "humain",
         "description": "Humanoïde d'alignement any non-good alignment.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/assassin.png",
         "niveau": 8,
@@ -1399,11 +1433,13 @@
                 "Description": "Attaque d'arme à distance : +6 pour toucher, portée 80/320 pieds, une cible. Touché : 7 (1d8 + 3) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de Constitution DC 15, subissant 24 (7d6) points de dégâts de poison en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "awakened-shrub": {
         "Nom": "Arbuste éveillé",
         "Type": "Plante (Small)",
+        "category": "creature",
         "description": "Plante d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/awakened-shrub.png",
         "niveau": 0,
@@ -1427,7 +1463,8 @@
                 "Description": "Attaque d'arme de mêlée : +1 au toucher, portée de 5 pieds, une cible. Touché : 1 (1d4 - 1) points de dégâts tranchants.",
                 "Toucher": 1
             }
-        ]
+        ],
+        "Category": "plant"
     },
     "awakened-tree": {
         "Nom": "Arbre éveillé",
@@ -1455,11 +1492,13 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 10 pieds, une cible. Touché : 14 (3d6 + 4) points de dégâts de matraquage.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "plant"
     },
     "axe-beak": {
         "Nom": "Bec de hache",
         "Type": "Bête (Large)",
+        "type": "bête",
         "description": "Bête d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/axe-beak.png",
         "niveau": 0.25,
@@ -1483,11 +1522,13 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 6 (1d8 + 2) points de dégâts tranchants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "azer": {
         "Nom": "Azer",
         "Type": "Élémentaire (Medium)",
+        "category": "elementaire",
         "description": "Élémentaire d'alignement lawful neutral.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/azer.png",
         "niveau": 2,
@@ -1511,11 +1552,13 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 7 (1d8 + 3) points de dégâts de matraquage, ou 8 (1d10 + 3) points de dégâts de matraquage si l'arme est utilisée à deux mains pour faire une attaque de mêlée, plus 3 (1d6) points de dégâts de feu.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "elemental"
     },
     "baboon": {
         "Nom": "Babouin",
         "Type": "Bête (Small)",
+        "category": "animal",
         "description": "Bête d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/baboon.png",
         "niveau": 0,
@@ -1539,11 +1582,13 @@
                 "Description": "Attaque d'arme de mêlée : +1 au toucher, portée de 5 pieds, une cible. Touché : 1 (1d4 - 1) points de dégâts perforants.",
                 "Toucher": 1
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "badger": {
         "Nom": "Blaireau",
         "Type": "Bête (Tiny)",
+        "category": "animal",
         "description": "Bête d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/badger.png",
         "niveau": 0,
@@ -1567,11 +1612,13 @@
                 "Description": "Attaque d'arme de mêlée : +2 au toucher, portée de 5 pieds, une cible. Touché : 1 dégât perforant.",
                 "Toucher": 2
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "balor": {
         "Nom": "Balor",
         "Type": "Fiélon (Huge)",
+        "category": "creature",
         "description": "Fiélon d'alignement chaotic evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/balor.png",
         "niveau": 19,
@@ -1610,11 +1657,13 @@
                 "Description": "Le balor se téléporte magiquement, avec tout l'équipement qu'il porte, jusqu'à 120 pieds dans un espace inoccupé qu'il peut voir.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "demon"
     },
     "bandit": {
         "Nom": "Bandit",
         "Type": "Humanoïde (Medium)",
+        "category": "humain",
         "description": "Humanoïde d'alignement any non-lawful alignment.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bandit.png",
         "niveau": 0.125,
@@ -1643,11 +1692,13 @@
                 "Description": "Attaque d'arme à distance : +3 pour toucher, portée 80 pieds/320 pieds, une cible. Touché : 5 (1d8 + 1) points de dégâts perforants.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "bandit-captain": {
         "Nom": "Capitaine des bandits",
         "Type": "Humanoïde (Medium)",
+        "category": "humain",
         "description": "Humanoïde d'alignement any non-lawful alignment.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bandit-captain.png",
         "niveau": 2,
@@ -1681,11 +1732,13 @@
                 "Description": "Attaque en mêlée ou à distance : +5 pour toucher, portée de 5 pieds ou portée de 20/60 pieds, une cible. Touché : 5 (1d4 + 3) points de dégâts perforants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "barbed-devil": {
         "Nom": "Diable barbelé",
         "Type": "Fiélon (Medium)",
+        "category": "creature",
         "description": "Fiélon d'alignement lawful evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/barbed-devil.png",
         "niveau": 5,
@@ -1724,11 +1777,13 @@
                 "Description": "Attaque magique à distance : +5 pour toucher, portée de 150 pieds, une cible. Touché : 10 (3d6) points de dégâts de feu. Si la cible est un objet inflammable qui n'est pas porté ou transporté, il s'enflamme également.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "devil"
     },
     "basilisk": {
         "Nom": "Basilic",
         "Type": "Monstruosité (Medium)",
+        "category": "bête",
         "description": "Monstruosité d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/basilisk.png",
         "niveau": 3,
@@ -1752,11 +1807,13 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10 (2d6 + 3) points de dégâts perforants plus 7 (2d6) points de dégâts de poison.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "bat": {
         "Nom": "Chauve-souris",
         "Type": "Bête (Tiny)",
+        "category": "animal",
         "description": "Bête d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bat.png",
         "niveau": 0,
@@ -1780,11 +1837,13 @@
                 "Description": "Attaque d'arme de mêlée : +0 pour toucher, portée de 5 pieds, une créature. Touché : 1 dégât perforant.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "bearded-devil": {
         "Nom": "Diable barbu",
         "Type": "Fiélon (Medium)",
+        "category": "creature",
         "description": "Fiélon d'alignement lawful evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bearded-devil.png",
         "niveau": 3,
@@ -1818,11 +1877,13 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 10 pieds, une cible. Touché : 8 (1d10 + 3) points de dégâts tranchants. Si la cible est une créature autre qu'un mort-vivant ou une construction, elle doit réussir un jet de sauvegarde de Constitution DC 12 ou perdre 5 (1d10) points de vie au début de chacun de ses tours à cause d'une blessure infernale. Chaque fois que le démon touche la cible blessée avec cette attaque, les dégâts infligés par la blessure augmentent de 5 (1d10). Toute créature peut entreprendre une action pour panser la plaie en réussissant un test de sagesse (médecine) DC 12. La blessure se referme également si la cible bénéficie d'une guérison magique.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "devil"
     },
     "behir": {
         "Nom": "Behir",
         "Type": "Monstruosité (Huge)",
+        "category": "dragon",
         "description": "Monstruosité d'alignement neutral evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/behir.png",
         "niveau": 11,
@@ -1866,11 +1927,13 @@
                 "Description": "Le behir effectue une attaque de morsure contre une cible de taille moyenne ou plus petite qu'il agrippe. Si l'attaque touche, la cible est également avalée et la prise se termine. Pendant qu'elle est avalée, la cible est aveuglée et entravée, elle bénéficie d'une couverture totale contre les attaques et autres effets extérieurs au behir, et elle subit 21 (6d6) points de dégâts d'acide au début de chacun des tours du behir. Un behir ne peut avaler qu'une seule créature à la fois.\nSi le behir subit 30 points de dégâts ou plus en un seul tour à cause de la créature avalée, il doit réussir un jet de sauvegarde de Constitution DC 14 à la fin de ce tour ou régurgiter la créature, qui tombe à plat ventre dans un espace situé à moins de 10 pieds du behir. Si le behir meurt, la créature avalée n'est plus retenue par lui et peut s'échapper du cadavre en utilisant 15 pieds de mouvement, en sortant à plat ventre.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "berserker": {
         "Nom": "Berserker",
         "Type": "Humanoïde (Medium)",
+        "category": "humain",
         "description": "Humanoïde d'alignement any chaotic alignment.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/berserker.png",
         "niveau": 2,
@@ -1894,11 +1957,13 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 9 (1d12 + 3) points de dégâts tranchants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "black-bear": {
         "Nom": "Ours noir",
         "Type": "Bête (Medium)",
+        "category": "animal",
         "description": "Bête d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/black-bear.png",
         "niveau": 0.5,
@@ -1932,11 +1997,13 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 7 (2d4 + 2) points de dégâts tranchants.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "black-dragon-wyrmling": {
-        "Nom": "Dragon noir Wyrmling",
+        "Nom": "Dragon Wyrmling noir ",
         "Type": "Dragon (Medium)",
+        "category": "dragon",
         "description": "Dragon d'alignement chaotic evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/black-dragon-wyrmling.png",
         "niveau": 2,
@@ -1965,11 +2032,13 @@
                 "Description": "Le dragon exhale de l'acide sur une ligne de 15 pieds de long et de 5 pieds de large. Chaque créature sur cette ligne doit effectuer un jet de sauvegarde de Dextérité DC 11, subissant 22 (5d8) points de dégâts d'acide en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "black-pudding": {
         "Nom": "Boudin noir",
         "Type": "Vase (Large)",
+        "category": "creature",
         "description": "Vase d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/black-pudding.png",
         "niveau": 4,
@@ -1993,11 +2062,13 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 6 (1d6 + 3) points de dégâts de matraquage plus 18 (4d8) points de dégâts d'acide. De plus, les armures non magiques portées par la cible sont partiellement dissoutes et subissent une pénalité permanente et cumulative de -1 à la CA qu'elles offrent. L'armure est détruite si la pénalité réduit sa CA à 10.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "ooze"
     },
     "blink-dog": {
-        "Nom": "Chien clignotant",
+        "Nom": "Chien esquiveur",
         "Type": "Fée (Medium)",
+        "category": "bete",
         "description": "Fée d'alignement lawful good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/blink-dog.png",
         "niveau": 0.25,
@@ -2026,11 +2097,13 @@
                 "Description": "Le chien se téléporte magiquement, avec tout l'équipement qu'il porte, jusqu'à 40 pieds dans un espace inoccupé qu'il peut voir. Avant ou après la téléportation, le chien peut effectuer une attaque de morsure.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "fey"
     },
     "blood-hawk": {
         "Nom": "Faucon de sang",
         "Type": "Bête (Small)",
+        "category": "animal",
         "description": "Bête d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/blood-hawk.png",
         "niveau": 0.125,
@@ -2054,11 +2127,13 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 4 (1d4 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "blue-dragon-wyrmling": {
-        "Nom": "Dragon bleu Wyrmling",
+        "Nom": "Dragon Wyrmling bleu ",
         "Type": "Dragon (Medium)",
+        "category": "dragon",
         "description": "Dragon d'alignement lawful evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/blue-dragon-wyrmling.png",
         "niveau": 3,
@@ -2087,11 +2162,13 @@
                 "Description": "Le dragon exhale des éclairs sur une ligne de 30 pieds de long et de 5 pieds de large. Chaque créature sur cette ligne doit effectuer un jet de sauvegarde de Dextérité DC 12, subissant 22 (4d10) points de dégâts de foudre en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "boar": {
         "Nom": "Sanglier",
         "Type": "Bête (Medium)",
+        "category": "animal",
         "description": "Bête d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/boar.png",
         "niveau": 0.25,
@@ -2115,11 +2192,13 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4 (1d6 + 1) points de dégâts tranchants.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "bone-devil": {
         "Nom": "Diable osseux",
         "Type": "Fiélon (Large)",
+        "category": "creature",
         "description": "Fiélon d'alignement lawful evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bone-devil.png",
         "niveau": 9,
@@ -2153,11 +2232,13 @@
                 "Description": "Attaque d'arme de mêlée : +8 pour toucher, portée de 10 pieds, une cible. Touché : 13 (2d8 + 4) points de dégâts perforants plus 17 (5d6) points de dégâts de poison, et la cible doit réussir un jet de sauvegarde de Constitution DC 14 ou être empoisonnée pendant 1 minute. La cible peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de réussite.",
                 "Toucher": 8
             }
-        ]
+        ],
+        "Category": "devil"
     },
     "brass-dragon-wyrmling": {
-        "Nom": "Wyrmling dragon en laiton",
+        "Nom": "Dragon Wyrmling de laiton",
         "Type": "Dragon (Medium)",
+        "category": "dragon",
         "description": "Dragon d'alignement chaotic good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/brass-dragon-wyrmling.png",
         "niveau": 1,
@@ -2186,11 +2267,13 @@
                 "Description": "Le dragon utilise l'une des armes respiratoires suivantes.\nSouffle de feu. Le dragon exhale du feu sur une ligne de 20 pieds de long et de 5 pieds de large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité DC 11, subissant 14 (4d6) points de dégâts de feu en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.\nSouffle de sommeil. Le dragon exhale un gaz de sommeil dans un cône de 15 pieds. Chaque créature dans cette zone doit réussir un jet de sauvegarde de Constitution DC 11 ou tomber inconsciente pendant 1 minute. Cet effet prend fin pour une créature si elle subit des dégâts ou si quelqu'un utilise une action pour la réveiller.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "bronze-dragon-wyrmling": {
         "Nom": "Dragon de bronze Wyrmling",
         "Type": "Dragon (Medium)",
+        "category": "dragon",
         "description": "Dragon d'alignement lawful good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bronze-dragon-wyrmling.png",
         "niveau": 2,
@@ -2219,11 +2302,13 @@
                 "Description": "Le dragon utilise l'une des armes respiratoires suivantes.\nSouffle de foudre. Le dragon exhale des éclairs sur une ligne de 40 pieds de long et de 5 pieds de large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité DC 12, subissant 16 (3d10) points de dégâts de foudre en cas de sauvegarde ratée, ou la moitié des dégâts en cas de sauvegarde réussie.\nSouffle de répulsion. Le dragon exhale de l'énergie de répulsion dans un cône de 30 pieds. Chaque créature dans cette zone doit réussir un jet de sauvegarde de Force DC 12. En cas d'échec, la créature est repoussée à 30 pieds du dragon.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "brown-bear": {
         "Nom": "Ours brun",
         "Type": "Bête (Large)",
+        "category": "animal",
         "description": "Bête d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/brown-bear.png",
         "niveau": 1,
@@ -2257,11 +2342,13 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 11 (2d6 + 4) points de dégâts tranchants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "bugbear": {
         "Nom": "Bugbear",
         "Type": "Humanoïde (Medium)",
+        "category": "bete",
         "description": "Humanoïde d'alignement chaotic evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bugbear.png",
         "niveau": 1,
@@ -2290,11 +2377,13 @@
                 "Description": "Attaque en mêlée ou à distance : +4 pour toucher, portée de 5 pieds ou de 30/120 pieds, une cible. Touché : 9 (2d6 + 2) points de dégâts perforants en mêlée ou 5 (1d6 + 2) points de dégâts perforants à distance.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "bulette": {
         "Nom": "Bulette",
         "Type": "Monstruosité (Large)",
+        "category": "bete",
         "description": "Monstruosité d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bulette.png",
         "niveau": 5,
@@ -2323,11 +2412,13 @@
                 "Description": "Si la bulette saute d'au moins 15 pieds dans le cadre de son mouvement, elle peut alors utiliser cette action pour atterrir sur ses pieds dans un espace contenant une ou plusieurs autres créatures. Chacune de ces créatures doit réussir un jet de sauvegarde de Force ou de Dextérité DC 16 (au choix de la cible) ou être mise à terre et subir 14 (3d6 + 4) dégâts de matraquage plus 14 (3d6 + 4) dégâts d'entaille. Si elle réussit son jet de sauvegarde, la créature ne subit que la moitié des dégâts, n'est pas mise à terre et est repoussée de 5 pieds hors de l'espace de la bulette, dans un espace inoccupé de son choix. Si aucun espace inoccupé n'est à portée, la créature tombe à plat ventre dans l'espace de la bulette.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "camel": {
         "Nom": "Chameau",
         "Type": "Bête (Large)",
+        "category": "animal",
         "description": "Bête d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/camel.png",
         "niveau": 0.125,
@@ -2351,11 +2442,13 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 2 (1d4) points de dégâts de matraquage.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "cat": {
         "Nom": "Chat",
         "Type": "Bête (Tiny)",
+        "category": "animal",
         "description": "Bête d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/cat.png",
         "niveau": 0,
@@ -2379,11 +2472,13 @@
                 "Description": "Attaque d'arme de mêlée : +0 pour toucher, portée de 5 pieds, une cible. Touché : 1 point de dégâts tranchants.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "centaur": {
         "Nom": "Centaure",
         "Type": "Monstruosité (Large)",
+        "category": "bete",
         "description": "Monstruosité d'alignement neutral good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/centaur.png",
         "niveau": 2,
@@ -2422,11 +2517,13 @@
                 "Description": "Attaque d'arme à distance : +4 pour toucher, portée de 150/600 pieds, une cible. Touché : 6 (1d8 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "chain-devil": {
         "Nom": "Diable en chaîne",
         "Type": "Fiélon (Medium)",
+        "category": "creature",
         "description": "Fiélon d'alignement lawful evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/chain-devil.png",
         "niveau": 8,
@@ -2460,11 +2557,13 @@
                 "Description": "Jusqu'à quatre chaînes que le démon peut voir dans un rayon de 60 pieds autour de lui poussent magiquement des barbelures tranchantes et s'animent sous le contrôle du démon, à condition que les chaînes ne soient pas portées ou transportées.\nChaque chaîne animée est un objet doté d'une CA de 20, de 20 points de vie, d'une résistance aux dégâts perforants et d'une immunité aux dégâts psychiques et du tonnerre. Lorsque le démon utilise l'attaque multiple à son tour, il peut utiliser chaque chaîne animée pour effectuer une attaque en chaîne supplémentaire. Une chaîne animée peut agripper une créature à elle seule, mais ne peut pas effectuer d'attaque pendant qu'elle est agrippée. Une chaîne animée retourne à son état inanimé si elle est réduite à 0 point de vie ou si le démon est frappé d'incapacité ou meurt.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "devil"
     },
     "chimera": {
         "Nom": "Chimère",
         "Type": "Monstruosité (Large)",
+        "category": "bete",
         "description": "Monstruosité d'alignement chaotic evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/chimera.png",
         "niveau": 6,
@@ -2508,11 +2607,13 @@
                 "Description": "La tête de dragon exhale du feu dans un cône de 15 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Dextérité DC 15, subissant 31 (7d8) points de dégâts de feu en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "chuul": {
         "Nom": "Chuul",
         "Type": "Aberration (Large)",
+        "category": "bete",
         "description": "Aberration d'alignement chaotic evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/chuul.png",
         "niveau": 4,
@@ -2546,11 +2647,13 @@
                 "Description": "Une créature saisie par le chuul doit réussir un jet de sauvegarde de Constitution DC 13 ou être empoisonnée pendant 1 minute. Jusqu'à ce que ce poison prenne fin, la cible est paralysée. La cible peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de réussite.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "aberration"
     },
     "clay-golem": {
         "Nom": "Golem d'argile",
         "Type": "Artificiel (Large)",
+        "category": "elementaire",
         "description": "Artificiel d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/clay-golem.png",
         "niveau": 9,
@@ -2584,11 +2687,13 @@
                 "Description": "Jusqu'à la fin de son prochain tour, le golem bénéficie magiquement d'un bonus de +2 à sa CA, d'un avantage aux jets de sauvegarde de Dextérité et peut utiliser son attaque de fronde comme action bonus.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "construct"
     },
     "cloaker": {
         "Nom": "Cloaker",
         "Type": "Aberration (Large)",
+        "category": "creature",
         "description": "Aberration d'alignement chaotic neutral.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/cloaker.png",
         "niveau": 8,
@@ -2632,11 +2737,13 @@
                 "Description": "L'occulteur crée magiquement trois doubles illusoires de lui-même s'il n'est pas en pleine lumière. Les doubles se déplacent avec lui et imitent ses actions, changeant de position de manière à rendre impossible le repérage du véritable occulteur. Si l'occulteur se trouve dans une zone de lumière vive, les doubles disparaissent.\nLorsqu'une créature cible l'occulteur avec une attaque ou un sort nuisible alors qu'il reste un double, cette créature effectue un jet aléatoire pour déterminer si elle vise l'occulteur ou l'un des doubles. Une créature n'est pas affectée par cet effet magique si elle ne peut pas voir ou si elle se fie à d'autres sens que la vue.\nUn double a la CA de l'occulteur et utilise ses jets de sauvegarde. Si une attaque touche un double, ou si un double échoue à un jet de sauvegarde contre un effet qui inflige des dégâts, le double disparaît.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "aberration"
     },
     "cloud-giant": {
         "Nom": "Géant des nuages",
         "Type": "Géant (Huge)",
+        "category": "elementaire",
         "description": "Géant d'alignement neutral good (50%) or neutral evil (50%).",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/cloud-giant.png",
         "niveau": 9,
@@ -2670,11 +2777,13 @@
                 "Description": "Attaque d'arme à distance : +12 pour toucher, portée de 60/240 pieds, une cible. Touché : 30 (4d10 + 8) points de dégâts de matraquage.",
                 "Toucher": 12
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "cockatrice": {
         "Nom": "Cockatrice",
         "Type": "Monstruosité (Small)",
+        "category": "bete",
         "description": "Monstruosité d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/cockatrice.png",
         "niveau": 0.5,
@@ -2698,11 +2807,13 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une créature. Touché : 3 (1d4 + 1) points de dégâts perforants, et la cible doit réussir un jet de sauvegarde de Constitution DC 11 contre la pétrification magique. En cas d'échec, la créature commence à se transformer en pierre et est immobilisée. Elle doit refaire le jet de sauvegarde à la fin de son prochain tour. En cas de réussite, l'effet prend fin. En cas d'échec, la créature est pétrifiée pendant 24 heures.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "commoner": {
-        "Nom": "Commoner",
+        "Nom": "Roturier",
         "Type": "Humanoïde (Medium)",
+        "category": "humain",
         "description": "Humanoïde d'alignement any alignment.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/commoner.png",
         "niveau": 0,
@@ -2726,11 +2837,13 @@
                 "Description": "Attaque d'arme de mêlée : +2 pour toucher, portée de 5 pieds, une cible. Touché : 2 (1d4) points de dégâts de matraquage.",
                 "Toucher": 2
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "constrictor-snake": {
         "Nom": "Serpent constricteur",
         "Type": "Bête (Large)",
+        "category": "bete",
         "description": "Bête d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/constrictor-snake.png",
         "niveau": 0.25,
@@ -2759,11 +2872,13 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 6 (1d8 + 2) points de dégâts de matraquage, et la cible est agrippée (échappatoire DC 14). Jusqu'à la fin de cette prise, la créature est immobilisée et le serpent ne peut pas immobiliser une autre cible.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "copper-dragon-wyrmling": {
         "Nom": "Dragon de cuivre Wyrmling",
         "Type": "Dragon (Medium)",
+        "category": "dragon",
         "description": "Dragon d'alignement chaotic good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/copper-dragon-wyrmling.png",
         "niveau": 1,
@@ -2792,11 +2907,13 @@
                 "Description": "Le dragon utilise l'une des armes respiratoires suivantes.\nSouffle d'acide. Le dragon exhale de l'acide sur une ligne de 20 pieds de long et de 5 pieds de large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité DC 11, subissant 18 (4d8) points de dégâts d'acide en cas de sauvegarde ratée, ou la moitié des dégâts en cas de sauvegarde réussie.\nSouffle ralenti. Le dragon exhale du gaz dans un cône de 15 pieds. Chaque créature dans cette zone doit réussir un jet de sauvegarde de Constitution DC 11. En cas d'échec, la créature ne peut pas utiliser de réactions, sa vitesse est réduite de moitié et elle ne peut pas faire plus d'une attaque à son tour. De plus, la créature peut utiliser une action ou un bonus d'action à son tour, mais pas les deux. Ces effets durent 1 minute. La créature peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "couatl": {
         "Nom": "Couatl",
         "Type": "Céleste (Medium)",
+        "category": "elementaire",
         "description": "Céleste d'alignement lawful good.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/couatl.png",
         "niveau": 4,
@@ -2830,11 +2947,13 @@
                 "Description": "Le couatl se transforme magiquement en un humanoïde ou une bête dont la valeur de défi est égale ou inférieure à la sienne, ou reprend sa véritable forme. Il reprend sa forme réelle s'il meurt. Tout équipement qu'il porte est absorbé ou porté par sa nouvelle forme (au choix du couatl).\nSous une nouvelle forme, le couatl conserve ses statistiques de jeu et sa capacité à parler, mais sa CA, ses modes de déplacement, sa Force, sa Dextérité et ses autres actions sont remplacés par ceux de la nouvelle forme, et il gagne toutes les statistiques et capacités (à l'exception des caractéristiques de classe, des actions légendaires et des actions de repaire) que la nouvelle forme possède mais qui lui manquent. Si la nouvelle forme possède une attaque de morsure, le couatl peut utiliser sa morsure sous cette forme.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "celestial"
     },
     "crab": {
         "Nom": "Crabe",
         "Type": "Bête (Tiny)",
+        "category": "animal",
         "description": "Bête d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/crab.png",
         "niveau": 0,
@@ -2858,11 +2977,13 @@
                 "Description": "Attaque d'arme de mêlée : +0 pour toucher, portée de 5 pieds, une cible. Touché : 1 dégât de matraquage.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "crocodile": {
         "Nom": "Crocodile",
         "Type": "Bête (Large)",
+        "category": "animal",
         "description": "Bête d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/crocodile.png",
         "niveau": 0.5,
@@ -2886,11 +3007,13 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 7 (1d10 + 2) points de dégâts perforants, et la cible est agrippée (échappatoire DC 12). Jusqu'à la fin de cette prise, la cible est immobilisée et le crocodile ne peut pas mordre une autre cible",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "cult-fanatic": {
         "Nom": "Fanatique de la secte",
         "Type": "Humanoïde (Medium)",
+        "category": "humain",
         "description": "Humanoïde d'alignement any non-good alignment.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/cult-fanatic.png",
         "niveau": 2,
@@ -2919,11 +3042,13 @@
                 "Description": "Attaque en mêlée ou à distance : +4 pour toucher, portée de 5 pieds ou portée de 20/60 pieds, une créature. Touché : 4 (1d4 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "cultist": {
         "Nom": "Cultiste",
         "Type": "Humanoïde (Medium)",
+        "category": "humain",
         "description": "Humanoïde d'alignement any non-good alignment.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/cultist.png",
         "niveau": 0.125,
@@ -2947,7 +3072,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une créature. Touché : 4 (1d6 + 1) points de dégâts tranchants.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "darkmantle": {
         "Nom": "Darkmantle",
@@ -2980,7 +3106,8 @@
                 "Description": "Un rayon de 15 pieds de ténèbres magiques s'étend à partir du manteau noir, se déplace avec lui et se répand dans les coins. Les ténèbres durent aussi longtemps que le darkmantle reste concentré, jusqu'à 10 minutes (comme s'il se concentrait sur un sort). La vision dans le noir ne peut pas pénétrer ces ténèbres, et aucune lumière naturelle ne peut les éclairer. Si une partie des ténèbres chevauche une zone de lumière créée par un sort de 2e niveau ou moins, le sort créant la lumière est dissipé.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "death-dog": {
         "Nom": "Chien de la mort",
@@ -3013,7 +3140,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5 (1d6 + 2) points de dégâts perforants. Si la cible est une créature, elle doit réussir un jet de sauvegarde de Constitution DC 12 contre la maladie ou être empoisonnée jusqu'à ce que la maladie soit guérie. Toutes les 24 heures, la créature doit répéter le jet de sauvegarde, réduisant son maximum de points de vie de 5 (1d10) en cas d'échec. Cette réduction dure jusqu'à ce que la maladie soit guérie. La créature meurt si la maladie réduit son maximum de points de vie à 0.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "deep-gnome-svirfneblin": {
         "Nom": "Gnome profond (Svirfneblin)",
@@ -3046,7 +3174,8 @@
                 "Description": "Attaque d'arme à distance : +4 pour toucher, portée 30/120 pieds, une créature. Touché : 4 (1d4 + 2) points de dégâts perforants, et la cible doit réussir un jet de sauvegarde de Constitution DC 12 ou être empoisonnée pendant 1 minute. La cible peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de réussite",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "gnome"
     },
     "deer": {
         "Nom": "Chevreuil",
@@ -3074,7 +3203,8 @@
                 "Description": "Attaque d'arme de mêlée : +2 au toucher, portée de 5 pieds, une cible. Touché : 2 (1d4) points de dégâts perforants.",
                 "Toucher": 2
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "deva": {
         "Nom": "Deva",
@@ -3117,7 +3247,8 @@
                 "Description": "Le deva se transforme magiquement en un humanoïde ou une bête ayant une valeur de défi égale ou inférieure à la sienne, ou reprend sa véritable forme. Il reprend sa vraie forme s'il meurt. Tout équipement qu'il porte est absorbé ou porté par sa nouvelle forme (au choix du deva).\nSous une nouvelle forme, le deva conserve ses statistiques de jeu et sa capacité à parler, mais sa CA, ses modes de déplacement, sa Force, sa Dextérité et ses sens spéciaux sont remplacés par ceux de la nouvelle forme, et il gagne toutes les statistiques et capacités (à l'exception des caractéristiques de classe, des actions légendaires et des actions de repaire) que la nouvelle forme possède et qui lui manquent.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "celestial"
     },
     "dire-wolf": {
         "Nom": "Loup sinistre",
@@ -3145,7 +3276,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10 (2d6 + 3) points de dégâts perforants. Si la cible est une créature, elle doit réussir un jet de sauvegarde de Force DC 13 ou être mise à terre.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "djinni": {
         "Nom": "Djinni",
@@ -3183,7 +3315,8 @@
                 "Description": "Un cylindre d'air tourbillonnant de 5 pieds de rayon et de 30 pieds de haut se forme magiquement sur un point que le djinni peut voir dans un rayon de 120 pieds. Le tourbillon dure tant que le djinni reste concentré (comme s'il se concentrait sur un sort). Toute créature entrant dans le tourbillon, à l'exception du djinni, doit réussir un jet de sauvegarde de Force DC 18 ou être retenue par le tourbillon. Le djinni peut déplacer le tourbillon jusqu'à 60 pieds comme action, et les créatures retenues par le tourbillon se déplacent avec lui. Le tourbillon prend fin si le djinni le perd de vue.\nUne créature peut utiliser son action pour libérer une créature retenue par le tourbillon, y compris elle-même, en réussissant un test de Force DC 18. Si le test est réussi, la créature n'est plus retenue et se déplace dans l'espace le plus proche hors du tourbillon.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "elemental"
     },
     "doppelganger": {
         "Nom": "Sosie",
@@ -3221,7 +3354,8 @@
                 "Description": "Le double lit magiquement les pensées de surface d'une créature située à moins de 60 pieds de lui. L'effet peut traverser les barrières, mais il est bloqué par 3 pieds de bois ou de terre, 2 pieds de pierre, 2 pouces de métal ou une fine feuille de plomb. Tant que la cible est à portée, le double peut continuer à lire ses pensées, tant que sa concentration n'est pas rompue (comme s'il se concentrait sur un sort). Pendant qu'il lit dans les pensées de la cible, le double a l'avantage aux tests de Sagesse (perspicacité) et de Charisme (tromperie, intimidation et persuasion) contre la cible.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "draft-horse": {
         "Nom": "Cheval de trait",
@@ -3249,7 +3383,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 9 (2d4 + 4) points de dégâts de matraquage.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "dragon-turtle": {
         "Nom": "Tortue Dragon",
@@ -3297,7 +3432,8 @@
                 "Description": "La tortue dragon exhale de la vapeur brûlante dans un cône de 60 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Constitution DC 18, subissant 52 (15d6) points de dégâts de feu en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie. Le fait d'être sous l'eau ne confère pas de résistance à ces dégâts.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "dretch": {
         "Nom": "Dretch",
@@ -3340,7 +3476,8 @@
                 "Description": "Un rayon de 3 mètres de gaz vert dégoûtant s'étend à partir du dretch. Le gaz se répand dans les coins et sa zone est légèrement obscurcie. Il dure 1 minute ou jusqu'à ce qu'un vent fort le disperse. Toute créature qui commence son tour dans cette zone doit réussir un jet de sauvegarde de Constitution DC 11 ou être empoisonnée jusqu'au début de son prochain tour. Lorsqu'elle est ainsi empoisonnée, la cible peut effectuer une action ou une action bonus à son tour, mais pas les deux, et ne peut pas faire de réactions.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "drider": {
         "Nom": "Drider",
@@ -3383,7 +3520,8 @@
                 "Description": "Attaque d'arme à distance : +6 pour toucher, portée de 150/600 pieds, une cible. Touché : 7 (1d8 + 3) points de dégâts perforants plus 4 (1d8) points de dégâts de poison.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "drow": {
         "Nom": "Drow",
@@ -3416,7 +3554,8 @@
                 "Description": "Attaque d'arme à distance : +4 pour toucher, portée 30/120 pieds, une cible. Touché : 5 (1d6 + 2) points de dégâts perforants, et la cible doit réussir un jet de sauvegarde de Constitution DC 13 ou être empoisonnée pendant 1 heure. Si le jet de sauvegarde échoue de 5 ou plus, la cible est également inconsciente tant qu'elle est empoisonnée de cette manière. La cible se réveille si elle subit des dégâts ou si une autre créature entreprend une action pour la secouer.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "elf"
     },
     "druid": {
         "Nom": "Druide",
@@ -3444,7 +3583,8 @@
                 "Description": " Arme de mêlée Attaque : +2 au toucher (+4 au toucher avec un shillelagh), portée de 5 pieds, une cible. Touché : 3 (1d6) dégâts de matraquage, 4 (1d8) dégâts de matraquage si l'arme est maniée à deux mains, ou 6 (1d8 + 2) dégâts de matraquage avec le shillelagh.",
                 "Toucher": 2
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "dryad": {
         "Nom": "Dryade",
@@ -3477,7 +3617,8 @@
                 "Description": "La dryade cible un humanoïde ou une bête qu'elle peut voir dans un rayon de 30 pieds autour d'elle. Si la cible peut voir la dryade, elle doit réussir un jet de sauvegarde de sagesse DC 14 ou être magiquement charmée. La créature charmée considère la dryade comme une amie de confiance qu'il faut écouter et protéger. Bien que la cible ne soit pas sous le contrôle de la dryade, elle prend les demandes ou les actions de la dryade de la façon la plus favorable possible.\nChaque fois que la dryade ou ses alliés font quelque chose de nuisible à la cible, elle peut répéter le jet de sauvegarde, mettant fin à l'effet sur elle-même en cas de succès. Sinon, l'effet dure 24 heures ou jusqu'à ce que la dryade meure, se trouve sur un plan d'existence différent de celui de la cible ou mette fin à l'effet par une action bonus. Si le jet de sauvegarde de la cible est réussi, la cible est immunisée contre le charme feint de la dryade pour les 24 heures suivantes.\nLa dryade ne peut charmer plus d'un humanoïde et jusqu'à trois bêtes à la fois.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "fey"
     },
     "duergar": {
         "Nom": "Duergar",
@@ -3520,7 +3661,8 @@
                 "Description": "Le duergar devient magiquement invisible jusqu'à ce qu'il attaque, lance un sort ou utilise son Agrandissement, ou jusqu'à ce que sa concentration soit rompue, jusqu'à 1 heure (comme s'il se concentrait sur un sort). Tout équipement que le duergar porte ou transporte est invisible avec lui.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "dust-mephit": {
         "Nom": "Poussière Méphite",
@@ -3553,7 +3695,8 @@
                 "Description": "Le méphite exhale un cône de 15 pieds de poussière aveuglante. Chaque créature dans cette zone doit réussir un jet de sauvegarde de Dextérité DC 10 ou être aveuglée pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de succès.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "elemental"
     },
     "eagle": {
         "Nom": "Aigle",
@@ -3581,7 +3724,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 4 (1d4 + 2) points de dégâts tranchants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "earth-elemental": {
         "Nom": "Élémentaire de terre",
@@ -3614,7 +3758,8 @@
                 "Description": "Attaque d'arme de mêlée : +8 pour toucher, portée de 10 pieds, une cible. Touché : 14 (2d8 + 5) points de dégâts de matraquage.",
                 "Toucher": 8
             }
-        ]
+        ],
+        "Category": "elemental"
     },
     "efreeti": {
         "Nom": "Efreeti",
@@ -3652,7 +3797,8 @@
                 "Description": "Attaque magique à distance : +7 pour toucher, portée de 120 pieds, une cible. Touché : 17 (5d6) points de dégâts de feu.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "elemental"
     },
     "elephant": {
         "Nom": "Éléphant",
@@ -3685,7 +3831,8 @@
                 "Description": "Attaque d'arme de mêlée : +8 pour toucher, portée de 5 pieds, une créature à terre. Touché : 22 (3d10 + 6) points de dégâts de matraquage.",
                 "Toucher": 8
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "elk": {
         "Nom": "Wapiti",
@@ -3718,7 +3865,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une créature à terre. Touché : 8 (2d4 + 3) points de dégâts de matraquage.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "erinyes": {
         "Nom": "Erinyes",
@@ -3756,7 +3904,8 @@
                 "Description": "Attaque d'arme à distance : +7 pour toucher, portée 150/600 pieds, une cible. Touché : 7 (1d8 + 3) points de dégâts perforants plus 13 (3d8) points de dégâts de poison, et la cible doit réussir un jet de sauvegarde de Constitution DC 14 ou être empoisonnée. Le poison dure jusqu'à ce qu'il soit éliminé par le sort de restauration inférieur ou une magie similaire.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "devil"
     },
     "ettercap": {
         "Nom": "Ettercap",
@@ -3799,7 +3948,8 @@
                 "Description": "Attaque d'arme à distance : +4 pour toucher, portée 30/60 pieds, une créature grande ou plus petite. Touché : La créature est retenue par une toile. Comme action, la créature retenue peut faire un test de Force DC 11 et s'échapper de la toile en cas de succès. L'effet prend fin si la toile est détruite. La toile a une CA de 10, 5 points de vie, est vulnérable aux dégâts de feu et immunisée contre les dégâts de matraquage.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "ettin": {
         "Nom": "Ettin",
@@ -3837,7 +3987,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 14 (2d8 + 5) points de dégâts perforants.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "fire-elemental": {
         "Nom": "Élémentaire de feu",
@@ -3870,7 +4021,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 10 (2d6 + 3) points de dégâts de feu. Si la cible est une créature ou un objet inflammable, elle s'enflamme. Jusqu'à ce qu'une créature entreprenne une action pour éteindre le feu, la cible subit 5 (1d10) points de dégâts de feu au début de chacun de ses tours.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "elemental"
     },
     "fire-giant": {
         "Nom": "Géant de feu",
@@ -3908,7 +4060,8 @@
                 "Description": "Attaque d'arme à distance : +11 pour toucher, portée de 60/240 pieds, une cible. Touché : 29 (4d10 + 7) dégâts de matraquage.",
                 "Toucher": 11
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "flesh-golem": {
         "Nom": "Golem de chair",
@@ -3941,7 +4094,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 13 (2d8 + 4) dégâts de matraquage.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "construct"
     },
     "flying-snake": {
         "Nom": "Serpent volant",
@@ -3969,7 +4123,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 1 point de dégâts perforants plus 7 (3d4) points de dégâts de poison.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "flying-sword": {
         "Nom": "L'épée volante",
@@ -3997,7 +4152,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 5 (1d8 + 1) points de dégâts tranchants.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "frog": {
         "Nom": "Grenouille",
@@ -4019,7 +4175,8 @@
         "INT": 1,
         "SAG": 8,
         "CHA": 3,
-        "Actions": []
+        "Actions": [],
+        "Category": "beast"
     },
     "frost-giant": {
         "Nom": "Géant de givre",
@@ -4057,7 +4214,8 @@
                 "Description": "Attaque d'arme à distance : +9 pour toucher, portée de 60/240 pieds, une cible. Touché : 28 (4d10 + 6) points de dégâts de matraquage.",
                 "Toucher": 9
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "gargoyle": {
         "Nom": "Argon",
@@ -4095,7 +4253,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5 (1d6 + 2) points de dégâts tranchants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "elemental"
     },
     "gelatinous-cube": {
         "Nom": "Cube gélatineux",
@@ -4128,7 +4287,8 @@
                 "Description": "Le cube se déplace à sa vitesse. Ce faisant, il peut entrer dans l'espace de créatures plus ou moins grandes. Chaque fois que le cube entre dans l'espace d'une créature, celle-ci doit faire un jet de sauvegarde de Dextérité DC 12.\nSur une sauvegarde réussie, la créature peut choisir d'être repoussée de 5 pieds en arrière ou sur le côté du cube. Une créature qui choisit de ne pas être poussée subit les conséquences d'un jet de sauvegarde raté.\nEn cas de sauvegarde ratée, le cube entre dans l'espace de la créature, et celle-ci subit 10 (3d6) points de dégâts d'acide et est engloutie. La créature engloutie ne peut pas respirer, est entravée et subit 21 (6d6) points de dégâts d'acide au début de chaque tour du cube. Lorsque le cube se déplace, la créature engloutie se déplace avec lui.\nUne créature engloutie peut tenter de s'échapper en effectuant un test de Force DC 12. En cas de succès, la créature s'échappe et entre dans un espace de son choix à moins de 5 pieds du cube.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "ooze"
     },
     "ghast": {
         "Nom": "Ghast",
@@ -4161,7 +4321,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10 (2d6 + 3) points de dégâts tranchants. Si la cible est une créature autre qu'un mort-vivant, elle doit réussir un jet de sauvegarde de Constitution DC 10 ou être paralysée pendant 1 minute. La cible peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de réussite.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "ghost": {
         "Nom": "Fantôme",
@@ -4204,7 +4365,8 @@
                 "Description": "Un humanoïde que le fantôme peut voir dans un rayon de 5 pieds doit réussir un jet de sauvegarde de Charisme DC 13 ou être possédé par le fantôme ; le fantôme disparaît alors, et la cible est incapacité et perd le contrôle de son corps. Le fantôme contrôle désormais le corps mais ne prive pas la cible de conscience. Le fantôme ne peut être la cible d'aucune attaque, d'aucun sort ni d'aucun autre effet, à l'exception de ceux qui transforment les morts-vivants, et il conserve son alignement, son Intelligence, sa Sagesse, son Charisme et son immunité au charme et à l'effroi. Il utilise les statistiques de la cible possédée, mais n'a pas accès à ses connaissances, ses caractéristiques de classe ou ses compétences.\nLa possession dure jusqu'à ce que le corps tombe à 0 point de vie, que le fantôme y mette fin par une action bonus ou qu'il soit repoussé par un effet tel que le sort dissipation du mal et du bien. Lorsque la possession prend fin, le fantôme réapparaît dans un espace inoccupé à moins de 5 pieds du corps. La cible est immunisée contre la possession de ce fantôme pendant 24 heures après avoir réussi le jet de sauvegarde ou après la fin de la possession.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "ghoul": {
         "Nom": "La goule",
@@ -4237,7 +4399,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7 (2d4 + 2) points de dégâts tranchants. Si la cible est une créature autre qu'un elfe ou un mort-vivant, elle doit réussir un jet de sauvegarde de Constitution DC 10 ou être paralysée pendant 1 minute. La cible peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de succès.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "giant-ape": {
         "Nom": "Singe géant",
@@ -4275,7 +4438,8 @@
                 "Description": "Attaque d'arme à distance : +9 pour toucher, portée 50/100 pieds, une cible. Touché : 30 (7d6 + 6) points de dégâts de matraquage.",
                 "Toucher": 9
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-badger": {
         "Nom": "Blaireau géant",
@@ -4313,7 +4477,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 6 (2d4 + 1) points de dégâts tranchants.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-bat": {
         "Nom": "Chauve-souris géante",
@@ -4341,7 +4506,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 5 (1d6 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-boar": {
         "Nom": "Sanglier géant",
@@ -4369,7 +4535,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10 (2d6 + 3) points de dégâts tranchants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-centipede": {
         "Nom": "Mille-pattes géant",
@@ -4397,7 +4564,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 4 (1d4 + 2) points de dégâts perforants, et la cible doit réussir un jet de sauvegarde de Constitution DC 11 ou subir 10 (3d6) points de dégâts de poison. Si les dégâts de poison réduisent la cible à 0 point de vie, elle est stable mais empoisonnée pendant 1 heure, même après avoir regagné des points de vie, et elle est paralysée tant qu'elle est empoisonnée de cette façon.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-constrictor-snake": {
         "Nom": "Serpent constricteur géant",
@@ -4430,7 +4598,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une créature. Touché : 13 (2d8 + 4) points de dégâts contondants, et la cible est agrippée (échappatoire DC 16). Jusqu'à la fin de cette prise, la créature est immobilisée et le serpent ne peut pas immobiliser une autre cible.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-crab": {
         "Nom": "Crabe géant",
@@ -4458,7 +4627,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4 (1d6 + 1) points de dégâts de matraquage, et la cible est agrippée (échappatoire DC 11). Le crabe possède deux pinces, chacune ne pouvant saisir qu'une seule cible.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-crocodile": {
         "Nom": "Crocodile géant",
@@ -4496,7 +4666,8 @@
                 "Description": "Attaque d'arme de mêlée : +8 pour toucher, portée de 10 pieds, une cible non agrippée par le crocodile. Touché : 14 (2d8 + 5) points de dégâts de matraquage. Si la cible est une créature, elle doit réussir un jet de sauvegarde de Force DC 16 ou être mise à terre.",
                 "Toucher": 8
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-eagle": {
         "Nom": "Giant Eagle",
@@ -4534,7 +4705,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10 (2d6 + 3) points de dégâts tranchants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-elk": {
         "Nom": "Élan géant",
@@ -4567,7 +4739,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une créature à terre. Touché : 22 (4d8 + 4) points de dégâts de matraquage.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-fire-beetle": {
         "Nom": "Coléoptère géant du feu",
@@ -4595,7 +4768,8 @@
                 "Description": "Attaque d'arme de mêlée : +1 au toucher, portée de 5 pieds, une cible. Touché : 2 (1d6 - 1) points de dégâts tranchants.",
                 "Toucher": 1
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-frog": {
         "Nom": "Grenouille géante",
@@ -4628,7 +4802,8 @@
                 "Description": "La grenouille effectue une attaque de morsure contre une cible de petite taille ou plus petite qu'elle agrippe. Si l'attaque touche, la cible est avalée et le grappin prend fin. La cible avalée est aveuglée et entravée, elle bénéficie d'une couverture totale contre les attaques et autres effets extérieurs à la grenouille, et elle subit 5 (2d4) points de dégâts d'acide au début de chaque tour de la grenouille. La grenouille ne peut avaler qu'une seule cible à la fois. Si la grenouille meurt, la créature avalée n'est plus retenue par elle et peut s'échapper du cadavre en se déplaçant de 5 pieds, en sortant couchée.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-goat": {
         "Nom": "Chèvre géante",
@@ -4656,7 +4831,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 8 (2d4 + 3) points de dégâts de matraquage.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-hyena": {
         "Nom": "Hyène géante",
@@ -4684,7 +4860,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10 (2d6 + 3) points de dégâts perforants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-lizard": {
         "Nom": "Lézard géant",
@@ -4712,7 +4889,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 6 (1d8 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-octopus": {
         "Nom": "Pieuvre géante",
@@ -4745,7 +4923,8 @@
                 "Description": "Un nuage d'encre d'un rayon de 20 pieds s'étend tout autour de la pieuvre si elle est sous l'eau. La zone est fortement obscurcie pendant 1 minute, bien qu'un courant important puisse disperser l'encre. Après avoir libéré l'encre, la pieuvre peut utiliser l'action Dash comme action bonus.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-owl": {
         "Nom": "Hibou géant",
@@ -4773,7 +4952,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 8 (2d6 + 1) points de dégâts tranchants.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-poisonous-snake": {
         "Nom": "Serpent venimeux géant",
@@ -4801,7 +4981,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 10 pieds, une cible. Touché : 6 (1d4 + 4) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de Constitution DC 11, subissant 10 (3d6) points de dégâts de poison en cas de sauvegarde ratée, ou la moitié des dégâts en cas de sauvegarde réussie.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-rat": {
         "Nom": "Rat géant",
@@ -4829,7 +5010,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 4 (1d4 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-rat-diseased": {
         "Nom": "Rat géant (malade)",
@@ -4857,7 +5039,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 3 (1d4 + 2) points de dégâts perforants. Si la cible est une créature, elle doit réussir un jet de sauvegarde de Constitution DC 10 ou contracter une maladie. Tant que la maladie n'est pas guérie, la cible ne peut pas regagner de points de vie, sauf par des moyens magiques, et son maximum de points de vie diminue de 3 (1d6) toutes les 24 heures. Si le maximum de points de vie de la cible tombe à 0 à cause de cette maladie, la cible meurt.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-scorpion": {
         "Nom": "Scorpion géant",
@@ -4895,7 +5078,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 7 (1d10 + 2) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de Constitution DC 12, subissant 22 (4d10) points de dégâts de poison en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-sea-horse": {
         "Nom": "Hippocampe géant",
@@ -4923,7 +5107,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4 (1d6 + 1) dégâts de matraquage.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-shark": {
         "Nom": "Requin géant",
@@ -4951,7 +5136,8 @@
                 "Description": "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une cible. Touché : 22 (3d10 + 6) points de dégâts perforants.",
                 "Toucher": 9
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-spider": {
         "Nom": "Araignée géante",
@@ -4984,7 +5170,8 @@
                 "Description": "Attaque d'arme à distance : +5 pour toucher, portée 30/60 pieds, une créature. Touché : La cible est retenue par une toile. Comme action, la cible retenue peut faire un test de Force DC 12 et faire éclater la toile en cas de succès. La toile peut également être attaquée et détruite (CA 10 ; pv 5 ; vulnérabilité aux dégâts de feu ; immunité aux coups, au poison et aux dégâts psychiques).",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-toad": {
         "Nom": "Crapaud géant",
@@ -5017,7 +5204,8 @@
                 "Description": "Le crapaud effectue une attaque de morsure contre une cible de taille moyenne ou plus petite qu'il agrippe. Si l'attaque touche, la cible est avalée et la prise se termine. La cible avalée est aveuglée et entravée, elle bénéficie d'une couverture totale contre les attaques et autres effets extérieurs au crapaud, et elle subit 10 (3d6) points de dégâts d'acide au début de chaque tour du crapaud. Le crapaud ne peut avaler qu'une seule cible à la fois.\nSi le crapaud meurt, la créature avalée n'est plus retenue par lui et peut s'échapper du cadavre en se déplaçant de 5 pieds, en sortant couchée.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-vulture": {
         "Nom": "Vautour géant",
@@ -5055,7 +5243,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 9 (2d6 + 2) points de dégâts tranchants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-wasp": {
         "Nom": "Guêpe géante",
@@ -5083,7 +5272,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 5 (1d6 + 2) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de Constitution DC 11, subissant 10 (3d6) points de dégâts de poison en cas de sauvegarde ratée, ou la moitié des dégâts en cas de sauvegarde réussie. Si les dégâts de poison réduisent la cible à 0 point de vie, elle est stable mais empoisonnée pendant 1 heure, même après avoir regagné des points de vie, et est paralysée tant qu'elle est empoisonnée de cette façon.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-weasel": {
         "Nom": "Fouine géante",
@@ -5111,7 +5301,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 5 (1d4 + 3) points de dégâts perforants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "giant-wolf-spider": {
         "Nom": "Araignée-loup géante",
@@ -5139,7 +5330,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une créature. Touché : 4 (1d6 + 1) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de Constitution DC 11, subissant 7 (2d6) points de dégâts de poison en cas de sauvegarde ratée, ou la moitié des dégâts en cas de sauvegarde réussie. Si les dégâts de poison réduisent la cible à 0 point de vie, elle est stable mais empoisonnée pendant 1 heure, même après avoir regagné des points de vie, et est paralysée tant qu'elle est empoisonnée de cette façon.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "gibbering-mouther": {
         "Nom": "Bouche à oreille",
@@ -5177,7 +5369,8 @@
                 "Description": "Le mouther crache un globule chimique sur un point qu'il peut voir dans un rayon de 15 pieds. Le globule explose dans un éclair de lumière aveuglant au moment de l'impact. Toute créature située à moins de 5 pieds de l'éclair doit réussir un jet de sauvegarde de Dextérité DC 13 ou être aveuglée jusqu'à la fin du prochain tour du mouther.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "aberration"
     },
     "glabrezu": {
         "Nom": "Glabrezu",
@@ -5215,7 +5408,8 @@
                 "Description": "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une cible. Touché : 7 (2d4 + 2) points de dégâts de matraquage.",
                 "Toucher": 9
             }
-        ]
+        ],
+        "Category": "demon"
     },
     "gladiator": {
         "Nom": "Gladiateur",
@@ -5253,7 +5447,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une créature. Touché : 9 (2d4 + 4) points de dégâts de matraquage. Si la cible est une créature moyenne ou plus petite, elle doit réussir un jet de sauvegarde de Force DC 15 ou être mise à terre.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "gnoll": {
         "Nom": "Gnoll",
@@ -5291,7 +5486,8 @@
                 "Description": "Attaque d'arme à distance : +3 pour toucher, portée de 150/600 pieds, une cible. Touché : 5 (1d8 + 1) points de dégâts perforants.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "goat": {
         "Nom": "Chèvre",
@@ -5319,7 +5515,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 3 (1d4 + 1) dégâts de matraquage.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "goblin": {
         "Nom": "Gobelin",
@@ -5352,7 +5549,8 @@
                 "Description": "Attaque d'arme à distance : +4 pour toucher, portée 80/320 pieds, une cible. Touché : 5 (1d6 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "goblinoid"
     },
     "gold-dragon-wyrmling": {
         "Nom": "Dragon d'or Wyrmling",
@@ -5385,7 +5583,8 @@
                 "Description": "Le dragon utilise l'une des armes respiratoires suivantes.\nSouffle de feu. Le dragon exhale du feu dans un cône de 15 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Dextérité DC 13, subissant 22 (4d10) points de dégâts de feu en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.\nSouffle d'affaiblissement. Le dragon exhale du gaz dans un cône de 15 pieds. Chaque créature dans cette zone doit réussir un jet de sauvegarde de Force DC 13 ou avoir un désavantage sur les jets d'attaque basés sur la Force, les tests de Force et les jets de sauvegarde de Force pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de réussite.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "gorgon": {
         "Nom": "Gorgone",
@@ -5423,7 +5622,8 @@
                 "Description": "La gorgone exhale du gaz pétrifiant dans un cône de 30 pieds. Chaque créature dans cette zone doit réussir un jet de sauvegarde de Constitution DC 13. En cas d'échec, la cible commence à se transformer en pierre et est immobilisée. La cible entravée doit refaire le jet de sauvegarde à la fin de son prochain tour. En cas de réussite, l'effet prend fin sur la cible. En cas d'échec, la cible est pétrifiée jusqu'à ce qu'elle soit libérée par le sort restauration supérieure ou une autre magie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "gray-ooze": {
         "Nom": "Gris de suie",
@@ -5451,10 +5651,11 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4 (1d6 + 1) points de dégâts de matraquage plus 7 (2d6) points de dégâts d'acide, et si la cible porte une armure métallique non magique, son armure est partiellement corrodée et subit une pénalité permanente et cumulative de -1 à la CA qu'elle offre. L'armure est détruite si la pénalité réduit sa CA à 10.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "ooze"
     },
     "green-dragon-wyrmling": {
-        "Nom": "Dragon vert Wyrmling",
+        "Nom": "Dragon Wyrmling vert",
         "Type": "Dragon (Medium)",
         "description": "Dragon d'alignement lawful evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/green-dragon-wyrmling.png",
@@ -5484,7 +5685,8 @@
                 "Description": "Le dragon exhale un gaz empoisonné dans un cône de 15 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Constitution DC 11, subissant 21 (6d6) points de dégâts de poison en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "green-hag": {
         "Nom": "Hag vert",
@@ -5522,7 +5724,8 @@
                 "Description": "La sorcière devient magiquement invisible jusqu'à ce qu'elle attaque ou lance un sort, ou jusqu'à ce que sa concentration prenne fin (comme si elle se concentrait sur un sort). Pendant qu'elle est invisible, elle ne laisse aucune trace physique de son passage, de sorte qu'on ne peut la suivre que par magie. Tout équipement qu'elle porte est invisible avec elle.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "fey"
     },
     "grick": {
         "Nom": "Grick",
@@ -5560,7 +5763,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5 (1d6 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "griffon": {
         "Nom": "Griffon",
@@ -5598,7 +5802,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 11 (2d6 + 4) points de dégâts tranchants.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "grimlock": {
         "Nom": "Grimlock",
@@ -5626,7 +5831,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 5 (1d4 + 3) points de dégâts de matraquage plus 2 (1d4) points de dégâts perforants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "guard": {
         "Nom": "Garde",
@@ -5654,7 +5860,8 @@
                 "Description": "Attaque en mêlée ou à distance : +3 pour toucher, portée de 5 pieds ou portée de 20/60 pieds, une cible. Touché : 4 (1d6 + 1) points de dégâts perforants ou 5 (1d8 + 1) points de dégâts perforants si l'arme est utilisée à deux mains pour une attaque de mêlée.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "guardian-naga": {
         "Nom": "Gardien Naga",
@@ -5687,7 +5894,8 @@
                 "Description": "Attaque d'arme à distance : +8 pour toucher, portée 15/30 pieds, une créature. Touché : La cible doit faire un jet de sauvegarde de Constitution DC 15, subissant 45 (10d8) points de dégâts de poison en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.",
                 "Toucher": 8
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "gynosphinx": {
         "Nom": "Gynosphinx",
@@ -5720,7 +5928,8 @@
                 "Description": "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une cible. Touché : 13 (2d8 + 4) points de dégâts tranchants.",
                 "Toucher": 9
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "half-red-dragon-veteran": {
         "Nom": "Dragon demi-rouge vétéran",
@@ -5768,7 +5977,8 @@
                 "Description": "Le vétéran exhale du feu dans un cône de 15 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Dextérité DC 15, subissant 24 (7d6) dégâts de feu en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "harpy": {
         "Nom": "Harpie",
@@ -5811,7 +6021,8 @@
                 "Description": "La harpie chante une mélodie magique. Tous les humanoïdes et géants situés à moins de 300 pieds de la harpie qui peuvent entendre le chant doivent réussir un jet de sauvegarde de Sagesse DC 11 ou être charmés jusqu'à la fin du chant. La harpie doit entreprendre une action bonus lors de ses tours suivants pour continuer à chanter. Elle peut arrêter de chanter à tout moment. Le chant se termine si la harpie est incapable de s'exprimer.\nLorsqu'elle est charmée par la harpie, la cible est incapable de chanter et ignore les chants des autres harpies. Si la cible charmée se trouve à plus de 5 pieds de la harpie, elle doit se déplacer à son tour vers la harpie par le chemin le plus direct. Elle n'évite pas les attaques d'opportunité, mais avant de se déplacer dans un terrain dommageable, comme de la lave ou une fosse, et chaque fois qu'elle subit des dégâts d'une source autre que la harpie, une cible peut répéter le jet de sauvegarde. Une créature peut également répéter son jet de sauvegarde à la fin de chacun de ses tours. Si le jet de sauvegarde d'une créature est réussi, l'effet prend fin sur elle.\nUne cible qui réussit son jet de sauvegarde est immunisée contre le chant de cette harpie pour les 24 heures à venir.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "hawk": {
         "Nom": "Faucon",
@@ -5839,7 +6050,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 1 point de dégâts tranchants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "hell-hound": {
         "Nom": "Chien de l'enfer",
@@ -5872,7 +6084,8 @@
                 "Description": "Le molosse exhale du feu dans un cône de 15 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Dextérité DC 12, subissant 21 (6d6) points de dégâts de feu en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "hezrou": {
         "Nom": "Hezrou",
@@ -5910,7 +6123,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 11 (2d6 + 4) points de dégâts tranchants.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "hill-giant": {
         "Nom": "Géant des collines",
@@ -5948,7 +6162,8 @@
                 "Description": "Attaque d'arme à distance : +8 pour toucher, portée de 60/240 pieds, une cible. Touché : 21 (3d10 + 5) points de dégâts de matraquage.",
                 "Toucher": 8
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "hippogriff": {
         "Nom": "Hippogriffe",
@@ -5986,7 +6201,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10 (2d6 + 3) points de dégâts tranchants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "hobgoblin": {
         "Nom": "Hobgobelin",
@@ -6019,7 +6235,8 @@
                 "Description": "Attaque d'arme à distance : +3 pour toucher, portée de 150/600 pieds, une cible. Touché : 5 (1d8 + 1) points de dégâts perforants.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "goblinoid"
     },
     "homunculus": {
         "Nom": "Homunculus",
@@ -6047,7 +6264,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 1 dégât perforant, et la cible doit réussir un jet de sauvegarde de Constitution DC 10 ou être empoisonnée pendant 1 minute. Si le jet de sauvegarde échoue de 5 ou plus, la cible est empoisonnée pendant 5 (1d10) minutes et inconsciente tant qu'elle est empoisonnée de cette façon.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "horned-devil": {
         "Nom": "Diable cornu",
@@ -6090,7 +6308,8 @@
                 "Description": "Attaque magique à distance : +7 pour toucher, portée de 150 pieds, une cible. Touché : 14 (4d6) points de dégâts de feu. Si la cible est un objet inflammable qui n'est pas porté ou transporté, il s'enflamme également.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "devil"
     },
     "hunter-shark": {
         "Nom": "Requin chasseur",
@@ -6118,7 +6337,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 13 (2d8 + 4) points de dégâts perforants.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "hydra": {
         "Nom": "Hydra",
@@ -6151,7 +6371,8 @@
                 "Description": "Attaque d'arme de mêlée : +8 pour toucher, portée de 10 pieds, une cible. Touché : 10 (1d10 + 5) points de dégâts perforants.",
                 "Toucher": 8
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "hyena": {
         "Nom": "Hyène",
@@ -6179,7 +6400,8 @@
                 "Description": "Attaque d'arme de mêlée : +2 au toucher, portée de 5 pieds, une cible. Touché : 3 (1d6) points de dégâts perforants.",
                 "Toucher": 2
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "ice-devil": {
         "Nom": "Diable de glace",
@@ -6227,7 +6449,8 @@
                 "Description": "Le diable forme magiquement un mur de glace opaque sur une surface solide qu'il peut voir dans un rayon de 60 pieds. Le mur a 1 pied d'épaisseur et jusqu'à 30 pieds de long et 10 pieds de haut, ou c'est un dôme hémisphérique jusqu'à 20 pieds de diamètre.\nLorsque le mur apparaît, chaque créature se trouvant dans son espace est poussée hors de celui-ci par le chemin le plus court. La créature choisit de quel côté du mur elle se retrouve, à moins qu'elle ne soit incapable de le faire. La créature fait alors un jet de sauvegarde de Dextérité DC 17, subissant 35 (10d6) points de dégâts de froid en cas d'échec, ou moitié moins en cas de réussite.\nLe mur dure 1 minute ou jusqu'à ce que le démon soit incapacité ou meure. Le mur peut être endommagé et percé ; chaque section de 3 mètres a une CA de 5, 30 points de vie, une vulnérabilité aux dégâts de feu et une immunité à l'acide, au froid, à la nécrose, au poison et aux dégâts psychiques. Si une section est détruite, elle laisse derrière elle une nappe d'air glacial dans l'espace que le mur occupait. Chaque fois qu'une créature finit de se déplacer dans l'air glacial au cours d'un tour, volontairement ou non, elle doit effectuer un jet de sauvegarde de Constitution DC 17, subissant 17 (5d6) points de dégâts de froid en cas d'échec, ou la moitié de ces dégâts en cas de réussite. L'air glacial se dissipe lorsque le reste du mur disparaît.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "devil"
     },
     "ice-mephit": {
         "Nom": "Méphite de glace",
@@ -6260,7 +6483,8 @@
                 "Description": "Le méphite exhale un cône d'air froid de 15 pieds. Chaque créature dans cette zone doit réussir un jet de sauvegarde de Dextérité DC 10, subissant 5 (2d4) points de dégâts de froid en cas d'échec, ou la moitié en cas de réussite.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "elemental"
     },
     "imp": {
         "Nom": "Lutte contre l'alcoolisme",
@@ -6293,7 +6517,8 @@
                 "Description": "Le diablotin devient magiquement invisible jusqu'à ce qu'il attaque, ou jusqu'à la fin de sa concentration (comme s'il se concentrait sur un sort). L'équipement que le diablotin porte ou transporte est invisible avec lui.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "invisible-stalker": {
         "Nom": "Harceleur invisible",
@@ -6326,7 +6551,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 10 (2d6 + 3) points de dégâts de matraquage.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "elemental"
     },
     "iron-golem": {
         "Nom": "Golem de fer",
@@ -6369,7 +6595,8 @@
                 "Description": "Le golem exhale un gaz toxique dans un cône de 15 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Constitution DC 19, subissant 45 (10d8) points de dégâts de poison en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "construct"
     },
     "jackal": {
         "Nom": "Chacal",
@@ -6397,7 +6624,8 @@
                 "Description": "Attaque d'arme de mêlée : +1 au toucher, portée de 5 pieds, une cible. Touché : 1 (1d4 - 1) dégâts perforants.",
                 "Toucher": 1
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "killer-whale": {
         "Nom": "L'orque",
@@ -6425,7 +6653,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 21 (5d6 + 4) points de dégâts perforants.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "knight": {
         "Nom": "Chevalier",
@@ -6468,7 +6697,8 @@
                 "Description": "Pendant 1 minute, le chevalier peut prononcer un commandement spécial ou un avertissement chaque fois qu'une créature non hostile qu'il peut voir dans un rayon de 30 pieds fait un jet d'attaque ou un jet de sauvegarde. La créature peut ajouter un d4 à son jet à condition qu'elle puisse entendre et comprendre le chevalier. Une créature ne peut bénéficier que d'un seul dé de direction à la fois. Cet effet prend fin si le chevalier est frappé d'incapacité.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "kobold": {
         "Nom": "Kobold",
@@ -6501,7 +6731,8 @@
                 "Description": "Attaque d'arme à distance : +4 pour toucher, portée 30/120 pieds, une cible. Touché : 4 (1d4 + 2) points de dégâts de matraquage.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "kraken": {
         "Nom": "Kraken",
@@ -6549,7 +6780,8 @@
                 "Description": "Le kraken crée magiquement trois éclairs, chacun pouvant frapper une cible que le kraken peut voir dans un rayon de 120 pieds. La cible doit effectuer un jet de sauvegarde de Dextérité DC 23, subissant 22 (4d10) points de dégâts de foudre en cas d'échec, ou la moitié en cas de réussite.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "lamia": {
         "Nom": "Lamia",
@@ -6592,7 +6824,8 @@
                 "Description": "Mêlée Attaque magique : +5 pour toucher, portée de 5 pieds, une créature. Touché : La cible est maudite pendant 1 heure. Jusqu'à la fin de la malédiction, la cible a un désavantage aux jets de sauvegarde de Sagesse et à tous les tests de capacité.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "lemure": {
         "Nom": "Lemure",
@@ -6620,7 +6853,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 2 (1d4) points de dégâts de matraquage.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "lich": {
         "Nom": "Lich",
@@ -6648,7 +6882,8 @@
                 "Description": "Mêlée Attaque magique : +12 pour toucher, portée de 5 pieds, une créature. Touché : 10 (3d6) points de dégâts de froid. La cible doit réussir un jet de sauvegarde de Constitution DC 18 ou être paralysée pendant 1 minute. La cible peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de succès.",
                 "Toucher": 12
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "lion": {
         "Nom": "Lion",
@@ -6681,7 +6916,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 6 (1d6 + 3) points de dégâts tranchants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "lizard": {
         "Nom": "Lézard",
@@ -6709,7 +6945,8 @@
                 "Description": "Attaque d'arme de mêlée : +0 pour toucher, portée de 5 pieds, une cible. Touché : 1 dégât perforant.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "lizardfolk": {
         "Nom": "Le peuple des lézards",
@@ -6757,7 +6994,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 5 (1d6 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "mage": {
         "Nom": "Mage",
@@ -6785,7 +7023,8 @@
                 "Description": "Attaque en mêlée ou à distance : +5 pour toucher, portée de 5 pieds ou portée de 20/60 pieds, une cible. Touché : 4 (1d4 + 2) points de dégâts perforants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "magma-mephit": {
         "Nom": "Méphite de Magma",
@@ -6818,7 +7057,8 @@
                 "Description": "Le méphite exhale un cône de feu de 15 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Dextérité DC 11, subissant 7 (2d6) points de dégâts de feu en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "elemental"
     },
     "magmin": {
         "Nom": "Magmin",
@@ -6846,7 +7086,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7 (2d6) points de dégâts de feu. Si la cible est une créature ou un objet inflammable, elle s'enflamme. Jusqu'à ce qu'une cible entreprenne une action pour éteindre le feu, la cible subit 3 (1d6) points de dégâts de feu à la fin de chacun de ses tours.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "elemental"
     },
     "mammoth": {
         "Nom": "Mammouth",
@@ -6879,7 +7120,8 @@
                 "Description": "Attaque d'arme de mêlée : +10 pour toucher, portée de 5 pieds, une créature à terre. Touché : 29 (4d10 + 7) dégâts de matraquage.",
                 "Toucher": 10
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "manticore": {
         "Nom": "Manticore",
@@ -6922,7 +7164,8 @@
                 "Description": "Attaque d'arme à distance : +5 pour toucher, portée 100/200 pieds, une cible. Touché : 7 (1d8 + 3) points de dégâts perforants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "marilith": {
         "Nom": "Marilith",
@@ -6965,7 +7208,8 @@
                 "Description": "Le marilith se téléporte magiquement, avec tout l'équipement qu'il porte, jusqu'à 120 pieds dans un espace inoccupé qu'il peut voir.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "demon"
     },
     "mastiff": {
         "Nom": "Mastiff",
@@ -6993,7 +7237,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4 (1d6 + 1) points de dégâts perforants. Si la cible est une créature, elle doit réussir un jet de sauvegarde de Force DC 11 ou être mise à terre.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "medusa": {
         "Nom": "Méduse",
@@ -7036,7 +7281,8 @@
                 "Description": "Attaque d'arme à distance : +5 pour toucher, portée de 150/600 pieds, une cible. Touché : 6 (1d8 + 2) points de dégâts perforants plus 7 (2d6) points de dégâts de poison.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "merfolk": {
         "Nom": "Merfolk",
@@ -7064,7 +7310,8 @@
                 "Description": "Attaque en mêlée ou à distance : +2 au toucher, portée de 5 pieds ou portée de 20/60 pieds, une cible. Touché : 3 (1d6) points de dégâts perforants, ou 4 (1d8) points de dégâts perforants si l'arme est utilisée à deux mains pour une attaque de mêlée.",
                 "Toucher": 2
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "merrow": {
         "Nom": "Merrow",
@@ -7107,7 +7354,8 @@
                 "Description": "Attaque en mêlée ou à distance : +6 pour toucher, portée de 5 pieds ou portée de 20/60 pieds, une cible. Touché : 11 (2d6 + 4) points de dégâts perforants. Si la cible est une créature énorme ou plus petite, elle doit réussir un concours de Force contre le merrow ou être tirée jusqu'à 20 pieds vers le merrow.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "mimic": {
         "Nom": "Mimique",
@@ -7140,7 +7388,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 7 (1d8 + 3) points de dégâts perforants plus 4 (1d8) points de dégâts acides.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "minotaur": {
         "Nom": "Minotaure",
@@ -7173,7 +7422,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 13 (2d8 + 4) points de dégâts perforants.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "minotaur-skeleton": {
         "Nom": "Squelette de minotaure",
@@ -7206,7 +7456,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 13 (2d8 + 4) points de dégâts perforants.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "mule": {
         "Nom": "Mule",
@@ -7234,10 +7485,11 @@
                 "Description": "Attaque d'arme de mêlée : +2 pour toucher, portée de 5 pieds, une cible. Touché : 4 (1d4 + 2) dégâts de matraquage.",
                 "Toucher": 2
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "mummy": {
-        "Nom": "Maman",
+        "Nom": "Momie",
         "Type": "Mort-vivant (Medium)",
         "description": "Mort-vivant d'alignement lawful evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/mummy.png",
@@ -7272,7 +7524,8 @@
                 "Description": "La momie cible une créature qu'elle peut voir dans un rayon de 60 pieds. Si la cible peut voir la momie, elle doit réussir un jet de sauvegarde de sagesse DC 11 contre cette magie ou être effrayée jusqu'à la fin du prochain tour de la momie. Si la cible rate son jet de sauvegarde de 5 ou plus, elle est également paralysée pour la même durée. Une cible qui réussit son jet de sauvegarde est immunisée contre l'Effroyable Regard de toutes les momies (mais pas des seigneurs momies) pour les prochaines 24 heures.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "mummy-lord": {
         "Nom": "Le seigneur des momies",
@@ -7310,7 +7563,8 @@
                 "Description": "Le seigneur momie cible une créature qu'il peut voir dans un rayon de 60 pieds. Si la cible peut voir le seigneur momie, elle doit réussir un jet de sauvegarde de Sagesse DC 16 contre cette magie ou être effrayée jusqu'à la fin du prochain tour de la momie. Si la cible rate son jet de sauvegarde de 5 ou plus, elle est également paralysée pour la même durée. Une cible qui réussit son jet de sauvegarde est immunisée contre l'Effroyable Regard de toutes les momies et de tous les seigneurs momies pour les prochaines 24 heures.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "nalfeshnee": {
         "Nom": "Nalfeshnee",
@@ -7358,7 +7612,8 @@
                 "Description": "Le nalfeshnee se téléporte magiquement, avec tout l'équipement qu'il porte, jusqu'à 120 pieds dans un espace inoccupé qu'il peut voir.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "night-hag": {
         "Nom": "Hagre de nuit",
@@ -7401,7 +7656,8 @@
                 "Description": "Lorsqu'elle se trouve sur le plan éthéré, la sorcière touche magiquement un humanoïde endormi sur le plan matériel. Un sort de protection contre le mal et le bien lancé sur la cible empêche ce contact, de même qu'un cercle magique. Tant que le contact persiste, la cible a des visions épouvantables. Si ces visions durent au moins 1 heure, la cible ne bénéficie pas de son repos et son maximum de points de vie est réduit de 5 (1d10). Si cet effet réduit le maximum de points de vie de la cible à 0, la cible meurt, et si la cible était maléfique, son âme est piégée dans le sac d'âme de la sorcière. La réduction du maximum de points de vie de la cible dure jusqu'à ce qu'elle soit supprimée par le sort restauration supérieure ou une magie similaire.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "nightmare": {
         "Nom": "Cauchemar",
@@ -7434,7 +7690,8 @@
                 "Description": "Le cauchemar et jusqu'à trois créatures consentantes dans un rayon de 5 pieds autour de lui pénètrent magiquement dans le plan éthéré depuis le plan matériel, ou vice versa.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "noble": {
         "Nom": "Noble",
@@ -7462,7 +7719,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 5 (1d8 + 1) points de dégâts perforants.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "ochre-jelly": {
         "Nom": "Gelée d'ocre",
@@ -7490,7 +7748,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 9 (2d6 + 2) points de dégâts de matraquage plus 3 (1d6) points de dégâts d'acide.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "ooze"
     },
     "octopus": {
         "Nom": "Pieuvre",
@@ -7523,7 +7782,8 @@
                 "Description": "Un nuage d'encre d'un rayon de 5 pieds s'étend tout autour de la pieuvre si elle est sous l'eau. La zone est fortement obscurcie pendant 1 minute, bien qu'un courant important puisse disperser l'encre. Après avoir libéré l'encre, la pieuvre peut utiliser l'action Dash comme action bonus.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "ogre": {
         "Nom": "Ogre",
@@ -7556,7 +7816,8 @@
                 "Description": "Attaque en mêlée ou à distance : +6 pour toucher, portée de 5 pieds ou de 30/120 pieds, une cible. Touché : 11 (2d6 + 4) points de dégâts perforants.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "ogre-zombie": {
         "Nom": "Ogre Zombie",
@@ -7584,7 +7845,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 13 (2d8 + 4) dégâts de matraquage.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "oni": {
         "Nom": "Oni",
@@ -7627,7 +7889,8 @@
                 "Description": "L'oni se transforme magiquement en un humanoïde de petite ou moyenne taille, en un grand géant ou reprend sa véritable forme. Hormis sa taille, ses statistiques sont les mêmes sous chaque forme. Le seul équipement transformé est son glaive, qui rétrécit pour pouvoir être manié sous forme humanoïde. Si l'oni meurt, il reprend sa forme réelle et son glaive reprend sa taille normale.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "orc": {
         "Nom": "Orque",
@@ -7660,7 +7923,8 @@
                 "Description": "Attaque en mêlée ou à distance : +5 pour toucher, portée de 5 pieds ou portée de 30/120 pieds, une cible. Touché : 6 (1d6 + 3) points de dégâts perforants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "otyugh": {
         "Nom": "Otyugh",
@@ -7703,7 +7967,8 @@
                 "Description": "L'otyugh frappe les créatures qu'il agrippe les unes contre les autres ou contre une surface solide. Chaque créature doit réussir un jet de sauvegarde de Constitution DC 14 ou subir 10 (2d6 + 3) dégâts de matraquage et être étourdie jusqu'à la fin du prochain tour de l'otyugh. En cas de sauvegarde réussie, la cible subit la moitié des dégâts de matraquage et n'est pas étourdie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "aberration"
     },
     "owl": {
         "Nom": "Hibou",
@@ -7731,7 +7996,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 1 point de dégâts tranchants.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "owlbear": {
         "Nom": "Ourson",
@@ -7769,7 +8035,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 14 (2d8 + 5) points de dégâts tranchants.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "panther": {
         "Nom": "Panthère",
@@ -7802,7 +8069,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 4 (1d4 + 2) points de dégâts tranchants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "pegasus": {
         "Nom": "Pegasus",
@@ -7830,7 +8098,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 11 (2d6 + 4) points de dégâts de matraquage.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "celestial"
     },
     "phase-spider": {
         "Nom": "Phase Spider",
@@ -7858,7 +8127,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 7 (1d10 + 2) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de Constitution DC 11, subissant 18 (4d8) points de dégâts de poison en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie. Si les dégâts de poison réduisent la cible à 0 point de vie, elle est stable mais empoisonnée pendant 1 heure, même après avoir regagné des points de vie, et est paralysée tant qu'elle est empoisonnée de cette façon.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "pit-fiend": {
         "Nom": "Fléau de la fosse",
@@ -7906,7 +8176,8 @@
                 "Description": "Attaque d'arme de mêlée : +14 pour toucher, portée de 10 pieds, une cible. Touché : 24 (3d10 + 8) dégâts de matraquage.",
                 "Toucher": 14
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "planetar": {
         "Nom": "Planetar",
@@ -7944,7 +8215,8 @@
                 "Description": "Le planétar touche une autre créature. La cible regagne magiquement 30 (6d8 + 3) points de vie et est libérée de toute malédiction, maladie, poison, cécité ou surdité.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "celestial"
     },
     "plesiosaurus": {
         "Nom": "Plesiosaurus",
@@ -7972,7 +8244,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 10 pieds, une cible. Touché : 14 (3d6 + 4) points de dégâts perforants.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "poisonous-snake": {
         "Nom": "Serpent venimeux",
@@ -8000,7 +8273,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 1 dégât perforant, et la cible doit faire un jet de sauvegarde de Constitution DC 10, subissant 5 (2d4) dégâts de poison en cas de sauvegarde ratée, ou la moitié des dégâts en cas de sauvegarde réussie.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "polar-bear": {
         "Nom": "Ours polaire",
@@ -8038,7 +8312,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 12 (2d6 + 5) points de dégâts tranchants.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "pony": {
         "Nom": "Poney",
@@ -8066,7 +8341,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7 (2d4 + 2) points de dégâts de matraquage.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "priest": {
         "Nom": "Prêtre",
@@ -8094,7 +8370,8 @@
                 "Description": "Attaque d'arme de mêlée : +2 pour toucher, portée de 5 pieds, une cible. Touché : 3 (1d6) points de dégâts de matraquage.",
                 "Toucher": 2
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "pseudodragon": {
         "Nom": "Pseudodragon",
@@ -8127,7 +8404,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 4 (1d4 + 2) points de dégâts perforants, et la cible doit réussir un jet de sauvegarde de Constitution DC 11 ou être empoisonnée pendant 1 heure. Si le jet de sauvegarde échoue de 5 ou plus, la cible tombe inconsciente pour la même durée, ou jusqu'à ce qu'elle subisse des dégâts ou qu'une autre créature utilise une action pour la réveiller.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "purple-worm": {
         "Nom": "Ver violet",
@@ -8165,7 +8443,8 @@
                 "Description": "Attaque d'arme de mêlée : +9 pour toucher, portée de 10 pieds, une créature. Touché : 19 (3d6 + 9) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de Constitution DC 19, subissant 42 (12d6) points de dégâts de poison en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 9
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "quasit": {
         "Nom": "Quasit",
@@ -8203,7 +8482,8 @@
                 "Description": "Le quasit devient magiquement invisible jusqu'à ce qu'il attaque ou utilise Peur, ou jusqu'à la fin de sa concentration (comme s'il se concentrait sur un sort). Tout équipement que le quasit porte ou transporte est invisible avec lui.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "quipper": {
         "Nom": "Quipper",
@@ -8231,7 +8511,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 1 dégât perforant.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "rakshasa": {
         "Nom": "Rakshasa",
@@ -8264,7 +8545,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 9 (2d6 + 2) points de dégâts tranchants, et la cible est maudite s'il s'agit d'une créature. La malédiction magique prend effet à chaque fois que la cible prend un repos court ou long, remplissant ses pensées d'images et de rêves horribles. La cible maudite ne bénéficie d'aucun avantage à la fin d'un repos court ou long. La malédiction dure jusqu'à ce qu'elle soit levée par un sort de levée de malédiction ou une magie similaire.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "rat": {
         "Nom": "Rat",
@@ -8292,7 +8574,8 @@
                 "Description": "Attaque d'arme de mêlée : +0 pour toucher, portée de 5 pieds, une cible. Touché : 1 dégât perforant.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "raven": {
         "Nom": "Corbeau",
@@ -8320,10 +8603,11 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 1 dégât perforant.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "red-dragon-wyrmling": {
-        "Nom": "Dragon rouge Wyrmling",
+        "Nom": "Dragon Wyrmling rouge",
         "Type": "Dragon (Medium)",
         "description": "Dragon d'alignement chaotic evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/red-dragon-wyrmling.png",
@@ -8353,7 +8637,8 @@
                 "Description": "Le dragon exhale du feu dans un cône de 15 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Dextérité DC 13, subissant 24 (7d6) dégâts de feu en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "reef-shark": {
         "Nom": "Requin de récif",
@@ -8381,7 +8666,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 6 (1d8 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "remorhaz": {
         "Nom": "Remorhaz",
@@ -8414,7 +8700,8 @@
                 "Description": "Le remorhaz effectue une attaque de morsure contre une créature de taille moyenne ou plus petite qu'il agrippe. Si l'attaque touche, la créature subit les dégâts de la morsure et est avalée, et l'empoignade prend fin. Pendant qu'elle est avalée, la créature est aveuglée et entravée, elle bénéficie d'une couverture totale contre les attaques et autres effets extérieurs au remorhaz, et elle subit 21 (6d6) points de dégâts d'acide au début de chacun des tours du remorhaz.\nSi le remorhaz subit 30 points de dégâts ou plus en un seul tour de la part d'une créature à l'intérieur de lui, il doit réussir un jet de sauvegarde de Constitution DC 15 à la fin de ce tour ou régurgiter toutes les créatures avalées, qui tombent à plat dans un espace de 10 pieds autour du remorhaz. Si le rémorhaz meurt, une créature avalée n'est plus retenue par lui et peut s'échapper du cadavre en se déplaçant sur 15 pieds, en sortant à plat ventre.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "rhinoceros": {
         "Nom": "Rhinocéros",
@@ -8442,7 +8729,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 14 (2d8 + 5) points de dégâts de matraquage.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "riding-horse": {
         "Nom": "Cheval d'équitation",
@@ -8470,7 +8758,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 8 (2d4 + 3) points de dégâts de matraquage.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "roc": {
         "Nom": "Roc",
@@ -8508,7 +8797,8 @@
                 "Description": "Attaque d'arme de mêlée : +13 pour toucher, portée de 5 pieds, une cible. Touché : 23 (4d6 + 9) points de dégâts tranchants, et la cible est agrippée (échappatoire DC 19). Jusqu'à la fin de cette prise, la cible est immobilisée et le roc ne peut pas utiliser ses serres sur une autre cible.",
                 "Toucher": 13
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "roper": {
         "Nom": "Roper",
@@ -8551,7 +8841,8 @@
                 "Description": "Le rôdeur tire chaque créature agrippée par lui jusqu'à 25 pieds en ligne droite vers lui.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "rug-of-smothering": {
         "Nom": "Tapis d'étouffement",
@@ -8579,7 +8870,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une créature moyenne ou plus petite. Touché : la créature est agrippée (échappatoire DC 13). Jusqu'à la fin de ce grappin, la cible est entravée, aveuglée et risque de suffoquer, et le tapis ne peut pas étouffer une autre cible. De plus, au début de chacun de ses tours, la cible subit 10 (2d6 + 3) dégâts de matraquage.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "rust-monster": {
         "Nom": "Monstre de rouille",
@@ -8612,7 +8904,8 @@
                 "Description": "Le monstre rouille corrode un objet non magique en métal ferreux qu'il peut voir dans un rayon de 5 pieds. Si l'objet n'est pas porté ou transporté, le toucher détruit un cube de 1 pied autour de lui. Si l'objet est porté par une créature, celle-ci peut faire un jet de sauvegarde de Dextérité DC 11 pour éviter le toucher du monstre de rouille.\nSi l'objet touché est une armure ou un bouclier métallique porté ou transporté, il subit une pénalité permanente et cumulative de -1 à la CA qu'il offre. Une armure dont la CA est réduite à 10 ou un bouclier dont le bonus est de +0 est détruit. Si l'objet touché est une arme en métal tenue, il rouille comme décrit dans le trait Rouille du métal.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "saber-toothed-tiger": {
         "Nom": "Tigre à dents de sabre",
@@ -8645,7 +8938,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 12 (2d6 + 5) points de dégâts tranchants.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "sahuagin": {
         "Nom": "Sahuagin",
@@ -8688,7 +8982,8 @@
                 "Description": "Attaque en mêlée ou à distance : +3 pour toucher, portée de 5 pieds ou portée de 20/60 pieds, une cible. Touché : 4 (1d6 + 1) points de dégâts perforants, ou 5 (1d8 + 1) points de dégâts perforants si l'arme est utilisée à deux mains pour une attaque de mêlée.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "salamander": {
         "Nom": "Salamandre",
@@ -8726,7 +9021,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 10 pieds, une cible. Touché : 11 (2d6 + 4) points de dégâts de matraquage plus 7 (2d6) points de dégâts de feu, et la cible est agrippée (échappatoire DC 14). Jusqu'à la fin de ce grappin, la cible est immobilisée, la salamandre peut automatiquement la frapper avec sa queue, et la salamandre ne peut pas faire d'attaques de queue contre d'autres cibles.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "elemental"
     },
     "satyr": {
         "Nom": "Satyre",
@@ -8764,7 +9060,8 @@
                 "Description": "Attaque d'arme à distance : +5 pour toucher, portée 80/320 pieds, une cible. Touché : 6 (1d6 + 3) points de dégâts perforants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "fey"
     },
     "scorpion": {
         "Nom": "Scorpion",
@@ -8792,7 +9089,8 @@
                 "Description": "Attaque d'arme de mêlée : +2 pour toucher, portée de 5 pieds, une créature. Touché : 1 dégât perforant, et la cible doit faire un jet de sauvegarde de Constitution DC 9, subissant 4 (1d8) dégâts de poison en cas de sauvegarde ratée, ou la moitié des dégâts en cas de sauvegarde réussie.",
                 "Toucher": 2
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "scout": {
         "Nom": "Éclaireur",
@@ -8830,7 +9128,8 @@
                 "Description": "Attaque d'arme à distance : +4 pour toucher, portée de 150/600 pieds, une cible. Touché : 6 (1d8 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "sea-hag": {
         "Nom": "Le chien de mer",
@@ -8868,7 +9167,8 @@
                 "Description": "La sorcière se couvre et couvre tout ce qu'elle porte ou transporte d'une illusion magique qui la fait ressembler à une créature laide de sa taille générale et de forme humanoïde. L'effet prend fin si la sorcière entreprend une action bonus pour y mettre fin ou si elle meurt.\nLes changements provoqués par cet effet ne résistent pas à une inspection physique. Par exemple, la sorcière peut sembler ne pas avoir de griffes, mais quelqu'un qui touche sa main peut sentir les griffes. Sinon, une créature doit entreprendre une action pour inspecter visuellement l'illusion et réussir un test d'Intelligence (Investigation) DC 16 pour discerner que la sorcière est déguisée.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "fey"
     },
     "sea-horse": {
         "Nom": "Cheval de mer",
@@ -8890,7 +9190,8 @@
         "INT": 1,
         "SAG": 10,
         "CHA": 2,
-        "Actions": []
+        "Actions": [],
+        "Category": "beast"
     },
     "shadow": {
         "Nom": "Ombre",
@@ -8918,7 +9219,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 9 (2d6 + 2) points de dégâts nécrotiques, et le score de Force de la cible est réduit de 1d4. La cible meurt si cela réduit sa Force à 0. Sinon, la réduction dure jusqu'à ce que la cible termine un repos court ou long.\nSi un humanoïde non-maléfique meurt de cette attaque, une nouvelle ombre surgit du cadavre 1d4 heures plus tard.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "shambling-mound": {
         "Nom": "Le tumulus",
@@ -8956,7 +9258,8 @@
                 "Description": "Le monticule informe engloutit une créature de taille moyenne ou plus petite qu'il agrippe. La cible engloutie est aveuglée, entravée et incapable de respirer, et elle doit réussir un jet de sauvegarde de Constitution DC 14 au début de chaque tour du monticule ou subir 13 (2d8 + 4) dégâts de matraquage. Si le monticule se déplace, la cible engloutie se déplace avec lui. Le monticule ne peut engloutir qu'une seule créature à la fois.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "plant"
     },
     "shield-guardian": {
         "Nom": "Gardien du bouclier",
@@ -8989,7 +9292,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 11 (2d6 + 4) points de dégâts de matraquage.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "shrieker": {
         "Nom": "Shrieker",
@@ -9011,7 +9315,8 @@
         "INT": 1,
         "SAG": 3,
         "CHA": 1,
-        "Actions": []
+        "Actions": [],
+        "Category": "plant"
     },
     "silver-dragon-wyrmling": {
         "Nom": "Dragon d'argent Wyrmling",
@@ -9044,7 +9349,8 @@
                 "Description": "Le dragon utilise l'une des armes respiratoires suivantes.\nSouffle froid. Le dragon exhale un souffle glacé dans un cône de 15 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Constitution DC 13, subissant 18 (4d8) points de dégâts de froid en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.\nSouffle paralysant. Le dragon exhale un gaz paralysant dans un cône de 15 pieds. Chaque créature dans cette zone doit réussir un jet de sauvegarde de Constitution DC 13 ou être paralysée pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de réussite.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "skeleton": {
         "Nom": "Squelette",
@@ -9077,7 +9383,8 @@
                 "Description": "Attaque d'arme à distance : +4 pour toucher, portée 80/320 pieds, une cible. Touché : 5 (1d6 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "solar": {
         "Nom": "Solaire",
@@ -9125,7 +9432,8 @@
                 "Description": "Le solaire touche une autre créature. La cible regagne magiquement 40 (8d8 + 4) points de vie et est libérée de toute malédiction, maladie, poison, cécité ou surdité.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "celestial"
     },
     "specter": {
         "Nom": "Spectre",
@@ -9153,7 +9461,8 @@
                 "Description": "Mêlée Attaque magique : +4 pour toucher, portée de 5 pieds, une créature. Touché : 10 (3d6) points de dégâts nécrotiques. La cible doit réussir un jet de sauvegarde de Constitution DC 10 ou son maximum de points de vie est réduit d'un montant égal aux dégâts subis. Cette réduction dure jusqu'à ce que la créature termine un long repos. La cible meurt si cet effet réduit son maximum de points de vie à 0.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "spider": {
         "Nom": "Araignée",
@@ -9181,7 +9490,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 1 point de dégâts perforants, et la cible doit réussir un jet de sauvegarde de Constitution DC 9 ou subir 2 (1d4) points de dégâts de poison.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "spirit-naga": {
         "Nom": "Esprit Naga",
@@ -9209,7 +9519,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 10 pieds, une créature. Touché : 7 (1d6 + 4) points de dégâts perforants, et la cible doit faire un jet de sauvegarde de Constitution DC 13, subissant 31 (7d8) points de dégâts de poison en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "sprite": {
         "Nom": "Sprite",
@@ -9252,7 +9563,8 @@
                 "Description": "Le lutin devient magiquement invisible jusqu'à ce qu'il attaque ou lance un sort, ou jusqu'à la fin de sa concentration (comme s'il se concentrait sur un sort). Tout équipement que le lutin porte ou transporte est invisible avec lui.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "fey"
     },
     "spy": {
         "Nom": "Espion",
@@ -9290,7 +9602,8 @@
                 "Description": "Attaque d'arme à distance : +4 pour toucher, portée 30/120 pieds, une cible. Touché : 5 (1d6 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "steam-mephit": {
         "Nom": "Méphite à vapeur",
@@ -9323,7 +9636,8 @@
                 "Description": "Le méphite exhale un cône de vapeur brûlante de 15 pieds. Chaque créature dans cette zone doit réussir un jet de sauvegarde de Dextérité DC 10, subissant 4 (1d8) points de dégâts de feu en cas d'échec, ou moitié moins de dégâts en cas de réussite.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "elemental"
     },
     "stirge": {
         "Nom": "Stirge",
@@ -9351,7 +9665,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une créature. Touché : 5 (1d4 + 3) points de dégâts perforants, et l'étrier s'attache à la cible. Tant qu'il est attaché, l'étrog n'attaque pas. Au lieu de cela, au début de chaque tour de l'étrog, la cible perd 5 (1d4 + 3) points de vie à cause de la perte de sang.\nL'étang peut se détacher en dépensant 5 pieds de son mouvement. Il le fait après avoir drainé 10 points de vie de sang de la cible ou après que celle-ci soit morte. Une créature, y compris la cible, peut utiliser son action pour détacher l'étrog.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "stone-giant": {
         "Nom": "Géant de pierre",
@@ -9389,7 +9704,8 @@
                 "Description": "Attaque d'arme à distance : +9 pour toucher, portée de 60/240 pieds, une cible. Touché : 28 (4d10 + 6) dégâts de matraquage. Si la cible est une créature, elle doit réussir un jet de sauvegarde de Force DC 17 ou être mise à terre.",
                 "Toucher": 9
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "stone-golem": {
         "Nom": "Golem de pierre",
@@ -9427,7 +9743,8 @@
                 "Description": "Le golem cible une ou plusieurs créatures qu'il peut voir dans un rayon de 10 pieds. Chaque cible doit effectuer un jet de sauvegarde de sagesse DC 17 contre cette magie. En cas de sauvegarde ratée, la cible ne peut pas utiliser de réactions, sa vitesse est réduite de moitié et elle ne peut pas faire plus d'une attaque à son tour. De plus, la cible peut effectuer soit une action, soit une action bonus à son tour, mais pas les deux. Ces effets durent 1 minute. Une cible peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de succès.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "construct"
     },
     "storm-giant": {
         "Nom": "Géant des tempêtes",
@@ -9470,7 +9787,8 @@
                 "Description": "Le géant lance un éclair magique sur un point qu'il peut voir dans un rayon de 500 pieds. Chaque créature située à moins de 10 pieds de ce point doit effectuer un jet de sauvegarde de Dextérité DC 17, subissant 54 (12d8) points de dégâts de foudre en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "succubus-incubus": {
         "Nom": "Succube/Incube",
@@ -9513,7 +9831,8 @@
                 "Description": "Le démon pénètre magiquement dans le plan éthéré depuis le plan matériel, ou vice versa.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "creature"
     },
     "swarm-of-bats": {
         "Nom": "Essaim de chauves-souris",
@@ -9541,7 +9860,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 0 pied, une créature dans l'espace de l'essaim. Touché : 5 (2d4) points de dégâts perforants, ou 2 (1d4) points de dégâts perforants si l'essaim a la moitié de ses points de vie ou moins.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "swarm-of-beetles": {
         "Nom": "Essaim de coléoptères",
@@ -9569,7 +9889,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 0 pied, une cible dans l'espace de l'essaim. Touché : 10 (4d4) points de dégâts perforants, ou 5 (2d4) points de dégâts perforants si l'essaim a la moitié de ses points de vie ou moins.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "swarm-of-centipedes": {
         "Nom": "Essaim de mille-pattes",
@@ -9597,7 +9918,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 0 pied, une cible dans l'espace de l'essaim. Touché : 10 (4d4) points de dégâts perforants, ou 5 (2d4) points de dégâts perforants si l'essaim a la moitié de ses points de vie ou moins.\nUne créature réduite à 0 point de vie par un essaim de mille-pattes est stable mais empoisonnée pendant 1 heure, même après avoir regagné ses points de vie, et paralysée tant qu'elle est empoisonnée de cette façon.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "swarm-of-insects": {
         "Nom": "Essaim d'insectes",
@@ -9625,7 +9947,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 0 pied, une cible dans l'espace de l'essaim. Touché : 10 (4d4) points de dégâts perforants, ou 5 (2d4) points de dégâts perforants si l'essaim a la moitié de ses points de vie ou moins.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "swarm-of-poisonous-snakes": {
         "Nom": "Essaim de serpents venimeux",
@@ -9653,7 +9976,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 0 pied, une créature dans l'espace de l'essaim. Touché : 7 (2d6) points de dégâts perforants, ou 3 (1d6) points de dégâts perforants si l'essaim a la moitié de ses points de vie ou moins. La cible doit effectuer un jet de sauvegarde de Constitution DC 10, subissant 14 (4d6) points de dégâts de poison en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "swarm-of-quippers": {
         "Nom": "Essaim de Quippers",
@@ -9681,7 +10005,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 0 pied, une créature dans l'espace de l'essaim. Touché : 14 (4d6) points de dégâts perforants, ou 7 (2d6) points de dégâts perforants si l'essaim a la moitié de ses points de vie ou moins.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "swarm-of-rats": {
         "Nom": "Essaim de rats",
@@ -9709,7 +10034,8 @@
                 "Description": "Attaque d'arme de mêlée : +2 au toucher, portée de 0 pied, une cible dans l'espace de l'essaim. Touché : 7 (2d6) points de dégâts perforants, ou 3 (1d6) points de dégâts perforants si l'essaim a la moitié de ses points de vie ou moins.",
                 "Toucher": 2
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "swarm-of-ravens": {
         "Nom": "Essaim de corbeaux",
@@ -9737,7 +10063,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible dans l'espace de l'essaim. Touché : 7 (2d6) points de dégâts perforants, ou 3 (1d6) points de dégâts perforants si l'essaim a la moitié de ses points de vie ou moins.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "swarm-of-spiders": {
         "Nom": "Essaim d'araignées",
@@ -9765,7 +10092,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 0 pied, une cible dans l'espace de l'essaim. Touché : 10 (4d4) points de dégâts perforants, ou 5 (2d4) points de dégâts perforants si l'essaim a la moitié de ses points de vie ou moins.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "swarm-of-wasps": {
         "Nom": "Essaim de guêpes",
@@ -9793,7 +10121,8 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 0 pied, une cible dans l'espace de l'essaim. Touché : 10 (4d4) points de dégâts perforants, ou 5 (2d4) points de dégâts perforants si l'essaim a la moitié de ses points de vie ou moins.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "tarrasque": {
         "Nom": "Tarrasque",
@@ -9851,7 +10180,8 @@
                 "Description": "La tarrasque effectue une attaque de morsure contre une créature Grande ou plus petite qu'elle agrippe. Si l'attaque touche, la cible subit les dégâts de la morsure, elle est avalée et le grappin prend fin. Pendant qu'elle est avalée, la créature est aveuglée et entravée, elle bénéficie d'une couverture totale contre les attaques et autres effets extérieurs à la tarrasque, et elle subit 56 (16d6) points de dégâts d'acide au début de chacun des tours de la tarrasque.\nSi la tarrasque subit 60 points de dégâts ou plus en un seul tour de la part d'une créature à l'intérieur d'elle, elle doit réussir un jet de sauvegarde de Constitution DC 20 à la fin de ce tour ou régurgiter toutes les créatures avalées, qui tombent à plat dans un espace de 10 pieds autour de la tarrasque. Si la tarrasque meurt, une créature avalée n'est plus retenue par elle et peut s'échapper du cadavre en utilisant 30 pieds de mouvement, en sortant à plat ventre.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "thug": {
         "Nom": "Voyou",
@@ -9889,7 +10219,8 @@
                 "Description": "Attaque d'arme à distance : +2 au toucher, portée de 100/400 pieds, une cible. Touché : 5 (1d10) points de dégâts perforants.",
                 "Toucher": 2
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "tiger": {
         "Nom": "Tigre",
@@ -9922,7 +10253,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 7 (1d8 + 3) points de dégâts tranchants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "treant": {
         "Nom": "Tréant",
@@ -9965,7 +10297,8 @@
                 "Description": "Le tréant anime magiquement un ou deux arbres qu'il peut voir dans un rayon de 60 pieds autour de lui. Ces arbres ont les mêmes statistiques que le tréant, sauf qu'ils ont des scores d'Intelligence et de Charisme de 1, qu'ils ne peuvent pas parler et qu'ils n'ont que l'option d'action Cheveux d'argile. Un arbre animé agit comme un allié du tréant. L'arbre reste animé pendant 1 jour ou jusqu'à ce qu'il meure, jusqu'à ce que l'écorcheur meure ou se trouve à plus de 120 pieds de l'arbre, ou jusqu'à ce que l'écorcheur entreprenne une action bonus pour le retransformer en arbre inanimé. L'arbre prend alors racine si possible.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "plant"
     },
     "tribal-warrior": {
         "Nom": "Guerrier tribal",
@@ -9993,7 +10326,8 @@
                 "Description": "Attaque en mêlée ou à distance : +3 pour toucher, portée de 5 pieds ou portée de 20/60 pieds, une cible. Touché : 4 (1d6 + 1) points de dégâts perforants, ou 5 (1d8 + 1) points de dégâts perforants si l'arme est utilisée à deux mains pour une attaque de mêlée.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "triceratops": {
         "Nom": "Triceratops",
@@ -10026,7 +10360,8 @@
                 "Description": "Attaque d'arme de mêlée : +9 pour toucher, portée de 5 pieds, une créature à terre. Touché : 22 (3d10 + 6) dégâts de matraquage.",
                 "Toucher": 9
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "troll": {
         "Nom": "Troll",
@@ -10064,7 +10399,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 11 (2d6 + 4) points de dégâts tranchants.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "giant"
     },
     "tyrannosaurus-rex": {
         "Nom": "Tyrannosaurus Rex",
@@ -10102,7 +10438,8 @@
                 "Description": "Attaque d'arme de mêlée : +10 pour toucher, portée de 10 pieds, une cible. Touché : 20 (3d8 + 7) points de dégâts de matraquage.",
                 "Toucher": 10
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "unicorn": {
         "Nom": "Licorne",
@@ -10150,7 +10487,8 @@
                 "Description": "La licorne se téléporte magiquement, ainsi que jusqu'à trois créatures consentantes qu'elle peut voir dans un rayon de 5 pieds, avec l'équipement qu'elles portent, vers un endroit qui lui est familier, jusqu'à 1 mile de distance.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "celestial"
     },
     "vampire-bat": {
         "Nom": "Vampire, forme de chauve-souris",
@@ -10188,7 +10526,8 @@
                 "Description": "Le vampire appelle magiquement 2d4 essaims de chauves-souris ou de rats, à condition que le soleil ne soit pas levé. En extérieur, le vampire peut appeler 3d6 loups à la place. Les créatures appelées arrivent en 1d4 rounds, agissant comme des alliés du vampire et obéissant à ses ordres. Les bêtes restent pendant 1 heure, jusqu'à la mort du vampire, ou jusqu'à ce que le vampire les rejette par une action bonus.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "vampire-mist": {
         "Nom": "Vampire, forme brumeuse",
@@ -10210,7 +10549,8 @@
         "INT": 17,
         "SAG": 15,
         "CHA": 18,
-        "Actions": []
+        "Actions": [],
+        "Category": "undead"
     },
     "vampire-spawn": {
         "Nom": "Vampire Spawn",
@@ -10248,7 +10588,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une créature. Touché : 8 (2d4 + 3) points de dégâts tranchants. Au lieu d'infliger des dégâts, le vampire peut agripper la cible (évasion DC 13).",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "vampire-vampire": {
         "Nom": "Vampire, forme vampirique",
@@ -10296,7 +10637,8 @@
                 "Description": "Le vampire appelle magiquement 2d4 essaims de chauves-souris ou de rats, à condition que le soleil ne soit pas levé. En extérieur, le vampire peut appeler 3d6 loups à la place. Les créatures appelées arrivent en 1d4 rounds, agissant comme des alliés du vampire et obéissant à ses ordres. Les bêtes restent pendant 1 heure, jusqu'à la mort du vampire, ou jusqu'à ce que le vampire les rejette par une action bonus.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "veteran": {
         "Nom": "Vétéran",
@@ -10339,7 +10681,8 @@
                 "Description": "Attaque d'arme à distance : +3 pour toucher, portée de 100/400 pieds, une cible. Touché : 6 (1d10 + 1) points de dégâts perforants.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "violet-fungus": {
         "Nom": "Champignon violet",
@@ -10372,7 +10715,8 @@
                 "Description": "Attaque d'arme de mêlée : +2 au toucher, portée de 10 pieds, une créature. Touché : 4 (1d8) points de dégâts nécrotiques.",
                 "Toucher": 2
             }
-        ]
+        ],
+        "Category": "plant"
     },
     "vrock": {
         "Nom": "Vrock",
@@ -10420,10 +10764,11 @@
                 "Description": "Le vrock émet un horrible hurlement. Toute créature qui l'entend dans un rayon de 20 pieds et qui n'est pas un démon doit réussir un jet de sauvegarde de Constitution DC 14 ou être étourdie jusqu'à la fin du prochain tour du vrock.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "demon"
     },
     "vulture": {
-        "Nom": "Vulture",
+        "Nom": "Vautour",
         "Type": "Bête (Medium)",
         "description": "Bête d'alignement unaligned.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/vulture.png",
@@ -10448,7 +10793,8 @@
                 "Description": "Attaque d'arme de mêlée : +2 au toucher, portée de 5 pieds, une cible. Touché : 2 (1d4) points de dégâts perforants.",
                 "Toucher": 2
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "warhorse": {
         "Nom": "Cheval de guerre",
@@ -10476,7 +10822,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 11 (2d6 + 4) points de dégâts de matraquage.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "warhorse-skeleton": {
         "Nom": "Squelette de cheval de guerre",
@@ -10504,7 +10851,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 11 (2d6 + 4) points de dégâts de matraquage.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "water-elemental": {
         "Nom": "Élémentaire de l'eau",
@@ -10542,7 +10890,8 @@
                 "Description": "Chaque créature se trouvant dans l'espace de l'élémentaire doit effectuer un jet de sauvegarde de Force DC 15. En cas d'échec, la cible subit 13 (2d8 + 4) points de dégâts de matraquage. Si elle est Grande ou plus petite, elle est également agrippée (évasion DC 14). Jusqu'à la fin de cette prise, la cible est entravée et incapable de respirer, sauf si elle peut respirer de l'eau. Si le jet de sauvegarde est réussi, la cible est poussée hors de l'espace de l'élémentaire.\nL'élémentaire peut agripper une créature de grande taille ou jusqu'à deux créatures de taille moyenne ou inférieure à la fois. Au début de chaque tour de l'élémentaire, chaque cible agrippée subit 13 (2d8 + 4) dégâts de matraquage. Une créature située à moins de 5 pieds de l'élémentaire peut tirer une créature ou un objet hors de lui en effectuant une action pour faire un DC 14 de Force et en réussissant.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "elemental"
     },
     "weasel": {
         "Nom": "Fouine",
@@ -10570,7 +10919,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une créature. Touché : 1 dégât perforant.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "werebear-bear": {
         "Nom": "Ours-garou, forme d'ours",
@@ -10608,7 +10958,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 13 (2d8 + 4) points de dégâts tranchants.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "werebear-human": {
         "Nom": "Ours-garou, forme humaine",
@@ -10641,7 +10992,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 10 (1d12 + 4) points de dégâts tranchants.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "werebear-hybrid": {
         "Nom": "Ours-garou, forme hybride",
@@ -10684,7 +11036,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 5 pieds, une cible. Touché : 10 (1d12 + 4) points de dégâts tranchants.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "wereboar-boar": {
         "Nom": "Sanglier-garou, forme de sanglier",
@@ -10712,7 +11065,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10 (2d6 + 3) points de dégâts tranchants. Si la cible est un humanoïde, elle doit réussir un jet de sauvegarde de Constitution DC 12 ou être maudite par la lycanthropie du garou.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "wereboar-human": {
         "Nom": "Garou garou, forme humaine",
@@ -10745,7 +11099,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10 (2d6 + 3) points de dégâts de matraquage.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "wereboar-hybrid": {
         "Nom": "Garou-garou, forme hybride",
@@ -10783,7 +11138,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10 (2d6 + 3) points de dégâts tranchants. Si la cible est un humanoïde, elle doit réussir un jet de sauvegarde de Constitution DC 12 ou être maudite par la lycanthropie du garou.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "wererat-human": {
         "Nom": "Wererat, Forme humaine",
@@ -10821,7 +11177,8 @@
                 "Description": "Attaque d'arme à distance : +4 pour toucher, portée 30/120 pieds, une cible. Touché : 5 (1d6 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "wererat-hybrid": {
         "Nom": "Wererat, forme hybride",
@@ -10864,7 +11221,8 @@
                 "Description": "Attaque d'arme à distance : +4 pour toucher, portée 30/120 pieds, une cible. Touché : 5 (1d6 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "wererat-rat": {
         "Nom": "Wererat, forme de rat",
@@ -10892,7 +11250,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 4 (1d4 + 2) points de dégâts perforants. Si la cible est un humanoïde, elle doit réussir un jet de sauvegarde de Constitution DC 11 ou être maudite par la lycanthropie wererat.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "weretiger-human": {
         "Nom": "Weretiger, forme humaine",
@@ -10930,7 +11289,8 @@
                 "Description": "Attaque d'arme à distance : +4 pour toucher, portée de 150/600 pieds, une cible. Touché : 6 (1d8 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "weretiger-hybrid": {
         "Nom": "Weretiger, forme hybride",
@@ -10978,7 +11338,8 @@
                 "Description": "Attaque d'arme à distance : +4 pour toucher, portée de 150/600 pieds, une cible. Touché : 6 (1d8 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "weretiger-tiger": {
         "Nom": "Weretiger, forme tigre",
@@ -11011,7 +11372,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 7 (1d8 + 3) points de dégâts tranchants.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "humanoid"
     },
     "werewolf-human": {
         "Nom": "Loup-garou, forme humaine",
@@ -11044,7 +11406,8 @@
                 "Description": "Attaque en mêlée ou à distance : +4 pour toucher, portée de 5 pieds ou portée de 20/60 pieds, une créature. Touché : 5 (1d6 + 2) points de dégâts perforants, ou 6 (1d8 + 2) points de dégâts perforants si l'arme est utilisée à deux mains pour une attaque de mêlée.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "werewolf-hybrid": {
         "Nom": "Loup-garou, forme hybride",
@@ -11082,7 +11445,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une créature. Touché : 7 (2d4 + 2) points de dégâts tranchants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "werewolf-wolf": {
         "Nom": "Loup-garou, forme de loup",
@@ -11110,10 +11474,11 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 6 (1d8 + 2) points de dégâts perforants. Si la cible est un humanoïde, elle doit réussir un jet de sauvegarde de Constitution DC 12 ou être maudite par la lycanthropie du loup-garou.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "white-dragon-wyrmling": {
-        "Nom": "Dragon blanc Wyrmling",
+        "Nom": "Dragon Wyrmling blanc",
         "Type": "Dragon (Medium)",
         "description": "Dragon d'alignement chaotic evil.",
         "image": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/white-dragon-wyrmling.png",
@@ -11143,7 +11508,8 @@
                 "Description": "Le dragon exhale un souffle glacé de grêle dans un cône de 15 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Constitution DC 12, subissant 22 (5d8) points de dégâts de froid en cas de sauvegarde ratée, ou la moitié de ces dégâts en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "wight": {
         "Nom": "Wight",
@@ -11186,7 +11552,8 @@
                 "Description": "Attaque d'arme à distance : +4 pour toucher, portée de 150/600 pieds, une cible. Touché : 6 (1d8 + 2) points de dégâts perforants.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "will-o-wisp": {
         "Nom": "Will-o'-Wisp",
@@ -11219,7 +11586,8 @@
                 "Description": "Le feu follet et sa lumière deviennent magiquement invisibles jusqu'à ce qu'il attaque ou qu'il utilise sa fonction de consommation de vie, ou jusqu'à ce que sa concentration prenne fin (comme s'il se concentrait sur un sort).",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "winter-wolf": {
         "Nom": "Loup d'hiver",
@@ -11252,7 +11620,8 @@
                 "Description": "Le loup exhale un souffle de vent glacial dans un cône de 15 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Dextérité DC 12, subissant 18 (4d8) dégâts de froid en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "wolf": {
         "Nom": "Loup",
@@ -11280,7 +11649,8 @@
                 "Description": "Attaque d'arme de mêlée : +4 pour toucher, portée de 5 pieds, une cible. Touché : 7 (2d4 + 2) points de dégâts perforants. Si la cible est une créature, elle doit réussir un jet de sauvegarde de Force DC 11 ou être mise à terre.",
                 "Toucher": 4
             }
-        ]
+        ],
+        "Category": "beast"
     },
     "worg": {
         "Nom": "Worg",
@@ -11308,7 +11678,8 @@
                 "Description": "Attaque d'arme de mêlée : +5 pour toucher, portée de 5 pieds, une cible. Touché : 10 (2d6 + 3) points de dégâts perforants. Si la cible est une créature, elle doit réussir un jet de sauvegarde de Force DC 13 ou être mise à terre.",
                 "Toucher": 5
             }
-        ]
+        ],
+        "Category": "monstrosity"
     },
     "wraith": {
         "Nom": "Wraith",
@@ -11341,7 +11712,8 @@
                 "Description": "Le spectre cible un humanoïde situé à moins de 3 mètres de lui, mort depuis 1 minute au maximum et décédé violemment. L'esprit de la cible s'élève sous la forme d'un spectre dans l'espace de son cadavre ou dans l'espace inoccupé le plus proche. Le spectre est sous le contrôle du spectre. Le spectre ne peut avoir plus de sept spectres sous son contrôle à la fois.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "undead"
     },
     "wyvern": {
         "Nom": "Wyvern",
@@ -11384,7 +11756,8 @@
                 "Description": "Attaque d'arme de mêlée : +7 pour toucher, portée de 10 pieds, une créature. Touché : 11 (2d6 + 4) points de dégâts perforants. La cible doit faire un jet de sauvegarde de Constitution DC 15, subissant 24 (7d6) points de dégâts de poison en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 7
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "xorn": {
         "Nom": "Xorn",
@@ -11422,7 +11795,8 @@
                 "Description": "Attaque d'arme de mêlée : +6 pour toucher, portée de 5 pieds, une cible. Touché : 6 (1d6 + 3) points de dégâts tranchants.",
                 "Toucher": 6
             }
-        ]
+        ],
+        "Category": "elemental"
     },
     "young-black-dragon": {
         "Nom": "Jeune dragon noir",
@@ -11465,7 +11839,8 @@
                 "Description": "Le dragon exhale de l'acide sur une ligne de 30 pieds de long et de 5 pieds de large. Chaque créature sur cette ligne doit effectuer un jet de sauvegarde de Dextérité DC 14, subissant 49 (11d8) points de dégâts d'acide en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "young-blue-dragon": {
         "Nom": "Jeune dragon bleu",
@@ -11508,7 +11883,8 @@
                 "Description": "Le dragon exhale des éclairs sur une ligne de 60 pieds de long et de 5 pieds de large. Chaque créature sur cette ligne doit effectuer un jet de sauvegarde de Dextérité DC 16, subissant 55 (10d10) points de dégâts de foudre en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "young-brass-dragon": {
         "Nom": "Jeune dragon en laiton",
@@ -11551,7 +11927,8 @@
                 "Description": "Le dragon utilise l'une des armes respiratoires suivantes.\nSouffle de feu. Le dragon exhale du feu sur une ligne de 40 pieds de long et 5 pieds de large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité DC 14, subissant 42 (12d6) points de dégâts de feu en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.\nSouffle de sommeil. Le dragon exhale un gaz de sommeil dans un cône de 30 pieds. Chaque créature dans cette zone doit réussir un jet de sauvegarde de Constitution DC 14 ou tomber inconsciente pendant 5 minutes. Cet effet prend fin pour une créature si elle subit des dégâts ou si quelqu'un utilise une action pour la réveiller.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "young-bronze-dragon": {
         "Nom": "Jeune dragon de bronze",
@@ -11594,7 +11971,8 @@
                 "Description": "Le dragon utilise l'une des armes respiratoires suivantes.\nSouffle de foudre. Le dragon exhale des éclairs sur une ligne de 60 pieds de long et de 5 pieds de large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité DC 15, subissant 55 (10d10) points de dégâts de foudre en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.\nSouffle de répulsion. Le dragon exhale de l'énergie de répulsion dans un cône de 30 pieds. Chaque créature dans cette zone doit réussir un jet de sauvegarde de Force DC 15. En cas de sauvegarde ratée, la créature est repoussée à 40 pieds du dragon.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "young-copper-dragon": {
         "Nom": "Jeune dragon de cuivre",
@@ -11637,7 +12015,8 @@
                 "Description": "Le dragon utilise l'une des armes respiratoires suivantes.\nSouffle d'acide. Le dragon exhale de l'acide sur une ligne de 40 pieds de long et de 5 pieds de large. Chaque créature de cette ligne doit faire un jet de sauvegarde de Dextérité DC 14, subissant 40 (9d8) points de dégâts d'acide en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.\nSouffle ralenti. Le dragon exhale du gaz dans un cône de 30 pieds. Chaque créature dans cette zone doit réussir un jet de sauvegarde de Constitution DC 14. En cas d'échec, la créature ne peut pas utiliser de réactions, sa vitesse est réduite de moitié et elle ne peut pas faire plus d'une attaque à son tour. De plus, la créature peut utiliser une action ou un bonus d'action à son tour, mais pas les deux. Ces effets durent 1 minute. La créature peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "young-gold-dragon": {
         "Nom": "Jeune dragon d'or",
@@ -11680,7 +12059,8 @@
                 "Description": "Le dragon utilise l'une des armes respiratoires suivantes.\nSouffle de feu. Le dragon exhale du feu dans un cône de 30 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Dextérité DC 17, subissant 55 (10d10) points de dégâts de feu en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.\nSouffle d'affaiblissement. Le dragon exhale du gaz dans un cône de 30 pieds. Chaque créature dans cette zone doit réussir un jet de sauvegarde de Force DC 17 ou avoir un désavantage sur les jets d'attaque basés sur la Force, les tests de Force et les jets de sauvegarde de Force pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de réussite.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "young-green-dragon": {
         "Nom": "Jeune dragon vert",
@@ -11723,7 +12103,8 @@
                 "Description": "Le dragon exhale un gaz empoisonné dans un cône de 30 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Constitution DC 14, subissant 42 (12d6) points de dégâts de poison en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "young-red-dragon": {
         "Nom": "Jeune dragon rouge",
@@ -11766,7 +12147,8 @@
                 "Description": "Le dragon exhale du feu dans un cône de 30 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Dextérité DC 17, subissant 56 (16d6) points de dégâts de feu en cas de sauvegarde ratée, ou moitié moins de dégâts en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "young-silver-dragon": {
         "Nom": "Jeune dragon d'argent",
@@ -11809,7 +12191,8 @@
                 "Description": "Le dragon utilise l'une des armes respiratoires suivantes.\nSouffle froid. Le dragon exhale un souffle glacé dans un cône de 30 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Constitution DC 17, subissant 54 (12d8) points de dégâts de froid en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.\nSouffle paralysant. Le dragon exhale un gaz paralysant dans un cône de 30 pieds. Chaque créature dans cette zone doit réussir un jet de sauvegarde de Constitution DC 17 ou être paralysée pendant 1 minute. Une créature peut répéter le jet de sauvegarde à la fin de chacun de ses tours, mettant fin à l'effet sur elle-même en cas de réussite.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "young-white-dragon": {
         "Nom": "Jeune dragon blanc",
@@ -11852,7 +12235,8 @@
                 "Description": "Le dragon exhale un souffle glacé dans un cône de 30 pieds. Chaque créature dans cette zone doit faire un jet de sauvegarde de Constitution DC 15, subissant 45 (10d8) points de dégâts de froid en cas de sauvegarde ratée, ou la moitié en cas de sauvegarde réussie.",
                 "Toucher": 0
             }
-        ]
+        ],
+        "Category": "dragon"
     },
     "zombie": {
         "Nom": "Zombie",
@@ -11880,6 +12264,7 @@
                 "Description": "Attaque d'arme de mêlée : +3 pour toucher, portée de 5 pieds, une cible. Touché : 4 (1d6 + 1) dégâts de matraquage.",
                 "Toucher": 3
             }
-        ]
+        ],
+        "Category": "undead"
     }
 }
