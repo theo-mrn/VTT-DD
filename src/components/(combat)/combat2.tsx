@@ -58,31 +58,45 @@ type AttackType = 'contact' | 'distance' | 'magic' | 'custom'
 
 const ActionCard = ({ title, icon: Icon, value, color, onClick, delay }: any) => (
   <motion.button
-    initial={{ opacity: 0, scale: 0.9 }}
-    animate={{ opacity: 1, scale: 1 }}
-    transition={{ delay, type: "spring", stiffness: 200 }}
-    whileHover={{ scale: 1.05, y: -5 }}
-    whileTap={{ scale: 0.95 }}
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay, type: "spring", stiffness: 200, damping: 20 }}
+    whileHover={{ scale: 1.02, y: -5 }}
+    whileTap={{ scale: 0.98 }}
     onClick={onClick}
-    className="group relative flex flex-col items-center justify-center gap-4 p-8 rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-transparent hover:from-white/10 hover:to-white/5 transition-all duration-300 w-full h-48 shadow-2xl overflow-hidden"
+    className="group relative w-full h-64 rounded-3xl overflow-hidden border border-white/5 bg-[#0a0a0a] shadow-2xl transition-all duration-500"
   >
-    <div className={`
-      absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500
-      bg-gradient-to-br ${color}
-    `} />
+    {/* Dynamic Background Gradient */}
+    <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-t ${color.replace('to-', 'from-black/0 via-black/0 to-')}`} />
 
-    <div className={`p-4 rounded-full bg-black/40 border border-white/10 ${color.replace('from-', 'text-').split(' ')[0]} relative z-10 group-hover:scale-110 transition-transform`}>
-      <Icon className="w-10 h-10" />
+    {/* Glow Effect */}
+    <div className={`absolute -inset-1 opacity-0 group-hover:opacity-20 transition-all duration-500 bg-gradient-to-b ${color} blur-xl`} />
+
+    {/* Large Watermark Icon */}
+    <Icon className={`absolute -bottom-8 -right-8 w-48 h-48 opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-500 rotate-12 group-hover:rotate-0 scale-100 group-hover:scale-110 ${color.replace('from-', 'text-').split(' ')[0]}`} />
+
+    <div className="relative h-full flex flex-col items-center justify-center z-10 p-6 space-y-6">
+      {/* Icon Ring */}
+      <div className={`relative p-5 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 group-hover:border-white/20 shadow-lg backdrop-blur-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_30px_-5px_currentColor] ${color.replace('from-', 'text-').split(' ')[0]}`}>
+        <Icon className="w-10 h-10" />
+      </div>
+
+      {/* Text Content */}
+      <div className="text-center space-y-2">
+        <h3 className="text-xl font-bold uppercase tracking-widest text-white/90 group-hover:text-white transition-colors">
+          {title}
+        </h3>
+        {value !== null && (
+          <div className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-white/5 rounded-full border border-white/5 group-hover:border-white/10 group-hover:bg-white/10 transition-colors">
+            <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Bonus</span>
+            <span className="font-mono text-lg font-bold text-white">+{value}</span>
+          </div>
+        )}
+      </div>
     </div>
 
-    <div className="text-center relative z-10">
-      <h3 className="text-lg font-bold uppercase tracking-widest text-white group-hover:text-[var(--accent-brown)] transition-colors">{title}</h3>
-      {value !== null && (
-        <span className="inline-block mt-2 px-3 py-1 bg-black/50 rounded-full text-sm font-mono text-gray-300 border border-white/5">
-          +{value}
-        </span>
-      )}
-    </div>
+    {/* Bottom Highlight Line */}
+    <div className={`absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r ${color} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
   </motion.button>
 )
 
@@ -425,9 +439,28 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
               </div>
               <div className="absolute -bottom-2 relative left-1/2 -translate-x-1/2 bg-[var(--accent-brown)] text-black font-bold uppercase text-xs px-3 py-1 rounded-full shadow-lg">Attaquant</div>
             </div>
-            <div className="flex flex-col">
-              <h2 className="text-3xl font-black uppercase tracking-tight text-white">{attackerName}</h2>
-              <span className="text-sm text-[var(--accent-brown)] font-bold tracking-widest opacity-80">COMBAT PHASE</span>
+            <div className="flex flex-col gap-3">
+              <div>
+                <h2 className="text-3xl font-black uppercase tracking-tight text-white leading-none">{attackerName}</h2>
+                <span className="text-xs text-[var(--accent-brown)] font-bold tracking-[0.2em] opacity-60">COMBAT PHASE</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-white/5 border border-white/5 hover:bg-white/10 transition-colors" title="Contact">
+                  <Sword className="w-3 h-3 text-orange-400" />
+                  <span className="font-mono font-bold text-white text-xs">+{attacks.contact || 0}</span>
+                </div>
+
+                <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-white/5 border border-white/5 hover:bg-white/10 transition-colors" title="Distance">
+                  <Target className="w-3 h-3 text-emerald-400" />
+                  <span className="font-mono font-bold text-white text-xs">+{attacks.distance || 0}</span>
+                </div>
+
+                <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-white/5 border border-white/5 hover:bg-white/10 transition-colors" title="Magie">
+                  <Wand2 className="w-3 h-3 text-purple-400" />
+                  <span className="font-mono font-bold text-white text-xs">+{attacks.magie || 0}</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -476,46 +509,71 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
               >
                 {/* If Actions exist: Only show Actions */}
                 {actions.length > 0 ? (
-                  <div className="space-y-6">
-                    <div className="mb-6 flex items-center gap-3 justify-center">
-                      <Zap className="w-6 h-6 text-yellow-500" />
-                      <h3 className="text-2xl font-bold uppercase tracking-wider text-gray-300">Attaques</h3>
+                  <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                    <div className="mb-4 flex items-center gap-3 justify-center sticky top-0 bg-[#0b0b0b] z-20 pb-3">
+                      <Zap className="w-5 h-5 text-yellow-500" />
+                      <h3 className="text-xl font-bold uppercase tracking-wider text-gray-300">Attaques</h3>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-2 gap-3">
                       {actions.map((action, index) => (
                         <motion.button
                           key={index}
                           initial={{ opacity: 0, y: 20 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.1 }}
-                          whileHover={{ scale: 1.02, y: -5 }}
+                          whileHover={{ scale: 1.02, y: -3 }}
                           whileTap={{ scale: 0.98 }}
                           onClick={() => {
                             setSelectedAction(action)
-                            setActiveActionIndex(index) // Set the active card index for later
-                            // Initialize dice with default values (can be customized later based on action data)
+                            setActiveActionIndex(index)
                             setActionDice({ numDice: 1, numFaces: 20, modifier: 0 })
                             setStep('ACTION_CONFIG')
                           }}
-                          className="group relative p-6 rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/5 to-orange-500/5 hover:from-yellow-500/10 hover:to-orange-500/10 hover:border-yellow-500/40 transition-all duration-300 overflow-hidden"
+                          className="group relative min-h-[12rem] p-4 rounded-2xl border border-white/5 bg-[#0a0a0a] overflow-hidden shadow-2xl transition-all duration-300 text-left flex flex-col justify-between"
                         >
-                          <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-yellow-500/10 to-yellow-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                          {/* Background Gradients */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
+                          <div className="absolute -inset-1 bg-gradient-to-b from-yellow-500/0 via-yellow-500/5 to-yellow-500/0 blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
-                          <div className="relative flex flex-col gap-3">
+                          {/* Watermark Icon */}
+                          <Zap className="absolute -bottom-6 -right-6 w-32 h-32 text-yellow-500/5 rotate-12 group-hover:rotate-0 group-hover:scale-110 group-hover:text-yellow-500/10 transition-all duration-500" />
+
+                          {/* Header Content */}
+                          <div className="relative z-10">
                             <div className="flex items-center gap-2">
-                              <span className="text-xl font-bold text-yellow-300 group-hover:text-yellow-200 transition-colors">
+                              <div className="p-1.5 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-yellow-500">
+                                <Zap className="w-4 h-4" />
+                              </div>
+                              <span className="text-lg font-bold text-gray-200 group-hover:text-yellow-400 transition-colors line-clamp-1">
                                 {action.Nom}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors line-clamp-3">
+                          </div>
+
+                          {/* Description (Middle) */}
+                          <div className="relative z-10 flex-grow py-2">
+                            <p className="text-xs text-gray-500 group-hover:text-gray-400 transition-colors leading-relaxed">
                               {action.Description}
                             </p>
-                            <div className="flex items-center gap-2 pt-2">
-                              <span className="px-3 py-1 bg-yellow-500/20 text-yellow-300 text-sm font-mono rounded-lg border border-yellow-500/30">
-                                Toucher: {action.Toucher}
+                          </div>
+
+                          {/* Footer / Stats */}
+                          <div className="relative z-10 pt-3 border-t border-white/5 flex items-center justify-between group-hover:border-yellow-500/20 transition-colors">
+                            <div className="flex items-center gap-2">
+                              <span className="text-[9px] uppercase tracking-wider text-gray-600 font-bold group-hover:text-yellow-500/70 transition-colors">
+                                Seuil
+                              </span>
+                              <span className="font-mono text-lg font-bold text-white group-hover:text-yellow-400 transition-colors">
+                                {action.Toucher}
                               </span>
                             </div>
+                            <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center text-gray-500 group-hover:bg-yellow-500 group-hover:text-black transition-all">
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </div>
                           </div>
+
+                          {/* Hover Border Highlight */}
+                          <div className="absolute inset-0 rounded-2xl border border-yellow-500/0 group-hover:border-yellow-500/30 transition-colors duration-300 pointer-events-none" />
                         </motion.button>
                       ))}
                     </div>
