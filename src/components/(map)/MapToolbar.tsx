@@ -86,6 +86,7 @@ export const TOOLS = {
     MULTI_SELECT: 'multi_select',
     AUDIO_MIXER: 'audio_mixer',
     TOGGLE_CHAR_BORDERS: 'toggle_char_borders',
+    TOGGLE_ALL_BADGES: 'toggle_all_badges',
 };
 
 const FIREBALL_SKIN_OPTIONS = [
@@ -459,6 +460,12 @@ function MapToolbar({
                                 icon={Settings}
                                 label="Options Globales"
                                 isActive={activeTools.includes(TOOLS.SETTINGS)}
+                            />
+                            <ToolButton onAction={onAction}
+                                id={TOOLS.TOGGLE_ALL_BADGES}
+                                icon={Eye}
+                                label="Afficher tous les badges"
+                                isActive={activeTools.includes(TOOLS.TOGGLE_ALL_BADGES)}
                             />
                         </div>
 
