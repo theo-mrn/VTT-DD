@@ -3,7 +3,8 @@
 import React, { useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, OrbitControls } from '@react-three/drei';
-import { VisualDie, getSkinById } from './throw';
+import { VisualDie } from './throw';
+import { getSkinById } from './dice-definitions';
 import * as THREE from 'three';
 
 const AutoRotatingDie = ({ type, skinId }: { type: string, skinId: string }) => {
