@@ -108,7 +108,28 @@ export const useFogManager = ({
 
     const calculateFogOpacity = (cellX: number, cellY: number): number => {
         const effectiveIsMJ = isMJ && !playerViewMode;
-        if (!fullMapFog && !fogGrid.has(`${cellX},${cellY}`)) return 0;
+        const cellKey = `${cellX},${cellY}`;
+        const isInGrid = fogGrid.has(cellKey);
+
+        // 🌫️ INVERTED MODE LOGIC:
+        // When fullMapFog is active:
+        //   - By default, the entire map is fogged
+        //   - fogGrid contains REVEALED cells (no fog)
+        //   - If cell is in fogGrid, return 0 (visible)
+        // When fullMapFog is inactive:
+        //   - By default, the entire map is visible
+        //   - fogGrid contains FOGGED cells (with fog)
+        //   - If cell is NOT in fogGrid, return 0 (visible)
+
+        if (fullMapFog) {
+            // Full map fog mode: cells in fogGrid are REVEALED
+            if (isInGrid) return 0; // No fog on revealed cells
+            // Continue to apply fog (will check character vision below)
+        } else {
+            // Normal mode: cells in fogGrid have fog
+            if (!isInGrid) return 0; // No fog if not in grid
+            // Continue to apply fog (will check character vision below)
+        }
 
         // [NEW] Determine effective ID for vision
         const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
@@ -175,7 +196,8 @@ export const renderFogLayer = (
     currentVisibilityTool: string | null,
     fullMapFog: boolean,
     fogGrid: Map<string, boolean>,
-    calculateFogOpacity: (x: number, y: number) => number
+    calculateFogOpacity: (x: number, y: number) => number,
+    selectedFogCells: string[] // 🆕 Array of selected fog cell keys
 ) => {
     // 🌫️ D'abord dessiner le brouillard classique (si actif)
     if (fogMode || showFogGrid || fullMapFog || fogGrid.size > 0) {
@@ -202,11 +224,23 @@ export const renderFogLayer = (
                 }
 
                 // En mode édition, afficher la grille de brouillard
-                if ((fogMode || showFogGrid || (visibilityMode && currentVisibilityTool === 'fog')) &&
-                    (opacity > 0 || fullMapFog || fogGrid.has(`${x},${y}`))) {
+                // Show grid for cells that have fog OR are revealed (depending on mode)
+                const shouldShowGrid = (fogMode || showFogGrid || (visibilityMode && currentVisibilityTool === 'fog'));
+                const isRelevantCell = fullMapFog
+                    ? (opacity > 0 || fogGrid.has(`${x},${y}`)) // In fullMapFog: show fogged cells and revealed cells
+                    : (opacity > 0 || fogGrid.has(`${x},${y}`)); // In normal: show fogged cells
+
+                if (shouldShowGrid && isRelevantCell) {
                     ctx.strokeStyle = 'rgba(100, 150, 255, 0.3)';
                     ctx.lineWidth = 1;
                     ctx.strokeRect(cellScreenX, cellScreenY, cellScreenWidth, cellScreenHeight);
+                }
+
+                // 🆕 Afficher une bordure dorée pour les cellules sélectionnées
+                if (selectedFogCells.includes(`${x},${y}`)) {
+                    ctx.strokeStyle = 'rgba(255, 215, 0, 0.9)'; // Gold
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(cellScreenX + 1.5, cellScreenY + 1.5, cellScreenWidth - 3, cellScreenHeight - 3);
                 }
             }
         }

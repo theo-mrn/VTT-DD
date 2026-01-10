@@ -1,7 +1,7 @@
 import React from 'react';
-import { User, Box, Type, Pencil, BrickWall, Music } from 'lucide-react';
+import { User, Box, Type, Pencil, BrickWall, Music, Cloud } from 'lucide-react';
 
-export type SelectionType = 'characters' | 'objects' | 'notes' | 'drawings' | 'obstacles' | 'musicZones';
+export type SelectionType = 'characters' | 'objects' | 'notes' | 'drawings' | 'obstacles' | 'musicZones' | 'fogCells';
 
 export interface SelectionCandidates {
     characters: number[];
@@ -10,6 +10,7 @@ export interface SelectionCandidates {
     drawings: number[];
     obstacles: string[];
     musicZones: string[];
+    fogCells: string[]; // 🆕 Array of fog cell keys "x,y"
 }
 
 interface SelectionMenuProps {
@@ -33,6 +34,8 @@ const getLabelAndIcon = (type: SelectionType, count: number) => {
             return { label: `${count} Obstacle${count > 1 ? 's' : ''}`, icon: BrickWall, color: 'text-red-400' };
         case 'musicZones':
             return { label: `${count} Zone${count > 1 ? 's' : ''} Audio`, icon: Music, color: 'text-fuchsia-400' };
+        case 'fogCells':
+            return { label: `${count} Case${count > 1 ? 's' : ''} de Brouillard`, icon: Cloud, color: 'text-gray-400' };
     }
 };
 
@@ -44,6 +47,7 @@ export const SelectionMenu: React.FC<SelectionMenuProps> = ({ position, candidat
     if (candidates.drawings.length > 0) options.push('drawings');
     if (candidates.obstacles.length > 0) options.push('obstacles');
     if (candidates.musicZones.length > 0) options.push('musicZones');
+    if (candidates.fogCells.length > 0) options.push('fogCells'); // 🆕
 
     const containerRef = React.useRef<HTMLDivElement>(null);
 

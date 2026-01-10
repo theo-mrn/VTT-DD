@@ -289,7 +289,7 @@ export default function Component() {
       }
 
     } catch (error) {
-      console.error("Erreur de chargement (fetch):", error);
+      console.warn("Chargement avec progression échoué (CORS probable), passage en chargement standard...");
       // Fallback: Default standard load
       loadBackgroundFallback(url);
     }
@@ -589,6 +589,7 @@ export default function Component() {
   const [isSelectingArea, setIsSelectingArea] = useState(false);
   const [selectedCharacters, setSelectedCharacters] = useState<number[]>([]);
   const [selectedFogIndex, setSelectedFogIndex] = useState<number | null>(null);
+  const [selectedFogCells, setSelectedFogCells] = useState<string[]>([]); // 🆕 Array of cell keys "x,y" for multi-selection
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
   const [mouseButton, setMouseButton] = useState<number | null>(null); // Pour tracker quel bouton de souris est pressé
@@ -1033,6 +1034,12 @@ export default function Component() {
         setCurrentObstaclePoints([]);
       }
 
+      // 🆕 Désélectionner les cases de brouillard avec Escape
+      if (e.key === 'Escape' && selectedFogCells.length > 0) {
+        e.preventDefault();
+        setSelectedFogCells([]);
+      }
+
       // Quitter le mode obstacle avec Escape si pas de dessin en cours
       if (e.key === 'Escape' && visibilityMode && !isDrawingObstacle) {
         e.preventDefault();
@@ -1042,7 +1049,7 @@ export default function Component() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedObstacleId, visibilityMode, isDrawingObstacle]);
+  }, [selectedObstacleId, visibilityMode, isDrawingObstacle, selectedFogCells.length]);
 
   // 🎵 Global audio reference for quick sounds
   const globalAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -2481,6 +2488,44 @@ export default function Component() {
       );
     }
 
+    // 🆕 SELECTION : Cases de brouillard
+    if (selectedFogCells.length > 0) {
+      return (
+        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+          <span className="text-white text-sm font-medium pr-2">{selectedFogCells.length} case{selectedFogCells.length > 1 ? 's' : ''} de brouillard sélectionnée{selectedFogCells.length > 1 ? 's' : ''}</span>
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              if (window.confirm(`Supprimer ${selectedFogCells.length} case(s) de brouillard ?`)) {
+                const newGrid = new Map(fogGrid);
+                selectedFogCells.forEach(cellKey => {
+                  if (fullMapFog) {
+                    newGrid.set(cellKey, true);
+                  } else {
+                    newGrid.delete(cellKey);
+                  }
+                });
+                setFogGrid(newGrid);
+                saveFogGrid(newGrid);
+                setSelectedFogCells([]);
+              }
+            }}
+          >
+            <Trash2 className="w-4 h-4 mr-2" /> Supprimer
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSelectedFogCells([])}
+            className="text-gray-400 hover:text-white"
+          >
+            Fermer
+          </Button>
+        </div>
+      );
+    }
+
     // 🎯 SELECTION : Multi-Char (MJ)
     if (selectedCharacters.length > 1 && isMJ) {
       const hasNonPlayerCharacter = selectedCharacters.some(index =>
@@ -2696,6 +2741,61 @@ export default function Component() {
             >
               {fullMapFog ? <EyeOff className="w-5 h-5" strokeWidth={2.5} /> : <Eye className="w-5 h-5" />}
             </Button>
+
+            <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-10 w-10 rounded-lg transition-all duration-200 text-gray-400 hover:text-red-400 hover:bg-red-900/20"
+              onClick={() => {
+                if (window.confirm("Tout supprimer le brouillard ?")) {
+                  if (fullMapFog) {
+                    setFullMapFog(false);
+                    saveFullMapFog(false);
+                  }
+                  setFogGrid(new Map());
+                  saveFogGrid(new Map());
+                }
+              }}
+              title="Supprimer tout le brouillard"
+            >
+              <Trash2 className="w-5 h-5" />
+            </Button>
+
+            {/* 🆕 Bouton pour supprimer les cases de brouillard sélectionnées */}
+            {selectedFogCells.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-10 w-10 rounded-lg transition-all duration-200 bg-amber-900/30 text-amber-400 hover:text-amber-300 hover:bg-amber-900/40"
+                onClick={() => {
+                  if (window.confirm(`Supprimer ${selectedFogCells.length} case(s) de brouillard sélectionnée(s) ?`)) {
+                    const newGrid = new Map(fogGrid);
+                    selectedFogCells.forEach(cellKey => {
+                      if (fullMapFog) {
+                        // En mode fullMapFog, ajouter à fogGrid = révéler (retirer le brouillard)
+                        newGrid.set(cellKey, true);
+                      } else {
+                        // En mode normal, retirer de fogGrid = enlever le brouillard
+                        newGrid.delete(cellKey);
+                      }
+                    });
+                    setFogGrid(newGrid);
+                    saveFogGrid(newGrid);
+                    setSelectedFogCells([]);
+                  }
+                }}
+                title={`Supprimer ${selectedFogCells.length} case(s) sélectionnée(s)`}
+              >
+                <div className="relative">
+                  <Trash2 className="w-5 h-5" />
+                  <span className="absolute -top-1 -right-1 bg-amber-500 text-black text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {selectedFogCells.length}
+                  </span>
+                </div>
+              </Button>
+            )}
           </div>
 
           <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
@@ -3491,7 +3591,8 @@ export default function Component() {
         currentVisibilityTool,
         fullMapFog,
         fogGrid,
-        calculateFogOpacity
+        calculateFogOpacity,
+        selectedFogCells // 🆕 Pass selected fog cells for visual rendering
       );
     }
 
@@ -5094,6 +5195,19 @@ export default function Component() {
         // 🎯 NOUVEAU : Vérifier si on clique sur une cellule de brouillard
         const clickedFogIndex = isCellInFog(clickX, clickY, fogGrid, fogCellSize) ? 0 : -1;
 
+        // 🆕 Détecter si on clique sur une case de brouillard (pour sélection multiple)
+        const clickedFogCellKey = (() => {
+          if (!isLayerVisible('fog')) return null;
+          const cellKey = getCellKey(clickX, clickY, fogCellSize);
+
+          // Vérifier si cette cellule contient du brouillard
+          // En mode normal: les cellules dans fogGrid ont du brouillard
+          // En mode fullMapFog: toutes les cellules SAUF celles dans fogGrid ont du brouillard
+          const hasFog = fullMapFog ? !fogGrid.has(cellKey) : fogGrid.has(cellKey);
+
+          return hasFog ? cellKey : null;
+        })();
+
         // 🎯 NOUVEAU : Vérifier si on clique sur un dessin (pour sélection)
         const clickedDrawingIndex = drawings.findIndex(drawing => isPointOnDrawing(clickX, clickY, drawing, zoom));
 
@@ -5216,6 +5330,25 @@ export default function Component() {
           // Clone points to avoid reference issues
           const pointsCopy = drawings[clickedDrawingIndex].points.map((p: Point) => ({ ...p }));
           setDraggedDrawingOriginalPoints(pointsCopy);
+
+        } else if (clickedFogCellKey) {
+          // 🆕 SÉLECTION DE CASE DE BROUILLARD
+          // Toggle selection for this fog cell
+          if (selectedFogCells.includes(clickedFogCellKey)) {
+            // Déjà sélectionnée : désélectionner
+            setSelectedFogCells(prev => prev.filter(k => k !== clickedFogCellKey));
+          } else {
+            // Pas sélectionnée : ajouter à la sélection
+            setSelectedFogCells(prev => [...prev, clickedFogCellKey]);
+          }
+
+          // Clear other selections
+          setSelectedCharacterIndex(null);
+          setSelectedNoteIndex(null);
+          setSelectedFogIndex(null);
+          setSelectedCharacters([]);
+          setSelectedDrawingIndex(null);
+          setSelectedObjectIndices([]);
 
         } else if (clickedFogIndex !== -1) {
           setSelectedFogIndex(clickedFogIndex);
@@ -6243,13 +6376,42 @@ export default function Component() {
         .map((zone) => isInRect(zone.x, zone.y) ? zone.id : null)
         .filter((id): id is string => id !== null);
 
+      // 🆕 7. Find Fog Cells in selection area
+      const selectedFogCellKeys: string[] = [];
+      if (fogGrid.size > 0 || fullMapFog) {
+        // Calculate which fog cells are in the selection rectangle
+        const minCellX = Math.floor(minX / fogCellSize);
+        const maxCellX = Math.ceil(maxX / fogCellSize);
+        const minCellY = Math.floor(minY / fogCellSize);
+        const maxCellY = Math.ceil(maxY / fogCellSize);
+
+        for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
+          for (let cellY = minCellY; cellY <= maxCellY; cellY++) {
+            const cellKey = `${cellX},${cellY}`;
+            // Check if this cell has fog
+            const hasFog = fullMapFog ? !fogGrid.has(cellKey) : fogGrid.has(cellKey);
+
+            if (hasFog) {
+              // Check if cell's center is in the selection rectangle
+              const cellCenterX = cellX * fogCellSize + fogCellSize / 2;
+              const cellCenterY = cellY * fogCellSize + fogCellSize / 2;
+
+              if (isInRect(cellCenterX, cellCenterY)) {
+                selectedFogCellKeys.push(cellKey);
+              }
+            }
+          }
+        }
+      }
+
       const totalFound =
         selectedChars.length +
         selectedObjs.length +
         selectedNotes.length +
         selectedDrawings.length +
         selectedObstacles.length +
-        selectedMusicZonesIds.length;
+        selectedMusicZonesIds.length +
+        selectedFogCellKeys.length; // 🆕 Include fog cells in count
 
       if (totalFound === 0) {
         // Clear all selections
@@ -6266,7 +6428,8 @@ export default function Component() {
           notes: selectedNotes,
           drawings: selectedDrawings,
           obstacles: selectedObstacles,
-          musicZones: selectedMusicZonesIds
+          musicZones: selectedMusicZonesIds,
+          fogCells: selectedFogCellKeys // 🆕
         };
 
         // Determine if we need to show the menu
@@ -6276,7 +6439,8 @@ export default function Component() {
           selectedNotes.length > 0,
           selectedDrawings.length > 0,
           selectedObstacles.length > 0,
-          selectedMusicZonesIds.length > 0
+          selectedMusicZonesIds.length > 0,
+          selectedFogCellKeys.length > 0 // 🆕 Include fog cells
         ].filter(Boolean).length;
 
         if (typesFound > 1) {
@@ -6318,6 +6482,10 @@ export default function Component() {
 
           if (selectedObstacles.length > 0) setSelectedObstacleId(selectedObstacles[0]);
           else setSelectedObstacleId(null);
+
+          // 🆕 Set selected fog cells
+          if (selectedFogCellKeys.length > 0) setSelectedFogCells(selectedFogCellKeys);
+          else setSelectedFogCells([]);
         }
       }
 
@@ -6779,6 +6947,9 @@ export default function Component() {
         break;
       case 'musicZones':
         setSelectedMusicZoneIds(selectionCandidates.musicZones);
+        break;
+      case 'fogCells': // 🆕
+        setSelectedFogCells(selectionCandidates.fogCells);
         break;
     }
 
