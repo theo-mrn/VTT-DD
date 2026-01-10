@@ -548,9 +548,7 @@ export default function ContextMenuPanel({
                                                         variant="outline"
                                                         className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-red-900/20 hover:border-red-900/50 hover:text-red-400 text-gray-300 h-9 text-xs"
                                                         onClick={() => {
-                                                            if (confirm("Supprimer ce personnage ?")) {
-                                                                onAction('delete', character.id);
-                                                            }
+                                                            onAction('delete', character.id);
                                                         }}
                                                     >
                                                         <Trash2 size={14} />
