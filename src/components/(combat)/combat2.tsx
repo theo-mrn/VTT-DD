@@ -51,7 +51,7 @@ interface CombatPageProps {
   onClose: () => void;
 }
 
-type CombatStep = 'ATTACK_CHOICE' | 'ATTACK_ROLLING' | 'ATTACK_RESULT' | 'WEAPON_SELECT' | 'DAMAGE_ROLLING' | 'DAMAGE_RESULT'
+type CombatStep = 'ATTACK_CHOICE' | 'ATTACK_ROLLING' | 'ATTACK_RESULT' | 'WEAPON_SELECT' | 'DAMAGE_ROLLING' | 'DAMAGE_RESULT' | 'ACTION_CONFIG'
 type AttackType = 'contact' | 'distance' | 'magic' | 'custom'
 
 // --- Components ---
@@ -140,10 +140,12 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   const [roomId, setRoomId] = useState<string | null>(null)
   const [attackerName, setAttackerName] = useState<string>("")
   const [attackerImage, setAttackerImage] = useState<string>("")
+  const [attackerType, setAttackerType] = useState<'joueurs' | 'pnj' | 'monster'>('joueurs')
   const [targets, setTargets] = useState<Array<{ id: string, name: string, defense: number, image?: string }>>([])
 
   const [attacks, setAttacks] = useState<Attacks>({ contact: null, distance: null, magie: null })
   const [weapons, setWeapons] = useState<Weapon[]>([])
+  const [actions, setActions] = useState<Array<{ Nom: string; Description: string; Toucher: number }>>([])
 
   // Sounds
   const [sounds, setSounds] = useState<SoundTemplate[]>([])
@@ -155,6 +157,11 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
 
   // Custom Flow State
   const [isCustomOpen, setIsCustomOpen] = useState(false)
+  const [selectedAction, setSelectedAction] = useState<{ Nom: string; Description: string; Toucher: number; Degats?: string } | null>(null)
+  const [activeActionIndex, setActiveActionIndex] = useState<number>(0)
+  const [actionDice, setActionDice] = useState<CustomRoll>({ numDice: 1, numFaces: 20, modifier: 0 })
+  const [attackDetails, setAttackDetails] = useState<{ dice: number, modifier: number, total: number } | null>(null)
+
 
   // Load Data
   useEffect(() => {
@@ -172,11 +179,13 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
               const data = attackerDoc.data()
               setAttackerName(data.Nomperso || "")
               setAttackerImage(data.imageURLFinal || data.imageURL2 || data.imageURL || "")
+              setAttackerType(data.type || 'joueurs')
               setAttacks({
                 contact: data.Contact_F || data.Contact || 0,
                 distance: data.Distance_F || data.Distance || 0,
                 magie: data.Magie_F || data.Magie || 0
               })
+              setActions(data.Actions || [])
               await loadWeapons(fetchedRoomId, data.Nomperso)
             }
 
@@ -255,16 +264,24 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
     // Quick delay for feel
     setTimeout(() => {
       let mod = 0
+      let numDice = 1
+      let numFaces = 20
+
       if (type === 'contact') mod = attacks.contact || 0
       if (type === 'distance') mod = attacks.distance || 0
       if (type === 'magic') mod = attacks.magie || 0
-      if (type === 'custom') mod = customRoll.modifier
+      if (type === 'custom') {
+        mod = customRoll.modifier
+        numDice = customRoll.numDice
+        numFaces = customRoll.numFaces
+      }
 
-      const total = type === 'custom'
-        ? rollDice(customRoll.numDice, customRoll.numFaces, mod)
-        : rollDice(1, 20, mod)
+      // Calculate raw dice sum excluding modifier
+      const rawDice = Array.from({ length: numDice }).reduce((acc: number) => acc + Math.floor(Math.random() * numFaces) + 1, 0)
+      const total = rawDice + mod
 
       setAttackResult(total)
+      setAttackDetails({ dice: rawDice, modifier: mod, total })
       setStep('ATTACK_RESULT')
 
       // AUTO ADVANCE
@@ -334,6 +351,8 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
     setStep('ATTACK_CHOICE')
     setAttackResult(0)
     setDamageResult(0)
+    setSelectedAction(null)
+    setAttackDetails(null)
   }
 
   const handleSoundSelect = async (value: string) => {
@@ -453,100 +472,240 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
               <motion.div
                 key="selection"
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                className="w-full max-w-5xl mx-auto grid grid-cols-4 gap-6"
+                className="w-full max-w-5xl mx-auto"
               >
-                <ActionCard
-                  title="Contact"
-                  icon={Sword}
-                  value={attacks.contact}
-                  color="from-[var(--accent-brown)] to-orange-900/40"
-                  delay={0}
-                  onClick={() => handleAttack('contact')}
-                />
-                <ActionCard
-                  title="Distance"
-                  icon={Target}
-                  value={attacks.distance}
-                  color="from-green-500 to-emerald-900/40"
-                  delay={0.1}
-                  onClick={() => handleAttack('distance')}
-                />
-                <ActionCard
-                  title="Magie"
-                  icon={Wand2}
-                  value={attacks.magie}
-                  color="from-purple-500 to-indigo-900/40"
-                  delay={0.2}
-                  onClick={() => handleAttack('magic')}
-                />
-                <ActionCard
-                  title="Custom"
-                  icon={Settings}
-                  value={customRoll.modifier}
-                  color="from-blue-500 to-cyan-900/40"
-                  delay={0.3}
-                  onClick={() => setIsCustomOpen(!isCustomOpen)}
-                />
-
-                {/* Custom Configuration Bar (Revealed on click) */}
-                <AnimatePresence>
-                  {isCustomOpen && (
-                    <motion.div
-                      key="custom-config"
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      className="col-span-4 mt-6 flex justify-center overflow-hidden"
-                    >
-                      <div className="bg-[#111] border border-white/5 rounded-xl p-4 flex items-center gap-4 shadow-2xl ring-1 ring-blue-500/30 mb-2">
-                        <span className="text-xs font-bold uppercase text-blue-400 tracking-wider">Config Dé Custom</span>
-
-                        <div className="h-6 w-px bg-white/10 mx-2" />
-
-                        <div className="flex items-center gap-2">
-                          <div className="flex flex-col items-center">
-                            <span className="text-[9px] text-gray-500 uppercase mb-1">Dés</span>
-                            <Input
-                              type="number"
-                              className="h-10 w-14 text-center bg-black/40 border-white/10 text-white font-mono text-lg"
-                              value={customRoll.numDice}
-                              onChange={(e) => setCustomRoll({ ...customRoll, numDice: parseInt(e.target.value) || 1 })}
-                            />
-                          </div>
-                          <span className="text-gray-500 font-bold mt-4">d</span>
-                          <div className="flex flex-col items-center">
-                            <span className="text-[9px] text-gray-500 uppercase mb-1">Faces</span>
-                            <Input
-                              type="number"
-                              className="h-10 w-14 text-center bg-black/40 border-white/10 text-white font-mono text-lg"
-                              value={customRoll.numFaces}
-                              onChange={(e) => setCustomRoll({ ...customRoll, numFaces: parseInt(e.target.value) || 20 })}
-                            />
-                          </div>
-                          <span className="text-gray-500 font-bold mt-4">+</span>
-                          <div className="flex flex-col items-center">
-                            <span className="text-[9px] text-gray-500 uppercase mb-1">Mod</span>
-                            <Input
-                              type="number"
-                              className="h-10 w-14 text-center bg-black/40 border-white/10 text-white font-mono text-lg"
-                              value={customRoll.modifier}
-                              onChange={(e) => setCustomRoll({ ...customRoll, modifier: parseInt(e.target.value) || 0 })}
-                            />
-                          </div>
-                        </div>
-
-                        <Button
-                          onClick={() => handleAttack('custom')}
-                          className="ml-4 bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 h-10 shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_rgba(37,99,235,0.5)] transition-all"
+                {/* If Actions exist: Only show Actions */}
+                {actions.length > 0 ? (
+                  <div className="space-y-6">
+                    <div className="mb-6 flex items-center gap-3 justify-center">
+                      <Zap className="w-6 h-6 text-yellow-500" />
+                      <h3 className="text-2xl font-bold uppercase tracking-wider text-gray-300">Attaques</h3>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      {actions.map((action, index) => (
+                        <motion.button
+                          key={index}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          whileHover={{ scale: 1.02, y: -5 }}
+                          whileTap={{ scale: 0.98 }}
+                          onClick={() => {
+                            setSelectedAction(action)
+                            setActiveActionIndex(index) // Set the active card index for later
+                            // Initialize dice with default values (can be customized later based on action data)
+                            setActionDice({ numDice: 1, numFaces: 20, modifier: 0 })
+                            setStep('ACTION_CONFIG')
+                          }}
+                          className="group relative p-6 rounded-2xl border border-yellow-500/20 bg-gradient-to-br from-yellow-500/5 to-orange-500/5 hover:from-yellow-500/10 hover:to-orange-500/10 hover:border-yellow-500/40 transition-all duration-300 overflow-hidden"
                         >
-                          LANCER
-                          <ArrowRight className="w-4 h-4 ml-2" />
-                        </Button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                          <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/0 via-yellow-500/10 to-yellow-500/0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
+                          <div className="relative flex flex-col gap-3">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl font-bold text-yellow-300 group-hover:text-yellow-200 transition-colors">
+                                {action.Nom}
+                              </span>
+                            </div>
+                            <p className="text-sm text-gray-400 group-hover:text-gray-300 transition-colors line-clamp-3">
+                              {action.Description}
+                            </p>
+                            <div className="flex items-center gap-2 pt-2">
+                              <span className="px-3 py-1 bg-yellow-500/20 text-yellow-300 text-sm font-mono rounded-lg border border-yellow-500/30">
+                                Toucher: {action.Toucher}
+                              </span>
+                            </div>
+                          </div>
+                        </motion.button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  /* No Actions: Show standard attack buttons */
+                  <div className="grid grid-cols-4 gap-6">
+                    <ActionCard
+                      title="Contact"
+                      icon={Sword}
+                      value={attacks.contact}
+                      color="from-[var(--accent-brown)] to-orange-900/40"
+                      delay={0}
+                      onClick={() => handleAttack('contact')}
+                    />
+                    <ActionCard
+                      title="Distance"
+                      icon={Target}
+                      value={attacks.distance}
+                      color="from-green-500 to-emerald-900/40"
+                      delay={0.1}
+                      onClick={() => handleAttack('distance')}
+                    />
+                    <ActionCard
+                      title="Magie"
+                      icon={Wand2}
+                      value={attacks.magie}
+                      color="from-purple-500 to-indigo-900/40"
+                      delay={0.2}
+                      onClick={() => handleAttack('magic')}
+                    />
+                    <ActionCard
+                      title="Custom"
+                      icon={Settings}
+                      value={customRoll.modifier}
+                      color="from-blue-500 to-cyan-900/40"
+                      delay={0.3}
+                      onClick={() => setIsCustomOpen(!isCustomOpen)}
+                    />
+
+                    {/* Custom Configuration Bar (Revealed on click) */}
+                    <AnimatePresence>
+                      {isCustomOpen && (
+                        <motion.div
+                          key="custom-config"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="col-span-4 mt-6 flex justify-center overflow-hidden"
+                        >
+                          <div className="bg-[#111] border border-white/5 rounded-xl p-4 flex items-center gap-4 shadow-2xl ring-1 ring-blue-500/30 mb-2">
+                            <span className="text-xs font-bold uppercase text-blue-400 tracking-wider">Config Dé Custom</span>
+
+                            <div className="h-6 w-px bg-white/10 mx-2" />
+
+                            <div className="flex items-center gap-2">
+                              <div className="flex flex-col items-center">
+                                <span className="text-[9px] text-gray-500 uppercase mb-1">Dés</span>
+                                <Input
+                                  type="number"
+                                  className="h-10 w-14 text-center bg-black/40 border-white/10 text-white font-mono text-lg"
+                                  value={customRoll.numDice}
+                                  onChange={(e) => setCustomRoll({ ...customRoll, numDice: parseInt(e.target.value) || 1 })}
+                                />
+                              </div>
+                              <span className="text-gray-500 font-bold mt-4">d</span>
+                              <div className="flex flex-col items-center">
+                                <span className="text-[9px] text-gray-500 uppercase mb-1">Faces</span>
+                                <Input
+                                  type="number"
+                                  className="h-10 w-14 text-center bg-black/40 border-white/10 text-white font-mono text-lg"
+                                  value={customRoll.numFaces}
+                                  onChange={(e) => setCustomRoll({ ...customRoll, numFaces: parseInt(e.target.value) || 20 })}
+                                />
+                              </div>
+                              <span className="text-gray-500 font-bold mt-4">+</span>
+                              <div className="flex flex-col items-center">
+                                <span className="text-[9px] text-gray-500 uppercase mb-1">Mod</span>
+                                <Input
+                                  type="number"
+                                  className="h-10 w-14 text-center bg-black/40 border-white/10 text-white font-mono text-lg"
+                                  value={customRoll.modifier}
+                                  onChange={(e) => setCustomRoll({ ...customRoll, modifier: parseInt(e.target.value) || 0 })}
+                                />
+                              </div>
+                            </div>
+
+                            <Button
+                              onClick={() => handleAttack('custom')}
+                              className="ml-4 bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 h-10 shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_rgba(37,99,235,0.5)] transition-all"
+                            >
+                              LANCER
+                              <ArrowRight className="w-4 h-4 ml-2" />
+                            </Button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+
+              </motion.div>
+            )}
+
+            {/* PHASE 1.5: ACTION DICE CONFIG (for Actions only) */}
+            {step === 'ACTION_CONFIG' && selectedAction && (
+              <motion.div
+                key="action-config"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="w-full max-w-3xl mx-auto"
+              >
+                <div className="space-y-4">
+                  {/* Action Info */}
+                  <div className="text-center">
+                    <h2 className="text-2xl font-bold text-yellow-300 mb-2">{selectedAction.Nom}</h2>
+                    <p className="text-gray-400 text-sm mb-3">{selectedAction.Description}</p>
+                    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+                      <span className="text-yellow-400 text-xs font-bold">Seuil de toucher:</span>
+                      <span className="text-yellow-300 text-lg font-mono">{selectedAction.Toucher}</span>
+                    </div>
+                  </div>
+
+                  {/* Dice Configuration - Compact */}
+                  <div className="bg-[#111] border border-white/5 rounded-xl p-6">
+                    <h3 className="text-base font-bold uppercase tracking-wider text-center mb-4 text-gray-300">
+                      Configuration du Dé
+                    </h3>
+
+                    <div className="flex items-center justify-center gap-3 mb-6">
+                      <div className="flex flex-col items-center">
+                        <span className="text-xs text-gray-500 uppercase mb-1">Nombre de Dés</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          className="h-14 w-18 text-center bg-black/40 border-white/10 text-white font-mono text-xl"
+                          value={actionDice.numDice}
+                          onChange={(e) => setActionDice({ ...actionDice, numDice: parseInt(e.target.value) || 1 })}
+                        />
+                      </div>
+                      <span className="text-gray-500 font-bold text-2xl mt-5">d</span>
+                      <div className="flex flex-col items-center">
+                        <span className="text-xs text-gray-500 uppercase mb-1">Faces</span>
+                        <Input
+                          type="number"
+                          min={1}
+                          className="h-14 w-18 text-center bg-black/40 border-white/10 text-white font-mono text-xl"
+                          value={actionDice.numFaces}
+                          onChange={(e) => setActionDice({ ...actionDice, numFaces: parseInt(e.target.value) || 20 })}
+                        />
+                      </div>
+                      <span className="text-gray-500 font-bold text-2xl mt-5">+</span>
+                      <div className="flex flex-col items-center">
+                        <span className="text-xs text-gray-500 uppercase mb-1">Modificateur</span>
+                        <Input
+                          type="number"
+                          className="h-14 w-18 text-center bg-black/40 border-white/10 text-white font-mono text-xl"
+                          value={actionDice.modifier}
+                          onChange={(e) => setActionDice({ ...actionDice, modifier: parseInt(e.target.value) || 0 })}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Roll Button */}
+                    <div className="flex justify-center gap-3">
+                      <Button
+                        onClick={() => setStep('ATTACK_CHOICE')}
+                        variant="outline"
+                        className="h-12 px-6 border-white/10 text-gray-400 hover:text-white"
+                      >
+                        Retour
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setStep('ATTACK_ROLLING')
+                          setTimeout(() => {
+                            const total = rollDice(actionDice.numDice, actionDice.numFaces, actionDice.modifier)
+                            setAttackResult(total)
+                            setStep('ATTACK_RESULT')
+                          }, 600)
+                        }}
+                        className="h-12 px-10 bg-yellow-600 hover:bg-yellow-500 text-black font-bold shadow-[0_0_20px_rgba(202,138,4,0.3)] hover:shadow-[0_0_30px_rgba(202,138,4,0.5)] transition-all"
+                      >
+                        <Zap className="w-4 h-4 mr-2" />
+                        LANCER LE DÉ
+                      </Button>
+                    </div>
+                  </div>
+                </div>
               </motion.div>
             )}
 
@@ -560,62 +719,247 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                 {step === 'ATTACK_ROLLING' ? (
                   <LoadingSpinner />
                 ) : (
-                  <motion.div
-                    initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                    className="relative"
-                  >
-                    <div className="text-[12rem] leading-none font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400 drop-shadow-2xl">
-                      {attackResult}
-                    </div>
-                    <div className="absolute -bottom-8 inset-x-0 text-center text-xl text-gray-400 font-bold uppercase tracking-[0.5em]">
-                      To Hit
-                    </div>
-                  </motion.div>
+                  <>
+                    {selectedAction ? (
+                      /* For Actions: Show Hit/Miss comparison */
+                      <div className="text-center space-y-6">
+                        <motion.div
+                          initial={{ scale: 0.5, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className="relative"
+                        >
+                          <div className="text-[12rem] leading-none font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400 drop-shadow-2xl">
+                            {attackResult}
+                          </div>
+                        </motion.div>
+
+                        {/* Hit/Miss Result */}
+                        <motion.div
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ delay: 0.3 }}
+                          onAnimationComplete={() => {
+                            // Auto-transition to damage phase after showing result
+                            setTimeout(() => setStep('WEAPON_SELECT'), 1500)
+                          }}
+                          className={`text-6xl font-black uppercase tracking-widest ${attackResult >= selectedAction.Toucher
+                            ? 'text-green-500 drop-shadow-[0_0_40px_rgba(34,197,94,0.5)]'
+                            : 'text-red-500 drop-shadow-[0_0_40px_rgba(239,68,68,0.5)]'
+                            }`}
+                        >
+                          {attackResult >= selectedAction.Toucher ? '✓ TOUCHÉ' : '✗ RATÉ'}
+                        </motion.div>
+
+                        {/* Comparison */}
+                        <div className="flex items-center justify-center gap-4 text-gray-400">
+                          <span className="text-3xl font-mono">{attackResult}</span>
+                          <span className="text-2xl">{attackResult >= selectedAction.Toucher ? '≥' : '<'}</span>
+                          <span className="text-3xl font-mono">{selectedAction.Toucher}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      /* For standard attacks: Show To Hit number */
+                      <div className="text-center flex flex-col items-center justify-center gap-8 -mt-12">
+                        <motion.div
+                          initial={{ scale: 0.5, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          className="relative"
+                        >
+                          <div className="text-[12rem] leading-none font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400 drop-shadow-2xl">
+                            {attackResult}
+                          </div>
+                        </motion.div>
+
+                        {/* Detailed Calculation Display */}
+                        {attackDetails && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: 0.2 }}
+                            className="flex flex-col items-center gap-2"
+                          >
+                            <span className="text-gray-500 font-mono uppercase tracking-widest text-sm">
+                              {selectedAttackType === 'custom'
+                                ? `${customRoll.numDice}d${customRoll.numFaces} + ${attackDetails.modifier}`
+                                : `1d20 + ${selectedAttackType}`}
+                            </span>
+                            <div className="flex items-center justify-center gap-4 text-2xl font-bold font-mono text-gray-300 bg-white/5 px-8 py-3 rounded-2xl border border-white/10 shadow-lg">
+                              <span className="text-white">{attackDetails.dice}</span>
+                              <span className="text-gray-600 font-light">+</span>
+                              <span className="text-blue-400">{attackDetails.modifier}</span>
+                              <span className="text-gray-600 font-light">=</span>
+                              <span className="text-white font-black text-3xl">{attackDetails.total}</span>
+                            </div>
+                          </motion.div>
+                        )}
+
+                        <div className="text-xl text-gray-500 font-bold uppercase tracking-[0.5em]">
+                          Score d'Attaque
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </motion.div>
             )}
 
-            {/* PHASE 3: WEAPON SELECTION */}
+            {/* PHASE 3: WEAPON/DAMAGE SELECTION */}
             {step === 'WEAPON_SELECT' && (
               <motion.div
                 key="weapons"
                 initial={{ opacity: 0, x: 100 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -100 }}
                 className="w-full max-w-2xl mx-auto flex flex-col h-full"
               >
-                <h3 className="text-2xl font-bold uppercase tracking-tight text-center mb-8">Choisissez votre arme</h3>
-
-                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                  <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
-                    {weapons.map(w => (
-                      <WeaponCard key={w.id || w.name} weapon={w} onClick={() => handleDamage(w)} onSoundClick={(e) => openSoundSelector(e, w)} />
-                    ))}
-                  </div>
-
-                  {/* Custom Input */}
-                  <div className="p-4 rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-between gap-4">
-                    <span className="font-bold text-gray-400 pl-2">Custom Damage</span>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        type="number"
-                        className="h-9 w-16 text-center bg-black/40 border-white/10 text-white"
-                        value={customDamage.numDice} onChange={e => setCustomDamage({ ...customDamage, numDice: parseInt(e.target.value) || 1 })}
-                      />
-                      <span className="text-gray-500">d</span>
-                      <Input
-                        type="number"
-                        className="h-9 w-16 text-center bg-black/40 border-white/10 text-white"
-                        value={customDamage.numFaces} onChange={e => setCustomDamage({ ...customDamage, numFaces: parseInt(e.target.value) || 6 })}
-                      />
-                      <span className="text-gray-500">+</span>
-                      <Input
-                        type="number"
-                        className="h-9 w-16 text-center bg-black/40 border-white/10 text-white"
-                        value={customDamage.modifier} onChange={e => setCustomDamage({ ...customDamage, modifier: parseInt(e.target.value) || 0 })}
-                      />
-                      <Button onClick={() => handleDamage(null)} className="bg-white/10 hover:bg-white/20">Roll</Button>
+                {selectedAction ? (
+                  /* For Actions: Show damage configuration with hit/miss status */
+                  <>
+                    {/* Status Badge - Absolute Corner */}
+                    <div className="absolute top-0 right-0 z-10">
+                      <div className={`px-3 py-1 rounded-bl-xl border-l border-b ${attackResult >= selectedAction.Toucher
+                        ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                        : 'bg-red-500/20 border-red-500/50 text-red-400'
+                        }`}>
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-sm">
+                            {attackResult >= selectedAction.Toucher ? 'TOUCHÉ' : 'RATÉ'}
+                          </span>
+                          <span className="text-xs opacity-75 font-mono">
+                            {attackResult} {attackResult >= selectedAction.Toucher ? '≥' : '<'} {selectedAction.Toucher}
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
+
+                    <h3 className="text-lg font-bold uppercase tracking-tight text-center mb-4 text-gray-400">
+                      Configuration Dégâts
+                    </h3>
+
+                    <div className="max-w-md mx-auto relative">
+                      {/* Navigation Tabs */}
+                      <div className="flex justify-center gap-1 mb-4">
+                        {actions.map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setActiveActionIndex(index)}
+                            className={`h-1.5 w-8 rounded-full transition-all ${activeActionIndex === index
+                              ? 'bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]'
+                              : 'bg-white/10 hover:bg-white/20'
+                              }`}
+                          />
+                        ))}
+                      </div>
+
+                      {/* Swappable Action Card (Visual Reference) */}
+                      <div className="bg-[#111] border border-white/10 rounded-xl p-4 mb-4 min-h-[100px] flex flex-col justify-center relative overflow-hidden">
+                        <AnimatePresence mode="wait">
+                          <motion.div
+                            key={activeActionIndex}
+                            initial={{ opacity: 0, x: 10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: -10 }}
+                            transition={{ duration: 0.15 }}
+                          >
+                            <div className="flex items-baseline justify-between mb-1">
+                              <h4 className="text-lg font-bold text-yellow-300">
+                                {actions[activeActionIndex]?.Nom}
+                              </h4>
+                              <span className="text-xs text-gray-600 font-mono">
+                                #{activeActionIndex + 1}
+                              </span>
+                            </div>
+                            <p className="text-gray-400 text-xs">
+                              {actions[activeActionIndex]?.Description}
+                            </p>
+                          </motion.div>
+                        </AnimatePresence>
+
+                        {/* Background Decoration */}
+                        <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-yellow-500/5 rounded-full blur-2xl pointer-events-none" />
+                      </div>
+
+                      {/* Static Dice Configuration */}
+                      <div className="bg-white/5 border border-white/5 rounded-xl p-4">
+                        <div className="flex items-center justify-center gap-3 mb-4">
+                          <div className="flex flex-col items-center">
+                            <span className="text-[10px] text-gray-500 uppercase mb-1">Dés</span>
+                            <Input
+                              type="number"
+                              className="h-12 w-16 text-center bg-black/40 border-white/10 text-white font-mono text-xl"
+                              value={customDamage.numDice}
+                              onChange={e => setCustomDamage({ ...customDamage, numDice: parseInt(e.target.value) || 1 })}
+                            />
+                          </div>
+                          <span className="text-gray-600 font-bold text-xl mt-4">d</span>
+                          <div className="flex flex-col items-center">
+                            <span className="text-[10px] text-gray-500 uppercase mb-1">Faces</span>
+                            <Input
+                              type="number"
+                              className="h-12 w-16 text-center bg-black/40 border-white/10 text-white font-mono text-xl"
+                              value={customDamage.numFaces}
+                              onChange={e => setCustomDamage({ ...customDamage, numFaces: parseInt(e.target.value) || 6 })}
+                            />
+                          </div>
+                          <span className="text-gray-600 font-bold text-xl mt-4">+</span>
+                          <div className="flex flex-col items-center">
+                            <span className="text-[10px] text-gray-500 uppercase mb-1">Mod</span>
+                            <Input
+                              type="number"
+                              className="h-12 w-16 text-center bg-black/40 border-white/10 text-white font-mono text-xl"
+                              value={customDamage.modifier}
+                              onChange={e => setCustomDamage({ ...customDamage, modifier: parseInt(e.target.value) || 0 })}
+                            />
+                          </div>
+                        </div>
+
+                        <Button
+                          onClick={() => handleDamage(null)}
+                          className="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-bold h-12 text-base shadow-lg hover:shadow-yellow-500/20 transition-all"
+                        >
+                          <Zap className="w-4 h-4 mr-2" />
+                          LANCER
+                        </Button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  /* For standard attacks: Show weapons */
+                  <>
+                    <h3 className="text-2xl font-bold uppercase tracking-tight text-center mb-8">Choisissez votre arme</h3>
+
+                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                        {weapons.map(w => (
+                          <WeaponCard key={w.id || w.name} weapon={w} onClick={() => handleDamage(w)} onSoundClick={(e) => openSoundSelector(e, w)} />
+                        ))}
+                      </div>
+
+                      {/* Custom Input */}
+                      <div className="p-4 rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-between gap-4">
+                        <span className="font-bold text-gray-400 pl-2">Custom Damage</span>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            className="h-9 w-16 text-center bg-black/40 border-white/10 text-white"
+                            value={customDamage.numDice} onChange={e => setCustomDamage({ ...customDamage, numDice: parseInt(e.target.value) || 1 })}
+                          />
+                          <span className="text-gray-500">d</span>
+                          <Input
+                            type="number"
+                            className="h-9 w-16 text-center bg-black/40 border-white/10 text-white"
+                            value={customDamage.numFaces} onChange={e => setCustomDamage({ ...customDamage, numFaces: parseInt(e.target.value) || 6 })}
+                          />
+                          <span className="text-gray-500">+</span>
+                          <Input
+                            type="number"
+                            className="h-9 w-16 text-center bg-black/40 border-white/10 text-white"
+                            value={customDamage.modifier} onChange={e => setCustomDamage({ ...customDamage, modifier: parseInt(e.target.value) || 0 })}
+                          />
+                          <Button onClick={() => handleDamage(null)} className="bg-white/10 hover:bg-white/20">Roll</Button>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
               </motion.div>
             )}
 
@@ -630,6 +974,28 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                   <LoadingSpinner />
                 ) : (
                   <div className="text-center relative z-10">
+                    {selectedAction && (
+                      /* Hit/Miss Status Banner at top */
+                      <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={`mb-8 p-4 rounded-xl border-2 inline-block ${attackResult >= selectedAction.Toucher
+                          ? 'bg-green-500/10 border-green-500/50'
+                          : 'bg-red-500/10 border-red-500/50'
+                          }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className={`text-xl font-black ${attackResult >= selectedAction.Toucher ? 'text-green-500' : 'text-red-500'
+                            }`}>
+                            {attackResult >= selectedAction.Toucher ? '✓ TOUCHÉ' : '✗ RATÉ'}
+                          </span>
+                          <span className="text-gray-400 text-sm">
+                            {attackResult} {attackResult >= selectedAction.Toucher ? '≥' : '<'} {selectedAction.Toucher}
+                          </span>
+                        </div>
+                      </motion.div>
+                    )}
+
                     <motion.div
                       initial={{ scale: 2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
                       className="text-[10rem] leading-none font-black text-red-500 drop-shadow-[0_0_60px_rgba(239,68,68,0.5)]"
