@@ -311,7 +311,7 @@ const getDieValue = (type: string, index: number) => {
 };
 
 // Create beveled geometry for premium look
-const createBeveledGeometry = (type: string) => {
+export const createBeveledGeometry = (type: string) => {
     let geo: THREE.BufferGeometry;
     const detail = 0; // Higher detail for smoother look
 
@@ -409,7 +409,7 @@ interface ParticleData {
 }
 
 // Particles that stay world-oriented by counter-rotating
-const DiceParticles = ({ skin, quaternionRef }: {
+export const DiceParticles = ({ skin, quaternionRef }: {
     skin: DiceSkin,
     quaternionRef: React.MutableRefObject<[number, number, number, number]>
 }) => {
@@ -896,7 +896,7 @@ const Table = () => {
 };
 
 // Decorative edge lines for each face
-const FaceDecorations = ({ face, borderColor }: {
+export const FaceDecorations = ({ face, borderColor }: {
     face: { pos: THREE.Vector3, norm: THREE.Vector3, edgeVerts: THREE.Vector3[] },
     borderColor: string
 }) => {
@@ -975,6 +975,140 @@ const FaceDecorations = ({ face, borderColor }: {
 };
 
 // Premium Die component with skin-based appearance
+
+// Visual Die Component (Pure Rendering)
+export const VisualDie = React.forwardRef(({ type, skin, isShattered, critType }: {
+    type: string,
+    skin: DiceSkin,
+    isShattered: boolean,
+    critType: CriticalType
+}, ref: any) => {
+    // We expect the parent to handle positioning/rotation via a Group or similar
+    // This component just renders the mesh + effects relative to 0,0,0 or uses context if needed
+    // But wait, the original Die uses specific logic attached to physics body.
+    // To make it reusable for Preview (no physics), we should wrap the inner rendering parts.
+
+    const { vertices, faces, trueFaces, geometry } = useMemo(() => createBeveledGeometry(type), [type]);
+
+    // We need a way to pass quaternion for particles if it's moving
+    // For preview it might be spinning differently.
+    // Let's assume for Preview we pass a ref that tracks rotation if needed, or just dummy one.
+    const dummyQuat = useRef([0, 0, 0, 1] as [number, number, number, number]);
+
+    return (
+        <group>
+            {/* Critical hit/fail effect */}
+            {critType && <CriticalEffect type={critType} onComplete={() => { }} />}
+
+            {/* Shattered die fragments */}
+            {isShattered && <ShatteredDie color={skin.bodyColor} onComplete={() => { }} />}
+
+            {/* Particle effects */}
+            {/* {!isShattered && <DiceParticles skin={skin} quaternionRef={dummyQuat} />} */}
+
+            {/* Inner glow effect */}
+            {!isShattered && skin.innerGlow && (
+                <pointLight
+                    position={[0, 0, 0]}
+                    color={skin.innerGlowColor}
+                    intensity={skin.innerGlowIntensity}
+                    distance={5}
+                    decay={2}
+                />
+            )}
+
+            {/* Main die body */}
+            {!isShattered && (
+                <mesh castShadow receiveShadow geometry={geometry}>
+                    <meshStandardMaterial
+                        color={skin.bodyColor}
+                        metalness={skin.metalness}
+                        roughness={skin.roughness}
+                        envMapIntensity={skin.envMapIntensity}
+                        emissive={skin.emissive}
+                        emissiveIntensity={skin.emissiveIntensity}
+                        transparent={skin.opacity < 1}
+                        opacity={skin.opacity}
+                    />
+                </mesh>
+            )}
+
+            {/* Rim lighting effect */}
+            {!isShattered && skin.rimLight && (
+                <mesh geometry={geometry} scale={[1.02, 1.02, 1.02]}>
+                    <meshStandardMaterial
+                        color={skin.rimLightColor}
+                        emissive={skin.rimLightColor}
+                        emissiveIntensity={0.5}
+                        metalness={0}
+                        roughness={1}
+                        transparent
+                        opacity={0.25}
+                        side={THREE.BackSide}
+                    />
+                </mesh>
+            )}
+
+            {/* Edge highlight mesh */}
+            {!isShattered && (
+                <mesh geometry={geometry} scale={[1.01, 1.01, 1.01]}>
+                    <meshStandardMaterial
+                        color={skin.edgeColor}
+                        emissive={skin.emissive}
+                        emissiveIntensity={skin.emissiveIntensity * 0.5}
+                        metalness={0.8}
+                        roughness={0.2}
+                        transparent
+                        opacity={0.35}
+                        side={THREE.BackSide}
+                    />
+                </mesh>
+            )}
+
+            {/* Decorative borders on each face */}
+            {!isShattered && trueFaces.map((face, index) => (
+                <FaceDecorations key={`deco-${index}`} face={face} borderColor={skin.borderColor} />
+            ))}
+
+            {/* Face numbers with stylized look */}
+            {!isShattered && trueFaces.map((face, index) => {
+                const textPos = face.pos.clone().multiplyScalar(1.01);
+                const displayValue = getDieValue(type, index);
+
+                return (
+                    <group key={index} position={textPos} quaternion={new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), face.norm)}>
+                        {/* Shadow/depth effect */}
+                        <Text
+                            scale={type === 'd20' ? [0.45, 0.45, 0.45] : [0.7, 0.7, 0.7]}
+                            color={skin.shadowColor}
+                            fontSize={1}
+                            fontWeight={900}
+                            anchorX="center"
+                            anchorY="middle"
+                            position={[0.02, -0.02, -0.01]}
+                        >
+                            {displayValue}
+                        </Text>
+                        {/* Main number */}
+                        <Text
+                            scale={type === 'd20' ? [0.45, 0.45, 0.45] : [0.7, 0.7, 0.7]}
+                            color={skin.textColor}
+                            fontSize={1}
+                            fontWeight={900}
+                            anchorX="center"
+                            anchorY="middle"
+                        >
+                            {displayValue}
+                        </Text>
+                    </group>
+                )
+            })}
+        </group>
+    );
+});
+VisualDie.displayName = 'VisualDie';
+
+// Premium Die component with skin-based appearance
 const Die = React.forwardRef(({ type, position, impulse, skin, onResult }: {
     type: string,
     position: [number, number, number],
@@ -982,7 +1116,7 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult }: {
     skin: DiceSkin,
     onResult: (val: string) => void
 }, fRef: any) => {
-    const { vertices, faces, trueFaces, geometry } = useMemo(() => createBeveledGeometry(type), [type]);
+    const { vertices, faces, trueFaces } = useMemo(() => createBeveledGeometry(type), [type]);
     const [stopped, setStopped] = useState(false);
     const [canCheck, setCanCheck] = useState(false);
     const [critType, setCritType] = useState<CriticalType>(null);
@@ -1079,112 +1213,8 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult }: {
 
     return (
         <group ref={ref as any}>
-            {/* Critical hit/fail effect */}
-            {critType && <CriticalEffect type={critType} onComplete={() => setCritType(null)} />}
+            <VisualDie type={type} skin={skin} isShattered={isShattered} critType={critType} ref={null} />
 
-            {/* Shattered die fragments */}
-            {isShattered && <ShatteredDie color={skin.bodyColor} onComplete={() => { }} />}
-
-            {/* Particle effects - counter-rotated to stay world-oriented */}
-            {!isShattered && <DiceParticles skin={skin} quaternionRef={quaternion as React.MutableRefObject<[number, number, number, number]>} />}
-
-            {/* Inner glow effect - positioned at center */}
-            {!isShattered && skin.innerGlow && (
-                <pointLight
-                    position={[0, 0, 0]}
-                    color={skin.innerGlowColor}
-                    intensity={skin.innerGlowIntensity}
-                    distance={5}
-                    decay={2}
-                />
-            )}
-
-            {/* Main die body with full material effects */}
-            {!isShattered && (
-                <mesh castShadow receiveShadow geometry={geometry}>
-                    <meshStandardMaterial
-                        color={skin.bodyColor}
-                        metalness={skin.metalness}
-                        roughness={skin.roughness}
-                        envMapIntensity={skin.envMapIntensity}
-                        emissive={skin.emissive}
-                        emissiveIntensity={skin.emissiveIntensity}
-                        transparent={skin.opacity < 1}
-                        opacity={skin.opacity}
-                    />
-                </mesh>
-            )}
-
-            {/* Rim lighting effect - backface glow */}
-            {!isShattered && skin.rimLight && (
-                <mesh geometry={geometry} scale={[1.02, 1.02, 1.02]}>
-                    <meshStandardMaterial
-                        color={skin.rimLightColor}
-                        emissive={skin.rimLightColor}
-                        emissiveIntensity={0.5}
-                        metalness={0}
-                        roughness={1}
-                        transparent
-                        opacity={0.25}
-                        side={THREE.BackSide}
-                    />
-                </mesh>
-            )}
-
-            {/* Edge highlight mesh */}
-            {!isShattered && (
-                <mesh geometry={geometry} scale={[1.01, 1.01, 1.01]}>
-                    <meshStandardMaterial
-                        color={skin.edgeColor}
-                        emissive={skin.emissive}
-                        emissiveIntensity={skin.emissiveIntensity * 0.5}
-                        metalness={0.8}
-                        roughness={0.2}
-                        transparent
-                        opacity={0.35}
-                        side={THREE.BackSide}
-                    />
-                </mesh>
-            )}
-
-            {/* Decorative borders on each face */}
-            {!isShattered && trueFaces.map((face, index) => (
-                <FaceDecorations key={`deco-${index}`} face={face} borderColor={skin.borderColor} />
-            ))}
-
-            {/* Face numbers with stylized look */}
-            {!isShattered && trueFaces.map((face, index) => {
-                const textPos = face.pos.clone().multiplyScalar(1.01);
-                const displayValue = getDieValue(type, index);
-
-                return (
-                    <group key={index} position={textPos} quaternion={new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), face.norm)}>
-                        {/* Shadow/depth effect */}
-                        <Text
-                            scale={type === 'd20' ? [0.45, 0.45, 0.45] : [0.7, 0.7, 0.7]}
-                            color={skin.shadowColor}
-                            fontSize={1}
-                            fontWeight={900}
-                            anchorX="center"
-                            anchorY="middle"
-                            position={[0.02, -0.02, -0.01]}
-                        >
-                            {displayValue}
-                        </Text>
-                        {/* Main number */}
-                        <Text
-                            scale={type === 'd20' ? [0.45, 0.45, 0.45] : [0.7, 0.7, 0.7]}
-                            color={skin.textColor}
-                            fontSize={1}
-                            fontWeight={900}
-                            anchorX="center"
-                            anchorY="middle"
-                        >
-                            {displayValue}
-                        </Text>
-                    </group>
-                )
-            })}
         </group>
     );
 });

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { DiceStats } from "./dice-stats";
 import { DICE_SKINS, DiceSkin } from "./throw";
+import { DicePreview } from "./dice-preview";
 
 // Types
 interface RollResult {
@@ -699,44 +700,58 @@ export function DiceRoller() {
             </Button>
 
             <Dialog open={isSkinDialogOpen} onOpenChange={setIsSkinDialogOpen}>
-              <DialogContent className="bg-[#242424] border-[#333] text-[var(--text-primary)] sm:max-w-md">
+              <DialogContent className="bg-[#242424] border-[#333] text-[var(--text-primary)] sm:max-w-3xl">
                 <DialogHeader>
                   <DialogTitle>Choisir l'apparence des dés</DialogTitle>
                 </DialogHeader>
-                <div className="grid grid-cols-2 gap-3 py-4">
-                  {Object.values(DICE_SKINS).map((skin) => (
-                    <button
-                      key={skin.id}
-                      onClick={() => {
-                        setSelectedSkinId(skin.id);
-                        localStorage.setItem("vtt_dice_skin", skin.id);
-                        setIsSkinDialogOpen(false);
-                      }}
-                      className={`relative flex items-center gap-3 p-3 rounded-lg border transition-all overflow-hidden group 
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+                  {/* Liste des skins */}
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                    {Object.values(DICE_SKINS).map((skin) => (
+                      <button
+                        key={skin.id}
+                        onClick={() => {
+                          setSelectedSkinId(skin.id);
+                          localStorage.setItem("vtt_dice_skin", skin.id);
+                        }}
+                        className={`w-full relative flex items-center gap-3 p-3 rounded-lg border transition-all overflow-hidden group 
                         ${selectedSkinId === skin.id
-                          ? "border-[var(--accent-gold)] bg-[var(--accent-gold)]/10"
-                          : "border-white/5 hover:border-white/10 hover:bg-white/5"
-                        }`}
-                    >
-                      <div
-                        className="w-10 h-10 rounded-full flex items-center justify-center shadow-inner"
-                        style={{ backgroundColor: skin.bodyColor }}
+                            ? "border-[var(--accent-gold)] bg-[var(--accent-gold)]/10"
+                            : "border-white/5 hover:border-white/10 hover:bg-white/5"
+                          }`}
                       >
-                        <div className="w-6 h-6 rounded-full border-2 border-white/20" style={{ borderColor: 'rgba(255,255,255,0.5)' }}></div>
-                      </div>
-
-                      <div className="text-left">
-                        <div className="font-medium text-sm text-[var(--text-primary)]">{skin.name}</div>
-                        <div className="text-[10px] opacity-60">Thème {skin.id}</div>
-                      </div>
-
-                      {selectedSkinId === skin.id && (
-                        <div className="absolute right-3 text-[var(--accent-gold)]">
-                          <Check className="h-4 w-4" />
+                        <div
+                          className="w-8 h-8 rounded-full flex items-center justify-center shadow-inner shrink-0"
+                          style={{ backgroundColor: skin.bodyColor }}
+                        >
+                          <div className="w-4 h-4 rounded-full border-2 border-white/20"></div>
                         </div>
-                      )}
-                    </button>
-                  ))}
+
+                        <div className="text-left flex-1 min-w-0">
+                          <div className="font-medium text-sm text-[var(--text-primary)] truncate">{skin.name}</div>
+                        </div>
+
+                        {selectedSkinId === skin.id && (
+                          <div className="text-[var(--accent-gold)]">
+                            <Check className="h-4 w-4" />
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Prévisualisation 3D */}
+                  <div className="flex flex-col items-center justify-center bg-black/20 rounded-xl p-4 border border-white/5 min-h-[300px]">
+                    <div className="w-full h-[250px] relative">
+                      <DicePreview skinId={selectedSkinId} className="w-full h-full" />
+                    </div>
+                    <div className="mt-4 text-center">
+                      <h3 className="text-lg font-medium text-[var(--text-primary)]">{DICE_SKINS[selectedSkinId]?.name}</h3>
+                      <p className="text-sm text-[var(--text-secondary)] opacity-70">
+                        Aperçu du d20
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </DialogContent>
             </Dialog>
