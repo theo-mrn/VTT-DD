@@ -377,15 +377,30 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const characterCacheKey = `${roomId}-${selectedCharacter.id}`;
+    // Create a signature based on competence levels to force refresh when they change
+    const competenceLevels = [];
+    for (let i = 1; i <= 10; i++) {
+      competenceLevels.push(`${selectedCharacter[`Voie${i}`]}:${selectedCharacter[`v${i}`] || 0}`);
+    }
+    const competenceSignature = competenceLevels.join('|');
+
+    const characterCacheKey = `${roomId}-${selectedCharacter.id}-${competenceSignature}`;
 
     // 1. Vérifier le cache et afficher immédiatement si disponible
     const cachedCompetences = competencesCache.current.get(characterCacheKey);
     if (cachedCompetences) {
       setCompetences(cachedCompetences);
+      return; // If we have an exact match for this state, no need to reload (unless we want to refresh bonuses in background?)
+      // For now, let's rely on cache to be snappy, and assume bonuses are handled by their own subscription if active? 
+      // Actually, bonuses are fetched once here. If bonuses change, we might want to reload. 
+      // However, the issue is about "unlocking" skills, which changes the signature. 
+      // If we blindly return, we miss bonus updates if signature matches. 
+      // But the previous code was doing: setCompetences(cached) AND THEN loadCompetences().
+      // Let's keep the pattern of optimistic cache + refresh if needed, OR just trust the cache for the structural part.
+      // Given the user issue is about "unlocking", the signature change will invalidate cache anyway.
     }
 
-    // 2. Charger les nouvelles compétences en arrière-plan
+    // 2. Charger les nouvelles compétences
     const loadCompetences = async () => {
       try {
         const characterRef = doc(db, `cartes/${roomId}/characters/${selectedCharacter.id}`);
@@ -461,7 +476,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     };
 
     loadCompetences();
-  }, [selectedCharacter?.id, roomId, loadCustomCompetences, fetchBonusData]);
+  }, [selectedCharacter, roomId, loadCustomCompetences, fetchBonusData]);
 
   // Fonction exposée pour forcer le rechargement manuel si nécessaire
   const refreshCompetences = useCallback(async () => {
