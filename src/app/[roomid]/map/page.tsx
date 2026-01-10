@@ -2488,8 +2488,8 @@ export default function Component() {
       );
     }
 
-    // 🆕 SELECTION : Cases de brouillard
-    if (selectedFogCells.length > 0) {
+    // 🆕 SELECTION : Cases de brouillard (MJ seulement)
+    if (selectedFogCells.length > 0 && isMJ) { // 🔒 Réservé au MJ
       return (
         <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
           <span className="text-white text-sm font-medium pr-2">{selectedFogCells.length} case{selectedFogCells.length > 1 ? 's' : ''} de brouillard sélectionnée{selectedFogCells.length > 1 ? 's' : ''}</span>
@@ -6376,9 +6376,9 @@ export default function Component() {
         .map((zone) => isInRect(zone.x, zone.y) ? zone.id : null)
         .filter((id): id is string => id !== null);
 
-      // 🆕 7. Find Fog Cells in selection area
+      // 🆕 7. Find Fog Cells in selection area (MJ only)
       const selectedFogCellKeys: string[] = [];
-      if (fogGrid.size > 0 || fullMapFog) {
+      if (isMJ && (fogGrid.size > 0 || fullMapFog)) { // 🔒 Réservé au MJ
         // Calculate which fog cells are in the selection rectangle
         const minCellX = Math.floor(minX / fogCellSize);
         const maxCellX = Math.ceil(maxX / fogCellSize);
