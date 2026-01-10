@@ -537,6 +537,206 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor2: '#5c4033',
         // Wood texture
         textureMap: '/textures/wood_diffuse.png',
+    },
+    marbre_blanc: {
+        id: 'marbre_blanc',
+        name: 'Marbre Blanc',
+        bodyColor: '#f5f5f5', // Fallback white
+        edgeColor: '#e0e0e0',
+        borderColor: '#d4af37', // Gold accent
+        textColor: '#2c2c2c', // Dark grey text
+        shadowColor: '#aaaaaa',
+        metalness: 0.1,
+        roughness: 0.15, // Polished marble
+        envMapIntensity: 1.5,
+        effectType: 'stone',
+        emissive: '#000000',
+        emissiveIntensity: 0,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#000000',
+        innerGlowIntensity: 0,
+        rimLight: true,
+        rimLightColor: '#ffffff',
+        particleType: 'none',
+        particleColor: '#ffffff',
+        particleColor2: '#e0e0e0',
+        textureMap: '/textures/marble_diffuse.png',
+    },
+    cuir_ancien: {
+        id: 'cuir_ancien',
+        name: 'Cuir Ancien',
+        bodyColor: '#3d2b1f', // Fallback dark brown
+        edgeColor: '#5c4033',
+        borderColor: '#8b7355', // Lighter brown accent
+        textColor: '#d4a76a', // Gold/tan text
+        shadowColor: '#1a120b',
+        metalness: 0,
+        roughness: 0.85, // Matte leather
+        envMapIntensity: 0.3,
+        effectType: 'organic',
+        emissive: '#1a0f0a',
+        emissiveIntensity: 0.05,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#000000',
+        innerGlowIntensity: 0,
+        rimLight: true,
+        rimLightColor: '#8b7355',
+        particleType: 'none',
+        particleColor: '#8b7355',
+        particleColor2: '#3d2b1f',
+        textureMap: '/textures/leather_diffuse.png',
+    },
+    pierre_donjon: {
+        id: 'pierre_donjon',
+        name: 'Pierre de Donjon',
+        bodyColor: '#5a5a5a', // Fallback grey
+        edgeColor: '#4a4a4a',
+        borderColor: '#3d5c3d', // Moss green accent
+        textColor: '#494949ff', // Light grey text
+        shadowColor: '#2a2a2a',
+        metalness: 0,
+        roughness: 0.95, // Very rough stone
+        envMapIntensity: 0.2,
+        effectType: 'stone',
+        emissive: '#000000',
+        emissiveIntensity: 0,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#000000',
+        innerGlowIntensity: 0,
+        rimLight: true,
+        rimLightColor: '#6b8e6b', // Moss green rim
+        particleType: 'none',
+        particleColor: '#6b8e6b',
+        particleColor2: '#5a5a5a',
+        textureMap: '/textures/stone_diffuse.png',
+    },
+    fer_rouille: {
+        id: 'fer_rouille',
+        name: 'Fer Rouillé',
+        bodyColor: '#5a4a3a', // Fallback rusty brown
+        edgeColor: '#8b4513',
+        borderColor: '#cd853f', // Peru/rust
+        textColor: '#ffd700', // Gold text for contrast
+        shadowColor: '#2a1a0a',
+        metalness: 0.6,
+        roughness: 0.8, // Rough oxidized surface
+        envMapIntensity: 0.5,
+        effectType: 'metallic',
+        emissive: '#ff4500',
+        emissiveIntensity: 0.1,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#000000',
+        innerGlowIntensity: 0,
+        rimLight: true,
+        rimLightColor: '#cd853f',
+        particleType: 'none',
+        particleColor: '#cd853f',
+        particleColor2: '#5a4a3a',
+        textureMap: '/textures/rust_diffuse.png',
+    },
+    roche_volcanique: {
+        id: 'roche_volcanique',
+        name: 'Roche Volcanique',
+        bodyColor: '#1a1a1a', // Fallback black
+        edgeColor: '#ff4500', // Orange lava
+        borderColor: '#ff6600',
+        textColor: '#ffcc00', // Bright gold
+        shadowColor: '#000000',
+        metalness: 0.2,
+        roughness: 0.9, // Very rough basalt
+        envMapIntensity: 0.3,
+        effectType: 'magic',
+        emissive: '#ff4500',
+        emissiveIntensity: 0.6, // Glowing lava
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#ff4500',
+        innerGlowIntensity: 0.5,
+        rimLight: true,
+        rimLightColor: '#ff6600',
+        particleType: 'none',
+        particleColor: '#ff4500',
+        particleColor2: '#ff6600',
+        textureMap: '/textures/lava_diffuse.png',
+    },
+    glace_eternelle: {
+        id: 'glace_eternelle',
+        name: 'Glace Éternelle',
+        bodyColor: '#b0e0e6', // Fallback pale blue
+        edgeColor: '#e0ffff',
+        borderColor: '#ffffff',
+        textColor: '#003366', // Dark blue text
+        shadowColor: '#4682b4',
+        metalness: 0.1,
+        roughness: 0.1, // Smooth ice
+        envMapIntensity: 2.5, // High reflectivity
+        effectType: 'glass',
+        emissive: '#add8e6',
+        emissiveIntensity: 0.2,
+        opacity: 0.85, // Slightly transparent
+        innerGlow: true,
+        innerGlowColor: '#e0ffff',
+        innerGlowIntensity: 0.5,
+        rimLight: true,
+        rimLightColor: '#ffffff',
+        particleType: 'none',
+        particleColor: '#e0ffff',
+        particleColor2: '#ffffff',
+        textureMap: '/textures/ice_diffuse.png',
+    },
+    ecorce_ancienne: {
+        id: 'ecorce_ancienne',
+        name: 'Écorce Ancienne',
+        bodyColor: '#3d3d2d', // Fallback dark bark
+        edgeColor: '#4a4a3a',
+        borderColor: '#6b8e23', // Olive green lichen
+        textColor: '#c0c0a0', // Light tan
+        shadowColor: '#1a1a10',
+        metalness: 0,
+        roughness: 0.95, // Very rough bark
+        envMapIntensity: 0.2,
+        effectType: 'organic',
+        emissive: '#2d2d1d',
+        emissiveIntensity: 0.05,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#000000',
+        innerGlowIntensity: 0,
+        rimLight: true,
+        rimLightColor: '#6b8e23',
+        particleType: 'none',
+        particleColor: '#6b8e23',
+        particleColor2: '#3d3d2d',
+        textureMap: '/textures/bark_diffuse.png',
+    },
+    parchemin_ancien: {
+        id: 'parchemin_ancien',
+        name: 'Parchemin Ancien',
+        bodyColor: '#f5deb3', // Fallback wheat
+        edgeColor: '#d2b48c', // Tan edges
+        borderColor: '#8b4513', // Sienna ink
+        textColor: '#4a3728', // Dark brown ink
+        shadowColor: '#8b7355',
+        metalness: 0,
+        roughness: 0.7, // Paper texture
+        envMapIntensity: 0.3,
+        effectType: 'organic',
+        emissive: '#d2b48c',
+        emissiveIntensity: 0.05,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#000000',
+        innerGlowIntensity: 0,
+        rimLight: true,
+        rimLightColor: '#d2b48c',
+        particleType: 'none',
+        particleColor: '#d2b48c',
+        particleColor2: '#f5deb3',
+        textureMap: '/textures/parchment_diffuse.png',
     }
 };
 

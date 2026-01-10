@@ -49,6 +49,94 @@ interface FirebaseRoll {
   persoId?: string;
 }
 
+// Static 2D representation of a die
+function StaticDie2D({ skinId, type = "d20" }: { skinId: string, type?: string }) {
+  const skin = DICE_SKINS[skinId];
+  const [imageError, setImageError] = useState(false);
+
+  if (!imageError) {
+    return (
+      <div className="w-full h-full flex items-center justify-center rounded-lg overflow-hidden bg-black/20">
+        <img
+          src={`/dice-previews/${skinId}.png`}
+          alt={skin.name}
+          className="w-full h-full object-contain transform hover:scale-110 transition-transform duration-300"
+          onError={() => setImageError(true)}
+        />
+        <div className="absolute bottom-1 left-0 right-0 text-center">
+          <span className="text-[10px] text-white/80 bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
+            {skin.name}
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback to CSS version
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center rounded-lg border-2 transition-all duration-200"
+      style={{
+        background: `linear-gradient(135deg, ${skin.bodyColor} 0%, ${skin.edgeColor} 100%)`,
+        borderColor: skin.borderColor,
+        boxShadow: `0 4px 12px ${skin.shadowColor}66, inset 0 1px 2px ${skin.edgeColor}44`
+      }}
+    >
+      <div className="text-center">
+        <div className="text-3xl font-bold mb-1" style={{ color: skin.textColor }}>
+          {type.toUpperCase()}
+        </div>
+        <div className="text-[10px] opacity-75 px-2 truncate max-w-full" style={{ color: skin.textColor }}>
+          {skin.name}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Individual dice item in the grid
+function DiceGridItem({
+  skinId,
+  type = "d20",
+  isSelected = false,
+  onSelect
+}: {
+  skinId: string,
+  type?: string,
+  isSelected?: boolean,
+  onSelect?: () => void
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div
+      className={`relative aspect-square cursor-pointer rounded-lg transition-all duration-200 ${isSelected
+        ? 'ring-2 ring-[var(--accent-gold)] ring-offset-2 ring-offset-[#242424] scale-105'
+        : 'hover:scale-105'
+        }`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={onSelect}
+    >
+      {/* Static 2D version - always rendered */}
+      <div className={`absolute inset-0 transition-opacity duration-300 ${isHovered ? 'opacity-0' : 'opacity-100'}`}>
+        <StaticDie2D skinId={skinId} type={type} />
+      </div>
+
+      {/* 3D animated version - only visible on hover */}
+      <div className={`absolute inset-0 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        {isHovered && <DicePreview skinId={skinId} type={type} className="w-full h-full" />}
+      </div>
+
+      {/* Selection indicator */}
+      {isSelected && (
+        <div className="absolute top-2 right-2 bg-[var(--accent-gold)] rounded-full p-1 z-10">
+          <Check className="h-3 w-3 text-black" />
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function DiceRoller() {
   const [input, setInput] = useState("");
   const [result, setResult] = useState<RollResult | null>(null);
@@ -700,57 +788,25 @@ export function DiceRoller() {
             </Button>
 
             <Dialog open={isSkinDialogOpen} onOpenChange={setIsSkinDialogOpen}>
-              <DialogContent className="bg-[#242424] border-[#333] text-[var(--text-primary)] sm:max-w-3xl">
+              <DialogContent className="bg-[#242424] border-[#333] text-[var(--text-primary)] sm:max-w-6xl max-h-[85vh]">
                 <DialogHeader>
                   <DialogTitle>Choisir l'apparence des dés</DialogTitle>
                 </DialogHeader>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-                  {/* Liste des skins */}
-                  <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                <div className="py-4 overflow-y-auto max-h-[calc(85vh-80px)]">
+                  {/* Grille de dés */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                     {Object.values(DICE_SKINS).map((skin) => (
-                      <button
+                      <DiceGridItem
                         key={skin.id}
-                        onClick={() => {
+                        skinId={skin.id}
+                        isSelected={selectedSkinId === skin.id}
+                        onSelect={() => {
                           setSelectedSkinId(skin.id);
                           localStorage.setItem("vtt_dice_skin", skin.id);
+                          setIsSkinDialogOpen(false);
                         }}
-                        className={`w-full relative flex items-center gap-3 p-3 rounded-lg border transition-all overflow-hidden group 
-                        ${selectedSkinId === skin.id
-                            ? "border-[var(--accent-gold)] bg-[var(--accent-gold)]/10"
-                            : "border-white/5 hover:border-white/10 hover:bg-white/5"
-                          }`}
-                      >
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center shadow-inner shrink-0"
-                          style={{ backgroundColor: skin.bodyColor }}
-                        >
-                          <div className="w-4 h-4 rounded-full border-2 border-white/20"></div>
-                        </div>
-
-                        <div className="text-left flex-1 min-w-0">
-                          <div className="font-medium text-sm text-[var(--text-primary)] truncate">{skin.name}</div>
-                        </div>
-
-                        {selectedSkinId === skin.id && (
-                          <div className="text-[var(--accent-gold)]">
-                            <Check className="h-4 w-4" />
-                          </div>
-                        )}
-                      </button>
+                      />
                     ))}
-                  </div>
-
-                  {/* Prévisualisation 3D */}
-                  <div className="flex flex-col items-center justify-center bg-black/20 rounded-xl p-4 border border-white/5 min-h-[300px]">
-                    <div className="w-full h-[250px] relative">
-                      <DicePreview skinId={selectedSkinId} className="w-full h-full" />
-                    </div>
-                    <div className="mt-4 text-center">
-                      <h3 className="text-lg font-medium text-[var(--text-primary)]">{DICE_SKINS[selectedSkinId]?.name}</h3>
-                      <p className="text-sm text-[var(--text-secondary)] opacity-70">
-                        Aperçu du d20
-                      </p>
-                    </div>
                   </div>
                 </div>
               </DialogContent>
