@@ -8,6 +8,8 @@ import poisonIcon from './icons/poison.svg';
 import stunIcon from './icons/stun.svg';
 import blindIcon from './icons/blind.svg';
 import otherIcon from './icons/other.svg';
+import invisibleIcon from './icons/invisible.svg';
+
 
 const CONDITION_ICONS: Record<string, any> = {
   poisoned: { src: poisonIcon },
@@ -33,8 +35,7 @@ const useStatusEffectIcons = () => {
     Object.entries(CONDITION_ICONS).forEach(([key, config]) => {
       loadIcon(key, config.src);
     });
-    // Load default/custom
-    loadIcon('default', otherIcon);
+    loadIcon('invisible', invisibleIcon);
 
   }, []);
 
@@ -44,7 +45,7 @@ const useStatusEffectIcons = () => {
       return iconCache[conditionId] || null;
     }
     // Custom/Default (always use 'other' for everything else)
-    return iconCache['default'] || null;
+    return iconCache['invisible'] || null;
   };
 
   return getIcon;
@@ -4190,24 +4191,55 @@ export default function Component() {
         }
 
         // Draw hidden status badge if character is hidden (soit par défaut, soit par le brouillard) - uniquement en mode MJ normal, pas en vue joueur
-        if (effectiveVisibility === 'hidden' && effectiveIsMJ && char.type != "joueurs") {
+        if (effectiveVisibility === 'hidden' || effectiveVisibility === 'custom' && effectiveIsMJ && char.type != "joueurs") {
           const hiddenBadgeOffsetMultiplier = 16;
-          const badgeX = x + hiddenBadgeOffsetMultiplier * zoom; // Positioning the badge at the top-right
+          const badgeX = x + hiddenBadgeOffsetMultiplier * zoom;
           const badgeY = y - hiddenBadgeOffsetMultiplier * zoom;
+          const badgeRadius = 7 * zoom;
 
-          ctx.fillStyle = char.id === persoId
-            ? 'rgba(255, 0, 0, 1)'             // Red for the player's character
-            : 'rgba(255, 165, 0, 1)';          // Orange for other characters
+          // Shadow for depth
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+          ctx.shadowBlur = 4 * zoom;
+          ctx.shadowOffsetX = 1.5 * zoom;
+          ctx.shadowOffsetY = 1.5 * zoom;
 
+          // Outer ring with gradient
+          const outerGradient = ctx.createRadialGradient(badgeX, badgeY, 0, badgeX, badgeY, badgeRadius);
+          const isPlayerChar = char.id === persoId;
+          const isCustom = effectiveVisibility === 'custom';
+          if (isCustom) {
+            outerGradient.addColorStop(0, 'rgba(90, 80, 234, 1)');
+            outerGradient.addColorStop(1, 'rgba(136, 68, 255, 1)');
+          } else {
+            outerGradient.addColorStop(0, 'rgba(255, 200, 80, 1)');
+            outerGradient.addColorStop(1, 'rgba(255, 140, 0, 1)');
+          }
+
+          ctx.fillStyle = outerGradient;
           ctx.beginPath();
-          ctx.arc(badgeX, badgeY, 8 * zoom, 0, 2 * Math.PI);
+          ctx.arc(badgeX, badgeY, badgeRadius, 0, 2 * Math.PI);
           ctx.fill();
 
-          ctx.fillStyle = 'white';
-          ctx.font = `${8 * zoom}px Arial`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('👁️', badgeX, badgeY); // EyeOff symbol
+          // Reset shadow for inner elements
+          ctx.shadowColor = 'transparent';
+          ctx.shadowBlur = 0;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 0;
+
+          // Inner circle (dark background for icon)
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+          ctx.beginPath();
+          ctx.arc(badgeX, badgeY, badgeRadius * 0.75, 0, 2 * Math.PI);
+          ctx.fill();
+
+          // Draw invisible icon from SVG
+          const invisibleImg = getConditionIcon('invisible');
+          if (invisibleImg) {
+            const iconSize = badgeRadius * 1.3;
+            const iconX = badgeX - (iconSize / 2);
+            const iconY = badgeY - (iconSize / 2);
+            ctx.drawImage(invisibleImg, iconX, iconY, iconSize, iconSize);
+          }
         }
 
         // Draw visibility radius outline for selected characters (no more filled semi-transparent disk)
@@ -7263,6 +7295,10 @@ export default function Component() {
               const charScale = char.scale || 1;
               const iconRadius = baseRadius * charScale * globalTokenScale * zoom;
 
+              // Déterminer si on doit appliquer l'effet d'invisibilité
+              const effectiveIsMJ = (playerViewMode && viewAsPersoId) ? false : isMJ;
+              const shouldApplyInvisibilityEffect = effectiveVisibility === 'hidden' && effectiveIsMJ && char.type !== 'joueurs';
+
               return (
                 <div
                   key={char.id}
@@ -7286,7 +7322,25 @@ export default function Component() {
                         width: '100%',
                         height: '100%',
                         objectFit: 'cover',
-                        display: 'block'
+                        display: 'block',
+                        ...(shouldApplyInvisibilityEffect ? {
+                          opacity: 0.72
+                        } : {})
+                      }}
+                    />
+                  )}
+                  {shouldApplyInvisibilityEffect && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        background: 'radial-gradient(circle, transparent 0%, transparent 30%, rgba(255, 255, 255, 0.6) 65%, rgba(255, 255, 255, 0.95) 100%)',
+                        mixBlendMode: 'screen',
+                        pointerEvents: 'none',
+                        borderRadius: isPlayerCharacter ? '0' : '50%'
                       }}
                     />
                   )}
