@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Physics, usePlane, useConvexPolyhedron, useBox } from '@react-three/cannon';
-import { Text, Environment, Line } from '@react-three/drei';
+import { Text, Environment, Line, useTexture } from '@react-three/drei';
+import { DICE_SKINS, DiceSkin, DEFAULT_SKIN, getSkinById, CriticalType } from './dice-definitions';
 
 import * as THREE from 'three';
 
@@ -10,287 +11,32 @@ import * as THREE from 'three';
 // DICE SKIN SYSTEM - WITH VISUAL EFFECTS & PARTICLES
 // ============================================================================
 
-export type SkinEffectType = 'metallic' | 'gem' | 'glass' | 'stone' | 'magic' | 'dark';
-export type ParticleType = 'none' | 'fire' | 'ice' | 'sparkle' | 'smoke' | 'gold_dust' | 'silver_dust' | 'magic';
+// Definitions moved to dice-definitions.ts
 
-export interface DiceSkin {
-    id: string;
-    name: string;
-    // Colors
-    bodyColor: string;
-    edgeColor: string;
-    borderColor: string;
-    textColor: string;
-    shadowColor: string;
-    // Material
-    metalness: number;
-    roughness: number;
-    envMapIntensity: number;
-    // Visual Effects
-    effectType: SkinEffectType;
-    emissive: string;
-    emissiveIntensity: number;
-    opacity: number;
-    innerGlow: boolean;
-    innerGlowColor: string;
-    innerGlowIntensity: number;
-    rimLight: boolean;
-    rimLightColor: string;
-    // Particles
-    particleType: ParticleType;
-    particleColor: string;
-    particleColor2?: string;  // Secondary color for gradient effects
-}
+// TexturedMaterial component - loads texture if specified in skin, otherwise uses solid color
+const TexturedMaterial = ({ skin }: { skin: DiceSkin }) => {
+    // Load texture if path is specified
+    const texture = skin.textureMap ? useTexture(skin.textureMap) : null;
 
-export const DICE_SKINS: Record<string, DiceSkin> = {
-    gold: {
-        id: 'gold',
-        name: 'Or Royal',
-        bodyColor: '#c9a227',
-        edgeColor: '#ffe066',
-        borderColor: '#ffd700',
-        textColor: '#1a1000',
-        shadowColor: '#000000',
-        metalness: 0.95,
-        roughness: 0.12,
-        envMapIntensity: 2.0,
-        effectType: 'metallic',
-        emissive: '#ff9500',
-        emissiveIntensity: 0.15,
-        opacity: 1,
-        innerGlow: false,
-        innerGlowColor: '#ffffff',
-        innerGlowIntensity: 0,
-        rimLight: true,
-        rimLightColor: '#ffe066',
-        particleType: 'gold_dust',
-        particleColor: '#ffd700',
-        particleColor2: '#ffaa00',
-    },
-    silver: {
-        id: 'silver',
-        name: 'Argent',
-        bodyColor: '#c0c0c0',
-        edgeColor: '#ffffff',
-        borderColor: '#e8e8e8',
-        textColor: '#1a1a2e',
-        shadowColor: '#000000',
-        metalness: 1.0,
-        roughness: 0.05,
-        envMapIntensity: 2.5,
-        effectType: 'metallic',
-        emissive: '#ffffff',
-        emissiveIntensity: 0.1,
-        opacity: 1,
-        innerGlow: false,
-        innerGlowColor: '#ffffff',
-        innerGlowIntensity: 0,
-        rimLight: true,
-        rimLightColor: '#ffffff',
-        particleType: 'silver_dust',
-        particleColor: '#ffffff',
-        particleColor2: '#c0c0c0',
-    },
-    ruby: {
-        id: 'ruby',
-        name: 'Rubis',
-        bodyColor: '#cc0033',
-        edgeColor: '#ff3366',
-        borderColor: '#ff6699',
-        textColor: '#ffffff',
-        shadowColor: '#330011',
-        metalness: 0.3,
-        roughness: 0.1,
-        envMapIntensity: 2.0,
-        effectType: 'gem',
-        emissive: '#ff0033',
-        emissiveIntensity: 0.4,
-        opacity: 0.85,
-        innerGlow: true,
-        innerGlowColor: '#ff3366',
-        innerGlowIntensity: 0.8,
-        rimLight: true,
-        rimLightColor: '#ff6699',
-        particleType: 'sparkle',
-        particleColor: '#ff3366',
-        particleColor2: '#ffffff',
-    },
-    obsidian: {
-        id: 'obsidian',
-        name: 'Obsidienne',
-        bodyColor: '#0a0a0a',
-        edgeColor: '#1a1a2e',
-        borderColor: '#6633ff',
-        textColor: '#aa88ff',
-        shadowColor: '#000000',
-        metalness: 0.95,
-        roughness: 0.02,
-        envMapIntensity: 3.0,
-        effectType: 'dark',
-        emissive: '#4400aa',
-        emissiveIntensity: 0.25,
-        opacity: 1,
-        innerGlow: true,
-        innerGlowColor: '#6633ff',
-        innerGlowIntensity: 0.5,
-        rimLight: true,
-        rimLightColor: '#8855ff',
-        particleType: 'smoke',
-        particleColor: '#6633ff',
-        particleColor2: '#220044',
-    },
-    jade: {
-        id: 'jade',
-        name: 'Jade',
-        bodyColor: '#00b377',
-        edgeColor: '#33ffaa',
-        borderColor: '#66ffcc',
-        textColor: '#003322',
-        shadowColor: '#001a11',
-        metalness: 0.2,
-        roughness: 0.4,
-        envMapIntensity: 1.2,
-        effectType: 'stone',
-        emissive: '#00ff88',
-        emissiveIntensity: 0.1,
-        opacity: 0.92,
-        innerGlow: true,
-        innerGlowColor: '#33ff99',
-        innerGlowIntensity: 0.3,
-        rimLight: false,
-        rimLightColor: '#00ff88',
-        particleType: 'magic',
-        particleColor: '#33ff99',
-        particleColor2: '#00ff88',
-    },
-    crystal: {
-        id: 'crystal',
-        name: 'Cristal',
-        bodyColor: '#eeeeff',
-        edgeColor: '#ffffff',
-        borderColor: '#aaccff',
-        textColor: '#0044aa',
-        shadowColor: '#6688cc',
-        metalness: 0.1,
-        roughness: 0.02,
-        envMapIntensity: 3.5,
-        effectType: 'glass',
-        emissive: '#aaccff',
-        emissiveIntensity: 0.2,
-        opacity: 0.7,
-        innerGlow: true,
-        innerGlowColor: '#ffffff',
-        innerGlowIntensity: 1.0,
-        rimLight: true,
-        rimLightColor: '#aaccff',
-        particleType: 'sparkle',
-        particleColor: '#ffffff',
-        particleColor2: '#aaccff',
-    },
-    sapphire: {
-        id: 'sapphire',
-        name: 'Saphir',
-        bodyColor: '#0044cc',
-        edgeColor: '#3377ff',
-        borderColor: '#66aaff',
-        textColor: '#ffffff',
-        shadowColor: '#001144',
-        metalness: 0.35,
-        roughness: 0.08,
-        envMapIntensity: 2.2,
-        effectType: 'gem',
-        emissive: '#0066ff',
-        emissiveIntensity: 0.35,
-        opacity: 0.88,
-        innerGlow: true,
-        innerGlowColor: '#3399ff',
-        innerGlowIntensity: 0.7,
-        rimLight: true,
-        rimLightColor: '#66ccff',
-        particleType: 'sparkle',
-        particleColor: '#3399ff',
-        particleColor2: '#ffffff',
-    },
-    amethyst: {
-        id: 'amethyst',
-        name: 'Améthyste',
-        bodyColor: '#7722aa',
-        edgeColor: '#aa44dd',
-        borderColor: '#cc77ff',
-        textColor: '#ffffff',
-        shadowColor: '#220044',
-        metalness: 0.3,
-        roughness: 0.12,
-        envMapIntensity: 2.0,
-        effectType: 'gem',
-        emissive: '#9933ff',
-        emissiveIntensity: 0.35,
-        opacity: 0.85,
-        innerGlow: true,
-        innerGlowColor: '#bb66ff',
-        innerGlowIntensity: 0.6,
-        rimLight: true,
-        rimLightColor: '#dd99ff',
-        particleType: 'sparkle',
-        particleColor: '#bb66ff',
-        particleColor2: '#ffffff',
-    },
-    inferno: {
-        id: 'inferno',
-        name: 'Inferno',
-        bodyColor: '#ff3300',
-        edgeColor: '#ff6600',
-        borderColor: '#ffaa00',
-        textColor: '#ffffff',
-        shadowColor: '#330000',
-        metalness: 0.4,
-        roughness: 0.3,
-        envMapIntensity: 1.5,
-        effectType: 'magic',
-        emissive: '#ff4400',
-        emissiveIntensity: 0.8,
-        opacity: 1,
-        innerGlow: true,
-        innerGlowColor: '#ffaa00',
-        innerGlowIntensity: 1.2,
-        rimLight: true,
-        rimLightColor: '#ff6600',
-        particleType: 'fire',
-        particleColor: '#ff6600',
-        particleColor2: '#ffaa00',
-    },
-    frost: {
-        id: 'frost',
-        name: 'Givre',
-        bodyColor: '#88ccff',
-        edgeColor: '#aaeeff',
-        borderColor: '#ffffff',
-        textColor: '#003366',
-        shadowColor: '#004488',
-        metalness: 0.2,
-        roughness: 0.15,
-        envMapIntensity: 2.5,
-        effectType: 'magic',
-        emissive: '#66ddff',
-        emissiveIntensity: 0.5,
-        opacity: 0.8,
-        innerGlow: true,
-        innerGlowColor: '#aaeeff',
-        innerGlowIntensity: 0.9,
-        rimLight: true,
-        rimLightColor: '#ffffff',
-        particleType: 'ice',
-        particleColor: '#aaeeff',
-        particleColor2: '#ffffff',
-    },
-};
+    if (texture) {
+        // Configure texture for better wood appearance
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(2, 2); // Repeat for smaller grain
+    }
 
-// Default skin
-export const DEFAULT_SKIN = DICE_SKINS.gold;
-
-// Helper to get skin by ID or return default
-export const getSkinById = (skinId: string): DiceSkin => {
-    return DICE_SKINS[skinId] || DEFAULT_SKIN;
+    return (
+        <meshStandardMaterial
+            map={texture}
+            color={texture ? '#ffffff' : skin.bodyColor} // White if textured, fallback color otherwise
+            metalness={skin.metalness}
+            roughness={skin.roughness}
+            envMapIntensity={skin.envMapIntensity}
+            emissive={skin.emissive}
+            emissiveIntensity={skin.emissiveIntensity}
+            transparent={skin.opacity < 1}
+            opacity={skin.opacity}
+        />
+    );
 };
 
 // Helper for consistent values
@@ -587,7 +333,13 @@ export const DiceParticles = ({ skin, quaternionRef }: {
 // CRITICAL HIT/FAIL EFFECT
 // ============================================================================
 
-type CriticalType = 'success' | 'fail' | null;
+// CRITICAL HIT/FAIL EFFECT
+// ============================================================================
+
+// Type definition moved to dice-definitions.ts but needed here?
+// Actually we can reuse it if exported or just redefine locally if only used for props
+// Let's import it
+
 
 const CRIT_PARTICLE_COUNT = 60;
 
@@ -1020,16 +772,7 @@ export const VisualDie = React.forwardRef(({ type, skin, isShattered, critType }
             {/* Main die body */}
             {!isShattered && (
                 <mesh castShadow receiveShadow geometry={geometry}>
-                    <meshStandardMaterial
-                        color={skin.bodyColor}
-                        metalness={skin.metalness}
-                        roughness={skin.roughness}
-                        envMapIntensity={skin.envMapIntensity}
-                        emissive={skin.emissive}
-                        emissiveIntensity={skin.emissiveIntensity}
-                        transparent={skin.opacity < 1}
-                        opacity={skin.opacity}
-                    />
+                    <TexturedMaterial skin={skin} />
                 </mesh>
             )}
 

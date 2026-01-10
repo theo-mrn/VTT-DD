@@ -18,7 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DiceStats } from "./dice-stats";
-import { DICE_SKINS, DiceSkin } from "./throw";
+import { DICE_SKINS, DiceSkin } from "./dice-definitions";
 import { DicePreview } from "./dice-preview";
 
 // Types
