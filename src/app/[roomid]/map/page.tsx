@@ -455,6 +455,8 @@ export default function Component() {
 
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState<number | null>(null);
   const [selectedObjectIndices, setSelectedObjectIndices] = useState<number[]>([]);
+  const [visibleBadges, setVisibleBadges] = useState<Set<string>>(new Set());
+  const [showAllBadges, setShowAllBadges] = useState(false);
 
   // Ref to track mouse down position for click vs drag distinction
   const mouseClickStartRef = React.useRef<{ x: number, y: number } | null>(null);
@@ -1839,7 +1841,7 @@ export default function Component() {
     musicZones, measurements, layers, zoom, offset, showGrid, showFogGrid,
     fullMapFog, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex,
     selectedMusicZoneIds, globalTokenScale, performanceMode, playerViewMode,
-    isMJ, viewAsPersoId, activePlayerId, showCharBorders,
+    isMJ, viewAsPersoId, activePlayerId, showCharBorders, showAllBadges, visibleBadges,
     // Interactive state
     isSelectingArea, selectionStart, selectionEnd, selectedCharacters,
     isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions,
@@ -2377,6 +2379,7 @@ export default function Component() {
       case TOOLS.ZOOM_IN: setZoom(prev => Math.min(prev + 0.1, 5)); break;
       case TOOLS.ZOOM_OUT: setZoom(prev => Math.max(prev - 0.1, 0.1)); break;
       case TOOLS.WORLD_MAP: navigateToWorldMap(); break;
+      case TOOLS.TOGGLE_ALL_BADGES: setShowAllBadges(!showAllBadges); break;
     }
   };
 
@@ -2396,6 +2399,7 @@ export default function Component() {
     if (multiSelectMode) active.push(TOOLS.MULTI_SELECT);
     if (isBackgroundEditMode) active.push(TOOLS.BACKGROUND_EDIT);
     if (isAudioMixerOpen) active.push(TOOLS.AUDIO_MIXER);
+    if (showAllBadges) active.push(TOOLS.TOGGLE_ALL_BADGES);
     return active;
   };
 
@@ -3504,10 +3508,24 @@ export default function Component() {
           const baseBorderRadius = isPlayerCharacter ? 32 : 22;
           const borderRadius = baseBorderRadius * finalScale * zoom;
 
-          // Draw character border circle
-          ctx.beginPath();
-          ctx.arc(x, y, borderRadius, 0, 2 * Math.PI);
-          ctx.stroke();
+          // 🎯 FILTER VISIBILITY OF BORDER CIRCLES
+          const isSelected = selectedCharacters.includes(index);
+          const isAreaMatch = isSelectingArea && selectionStart && selectionEnd &&
+            char.x >= Math.min(selectionStart.x, selectionEnd.x) &&
+            char.x <= Math.max(selectionStart.x, selectionEnd.x) &&
+            char.y >= Math.min(selectionStart.y, selectionEnd.y) &&
+            char.y <= Math.max(selectionStart.y, selectionEnd.y);
+
+          const isBadgeVisible = showAllBadges || visibleBadges.has(char.id);
+          const isGMAndActivePlayer = isMJ && char.id === activePlayerId;
+
+          // Only draw if selected, badge visible, or important GM info (active player)
+          if (isSelected || isAreaMatch || isBadgeVisible || isGMAndActivePlayer) {
+            // Draw character border circle
+            ctx.beginPath();
+            ctx.arc(x, y, borderRadius, 0, 2 * Math.PI);
+            ctx.stroke();
+          }
         }
       });
     }
@@ -4135,7 +4153,8 @@ export default function Component() {
           const canSeeHP = (isMJ && !playerViewMode) || char.id === persoId; // Visible MJ or Owner
 
           // Only render labels if showCharBorders is true
-          if (showCharBorders) {
+          // 🎯 DRAW NAME/HP BAR ONLY IF BADGE IS VISIBLE (global toggle OR individual selection)
+          if (showAllBadges || visibleBadges.has(char.id)) {
             // --- DIMENSIONS & POSITIONS ---
             // On place la pilule en HAUT du cercle ("en dessus")
             // Centre de la pilule = x, y - borderRadius (moins une petite marge)
@@ -5280,6 +5299,16 @@ export default function Component() {
             if (!isAlreadySelected) {
               setSelectedCharacterIndex(clickedCharIndex);
               setSelectedCharacters([clickedCharIndex]);
+
+              // 🎯 Show badge visibility (no toggle, only add)
+              const char = characters[clickedCharIndex];
+              if (char && char.id) {
+                setVisibleBadges(prev => {
+                  const newSet = new Set(prev);
+                  newSet.add(char.id); // Always add, never remove on click
+                  return newSet;
+                });
+              }
             }
 
 
@@ -5423,6 +5452,10 @@ export default function Component() {
             setSelectedDrawingIndex(null);
             setSelectedObjectIndices([]); // Désélectionner l'objet
             setSelectedObstacleId(null);
+            // 🎯 Clear individual visible badges when clicking on empty area (but keep global toggle)
+            if (!showAllBadges) {
+              setVisibleBadges(new Set());
+            }
             setContextMenuOpen(false);
 
             if (isMJ && multiSelectMode) {
@@ -7510,6 +7543,51 @@ export default function Component() {
                         height: '100%',
                         background: 'radial-gradient(circle, transparent 0%, transparent 30%, rgba(255, 255, 255, 0.6) 65%, rgba(255, 255, 255, 0.95) 100%)',
                         mixBlendMode: 'screen',
+                        pointerEvents: 'none',
+                        borderRadius: isPlayerCharacter ? '0' : '50%'
+                      }}
+                    />
+                  )}
+                  {/* Status Effect Veils */}
+                  {char.conditions?.includes('poisoned') && char.type !== 'joueurs' && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        background: 'radial-gradient(circle, transparent 0%, transparent 20%, rgba(0, 255, 100, 0.6) 55%, rgba(0, 255, 100, 0.95) 100%)',
+                        mixBlendMode: 'overlay',
+                        pointerEvents: 'none',
+                        borderRadius: isPlayerCharacter ? '0' : '50%'
+                      }}
+                    />
+                  )}
+                  {char.conditions?.includes('stunned') && char.type !== 'joueurs' && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        background: 'radial-gradient(circle, transparent 0%, transparent 40%, rgba(255, 200, 0, 1) 90%)',
+                        mixBlendMode: 'overlay',
+                        pointerEvents: 'none', borderRadius: isPlayerCharacter ? '0' : '50%'
+                      }}
+                    />
+                  )}
+                  {char.conditions?.includes('blinded') && char.type !== 'joueurs' && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        background: 'radial-gradient(circle, transparent 0%, transparent 20%, rgba(30, 30, 30, 0.7) 55%, rgba(10, 10, 10, 0.95) 100%)',
+                        mixBlendMode: 'multiply',
                         pointerEvents: 'none',
                         borderRadius: isPlayerCharacter ? '0' : '50%'
                       }}
