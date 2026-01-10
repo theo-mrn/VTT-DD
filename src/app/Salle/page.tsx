@@ -114,7 +114,7 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
       // 2. Mettre à jour la salle actuelle de l'utilisateur
       await setDoc(userRef, { room_id: room.id }, { merge: true })
 
-      router.push(`/${room.id}/map`)
+      router.push(`/personnages`)
     } catch (error) {
       console.error("Error joining room:", error)
     }
@@ -358,7 +358,7 @@ export default function Component() {
 
     setNewRoom({ title: '', description: '', maxPlayers: 4, isPublic: true })
     setImageFile(null)
-    router.push(`/${code}/map`)
+    router.push(`/personnages`)
   }
 
   const handleEditRoom = () => {

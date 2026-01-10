@@ -4191,7 +4191,7 @@ export default function Component() {
         }
 
         // Draw hidden status badge if character is hidden (soit par défaut, soit par le brouillard) - uniquement en mode MJ normal, pas en vue joueur
-        if (effectiveVisibility === 'hidden' || effectiveVisibility === 'custom' && effectiveIsMJ && char.type != "joueurs") {
+        if ((effectiveVisibility === 'hidden' || effectiveVisibility === 'custom') && effectiveIsMJ && char.type != "joueurs") {
           const hiddenBadgeOffsetMultiplier = 16;
           const badgeX = x + hiddenBadgeOffsetMultiplier * zoom;
           const badgeY = y - hiddenBadgeOffsetMultiplier * zoom;
@@ -7297,7 +7297,7 @@ export default function Component() {
 
               // Déterminer si on doit appliquer l'effet d'invisibilité
               const effectiveIsMJ = (playerViewMode && viewAsPersoId) ? false : isMJ;
-              const shouldApplyInvisibilityEffect = effectiveVisibility === 'hidden' && effectiveIsMJ && char.type !== 'joueurs';
+              const shouldApplyInvisibilityEffect = (effectiveVisibility === 'hidden' || effectiveVisibility === 'custom') && effectiveIsMJ && char.type !== 'joueurs';
 
               return (
                 <div
