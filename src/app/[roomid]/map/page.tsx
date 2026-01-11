@@ -3167,6 +3167,27 @@ export default function Component() {
       }
     }
 
+    // 💡 PRIORITÉ : Vérifier si le personnage est éclairé par une source de lumière
+    // Si oui, il est visible même dans le brouillard
+    const isLit = lights.some((light) => {
+      if (!light.visible) return false;
+      if (light.x === undefined || light.y === undefined || !light.radius) return false;
+
+      // Calculer la distance entre le personnage et la source de lumière
+      const distToLight = calculateDistance(char.x, char.y, light.x, light.y);
+
+      // Convertir le rayon de la lumière en pixels (light.radius est en mètres)
+      const lightRadiusPixels = light.radius * pixelsPerUnit;
+
+      // Le personnage est éclairé si dans le rayon de la lumière
+      return distToLight <= lightRadiusPixels;
+    });
+
+    // Si le personnage est éclairé par une source de lumière, il est visible
+    if (isLit) {
+      return true;
+    }
+
     // Vérifier si le personnage est dans le brouillard
     const isInFog = fullMapFog || isCellInFog(char.x, char.y, fogGrid, fogCellSize);
 
@@ -3452,12 +3473,9 @@ export default function Component() {
         let isVisible = true;
 
         // Copy visibility logic from drawForegroundLayers
-        const isInFog = fullMapFog || isCellInFog(char.x, char.y, fogGrid, fogCellSize);
         let effectiveVisibility = char.visibility;
 
         if (!isCharacterVisibleToUser(char)) {
-          effectiveVisibility = 'hidden';
-        } else if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
           effectiveVisibility = 'hidden';
         }
 
@@ -4050,16 +4068,11 @@ export default function Component() {
           if (!isVisible) return; // Ne pas dessiner si dans l'ombre
         }
 
-        // 🎯 Vérifier si le personnage est dans le brouillard
-        const isInFog = fullMapFog || isCellInFog(char.x, char.y, fogGrid, fogCellSize);
-
-        // 🎯 Pour les PNJ (non joueurs et non alliés) : s'ils sont dans le brouillard, ils deviennent automatiquement cachés
+        // 🎯 Déterminer la visibilité effective du personnage
         let effectiveVisibility = char.visibility;
 
-        // 🆕 Vérifier la visibilité custom AVANT le fog
+        // Utiliser la fonction centralisée qui gère les lumières, le brouillard, etc.
         if (!isCharacterVisibleToUser(char)) {
-          effectiveVisibility = 'hidden';
-        } else if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
           effectiveVisibility = 'hidden';
         }
 
@@ -7687,13 +7700,10 @@ export default function Component() {
               }
 
               let isVisible = true;
-              const isInFog = fullMapFog || isCellInFog(char.x, char.y, fogGrid, fogCellSize);
               let effectiveVisibility = char.visibility;
 
-              // 🆕 Vérifier la visibilité custom AVANT le fog
+              // Utiliser la fonction centralisée qui gère les lumières, le brouillard, etc.
               if (!isCharacterVisibleToUser(char)) {
-                effectiveVisibility = 'hidden';
-              } else if (char.type !== 'joueurs' && char.visibility !== 'ally' && isInFog) {
                 effectiveVisibility = 'hidden';
               }
 
