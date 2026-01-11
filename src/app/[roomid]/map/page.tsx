@@ -75,6 +75,7 @@ import MusicZoneContextMenu from '@/components/(overlays)/MusicZoneContextMenu';
 import { NPCTemplateDrawer } from '@/components/(personnages)/NPCTemplateDrawer';
 import { ObjectDrawer } from '@/components/(personnages)/ObjectDrawer';
 import { SoundDrawer } from '@/components/(personnages)/SoundDrawer';
+import { UnifiedSearchDrawer } from '@/components/(personnages)/UnifiedSearchDrawer';
 import { PlaceNPCModal } from '@/components/(personnages)/PlaceNPCModal';
 import { CreateNoteModal } from '@/components/(map)/CreateNoteModal';
 import { NoBackgroundModal } from '@/components/(map)/NoBackgroundModal';
@@ -520,6 +521,7 @@ export default function Component() {
   const [isNPCDrawerOpen, setIsNPCDrawerOpen] = useState(false)
   const [draggedTemplate, setDraggedTemplate] = useState<NPC | null>(null)
   const [dropPosition, setDropPosition] = useState<{ x: number; y: number } | null>(null)
+  const [isUnifiedSearchOpen, setIsUnifiedSearchOpen] = useState(false)
 
   // 🎯 LIGHT SOURCE PLACEMENT STATE
   const [isLightPlacementMode, setIsLightPlacementMode] = useState(false);
@@ -1178,6 +1180,23 @@ export default function Component() {
 
     return () => unsubscribe();
   }, [roomId, selectedCityId]);
+
+  // Keyboard shortcut: Ctrl+F / Cmd+F to open search drawer
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check for Ctrl+F (Windows/Linux) or Cmd+F (Mac)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        e.preventDefault(); // Prevent browser's default search
+        if (isMJ) {
+          setIsUnifiedSearchOpen(prev => !prev);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMJ]);
+
 
   // 🆕 CHARGER LE FOND SELON LA VILLE SÉLECTIONNÉE
   useEffect(() => {
@@ -2402,6 +2421,7 @@ export default function Component() {
       case TOOLS.ADD_OBJ: if (isMJ) { deactivateIncompatible(TOOLS.ADD_OBJ); setIsObjectDrawerOpen(!isObjectDrawerOpen); } break;
       case TOOLS.ADD_NOTE: handleAddNote(); break;
       case TOOLS.MUSIC: if (isMJ) { deactivateIncompatible(TOOLS.MUSIC); setIsSoundDrawerOpen(!isSoundDrawerOpen); } break;
+      case TOOLS.UNIFIED_SEARCH: if (isMJ) { deactivateIncompatible(TOOLS.UNIFIED_SEARCH); setIsUnifiedSearchOpen(!isUnifiedSearchOpen); } break;
       case TOOLS.MULTI_SELECT: if (isMJ) { deactivateIncompatible(TOOLS.MULTI_SELECT); setMultiSelectMode(!multiSelectMode); } break;
       case TOOLS.BACKGROUND_EDIT: if (isMJ) setIsBackgroundEditMode(!isBackgroundEditMode); break;
       case TOOLS.DRAW: deactivateIncompatible(TOOLS.DRAW); toggleDrawMode(); break;
@@ -2428,6 +2448,8 @@ export default function Component() {
     if (showLayerControl) active.push(TOOLS.LAYERS);
     if (isObjectDrawerOpen) active.push(TOOLS.ADD_OBJ);
     if (isNPCDrawerOpen) active.push(TOOLS.ADD_CHAR);
+    if (isSoundDrawerOpen) active.push(TOOLS.MUSIC);
+    if (isUnifiedSearchOpen) active.push(TOOLS.UNIFIED_SEARCH);
 
     if (multiSelectMode) active.push(TOOLS.MULTI_SELECT);
     if (isBackgroundEditMode) active.push(TOOLS.BACKGROUND_EDIT);
@@ -8388,6 +8410,24 @@ export default function Component() {
         isOpen={isSoundDrawerOpen}
         onClose={() => setIsSoundDrawerOpen(false)}
         onDragStart={handleSoundDragStart}
+        currentCityId={selectedCityId}
+      />
+
+      {/* Unified Search Drawer */}
+      <UnifiedSearchDrawer
+        roomId={roomId}
+        isOpen={isUnifiedSearchOpen}
+        onClose={() => setIsUnifiedSearchOpen(false)}
+        onDragStart={(item) => {
+          // Handle drag start based on item type
+          if (item.type === 'sound') {
+            handleSoundDragStart(item.data)
+          } else if (item.type === 'object') {
+            handleObjectDragStart(item.data as ObjectTemplate)
+          } else if (item.type === 'npc') {
+            handleTemplateDragStart(item.data as NPC)
+          }
+        }}
         currentCityId={selectedCityId}
       />
 

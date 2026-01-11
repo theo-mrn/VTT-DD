@@ -31,7 +31,8 @@ import {
     Sparkles,
     Check,
     Cloud,
-    Lightbulb
+    Lightbulb,
+    Search
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -78,6 +79,7 @@ export const TOOLS = {
     ADD_NOTE: 'add_note',
     MUSIC: 'music',
     BACKGROUND_EDIT: 'background_edit',
+    UNIFIED_SEARCH: 'unified_search',
 
     // Tools
     DRAW: 'draw',
@@ -429,27 +431,25 @@ function MapToolbar({
                                         id={TOOLS.ADD_CHAR}
                                         icon={CircleUserRound}
                                         label="Personnages (NPC)"
-
                                         isActive={activeTools.includes(TOOLS.ADD_CHAR)}
-                                    />
-                                    <ToolButton onAction={onAction}
-                                        id={TOOLS.ADD_CHAR}
-                                        icon={CircleUserRound}
-                                        label="Personnages (NPC)"
-
-                                        isActive={activeTools.includes(TOOLS.ADD_CHAR)}
-                                    />
-                                    <ToolButton onAction={onAction}
-                                        id={TOOLS.MULTI_SELECT}
-                                        icon={SquareDashedMousePointer}
-                                        label="Sélection Multiple"
-                                        isActive={activeTools.includes(TOOLS.MULTI_SELECT)}
                                     />
                                     <ToolButton onAction={onAction}
                                         id={TOOLS.MUSIC}
                                         icon={Volume2}
                                         label="Sons"
                                         isActive={activeTools.includes(TOOLS.MUSIC)}
+                                    />
+                                    <ToolButton onAction={onAction}
+                                        id={TOOLS.UNIFIED_SEARCH}
+                                        icon={Search}
+                                        label="Recherche Globale (Sons, Objets, PNJs)"
+                                        isActive={activeTools.includes(TOOLS.UNIFIED_SEARCH)}
+                                    />
+                                    <ToolButton onAction={onAction}
+                                        id={TOOLS.MULTI_SELECT}
+                                        icon={SquareDashedMousePointer}
+                                        label="Sélection Multiple"
+                                        isActive={activeTools.includes(TOOLS.MULTI_SELECT)}
                                     />
                                     <ToolButton onAction={onAction}
                                         id={TOOLS.BACKGROUND_EDIT}
