@@ -135,7 +135,7 @@ export const SUGGESTED_OBJECTS: SuggestedItem[] = [
   { name: 'chaise2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/chaise2.png', category: 'furniture' },
   { name: 'chaise3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/chaise3.png', category: 'furniture' },
   { name: 'chaise4', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/chaise4.png', category: 'furniture' },
-  { name: 'commodde', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/commodde.png', category: 'furniture' },
+  { name: 'table', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/commodde.png', category: 'furniture' },
   { name: 'lit1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/lit1.png', category: 'furniture' },
   { name: 'lit2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/lit2.png', category: 'furniture' },
   { name: 'lit3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/lit3.png', category: 'furniture' },
