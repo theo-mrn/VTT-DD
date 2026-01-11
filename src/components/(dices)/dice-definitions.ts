@@ -1,3 +1,5 @@
+import { getAssetUrl } from '@/lib/asset-loader';
+
 export type SkinEffectType = 'metallic' | 'gem' | 'glass' | 'stone' | 'magic' | 'dark' | 'cyber' | 'organic' | 'celestial' | 'cursed';
 export type ParticleType = 'none' | 'fire' | 'ice' | 'sparkle' | 'smoke' | 'gold_dust' | 'silver_dust' | 'magic' | 'electric' | 'void' | 'nebula' | 'blood';
 export type CriticalType = 'success' | 'fail' | null;
@@ -536,7 +538,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#d4a76a',
         particleColor2: '#5c4033',
         // Wood texture
-        textureMap: '/textures/wood_diffuse.png',
+        textureMap: getAssetUrl('/textures/wood_diffuse.png'),
     },
     marbre_blanc: {
         id: 'marbre_blanc',
@@ -561,7 +563,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#ffffff',
         particleColor2: '#e0e0e0',
-        textureMap: '/textures/marble_diffuse.png',
+        textureMap: getAssetUrl('/textures/marble_diffuse.png'),
     },
     cuir_ancien: {
         id: 'cuir_ancien',
@@ -586,7 +588,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#8b7355',
         particleColor2: '#3d2b1f',
-        textureMap: '/textures/leather_diffuse.png',
+        textureMap: getAssetUrl('/textures/leather_diffuse.png'),
     },
     pierre_donjon: {
         id: 'pierre_donjon',
@@ -611,7 +613,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#6b8e6b',
         particleColor2: '#5a5a5a',
-        textureMap: '/textures/stone_diffuse.png',
+        textureMap: getAssetUrl('/textures/stone_diffuse.png'),
     },
     fer_rouille: {
         id: 'fer_rouille',
@@ -636,7 +638,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#cd853f',
         particleColor2: '#5a4a3a',
-        textureMap: '/textures/rust_diffuse.png',
+        textureMap: getAssetUrl('/textures/rust_diffuse.png'),
     },
     roche_volcanique: {
         id: 'roche_volcanique',
@@ -661,7 +663,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#ff4500',
         particleColor2: '#ff6600',
-        textureMap: '/textures/lava_diffuse.png',
+        textureMap: getAssetUrl('/textures/lava_diffuse.png'),
     },
     glace_eternelle: {
         id: 'glace_eternelle',
@@ -686,7 +688,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#e0ffff',
         particleColor2: '#ffffff',
-        textureMap: '/textures/ice_diffuse.png',
+        textureMap: getAssetUrl('/textures/ice_diffuse.png'),
     },
     ecorce_ancienne: {
         id: 'ecorce_ancienne',
@@ -711,7 +713,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#6b8e23',
         particleColor2: '#3d3d2d',
-        textureMap: '/textures/bark_diffuse.png',
+        textureMap: getAssetUrl('/textures/bark_diffuse.png'),
     },
     parchemin_ancien: {
         id: 'parchemin_ancien',
@@ -736,7 +738,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#d2b48c',
         particleColor2: '#f5deb3',
-        textureMap: '/textures/parchment_diffuse.png',
+        textureMap: getAssetUrl('/textures/parchment_diffuse.png'),
     }
 };
 
