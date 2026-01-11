@@ -20,6 +20,7 @@ import {
 import { DiceStats } from "./dice-stats";
 import { DICE_SKINS, DiceSkin } from "./dice-definitions";
 import { DicePreview } from "./dice-preview";
+import { getAssetUrl } from "@/lib/asset-loader";
 
 // Types
 interface RollResult {
@@ -58,7 +59,7 @@ function StaticDie2D({ skinId, type = "d20" }: { skinId: string, type?: string }
     return (
       <div className="w-full h-full flex items-center justify-center rounded-lg overflow-hidden bg-black/20">
         <img
-          src={`/dice-previews/${skinId}.png`}
+          src={getAssetUrl(`/dice-previews/${skinId}.png`)}
           alt={skin.name}
           className="w-full h-full object-contain transform hover:scale-110 transition-transform duration-300"
           onError={() => setImageError(true)}
