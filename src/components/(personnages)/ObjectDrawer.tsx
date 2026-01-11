@@ -11,6 +11,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { ObjectTemplate } from '@/app/[roomid]/map/types'
 import { SUGGESTED_OBJECTS, ITEM_CATEGORIES, SuggestedItem } from '@/lib/suggested-objects'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog"
+import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 
 interface ObjectDrawerProps {
     roomId: string
@@ -21,6 +22,13 @@ interface ObjectDrawerProps {
 }
 
 export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCityId }: ObjectDrawerProps) {
+    const { setDialogOpen } = useDialogVisibility();
+
+    // Register dialog state when drawer opens/closes
+    useEffect(() => {
+        setDialogOpen(isOpen);
+    }, [isOpen, setDialogOpen]);
+
     const [templates, setTemplates] = useState<ObjectTemplate[]>([])
     const [searchQuery, setSearchQuery] = useState('')
     const [loading, setLoading] = useState(true)
@@ -131,7 +139,7 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
     const filteredItems = templates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
 
     return (
-        <div className="fixed right-0 top-0 h-full w-80 bg-[#1a1a1a] border-l border-[#333] z-50 flex flex-col shadow-2xl">
+        <div className="fixed right-0 top-0 h-full w-80 bg-[#1a1a1a] border-l border-[#333] z-[99999900] flex flex-col shadow-2xl">
             {/* PREMIUM HEADER */}
             <div className="relative px-6 py-5 border-b border-[#333] bg-gradient-to-br from-[#1a1a1a] via-[#1a1a1a] to-[#252525]">
                 <div className="flex items-center justify-between">
@@ -420,7 +428,7 @@ export function ObjectDrawer({ roomId, isOpen, onClose, onDragStart, currentCity
                             </div>
 
                             {/* Grid */}
-                            <div className="flex-1 overflow-y-auto bg-[#0a0a0a]">
+                            <div className="flex-1 z-[100] overflow-y-auto bg-[#0a0a0a]">
                                 <div className="p-6">
                                     <div className="grid grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3">
                                         {SUGGESTED_OBJECTS

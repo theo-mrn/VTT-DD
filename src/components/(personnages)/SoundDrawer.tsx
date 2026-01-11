@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { SUGGESTED_SOUNDS, SOUND_CATEGORIES } from '@/lib/suggested-sounds'
 import { Badge } from "@/components/ui/badge"
+import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 
 // --- Types ---
 interface SoundTemplate {
@@ -44,6 +45,12 @@ interface SoundDrawerProps {
 }
 
 export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawerProps) {
+    const { setDialogOpen } = useDialogVisibility();
+
+    // Register dialog state when drawer opens/closes
+    useEffect(() => {
+        setDialogOpen(isOpen);
+    }, [isOpen, setDialogOpen]);
     // --- Data States ---
     const [templates, setTemplates] = useState<SoundTemplate[]>([])
     const [playlist, setPlaylist] = useState<PlaylistTrack[]>([])

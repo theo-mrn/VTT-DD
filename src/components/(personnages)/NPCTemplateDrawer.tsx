@@ -13,6 +13,7 @@ import { NPCCreationForm } from './NPCCreationForm'
 import { CreatureLibraryModal } from './CreatureLibraryModal'
 import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 
 interface NPCTemplateDrawerProps {
     roomId: string
@@ -46,6 +47,12 @@ interface ExistingNPC {
 }
 
 export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, currentCityId }: NPCTemplateDrawerProps) {
+    const { setDialogOpen } = useDialogVisibility();
+
+    // Register dialog state when drawer opens/closes
+    useEffect(() => {
+        setDialogOpen(isOpen);
+    }, [isOpen, setDialogOpen]);
     const [activeTab, setActiveTab] = useState<'templates' | 'npcs'>('templates')
     const [templates, setTemplates] = useState<NPC[]>([])
     const [categories, setCategories] = useState<Category[]>([])

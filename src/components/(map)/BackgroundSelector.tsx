@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Search, Upload, X, Film, Image as ImageIcon, Palette, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from "@/lib/utils";
+import { useDialogVisibility } from '@/contexts/DialogVisibilityContext';
 
 interface MapFile {
     name: string;
@@ -201,6 +202,13 @@ export default function BackgroundSelector({
     onSelectLocal,
     onUpload
 }: BackgroundSelectorProps) {
+    const { setDialogOpen } = useDialogVisibility();
+
+    // Register dialog state when selector opens/closes
+    useEffect(() => {
+        setDialogOpen(isOpen);
+    }, [isOpen, setDialogOpen]);
+
     const [maps, setMaps] = useState<MapFile[]>([]);
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer"
-import { Plus, Minus, Dice1, ChevronRight, Sword, Skull, Shield, Heart, X, Pencil, Zap, EyeOff, Ghost, Anchor, Flame, Snowflake, Sparkles } from "lucide-react"
+import { Plus, Minus, Dice1, ChevronRight, ChevronLeft, Sword, Skull, Shield, Heart, X, Pencil, Zap, EyeOff, Ghost, Anchor, Flame, Snowflake, Sparkles } from "lucide-react"
 import { auth, db, doc, getDoc, onSnapshot, updateDoc, setDoc, deleteDoc, collection, onAuthStateChanged, writeBatch } from "@/lib/firebase"
 import { Dialog, DialogTrigger, DialogPortal, DialogOverlay, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
@@ -495,6 +495,24 @@ export function GMDashboard() {
     }
   }
 
+  const previousCharacter = async () => {
+    if (!roomId || characters.length === 0) return
+
+    const lastCharacter = characters[characters.length - 1]
+    const newCharacters = [lastCharacter, ...characters.slice(0, -1)]
+    setCharacters(newCharacters)
+
+    try {
+      const newActiveCharacterId = newCharacters[0].id
+      if (currentCityId) {
+        const combatRef = doc(db, `cartes/${roomId}/cities/${currentCityId}/combat/state`)
+        await setDoc(combatRef, { activePlayer: newActiveCharacterId }, { merge: true })
+      }
+    } catch (error) {
+      console.error("Erreur lors de la mise à jour de activePlayer :", error)
+    }
+  }
+
   const openDrawer = (character: Character) => {
     setSelectedCharacter(character)
     setIsDrawerOpen(true)
@@ -573,6 +591,10 @@ export function GMDashboard() {
           <Button variant="outline" onClick={rerollInitiative} disabled={isRollingInitiative} className="border-[var(--border-color)] hover:bg-[var(--bg-darker)]">
             <Dice1 className="mr-2 h-4 w-4" />
             Relancer Init
+          </Button>
+          <Button variant="outline" onClick={previousCharacter} className="border-[var(--border-color)] hover:bg-[var(--bg-darker)]">
+            <ChevronLeft className="mr-2 h-4 w-4" />
+            Précédent
           </Button>
           <Button className="button-primary" onClick={nextCharacter}>
             <ChevronRight className="mr-2 h-4 w-4" />

@@ -17,30 +17,9 @@ export const SUGGESTED_OBJECTS: SuggestedItem[] = [
   { name: 'arbre7', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/arbre/arbre7.gif', category: 'arbre' },
   { name: 'arbre8', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/arbre/arbre8.gif', category: 'arbre' },
 
-  // Arme
-  { name: 'arme1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/arme/arme1.png', category: 'arme' },
-  { name: 'arme10', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/arme/arme10.png', category: 'arme' },
-  { name: 'arme11', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/arme/arme11.png', category: 'arme' },
-  { name: 'arme2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/arme/arme2.png', category: 'arme' },
-  { name: 'arme3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/arme/arme3.png', category: 'arme' },
-  { name: 'arme4', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/arme/arme4.png', category: 'arme' },
-  { name: 'arme5', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/arme/arme5.png', category: 'arme' },
-  { name: 'arme6', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/arme/arme6.png', category: 'arme' },
-  { name: 'arme7', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/arme/arme7.png', category: 'arme' },
-  { name: 'arme8', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/arme/arme8.png', category: 'arme' },
-  { name: 'arme9', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/arme/arme9.png', category: 'arme' },
 
-  // Armure
-  { name: 'armure1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/armure/armure1.png', category: 'armure' },
-  { name: 'armure10', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/armure/armure10.png', category: 'armure' },
-  { name: 'armure2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/armure/armure2.png', category: 'armure' },
-  { name: 'armure3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/armure/armure3.png', category: 'armure' },
-  { name: 'armure4', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/armure/armure4.png', category: 'armure' },
-  { name: 'armure5', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/armure/armure5.png', category: 'armure' },
-  { name: 'armure6', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/armure/armure6.png', category: 'armure' },
-  { name: 'armure7', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/armure/armure7.png', category: 'armure' },
-  { name: 'armure8', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/armure/armure8.png', category: 'armure' },
-  { name: 'armure9', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/armure/armure9.png', category: 'armure' },
+
+
 
   // Bag
   { name: 'bag1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/bag/bag1.png', category: 'bag' },
@@ -97,63 +76,79 @@ export const SUGGESTED_OBJECTS: SuggestedItem[] = [
   { name: 'book8', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/book/book8.png', category: 'book' },
 
   // Chest
-  { name: 'chest1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/chest/chest1.png', category: 'chest' },
   { name: 'chest10', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/chest/chest10.png', category: 'chest' },
   { name: 'chest11', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/chest/chest11.png', category: 'chest' },
-  { name: 'chest12', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/chest/chest12.png', category: 'chest' },
   { name: 'chest13', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/chest/chest13.png', category: 'chest' },
   { name: 'chest14', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/chest/chest14.png', category: 'chest' },
-  { name: 'chest2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/chest/chest2.png', category: 'chest' },
-  { name: 'chest3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/chest/chest3.png', category: 'chest' },
-  { name: 'chest4', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/chest/chest4.png', category: 'chest' },
-  { name: 'chest5', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/chest/chest5.png', category: 'chest' },
   { name: 'chest6', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/chest/chest6.png', category: 'chest' },
   { name: 'chest7', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/chest/chest7.png', category: 'chest' },
-  { name: 'chest8', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/chest/chest8.png', category: 'chest' },
-  { name: 'chest9', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/chest/chest9.png', category: 'chest' },
+  { name: 'caisse', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/containers/caisse.png', category: 'chest' },
+
+  // Containers
+  { name: 'coffre', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/containers/coffre.png', category: 'chest' },
+  { name: 'toneau', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/containers/toneau.png', category: 'barrel' },
+
+  // Dark
+  { name: 'cercueil', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/dark/cercueil.png', category: 'dark' },
+  { name: 'ossement', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/dark/ossement.png', category: 'dark' },
+  { name: 'ossement2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/dark/ossement2.png', category: 'dark' },
 
   // Decorations
-  { name: 'decoration1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration1.png', category: 'decorations' },
-  { name: 'decoration10', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration10.png', category: 'decorations' },
-  { name: 'decoration11', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration11.png', category: 'decorations' },
-  { name: 'decoration12', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration12.png', category: 'decorations' },
-  { name: 'decoration13', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration13.png', category: 'decorations' },
-  { name: 'decoration14', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration14.png', category: 'decorations' },
-  { name: 'decoration15', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration15.png', category: 'decorations' },
-  { name: 'decoration16', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration16.png', category: 'decorations' },
-  { name: 'decoration17', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration17.png', category: 'decorations' },
-  { name: 'decoration18', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration18.png', category: 'decorations' },
-  { name: 'decoration19', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration19.png', category: 'decorations' },
-  { name: 'decoration2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration2.png', category: 'decorations' },
-  { name: 'decoration20', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration20.png', category: 'decorations' },
-  { name: 'decoration3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration3.png', category: 'decorations' },
-  { name: 'decoration4', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration4.png', category: 'decorations' },
-  { name: 'decoration5', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration5.png', category: 'decorations' },
-  { name: 'decoration6', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration6.png', category: 'decorations' },
-  { name: 'decoration7', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration7.png', category: 'decorations' },
-  { name: 'decoration8', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration8.png', category: 'decorations' },
-  { name: 'decoration9', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration9.png', category: 'decorations' },
+  { name: 'planche', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration9.png', category: 'decorations' },
+  { name: 'planche2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration10.png', category: 'decorations' },
+  { name: 'planche3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration11.png', category: 'decorations' },
+  { name: 'planche4', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration12.png', category: 'decorations' },
+  { name: 'bois1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration13.png', category: 'decorations' },
+  { name: 'bois2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration14.png', category: 'decorations' },
+  { name: 'bois3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration15.png', category: 'decorations' },
+  { name: 'bois4', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration16.png', category: 'decorations' },
+  { name: 'bois5', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration17.png', category: 'decorations' },
+  { name: 'bois6', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration18.png', category: 'decorations' },
+  { name: 'bois7', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration19.png', category: 'decorations' },
+  { name: 'bois8', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration20.png', category: 'decorations' },
+  { name: 'plante1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration3.png', category: 'decorations' },
+  { name: 'plante2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration4.png', category: 'decorations' },
+  { name: 'plante3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration5.png', category: 'decorations' },
+  { name: 'plante4', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration6.png', category: 'decorations' },
+  { name: 'plante5', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration7.png', category: 'decorations' },
+  { name: 'plante6', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration8.png', category: 'decorations' },
+  { name: 'plante7', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration.png', category: 'decorations' },
+  { name: 'plante8', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration1.png', category: 'decorations' },
+  { name: 'plante9', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration2.png', category: 'decorations' },
+
+
+  // Equipment
+  { name: 'four', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/equipment/four.png', category: 'equipment' },
+  { name: 'shop', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/equipment/shop.png', category: 'equipment' },
 
   // Feu
   { name: 'feu1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/feu/feu1.gif', category: 'feu' },
+  { name: 'feu1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/fire/feu1.png', category: 'feu' },
+  { name: 'feu2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/fire/feu2.png', category: 'feu' },
+  // Fire
 
-  // Gem
-  { name: 'gem1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem1.png', category: 'gem' },
-  { name: 'gem10', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem10.png', category: 'gem' },
-  { name: 'gem11', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem11.png', category: 'gem' },
-  { name: 'gem12', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem12.png', category: 'gem' },
-  { name: 'gem13', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem13.png', category: 'gem' },
-  { name: 'gem14', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem14.png', category: 'gem' },
-  { name: 'gem15', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem15.png', category: 'gem' },
-  { name: 'gem16', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem16.png', category: 'gem' },
-  { name: 'gem2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem2.png', category: 'gem' },
-  { name: 'gem3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem3.png', category: 'gem' },
-  { name: 'gem4', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem4.png', category: 'gem' },
-  { name: 'gem5', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem5.png', category: 'gem' },
-  { name: 'gem6', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem6.png', category: 'gem' },
-  { name: 'gem7', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem7.png', category: 'gem' },
-  { name: 'gem8', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem8.png', category: 'gem' },
-  { name: 'gem9', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/gem/gem9.png', category: 'gem' },
+
+  // Furniture
+  { name: 'baignoire', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/baignoire.png', category: 'furniture' },
+  { name: 'bureau', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/bureau.png', category: 'furniture' },
+  { name: 'chaise1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/chaise1.png', category: 'furniture' },
+  { name: 'chaise2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/chaise2.png', category: 'furniture' },
+  { name: 'chaise3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/chaise3.png', category: 'furniture' },
+  { name: 'chaise4', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/chaise4.png', category: 'furniture' },
+  { name: 'commodde', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/commodde.png', category: 'furniture' },
+  { name: 'lit1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/lit1.png', category: 'furniture' },
+  { name: 'lit2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/lit2.png', category: 'furniture' },
+  { name: 'lit3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/lit3.png', category: 'furniture' },
+  { name: 'mirroir', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/mirroir.png', category: 'furniture' },
+  { name: 'orgue', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/orgue.png', category: 'furniture' },
+  { name: 'piano', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/piano.png', category: 'furniture' },
+  { name: 'table1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/table1.png', category: 'furniture' },
+  { name: 'table2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/table2.png', category: 'furniture' },
+  { name: 'piece murale', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/décoration.png', category: 'furniture' },
+  { name: 'tapis', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/tapis.png', category: 'furniture' },
+  { name: 'foin', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/foin.png', category: 'furniture' },
+
+
 
   // Keys
   { name: 'key1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/keys/key1.png', category: 'keys' },
@@ -167,45 +162,39 @@ export const SUGGESTED_OBJECTS: SuggestedItem[] = [
   { name: 'ladder3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/ladder/ladder3.png', category: 'ladder' },
   { name: 'ladder4', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/ladder/ladder4.png', category: 'ladder' },
 
-  // Potions
-  { name: 'potion1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion1.png', category: 'potions' },
-  { name: 'potion10', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion10.png', category: 'potions' },
-  { name: 'potion11', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion11.png', category: 'potions' },
-  { name: 'potion12', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion12.png', category: 'potions' },
-  { name: 'potion13', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion13.png', category: 'potions' },
-  { name: 'potion14', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion14.png', category: 'potions' },
-  { name: 'potion15', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion15.png', category: 'potions' },
-  { name: 'potion16', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion16.png', category: 'potions' },
-  { name: 'potion17', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion17.png', category: 'potions' },
-  { name: 'potion18', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion18.png', category: 'potions' },
-  { name: 'potion19', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion19.png', category: 'potions' },
-  { name: 'potion2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion2.png', category: 'potions' },
-  { name: 'potion20', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion20.png', category: 'potions' },
-  { name: 'potion21', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion21.png', category: 'potions' },
-  { name: 'potion22', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion22.png', category: 'potions' },
-  { name: 'potion23', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion23.png', category: 'potions' },
-  { name: 'potion3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion3.png', category: 'potions' },
-  { name: 'potion4', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion4.png', category: 'potions' },
-  { name: 'potion5', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion5.png', category: 'potions' },
-  { name: 'potion6', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion6.png', category: 'potions' },
-  { name: 'potion7', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion7.png', category: 'potions' },
-  { name: 'potion8', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion8.png', category: 'potions' },
-  { name: 'potion9', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/potions/potion9.png', category: 'potions' }
+  // Misc
+  { name: 'sample (1)', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/misc/sample (1).png', category: 'misc' },
+  { name: 'sample', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/misc/sample.png', category: 'misc' },
+  { name: 'thumb (6)', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/misc/thumb (6).png', category: 'misc' },
+
+
+
+  // Stairs
+  { name: 'escalier1', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/stairs/escalier1.png', category: 'stairs' },
+  { name: 'escalier2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/stairs/escalier2.png', category: 'stairs' },
+  { name: 'escalier3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/stairs/escalier3.png', category: 'stairs' },
+
+  // Vehicles
+  { name: 'chariole', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/vehicles/chariole.png', category: 'vehicles' },
+  { name: 'chariole2', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/vehicles/chariole2.png', category: 'vehicles' },
+  { name: 'chariole3', path: 'https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/vehicles/chariole3.png', category: 'vehicles' }
 ]
 
 export const ITEM_CATEGORIES = [
   { id: 'all', label: 'Tout' },
   { id: 'arbre', label: 'Arbre' },
-  { id: 'arme', label: 'Arme' },
-  { id: 'armure', label: 'Armure' },
   { id: 'bag', label: 'Bag' },
   { id: 'barrel', label: 'Barrel' },
   { id: 'book', label: 'Book' },
   { id: 'chest', label: 'Chest' },
+  { id: 'dark', label: 'Dark' },
   { id: 'decorations', label: 'Decorations' },
+  { id: 'equipment', label: 'Equipment' },
   { id: 'feu', label: 'Feu' },
-  { id: 'gem', label: 'Gem' },
+  { id: 'furniture', label: 'Furniture' },
   { id: 'keys', label: 'Keys' },
   { id: 'ladder', label: 'Ladder' },
-  { id: 'potions', label: 'Potions' }
+  { id: 'misc', label: 'Misc' },
+  { id: 'stairs', label: 'Stairs' },
+  { id: 'vehicles', label: 'Vehicles' }
 ]
