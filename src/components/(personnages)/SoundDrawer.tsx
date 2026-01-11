@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Volume2, Search, X, Plus, Trash2, Library, Music, Play, Pause, MapPin, Youtube, FileAudio, ListMusic, GripVertical, Check, StopCircle, PlayCircle, Filter } from 'lucide-react'
+import { Volume2, Search, X, Plus, Trash2, Library, Music, Play, Pause, MapPin, Youtube, FileAudio, ListMusic, GripVertical, Check, StopCircle, PlayCircle, Filter, SkipBack, SkipForward, Activity } from 'lucide-react'
 import { collection, onSnapshot, query, addDoc, deleteDoc, doc, setDoc, doc as firestoreDoc } from 'firebase/firestore'
 import { db, realtimeDb, dbRef, update, onValue, set } from '@/lib/firebase'
 import { Input } from '@/components/ui/input'
@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { SUGGESTED_SOUNDS, SOUND_CATEGORIES } from '@/lib/suggested-sounds'
 import { Badge } from "@/components/ui/badge"
+import { Switch } from "@/components/ui/switch"
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 
 // --- Types ---
@@ -56,9 +57,14 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
     const [playlist, setPlaylist] = useState<PlaylistTrack[]>([])
 
     // --- UI States ---
-    const [activeTab, setActiveTab] = useState<'zones' | 'quick' | 'music'>('zones')
+    const [activeTab, setActiveTab] = useState<'sounds' | 'music'>('sounds') // Changed from 3 tabs to 2
     const [searchQuery, setSearchQuery] = useState('')
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+
+    // --- Local/Global Playback States ---
+    const [isGlobalPlayback, setIsGlobalPlayback] = useState(true) // Default to global
+    const [playingLocalId, setPlayingLocalId] = useState<string | null>(null)
+    const localAudioRef = useRef<HTMLAudioElement | null>(null)
 
     // --- Library Dialog States ---
     const [isLibraryOpen, setIsLibraryOpen] = useState(false)
@@ -226,12 +232,23 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                 soundUrl = extractVideoId(youtubeInput)!
             }
 
-            await addDoc(collection(db, `sound_templates/${roomId}/templates`), {
+            const docRef = await addDoc(collection(db, `sound_templates/${roomId}/templates`), {
                 name: newSoundName,
                 soundUrl,
                 type: creationType,
                 createdAt: new Date()
             })
+
+            // If in Music tab, add directly to playlist
+            if (activeTab === 'music') {
+                const newTemplate: SoundTemplate = {
+                    id: docRef.id,
+                    name: newSoundName,
+                    soundUrl,
+                    type: creationType
+                }
+                addToMusicPlaylist(newTemplate)
+            }
 
             setNewSoundName('')
             setNewSoundFile(null)
@@ -255,6 +272,49 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
         }
     }
 
+    // New unified playSound function for local/global playback
+    const playSound = async (sound: SoundTemplate) => {
+        if (isGlobalPlayback) {
+            // Global mode: play for everyone via Realtime DB
+            const isCurrent = globalPlayingId === sound.id
+            if (isCurrent) {
+                await setDoc(firestoreDoc(db, 'global_sounds', roomId), { soundUrl: null }, { merge: true })
+            } else {
+                await setDoc(firestoreDoc(db, 'global_sounds', roomId), { soundUrl: sound.soundUrl, soundId: sound.id, timestamp: Date.now(), type: sound.type })
+            }
+        } else {
+            // Local mode: play locally for preview
+            const isCurrentlyPlaying = playingLocalId === sound.id
+
+            if (isCurrentlyPlaying) {
+                // Stop current sound
+                if (localAudioRef.current) {
+                    localAudioRef.current.pause()
+                    localAudioRef.current = null
+                }
+                setPlayingLocalId(null)
+            } else {
+                // Stop previous sound if any
+                if (localAudioRef.current) {
+                    localAudioRef.current.pause()
+                }
+
+                // Play new sound locally
+                const audio = new Audio(sound.soundUrl)
+                audio.volume = 0.5
+                audio.play().catch(err => console.error('Error playing audio:', err))
+
+                audio.onended = () => {
+                    setPlayingLocalId(null)
+                    localAudioRef.current = null
+                }
+
+                localAudioRef.current = audio
+                setPlayingLocalId(sound.id)
+            }
+        }
+    }
+
     const addToMusicPlaylist = async (sound: SoundTemplate) => {
         const newTrack: PlaylistTrack = { id: `${Date.now()}`, templateId: sound.id, name: sound.name, soundUrl: sound.soundUrl, type: sound.type }
         await set(dbRef(realtimeDb, `rooms/${roomId}/playlist`), [...playlist, newTrack])
@@ -272,6 +332,26 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
     const removeFromPlaylist = async (trackId: string) => {
         const newPlaylist = playlist.filter(t => t.id !== trackId)
         await set(dbRef(realtimeDb, `rooms/${roomId}/playlist`), newPlaylist)
+    }
+
+    const handleNextTrack = () => {
+        if (!musicState.videoId || playlist.length === 0) return
+        const currentIndex = playlist.findIndex(t => t.soundUrl === musicState.videoId)
+        if (currentIndex === -1 || currentIndex === playlist.length - 1) {
+            if (playlist.length > 0) playMusicTrack(playlist[0])
+        } else {
+            playMusicTrack(playlist[currentIndex + 1])
+        }
+    }
+
+    const handlePrevTrack = () => {
+        if (!musicState.videoId || playlist.length === 0) return
+        const currentIndex = playlist.findIndex(t => t.soundUrl === musicState.videoId)
+        if (currentIndex > 0) {
+            playMusicTrack(playlist[currentIndex - 1])
+        } else if (playlist.length > 0) {
+            playMusicTrack(playlist[playlist.length - 1])
+        }
     }
 
     // --- Handlers --- (Adding drag start)
@@ -305,8 +385,11 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
 
                 {/* TABS */}
                 <div className="flex border-b border-[#333]">
-                    {[{ id: 'zones', icon: MapPin, label: 'Zones' }, { id: 'quick', icon: Play, label: 'Rapide' }, { id: 'music', icon: ListMusic, label: 'Musique' }].map(tab => (
-                        <button key={tab.id} onClick={() => setActiveTab(tab.id as any)}
+                    {[
+                        { id: 'sounds' as const, icon: Volume2, label: 'Effets Audio' },
+                        { id: 'music' as const, icon: ListMusic, label: 'Musique' }
+                    ].map(tab => (
+                        <button key={tab.id} onClick={() => setActiveTab(tab.id)}
                             className={`flex-1 px-2 py-3 text-xs font-medium transition-colors relative flex flex-col items-center gap-1 ${activeTab === tab.id ? 'text-[#c0a080] bg-[#252525]' : 'text-gray-400 hover:bg-[#1a1a1a]'}`}>
                             <tab.icon className="w-4 h-4" /> <span>{tab.label}</span>
                             {activeTab === tab.id && <div className="absolute bottom-0 w-full h-0.5 bg-[#c0a080]" />}
@@ -317,12 +400,20 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                 {/* ADD GLOBAL BUTTON */}
                 {!showCreateForm && (
                     <div className="p-3 border-b border-[#333] bg-[#1a1a1a] flex gap-2">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500" />
-                            <Input placeholder="Rechercher..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-8 bg-[#252525] border-none text-white h-8 text-xs" />
-                        </div>
-                        <Button onClick={() => setShowCreateForm(true)} size="sm" className="h-8 bg-[#c0a080] text-black hover:bg-[#d4b494]"><Plus className="w-4 h-4" /></Button>
-                        <Button onClick={() => setIsLibraryOpen(true)} size="icon" variant="outline" className="h-8 w-8 border-[#333] text-gray-400 hover:text-white bg-transparent"><Library className="w-4 h-4" /></Button>
+                        {activeTab === 'sounds' ? (
+                            <>
+                                <div className="relative flex-1">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500" />
+                                    <Input placeholder="Rechercher..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-8 bg-[#252525] border-none text-white h-8 text-xs" />
+                                </div>
+                                <Button onClick={() => setShowCreateForm(true)} size="sm" className="h-8 bg-[#c0a080] text-black hover:bg-[#d4b494]"><Plus className="w-4 h-4" /></Button>
+                                <Button onClick={() => setIsLibraryOpen(true)} size="icon" variant="outline" className="h-8 w-8 border-[#333] text-gray-400 hover:text-white bg-transparent"><Library className="w-4 h-4" /></Button>
+                            </>
+                        ) : (
+                            <Button onClick={() => setShowCreateForm(true)} size="sm" className="w-full bg-[#c0a080] text-black hover:bg-[#d4b494] gap-2">
+                                <Plus className="w-4 h-4" /> Ajouter une piste
+                            </Button>
+                        )}
                     </div>
                 )}
 
@@ -330,7 +421,9 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                 {showCreateForm && (
                     <div className="p-4 bg-[#1e1e1e] border-b border-[#333] space-y-3 animate-in slide-in-from-top-2 border-l-4 border-l-[#c0a080]">
                         <div className="flex justify-between items-center mb-2">
-                            <span className="font-semibold text-white text-sm">Ajouter une ressource</span>
+                            <span className="font-semibold text-white text-sm">
+                                {activeTab === 'music' ? 'Ajouter à la playlist' : 'Ajouter un effet sonore'}
+                            </span>
                             <X className="w-4 h-4 cursor-pointer text-gray-400" onClick={() => setShowCreateForm(false)} />
                         </div>
                         <div className="grid grid-cols-2 gap-2 bg-[#252525] p-1 rounded-md">
@@ -349,15 +442,70 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                     </div>
                 )}
 
+                {/* TAB DESCRIPTION + SWITCH */}
+                {!showCreateForm && (
+                    <div className="px-4 py-2 bg-[#1a1a1a]/50 border-b border-[#333]/50">
+                        {activeTab === 'sounds' && (
+                            <div className="space-y-2">
+                                <p className="text-xs text-gray-400 flex items-center gap-2">
+                                    <Volume2 className="w-3 h-3 text-[#c0a080]" />
+                                    <span>Cliquez pour jouer, glissez pour placer sur la carte</span>
+                                </p>
+                                {/* Local/Global Switch */}
+                                <div className="flex items-center gap-2 pt-1">
+                                    <span className="text-xs text-gray-500">Mode :</span>
+                                    <Switch
+                                        checked={isGlobalPlayback}
+                                        onCheckedChange={setIsGlobalPlayback}
+                                        className="data-[state=checked]:bg-[#c0a080]"
+                                    />
+                                    <span className="text-xs font-medium text-gray-300">
+                                        {isGlobalPlayback ? 'Global (tous les joueurs)' : 'Local (preview)'}
+                                    </span>
+                                </div>
+                            </div>
+                        )}
+                        {activeTab === 'music' && (
+                            <p className="text-xs text-gray-400 flex items-center gap-2">
+                                <ListMusic className="w-3 h-3 text-[#c0a080]" />
+                                <span>Gérez la playlist de fond pour l'ambiance de la session</span>
+                            </p>
+                        )}
+                    </div>
+                )}
+
                 {/* CONTENT AREA */}
                 <ScrollArea className="flex-1 bg-[#121212]">
                     <div className="p-2 space-y-1">
                         {activeTab === 'music' && (
                             <div className="space-y-4">
+                                {/* Playlist Header */}
+                                {playlist.length > 0 ? (
+                                    <div className="mb-2">
+                                        <div className="flex items-center justify-between px-2 py-2 bg-[#1a1a1a] rounded-lg border border-[#333]">
+                                            <div className="flex items-center gap-2">
+                                                <ListMusic className="w-3.5 h-3.5 text-[#c0a080]" />
+                                                <span className="text-xs font-semibold text-gray-300">Playlist en cours</span>
+                                            </div>
+                                            <span className="text-[10px] text-gray-500">{playlist.length} track{playlist.length !== 1 ? 's' : ''}</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center py-10 text-center space-y-3">
+                                        <ListMusic className="w-12 h-12 text-gray-600 mb-2" />
+                                        <div className="space-y-1">
+                                            <p className="text-sm font-medium text-gray-300">La playlist est vide</p>
+                                            <p className="text-xs text-gray-500 max-w-[200px] mx-auto">Ajoutez des musiques depuis vos fichiers ou YouTube pour créer une ambiance.</p>
+                                        </div>
+                                        <Button onClick={() => setShowCreateForm(true)} size="sm" variant="outline" className="border-[#333] hover:bg-[#252525] text-gray-300 mt-2">
+                                            <Plus className="w-3 h-3 mr-2" /> Ajouter une piste
+                                        </Button>
+                                    </div>
+                                )}
+
                                 {/* Playlist */}
                                 {playlist.length > 0 && (
                                     <div className="space-y-1 mb-4">
-                                        <div className="text-[10px] uppercase font-bold text-gray-500 px-2">Playlist en cours</div>
                                         {playlist.map(track => (
                                             <div key={track.id} className={`flex items-center gap-2 p-2 rounded bg-[#1f1f1f] border ${musicState.videoId === track.soundUrl ? 'border-[#c0a080] text-[#c0a080]' : 'border-[#333] text-gray-300'}`}>
                                                 <button onClick={() => playMusicTrack(track)} className="hover:text-white">
@@ -369,42 +517,68 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                                         ))}
                                     </div>
                                 )}
-                                {/* Templates */}
-                                <div className="text-[10px] uppercase font-bold text-gray-500 px-2 mt-4 pb-1 border-b border-[#333]">Ajouter depuis la bibliothèque</div>
-                                {filteredTemplates.map(sound => (
-                                    <div key={sound.id} className="flex items-center justify-between p-2 hover:bg-[#1a1a1a] rounded group">
-                                        <div className="flex items-center gap-2 overflow-hidden">
-                                            <RenderIcon type={sound.type} />
-                                            <span className="text-xs text-gray-300 truncate">{sound.name}</span>
-                                        </div>
-                                        <Button onClick={() => addToMusicPlaylist(sound)} size="sm" variant="ghost" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 hover:bg-[#c0a080] hover:text-black">
-                                            <Plus className="w-3 h-3" />
-                                        </Button>
-                                    </div>
-                                ))}
                             </div>
                         )}
 
-                        {activeTab !== 'music' && filteredTemplates.map(sound => {
-                            const isPlaying = activeTab === 'quick' && globalPlayingId === sound.id;
+                        {/* SOUNDS TAB - Hybrid click-to-play + drag-to-map */}
+                        {activeTab === 'sounds' && filteredTemplates.map(sound => {
+                            // Check if sound is playing (global or local)
+                            const isPlayingGlobal = isGlobalPlayback && globalPlayingId === sound.id
+                            const isPlayingLocal = !isGlobalPlayback && playingLocalId === sound.id
+                            const isPlaying = isPlayingGlobal || isPlayingLocal
+
                             return (
-                                <div key={sound.id} draggable={activeTab === 'zones'} onDragStart={(e) => activeTab === 'zones' && handleDragStart(e, sound)}
-                                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all group ${isPlaying ? 'bg-[#c0a080]/10 border-[#c0a080]/30' : 'bg-[#1e1e1e] border-[#333] hover:border-[#444]'} ${activeTab === 'zones' ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                                <div
+                                    key={sound.id}
+                                    draggable
+                                    onDragStart={(e) => handleDragStart(e, sound)}
+                                    className={`flex items-center gap-3 p-3 rounded-lg border transition-all group cursor-grab active:cursor-grabbing ${isPlaying ? 'bg-[#c0a080]/10 border-[#c0a080]/30' : 'bg-[#1e1e1e] border-[#333] hover:border-[#444]'
+                                        }`}
                                 >
-                                    {activeTab === 'zones' ? (<div className="text-gray-500 cursor-grab"><GripVertical className="w-4 h-4" /></div>) : (
-                                        <button onClick={() => playQuickSound(sound)} className={`w-8 h-8 rounded flex items-center justify-center transition-colors ${isPlaying ? 'bg-[#c0a080] text-black animate-pulse' : 'bg-[#252525] text-gray-400 hover:text-white'}`}>
-                                            {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
-                                        </button>
-                                    )}
+                                    {/* Drag Handle */}
+                                    <GripVertical className="w-4 h-4 text-gray-500 flex-shrink-0" />
+
+                                    {/* Play Button */}
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation() // Prevent drag
+                                            playSound(sound)
+                                        }}
+                                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all flex-shrink-0 ${isPlaying
+                                            ? 'bg-[#c0a080] text-black animate-pulse'
+                                            : 'bg-[#252525] text-gray-400 hover:bg-[#c0a080] hover:text-black'
+                                            }`}
+                                    >
+                                        {isPlaying ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
+                                    </button>
+
+                                    {/* Info */}
                                     <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex items-center gap-2 mb-1">
                                             <RenderIcon type={sound.type} />
-                                            <span className={`text-sm font-medium truncate ${isPlaying ? 'text-[#c0a080]' : 'text-gray-200'}`}>{sound.name}</span>
+                                            <span className={`text-sm font-medium truncate ${isPlaying ? 'text-[#c0a080]' : 'text-gray-200'}`}>
+                                                {sound.name}
+                                            </span>
                                         </div>
-                                        <div className="text-[10px] text-gray-500 mt-0.5">{activeTab === 'zones' ? 'Glisser sur la carte' : 'Clic pour jouer'}</div>
+                                        <div className="text-[10px] text-gray-500">
+                                            Clic pour jouer • Glisser pour placer
+                                        </div>
                                     </div>
-                                    {deleteConfirmId === sound.id ? (<Button size="sm" variant="destructive" className="h-6 px-2 text-[10px]" onClick={() => handleDeleteTemplate(sound.id)}>Suppr.</Button>) : (
-                                        <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400" onClick={() => setDeleteConfirmId(sound.id)}><Trash2 className="w-3 h-3" /></Button>
+
+                                    {/* Delete Button */}
+                                    {deleteConfirmId === sound.id ? (
+                                        <Button size="sm" variant="destructive" className="h-6 px-2 text-[10px]" onClick={() => handleDeleteTemplate(sound.id)}>
+                                            Suppr.
+                                        </Button>
+                                    ) : (
+                                        <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-6 w-6 opacity-0 group-hover:opacity-100 text-gray-600 hover:text-red-400"
+                                            onClick={() => setDeleteConfirmId(sound.id)}
+                                        >
+                                            <Trash2 className="w-3 h-3" />
+                                        </Button>
                                     )}
                                 </div>
                             )
