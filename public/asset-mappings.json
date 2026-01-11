@@ -22048,5 +22048,347 @@
     "type": "image",
     "size": 32020,
     "uploadedAt": "2026-01-07T16:43:58.259Z"
+  },
+  {
+    "name": "bark_diffuse.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/textures/bark_diffuse.png",
+    "localPath": "/textures/bark_diffuse.png",
+    "category": "textures",
+    "type": "image",
+    "size": 1283332,
+    "uploadedAt": "2026-01-11T09:09:35.150Z"
+  },
+  {
+    "name": "ice_diffuse.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/textures/ice_diffuse.png",
+    "localPath": "/textures/ice_diffuse.png",
+    "category": "textures",
+    "type": "image",
+    "size": 1036388,
+    "uploadedAt": "2026-01-11T09:09:36.215Z"
+  },
+  {
+    "name": "lava_diffuse.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/textures/lava_diffuse.png",
+    "localPath": "/textures/lava_diffuse.png",
+    "category": "textures",
+    "type": "image",
+    "size": 1033587,
+    "uploadedAt": "2026-01-11T09:09:37.149Z"
+  },
+  {
+    "name": "leather_diffuse.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/textures/leather_diffuse.png",
+    "localPath": "/textures/leather_diffuse.png",
+    "category": "textures",
+    "type": "image",
+    "size": 1152000,
+    "uploadedAt": "2026-01-11T09:09:38.360Z"
+  },
+  {
+    "name": "marble_diffuse.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/textures/marble_diffuse.png",
+    "localPath": "/textures/marble_diffuse.png",
+    "category": "textures",
+    "type": "image",
+    "size": 480608,
+    "uploadedAt": "2026-01-11T09:09:38.975Z"
+  },
+  {
+    "name": "parchment_diffuse.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/textures/parchment_diffuse.png",
+    "localPath": "/textures/parchment_diffuse.png",
+    "category": "textures",
+    "type": "image",
+    "size": 894722,
+    "uploadedAt": "2026-01-11T09:09:39.795Z"
+  },
+  {
+    "name": "rust_diffuse.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/textures/rust_diffuse.png",
+    "localPath": "/textures/rust_diffuse.png",
+    "category": "textures",
+    "type": "image",
+    "size": 1306227,
+    "uploadedAt": "2026-01-11T09:09:40.876Z"
+  },
+  {
+    "name": "stone_diffuse.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/textures/stone_diffuse.png",
+    "localPath": "/textures/stone_diffuse.png",
+    "category": "textures",
+    "type": "image",
+    "size": 1237296,
+    "uploadedAt": "2026-01-11T09:09:41.762Z"
+  },
+  {
+    "name": "wood_diffuse.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/textures/wood_diffuse.png",
+    "localPath": "/textures/wood_diffuse.png",
+    "category": "textures",
+    "type": "image",
+    "size": 864780,
+    "uploadedAt": "2026-01-11T09:09:42.470Z"
+  },
+  {
+    "name": "amethyst.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/amethyst.png",
+    "localPath": "/dice-previews/amethyst.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 134261,
+    "uploadedAt": "2026-01-11T09:09:43.174Z"
+  },
+  {
+    "name": "ancient_bone.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/ancient_bone.png",
+    "localPath": "/dice-previews/ancient_bone.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 78896,
+    "uploadedAt": "2026-01-11T09:09:43.810Z"
+  },
+  {
+    "name": "blood_pact.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/blood_pact.png",
+    "localPath": "/dice-previews/blood_pact.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 126080,
+    "uploadedAt": "2026-01-11T09:09:44.405Z"
+  },
+  {
+    "name": "bois_noble.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/bois_noble.png",
+    "localPath": "/dice-previews/bois_noble.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 189485,
+    "uploadedAt": "2026-01-11T09:09:45.242Z"
+  },
+  {
+    "name": "celestial_starlight.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/celestial_starlight.png",
+    "localPath": "/dice-previews/celestial_starlight.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 133219,
+    "uploadedAt": "2026-01-11T09:09:45.936Z"
+  },
+  {
+    "name": "crystal.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/crystal.png",
+    "localPath": "/dice-previews/crystal.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 120781,
+    "uploadedAt": "2026-01-11T09:09:46.558Z"
+  },
+  {
+    "name": "cuir_ancien.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/cuir_ancien.png",
+    "localPath": "/dice-previews/cuir_ancien.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 191669,
+    "uploadedAt": "2026-01-11T09:09:47.370Z"
+  },
+  {
+    "name": "cyber_neon.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/cyber_neon.png",
+    "localPath": "/dice-previews/cyber_neon.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 124371,
+    "uploadedAt": "2026-01-11T09:09:48.191Z"
+  },
+  {
+    "name": "dragon_scale.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/dragon_scale.png",
+    "localPath": "/dice-previews/dragon_scale.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 107208,
+    "uploadedAt": "2026-01-11T09:09:48.778Z"
+  },
+  {
+    "name": "ecorce_ancienne.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/ecorce_ancienne.png",
+    "localPath": "/dice-previews/ecorce_ancienne.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 231595,
+    "uploadedAt": "2026-01-11T09:09:49.628Z"
+  },
+  {
+    "name": "fer_rouille.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/fer_rouille.png",
+    "localPath": "/dice-previews/fer_rouille.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 243839,
+    "uploadedAt": "2026-01-11T09:09:50.279Z"
+  },
+  {
+    "name": "frost.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/frost.png",
+    "localPath": "/dice-previews/frost.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 118652,
+    "uploadedAt": "2026-01-11T09:09:51.134Z"
+  },
+  {
+    "name": "galactic_nebula.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/galactic_nebula.png",
+    "localPath": "/dice-previews/galactic_nebula.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 130819,
+    "uploadedAt": "2026-01-11T09:09:51.882Z"
+  },
+  {
+    "name": "glace_eternelle.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/glace_eternelle.png",
+    "localPath": "/dice-previews/glace_eternelle.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 180699,
+    "uploadedAt": "2026-01-11T09:09:52.590Z"
+  },
+  {
+    "name": "gold.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/gold.png",
+    "localPath": "/dice-previews/gold.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 124283,
+    "uploadedAt": "2026-01-11T09:09:53.311Z"
+  },
+  {
+    "name": "inferno.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/inferno.png",
+    "localPath": "/dice-previews/inferno.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 102656,
+    "uploadedAt": "2026-01-11T09:09:53.854Z"
+  },
+  {
+    "name": "jade.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/jade.png",
+    "localPath": "/dice-previews/jade.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 119215,
+    "uploadedAt": "2026-01-11T09:09:54.470Z"
+  },
+  {
+    "name": "marbre_blanc.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/marbre_blanc.png",
+    "localPath": "/dice-previews/marbre_blanc.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 124739,
+    "uploadedAt": "2026-01-11T09:09:55.140Z"
+  },
+  {
+    "name": "moonstone.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/moonstone.png",
+    "localPath": "/dice-previews/moonstone.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 107849,
+    "uploadedAt": "2026-01-11T09:09:55.769Z"
+  },
+  {
+    "name": "obsidian.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/obsidian.png",
+    "localPath": "/dice-previews/obsidian.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 101187,
+    "uploadedAt": "2026-01-11T09:09:56.249Z"
+  },
+  {
+    "name": "parchemin_ancien.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/parchemin_ancien.png",
+    "localPath": "/dice-previews/parchemin_ancien.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 173420,
+    "uploadedAt": "2026-01-11T09:09:56.864Z"
+  },
+  {
+    "name": "pierre_donjon.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/pierre_donjon.png",
+    "localPath": "/dice-previews/pierre_donjon.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 213436,
+    "uploadedAt": "2026-01-11T09:09:57.645Z"
+  },
+  {
+    "name": "roche_volcanique.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/roche_volcanique.png",
+    "localPath": "/dice-previews/roche_volcanique.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 204355,
+    "uploadedAt": "2026-01-11T09:09:58.431Z"
+  },
+  {
+    "name": "royal_marble.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/royal_marble.png",
+    "localPath": "/dice-previews/royal_marble.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 79818,
+    "uploadedAt": "2026-01-11T09:09:59.152Z"
+  },
+  {
+    "name": "ruby.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/ruby.png",
+    "localPath": "/dice-previews/ruby.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 130197,
+    "uploadedAt": "2026-01-11T09:09:59.971Z"
+  },
+  {
+    "name": "sapphire.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/sapphire.png",
+    "localPath": "/dice-previews/sapphire.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 131702,
+    "uploadedAt": "2026-01-11T09:10:00.786Z"
+  },
+  {
+    "name": "silver.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/silver.png",
+    "localPath": "/dice-previews/silver.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 126537,
+    "uploadedAt": "2026-01-11T09:10:01.383Z"
+  },
+  {
+    "name": "steampunk_copper.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/steampunk_copper.png",
+    "localPath": "/dice-previews/steampunk_copper.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 130205,
+    "uploadedAt": "2026-01-11T09:10:02.218Z"
+  },
+  {
+    "name": "void_walker.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice-previews/void_walker.png",
+    "localPath": "/dice-previews/void_walker.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 117558,
+    "uploadedAt": "2026-01-11T09:10:02.656Z"
   }
 ]
