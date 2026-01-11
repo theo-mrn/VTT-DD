@@ -56,7 +56,7 @@ export const useFogManager = ({
     const saveFogGrid = async (newGrid: Map<string, boolean>) => {
         if (!roomId) return;
         const targetCityId = selectedCityId;
-        const fogDocId = targetCityId ? `fog_${targetCityId} ` : 'fogData';
+        const fogDocId = targetCityId ? `fog_${targetCityId}` : 'fogData';
         const gridObj = Object.fromEntries(newGrid);
         try {
             const fogRef = doc(db, 'cartes', roomId, 'fog', fogDocId);
@@ -71,7 +71,7 @@ export const useFogManager = ({
 
     const saveFullMapFog = async (status: boolean) => {
         if (!roomId) return;
-        const fogDocId = selectedCityId ? `fog_${selectedCityId} ` : 'fogData';
+        const fogDocId = selectedCityId ? `fog_${selectedCityId}` : 'fogData';
         await setDoc(doc(db, 'cartes', roomId, 'fog', fogDocId), {
             fullMapFog: status
         }, { merge: true });
