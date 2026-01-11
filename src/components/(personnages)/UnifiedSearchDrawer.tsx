@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { Search, X, Volume2, Package, Users, Loader2, GripVertical, Play, Pause } from 'lucide-react'
 import { collection, onSnapshot, query } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -13,6 +13,7 @@ import { type ObjectTemplate } from '@/app/[roomid]/map/types'
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 import { SUGGESTED_SOUNDS } from '@/lib/suggested-sounds'
 import { SUGGESTED_OBJECTS } from '@/lib/suggested-objects'
+import { advancedSearch, type SearchResult } from '@/lib/advanced-search'
 
 interface SoundTemplate {
     id: string
@@ -53,6 +54,7 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
 
     // UI states
     const [searchQuery, setSearchQuery] = useState('')
+    const [debouncedQuery, setDebouncedQuery] = useState('')
     const [selectedFilter, setSelectedFilter] = useState<'all' | 'sound' | 'object' | 'npc'>('all')
     const [loading, setLoading] = useState(true)
 
@@ -100,95 +102,109 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
         return () => unsubscribe()
     }, [roomId, isOpen])
 
-    // Unify all items with search and filter
-    const unifiedItems: UnifiedItem[] = React.useMemo(() => {
-        const items: UnifiedItem[] = []
+    // Debounce search query for better performance
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedQuery(searchQuery)
+        }, 300) // 300ms debounce
 
-        // Add created sounds
+        return () => clearTimeout(timer)
+    }, [searchQuery])
+
+    // Unify all items with advanced search and filter
+    const unifiedItems: UnifiedItem[] = useMemo(() => {
+        const allItems: UnifiedItem[] = []
+
+        // Collect all items based on filter
         if (selectedFilter === 'all' || selectedFilter === 'sound') {
+            // Add created sounds
             sounds.forEach(sound => {
-                if (sound.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-                    items.push({
-                        id: `created-sound-${sound.id}`,
-                        name: sound.name,
-                        type: 'sound',
-                        data: sound,
-                        source: 'created'
-                    })
-                }
+                allItems.push({
+                    id: `created-sound-${sound.id}`,
+                    name: sound.name,
+                    type: 'sound',
+                    data: sound,
+                    source: 'created'
+                })
             })
 
             // Add library sounds
             SUGGESTED_SOUNDS.forEach((sound, index) => {
-                if (sound.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-                    items.push({
-                        id: `library-sound-${index}`,
+                allItems.push({
+                    id: `library-sound-${index}`,
+                    name: sound.name,
+                    type: 'sound',
+                    data: {
+                        id: `lib-${index}`,
                         name: sound.name,
-                        type: 'sound',
-                        data: {
-                            id: `lib-${index}`,
-                            name: sound.name,
-                            soundUrl: sound.path,
-                            type: 'file' as const
-                        },
-                        source: 'library'
-                    })
-                }
+                        soundUrl: sound.path,
+                        type: 'file' as const
+                    },
+                    source: 'library'
+                })
             })
         }
 
-        // Add created objects
         if (selectedFilter === 'all' || selectedFilter === 'object') {
+            // Add created objects
             objects.forEach(obj => {
-                if (obj.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-                    items.push({
-                        id: `created-obj-${obj.id}`,
-                        name: obj.name,
-                        type: 'object',
-                        data: obj,
-                        imageUrl: obj.imageUrl,
-                        source: 'created'
-                    })
-                }
+                allItems.push({
+                    id: `created-obj-${obj.id}`,
+                    name: obj.name,
+                    type: 'object',
+                    data: obj,
+                    imageUrl: obj.imageUrl,
+                    source: 'created'
+                })
             })
 
             // Add library objects
             SUGGESTED_OBJECTS.forEach((obj, index) => {
-                if (obj.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-                    items.push({
-                        id: `library-obj-${index}`,
+                allItems.push({
+                    id: `library-obj-${index}`,
+                    name: obj.name,
+                    type: 'object',
+                    data: {
+                        id: `lib-${index}`,
                         name: obj.name,
-                        type: 'object',
-                        data: {
-                            id: `lib-${index}`,
-                            name: obj.name,
-                            imageUrl: obj.path
-                        },
-                        imageUrl: obj.path,
-                        source: 'library'
-                    })
-                }
+                        imageUrl: obj.path
+                    },
+                    imageUrl: obj.path,
+                    source: 'library'
+                })
             })
         }
 
-        // Add NPCs (only created, no library)
         if (selectedFilter === 'all' || selectedFilter === 'npc') {
+            // Add NPCs (only created, no library)
             npcs.forEach(npc => {
-                if (npc.Nomperso.toLowerCase().includes(searchQuery.toLowerCase())) {
-                    items.push({
-                        id: `created-npc-${npc.id}`,
-                        name: npc.Nomperso,
-                        type: 'npc',
-                        data: npc,
-                        imageUrl: npc.imageURL2,
-                        source: 'created'
-                    })
-                }
+                allItems.push({
+                    id: `created-npc-${npc.id}`,
+                    name: npc.Nomperso,
+                    type: 'npc',
+                    data: npc,
+                    imageUrl: npc.imageURL2,
+                    source: 'created'
+                })
             })
         }
 
-        return items
-    }, [sounds, objects, npcs, searchQuery, selectedFilter])
+        // If no search query, return all items
+        if (!debouncedQuery.trim()) {
+            return allItems
+        }
+
+        // Apply advanced search
+        const searchResults = advancedSearch(allItems, debouncedQuery, {
+            keys: ['name'],
+            threshold: 0.4,
+            useSemanticSearch: true,
+            includeScore: true
+        })
+
+        // Return items sorted by relevance
+        return searchResults.map(result => result.item)
+    }, [sounds, objects, npcs, debouncedQuery, selectedFilter])
 
     // Audio preview handler
     const handleSoundPreview = (e: React.MouseEvent, item: UnifiedItem) => {
