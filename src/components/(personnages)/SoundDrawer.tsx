@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Volume2, Search, X, Plus, Trash2, Library, Music, Play, Pause, MapPin, Youtube, FileAudio, ListMusic, GripVertical, Check, StopCircle, PlayCircle, Filter, SkipBack, SkipForward, Activity } from 'lucide-react'
+import { Volume2, Search, X, Plus, Trash2, Library, Music, Play, Pause, MapPin, Youtube, FileAudio, ListMusic, GripVertical, Check, StopCircle, PlayCircle, Filter, SkipBack, SkipForward, Repeat, Shuffle } from 'lucide-react'
 import { collection, onSnapshot, query, addDoc, deleteDoc, doc, setDoc, doc as firestoreDoc } from 'firebase/firestore'
 import { db, realtimeDb, dbRef, update, onValue, set } from '@/lib/firebase'
 import { Input } from '@/components/ui/input'
@@ -19,17 +19,12 @@ interface SoundTemplate {
     name: string
     soundUrl: string
     type: 'file' | 'youtube'
+    category?: 'music' | 'sound'
     duration?: number
     createdAt?: Date
 }
 
-interface PlaylistTrack {
-    id: string
-    templateId: string // Link to original template
-    name: string
-    soundUrl: string
-    type: 'file' | 'youtube'
-}
+
 
 interface MusicState {
     videoId: string | null;
@@ -54,7 +49,6 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
     }, [isOpen, setDialogOpen]);
     // --- Data States ---
     const [templates, setTemplates] = useState<SoundTemplate[]>([])
-    const [playlist, setPlaylist] = useState<PlaylistTrack[]>([])
 
     // --- UI States ---
     const [activeTab, setActiveTab] = useState<'sounds' | 'music'>('sounds') // Changed from 3 tabs to 2
@@ -104,15 +98,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
         return () => unsubscribe()
     }, [roomId, isOpen])
 
-    // 2. Load Playlist (For Music Tab)
-    useEffect(() => {
-        if (!roomId || activeTab !== 'music') return
-        const unsubscribe = onValue(dbRef(realtimeDb, `rooms/${roomId}/playlist`), (snapshot) => {
-            const data = snapshot.val()
-            setPlaylist(Array.isArray(data) ? data : [])
-        })
-        return () => unsubscribe()
-    }, [roomId, activeTab])
+
 
     // 3. Listeners for Playback Status
     useEffect(() => {
@@ -138,6 +124,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
             // Play Sound if new timestamp and we have a URL and it is a file
             if (newSoundUrl && newTimestamp > lastPlayedTimestamp.current && data?.type === 'file') {
                 lastPlayedTimestamp.current = newTimestamp
+                const currentSoundId = data.soundId
 
                 // Stop previous if exists (optional, maybe we want overlap for attacks? let's stop for now to be clean)
                 // actually for attacks often we want overlap, but for "quick sound" mode it seems like a player
@@ -146,10 +133,12 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                 audio.volume = 0.5 // Default volume
                 audio.play().catch(e => console.error("Error auto-playing sound:", e))
 
-                // Stop after 5 seconds max
+                // Stop after 5 seconds max and reset the playing state
                 setTimeout(() => {
                     audio.pause()
                     audio.currentTime = 0
+                    // Only clear the playing state if this is still the current sound
+                    setGlobalPlayingId(prev => prev === currentSoundId ? null : prev)
                 }, 5000)
             }
         })
@@ -202,6 +191,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
             name: sound.name,
             soundUrl: sound.path,
             type: 'file',
+            category: activeTab === 'music' ? 'music' : 'sound',
             createdAt: new Date()
         })
 
@@ -236,19 +226,12 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                 name: newSoundName,
                 soundUrl,
                 type: creationType,
+                category: activeTab === 'music' ? 'music' : 'sound',
                 createdAt: new Date()
             })
 
-            // If in Music tab, add directly to playlist
-            if (activeTab === 'music') {
-                const newTemplate: SoundTemplate = {
-                    id: docRef.id,
-                    name: newSoundName,
-                    soundUrl,
-                    type: creationType
-                }
-                addToMusicPlaylist(newTemplate)
-            }
+            // If in Music tab, play it directly if nothing is playing? Or just let it appear in list.
+            // Simplified: just add to list (already done via real-time listener)
 
             setNewSoundName('')
             setNewSoundFile(null)
@@ -315,13 +298,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
         }
     }
 
-    const addToMusicPlaylist = async (sound: SoundTemplate) => {
-        const newTrack: PlaylistTrack = { id: `${Date.now()}`, templateId: sound.id, name: sound.name, soundUrl: sound.soundUrl, type: sound.type }
-        await set(dbRef(realtimeDb, `rooms/${roomId}/playlist`), [...playlist, newTrack])
-        if (!musicState.isPlaying && playlist.length === 0) playMusicTrack(sound)
-    }
-
-    const playMusicTrack = async (sound: SoundTemplate | PlaylistTrack) => {
+    const playMusicTrack = async (sound: SoundTemplate) => {
         if (musicState.videoId === sound.soundUrl) {
             await update(dbRef(realtimeDb, `rooms/${roomId}/music`), { isPlaying: !musicState.isPlaying, lastUpdate: Date.now() })
         } else {
@@ -329,29 +306,25 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
         }
     }
 
-    const removeFromPlaylist = async (trackId: string) => {
-        const newPlaylist = playlist.filter(t => t.id !== trackId)
-        await set(dbRef(realtimeDb, `rooms/${roomId}/playlist`), newPlaylist)
+    const playNext = () => {
+        // Need to recalculate musicResults here or memoize it outside render
+        const searchFiltered = templates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        const musicResults = searchFiltered.filter(t => t.category === 'music')
+
+        if (!musicState.videoId || musicResults.length === 0) return
+        const currentIndex = musicResults.findIndex(t => t.soundUrl === musicState.videoId)
+        const nextIndex = (currentIndex + 1) % musicResults.length
+        playMusicTrack(musicResults[nextIndex])
     }
 
-    const handleNextTrack = () => {
-        if (!musicState.videoId || playlist.length === 0) return
-        const currentIndex = playlist.findIndex(t => t.soundUrl === musicState.videoId)
-        if (currentIndex === -1 || currentIndex === playlist.length - 1) {
-            if (playlist.length > 0) playMusicTrack(playlist[0])
-        } else {
-            playMusicTrack(playlist[currentIndex + 1])
-        }
-    }
+    const playPrevious = () => {
+        const searchFiltered = templates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
+        const musicResults = searchFiltered.filter(t => t.category === 'music')
 
-    const handlePrevTrack = () => {
-        if (!musicState.videoId || playlist.length === 0) return
-        const currentIndex = playlist.findIndex(t => t.soundUrl === musicState.videoId)
-        if (currentIndex > 0) {
-            playMusicTrack(playlist[currentIndex - 1])
-        } else if (playlist.length > 0) {
-            playMusicTrack(playlist[playlist.length - 1])
-        }
+        if (!musicState.videoId || musicResults.length === 0) return
+        const currentIndex = musicResults.findIndex(t => t.soundUrl === musicState.videoId)
+        const prevIndex = (currentIndex - 1 + musicResults.length) % musicResults.length
+        playMusicTrack(musicResults[prevIndex])
     }
 
     // --- Handlers --- (Adding drag start)
@@ -361,8 +334,13 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
         onDragStart(sound)
     }
 
-    // --- Render Helpers ---
-    const filteredTemplates = templates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    // --- Render Helpers ---.
+    // Filter by search query first
+    const searchFiltered = templates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
+
+    // Then split by category
+    const soundResults = searchFiltered.filter(t => t.category !== 'music') // Default to sound if undefined
+    const musicResults = searchFiltered.filter(t => t.category === 'music')
 
     const RenderIcon = ({ type }: { type: string }) => type === 'youtube'
         ? <Youtube className="w-4 h-4 text-red-500" />
@@ -388,13 +366,31 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                     {[
                         { id: 'sounds' as const, icon: Volume2, label: 'Effets Audio' },
                         { id: 'music' as const, icon: ListMusic, label: 'Musique' }
-                    ].map(tab => (
-                        <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                            className={`flex-1 px-2 py-3 text-xs font-medium transition-colors relative flex flex-col items-center gap-1 ${activeTab === tab.id ? 'text-[#c0a080] bg-[#252525]' : 'text-gray-400 hover:bg-[#1a1a1a]'}`}>
-                            <tab.icon className="w-4 h-4" /> <span>{tab.label}</span>
-                            {activeTab === tab.id && <div className="absolute bottom-0 w-full h-0.5 bg-[#c0a080]" />}
-                        </button>
-                    ))}
+                    ].map(tab => {
+                        // Check if there's active playback for this tab
+                        const hasActivePlayback = tab.id === 'sounds'
+                            ? (globalPlayingId !== null || playingLocalId !== null)
+                            : (musicState.isPlaying && musicState.videoId !== null)
+
+                        return (
+                            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                                className={`flex-1 px-2 py-3 text-xs font-medium transition-colors relative flex flex-col items-center gap-1 ${activeTab === tab.id ? 'text-[#c0a080] bg-[#252525]' : 'text-gray-400 hover:bg-[#1a1a1a]'}`}>
+                                <div className="relative">
+                                    <tab.icon className="w-4 h-4" />
+                                    {/* Playback Indicator */}
+                                    {hasActivePlayback && (
+                                        <div className={`absolute -top-1 -right-1 w-2 h-2 rounded-full animate-pulse ${tab.id === 'sounds' ? 'bg-green-500' : 'bg-[#c0a080]'
+                                            }`}>
+                                            <div className={`absolute inset-0 rounded-full animate-ping ${tab.id === 'sounds' ? 'bg-green-500' : 'bg-[#c0a080]'
+                                                }`} />
+                                        </div>
+                                    )}
+                                </div>
+                                <span>{tab.label}</span>
+                                {activeTab === tab.id && <div className="absolute bottom-0 w-full h-0.5 bg-[#c0a080]" />}
+                            </button>
+                        )
+                    })}
                 </div>
 
                 {/* ADD GLOBAL BUTTON */}
@@ -468,7 +464,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                         {activeTab === 'music' && (
                             <p className="text-xs text-gray-400 flex items-center gap-2">
                                 <ListMusic className="w-3 h-3 text-[#c0a080]" />
-                                <span>Gérez la playlist de fond pour l'ambiance de la session</span>
+                                <span>Gérez la musique pour l'ambiance de la session</span>
                             </p>
                         )}
                     </div>
@@ -477,51 +473,97 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                 {/* CONTENT AREA */}
                 <ScrollArea className="flex-1 bg-[#121212]">
                     <div className="p-2 space-y-1">
+                        {/* MUSIC LIBRARY SECTION */}
                         {activeTab === 'music' && (
                             <div className="space-y-4">
-                                {/* Playlist Header */}
-                                {playlist.length > 0 ? (
-                                    <div className="mb-2">
-                                        <div className="flex items-center justify-between px-2 py-2 bg-[#1a1a1a] rounded-lg border border-[#333]">
-                                            <div className="flex items-center gap-2">
-                                                <ListMusic className="w-3.5 h-3.5 text-[#c0a080]" />
-                                                <span className="text-xs font-semibold text-gray-300">Playlist en cours</span>
-                                            </div>
-                                            <span className="text-[10px] text-gray-500">{playlist.length} track{playlist.length !== 1 ? 's' : ''}</span>
+                                <div className="mb-2">
+                                    <div className="flex items-center justify-between px-2 py-2 bg-[#1a1a1a] rounded-lg border border-[#333]">
+                                        <div className="flex items-center gap-2">
+                                            <Library className="w-3.5 h-3.5 text-[#c0a080]" />
+                                            <span className="text-xs font-semibold text-gray-300">Mes Musiques</span>
                                         </div>
+                                        <span className="text-[10px] text-gray-500">{musicResults.length} titre{musicResults.length !== 1 ? 's' : ''}</span>
+                                    </div>
+                                </div>
+
+                                {musicResults.length === 0 ? (
+                                    <div className="text-center py-8 text-gray-500 text-xs">
+                                        <p>Aucune musique importée.</p>
+                                        <p className="mt-1">Utilisez le bouton "+" pour ajouter des titres.</p>
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col items-center justify-center py-10 text-center space-y-3">
-                                        <ListMusic className="w-12 h-12 text-gray-600 mb-2" />
-                                        <div className="space-y-1">
-                                            <p className="text-sm font-medium text-gray-300">La playlist est vide</p>
-                                            <p className="text-xs text-gray-500 max-w-[200px] mx-auto">Ajoutez des musiques depuis vos fichiers ou YouTube pour créer une ambiance.</p>
-                                        </div>
-                                        <Button onClick={() => setShowCreateForm(true)} size="sm" variant="outline" className="border-[#333] hover:bg-[#252525] text-gray-300 mt-2">
-                                            <Plus className="w-3 h-3 mr-2" /> Ajouter une piste
-                                        </Button>
-                                    </div>
-                                )}
+                                    <div className="space-y-1">
+                                        {musicResults.map(sound => {
+                                            const isCurrentTrack = musicState.videoId === sound.soundUrl
+                                            const isPlaying = isCurrentTrack && musicState.isPlaying
 
-                                {/* Playlist */}
-                                {playlist.length > 0 && (
-                                    <div className="space-y-1 mb-4">
-                                        {playlist.map(track => (
-                                            <div key={track.id} className={`flex items-center gap-2 p-2 rounded bg-[#1f1f1f] border ${musicState.videoId === track.soundUrl ? 'border-[#c0a080] text-[#c0a080]' : 'border-[#333] text-gray-300'}`}>
-                                                <button onClick={() => playMusicTrack(track)} className="hover:text-white">
-                                                    {musicState.videoId === track.soundUrl && musicState.isPlaying ? <Pause className="w-3 h-3" /> : <Play className="w-3 h-3" />}
-                                                </button>
-                                                <div className="flex-1 truncate text-xs">{track.name}</div>
-                                                <button onClick={() => removeFromPlaylist(track.id)} className="text-gray-500 hover:text-red-400"><Trash2 className="w-3 h-3" /></button>
-                                            </div>
-                                        ))}
+                                            return (
+                                                <div
+                                                    key={sound.id}
+                                                    onClick={() => playMusicTrack(sound)}
+                                                    className={`flex items-center gap-2 p-2 rounded border transition-all cursor-pointer group ${isCurrentTrack
+                                                        ? 'bg-[#c0a080]/10 border-[#c0a080]/30'
+                                                        : 'bg-[#1e1e1e] border-[#333] hover:border-[#555]'
+                                                        }`}
+                                                >
+                                                    {/* Play/Pause Button */}
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation()
+                                                            playMusicTrack(sound)
+                                                        }}
+                                                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all flex-shrink-0 ${isPlaying
+                                                            ? 'bg-[#c0a080] text-black animate-pulse'
+                                                            : 'bg-[#252525] text-gray-400 hover:bg-[#c0a080] hover:text-black'
+                                                            }`}
+                                                    >
+                                                        {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                                                    </button>
+
+                                                    <RenderIcon type={sound.type} />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className={`text-xs font-medium truncate ${isCurrentTrack ? 'text-[#c0a080]' : 'text-gray-200'}`}>
+                                                            {sound.name}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        {deleteConfirmId === sound.id ? (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="destructive"
+                                                                className="h-6 px-1.5 text-[9px]"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    handleDeleteTemplate(sound.id)
+                                                                }}
+                                                            >
+                                                                Sûr?
+                                                            </Button>
+                                                        ) : (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-6 w-6 text-gray-600 hover:text-red-400"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    setDeleteConfirmId(sound.id)
+                                                                }}
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
                                     </div>
                                 )}
                             </div>
                         )}
 
                         {/* SOUNDS TAB - Hybrid click-to-play + drag-to-map */}
-                        {activeTab === 'sounds' && filteredTemplates.map(sound => {
+                        {activeTab === 'sounds' && soundResults.map(sound => {
                             // Check if sound is playing (global or local)
                             const isPlayingGlobal = isGlobalPlayback && globalPlayingId === sound.id
                             const isPlayingLocal = !isGlobalPlayback && playingLocalId === sound.id
@@ -585,6 +627,67 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                         })}
                     </div>
                 </ScrollArea>
+
+                {/* PREMIUM MUSIC PLAYER (Sticky Bottom) */}
+                {activeTab === 'music' && (musicResults.length > 0 || musicState.videoId) && (() => {
+                    // Find the current track in the music library to display its custom name
+                    const currentTrack = musicResults.find(t => t.soundUrl === musicState.videoId)
+                    const displayName = currentTrack?.name || musicState.videoTitle || 'Aucune lecture'
+
+                    return (
+                        <div className="bg-[#181818] border-t border-[#333] shadow-[0_-4px_20px_rgba(0,0,0,0.4)] z-10 flex flex-col shrink-0">
+                            {/* Progress Bar (Visual only for now) */}
+                            <div className="h-1 w-full bg-[#2a2a2a] cursor-pointer group relative">
+                                <div className="absolute top-0 left-0 h-full bg-[#c0a080] w-1/3 group-hover:bg-[#d4b494] transition-colors relative">
+                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-white rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity transform scale-150" />
+                                </div>
+                            </div>
+
+                            <div className="p-3 flex items-center justify-between gap-3">
+                                {/* Track Info */}
+                                <div className="flex items-center gap-3 overflow-hidden flex-1">
+                                    <div className="w-10 h-10 rounded bg-[#252525] flex items-center justify-center shrink-0 border border-[#333]">
+                                        <Music className="w-5 h-5 text-[#c0a080]" />
+                                    </div>
+                                    <div className="flex flex-col overflow-hidden">
+                                        <span className="text-sm font-semibold text-white truncate max-w-[120px]">
+                                            {displayName}
+                                        </span>
+                                        <span className="text-[10px] text-gray-500 truncate">
+                                            {musicState.isPlaying ? 'En lecture...' : 'En pause'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                {/* Controls */}
+                                <div className="flex items-center gap-2">
+                                    <button className="p-1.5 text-gray-400 hover:text-white transition-colors" title="Aléatoire">
+                                        <Shuffle className="w-3 h-3" />
+                                    </button>
+                                    <button onClick={playPrevious} className="p-1.5 text-gray-300 hover:text-white transition-colors hover:bg-[#333] rounded-full">
+                                        <SkipBack className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            if (musicState.videoId) {
+                                                update(dbRef(realtimeDb, `rooms/${roomId}/music`), { isPlaying: !musicState.isPlaying, lastUpdate: Date.now() })
+                                            }
+                                        }}
+                                        className="w-8 h-8 rounded-full bg-[#c0a080] text-black flex items-center justify-center hover:bg-[#d4b494] transition-transform active:scale-95 shadow-lg shadow-[#c0a080]/20"
+                                    >
+                                        {musicState.isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                                    </button>
+                                    <button onClick={playNext} className="p-1.5 text-gray-300 hover:text-white transition-colors hover:bg-[#333] rounded-full">
+                                        <SkipForward className="w-4 h-4" />
+                                    </button>
+                                    <button className="p-1.5 text-gray-400 hover:text-white transition-colors" title="Répéter">
+                                        <Repeat className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )
+                })()}
             </div>
 
             {/* --- CUSTOM LIBRARY MODAL (No Shadcn) --- */}
