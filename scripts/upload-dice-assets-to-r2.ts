@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 
 /**
- * Migration script: Upload existing assets from /public to Cloudflare R2
+ * Script pour uploader uniquement les assets de dés vers Cloudflare R2
  * 
  * Usage:
- *   npx tsx scripts/upload-assets-to-r2.ts [--dry-run] [--limit=N]
+ *   npx tsx scripts/upload-dice-assets-to-r2.ts [--dry-run]
  * 
  * Environment variables required:
  *   R2_ACCESS_KEY_ID - Your R2 access key ID
@@ -26,8 +26,6 @@ import { readFileSync, writeFileSync } from 'fs';
 // Parse command line arguments
 const args = process.argv.slice(2);
 const isDryRun = args.includes('--dry-run');
-const limitArg = args.find(arg => arg.startsWith('--limit='));
-const limit = limitArg ? parseInt(limitArg.split('=')[1]) : undefined;
 
 // Initialize R2 client
 const r2Client = new S3Client({
@@ -58,23 +56,13 @@ interface AssetMapping {
     uploadedAt: string;
 }
 
-const ASSET_DIRECTORIES = [
-    'Map',
-    'Cartes',
-    'Photos',
-    'Token',
-    'items',
-    'tabs',
-    'Assets',  // Character portraits
-    'images',  // Race and profile images
-    'Effect',  // Visual effects (Cone, Fireballs)
+// Uniquement les dossiers de dés
+const DICE_ASSET_DIRECTORIES = [
     'textures',  // Dice textures (marble, wood, leather, etc.)
     'dice-previews',  // Dice skin preview images
 ];
 
 const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
-const VIDEO_EXTENSIONS = ['.webm', '.mp4'];
-const JSON_EXTENSIONS = ['.json'];
 
 // Content type mapping
 const CONTENT_TYPES: Record<string, string> = {
@@ -83,9 +71,6 @@ const CONTENT_TYPES: Record<string, string> = {
     '.png': 'image/png',
     '.webp': 'image/webp',
     '.gif': 'image/gif',
-    '.webm': 'video/webm',
-    '.mp4': 'video/mp4',
-    '.json': 'application/json',
 };
 
 async function scanDirectory(dirPath: string, category: string): Promise<AssetFile[]> {
@@ -108,10 +93,6 @@ async function scanDirectory(dirPath: string, category: string): Promise<AssetFi
                 let type: 'image' | 'video' | 'json' | null = null;
                 if (IMAGE_EXTENSIONS.includes(ext)) {
                     type = 'image';
-                } else if (VIDEO_EXTENSIONS.includes(ext)) {
-                    type = 'video';
-                } else if (JSON_EXTENSIONS.includes(ext)) {
-                    type = 'json';
                 }
 
                 if (type) {
@@ -182,15 +163,11 @@ async function uploadAsset(asset: AssetFile): Promise<string | null> {
 }
 
 async function main() {
-    console.log('🚀 Cloudflare R2 Migration Script');
-    console.log('==================================\n');
+    console.log('🎲 Upload des Assets de Dés vers Cloudflare R2');
+    console.log('===============================================\n');
 
     if (isDryRun) {
         console.log('⚠️  DRY RUN MODE - No uploads will be performed\n');
-    }
-
-    if (limit) {
-        console.log(`📊 Limiting to ${limit} files\n`);
     }
 
     // Check for required environment variables
@@ -207,12 +184,12 @@ async function main() {
         }
     }
 
-    // Step 1: Scan all asset directories
-    console.log('📁 Scanning asset directories...\n');
+    // Step 1: Scan dice asset directories
+    console.log('📁 Scanning dice asset directories...\n');
     const publicDir = path.join(process.cwd(), 'public');
     let allAssets: AssetFile[] = [];
 
-    for (const dir of ASSET_DIRECTORIES) {
+    for (const dir of DICE_ASSET_DIRECTORIES) {
         const dirPath = path.join(publicDir, dir);
         try {
             await stat(dirPath);
@@ -229,19 +206,13 @@ async function main() {
 
     // Calculate total size
     const totalSize = allAssets.reduce((sum, asset) => sum + asset.size, 0);
-    const totalSizeGB = (totalSize / (1024 ** 3)).toFixed(2);
-    console.log(`📦 Total size: ${totalSizeGB} GB\n`);
-
-    // Apply limit if specified
-    if (limit && allAssets.length > limit) {
-        console.log(`⚠️  Limiting to first ${limit} files\n`);
-        allAssets = allAssets.slice(0, limit);
-    }
+    const totalSizeMB = (totalSize / (1024 ** 2)).toFixed(2);
+    console.log(`📦 Total size: ${totalSizeMB} MB\n`);
 
     if (isDryRun) {
-        console.log('\n📋 Sample files that would be uploaded:');
-        allAssets.slice(0, 10).forEach(asset => {
-            console.log(`  • ${asset.relativePath} (${(asset.size / 1024 / 1024).toFixed(2)} MB)`);
+        console.log('\n📋 Files that would be uploaded:');
+        allAssets.forEach(asset => {
+            console.log(`  • ${asset.relativePath} (${(asset.size / 1024).toFixed(2)} KB)`);
         });
         console.log('\n✅ Dry run complete!');
         return;
@@ -335,7 +306,7 @@ async function main() {
         console.log(`   Total in file: ${allMappings.length}`);
     }
 
-    console.log('\n🎉 Migration complete!');
+    console.log('\n🎉 Dice assets upload complete!');
 }
 
 // Run the script
