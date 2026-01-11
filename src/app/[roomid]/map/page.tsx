@@ -72,6 +72,7 @@ import ContextMenuPanel from '@/components/(overlays)/ContextMenuPanel';
 import ObjectContextMenu from '@/components/(overlays)/ObjectContextMenu';
 import LightContextMenu from '@/components/(overlays)/LightContextMenu';
 import MusicZoneContextMenu from '@/components/(overlays)/MusicZoneContextMenu';
+import { BulkCharacterContextMenu } from '@/components/(overlays)/BulkCharacterContextMenu';
 import { NPCTemplateDrawer } from '@/components/(personnages)/NPCTemplateDrawer';
 import { ObjectDrawer } from '@/components/(personnages)/ObjectDrawer';
 import { SoundDrawer } from '@/components/(personnages)/SoundDrawer';
@@ -543,6 +544,8 @@ export default function Component() {
   const [showSelectionMenu, setShowSelectionMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
 
+  // 🎯 BULK CHARACTER CONTEXT MENU STATE
+  const [bulkContextMenuOpen, setBulkContextMenuOpen] = useState(false);
 
 
 
@@ -899,6 +902,78 @@ export default function Component() {
   const updateMusicZonePosition = async (id: string, x: number, y: number) => {
     if (!roomId) return;
     await updateDoc(doc(db, 'cartes', roomId, 'musicZones', id), { x, y });
+  };
+
+  // 🎯 BULK CHARACTER OPERATIONS
+  const handleBulkVisibilityChange = async (visibility: 'visible' | 'hidden' | 'ally' | 'custom') => {
+    if (!roomId || selectedCharacters.length === 0) return;
+
+    // Update visibility for all selected characters
+    const updatePromises = selectedCharacters.map(index => {
+      const char = characters[index];
+      if (!char) return Promise.resolve();
+
+      const charRef = doc(db, 'cartes', roomId, 'characters', char.id);
+
+      // If switching to custom mode, initialize visibleToPlayerIds if not defined
+      if (visibility === 'custom') {
+        const currentPlayerIds = char.visibleToPlayerIds || [];
+        return updateDoc(charRef, {
+          visibility: visibility,
+          visibleToPlayerIds: currentPlayerIds
+        });
+      } else {
+        return updateDoc(charRef, { visibility: visibility });
+      }
+    });
+
+    await Promise.all(updatePromises);
+    console.log(`[BULK] Updated visibility to "${visibility}" for ${selectedCharacters.length} characters`);
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedCharacters.length === 0) return;
+
+    // Use the existing delete modal system
+    const charsToDelete = selectedCharacters
+      .map(index => characters[index])
+      .filter(c => c && c.type !== 'joueurs'); // Don't delete player characters
+
+    if (charsToDelete.length === 0) return;
+
+    setEntityToDelete({
+      type: 'character',
+      ids: charsToDelete.map(c => c.id),
+      count: charsToDelete.length
+    });
+    setDeleteModalOpen(true);
+  };
+
+  const handleBulkConditionToggle = async (conditionId: string) => {
+    if (!roomId || selectedCharacters.length === 0) return;
+
+    // Toggle condition for all selected characters
+    const updatePromises = selectedCharacters.map(index => {
+      const char = characters[index];
+      if (!char) return Promise.resolve();
+
+      const currentConditions = char.conditions || [];
+      let newConditions: string[];
+
+      if (currentConditions.includes(conditionId)) {
+        // Remove the condition
+        newConditions = currentConditions.filter(c => c !== conditionId);
+      } else {
+        // Add the condition
+        newConditions = [...currentConditions, conditionId];
+      }
+
+      const charRef = doc(db, 'cartes', roomId, 'characters', char.id);
+      return updateDoc(charRef, { conditions: newConditions });
+    });
+
+    await Promise.all(updatePromises);
+    console.log(`[BULK] Toggled condition "${conditionId}" for ${selectedCharacters.length} characters`);
   };
 
 
@@ -7474,6 +7549,26 @@ export default function Component() {
         </div>
       )}
 
+      {/* 🎯 BULK CHARACTER CONTEXT MENU */}
+      <BulkCharacterContextMenu
+        isOpen={bulkContextMenuOpen}
+        selectedCount={selectedCharacters.length}
+        onClose={() => {
+          setBulkContextMenuOpen(false);
+        }}
+        onVisibilityChange={async (visibility) => {
+          await handleBulkVisibilityChange(visibility);
+          setBulkContextMenuOpen(false);
+        }}
+        onConditionToggle={async (conditionId) => {
+          await handleBulkConditionToggle(conditionId);
+        }}
+        onDelete={() => {
+          handleBulkDelete();
+          setBulkContextMenuOpen(false);
+        }}
+      />
+
       {/* 🎯 Object Context Menu */}
       <ObjectContextMenu
         object={contextMenuObjectId ? objects.find(o => o.id === contextMenuObjectId) || null : null}
@@ -7635,6 +7730,15 @@ export default function Component() {
             });
 
             if (hoveredCharIndex !== -1) {
+              // 🎯 Check if the hovered character is part of a multi-selection
+              if (selectedCharacters.length > 1 && selectedCharacters.includes(hoveredCharIndex)) {
+                // Show bulk context menu for multi-selection
+                e.preventDefault();
+                e.stopPropagation();
+                setBulkContextMenuOpen(true);
+                return;
+              }
+
               // Cursor is over a character.
               // Prevent the Radial Menu (parent) from seeing this event.
               // The Character Context Menu mechanism (likely handleCanvasMouseDown right-click check) might handle it,
