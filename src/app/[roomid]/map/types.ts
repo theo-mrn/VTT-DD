@@ -187,3 +187,13 @@ export interface Scene {
     x?: number;
     y?: number;
 }
+
+export interface LightSource {
+    id: string;
+    x: number;
+    y: number;
+    name: string;
+    radius: number; // Visibility radius in meters/pixels
+    visible: boolean;
+    cityId?: string | null;
+}
