@@ -410,10 +410,10 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
                                     <button
                                         onClick={(e) => item.type === 'sound' ? handleSoundPreview(e, item) : undefined}
                                         className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 transition-all ${item.type === 'sound'
-                                                ? playingAudioId === item.id
-                                                    ? 'bg-[#c0a080] text-black cursor-pointer animate-pulse'
-                                                    : 'bg-[#252525] hover:bg-[#333] cursor-pointer'
-                                                : 'bg-[#252525]'
+                                            ? playingAudioId === item.id
+                                                ? 'bg-[#c0a080] text-black cursor-pointer animate-pulse'
+                                                : 'bg-[#252525] hover:bg-[#333] cursor-pointer'
+                                            : 'bg-[#252525]'
                                             }`}
                                         disabled={item.type !== 'sound'}
                                     >
@@ -431,23 +431,6 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
                                         <span className="text-sm font-medium text-gray-200 truncate group-hover:text-[#c0a080] transition-colors">
                                             {item.name}
                                         </span>
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <Badge
-                                            variant="outline"
-                                            className={`h-5 text-[10px] ${getItemBadgeColor(item.type)}`}
-                                        >
-                                            {getItemLabel(item.type)}
-                                        </Badge>
-                                        <Badge
-                                            variant="outline"
-                                            className={`h-5 text-[10px] ${item.source === 'library'
-                                                ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                                                : 'bg-green-500/20 text-green-400 border-green-500/30'
-                                                }`}
-                                        >
-                                            {item.source === 'library' ? 'Bibliothèque' : 'Créé'}
-                                        </Badge>
                                     </div>
                                 </div>
                             </div>

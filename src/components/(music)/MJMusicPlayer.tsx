@@ -5,13 +5,7 @@ import YouTube, { YouTubeProps, YouTubePlayer } from 'react-youtube';
 import { realtimeDb, dbRef, set, onValue, update } from '@/lib/firebase';
 import { useGame } from '@/contexts/GameContext';
 
-interface MusicTrack {
-  id: string;
-  videoId: string;
-  title: string;
-  thumbnail?: string;
-  addedAt: number;
-}
+
 
 interface MusicState {
   videoId: string | null;
@@ -42,12 +36,12 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
     updatedBy: ''
   });
 
-  const [playlist, setPlaylist] = useState<MusicTrack[]>([]);
+
 
   // Refs pour éviter les closures périmées dans les callbacks
   const playerRef = useRef<YouTubePlayer | null>(null);
   const musicStateRef = useRef<string>(`rooms/${roomId}/music`);
-  const playlistRef = useRef<string>(`rooms/${roomId}/playlist`);
+
 
   // Flags pour éviter les boucles de feedback
   const isSyncingFromFirebase = useRef(false);
@@ -129,15 +123,7 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
     return () => unsubscribe();
   }, [roomId]);
 
-  // Synchronisation Playlist (Lecture seule ici, pour mettre à jour les titres si besoin)
-  useEffect(() => {
-    const playlistDbRef = dbRef(realtimeDb, playlistRef.current);
-    const unsubscribe = onValue(playlistDbRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) setPlaylist(Array.isArray(data) ? data : []);
-    });
-    return () => unsubscribe();
-  }, [roomId]);
+
 
   // Synchronisation UP: Player -> Firebase (Timestamp périodique pour MJ seulement)
   useEffect(() => {
@@ -178,13 +164,7 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
           updateMusicState({ videoTitle: videoData.title });
         }
 
-        // Mettre à jour le titre dans la playlist aussi
-        const trackIndex = playlist.findIndex(t => t.videoId === musicState.videoId);
-        if (trackIndex !== -1 && (playlist[trackIndex].title === 'Chargement...' || !playlist[trackIndex].title)) {
-          const updatedPlaylist = [...playlist];
-          updatedPlaylist[trackIndex].title = videoData.title;
-          await set(dbRef(realtimeDb, playlistRef.current), updatedPlaylist);
-        }
+
       }
     } catch (e) { }
 
