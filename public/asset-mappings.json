@@ -22390,5 +22390,347 @@
     "type": "image",
     "size": 117558,
     "uploadedAt": "2026-01-11T09:10:02.656Z"
+  },
+  {
+    "name": "baignoire.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/baignoire.png",
+    "localPath": "/items/furniture/baignoire.png",
+    "category": "items/furniture",
+    "type": "image",
+    "size": 16595,
+    "uploadedAt": "2026-01-11T09:58:52.499Z"
+  },
+  {
+    "name": "bureau.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/bureau.png",
+    "localPath": "/items/furniture/bureau.png",
+    "category": "items/furniture",
+    "type": "image",
+    "size": 13722,
+    "uploadedAt": "2026-01-11T09:58:53.201Z"
+  },
+  {
+    "name": "caisse.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/containers/caisse.png",
+    "localPath": "/items/containers/caisse.png",
+    "category": "items/containers",
+    "type": "image",
+    "size": 34345,
+    "uploadedAt": "2026-01-11T09:58:53.951Z"
+  },
+  {
+    "name": "cercueil.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/dark/cercueil.png",
+    "localPath": "/items/dark/cercueil.png",
+    "category": "items/dark",
+    "type": "image",
+    "size": 26771,
+    "uploadedAt": "2026-01-11T09:58:54.636Z"
+  },
+  {
+    "name": "chaise1.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/chaise1.png",
+    "localPath": "/items/furniture/chaise1.png",
+    "category": "items/furniture",
+    "type": "image",
+    "size": 10167,
+    "uploadedAt": "2026-01-11T09:58:55.069Z"
+  },
+  {
+    "name": "chaise2.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/chaise2.png",
+    "localPath": "/items/furniture/chaise2.png",
+    "category": "items/furniture",
+    "type": "image",
+    "size": 16591,
+    "uploadedAt": "2026-01-11T09:58:55.527Z"
+  },
+  {
+    "name": "chaise3.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/chaise3.png",
+    "localPath": "/items/furniture/chaise3.png",
+    "category": "items/furniture",
+    "type": "image",
+    "size": 16002,
+    "uploadedAt": "2026-01-11T09:58:56.099Z"
+  },
+  {
+    "name": "chaise4.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/chaise4.png",
+    "localPath": "/items/furniture/chaise4.png",
+    "category": "items/furniture",
+    "type": "image",
+    "size": 10446,
+    "uploadedAt": "2026-01-11T09:58:56.820Z"
+  },
+  {
+    "name": "chariole.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/vehicles/chariole.png",
+    "localPath": "/items/vehicles/chariole.png",
+    "category": "items/vehicles",
+    "type": "image",
+    "size": 19813,
+    "uploadedAt": "2026-01-11T09:58:57.639Z"
+  },
+  {
+    "name": "chariole2.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/vehicles/chariole2.png",
+    "localPath": "/items/vehicles/chariole2.png",
+    "category": "items/vehicles",
+    "type": "image",
+    "size": 18915,
+    "uploadedAt": "2026-01-11T09:58:58.248Z"
+  },
+  {
+    "name": "chariole3.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/vehicles/chariole3.png",
+    "localPath": "/items/vehicles/chariole3.png",
+    "category": "items/vehicles",
+    "type": "image",
+    "size": 15778,
+    "uploadedAt": "2026-01-11T09:58:58.866Z"
+  },
+  {
+    "name": "coffre.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/containers/coffre.png",
+    "localPath": "/items/containers/coffre.png",
+    "category": "items/containers",
+    "type": "image",
+    "size": 25822,
+    "uploadedAt": "2026-01-11T09:58:59.363Z"
+  },
+  {
+    "name": "commodde.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/commodde.png",
+    "localPath": "/items/furniture/commodde.png",
+    "category": "items/furniture",
+    "type": "image",
+    "size": 14358,
+    "uploadedAt": "2026-01-11T09:58:59.990Z"
+  },
+  {
+    "name": "decoration.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/decoration.png",
+    "localPath": "/items/decorations/decoration.png",
+    "category": "items/decorations",
+    "type": "image",
+    "size": 21029,
+    "uploadedAt": "2026-01-11T09:59:00.535Z"
+  },
+  {
+    "name": "décoration.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/décoration.png",
+    "localPath": "/items/decorations/décoration.png",
+    "category": "items/decorations",
+    "type": "image",
+    "size": 16994,
+    "uploadedAt": "2026-01-11T09:59:01.205Z"
+  },
+  {
+    "name": "escalier1.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/stairs/escalier1.png",
+    "localPath": "/items/stairs/escalier1.png",
+    "category": "items/stairs",
+    "type": "image",
+    "size": 18159,
+    "uploadedAt": "2026-01-11T09:59:01.900Z"
+  },
+  {
+    "name": "escalier2.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/stairs/escalier2.png",
+    "localPath": "/items/stairs/escalier2.png",
+    "category": "items/stairs",
+    "type": "image",
+    "size": 29793,
+    "uploadedAt": "2026-01-11T09:59:02.451Z"
+  },
+  {
+    "name": "escalier3.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/stairs/escalier3.png",
+    "localPath": "/items/stairs/escalier3.png",
+    "category": "items/stairs",
+    "type": "image",
+    "size": 27514,
+    "uploadedAt": "2026-01-11T09:59:03.004Z"
+  },
+  {
+    "name": "feu1.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/fire/feu1.png",
+    "localPath": "/items/fire/feu1.png",
+    "category": "items/fire",
+    "type": "image",
+    "size": 48676,
+    "uploadedAt": "2026-01-11T09:59:03.679Z"
+  },
+  {
+    "name": "feu2.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/fire/feu2.png",
+    "localPath": "/items/fire/feu2.png",
+    "category": "items/fire",
+    "type": "image",
+    "size": 27387,
+    "uploadedAt": "2026-01-11T09:59:04.087Z"
+  },
+  {
+    "name": "foin.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/foin.png",
+    "localPath": "/items/decorations/foin.png",
+    "category": "items/decorations",
+    "type": "image",
+    "size": 18818,
+    "uploadedAt": "2026-01-11T09:59:04.606Z"
+  },
+  {
+    "name": "four.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/equipment/four.png",
+    "localPath": "/items/equipment/four.png",
+    "category": "items/equipment",
+    "type": "image",
+    "size": 30575,
+    "uploadedAt": "2026-01-11T09:59:05.315Z"
+  },
+  {
+    "name": "lit1.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/lit1.png",
+    "localPath": "/items/furniture/lit1.png",
+    "category": "items/furniture",
+    "type": "image",
+    "size": 26372,
+    "uploadedAt": "2026-01-11T09:59:05.899Z"
+  },
+  {
+    "name": "lit2.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/lit2.png",
+    "localPath": "/items/furniture/lit2.png",
+    "category": "items/furniture",
+    "type": "image",
+    "size": 25082,
+    "uploadedAt": "2026-01-11T09:59:06.748Z"
+  },
+  {
+    "name": "lit3.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/lit3.png",
+    "localPath": "/items/furniture/lit3.png",
+    "category": "items/furniture",
+    "type": "image",
+    "size": 27576,
+    "uploadedAt": "2026-01-11T09:59:07.509Z"
+  },
+  {
+    "name": "mirroir.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/mirroir.png",
+    "localPath": "/items/furniture/mirroir.png",
+    "category": "items/furniture",
+    "type": "image",
+    "size": 11522,
+    "uploadedAt": "2026-01-11T09:59:08.084Z"
+  },
+  {
+    "name": "orgue.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/orgue.png",
+    "localPath": "/items/furniture/orgue.png",
+    "category": "items/furniture",
+    "type": "image",
+    "size": 29340,
+    "uploadedAt": "2026-01-11T09:59:09.000Z"
+  },
+  {
+    "name": "ossement.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/dark/ossement.png",
+    "localPath": "/items/dark/ossement.png",
+    "category": "items/dark",
+    "type": "image",
+    "size": 40059,
+    "uploadedAt": "2026-01-11T09:59:09.442Z"
+  },
+  {
+    "name": "ossement2.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/dark/ossement2.png",
+    "localPath": "/items/dark/ossement2.png",
+    "category": "items/dark",
+    "type": "image",
+    "size": 27305,
+    "uploadedAt": "2026-01-11T09:59:09.999Z"
+  },
+  {
+    "name": "piano.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/piano.png",
+    "localPath": "/items/furniture/piano.png",
+    "category": "items/furniture",
+    "type": "image",
+    "size": 16992,
+    "uploadedAt": "2026-01-11T09:59:10.604Z"
+  },
+  {
+    "name": "sample (1).png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/misc/sample (1).png",
+    "localPath": "/items/misc/sample (1).png",
+    "category": "items/misc",
+    "type": "image",
+    "size": 9120,
+    "uploadedAt": "2026-01-11T09:59:11.359Z"
+  },
+  {
+    "name": "sample.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/misc/sample.png",
+    "localPath": "/items/misc/sample.png",
+    "category": "items/misc",
+    "type": "image",
+    "size": 7939,
+    "uploadedAt": "2026-01-11T09:59:11.877Z"
+  },
+  {
+    "name": "shop.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/equipment/shop.png",
+    "localPath": "/items/equipment/shop.png",
+    "category": "items/equipment",
+    "type": "image",
+    "size": 38844,
+    "uploadedAt": "2026-01-11T09:59:12.585Z"
+  },
+  {
+    "name": "table1.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/table1.png",
+    "localPath": "/items/furniture/table1.png",
+    "category": "items/furniture",
+    "type": "image",
+    "size": 42466,
+    "uploadedAt": "2026-01-11T09:59:13.039Z"
+  },
+  {
+    "name": "table2.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/furniture/table2.png",
+    "localPath": "/items/furniture/table2.png",
+    "category": "items/furniture",
+    "type": "image",
+    "size": 27219,
+    "uploadedAt": "2026-01-11T09:59:13.534Z"
+  },
+  {
+    "name": "tapis.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/decorations/tapis.png",
+    "localPath": "/items/decorations/tapis.png",
+    "category": "items/decorations",
+    "type": "image",
+    "size": 34037,
+    "uploadedAt": "2026-01-11T09:59:14.008Z"
+  },
+  {
+    "name": "thumb (6).png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/misc/thumb (6).png",
+    "localPath": "/items/misc/thumb (6).png",
+    "category": "items/misc",
+    "type": "image",
+    "size": 16791,
+    "uploadedAt": "2026-01-11T09:59:14.739Z"
+  },
+  {
+    "name": "toneau.png",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/items/containers/toneau.png",
+    "localPath": "/items/containers/toneau.png",
+    "category": "items/containers",
+    "type": "image",
+    "size": 16348,
+    "uploadedAt": "2026-01-11T09:59:15.174Z"
   }
 ]

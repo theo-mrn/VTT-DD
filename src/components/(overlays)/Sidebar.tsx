@@ -3,6 +3,7 @@
 import { Swords, FileText, Edit, Dice5, ImagePlay, UsersRound } from "lucide-react";
 import { useGame } from "@/contexts/GameContext";
 import SearchMenu from "./SearchMenu";
+import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
 
 type SidebarProps = {
   activeTab: string;
@@ -10,8 +11,15 @@ type SidebarProps = {
   isMJ: boolean;
 };
 
+
 export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarProps) {
   const { isHydrated } = useGame();
+  const { isDialogOpen } = useDialogVisibility();
+
+  // Hide sidebar when dialog is open
+  if (isDialogOpen) {
+    return null;
+  }
 
   return (
     <>

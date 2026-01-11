@@ -12,6 +12,7 @@ import { auth, db, doc, getDoc, onAuthStateChanged, collection, getDocs, setDoc,
 import { SUGGESTED_SOUNDS, SOUND_CATEGORIES } from '@/lib/suggested-sounds'
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 
 // --- Interfaces ---
 
@@ -138,6 +139,14 @@ const LoadingSpinner = () => (
 )
 
 export default function CombatPage({ attackerId, targetId, targetIds, onClose }: CombatPageProps) {
+  const { setDialogOpen } = useDialogVisibility();
+
+  // Register that this combat dialog is open
+  useEffect(() => {
+    setDialogOpen(true);
+    return () => setDialogOpen(false);
+  }, [setDialogOpen]);
+
   // Navigation State
   const [step, setStep] = useState<CombatStep>('ATTACK_CHOICE')
 

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { User, LogOut, X, Clipboard, Share2, SquareUserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { auth, db, doc, getDoc, onAuthStateChanged, updateDoc, signOut } from "@/lib/firebase";
+import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
 
 type SidebarProps = {
   onClose: () => void;
@@ -11,6 +12,7 @@ type SidebarProps = {
 
 export default function Sidebar({ onClose }: SidebarProps) {
   const router = useRouter();
+  const { isDialogOpen } = useDialogVisibility();
   const [userName, setUserName] = useState<string | null>(null);
   const [userTitle, setUserTitle] = useState<string | null>(null);
   const [userProfilePicture, setUserProfilePicture] = useState<string | null>(null);
@@ -76,8 +78,13 @@ export default function Sidebar({ onClose }: SidebarProps) {
     }
   };
 
+  // Hide sidebar when dialog is open
+  if (isDialogOpen) {
+    return null;
+  }
+
   return (
-    <div className="fixed left-0 top-0 w-80 z-[1000000] bg-[#242424] shadow-lg flex text-[#d4d4d4] flex-col h-screen animate-slideInFromLeft">
+    <div className="fixed left-0 top-0 w-80 z-[1000] bg-[#242424] shadow-lg flex text-[#d4d4d4] flex-col h-screen animate-slideInFromLeft">
       <button
         className="absolute top-3 right-3 p-1 text-[#d4d4d4] hover:text-[#c0a080] transition-colors"
         onClick={onClose}

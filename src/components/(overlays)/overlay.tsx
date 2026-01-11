@@ -7,6 +7,7 @@ import CharacterSheet from "@/components/(fiches)/CharacterSheet";
 import { db, collection, query, where, onSnapshot, doc } from "@/lib/firebase";
 import { useMapControl } from "@/contexts/MapControlContext";
 import { useGame } from "@/contexts/GameContext";
+import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
 import { User, Users } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -30,6 +31,7 @@ export default function Component() {
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
   const { centerOnCharacter, selectedCityId } = useMapControl();
   const { isMJ } = useGame();
+  const { isDialogOpen } = useDialogVisibility();
   const [mode, setMode] = useState<'joueurs' | 'pnj'>('joueurs');
   const [globalCityId, setGlobalCityId] = useState<string | null>(null);
 
@@ -128,6 +130,11 @@ export default function Component() {
       return false;
     })
     : npcs;
+
+  // Hide overlay when dialog is open
+  if (isDialogOpen) {
+    return null;
+  }
 
   return (
     <TooltipProvider delayDuration={0}>
