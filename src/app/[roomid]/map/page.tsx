@@ -79,6 +79,7 @@ import { UnifiedSearchDrawer } from '@/components/(personnages)/UnifiedSearchDra
 import { PlaceNPCModal } from '@/components/(personnages)/PlaceNPCModal';
 import { CreateNoteModal } from '@/components/(map)/CreateNoteModal';
 import { NoBackgroundModal } from '@/components/(map)/NoBackgroundModal';
+import { DeleteConfirmationModal, type EntityToDelete } from '@/components/(map)/DeleteConfirmationModal';
 
 import { doc as firestoreDoc } from 'firebase/firestore'
 import InfoComponent, { type InfoSection } from "@/components/(infos)/info";
@@ -531,6 +532,11 @@ export default function Component() {
   const [showPlaceModal, setShowPlaceModal] = useState(false)
   const [showCreateNoteModal, setShowCreateNoteModal] = useState(false)
   const [showNoBackgroundModal, setShowNoBackgroundModal] = useState(false)
+
+  // 🎯 CENTRALIZED DELETION MODAL STATE
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [entityToDelete, setEntityToDelete] = useState<EntityToDelete | null>(null);
+
 
   // 🎯 MULTI-SELECTION STATE
   const [selectionCandidates, setSelectionCandidates] = useState<SelectionCandidates | null>(null);
@@ -1034,10 +1040,24 @@ export default function Component() {
   // 🔦 KEYBOARD EVENT HANDLER pour les obstacles
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Supprimer l'obstacle sélectionné avec Delete ou Backspace
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedObstacleId && visibilityMode) {
-        e.preventDefault();
-        deleteObstacle(selectedObstacleId);
+      // 🎯 CENTRALIZED DELETE - Handle Delete/Backspace for any selected entity
+      if ((e.key === 'Delete' || e.key === 'Backspace') && isMJ) {
+        // Check if we have any selected entity
+        const hasSelection =
+          selectedCharacters.length > 0 ||
+          selectedCharacterIndex !== null ||
+          selectedObjectIndices.length > 0 ||
+          selectedNoteIndex !== null ||
+          selectedMusicZoneIds.length > 0 ||
+          (selectedObstacleId && visibilityMode) ||
+          selectedDrawingIndex !== null ||
+          selectedFogCells.length > 0;
+
+        if (hasSelection) {
+          e.preventDefault();
+          handleDeleteKeyPress();
+          return;
+        }
       }
 
       // Annuler le dessin d'obstacle en cours avec Escape
@@ -1062,7 +1082,19 @@ export default function Component() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedObstacleId, visibilityMode, isDrawingObstacle, selectedFogCells.length]);
+  }, [
+    selectedCharacters,
+    selectedCharacterIndex,
+    selectedObjectIndices,
+    selectedNoteIndex,
+    selectedMusicZoneIds,
+    selectedObstacleId,
+    selectedDrawingIndex,
+    selectedFogCells,
+    visibilityMode,
+    isDrawingObstacle,
+    isMJ
+  ]);
 
   // 🎵 Global audio reference for quick sounds
   const globalAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -6898,6 +6930,241 @@ export default function Component() {
     }
   };
 
+  // 🎯 CENTRALIZED DELETE HANDLER
+  const handleDeleteKeyPress = () => {
+    if (!isMJ) return; // Only MJ can delete
+
+    // Priority order: check what's currently selected
+
+    // 1. Check for selected characters (multi-select)
+    if (selectedCharacters.length > 0) {
+      const charsToDelete = selectedCharacters
+        .map(index => characters[index])
+        .filter(c => c && c.type !== 'joueurs');
+
+      if (charsToDelete.length > 0) {
+        setEntityToDelete({
+          type: 'character',
+          ids: charsToDelete.map(c => c.id),
+          count: charsToDelete.length,
+          name: charsToDelete.length === 1 ? charsToDelete[0].name : undefined
+        });
+        setDeleteModalOpen(true);
+        return;
+      }
+    }
+
+    // 2. Check for single selected character
+    if (selectedCharacterIndex !== null) {
+      const char = characters[selectedCharacterIndex];
+      if (char && char.type !== 'joueurs') {
+        setEntityToDelete({
+          type: 'character',
+          id: char.id,
+          name: char.name
+        });
+        setDeleteModalOpen(true);
+        return;
+      }
+    }
+
+    // 3. Check for selected objects (multi-select)
+    if (selectedObjectIndices.length > 0) {
+      const objsToDelete = selectedObjectIndices.map(index => objects[index]);
+      setEntityToDelete({
+        type: 'object',
+        ids: objsToDelete.map(o => o.id),
+        count: objsToDelete.length,
+        name: objsToDelete.length === 1 ? objsToDelete[0].name : undefined
+      });
+      setDeleteModalOpen(true);
+      return;
+    }
+
+    // 4. Check for selected note
+    if (selectedNoteIndex !== null) {
+      const note = notes[selectedNoteIndex];
+      setEntityToDelete({
+        type: 'note',
+        id: note.id,
+        name: note.text?.substring(0, 30) + (note.text && note.text.length > 30 ? '...' : '')
+      });
+      setDeleteModalOpen(true);
+      return;
+    }
+
+    // 5. Check for selected music zones (multi-select)
+    if (selectedMusicZoneIds.length > 0) {
+      const zonesToDelete = musicZones.filter(z => selectedMusicZoneIds.includes(z.id));
+      setEntityToDelete({
+        type: 'musicZone',
+        ids: selectedMusicZoneIds,
+        count: zonesToDelete.length,
+        name: zonesToDelete.length === 1 ? zonesToDelete[0].name : undefined
+      });
+      setDeleteModalOpen(true);
+      return;
+    }
+
+    // 6. Check for selected obstacle
+    if (selectedObstacleId && visibilityMode) {
+      const obstacle = obstacles.find(o => o.id === selectedObstacleId);
+      setEntityToDelete({
+        type: 'obstacle',
+        id: selectedObstacleId,
+        name: `Obstacle`
+      });
+      setDeleteModalOpen(true);
+      return;
+    }
+
+    // 7. Check for selected drawing
+    if (selectedDrawingIndex !== null) {
+      const drawing = drawings[selectedDrawingIndex];
+      setEntityToDelete({
+        type: 'drawing',
+        id: drawing.id,
+        name: `Dessin`
+      });
+      setDeleteModalOpen(true);
+      return;
+    }
+
+    // 8. Check for selected fog cells
+    if (selectedFogCells.length > 0) {
+      setEntityToDelete({
+        type: 'fogCells',
+        ids: selectedFogCells,
+        count: selectedFogCells.length
+      });
+      setDeleteModalOpen(true);
+      return;
+    }
+
+    // 9. Check for context menu light (if open)
+    if (contextMenuLightOpen && contextMenuLightId) {
+      const light = lights.find(l => l.id === contextMenuLightId);
+      setEntityToDelete({
+        type: 'light',
+        id: contextMenuLightId,
+        name: `Lumière`
+      });
+      setDeleteModalOpen(true);
+      return;
+    }
+  };
+
+  // 🎯 CONFIRM DELETE HANDLER
+  const handleConfirmDelete = async () => {
+    if (!entityToDelete || !roomId) return;
+
+    try {
+      switch (entityToDelete.type) {
+        case 'character':
+          if (entityToDelete.ids && entityToDelete.ids.length > 0) {
+            // Multiple characters
+            const deletePromises = entityToDelete.ids.map(async (id) => {
+              await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', id));
+            });
+            await Promise.all(deletePromises);
+            setCharacters(prev => prev.filter(c => !entityToDelete.ids!.includes(c.id)));
+            setSelectedCharacters([]);
+          } else if (entityToDelete.id) {
+            // Single character
+            await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', entityToDelete.id));
+            setCharacters(prev => prev.filter(c => c.id !== entityToDelete.id));
+            setSelectedCharacterIndex(null);
+          }
+          break;
+
+        case 'object':
+          if (entityToDelete.ids && entityToDelete.ids.length > 0) {
+            // Multiple objects
+            const deletePromises = entityToDelete.ids.map(async (id) => {
+              await deleteDoc(doc(db, 'cartes', String(roomId), 'objects', id));
+            });
+            await Promise.all(deletePromises);
+            setObjects(prev => prev.filter(o => !entityToDelete.ids!.includes(o.id)));
+            setSelectedObjectIndices([]);
+          }
+          break;
+
+        case 'light':
+          if (entityToDelete.id) {
+            await deleteDoc(doc(db, 'cartes', String(roomId), 'lights', entityToDelete.id));
+            setLights(prev => prev.filter(l => l.id !== entityToDelete.id));
+            setContextMenuLightOpen(false);
+            setContextMenuLightId(null);
+          }
+          break;
+
+        case 'obstacle':
+          if (entityToDelete.id) {
+            await deleteDoc(doc(db, 'cartes', String(roomId), 'obstacles', entityToDelete.id));
+            setObstacles(prev => prev.filter(o => o.id !== entityToDelete.id));
+            setSelectedObstacleId(null);
+          }
+          break;
+
+        case 'musicZone':
+          if (entityToDelete.ids && entityToDelete.ids.length > 0) {
+            // Multiple zones
+            const deletePromises = entityToDelete.ids.map(async (id) => {
+              await deleteDoc(doc(db, 'cartes', String(roomId), 'musicZones', id));
+            });
+            await Promise.all(deletePromises);
+            setMusicZones(prev => prev.filter(z => !entityToDelete.ids!.includes(z.id)));
+            setSelectedMusicZoneIds([]);
+          }
+          break;
+
+        case 'note':
+          if (entityToDelete.id) {
+            await deleteDoc(doc(db, 'cartes', String(roomId), 'text', entityToDelete.id));
+            setNotes(prev => prev.filter(n => n.id !== entityToDelete.id));
+            setSelectedNoteIndex(null);
+          }
+          break;
+
+        case 'measurement':
+          if (entityToDelete.id) {
+            await deleteDoc(doc(db, 'cartes', String(roomId), 'measurements', entityToDelete.id));
+            setMeasurements(prev => prev.filter(m => m.id !== entityToDelete.id));
+          }
+          break;
+
+        case 'drawing':
+          if (entityToDelete.id) {
+            await deleteDoc(doc(db, 'cartes', String(roomId), 'drawings', entityToDelete.id));
+            setDrawings(prev => prev.filter(d => d.id !== entityToDelete.id));
+            setSelectedDrawingIndex(null);
+          }
+          break;
+
+        case 'fogCells':
+          if (entityToDelete.ids && entityToDelete.ids.length > 0) {
+            // Remove fog cells from grid
+            const newFogGrid = new Map(fogGrid);
+            entityToDelete.ids.forEach(cellKey => {
+              newFogGrid.delete(cellKey);
+            });
+            setFogGrid(newFogGrid);
+            setSelectedFogCells([]);
+
+            // Save to Firebase
+            saveFogGrid(newFogGrid);
+          }
+          break;
+      }
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+    } finally {
+      setEntityToDelete(null);
+      setDeleteModalOpen(false);
+    }
+  };
+
+
   const handleCharacterEditSubmit = async () => {
     if (editingCharacter && selectedCharacterIndex !== null && roomId) {
       const charToUpdate = characters[selectedCharacterIndex];
@@ -8448,6 +8715,15 @@ export default function Component() {
         }}
         onConfirm={handlePlaceConfirm}
       />
+
+      {/* Centralized Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        open={deleteModalOpen}
+        onOpenChange={setDeleteModalOpen}
+        entity={entityToDelete}
+        onConfirm={handleConfirmDelete}
+      />
+
 
 
       {/* Background Loader Overlay */}
