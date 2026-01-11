@@ -30,7 +30,8 @@ import {
     Sliders,
     Sparkles,
     Check,
-    Cloud
+    Cloud,
+    Lightbulb
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -428,6 +429,14 @@ function MapToolbar({
                                         id={TOOLS.ADD_CHAR}
                                         icon={CircleUserRound}
                                         label="Personnages (NPC)"
+
+                                        isActive={activeTools.includes(TOOLS.ADD_CHAR)}
+                                    />
+                                    <ToolButton onAction={onAction}
+                                        id={TOOLS.ADD_CHAR}
+                                        icon={CircleUserRound}
+                                        label="Personnages (NPC)"
+
                                         isActive={activeTools.includes(TOOLS.ADD_CHAR)}
                                     />
                                     <ToolButton onAction={onAction}

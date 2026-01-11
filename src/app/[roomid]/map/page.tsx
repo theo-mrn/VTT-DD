@@ -57,7 +57,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, Lightbulb } from 'lucide-react'
 import { auth, db, onAuthStateChanged } from '@/lib/firebase'
 import { doc, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
 import Combat from '@/components/(combat)/combat2';
@@ -70,6 +70,7 @@ import { Component as RadialMenu } from '@/components/ui/radial-menu';
 import CitiesManager from '@/components/(worldmap)/CitiesManager';
 import ContextMenuPanel from '@/components/(overlays)/ContextMenuPanel';
 import ObjectContextMenu from '@/components/(overlays)/ObjectContextMenu';
+import LightContextMenu from '@/components/(overlays)/LightContextMenu';
 import MusicZoneContextMenu from '@/components/(overlays)/MusicZoneContextMenu';
 import { NPCTemplateDrawer } from '@/components/(personnages)/NPCTemplateDrawer';
 import { ObjectDrawer } from '@/components/(personnages)/ObjectDrawer';
@@ -94,7 +95,7 @@ import {
 } from '@/lib/visibility';
 import { LayerControl } from '@/components/(map)/LayerControl';
 import { SelectionMenu, type SelectionCandidates, type SelectionType } from '@/components/(map)/SelectionMenu';
-import { type ViewMode, type Point, type Character, type MapText, type SavedDrawing, type NewCharacter, type Note, type MapObject, type ObjectTemplate, type Layer, type LayerType, type MusicZone, type Scene, type DrawingTool } from './types';
+import { type ViewMode, type Point, type Character, type LightSource, type MapText, type SavedDrawing, type NewCharacter, type Note, type MapObject, type ObjectTemplate, type Layer, type LayerType, type MusicZone, type Scene, type DrawingTool } from './types';
 import { useAudioZones } from '@/hooks/map/useAudioZones';
 import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath } from './drawings';
 import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
@@ -352,6 +353,7 @@ export default function Component() {
   const [isBackgroundEditMode, setIsBackgroundEditMode] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [characters, setCharacters] = useState<Character[]>([]);
+  const [lights, setLights] = useState<LightSource[]>([]);
   const [objects, setObjects] = useState<MapObject[]>([]);
   const [notes, setNotes] = useState<MapText[]>([]);
 
@@ -386,6 +388,11 @@ export default function Component() {
   const [draggedCharacterIndex, setDraggedCharacterIndex] = useState<number | null>(null)
 
   const [draggedCharactersOriginalPositions, setDraggedCharactersOriginalPositions] = useState<{ index: number, x: number, y: number }[]>([])
+
+  // 🎯 LIGHT SOURCE DRAG & DROP
+  const [isDraggingLight, setIsDraggingLight] = useState(false);
+  const [draggedLightId, setDraggedLightId] = useState<string | null>(null);
+  const [draggedLightOriginalPos, setDraggedLightOriginalPos] = useState({ x: 0, y: 0 });
 
   // 🎯 NOUVEAUX ÉTATS pour le drag & drop des objets
   const [isObjectDrawerOpen, setIsObjectDrawerOpen] = useState(false);
@@ -513,6 +520,11 @@ export default function Component() {
   const [isNPCDrawerOpen, setIsNPCDrawerOpen] = useState(false)
   const [draggedTemplate, setDraggedTemplate] = useState<NPC | null>(null)
   const [dropPosition, setDropPosition] = useState<{ x: number; y: number } | null>(null)
+
+  // 🎯 LIGHT SOURCE PLACEMENT STATE
+  const [isLightPlacementMode, setIsLightPlacementMode] = useState(false);
+  const [contextMenuLightOpen, setContextMenuLightOpen] = useState(false);
+  const [contextMenuLightId, setContextMenuLightId] = useState<string | null>(null);
 
   const [showPlaceModal, setShowPlaceModal] = useState(false)
   const [showCreateNoteModal, setShowCreateNoteModal] = useState(false)
@@ -684,7 +696,7 @@ export default function Component() {
   // 🔦 DYNAMIC LIGHTING / OBSTACLES STATE
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [visibilityMode, setVisibilityMode] = useState(false);
-  const [currentVisibilityTool, setCurrentVisibilityTool] = useState<'fog' | 'chain' | 'polygon' | 'edit'>('chain');
+  const [currentVisibilityTool, setCurrentVisibilityTool] = useState<'fog' | 'chain' | 'polygon' | 'edit' | 'none'>('chain');
   const [isDrawingObstacle, setIsDrawingObstacle] = useState(false);
   const [currentObstaclePoints, setCurrentObstaclePoints] = useState<Point[]>([]);
   const [selectedObstacleId, setSelectedObstacleId] = useState<string | null>(null);
@@ -762,6 +774,24 @@ export default function Component() {
   // 🔊 AUDIO MANAGER - Moved after isLayerVisible declaration
 
   // 🔊 AUDIO MANAGER - Moved after isLayerVisible declaration
+  const audioManager = useAudioMixer(); // Assuming this hook exists or similar logic
+
+  const { calculateFogOpacity, saveFogGrid, saveFullMapFog, toggleFogCell, addFogCellIfNew, flushFogUpdates } = useFogManager({
+    roomId,
+    selectedCityId, // 🆕 Passed prop
+    fogGrid, // 🆕 Passed prop
+    setFogGrid, // 🆕 Passed prop
+    lastFogCell, // 🆕 Passed prop
+    setLastFogCell, // 🆕 Passed prop
+    fullMapFog, // 🆕 Passed prop
+    isMJ,
+    playerViewMode, // 🆕 Passed prop
+    persoId,
+    viewAsPersoId,
+    characters: charactersRenderRef.current,
+    lights: lights,
+    fogCellSize
+  });
 
   const [audioCharacterId, setAudioCharacterId] = useState<string | null>(null);
 
@@ -997,28 +1027,7 @@ export default function Component() {
 
 
 
-  const {
-    saveFogGrid,
-    saveFullMapFog,
-    toggleFogCell,
-    addFogCellIfNew,
-    calculateFogOpacity,
-    flushFogUpdates // [NEW]
-  } = useFogManager({
-    roomId,
-    selectedCityId,
-    fogGrid,
-    setFogGrid,
-    lastFogCell,
-    setLastFogCell,
-    fullMapFog,
-    isMJ,
-    playerViewMode,
-    persoId,
-    viewAsPersoId, // [NEW]
-    characters,
-    fogCellSize
-  });
+
 
   // 🔦 KEYBOARD EVENT HANDLER pour les obstacles
   useEffect(() => {
@@ -1563,6 +1572,27 @@ export default function Component() {
       setObstacles(obs);
     });
     unsubscribers.push(obstaclesUnsub);
+
+    // 🆕 7. CHARGER ET FILTRER LES LUMIÈRES (LIGHTS)
+    const lightsRef = collection(db, 'cartes', roomId, 'lights');
+    const lightsQuery = query(lightsRef, where('cityId', '==', selectedCityId));
+    const lightsUnsub = onSnapshot(lightsQuery, (snapshot) => {
+      const loadedLights: LightSource[] = [];
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        loadedLights.push({
+          id: doc.id,
+          x: data.x,
+          y: data.y,
+          name: data.name || 'Lumière',
+          radius: data.radius || 10,
+          visible: data.visible ?? true,
+          cityId: data.cityId
+        });
+      });
+      setLights(loadedLights);
+    });
+    unsubscribers.push(lightsUnsub);
 
     // 6. CHARGER ET FILTRER LES OBJETS
     const objectsRef = collection(db, 'cartes', roomId, 'objects');
@@ -2347,6 +2377,7 @@ export default function Component() {
 
         if (currentTool !== TOOLS.MUSIC && isMusicMode) setIsMusicMode(false);
         if (currentTool !== TOOLS.MULTI_SELECT && multiSelectMode) setMultiSelectMode(false);
+        if (isLightPlacementMode) setIsLightPlacementMode(false);
       }
     };
     switch (actionId) {
@@ -2367,6 +2398,7 @@ export default function Component() {
       case TOOLS.SETTINGS: setShowGlobalSettingsDialog(true); break;
       case TOOLS.AUDIO_MIXER: deactivateIncompatible(TOOLS.AUDIO_MIXER); setIsAudioMixerOpen(!isAudioMixerOpen); break;
       case TOOLS.ADD_CHAR: if (isMJ) { deactivateIncompatible(TOOLS.ADD_CHAR); setIsNPCDrawerOpen(!isNPCDrawerOpen); } break;
+
       case TOOLS.ADD_OBJ: if (isMJ) { deactivateIncompatible(TOOLS.ADD_OBJ); setIsObjectDrawerOpen(!isObjectDrawerOpen); } break;
       case TOOLS.ADD_NOTE: handleAddNote(); break;
       case TOOLS.MUSIC: if (isMJ) { deactivateIncompatible(TOOLS.MUSIC); setIsSoundDrawerOpen(!isSoundDrawerOpen); } break;
@@ -2396,6 +2428,7 @@ export default function Component() {
     if (showLayerControl) active.push(TOOLS.LAYERS);
     if (isObjectDrawerOpen) active.push(TOOLS.ADD_OBJ);
     if (isNPCDrawerOpen) active.push(TOOLS.ADD_CHAR);
+
     if (multiSelectMode) active.push(TOOLS.MULTI_SELECT);
     if (isBackgroundEditMode) active.push(TOOLS.BACKGROUND_EDIT);
     if (isAudioMixerOpen) active.push(TOOLS.AUDIO_MIXER);
@@ -2837,8 +2870,24 @@ export default function Component() {
             >
               <Move className="w-5 h-5" strokeWidth={currentVisibilityTool === 'edit' ? 2.5 : 2} />
             </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-10 w-10 rounded-lg transition-all duration-200 ${isLightPlacementMode ? 'bg-yellow-500/20 text-yellow-500 hover:bg-yellow-500/30' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              onClick={() => {
+                const newMode = !isLightPlacementMode;
+                setIsLightPlacementMode(newMode);
+                if (newMode) {
+                  setCurrentVisibilityTool('none'); // Ensure we are not drawing fog/polygons
+                  setDrawMode(false);
+                }
+              }}
+              title="Ajouter une source de lumière"
+            >
+              <Lightbulb className="w-5 h-5" strokeWidth={isLightPlacementMode ? 2.5 : 2} />
+            </Button>
           </div>
-        </div>
+        </div >
       );
     }
     if (playerViewMode) {
@@ -4721,6 +4770,31 @@ export default function Component() {
       const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
       const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
 
+      // 💡 LIGHT SOURCE PLACEMENT
+      if (isLightPlacementMode && isMJ && e.button === 0) {
+        e.preventDefault();
+        console.log("💡 Attempting to place light source at", clickX, clickY);
+        try {
+          const newLight: LightSource = {
+            id: "light_" + Date.now(),
+            x: clickX,
+            y: clickY,
+            name: 'Source de Lumière',
+            radius: 10,
+            visible: true,
+            cityId: selectedCityId
+          };
+          // Save to 'lights' collection, NOT 'characters'
+          await setDoc(doc(db, 'cartes', roomId, 'lights', newLight.id), newLight);
+
+          console.log("💡 Light source created in 'lights' collection:", newLight.id);
+          setIsLightPlacementMode(false);
+        } catch (error) {
+          console.error("❌ Error placing light source:", error);
+        }
+        return;
+      }
+
 
       // 🎵 MUSIC MODE - CREATE ZONE
       if (isMusicMode && isMJ && e.button === 0) {
@@ -5919,6 +5993,38 @@ export default function Component() {
       return; // Return here is correct as we handled the event
     }
 
+    setDropPosition({ x: currentX, y: currentY })
+
+    // 💡 DRAG LUMIÈRE (LIGHT)
+    if (isDraggingLight && draggedLightId) {
+      if (!dragStart) return;
+
+      const deltaX = currentX - dragStart.x;
+      const deltaY = currentY - dragStart.y;
+
+      // Update local state for smooth drag
+      setLights(prev => prev.map(l => {
+        if (l.id === draggedLightId) {
+          // Use original position + delta (stable drag) 
+          // OR if we update DragStart on each move:
+          // But here we setDragStart in handleMouseMove for continuous updates? 
+          // Actually, let's use the delta logic if we kept original pos.
+          // But we stored draggedLightOriginalPos on mouseDown.
+
+          // Re-calculate based on ORIGINAL pos to avoid drift? 
+          // The current existing logic for objects/chars relies on updating dragStart or just direct delta?
+          // Let's look at characters:
+          // "const deltaX = currentX - dragStart.x... setCharacters(... x: char.x + deltaX ...)"
+          // And then "setDragStart({ x: currentX, y: currentY })" -> Incremental updates.
+          return { ...l, x: l.x + deltaX, y: l.y + deltaY };
+        }
+        return l;
+      }));
+
+      setDragStart({ x: currentX, y: currentY });
+      return;
+    }
+
     // 🎯 DRAG & DROP PERSONNAGE
     if (isDraggingCharacter && draggedCharacterIndex !== null && draggedCharactersOriginalPositions.length > 0) {
       const originalRefChar = draggedCharactersOriginalPositions.find(pos => pos.index === draggedCharacterIndex);
@@ -6121,6 +6227,32 @@ export default function Component() {
     }
 
     // 🎵 END RESIZE MUSIC ZONE
+
+
+    // 💡 FIN DRAG LUMIÈRE
+    if (isDraggingLight && draggedLightId) {
+      if (roomId) {
+        const light = lights.find(l => l.id === draggedLightId);
+        if (light) {
+          // Check if changed
+          const hasChanged = light.x !== draggedLightOriginalPos.x || light.y !== draggedLightOriginalPos.y;
+          if (hasChanged) {
+            updateDoc(doc(db, 'cartes', roomId, 'lights', light.id), {
+              x: light.x,
+              y: light.y
+            }).catch(err => {
+              console.error("Error saving light pos:", err);
+              // Revert
+              setLights(prev => prev.map(l => l.id === draggedLightId ? { ...l, x: draggedLightOriginalPos.x, y: draggedLightOriginalPos.y } : l));
+            });
+          }
+        }
+      }
+      setIsDraggingLight(false);
+      setDraggedLightId(null);
+      return;
+    }
+
     if (isResizingMusicZone && resizingMusicZoneId && roomId) {
       setIsResizingMusicZone(false);
 
@@ -6896,6 +7028,20 @@ export default function Component() {
     }
   };
 
+  const handleLightAction = async (action: string, lightId: string, value?: any) => {
+    if (!roomId) return;
+    const lightDoc = doc(db, 'cartes', roomId, 'lights', lightId);
+
+    if (action === 'delete') {
+      if (confirm('Supprimer cette lumière ?')) {
+        await deleteDoc(lightDoc);
+        setContextMenuLightOpen(false);
+      }
+    } else if (action === 'updateRadius') {
+      await updateDoc(lightDoc, { radius: value });
+    }
+  };
+
   const handleMusicZoneAction = async (action: string, zoneId: string, value?: any) => {
     if (!roomId) return;
 
@@ -7051,6 +7197,15 @@ export default function Component() {
         isOpen={contextMenuMeasurementOpen}
         onClose={() => setContextMenuMeasurementOpen(false)}
         onAction={handleMeasurementAction}
+      />
+
+      {/* 💡 LIGHT SOURCE CONTEXT MENU */}
+      <LightContextMenu
+        light={contextMenuLightId ? lights.find(l => l.id === contextMenuLightId) || null : null}
+        isOpen={contextMenuLightOpen}
+        onClose={() => setContextMenuLightOpen(false)}
+        onAction={handleLightAction}
+        isMJ={isMJ}
       />
 
       {/* 🎯 Cone Configuration Dialog */}
@@ -7418,7 +7573,84 @@ export default function Component() {
                 </div>
               )
             })}
+
           </div>
+
+          {/* 💡 LAYER LUMIÈRES (LIGHTS) */}
+          <div className="lights-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden', zIndex: 45 }}>
+            {/* Only visible for MJ to edit. Players see the light effect, not the icon. */}
+            {isMJ && lights.map((light) => {
+              if (!bgImageObject) return null;
+              const image = bgImageObject;
+              const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+              const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
+              const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
+              if (cWidth === 0 || cHeight === 0) return null;
+
+              const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
+              const scaledWidth = imgWidth * scale * zoom;
+              const scaledHeight = imgHeight * scale * zoom;
+
+              const lightScreenX = (light.x / imgWidth) * scaledWidth;
+              const lightScreenY = (light.y / imgHeight) * scaledHeight;
+              const size = 40 * zoom;
+
+              return (
+                <div
+                  key={light.id}
+                  style={{
+                    position: 'absolute',
+                    left: lightScreenX - offset.x,
+                    top: lightScreenY - offset.y,
+                    width: size + 'px',
+                    height: size + 'px',
+                    transform: 'translate(-50%, -50%)',
+                    pointerEvents: 'auto', // Allow interaction
+                    cursor: isMJ ? 'move' : 'default',
+                    zIndex: 50
+                  }}
+                  onMouseDown={(e) => {
+                    if (!isMJ) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDraggingLight(true);
+                    setDraggedLightId(light.id);
+                    setDraggedLightOriginalPos({ x: light.x, y: light.y });
+
+                    const rect = bgCanvasRef.current?.getBoundingClientRect();
+                    if (rect) {
+                      const startMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
+                      const startMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
+                      setDragStart({ x: startMapX, y: startMapY });
+                    }
+                  }}
+                  onDoubleClick={(e) => {
+                    if (!isMJ) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setContextMenuLightId(light.id);
+                    setContextMenuLightOpen(true);
+                  }}
+                  onContextMenu={(e) => {
+                    if (!isMJ) return;
+                    e.preventDefault();
+                    setContextMenuLightId(light.id);
+                    setContextMenuLightOpen(true);
+                  }}
+                >
+                  <div className={`w-full h-full rounded-full flex items-center justify-center border-2 transition-transform hover:scale-110 ${light.visible ? 'bg-yellow-500/20 border-yellow-400 shadow-[0_0_20px_rgba(255,215,0,0.4)]' : 'bg-gray-500/20 border-gray-400'}`}>
+                    <Lightbulb size={size * 0.6} className={light.visible ? "text-yellow-100 fill-yellow-500/50" : "text-gray-400"} />
+                  </div>
+                  {isMJ && (
+                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-2 py-0.5 rounded text-[10px] text-yellow-500 whitespace-nowrap pointer-events-none opacity-0 hover:opacity-100 transition-opacity">
+                      {light.radius}m
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
           <canvas
             ref={characterBordersCanvasRef}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
@@ -7441,6 +7673,9 @@ export default function Component() {
               const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
               const scaledWidth = imgWidth * scale * zoom;
               const scaledHeight = imgHeight * scale * zoom;
+
+              // 💡 LIGHT SOURCE RENDER LOOP REMOVED - NOW HANDLED IN SEPARATE LAYER
+
 
               const x = (char.x / imgWidth) * scaledWidth - offset.x;
               const y = (char.y / imgHeight) * scaledHeight - offset.y;

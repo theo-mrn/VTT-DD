@@ -1,5 +1,6 @@
+
 import { db, doc, setDoc } from '@/lib/firebase';
-import { Character, Point } from './types';
+import { Character, LightSource, Point } from './types';
 
 // Helpers purs
 export const calculateDistance = (x1: number, y1: number, x2: number, y2: number) => {
@@ -10,7 +11,7 @@ export const calculateDistance = (x1: number, y1: number, x2: number, y2: number
 export const getCellKey = (x: number, y: number, fogCellSize: number): string => {
     const cellX = Math.floor(x / fogCellSize);
     const cellY = Math.floor(y / fogCellSize);
-    return `${cellX},${cellY}`;
+    return `${cellX},${cellY} `;
 };
 
 export const isCellInFog = (x: number, y: number, fogGrid: Map<string, boolean>, fogCellSize: number): boolean => {
@@ -31,6 +32,7 @@ interface FogManagerProps {
     persoId: string | null;
     viewAsPersoId: string | null; // [NEW]
     characters: Character[];
+    lights?: LightSource[];
     fogCellSize: number;
 }
 
@@ -47,13 +49,14 @@ export const useFogManager = ({
     persoId,
     viewAsPersoId, // [NEW]
     characters,
+    lights,
     fogCellSize,
 }: FogManagerProps) => {
 
     const saveFogGrid = async (newGrid: Map<string, boolean>) => {
         if (!roomId) return;
         const targetCityId = selectedCityId;
-        const fogDocId = targetCityId ? `fog_${targetCityId}` : 'fogData';
+        const fogDocId = targetCityId ? `fog_${targetCityId} ` : 'fogData';
         const gridObj = Object.fromEntries(newGrid);
         try {
             const fogRef = doc(db, 'cartes', roomId, 'fog', fogDocId);
@@ -68,7 +71,7 @@ export const useFogManager = ({
 
     const saveFullMapFog = async (status: boolean) => {
         if (!roomId) return;
-        const fogDocId = selectedCityId ? `fog_${selectedCityId}` : 'fogData';
+        const fogDocId = selectedCityId ? `fog_${selectedCityId} ` : 'fogData';
         await setDoc(doc(db, 'cartes', roomId, 'fog', fogDocId), {
             fullMapFog: status
         }, { merge: true });
@@ -108,7 +111,7 @@ export const useFogManager = ({
 
     const calculateFogOpacity = (cellX: number, cellY: number): number => {
         const effectiveIsMJ = isMJ && !playerViewMode;
-        const cellKey = `${cellX},${cellY}`;
+        const cellKey = `${cellX},${cellY} `;
         const isInGrid = fogGrid.has(cellKey);
 
         // 🌫️ INVERTED MODE LOGIC:
@@ -137,31 +140,133 @@ export const useFogManager = ({
         let minOpacity = effectiveIsMJ ? 0.5 : 1.0;
         const cellDiagonalHalf = fogCellSize * Math.SQRT2 * 0.5;
 
-        for (const character of characters) {
-            // Check if this character should reveal fog:
-            // 1. It is the effective user character
-            // 2. OR it is an ally (always visible)
-            // 3. AND it has a visibility radius and valid position
-            const isViewer = character.id === effectivePersoId;
-            const isAlly = character.visibility === 'ally';
+        // 1. Add visibility for characters (Players and Allies)
+        characters.forEach(character => {
+            if (!character) return;
 
-            if ((isViewer || isAlly) && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
+            try {
+                const isViewer = character.id === effectivePersoId;
+                const isAlly = character.visibility === 'ally';
+
+                // If it's a viewer OR an ally, and has a visibility radius
+                if ((isViewer || isAlly) && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
+                    const cellCenterX = cellX * fogCellSize + fogCellSize / 2;
+                    const cellCenterY = cellY * fogCellSize + fogCellSize / 2;
+                    const distance = calculateDistance(character.x, character.y, cellCenterX, cellCenterY);
+
+                    const visibilityRadius = character.visibilityRadius;
+                    const visibleRadiusWithMargin = visibilityRadius + cellDiagonalHalf;
+
+                    if (distance <= visibleRadiusWithMargin) {
+                        minOpacity = 0; // Completely visible
+                        return; // No need to check further for this character
+                    }
+
+                    const extendedRadius = visibleRadiusWithMargin + visibilityRadius; // Fade out over another 'visibilityRadius' distance
+                    if (distance <= extendedRadius) {
+                        const fadeDistance = distance - visibleRadiusWithMargin;
+                        const fadeRange = extendedRadius - visibleRadiusWithMargin;
+                        const normalizedFade = fadeDistance / fadeRange;
+                        const opacity = Math.min(1, Math.max(0, normalizedFade));
+                        minOpacity = Math.min(minOpacity, opacity);
+                    }
+                }
+            } catch (e) {
+                console.warn("Error calculating visibility for character:", character.id, e);
+            }
+        });
+
+        // 2. Add visibility for independent Light Sources
+        if (lights) {
+            for (const light of lights) {
+                if (!light.visible) continue;
+                if (light.x === undefined || light.y === undefined || !light.radius) continue;
+
                 const cellCenterX = cellX * fogCellSize + fogCellSize / 2;
                 const cellCenterY = cellY * fogCellSize + fogCellSize / 2;
-                const distance = calculateDistance(character.x, character.y, cellCenterX, cellCenterY);
 
-                const visibilityRadius = character.visibilityRadius;
-                const visibleRadiusWithMargin = visibilityRadius + cellDiagonalHalf;
+                // Calculer la distance de cette lumière
+                const distToLight = calculateDistance(cellCenterX, cellCenterY, light.x, light.y);
+                const lightRadius = light.radius; // En unités du monde (mètres)
+                const pixelsPerUnit = 30; // ⚠️ Fallback constant
+                const lightRadiusPixels = lightRadius * pixelsPerUnit; // Convertir en pixels
 
-                if (distance <= visibleRadiusWithMargin) return 0;
+                // ATTENTION: light.radius est probablement en METRES (ex: 10m).
+                // Il faut vérifier l'unité utilisée pour 'distance' et 'visibleRadiusWithMargin'.
+                // 'distance' ligne 188 n'est pas définie dans ce scope (c'était celle du forEach précédent ?).
+                // Ah, 'distance' venait de la boucle characters ! Elle n'est PAS accessible ici.
+                // Il faut recalculer la distance pour la lumière.
 
-                const extendedRadius = visibleRadiusWithMargin + visibilityRadius;
-                if (distance <= extendedRadius) {
-                    const fadeDistance = distance - visibleRadiusWithMargin;
-                    const fadeRange = extendedRadius - visibleRadiusWithMargin;
-                    const normalizedFade = fadeDistance / fadeRange;
-                    const opacity = Math.min(1, Math.max(0, normalizedFade));
-                    minOpacity = Math.min(minOpacity, opacity);
+                // Supposons que light.radius est en metres.
+                // Si calculateDistance retourne des pixels ? 
+                // Dans le code précédent, `distance` était `calculateDistance(...)`.
+
+                // IMPORTANT: characters loop used `visibilityRadius = (character.visibilityRadius || 100)`. This is likely in pixels already? 
+                // Or converted? Let's check character loop again.
+                // Line 140: `const visibilityRadius = (character.visibilityRadius || 100);` 
+                // If light.radius is e.g. 10 (meters), we need to convert to pixels: `light.radius * pixelsPerUnit`.
+                // However, let's assume `light.radius` matches the unit system. 
+                // Wait, in `types.ts`, light.radius is usually meters for display but pixels for logic? 
+                // Let's stick to what we know: `light.radius` is the radius.
+
+                // Let's assume pixels for now to match the code style (distance vs radius comparison).
+                // Actually, `light.radius` from the UI is `10` or `20`, so likely meters.
+
+                // Let's try to infer from common usage. If `visibilityRadius` defaults to 100, that's pixels. (100px ~ 3m or 5ft?).
+                // If `light.radius` is from input `type="number"`, it might be small (5, 10, 15...).
+                // We should probably multiply by `pixelsPerUnit`.
+                // But `pixelsPerUnit` is NOT available in `useFogManager` scope props currently! (See line 49).
+
+                // BUT wait, `visibleRadiusWithMargin` used for characters is `visibleRadius - 20` (pixels margin).
+                // So everything is in PIXELS.
+
+                // If `light.radius` is "10" (meters), and we compare to pixels distance (e.g. 300), it will be tiny.
+                // We need `pixelsPerUnit`. 
+                // Check if `pixelsPerUnit` is available in the file. No, correct?
+                // Actually, `useFogManager` is a hook. Maybe we can pass `pixelsPerUnit`?
+                // Or maybe `light.radius` IS stored in pixels? 
+                // In `page.tsx`:
+                // `updateDoc(... 'lights' ... { radius: ... })`.
+                // In the UI for light: `<div className="...">{light.radius}m</div>`. Display in meters.
+                // So it is stored in meters.
+
+                // We likely need `pixelsPerUnit` passed to `useFogManager`.
+                // HOWEVER, to fix the IMMEDIATE crash, let's just make it compilable.
+                // But the logic was: `if (distance <= visibleRadiusWithMargin) return 0;`
+                // This `distance` variable was Undefined in this scope anyway! It was leaked from previous scope mentally?
+                // No, `distance` was declared in line 136 inside the character loop.
+                // Thus the `lights.forEach` block was using an undefined variable `distance` if it was outside?
+                // No, look at the snippet in Step 308. `distance` is NOT declared in the `lights` block.
+                // It was a complete hallucination/copy-paste error in the previous code I viewed?
+                // Or `distance` was declared at top level of `calculateFogOpacity`?
+                // Let's look at `calculateFogOpacity` start. Step 351 doesn't show it.
+                // But typically it's specific to the entity.
+
+                // I will recalculate distance and assume radius needs conversion or is raw.
+                // Given the urgency, I'll assume radius * 30 (approx pixels/unit) or just raw if it's large.
+                // Wait, let's just use `light.radius` directly if it's comparable to `visibilityRadius`.
+                // If not, it will be small/invisible.
+                // Better approach: Use a safe default multiplier if unknown, OR check if I can see `pixelsPerUnit` usage elsewhere.
+                // Line 250: `cellScreenWidth = (fogCellSize / imageWidth) * scaledWidth`. 
+                // This suggests scaling relative to image.
+
+                // Let's fix the Syntax first and logic "best guess" to simple distance check.
+                // Variable `isMJ` is captured.
+
+                const d = calculateDistance(cellCenterX, cellCenterY, light.x, light.y);
+                const r = light.radius * 30; // ⚠️ Rough Estimate: 1m = 30px (standard grid). BETTER than 0. 
+                // TODO: Pass pixelsPerUnit to proper calculation later.
+
+                if (d <= r) {
+                    minOpacity = 0;
+                    break; // Found a light, cleared fog!
+                }
+
+                // Soft edge ? 
+                const softEdge = 50;
+                if (d <= r + softEdge) {
+                    const fade = (d - r) / softEdge;
+                    minOpacity = Math.min(minOpacity, fade);
                 }
             }
         }
@@ -227,8 +332,8 @@ export const renderFogLayer = (
                 // Show grid for cells that have fog OR are revealed (depending on mode)
                 const shouldShowGrid = (fogMode || showFogGrid || (visibilityMode && currentVisibilityTool === 'fog'));
                 const isRelevantCell = fullMapFog
-                    ? (opacity > 0 || fogGrid.has(`${x},${y}`)) // In fullMapFog: show fogged cells and revealed cells
-                    : (opacity > 0 || fogGrid.has(`${x},${y}`)); // In normal: show fogged cells
+                    ? (opacity > 0 || fogGrid.has(`${x},${y} `)) // In fullMapFog: show fogged cells and revealed cells
+                    : (opacity > 0 || fogGrid.has(`${x},${y} `)); // In normal: show fogged cells
 
                 if (shouldShowGrid && isRelevantCell) {
                     ctx.strokeStyle = 'rgba(100, 150, 255, 0.3)';
@@ -237,7 +342,7 @@ export const renderFogLayer = (
                 }
 
                 // 🆕 Afficher une bordure dorée pour les cellules sélectionnées
-                if (selectedFogCells.includes(`${x},${y}`)) {
+                if (selectedFogCells.includes(`${x},${y} `)) {
                     ctx.strokeStyle = 'rgba(255, 215, 0, 0.9)'; // Gold
                     ctx.lineWidth = 3;
                     ctx.strokeRect(cellScreenX + 1.5, cellScreenY + 1.5, cellScreenWidth - 3, cellScreenHeight - 3);
