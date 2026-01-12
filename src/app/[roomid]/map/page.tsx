@@ -1320,7 +1320,9 @@ export default function Component() {
           if (cityData.backgroundUrl) {
             setBackgroundImage(cityData.backgroundUrl);
           } else {
+            // Clear background when scene has no background
             setBackgroundImage('/placeholder.svg?height=600&width=800');
+            setBgImageObject(null); // Clear the previous background
           }
         }
       });
@@ -8871,7 +8873,6 @@ export default function Component() {
         isOpen={showBackgroundSelector}
         onClose={() => setShowBackgroundSelector(false)}
         onSelectLocal={handleBackgroundSelectLocal}
-        onUpload={handleBackgroundChange}
       />
 
       {/* 🎵 Music Control & Dialog */}
