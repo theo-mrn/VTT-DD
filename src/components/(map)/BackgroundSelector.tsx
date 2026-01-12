@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Upload, X, Film, Image as ImageIcon, Palette, Loader2, AlertCircle } from 'lucide-react';
+import { Search, X, Film, Image as ImageIcon, Palette, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext';
 
@@ -191,7 +191,6 @@ interface BackgroundSelectorProps {
     isOpen: boolean;
     onClose: () => void;
     onSelectLocal: (path: string) => void;
-    onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 type MediaType = 'animated' | 'static' | 'illustration';
@@ -199,8 +198,7 @@ type MediaType = 'animated' | 'static' | 'illustration';
 export default function BackgroundSelector({
     isOpen,
     onClose,
-    onSelectLocal,
-    onUpload
+    onSelectLocal
 }: BackgroundSelectorProps) {
     const { setDialogOpen } = useDialogVisibility();
 
@@ -425,29 +423,6 @@ export default function BackgroundSelector({
                                     className="pl-10 bg-[#1a1a1a] border-[#333] text-white"
                                 />
                             </div>
-
-                            {/* Upload Button */}
-                            <label htmlFor="bg-upload-main">
-                                <input
-                                    id="bg-upload-main"
-                                    type="file"
-                                    accept="image/*,video/webm,video/mp4"
-                                    onChange={(e) => {
-                                        onUpload(e);
-                                        onClose();
-                                    }}
-                                    className="hidden"
-                                />
-                                <Button
-                                    asChild
-                                    className="bg-[#c0a080] text-black hover:bg-[#d4b494]"
-                                >
-                                    <span>
-                                        <Upload className="w-4 h-4 mr-2" />
-                                        Téléverser
-                                    </span>
-                                </Button>
-                            </label>
                         </div>
 
                         {/* Maps Grid */}

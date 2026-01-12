@@ -8,13 +8,13 @@ import { createPortal } from "react-dom";
 
 import { useGame } from "@/contexts/GameContext";
 import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where, writeBatch, getDoc, setDoc } from "@/lib/firebase";
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { Trash2, Edit2, Plus, Image as ImageIcon, Search, MoreVertical, Map as MapIcon, Upload, FolderPlus, Folder, X, ChevronRight, Users, User as UserIcon, Navigation } from "lucide-react";
+import { Trash2, Edit2, Plus, Image as ImageIcon, Search, MoreVertical, Map as MapIcon, FolderPlus, Folder, X, ChevronRight, Users, User as UserIcon, Navigation } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -78,13 +78,11 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
     const [showForm, setShowForm] = useState(false);
     const [formData, setFormData] = useState<Partial<Scene>>({ name: "", description: "", visibleToPlayers: true, backgroundUrl: "", groupId: "" });
     const [editingId, setEditingId] = useState<string | null>(null);
-    const sceneBackgroundInputRef = useRef<HTMLInputElement>(null);
 
     // Formulaire Groupe
     const [showGroupForm, setShowGroupForm] = useState(false);
     const [groupFormData, setGroupFormData] = useState({ name: "" });
     const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
-    const [isUploadingImage, setIsUploadingImage] = useState(false); // État de chargement pour l'upload
     const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
     // Confirmations & Alerts States
     const [alertConfig, setAlertConfig] = useState<{ open: boolean, title: string, message: string }>({ open: false, title: "", message: "" });
@@ -375,39 +373,7 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
     };
 
 
-    const handleSceneBackgroundUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file || !effectiveRoomId) return;
 
-        console.log('📤 [CitiesManager] Starting image upload, file size:', (file.size / 1024 / 1024).toFixed(2), 'MB');
-        setIsUploadingImage(true);
-
-        try {
-            // Créer une référence unique dans Firebase Storage
-            const storage = getStorage();
-            const timestamp = Date.now();
-            const fileName = `scenes/${effectiveRoomId}/${timestamp}_${file.name}`;
-            const fileRef = storageRef(storage, fileName);
-
-            console.log('📤 [CitiesManager] Uploading to Storage:', fileName);
-
-            // Upload du fichier
-            const snapshot = await uploadBytes(fileRef, file);
-
-            // Obtenir l'URL de téléchargement
-            const downloadUrl = await getDownloadURL(snapshot.ref);
-
-            console.log('✅ [CitiesManager] Image uploaded successfully, URL:', downloadUrl);
-
-            // Mettre à jour le formulaire avec l'URL
-            setFormData({ ...formData, backgroundUrl: downloadUrl });
-        } catch (error) {
-            console.error('❌ [CitiesManager] Error uploading image:', error);
-            showAlert('Erreur', 'Erreur lors de l\'upload de l\'image. Veuillez réessayer.');
-        } finally {
-            setIsUploadingImage(false);
-        }
-    };
 
     const isVideo = (url?: string) => {
         if (!url) return false;
@@ -722,44 +688,6 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                 </div>
 
                                 <div className="p-6 space-y-6 overflow-y-auto max-h-[80vh] custom-scrollbar">
-                                    <div className="space-y-2">
-                                        <Label className="uppercase text-xs font-bold text-gray-500 tracking-wider">Visuel</Label>
-                                        <div
-                                            className="relative w-full aspect-video bg-white/5 border border-white/10 rounded-lg overflow-hidden group hover:border-[#c0a080]/50 transition-colors cursor-pointer"
-                                            onClick={(e) => { e.stopPropagation(); setShowBackgroundSelector(true); }}
-                                        >
-                                            {isUploadingImage ? (
-                                                <div className="w-full h-full flex flex-col items-center justify-center text-gray-400 gap-2">
-                                                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#c0a080]"></div>
-                                                    <span className="text-xs">Upload en cours...</span>
-                                                </div>
-                                            ) : formData.backgroundUrl ? (
-                                                <>
-                                                    {isVideo(formData.backgroundUrl) ? (
-                                                        <video
-                                                            src={formData.backgroundUrl}
-                                                            className="w-full h-full object-cover"
-                                                            autoPlay
-                                                            muted
-                                                            loop
-                                                            playsInline
-                                                        />
-                                                    ) : (
-                                                        <img src={formData.backgroundUrl} className="w-full h-full object-cover" alt="Preview" />
-                                                    )}
-                                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                                                        <span className="text-white font-medium flex items-center gap-2"><Upload className="w-4 h-4" /> Changer</span>
-                                                    </div>
-                                                </>
-                                            ) : (
-                                                <div className="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-2">
-                                                    <ImageIcon className="w-10 h-10 opacity-50" />
-                                                    <span className="text-xs">Ajouter image/vidéo</span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label className="uppercase text-xs font-bold text-gray-500 tracking-wider text-white">Nom</Label>
@@ -982,7 +910,6 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                     isOpen={showBackgroundSelector}
                     onClose={() => setShowBackgroundSelector(false)}
                     onSelectLocal={(path) => setFormData(prev => ({ ...prev, backgroundUrl: path }))}
-                    onUpload={handleSceneBackgroundUpload}
                 />,
                 document.body
             )}
