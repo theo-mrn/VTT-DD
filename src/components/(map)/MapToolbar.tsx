@@ -233,7 +233,6 @@ function MapToolbar({
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     // ⚡ PERFORMANCE: Memoized ToolButton to prevent re-creation on every render
-    // This prevents cascade re-renders of Tooltip components
     const ToolButton = React.memo(({
         id,
         icon: Icon,
@@ -257,19 +256,19 @@ function MapToolbar({
                     variant={isActive ? "secondary" : "ghost"}
                     size="icon"
                     className={cn(
-                        "h-10 w-10 transition-all duration-200",
+                        "h-9 w-9 transition-all duration-200",
                         isActive
-                            ? "bg-[#c0a080] text-black hover:bg-[#d4b494]"
+                            ? "bg-[#c0a080] text-black hover:bg-[#d4b494] shadow-[0_0_10px_rgba(192,160,128,0.3)]"
                             : "text-gray-400 hover:text-white hover:bg-white/10",
                         (danger && !isActive) ? "hover:text-red-400 hover:bg-red-900/20" : "",
                         "rounded-lg"
                     )}
                     onClick={onClick || (() => onAction(id))}
                 >
-                    <Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
+                    <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
                 </Button>
             </TooltipTrigger>
-            <TooltipContent side="top" className="bg-black/90 border-[#333] text-white">
+            <TooltipContent side="top" className="bg-black/90 border-[#333] text-white text-xs font-medium">
                 <p>{label}</p>
             </TooltipContent>
         </Tooltip>
@@ -277,18 +276,24 @@ function MapToolbar({
 
     ToolButton.displayName = 'ToolButton';
 
+    // Helper for separators
+    const GroupSeparator = () => (
+        <div className="h-6 w-[1px] bg-white/10 mx-1.5 self-center" />
+    );
+
     return (
-        // ⚡ PERFORMANCE: Single TooltipProvider for ALL buttons (was 40+ before)
         <TooltipProvider delayDuration={300}>
             <div className={cn(
-                "fixed bottom-4 left-1/2 -translate-x-1/2 z-[50] transition-all duration-300 ease-in-out",
+                "fixed bottom-6 left-1/2 -translate-x-1/2 z-[50] transition-all duration-300 ease-in-out font-sans",
                 isCollapsed ? "translate-y-[calc(100%+24px)]" : "translate-y-0",
                 className || ""
             )}>
                 {/* Active Tool Content (Sub-Menu) */}
                 {activeToolContent && (
-                    <div className="mb-2 animate-in slide-in-from-bottom-4 fade-in duration-300 relative z-[110] pointer-events-auto">
-                        {activeToolContent}
+                    <div className="mb-3 animate-in slide-in-from-bottom-2 fade-in duration-300 relative z-[110] pointer-events-auto flex justify-center">
+                        <div className="bg-[#0a0a0a]/90 backdrop-blur-xl border border-[#333] rounded-xl p-2 shadow-2xl">
+                            {activeToolContent}
+                        </div>
                     </div>
                 )}
 
@@ -306,54 +311,71 @@ function MapToolbar({
                             variant="outline"
                             size="icon"
                             onClick={() => setIsCollapsed(false)}
-                            className="rounded-full bg-black/80 border-[#c0a080]/50 text-[#c0a080] hover:bg-[#c0a080] hover:text-black shadow-[0_0_15px_rgba(0,0,0,0.5)]"
+                            className="rounded-full h-10 w-10 bg-black/80 border-[#c0a080]/50 text-[#c0a080] hover:bg-[#c0a080] hover:text-black shadow-[0_0_15px_rgba(0,0,0,0.5)] transition-all hover:scale-110"
                         >
                             <ChevronUp size={20} />
                         </Button>
                     </div>
 
                     {/* Toolbar Body */}
-                    <div className="flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+                    <div className="flex items-center p-1.5 bg-[#0a0a0a]/90 backdrop-blur-2xl border border-[#333] rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.7)] ring-1 ring-white/5">
 
-
-                        {/* --- GROUP 1: NAVIGATION (+, -, Pan, World) --- */}
-                        <div className="flex items-center gap-1">
+                        {/* --- GROUP 1: NAVIGATION & VIEW --- */}
+                        <div className="flex items-center px-1">
                             <ToolButton onAction={onAction}
                                 id={TOOLS.ZOOM_IN}
                                 icon={Plus}
                                 label="Zoomer"
                                 isActive={false}
-
                             />
                             <ToolButton onAction={onAction}
                                 id={TOOLS.ZOOM_OUT}
                                 icon={Minus}
                                 label="Dézoomer"
                                 isActive={false}
-
                             />
                             <ToolButton onAction={onAction}
                                 id={TOOLS.PAN}
                                 icon={Move}
                                 label="Déplacer la carte"
                                 isActive={activeTools.includes(TOOLS.PAN)}
-
                             />
                             {isMJ && (
-                                <ToolButton onAction={onAction}
-                                    id={TOOLS.WORLD_MAP}
-                                    icon={MapPin}
-                                    label="Villes / Carte du Monde"
-                                    isActive={activeTools.includes(TOOLS.WORLD_MAP)}
-
-                                />
+                                <>
+                                    <ToolButton onAction={onAction}
+                                        id={TOOLS.WORLD_MAP}
+                                        icon={MapPin}
+                                        label="Carte du Monde"
+                                        isActive={activeTools.includes(TOOLS.WORLD_MAP)}
+                                    />
+                                    <ToolButton onAction={onAction}
+                                        id={TOOLS.VIEW_MODE}
+                                        icon={currentViewMode === 'player' ? ScanEye : User}
+                                        label={currentViewMode === 'player' ? "Vue MJ" : "Vue Joueur"}
+                                        isActive={activeTools.includes(TOOLS.VIEW_MODE)}
+                                    />
+                                </>
                             )}
                         </div>
 
-                        <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+                        <GroupSeparator />
 
-                        {/* --- GROUP 2: CREATION (Draw, Text, Measure) --- */}
-                        <div className="flex items-center gap-1">
+                        {/* --- GROUP 2: PRIMARY INTERACTION --- */}
+                        <div className="flex items-center px-1">
+                            {isMJ && (
+                                <ToolButton onAction={onAction}
+                                    id={TOOLS.MULTI_SELECT}
+                                    icon={SquareDashedMousePointer}
+                                    label="Sélection Multiple"
+                                    isActive={activeTools.includes(TOOLS.MULTI_SELECT)}
+                                />
+                            )}
+                            <ToolButton onAction={onAction}
+                                id={TOOLS.MEASURE}
+                                icon={Target}
+                                label="Mesure / Gabarits"
+                                isActive={activeTools.includes(TOOLS.MEASURE)}
+                            />
                             <ToolButton onAction={onAction}
                                 id={TOOLS.DRAW}
                                 icon={Pencil}
@@ -366,18 +388,12 @@ function MapToolbar({
                                 label="Ajouter une note"
                                 isActive={activeTools.includes(TOOLS.ADD_NOTE)}
                             />
-                            <ToolButton onAction={onAction}
-                                id={TOOLS.MEASURE}
-                                icon={Target}
-                                label="Attaque de Zone"
-                                isActive={activeTools.includes(TOOLS.MEASURE)}
-                            />
                         </div>
 
-                        <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+                        <GroupSeparator />
 
-                        {/* --- GROUP 3: MAP SETTINGS (Grid, Layers, Bg, ViewMode) --- */}
-                        <div className="flex items-center gap-1">
+                        {/* --- GROUP 3: MAP MANAGEMENT --- */}
+                        <div className="flex items-center px-1">
                             <ToolButton onAction={onAction}
                                 id={TOOLS.GRID}
                                 icon={Grid}
@@ -385,119 +401,108 @@ function MapToolbar({
                                 isActive={activeTools.includes(TOOLS.GRID)}
                             />
                             {isMJ && (
-                                <ToolButton onAction={onAction}
-                                    id={TOOLS.LAYERS}
-                                    icon={Layers}
-                                    label="Gestion des calques"
-                                    isActive={activeTools.includes(TOOLS.LAYERS)}
-                                />
-                            )}
-                            {isMJ && (
                                 <>
                                     <ToolButton onAction={onAction}
-                                        id={TOOLS.BACKGROUND}
-                                        icon={ImagePlus}
-                                        label="Changer le fond"
-                                        isActive={activeTools.includes(TOOLS.BACKGROUND)}
+                                        id={TOOLS.LAYERS}
+                                        icon={Layers}
+                                        label="Calques"
+                                        isActive={activeTools.includes(TOOLS.LAYERS)}
                                     />
                                     <ToolButton onAction={onAction}
-                                        id={TOOLS.VIEW_MODE}
-                                        icon={currentViewMode === 'player' ? ScanEye : User}
-                                        label={currentViewMode === 'player' ? "Vue MJ" : "Vue Joueur"}
-                                        isActive={activeTools.includes(TOOLS.VIEW_MODE)}
+                                        id={TOOLS.VISIBILITY}
+                                        icon={Eye}
+                                        label="Brouillard de Guerre"
+                                        isActive={activeTools.includes(TOOLS.VISIBILITY)}
                                     />
+                                    <div className="flex gap-0.5 bg-white/5 rounded-lg p-0.5 mx-1">
+                                        <ToolButton onAction={onAction}
+                                            id={TOOLS.BACKGROUND}
+                                            icon={ImagePlus}
+                                            label="Changer le fond"
+                                            isActive={activeTools.includes(TOOLS.BACKGROUND)}
+                                        />
+                                        <ToolButton onAction={onAction}
+                                            id={TOOLS.BACKGROUND_EDIT}
+                                            icon={activeTools.includes(TOOLS.BACKGROUND_EDIT) ? Unlock : Lock}
+                                            label={activeTools.includes(TOOLS.BACKGROUND_EDIT) ? "Verrouiller le fond" : "Ajuster le fond"}
+                                            isActive={activeTools.includes(TOOLS.BACKGROUND_EDIT)}
+                                        />
+                                    </div>
                                 </>
                             )}
                         </div>
 
-                        {/* --- GROUP 4: DM ENTITIES (Visibility, Obj, NPC, Music) --- */}
+                        {/* --- GROUP 4: CONTENT & AUDIO (MJ Only usually) --- */}
                         {isMJ && (
                             <>
-                                <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
-                                <div className="flex items-center gap-1">
+                                <GroupSeparator />
+                                <div className="flex items-center px-1">
                                     <ToolButton onAction={onAction}
-                                        id={TOOLS.VISIBILITY}
-                                        icon={Eye}
-                                        label="Visibilité & Brouillard"
-                                        isActive={activeTools.includes(TOOLS.VISIBILITY)}
-                                    />
-                                    <ToolButton onAction={onAction}
-                                        id={TOOLS.ADD_OBJ}
-                                        icon={Package}
-                                        label="Objets"
-                                        isActive={activeTools.includes(TOOLS.ADD_OBJ)}
+                                        id={TOOLS.UNIFIED_SEARCH}
+                                        icon={Search}
+                                        label="Recherche (Tout)"
+                                        isActive={activeTools.includes(TOOLS.UNIFIED_SEARCH)}
                                     />
                                     <ToolButton onAction={onAction}
                                         id={TOOLS.ADD_CHAR}
                                         icon={CircleUserRound}
-                                        label="Personnages (NPC)"
+                                        label="Ajouter PNJ"
                                         isActive={activeTools.includes(TOOLS.ADD_CHAR)}
                                     />
                                     <ToolButton onAction={onAction}
-                                        id={TOOLS.MUSIC}
-                                        icon={Volume2}
-                                        label="Sons"
-                                        isActive={activeTools.includes(TOOLS.MUSIC)}
+                                        id={TOOLS.ADD_OBJ}
+                                        icon={Package}
+                                        label="Ajouter Objet"
+                                        isActive={activeTools.includes(TOOLS.ADD_OBJ)}
                                     />
-                                    <ToolButton onAction={onAction}
-                                        id={TOOLS.UNIFIED_SEARCH}
-                                        icon={Search}
-                                        label="Recherche Globale (Sons, Objets, PNJs)"
-                                        isActive={activeTools.includes(TOOLS.UNIFIED_SEARCH)}
-                                    />
-                                    <ToolButton onAction={onAction}
-                                        id={TOOLS.MULTI_SELECT}
-                                        icon={SquareDashedMousePointer}
-                                        label="Sélection Multiple"
-                                        isActive={activeTools.includes(TOOLS.MULTI_SELECT)}
-                                    />
-                                    <ToolButton onAction={onAction}
-                                        id={TOOLS.BACKGROUND_EDIT}
-                                        icon={activeTools.includes(TOOLS.BACKGROUND_EDIT) ? Unlock : Lock}
-                                        label={activeTools.includes(TOOLS.BACKGROUND_EDIT) ? "Verrouiller le fond" : "Modifier le fond"}
-                                        isActive={activeTools.includes(TOOLS.BACKGROUND_EDIT)}
-                                    />
+                                    <div className="flex gap-0.5 ml-1">
+                                        <ToolButton onAction={onAction}
+                                            id={TOOLS.MUSIC}
+                                            icon={Volume2}
+                                            label="Musique"
+                                            isActive={activeTools.includes(TOOLS.MUSIC)}
+                                        />
+                                    </div>
                                 </div>
                             </>
                         )}
 
-                        {/* Global Settings (Available to ALL) */}
-                        <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
-                        <div className="flex items-center gap-1">
+                        {/* --- GROUP 5: SYSTEM & AUDIO --- */}
+                        <GroupSeparator />
+                        <div className="flex items-center px-1">
+                            <ToolButton onAction={onAction}
+                                id={TOOLS.AUDIO_MIXER}
+                                icon={Sliders}
+                                label="Mixeur Audio"
+                                isActive={activeTools.includes(TOOLS.AUDIO_MIXER)}
+                            />
+                            {isMJ && (
+                                <ToolButton onAction={onAction}
+                                    id={TOOLS.TOGGLE_ALL_BADGES}
+                                    icon={Eye}
+                                    label="Badges d'état"
+                                    isActive={activeTools.includes(TOOLS.TOGGLE_ALL_BADGES)}
+                                />
+                            )}
                             <ToolButton onAction={onAction}
                                 id={TOOLS.SETTINGS}
                                 icon={Settings}
-                                label="Options Globales"
+                                label="Paramètres"
                                 isActive={activeTools.includes(TOOLS.SETTINGS)}
-                            />
-                            <ToolButton onAction={onAction}
-                                id={TOOLS.TOGGLE_ALL_BADGES}
-                                icon={Eye}
-                                label="Afficher tous les badges"
-                                isActive={activeTools.includes(TOOLS.TOGGLE_ALL_BADGES)}
                             />
                         </div>
 
-                        <ToolButton onAction={onAction}
-                            id={TOOLS.AUDIO_MIXER}
-                            icon={Sliders}
-                            label="Mixeur Audio"
-                            isActive={activeTools.includes(TOOLS.AUDIO_MIXER)}
-                        />
-
                         {/* Collapse Button */}
-                        <div className="ml-2 pl-2 border-l border-white/10">
+                        <div className="ml-1 pl-2 border-l border-white/10">
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-gray-500 hover:text-white"
+                                className="h-8 w-8 text-gray-500 hover:text-white rounded-md"
                                 onClick={() => setIsCollapsed(true)}
                             >
-                                <ChevronDown size={16} />
+                                <ChevronDown size={14} />
                             </Button>
                         </div>
-
-
                     </div>
                 </div>
             </div>
