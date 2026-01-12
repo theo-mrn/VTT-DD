@@ -5,7 +5,7 @@ import {
   Search, Plus, Book, X, Trash2, Edit, Save,
   MapPin, User, Scroll, Tag, Image as ImageIcon,
   Calendar, CheckCircle2, AlertTriangle, GripVertical,
-  Maximize2, Minimize2, MoreVertical, LayoutGrid, List as ListIcon
+  Maximize2, Minimize2, MoreVertical, LayoutGrid, List as ListIcon, Users
 } from 'lucide-react'
 import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
@@ -42,6 +42,9 @@ interface Note {
   questType?: "principale" | "annexe";
   questStatus?: "not-started" | "in-progress" | "completed";
   subQuests?: SubQuest[];
+  isShared?: boolean;
+  createdBy?: string;
+  createdByName?: string;
 }
 
 const NOTE_TYPES = [
@@ -61,10 +64,12 @@ export default function Notes() {
   const [loading, setLoading] = useState(true)
   const [roomId, setRoomId] = useState<string | null>(null)
   const [characterId, setCharacterId] = useState<string | null>(null)
+  const [characterName, setCharacterName] = useState<string>('')
 
   // View
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'all' | 'mine' | 'shared'>('all')
   const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('grid')
 
   // Editor (Custom Modal)
@@ -81,7 +86,16 @@ export default function Notes() {
         const userDoc = await getDoc(doc(db, 'users', user.uid))
         if (userDoc.exists()) {
           setRoomId(userDoc.data().room_id)
-          setCharacterId(userDoc.data().perso)
+          const persoId = userDoc.data().perso
+          setCharacterId(persoId)
+
+          // Fetch character name
+          if (persoId && userDoc.data().room_id) {
+            const charDoc = await getDoc(doc(db, 'campaigns', userDoc.data().room_id, 'persos', persoId))
+            if (charDoc.exists()) {
+              setCharacterName(charDoc.data().name || 'Personnage')
+            }
+          }
         }
       }
       setLoading(false)
@@ -91,17 +105,40 @@ export default function Notes() {
 
   useEffect(() => {
     if (!roomId || !characterId) return
-    const q = collection(db, 'Notes', roomId, characterId)
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list = snapshot.docs.map(doc => ({
-        id: doc.id, ...doc.data(),
+
+    // Subscribe to private notes (character-specific)
+    const privateNotesRef = collection(db, 'Notes', roomId, characterId)
+    const unsubPrivate = onSnapshot(privateNotesRef, (privateSnapshot) => {
+      const privateNotes = privateSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
         tags: doc.data().tags || [],
         createdAt: doc.data().createdAt?.toDate() || new Date(),
         updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+        isShared: false,
       })) as Note[]
-      setNotes(list.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()))
+
+      // Subscribe to shared notes (room-wide)
+      const sharedNotesRef = collection(db, 'SharedNotes', roomId, 'notes')
+      const unsubShared = onSnapshot(sharedNotesRef, (sharedSnapshot) => {
+        const sharedNotes = sharedSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          tags: doc.data().tags || [],
+          createdAt: doc.data().createdAt?.toDate() || new Date(),
+          updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+          isShared: true,
+        })) as Note[]
+
+        // Merge and sort both lists
+        const allNotes = [...privateNotes, ...sharedNotes]
+        setNotes(allNotes.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()))
+      })
+
+      return () => unsubShared()
     })
-    return () => unsubscribe()
+
+    return () => unsubPrivate()
   }, [roomId, characterId])
 
   // Actions
@@ -130,20 +167,93 @@ export default function Notes() {
     }
     delete payload.id
 
+    // Determine if shared or private
+    const isSharedNote = data.isShared === true
+    const wasPrivate = !data.createdBy // Private notes don't have createdBy
+
     if (data.id) {
-      await updateDoc(doc(db, 'Notes', roomId, characterId, data.id), payload)
+      // Converting private to shared
+      if (isSharedNote && wasPrivate) {
+        // Create new shared note
+        payload.createdAt = data.createdAt || new Date()
+        payload.createdBy = characterId
+        payload.createdByName = characterName
+        await addDoc(collection(db, 'SharedNotes', roomId, 'notes'), payload)
+
+        // Delete old private note
+        await deleteDoc(doc(db, 'Notes', roomId, characterId, data.id))
+      }
+      // Converting shared to private (edge case)
+      else if (!isSharedNote && !wasPrivate) {
+        // Create new private note
+        payload.createdAt = data.createdAt || new Date()
+        await addDoc(collection(db, 'Notes', roomId, characterId), payload)
+
+        // Delete old shared note (only if user is creator)
+        if (data.createdBy === characterId) {
+          await deleteDoc(doc(db, 'SharedNotes', roomId, 'notes', data.id))
+        }
+      }
+      // Update existing note (same type)
+      else if (isSharedNote) {
+        // Anyone in the room can edit shared notes
+        await updateDoc(doc(db, 'SharedNotes', roomId, 'notes', data.id), payload)
+      } else {
+        // Update private note
+        await updateDoc(doc(db, 'Notes', roomId, characterId, data.id), payload)
+      }
     } else {
+      // Create new note
       payload.createdAt = new Date()
-      await addDoc(collection(db, 'Notes', roomId, characterId), payload)
+
+      if (isSharedNote) {
+        payload.createdBy = characterId
+        payload.createdByName = characterName
+        await addDoc(collection(db, 'SharedNotes', roomId, 'notes'), payload)
+      } else {
+        await addDoc(collection(db, 'Notes', roomId, characterId), payload)
+      }
     }
     setEditorOpen(false)
   }
 
   const handleDelete = async () => {
     if (!deleteId || !roomId || !characterId) return
-    await deleteDoc(doc(db, 'Notes', roomId, characterId, deleteId))
+
+    // Find the note to determine if it's shared
+    const noteToDelete = notes.find(n => n.id === deleteId)
+    if (!noteToDelete) return
+
+    if (noteToDelete.isShared) {
+      // Anyone in the room can delete shared notes
+      await deleteDoc(doc(db, 'SharedNotes', roomId, 'notes', deleteId))
+    } else {
+      await deleteDoc(doc(db, 'Notes', roomId, characterId, deleteId))
+    }
+
     setDeleteId(null)
     setEditorOpen(false)
+  }
+
+  // Quick share: convert private note to shared
+  const handleQuickShare = async (note: Note) => {
+    if (!roomId || !characterId || note.isShared) return
+
+    // Create shared version
+    const payload = {
+      ...note,
+      isShared: true,
+      createdBy: characterId,
+      createdByName: characterName,
+      createdAt: note.createdAt,
+      updatedAt: new Date()
+    }
+    delete (payload as any).id
+
+    await addDoc(collection(db, 'SharedNotes', roomId, 'notes'), payload)
+
+    // Delete private version
+    await deleteDoc(doc(db, 'Notes', roomId, characterId, note.id))
   }
 
   // Filtering
@@ -151,8 +261,17 @@ export default function Notes() {
     const matchesSearch = n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       n.tags.some(t => t.label.toLowerCase().includes(searchQuery.toLowerCase()))
     const matchesType = activeFilter ? n.type === activeFilter : true
-    return matchesSearch && matchesType
-  }), [notes, searchQuery, activeFilter])
+
+    // Tab filtering
+    let matchesTab = true
+    if (activeTab === 'mine') {
+      matchesTab = !n.isShared || n.createdBy === characterId
+    } else if (activeTab === 'shared') {
+      matchesTab = n.isShared === true
+    }
+
+    return matchesSearch && matchesType && matchesTab
+  }), [notes, searchQuery, activeFilter, activeTab, characterId])
 
   if (loading) return <div className="h-full flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-[#c0a080] border-t-transparent animate-spin" /></div>
 
@@ -192,6 +311,37 @@ export default function Notes() {
           </div>
         </div>
 
+        {/* TABS */}
+        <div className="flex gap-2 bg-[#18181b] p-1 rounded-xl border border-[#27272a] w-fit">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={cn(
+              "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
+              activeTab === 'all' ? "bg-[#c0a080] text-black" : "text-zinc-500 hover:text-zinc-300"
+            )}
+          >
+            Toutes
+          </button>
+          <button
+            onClick={() => setActiveTab('mine')}
+            className={cn(
+              "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+              activeTab === 'mine' ? "bg-[#c0a080] text-black" : "text-zinc-500 hover:text-zinc-300"
+            )}
+          >
+            <User className="w-3 h-3" /> Mes notes
+          </button>
+          <button
+            onClick={() => setActiveTab('shared')}
+            className={cn(
+              "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+              activeTab === 'shared' ? "bg-[#c0a080] text-black" : "text-zinc-500 hover:text-zinc-300"
+            )}
+          >
+            <Users className="w-3 h-3" /> Partagées avec moi
+          </button>
+        </div>
+
         <div className="flex flex-wrap gap-2">
           <button onClick={() => setActiveFilter(null)} className={cn("px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border", activeFilter === null ? "bg-[#c0a080] text-black border-[#c0a080]" : "bg-transparent border-[#27272a] text-zinc-500 hover:border-zinc-500")}>Tout</button>
           {NOTE_TYPES.map(t => (
@@ -215,7 +365,13 @@ export default function Notes() {
             viewLayout === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" : "grid-cols-1 max-w-4xl mx-auto"
           )}>
             {filtered.map(note => (
-              <NoteCard key={note.id} note={note} onClick={() => handleEdit(note)} layout={viewLayout} />
+              <NoteCard
+                key={note.id}
+                note={note}
+                onClick={() => handleEdit(note)}
+                onQuickShare={handleQuickShare}
+                layout={viewLayout}
+              />
             ))}
           </div>
         )}
@@ -252,91 +408,123 @@ export default function Notes() {
 
 // --- SUB-COMPONENTS ---
 
-function NoteCard({ note, onClick, layout }: { note: Note, onClick: () => void, layout: 'grid' | 'list' }) {
+function NoteCard({ note, onClick, onQuickShare, layout }: { note: Note, onClick: () => void, onQuickShare: (note: Note) => void, layout: 'grid' | 'list' }) {
   const TypeIcon = NOTE_TYPES.find(t => t.id === note.type)?.icon || Tag
   const hasImage = !!note.image
 
   return (
     <motion.div
       layoutId={`card-${note.id}`}
-      onClick={onClick}
       className={cn(
-        "group relative bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden cursor-pointer hover:border-[#c0a080] hover:shadow-[0_0_20px_rgba(192,160,128,0.2)] transition-all duration-300 flex",
+        "group relative bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden hover:border-[#c0a080] hover:shadow-[0_0_20px_rgba(192,160,128,0.2)] transition-all duration-300 flex",
         layout === 'list' ? "h-24 flex-row" : (hasImage ? "flex-col aspect-[3/4]" : "flex-col h-auto")
       )}
     >
-      {/* --- BACKGROUND LAYER --- */}
-      {hasImage ? (
-        <div className="absolute inset-0 bg-[#121212]">
-          <Image
-            src={note.image!}
-            alt={note.title}
-            fill
-            className="object-cover transition-transform duration-700 group-hover:scale-110 opacity-60 group-hover:opacity-100"
-          />
-          <div className={cn("absolute inset-0 bg-gradient-to-t from-black via-[#09090b]/80 to-transparent", layout === 'list' ? "via-[#09090b]/90" : "")} />
-        </div>
-      ) : (
-        <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#25252a] to-transparent opacity-50" />
-          <TypeIcon className="absolute top-4 right-4 w-24 h-24 text-[#202022] -rotate-12 opacity-50" />
-        </div>
+      {/* Quick Share Button - Only for private notes */}
+      {!note.isShared && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            onQuickShare(note)
+          }}
+          className="absolute top-3 right-3 z-20 p-2 bg-blue-900/80 hover:bg-blue-800 border border-blue-700 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 text-xs font-bold text-blue-100 shadow-lg"
+          title="Partager rapidement"
+        >
+          <Users className="w-3 h-3" /> Partager
+        </button>
       )}
 
-      {/* --- CONTENT LAYER --- */}
-      <div className="relative flex-1 flex flex-col p-5 z-10">
-
-        {/* Top Badge */}
-        <div className="flex justify-between items-start mb-4">
-          <span className={cn(
-            "px-2 py-1 rounded backdrop-blur border text-[10px] font-bold uppercase tracking-wider",
-            hasImage ? "bg-black/40 border-white/5 text-[#c0a080]" : "bg-[#25252a] border-[#2a2a2a] text-zinc-400"
-          )}>
-            {NOTE_TYPES.find(t => t.id === note.type)?.label}
-          </span>
-        </div>
-
-        {/* Text Preview (Only for No-Image) */}
-        {!hasImage && note.content && (
-          <p className="text-zinc-400 text-sm leading-relaxed line-clamp-4 mb-6 font-serif opacity-80 group-hover:opacity-100 transition-opacity">
-            {note.content}
-          </p>
+      <div onClick={onClick} className="flex-1 flex cursor-pointer">
+        {/* --- BACKGROUND LAYER --- */}
+        {hasImage ? (
+          <div className="absolute inset-0 bg-[#121212]">
+            <Image
+              src={note.image!}
+              alt={note.title}
+              fill
+              className="object-cover transition-transform duration-700 group-hover:scale-110 opacity-60 group-hover:opacity-100"
+            />
+            <div className={cn("absolute inset-0 bg-gradient-to-t from-black via-[#09090b]/80 to-transparent", layout === 'list' ? "via-[#09090b]/90" : "")} />
+          </div>
+        ) : (
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#25252a] to-transparent opacity-50" />
+            <TypeIcon className="absolute top-4 right-4 w-24 h-24 text-[#202022] -rotate-12 opacity-50" />
+          </div>
         )}
 
-        {/* Bottom Info */}
-        <div className="mt-auto">
-          <h3 className={cn(
-            "font-serif font-bold text-lg leading-tight mb-1 transition-colors line-clamp-2",
-            hasImage ? "text-white group-hover:text-[#c0a080]" : "text-zinc-200 group-hover:text-[#c0a080]"
-          )}>
-            {note.title || "Sans Titre"}
-          </h3>
+        {/* --- CONTENT LAYER --- */}
+        <div className="relative flex-1 flex flex-col p-5 z-10">
 
-          <div className="flex flex-wrap items-center gap-2 text-[10px] text-zinc-500 font-medium">
-            {note.type === 'character' && (
-              <>
-                {note.race && <span>{note.race}</span>}
-                {note.race && note.class && <span className="opacity-50">•</span>}
-                {note.class && <span>{note.class}</span>}
-              </>
+          {/* Top Badge */}
+          <div className="flex justify-between items-start mb-4">
+            <span className={cn(
+              "px-2 py-1 rounded backdrop-blur border text-[10px] font-bold uppercase tracking-wider",
+              hasImage ? "bg-black/40 border-white/5 text-[#c0a080]" : "bg-[#25252a] border-[#2a2a2a] text-zinc-400"
+            )}>
+              {NOTE_TYPES.find(t => t.id === note.type)?.label}
+            </span>
+
+            {/* Shared Badge */}
+            {note.isShared && (
+              <span className={cn(
+                "px-2 py-1 rounded backdrop-blur border text-[10px] font-bold uppercase tracking-wider flex items-center gap-1",
+                hasImage ? "bg-blue-900/40 border-blue-500/30 text-blue-300" : "bg-blue-900/30 border-blue-800/50 text-blue-400"
+              )}>
+                <Users className="w-3 h-3" /> Partagée
+              </span>
             )}
-            {note.type === 'location' && note.region && <span>{note.region}</span>}
           </div>
 
-          {/* Tags */}
-          {note.tags && note.tags.length > 0 && layout !== 'list' && (
-            <div className={cn(
-              "flex flex-wrap gap-1 mt-3 transition-opacity duration-300",
-              hasImage ? "opacity-0 group-hover:opacity-100" : "pt-3 border-t border-[#2a2a2a]"
-            )}>
-              {note.tags.slice(0, 3).map(t => (
-                <span key={t.id} className={cn(
-                  "text-[9px] px-1.5 py-0.5 rounded",
-                  hasImage ? "bg-white/10 text-zinc-300" : "bg-[#25252a] text-zinc-400"
-                )}>#{t.label}</span>
-              ))}
-            </div>
+          {/* Text Preview (Only for No-Image) */}
+          {!hasImage && note.content && (
+            <p className="text-zinc-400 text-sm leading-relaxed line-clamp-4 mb-6 font-serif opacity-80 group-hover:opacity-100 transition-opacity">
+              {note.content}
+            </p>
           )}
+
+          {/* Bottom Info */}
+          <div className="mt-auto">
+            <h3 className={cn(
+              "font-serif font-bold text-lg leading-tight mb-1 transition-colors line-clamp-2",
+              hasImage ? "text-white group-hover:text-[#c0a080]" : "text-zinc-200 group-hover:text-[#c0a080]"
+            )}>
+              {note.title || "Sans Titre"}
+            </h3>
+
+            {/* Shared note creator info */}
+            {note.isShared && note.createdByName && (
+              <p className="text-[10px] text-zinc-500 mb-2 flex items-center gap-1">
+                <User className="w-3 h-3" /> Par {note.createdByName}
+              </p>
+            )}
+
+            <div className="flex flex-wrap items-center gap-2 text-[10px] text-zinc-500 font-medium">
+              {note.type === 'character' && (
+                <>
+                  {note.race && <span>{note.race}</span>}
+                  {note.race && note.class && <span className="opacity-50">•</span>}
+                  {note.class && <span>{note.class}</span>}
+                </>
+              )}
+              {note.type === 'location' && note.region && <span>{note.region}</span>}
+            </div>
+
+            {/* Tags */}
+            {note.tags && note.tags.length > 0 && layout !== 'list' && (
+              <div className={cn(
+                "flex flex-wrap gap-1 mt-3 transition-opacity duration-300",
+                hasImage ? "opacity-0 group-hover:opacity-100" : "pt-3 border-t border-[#2a2a2a]"
+              )}>
+                {note.tags.slice(0, 3).map(t => (
+                  <span key={t.id} className={cn(
+                    "text-[9px] px-1.5 py-0.5 rounded",
+                    hasImage ? "bg-white/10 text-zinc-300" : "bg-[#25252a] text-zinc-400"
+                  )}>#{t.label}</span>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </motion.div>
@@ -423,6 +611,48 @@ function CustomEditorModal({ data, onClose, onSave, onDelete }: { data: Partial<
                       </button>
                     ))}
                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sharing Toggle */}
+            <div className="pt-6 border-t border-[#2a2a2a]">
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-[10px] uppercase font-bold text-zinc-500">Visibilité</label>
+                <button
+                  onClick={() => setNote(p => ({ ...p, isShared: !p.isShared }))}
+                  className={cn(
+                    "relative w-12 h-6 rounded-full transition-colors border",
+                    note.isShared ? "bg-blue-900 border-blue-700" : "bg-[#18181b] border-[#27272a]"
+                  )}
+                >
+                  <div className={cn(
+                    "absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform",
+                    note.isShared ? "translate-x-6" : "translate-x-0.5"
+                  )} />
+                </button>
+              </div>
+              <div className={cn(
+                "text-[10px] p-2 rounded border",
+                note.isShared
+                  ? "bg-blue-900/20 border-blue-800/50 text-blue-300"
+                  : "bg-[#18181b] border-[#27272a] text-zinc-400"
+              )}>
+                <div className="flex items-center gap-2 font-bold mb-1">
+                  {note.isShared ? <Users className="w-3 h-3" /> : <User className="w-3 h-3" />}
+                  {note.isShared ? "Note partagée" : "Note privée"}
+                </div>
+                <p className="leading-relaxed">
+                  {note.isShared
+                    ? "Visible par tous les joueurs de la room"
+                    : "Visible uniquement par vous"}
+                </p>
+              </div>
+
+              {/* Creator info for shared notes */}
+              {note.isShared && note.createdByName && (
+                <div className="mt-3 text-[10px] text-zinc-500 flex items-center gap-1">
+                  <User className="w-3 h-3" /> Créée par {note.createdByName}
                 </div>
               )}
             </div>
