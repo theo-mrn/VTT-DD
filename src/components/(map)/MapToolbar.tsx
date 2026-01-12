@@ -449,12 +449,6 @@ function MapToolbar({
                                         label="Ajouter PNJ"
                                         isActive={activeTools.includes(TOOLS.ADD_CHAR)}
                                     />
-                                    <ToolButton onAction={onAction}
-                                        id={TOOLS.ADD_OBJ}
-                                        icon={Package}
-                                        label="Ajouter Objet"
-                                        isActive={activeTools.includes(TOOLS.ADD_OBJ)}
-                                    />
                                     <div className="flex gap-0.5 ml-1">
                                         <ToolButton onAction={onAction}
                                             id={TOOLS.MUSIC}

@@ -766,7 +766,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     }
 
     return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
+        <div className="fixed inset-0 z-[999999999] flex items-center justify-center bg-black/90 backdrop-blur-md animate-in fade-in duration-300">
 
             {/* Main Container - The "Opened Book" */}
             <div className="w-[95vw] h-[90vh] max-w-7xl bg-[#09090b] border border-[#2a2a2a] rounded-2xl shadow-2xl flex relative overflow-hidden ring-1 ring-white/10">
