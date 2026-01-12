@@ -62,7 +62,7 @@ const DICE_ASSET_DIRECTORIES = [
     'dice-previews',  // Dice skin preview images
 ];
 
-const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif'];
+const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.avif'];
 
 // Content type mapping
 const CONTENT_TYPES: Record<string, string> = {
@@ -71,6 +71,7 @@ const CONTENT_TYPES: Record<string, string> = {
     '.png': 'image/png',
     '.webp': 'image/webp',
     '.gif': 'image/gif',
+    '.avif': 'image/avif',
 };
 
 async function scanDirectory(dirPath: string, category: string): Promise<AssetFile[]> {
