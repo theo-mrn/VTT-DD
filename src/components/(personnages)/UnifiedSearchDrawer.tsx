@@ -22,6 +22,34 @@ interface SoundTemplate {
     type: 'file' | 'youtube'
 }
 
+interface BestiaryData {
+    Nom: string
+    Category?: string
+    Type: string
+    description: string
+    image?: string
+    niveau: number
+    Challenge?: string
+    PV: number
+    PV_Max: number
+    Defense: number
+    Contact: number
+    Distance: number
+    Magie: number
+    INIT: number
+    FOR: number
+    DEX: number
+    CON: number
+    INT: number
+    SAG: number
+    CHA: number
+    Actions?: Array<{
+        Nom: string
+        Description: string
+        Toucher: number
+    }>
+}
+
 type UnifiedItem = {
     id: string
     name: string
@@ -51,6 +79,7 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
     const [sounds, setSounds] = useState<SoundTemplate[]>([])
     const [objects, setObjects] = useState<ObjectTemplate[]>([])
     const [npcs, setNPCs] = useState<NPC[]>([])
+    const [bestiary, setBestiary] = useState<Record<string, BestiaryData>>({})
 
     // UI states
     const [searchQuery, setSearchQuery] = useState('')
@@ -101,6 +130,23 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
 
         return () => unsubscribe()
     }, [roomId, isOpen])
+
+    // Load Bestiary
+    useEffect(() => {
+        if (!isOpen) return
+
+        const loadBestiary = async () => {
+            try {
+                const response = await fetch('/tabs/bestiairy.json')
+                const data: Record<string, BestiaryData> = await response.json()
+                setBestiary(data)
+            } catch (error) {
+                console.error('Error loading bestiary:', error)
+            }
+        }
+
+        loadBestiary()
+    }, [isOpen])
 
     // Debounce search query for better performance
     useEffect(() => {
@@ -176,7 +222,7 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
         }
 
         if (selectedFilter === 'all' || selectedFilter === 'npc') {
-            // Add NPCs (only created, no library)
+            // Add created NPCs
             npcs.forEach(npc => {
                 allItems.push({
                     id: `created-npc-${npc.id}`,
@@ -185,6 +231,37 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
                     data: npc,
                     imageUrl: npc.imageURL2,
                     source: 'created'
+                })
+            })
+
+            // Add bestiary creatures as library NPCs
+            Object.entries(bestiary).forEach(([key, creature]) => {
+                allItems.push({
+                    id: `library-npc-${key}`,
+                    name: creature.Nom,
+                    type: 'npc',
+                    data: {
+                        id: `bestiary-${key}`,
+                        Nomperso: creature.Nom,
+                        imageURL2: creature.image,
+                        niveau: creature.niveau,
+                        PV: creature.PV,
+                        PV_Max: creature.PV_Max,
+                        Defense: creature.Defense,
+                        Contact: creature.Contact,
+                        Distance: creature.Distance,
+                        Magie: creature.Magie,
+                        INIT: creature.INIT,
+                        FOR: creature.FOR,
+                        DEX: creature.DEX,
+                        CON: creature.CON,
+                        INT: creature.INT,
+                        SAG: creature.SAG,
+                        CHA: creature.CHA,
+                        Actions: creature.Actions || []
+                    },
+                    imageUrl: creature.image,
+                    source: 'library'
                 })
             })
         }
@@ -204,7 +281,7 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
 
         // Return items sorted by relevance
         return searchResults.map(result => result.item)
-    }, [sounds, objects, npcs, debouncedQuery, selectedFilter])
+    }, [sounds, objects, npcs, bestiary, debouncedQuery, selectedFilter])
 
     // Audio preview handler
     const handleSoundPreview = (e: React.MouseEvent, item: UnifiedItem) => {
