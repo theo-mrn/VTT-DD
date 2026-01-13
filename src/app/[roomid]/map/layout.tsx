@@ -13,6 +13,7 @@ import OverlayComponent from "@/components/(overlays)/overlay";
 import { DiceThrower } from "@/components/(dices)/throw";
 import { NPCManager } from '@/components/(personnages)/personnages'
 import Chat from "@/components/(chat)/Chat";
+import EncounterGenerator from "@/components/(encounter)/EncounterGenerator";
 import { auth, onAuthStateChanged } from "@/lib/firebase";
 import { X } from "lucide-react";
 
@@ -61,6 +62,8 @@ export default function Layout({ children }: LayoutProps) {
         return <Competences />;
       case "Chat":
         return <Chat />;
+      case "EncounterGenerator":
+        return <EncounterGenerator />;
       default:
         return null;
     }
@@ -86,6 +89,8 @@ export default function Layout({ children }: LayoutProps) {
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1400px]";
       case "Chat":
         return "w-full sm:w-[500px] md:w-[600px] lg:w-[800px]";
+      case "EncounterGenerator":
+        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[1200px]";
       default:
         return "w-full sm:w-[90vw] md:w-[80vw] lg:w-[700px]";
     }

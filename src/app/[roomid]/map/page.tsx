@@ -1,4 +1,6 @@
 "use client"
+// Analyzing for Ping System implementation
+
 
 import { renderToStaticMarkup } from 'react-dom/server';
 
@@ -98,7 +100,7 @@ import {
 } from '@/lib/visibility';
 import { LayerControl } from '@/components/(map)/LayerControl';
 import { SelectionMenu, type SelectionCandidates, type SelectionType } from '@/components/(map)/SelectionMenu';
-import { type ViewMode, type Point, type Character, type LightSource, type MapText, type SavedDrawing, type NewCharacter, type Note, type MapObject, type ObjectTemplate, type Layer, type LayerType, type MusicZone, type Scene, type DrawingTool } from './types';
+import { type ViewMode, type Point, type Character, type LightSource, type MapText, type SavedDrawing, type NewCharacter, type Note, type MapObject, type ObjectTemplate, type Layer, type LayerType, type MusicZone, type Scene, type DrawingTool, type Ping } from './types';
 import { useAudioZones } from '@/hooks/map/useAudioZones';
 import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath } from './drawings';
 import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
@@ -644,6 +646,48 @@ export default function Component() {
   useEffect(() => {
     setSelectedSkin(''); // Reset to no animation
   }, [measurementShape]);
+
+  // 🎯 PING SYSTEM STATE
+  const [pings, setPings] = useState<Ping[]>([]);
+
+  // 📡 PING FIREBASE LISTENER
+  useEffect(() => {
+    if (!roomId) return;
+    const q = query(collection(db, 'cartes', roomId, 'pings')); // Listen to all pings
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const newPings: Ping[] = [];
+      snapshot.forEach(doc => {
+        newPings.push({ id: doc.id, ...doc.data() } as Ping);
+      });
+      setPings(newPings);
+    });
+    return () => unsubscribe();
+  }, [roomId]);
+
+  // 🧹 PING AUTO-CLEANUP (Visual & Database)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const expiredPings = pings.filter(ping => now - ping.timestamp > 3000);
+
+      if (expiredPings.length > 0) {
+        // 1. Optimistic Visual Removal
+        setPings(prev => prev.filter(p => now - p.timestamp <= 3000));
+
+        // 2. Database Cleanup
+        expiredPings.forEach(ping => {
+          const isOwner = ping.userId === (userId || 'unknown');
+          const isGarbage = now - ping.timestamp > 10000; // Safety net for orphaned pings
+
+          if (isOwner || isMJ || isGarbage) {
+            deleteDoc(doc(db, 'cartes', roomId, 'pings', ping.id)).catch(console.error);
+          }
+        });
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [pings, roomId, userId, isMJ]);
+
 
   // 🆕 AUTO-DELETE TEMPORARY MEASUREMENTS
   useEffect(() => {
@@ -8015,6 +8059,7 @@ export default function Component() {
               return Math.abs(charX - mouseX) < clickRadius && Math.abs(charY - mouseY) < clickRadius;
             });
 
+
             if (hoveredCharIndex !== -1) {
               // 🎯 Check if the hovered character is part of a multi-selection
               if (selectedCharacters.length > 1 && selectedCharacters.includes(hoveredCharIndex)) {
@@ -8027,25 +8072,7 @@ export default function Component() {
 
               // Cursor is over a character.
               // Prevent the Radial Menu (parent) from seeing this event.
-              // The Character Context Menu mechanism (likely handleCanvasMouseDown right-click check) might handle it,
-              // OR we need to trigger it here if it's not handled by 'contextmenu' event.
-
-              // In existing code, handleCanvasMouseDown handles right-click detection explicitly for logic (like fog),
-              // but `ContextMenuPanel` state is usually set there.
-
-              // Let's ensure we stop propagation so RadialMenu doesn't open.
               e.stopPropagation();
-
-              // Also, if the character right-click logic relies on 'mousedown', it has already fired.
-              // If it relies on 'contextmenu', it might be on the canvas.
-
-              // IMPORTANT: e.preventDefault() here would stop the browser native menu,
-              // but we might WANT the custom Character Context Menu relative logic to run if it wasn't triggered by mousedown.
-              // However, let's look at `handleCanvasMouseDown` again.
-              // It handles `e.button === 2`? NOT explicitly for opening the character menu yet (it was mostly for fog).
-
-              // To be safe: triggering character menu usually happens on clic.
-              // Let's add the logic to OPEN the character menu here directly on contextmenu if generic right click didn't do it.
 
               const char = characters[hoveredCharIndex];
               if (char && char.id) {
@@ -8055,11 +8082,83 @@ export default function Component() {
               }
               return;
             }
+
+            // 🎯 PING CREATION (Empty Space Click)
+            e.preventDefault();
+
+            // Only create ping if not dragging (to avoid pinging after panning)
+            // But contextmenu fires on mouse up/click usually.
+            // Check if it was a distinct click (brief duration)?
+            // Creating a ping is fine.
+
+            const newPing: Ping = {
+              id: `ping-${Date.now()}`,
+              x: worldPoint.x,
+              y: worldPoint.y,
+              color: '#FF0000', // Default Red
+              timestamp: Date.now(),
+              userId: userId || 'unknown',
+              cityId: selectedCityId
+            };
+            addDoc(collection(db, 'cartes', roomId, 'pings'), newPing).catch(console.error);
           }
         }
         }
       >
         <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
+          {/* 🎯 PINGS LAYER */}
+          <div className="pings-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 60 }}>
+            {pings.filter(p => Date.now() - p.timestamp < 3500).map(ping => { // Extra 500ms buffer for animation to finish if needed
+              if (ping.cityId !== selectedCityId) return null; // Only show pings for current city
+              if (!bgImageObject) return null;
+
+              const image = bgImageObject;
+              const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+              const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
+              const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
+              if (cWidth === 0 || cHeight === 0) return null;
+
+              const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
+              const scaledWidth = imgWidth * scale * zoom;
+              const scaledHeight = imgHeight * scale * zoom;
+
+              const screenX = (ping.x / imgWidth) * scaledWidth - offset.x;
+              const screenY = (ping.y / imgHeight) * scaledHeight - offset.y;
+
+              const size = 30 * zoom;
+
+              return (
+                <div key={ping.id} style={{ position: 'absolute', left: screenX, top: screenY, transform: 'translate(-50%, -50%)' }}>
+                  <motion.div
+                    initial={{ scale: 0.2, opacity: 1 }}
+                    animate={{ scale: 2, opacity: 0 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "easeOut" }}
+                    style={{
+                      width: size,
+                      height: size,
+                      borderRadius: '50%',
+                      border: `3px solid ${ping.color}`,
+                      backgroundColor: `${ping.color}40`,
+                    }}
+                  />
+                  <motion.div
+                    initial={{ scale: 0, opacity: 1 }}
+                    animate={{ scale: 1, opacity: 0 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "easeOut", delay: 0.2 }}
+                    style={{
+                      position: 'absolute',
+                      top: 0, left: 0,
+                      width: size,
+                      height: size,
+                      borderRadius: '50%',
+                      border: `1px solid ${ping.color}`,
+                    }}
+                  />
+                </div>
+              );
+            })}
+          </div>
+
           <canvas
             ref={bgCanvasRef}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}

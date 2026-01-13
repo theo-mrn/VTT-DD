@@ -197,3 +197,13 @@ export interface LightSource {
     visible: boolean;
     cityId?: string | null;
 }
+
+export interface Ping {
+    id: string;
+    x: number;
+    y: number;
+    color: string;
+    timestamp: number;
+    userId: string;
+    cityId?: string | null;
+}

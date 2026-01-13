@@ -1,6 +1,6 @@
 "use client";
 
-import { Swords, FileText, Edit, Dice5, ImagePlay, UsersRound } from "lucide-react";
+import { Swords, FileText, Edit, Dice5, ImagePlay, UsersRound, Skull } from "lucide-react";
 import { useGame } from "@/contexts/GameContext";
 import SearchMenu from "./SearchMenu";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
@@ -31,6 +31,9 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
             </button>
             <button onClick={() => handleIconClick("NPCManager")} className="p-1.5 sm:p-2">
               <UsersRound className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "NPCManager" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
+            </button>
+            <button onClick={() => handleIconClick("EncounterGenerator")} className="p-1.5 sm:p-2">
+              <Skull className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "EncounterGenerator" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
             </button>
           </>
         )}
