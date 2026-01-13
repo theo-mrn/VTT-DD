@@ -57,7 +57,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, Lightbulb } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Map as MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, Lightbulb } from 'lucide-react'
 import { auth, db, onAuthStateChanged } from '@/lib/firebase'
 import { doc, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
 import Combat from '@/components/(combat)/combat2';
@@ -711,6 +711,7 @@ export default function Component() {
   const [isDrawingObstacle, setIsDrawingObstacle] = useState(false);
   const [currentObstaclePoints, setCurrentObstaclePoints] = useState<Point[]>([]);
   const [selectedObstacleId, setSelectedObstacleId] = useState<string | null>(null);
+  const [shadowOpacity, setShadowOpacity] = useState<number>(1.0); // 0.0 to 1.0 (0% to 100%)
   const [isDraggingObstacle, setIsDraggingObstacle] = useState(false);
   const [draggedObstacleId, setDraggedObstacleId] = useState<string | null>(null);
   const [draggedObstacleOriginalPoints, setDraggedObstacleOriginalPoints] = useState<Point[]>([]);
@@ -1052,6 +1053,9 @@ export default function Component() {
         if (data.globalTokenScale !== undefined) {
           setGlobalTokenScale(data.globalTokenScale);
         }
+        if (data.shadowOpacity !== undefined) {
+          setShadowOpacity(data.shadowOpacity);
+        }
       }
     });
     return () => unsubscribe();
@@ -1063,6 +1067,14 @@ export default function Component() {
     setGlobalTokenScale(newScale);
     const settingsRef = doc(db, 'cartes', roomId, 'settings', 'general');
     await setDoc(settingsRef, { globalTokenScale: newScale }, { merge: true });
+  };
+
+  const updateShadowOpacity = async (newOpacity: number) => {
+    if (!roomId || !isMJ) return;
+    // Optimistic update
+    setShadowOpacity(newOpacity);
+    const settingsRef = doc(db, 'cartes', roomId, 'settings', 'general');
+    await setDoc(settingsRef, { shadowOpacity: newOpacity }, { merge: true });
   };
 
   const isLayerVisible = (layerId: LayerType) => {
@@ -3017,6 +3029,31 @@ export default function Component() {
             >
               <Lightbulb className="w-5 h-5" strokeWidth={isLightPlacementMode ? 2.5 : 2} />
             </Button>
+
+            <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+
+            {/* Contrôle d'opacité des ombres */}
+            <div className="flex items-center gap-2 px-3">
+              <div className="flex items-center gap-2 min-w-[140px]">
+                <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2v20M17 7h-5M17 12h-5M17 17h-5" />
+                </svg>
+                <span className="text-xs text-gray-400 whitespace-nowrap">Opacité</span>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="10"
+                  value={shadowOpacity * 100}
+                  onChange={(e) => updateShadowOpacity(parseInt(e.target.value) / 100)}
+                  className="w-16 h-1.5 bg-white/10 rounded-lg appearance-none cursor-pointer accent-[#c0a080]"
+                  title="Opacité des ombres (0% = transparent, 100% = opaque)"
+                />
+                <span className="text-xs font-mono text-[#c0a080] bg-black/30 px-1.5 py-0.5 rounded min-w-[2.5rem] text-center">
+                  {Math.round(shadowOpacity * 100)}%
+                </span>
+              </div>
+            </div>
           </div>
         </div >
       );
@@ -3831,13 +3868,13 @@ export default function Component() {
       if (viewerPosition) {
         const mapBounds = { width: imgWidth, height: imgHeight };
 
-        // Dessiner les ombres avec une opacité fixe (pas de superposition)
+        // Dessiner les ombres avec l'opacité ajustable par le MJ
         drawShadows(
           ctx,
           viewerPosition,
           obstacles,
           mapBounds,
-          1.0, // Opacité 100% - les joueurs ne voient rien derrière les obstacles
+          shadowOpacity, // Opacité ajustable (10%, 50%, 100%, etc.)
           transformPoint,
           {
             precalculated: precalculatedShadows ?? undefined,

@@ -24,7 +24,7 @@ import {
     Menu,
     Plus,
     Minus,
-    MapPin,
+    Map,
     SquareDashedMousePointer,
     Volume2,
     Sliders,
@@ -344,7 +344,7 @@ function MapToolbar({
                                 <>
                                     <ToolButton onAction={onAction}
                                         id={TOOLS.WORLD_MAP}
-                                        icon={MapPin}
+                                        icon={Map}
                                         label="Carte du Monde"
                                         isActive={activeTools.includes(TOOLS.WORLD_MAP)}
                                     />
