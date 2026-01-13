@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 // import { DiceRoll } from "@dice-roller/rpg-dice-roller"; // Removed unused import
 import { motion, AnimatePresence } from "framer-motion";
-import { Dice1, RotateCcw, History, Trash2, Shield, BarChart3, Palette, Check } from "lucide-react";
+import { Dice1, RotateCcw, History, Trash2, Shield, BarChart3, Palette, Check, EyeOff, Box } from "lucide-react";
 import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy, serverTimestamp, limit } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
@@ -36,6 +36,7 @@ interface RollResult {
 interface FirebaseRoll {
   id: string;
   isPrivate: boolean;
+  isBlind?: boolean;
   diceCount: number;
   diceFaces: number;
   modifier: number;
@@ -144,6 +145,7 @@ export function DiceRoller() {
   const [showDetails, setShowDetails] = useState(false);
   const [firebaseRolls, setFirebaseRolls] = useState<FirebaseRoll[]>([]);
   const [isPrivate, setIsPrivate] = useState(false);
+  const [isBlind, setIsBlind] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showHistory] = useState(true);
@@ -379,11 +381,11 @@ export function DiceRoller() {
       }
     });
 
-    // Si aucun dé 3D n'est requis OU si les animations sont désactivées
-    if (requests3D.length === 0 || !show3DAnimations) {
+    // Si aucun dé 3D n'est requis OU si les animations sont désactivées OU si le jet est caché (blind)
+    if (requests3D.length === 0 || !show3DAnimations || isBlind) {
       // Si on veut aussi simuler les dés 3D instantanément quand animation désactivée :
       const simulated3DResults: { type: string, value: number }[] = [];
-      if (!show3DAnimations && requests3D.length > 0) {
+      if ((!show3DAnimations || isBlind) && requests3D.length > 0) {
         requests3D.forEach(req => {
           const faces = parseInt(req.type.substring(1));
           for (let i = 0; i < req.count; i++) {
@@ -545,7 +547,15 @@ export function DiceRoller() {
     }
 
     // Afficher une carte provisoire immédiatement
-    setResult({
+    // Si blind (caché), on affiche un placeholder
+    setResult(isBlind ? {
+      id: "pending",
+      notation: originalNotation,
+      result: "?",
+      total: 0,
+      timestamp: new Date(),
+      output: "Lancement caché..."
+    } : {
       id: "pending",
       notation: originalNotation,
       result: "...",
@@ -601,7 +611,28 @@ export function DiceRoller() {
         output: output
       };
 
-      setResult(result);
+      // Créer le résultat pour l'affichage local
+      // Si blind, on montre un résultat masqué, MEME pour le lanceur
+      if (isBlind) {
+        setResult({
+          id: Date.now().toString(),
+          notation: originalNotation,
+          result: "?",
+          total: 0,
+          timestamp: new Date(),
+          output: "Résultat caché (envoyé au MJ)"
+        });
+      } else {
+        const result: RollResult = {
+          id: Date.now().toString(),
+          notation: originalNotation,
+          result: total.toString(),
+          total: total,
+          timestamp: new Date(),
+          output: output
+        };
+        setResult(result);
+      }
 
       if (roomId && userName) {
 
@@ -622,6 +653,7 @@ export function DiceRoller() {
         const firebaseRoll: FirebaseRoll = {
           id: crypto.randomUUID(),
           isPrivate,
+          isBlind,
           diceCount: mainDieCount,
           diceFaces: mainDieFaces,
           modifier: 0, // Compliqué à calculer rétroactivement exactement, on met 0 ou on essaie de parser
@@ -675,8 +707,9 @@ export function DiceRoller() {
 
   // Vérifier si un lancer peut être affiché
   const canDisplayRoll = (roll: FirebaseRoll) => {
+    if (isMJ) return true; // Le MJ voit TOUT
+    if (roll.isBlind) return false; // Si c'est blind, PERSONNE d'autre ne voit (même pas le lanceur dans l'historique)
     if (!roll.isPrivate) return true;
-    if (isMJ) return true;
     return roll.userName === characterName;
   };
 
@@ -706,32 +739,50 @@ export function DiceRoller() {
         <Card className="card">
           <CardContent className="p-3 space-y-2">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Switch id="private-switch" checked={isPrivate} onCheckedChange={setIsPrivate} />
-                <Label htmlFor="private-switch" className="text-[var(--text-primary)] text-sm">Privé</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="3d-switch"
-                  checked={show3DAnimations}
-                  onCheckedChange={(checked) => {
-                    setShow3DAnimations(checked);
-                    localStorage.setItem("vtt_3d_enabled", String(checked));
+              <div className="flex items-center gap-1 bg-black/20 p-1 rounded-lg">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsPrivate(!isPrivate)}
+                  className={`h-8 px-2 gap-2 transition-all duration-200 ${isPrivate ? "bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                  title="Mode Privé : visible uniquement par vous et le MJ"
+                >
+                  <Shield className="h-4 w-4" />
+                  <span className="text-xs font-medium hidden sm:inline">Privé</span>
+                </Button>
+
+                <div className="w-px h-4 bg-white/10 mx-1" />
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsBlind(!isBlind)}
+                  className={`h-8 px-2 gap-2 transition-all duration-200 ${isBlind ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                  title="Mode Caché : résultat invisible pour vous (visible MJ)"
+                >
+                  <EyeOff className="h-4 w-4" />
+                  <span className="text-xs font-medium hidden sm:inline">Caché</span>
+                </Button>
+
+                <div className="w-px h-4 bg-white/10 mx-1" />
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const newVal = !show3DAnimations;
+                    setShow3DAnimations(newVal);
+                    localStorage.setItem("vtt_3d_enabled", String(newVal));
                   }}
-                />
-                <Label htmlFor="3d-switch" className="text-[var(--text-primary)] text-sm hidden sm:inline">3D</Label>
+                  className={`h-8 px-2 gap-2 transition-all duration-200 ${show3DAnimations ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
+                  title="Animation 3D"
+                >
+                  <Box className="h-4 w-4" />
+                  <span className="text-xs font-medium hidden sm:inline">3D</span>
+                </Button>
               </div>
 
-              {userName && (
-                <div className="flex items-center gap-2">
-                  {userAvatar && (
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={userAvatar} alt="Avatar" className="object-contain" />
-                    </Avatar>
-                  )}
-                  <span className="text-sm font-medium text-[var(--text-primary)] truncate max-w-[100px]">{userName}</span>
-                </div>
-              )}
+
             </div>
           </CardContent>
         </Card>
