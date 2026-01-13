@@ -7945,39 +7945,6 @@ export default function Component() {
         }}
         unitName={unitName}
       />
-
-      {/* Styles pour l'animation de livre */}
-      <style jsx global>{`
-        @keyframes bookOpen {
-          0% {
-            opacity: 0;
-            transform: perspective(2000px) rotateY(-90deg);
-            transform-origin: right center; /* Changed to right center for right-side opening */
-          }
-          50% {
-            opacity: 0.5;
-          }
-          100% {
-            opacity: 1;
-            transform: perspective(2000px) rotateY(0deg);
-            transform-origin: right center;
-          }
-        }
-
-        @keyframes fadeIn {
-          0% {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          100% {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
-
-
-
       <MapToolbar
         isMJ={isMJ}
         activeTools={getActiveToolbarTools()}
@@ -8573,33 +8540,64 @@ export default function Component() {
                   )}
                   {/* Status Effect Veils */}
                   {char.conditions?.includes('poisoned') && char.type !== 'joueurs' && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        background: 'radial-gradient(circle, transparent 0%, transparent 20%, rgba(0, 255, 100, 0.6) 55%, rgba(0, 255, 100, 0.95) 100%)',
-                        mixBlendMode: 'overlay',
-                        pointerEvents: 'none',
-                        borderRadius: isPlayerCharacter ? '0' : '50%'
-                      }}
-                    />
+                    <>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          background: 'radial-gradient(circle, transparent 0%, transparent 30%, rgba(255, 255, 255, 0.6) 65%, rgba(255, 255, 255, 0.95) 100%)',
+                          mixBlendMode: 'screen',
+                          pointerEvents: 'none',
+                          borderRadius: '50%'
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          background: 'radial-gradient(circle, transparent 0%, transparent 20%, rgba(0, 255, 100, 0.6) 55%, rgba(0, 255, 100, 0.95) 100%)',
+                          mixBlendMode: 'overlay',
+                          pointerEvents: 'none',
+                          borderRadius: '50%'
+                        }}
+                      />
+                    </>
                   )}
                   {char.conditions?.includes('stunned') && char.type !== 'joueurs' && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        background: 'radial-gradient(circle, transparent 0%, transparent 40%, rgba(255, 200, 0, 1) 90%)',
-                        mixBlendMode: 'overlay',
-                        pointerEvents: 'none', borderRadius: isPlayerCharacter ? '0' : '50%'
-                      }}
-                    />
+                    <>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          background: 'radial-gradient(circle, transparent 0%, transparent 30%, rgba(255, 255, 255, 0.6) 65%, rgba(255, 255, 255, 0.95) 100%)',
+                          mixBlendMode: 'screen',
+                          pointerEvents: 'none',
+                          borderRadius: '50%'
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          background: 'radial-gradient(circle, transparent 0%, transparent 40%, rgba(255, 200, 0, 1) 90%)',
+                          mixBlendMode: 'overlay',
+                          pointerEvents: 'none',
+                          borderRadius: '50%'
+                        }}
+                      />
+                    </>
                   )}
                   {char.conditions?.includes('blinded') && char.type !== 'joueurs' && (
                     <div
