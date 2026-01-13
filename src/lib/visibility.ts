@@ -13,10 +13,15 @@ export type Segment = {
 
 export type Obstacle = {
     id: string;
-    type: 'wall' | 'rectangle' | 'polygon';
+    type: 'wall' | 'rectangle' | 'polygon' | 'one-way-wall' | 'door';
     points: Point[]; // Pour wall: [start, end], rectangle: [topLeft, bottomRight], polygon: [points...]
     color?: string;
     opacity?: number;
+
+    // Nouvelles propriétés pour les obstacles avancés
+    direction?: 'north' | 'south' | 'east' | 'west'; // Pour murs à sens unique : direction bloquante
+    isOpen?: boolean; // Pour portes : true = ouverte (pas de blocage), false = fermée (bloque)
+    doorWidth?: number; // Largeur visuelle de la porte (optionnel)
 };
 
 /**
@@ -150,6 +155,88 @@ function createExteriorMask(
 }
 
 /**
+ * Check if a one-way wall blocks vision from the viewer's position
+ * One-way walls only block vision from one side based on their direction
+ */
+// Helper pour savoir si un viewer est du côté bloqué d'un mur à sens unique
+// Utilise la géométrie vectorielle précise (produit scalaire) pour gérer tous les angles
+function isViewerBlockedByOneWayWall(
+    viewerPos: Point,
+    wallSegment: Segment,
+    direction: 'north' | 'south' | 'east' | 'west'
+): boolean {
+    const p1 = wallSegment.p1;
+    const p2 = wallSegment.p2;
+
+    // 1. Calculer le centre du mur
+    const midX = (p1.x + p2.x) / 2;
+    const midY = (p1.y + p2.y) / 2;
+
+    // 2. Calculer le vecteur Mur -> Viewer
+    const vx = viewerPos.x - midX;
+    const vy = viewerPos.y - midY;
+
+    // 3. Calculer la normale du mur (Flèche visuelle)
+    // Vecteur Mur
+    const dx = p2.x - p1.x;
+    const dy = p2.y - p1.y;
+    const len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) return false;
+
+    // Normale par défaut
+    // n = (-dy, dx) / len
+    let nx = -dy / len;
+    let ny = dx / len;
+
+    // 4. Orienter la normale selon la direction (exactement comme dans drawObstacles)
+    let targetDx = 0, targetDy = 0;
+    switch (direction) {
+        case 'north': targetDy = -1; break;
+        case 'south': targetDy = 1; break;
+        case 'east': targetDx = 1; break;
+        case 'west': targetDx = -1; break;
+        default: targetDy = -1;
+    }
+
+    const dotAlign = nx * targetDx + ny * targetDy;
+    if (dotAlign < 0) {
+        nx = -nx;
+        ny = -ny;
+    }
+
+    // 5. Produit scalaire (Mur->Viewer) . N
+    // N pointe vers le côté "Autorisé" (flèche blanche)
+    // Si Dot > 0 : Viewer est du côté autorisé (la flèche pointe vers lui) -> PAS BLOQUÉ
+    // Si Dot < 0 : Viewer est du côté interdit (derrière le mur) -> BLOQUÉ
+
+    // Attendez, revérifions la logique de blocage stricte : 
+    // Un Mur One-Way est transparent d'un côté et Opaque de l'autre.
+    // La flèche blanche indique le "Sens Autorisé de la Vision" (la lumière passe dans le sens de la flèche).
+    // Donc la lumière va de "Derrière" vers "Devant" (pointe de la flèche).
+    // Si je suis Devant (côté pointe), je vois ce qu'il y a Derrière. (La lumière m'arrive). -> PAS BLOQUÉ
+    // Si je suis Derrière (côté base), je regarde vers Devant. La lumière ne revient pas. -> BLOQUÉ ???
+
+    // NON. Habituellement "One Way" = On voit DANS le sens de la flèche.
+    // Flèche : ->
+    // Oeil A (base) regarde par là ->. Il VOIT.
+    // Oeil B (pointe) regarde par là <-. Il est BLOQUÉ.
+
+    // Ma logique visuelle step 289 : "Grande flèche blanche... Indique le sens autorisé de la vision"
+    // Donc Viewer à la BASE de la flèche regarde vers la POINTE. Il voit.
+    // Viewer à la POINTE regarde vers la BASE. Il est bloqué.
+
+    // Vecteur N pointe de Base vers Pointe.
+    // Vecteur V (Mur->Viewer).
+    // Si V est du côté de la Pointe (Dot > 0) : Viewer est "Devant". Il regarde vers l'arrière (contre sens). BLOQUÉ.
+    // Si V est du côté de la Base (Dot < 0) : Viewer est "Derrière". Il regarde vers l'avant (bon sens). PAS BLOQUÉ.
+
+    const dotProduct = vx * nx + vy * ny;
+
+    // Donc si Dot > 0 (Côté pointe), on est bloqué.
+    return dotProduct > 0;
+}
+
+/**
  * Calculate all shadow polygons from obstacles
  * Walls cast shadows behind them, polygons only block their interior (or exterior if viewer inside)
  */
@@ -161,6 +248,11 @@ export function calculateShadowPolygons(
     const shadows: Point[][] = [];
 
     for (const obstacle of obstacles) {
+        // 🚪 PORTES : Ne pas bloquer si la porte est ouverte
+        if (obstacle.type === 'door' && obstacle.isOpen) {
+            continue; // Porte ouverte = pas de blocage
+        }
+
         if (obstacle.type === 'polygon' && obstacle.points.length >= 3) {
             // For polygons: check if viewer is inside or outside
             const viewerInside = isPointInPolygon(viewerPos, obstacle.points);
@@ -174,13 +266,28 @@ export function calculateShadowPolygons(
                 // Just add the polygon itself as a shadow (not shadows cast behind it)
                 shadows.push([...obstacle.points]);
             }
+        } else if (obstacle.type === 'one-way-wall' && obstacle.points.length >= 2) {
+            // 🔀 MUR À SENS UNIQUE : Ne bloquer que depuis une direction
+            const segment = { p1: obstacle.points[0], p2: obstacle.points[1] };
+            const direction = obstacle.direction || 'north';
+
+            // Vérifier si le viewer est du côté bloquant
+            if (isViewerBlockedByOneWayWall(viewerPos, segment, direction)) {
+                const shadow = calculateShadowPolygon(viewerPos, segment, mapBounds);
+                if (shadow.length >= 3) {
+                    shadows.push(shadow);
+                }
+            }
+            // Sinon, le mur ne bloque pas depuis cette direction
         } else {
             // For walls (and chains): cast shadows behind each segment
             const segments = obstacle.type === 'wall' && obstacle.points.length >= 2
                 ? [{ p1: obstacle.points[0], p2: obstacle.points[1] }]
-                : obstacle.type === 'rectangle' && obstacle.points.length >= 2
-                    ? getSegmentsFromRectangle(obstacle.points[0], obstacle.points[1])
-                    : [];
+                : obstacle.type === 'door' && obstacle.points.length >= 2
+                    ? [{ p1: obstacle.points[0], p2: obstacle.points[1] }] // Porte fermée = comme un mur
+                    : obstacle.type === 'rectangle' && obstacle.points.length >= 2
+                        ? getSegmentsFromRectangle(obstacle.points[0], obstacle.points[1])
+                        : [];
 
             // For chain walls (polygon with type 'wall'), handle each segment
             if (obstacle.type === 'wall' && obstacle.points.length > 2) {
@@ -458,9 +565,26 @@ export function drawObstacles(
     for (const obstacle of obstacles) {
         const isSelected = obstacle.id === selectedId;
 
+        // Définir les couleurs selon le type d'obstacle
+        let obstacleStrokeColor = strokeColor;
+        let obstacleFillColor = fillColor;
+
+        if (obstacle.type === 'one-way-wall') {
+            obstacleStrokeColor = isSelected ? '#FFD700' : 'rgba(255, 165, 0, 0.9)'; // Orange
+            obstacleFillColor = 'rgba(255, 165, 0, 0.2)';
+        } else if (obstacle.type === 'door') {
+            if (obstacle.isOpen) {
+                obstacleStrokeColor = isSelected ? '#FFD700' : 'rgba(0, 255, 0, 0.9)'; // Vert si ouverte
+                obstacleFillColor = 'rgba(0, 255, 0, 0.2)';
+            } else {
+                obstacleStrokeColor = isSelected ? '#FFD700' : 'rgba(255, 0, 0, 0.9)'; // Rouge si fermée
+                obstacleFillColor = 'rgba(255, 0, 0, 0.2)';
+            }
+        }
+
         ctx.beginPath();
-        ctx.strokeStyle = isSelected ? '#FFD700' : strokeColor;
-        ctx.fillStyle = isSelected ? 'rgba(255, 215, 0, 0.3)' : fillColor;
+        ctx.strokeStyle = isSelected ? '#FFD700' : obstacleStrokeColor;
+        ctx.fillStyle = isSelected ? 'rgba(255, 215, 0, 0.3)' : obstacleFillColor;
         ctx.lineWidth = isSelected ? strokeWidth * 2 : strokeWidth;
 
         if (obstacle.type === 'wall' && obstacle.points.length >= 2) {
@@ -469,6 +593,132 @@ export function drawObstacles(
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
             ctx.stroke();
+        } else if (obstacle.type === 'one-way-wall' && obstacle.points.length >= 2) {
+            // Dessiner le mur à sens unique
+            const p1 = transformPoint(obstacle.points[0]);
+            const p2 = transformPoint(obstacle.points[1]);
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+
+            // Dessiner une flèche STRICTEMENT PERPENDICULAIRE au mur
+            // Indiquant le sens de la vision (du visible vers le bloqué)
+
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
+            const arrowLength = 30; // Longueur de la flèche
+            const arrowHeadSize = 10;
+
+            ctx.save();
+            ctx.strokeStyle = '#FFFFFF';
+            ctx.fillStyle = '#FFFFFF';
+            ctx.lineWidth = 3;
+
+            ctx.beginPath();
+
+            // 1. Vecteur Mur
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const len = Math.sqrt(dx * dx + dy * dy);
+
+            // 2. Normale unitaire (tournée à 90 degrés)
+            // n1 = (-dy, dx) / len
+            let nx = -dy / len;
+            let ny = dx / len;
+
+            // 3. Orienter la normale selon la direction du backend
+            // On veut que la flèche pointe dans le sens de la vision "autorisée"
+            // Si direction='north' (bloque le nord), la vision va vers le nord (ny doit être negatif)
+
+            let targetDx = 0, targetDy = 0;
+            switch (obstacle.direction) {
+                case 'north': targetDy = -1; break;
+                case 'south': targetDy = 1; break;
+                case 'east': targetDx = 1; break;
+                case 'west': targetDx = -1; break;
+                default: targetDy = -1; // Default North
+            }
+
+            // Produit scalaire pour vérifier l'alignement
+            const dot = nx * targetDx + ny * targetDy;
+
+            // Si le produit scalaire est négatif, la normale pointe dans le sens opposé -> on l'inverse
+            if (dot < 0) {
+                nx = -nx;
+                ny = -ny;
+            }
+
+            // 4. Points de la flèche
+            // Départ = Sur le mur (midX, midY)
+            // Arrivée = midX + nx*len, midY + ny*len
+            const startX = midX;
+            const startY = midY;
+            const endX = midX + nx * arrowLength;
+            const endY = midY + ny * arrowLength;
+
+            // Dessiner le corps de la flèche (du mur vers l'extérieur)
+            ctx.moveTo(startX, startY);
+            ctx.lineTo(endX, endY);
+            ctx.stroke();
+
+            // Dessiner la tête de la flèche
+            ctx.beginPath();
+            const angle = Math.atan2(endY - startY, endX - startX);
+            ctx.moveTo(endX, endY);
+            ctx.lineTo(endX - arrowHeadSize * Math.cos(angle - Math.PI / 6), endY - arrowHeadSize * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(endX - arrowHeadSize * Math.cos(angle + Math.PI / 6), endY - arrowHeadSize * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fill();
+
+            // Ajouter une petite base sur le mur pour l'esthétique
+            ctx.beginPath();
+            const barSize = 6;
+            // Vecteur tangent unitaire (dx/len, dy/len)
+            const tx = dx / len;
+            const ty = dy / len;
+            ctx.moveTo(midX - tx * barSize, midY - ty * barSize);
+            ctx.lineTo(midX + tx * barSize, midY + ty * barSize);
+            ctx.stroke();
+
+            ctx.restore();
+        } else if (obstacle.type === 'door' && obstacle.points.length >= 2) {
+            // Dessiner la porte
+            const p1 = transformPoint(obstacle.points[0]);
+            const p2 = transformPoint(obstacle.points[1]);
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+
+            // Ajouter un symbole de porte au milieu
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
+            const doorSize = 12;
+
+            ctx.save();
+            ctx.fillStyle = obstacleStrokeColor;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+
+            // Rectangle pour représenter la porte
+            ctx.beginPath();
+            ctx.arc(midX, midY, doorSize, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Symbole : ligne verticale si fermée, arc si ouverte
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            if (obstacle.isOpen) {
+                // Arc pour porte ouverte
+                ctx.arc(midX, midY, doorSize * 0.5, -Math.PI / 4, Math.PI / 4);
+            } else {
+                // Ligne pour porte fermée
+                ctx.moveTo(midX, midY - doorSize * 0.5);
+                ctx.lineTo(midX, midY + doorSize * 0.5);
+            }
+            ctx.stroke();
+            ctx.restore();
         } else if (obstacle.type === 'rectangle' && obstacle.points.length >= 2) {
             const tl = transformPoint(obstacle.points[0]);
             const br = transformPoint(obstacle.points[1]);

@@ -57,7 +57,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Map as MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, Lightbulb } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Map as MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, Lightbulb, ArrowRight, DoorOpen, Pen } from 'lucide-react'
 import { auth, db, onAuthStateChanged } from '@/lib/firebase'
 import { doc, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
 import Combat from '@/components/(combat)/combat2';
@@ -719,6 +719,14 @@ export default function Component() {
   const [draggedPointIndex, setDraggedPointIndex] = useState<number | null>(null);
   const [dragStartPos, setDragStartPos] = useState<Point | null>(null);
   const [connectedPoints, setConnectedPoints] = useState<{ obstacleId: string, pointIndex: number }[]>([]);
+
+  // Refs pour le drag haute fréquence (évite les problèmes de rafraîchissement d'état)
+  const draggedObstacleOriginalPointsRef = useRef<Point[]>([]);
+  const dragStartPosRef = useRef<Point | null>(null);
+
+  // 🆕 Nouveaux états pour les types d'obstacles avancés
+  const [currentObstacleType, setCurrentObstacleType] = useState<'wall' | 'one-way-wall' | 'door'>('wall');
+  const [isOneWayReversed, setIsOneWayReversed] = useState<boolean>(false); // Sens par défaut ou inversé
 
   // 🎯 LAYERS STATE
   const [showLayerControl, setShowLayerControl] = useState(false);
@@ -1706,6 +1714,8 @@ export default function Component() {
           points: data.points || [],
           color: data.color,
           opacity: data.opacity,
+          direction: data.direction,
+          isOpen: data.isOpen,
         });
       });
 
@@ -2289,16 +2299,32 @@ export default function Component() {
     }
   };
 
-  const saveObstacle = async (type: 'wall' | 'polygon', points: Point[]) => {
+  const saveObstacle = async (
+    type: 'wall' | 'polygon' | 'one-way-wall' | 'door',
+    points: Point[],
+    additionalProps?: {
+      direction?: 'north' | 'south' | 'east' | 'west';
+      isOpen?: boolean;
+    }
+  ) => {
     if (!roomId || points.length < 2) return;
 
     try {
-      const obstacleData = {
+      const obstacleData: any = {
         type,
         points,
         cityId: selectedCityId,
         createdAt: new Date().toISOString(),
       };
+
+      // Ajouter les propriétés spécifiques selon le type
+      if (type === 'one-way-wall' && additionalProps?.direction) {
+        obstacleData.direction = additionalProps.direction;
+      }
+
+      if (type === 'door') {
+        obstacleData.isOpen = additionalProps?.isOpen ?? false; // Par défaut fermée
+      }
 
       const docRef = await addDoc(collection(db, 'cartes', String(roomId), 'obstacles'), obstacleData);
     } catch (error) {
@@ -2327,6 +2353,29 @@ export default function Component() {
 
     } catch (error) {
       console.error('❌ Erreur mise à jour obstacle:', error);
+    }
+  };
+
+  const toggleDoorState = async (obstacleId: string) => {
+    if (!roomId || !obstacleId || !isMJ) return; // Seul le MJ peut ouvrir/fermer les portes
+
+    try {
+      const obstacle = obstacles.find(o => o.id === obstacleId);
+      if (!obstacle || obstacle.type !== 'door') return;
+
+      const newIsOpen = !obstacle.isOpen;
+
+      // Mise à jour optimiste locale
+      setObstacles(prev => prev.map(o =>
+        o.id === obstacleId ? { ...o, isOpen: newIsOpen } : o
+      ));
+
+      // Sauvegarder dans Firebase
+      const obstacleRef = doc(db, 'cartes', String(roomId), 'obstacles', obstacleId);
+      await updateDoc(obstacleRef, { isOpen: newIsOpen });
+
+    } catch (error) {
+      console.error('❌ Erreur toggle porte:', error);
     }
   };
 
@@ -2640,9 +2689,103 @@ export default function Component() {
 
     // 🎯 SELECTION : Obstacle (MJ)
     if (selectedObstacleId && isMJ) {
+      const selectedObs = obstacles.find(o => o.id === selectedObstacleId);
+
       return (
         <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-          <span className="text-white text-sm font-medium pr-2">Obstacle</span>
+          <span className="text-white text-sm font-medium pr-2">
+            {selectedObs?.type === 'door' ? 'Porte' :
+              selectedObs?.type === 'one-way-wall' ? 'Mur sens-unique' : 'Obstacle'}
+          </span>
+
+          {/* Type Switcher */}
+          <div className="flex items-center gap-1 border-l border-r border-white/10 px-2 mx-2">
+            <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${selectedObs?.type === 'wall' ? 'bg-white/20 text-white' : 'text-gray-400'}`} onClick={async () => {
+              if (!roomId || !selectedObstacleId) return;
+              const obstacleRef = doc(db, 'cartes', String(roomId), 'obstacles', selectedObstacleId);
+              await updateDoc(obstacleRef, { type: 'wall' });
+              setObstacles(prev => prev.map(o => o.id === selectedObstacleId ? { ...o, type: 'wall' } : o));
+            }} title="Convertir en Mur">
+              <div className="w-3 h-3 bg-current rounded-[1px]" />
+            </Button>
+            <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${selectedObs?.type === 'one-way-wall' ? 'bg-orange-500/20 text-orange-400' : 'text-gray-400'}`} onClick={async () => {
+              if (!roomId || !selectedObstacleId) return;
+              const obstacleRef = doc(db, 'cartes', String(roomId), 'obstacles', selectedObstacleId);
+
+              // Calculer direction par défaut
+              const p1 = selectedObs?.points[0];
+              const p2 = selectedObs?.points[1];
+              let defaultDir = 'north';
+              if (p1 && p2) {
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+                // Normale main droite (dy, -dx)
+                let nx = dy;
+                let ny = -dx;
+                if (Math.abs(nx) > Math.abs(ny)) {
+                  defaultDir = nx > 0 ? 'east' : 'west';
+                } else {
+                  defaultDir = ny > 0 ? 'south' : 'north';
+                }
+              }
+
+              await updateDoc(obstacleRef, { type: 'one-way-wall', direction: defaultDir });
+              setObstacles(prev => prev.map(o => o.id === selectedObstacleId ? { ...o, type: 'one-way-wall', direction: defaultDir as any } : o));
+            }} title="Convertir en Mur sens-unique">
+              <ArrowRight className="w-3 h-3" />
+            </Button>
+            <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${selectedObs?.type === 'door' ? 'bg-green-500/20 text-green-400' : 'text-gray-400'}`} onClick={async () => {
+              if (!roomId || !selectedObstacleId) return;
+              const obstacleRef = doc(db, 'cartes', String(roomId), 'obstacles', selectedObstacleId);
+              await updateDoc(obstacleRef, { type: 'door', isOpen: false });
+              setObstacles(prev => prev.map(o => o.id === selectedObstacleId ? { ...o, type: 'door', isOpen: false } : o));
+            }} title="Convertir en Porte">
+              <DoorOpen className="w-3 h-3" />
+            </Button>
+          </div>
+
+          {/* Bouton pour ouvrir/fermer les portes */}
+          {selectedObs?.type === 'door' && (
+            <Button
+              variant={selectedObs.isOpen ? "default" : "secondary"}
+              size="sm"
+              className={selectedObs.isOpen ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700 text-white"}
+              onClick={() => toggleDoorState(selectedObstacleId)}
+            >
+              {selectedObs.isOpen ? (
+                <><DoorOpen className="w-4 h-4 mr-2" /> Ouverte</>
+              ) : (
+                <><DoorOpen className="w-4 h-4 mr-2" /> Fermée</>
+              )}
+            </Button>
+          )}
+
+          {/* Bouton pour inverser le sens des murs à sens unique */}
+          {selectedObs?.type === 'one-way-wall' && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={async () => {
+                if (!roomId || !selectedObstacleId) return;
+                const currentDir = selectedObs.direction || 'north';
+                let newDir = 'north';
+                if (currentDir === 'north') newDir = 'south';
+                else if (currentDir === 'south') newDir = 'north';
+                else if (currentDir === 'east') newDir = 'west';
+                else if (currentDir === 'west') newDir = 'east';
+
+                // Update local
+                setObstacles(prev => prev.map(o => o.id === selectedObstacleId ? { ...o, direction: newDir as any } : o));
+
+                // Update Firebase
+                const obstacleRef = doc(db, 'cartes', String(roomId), 'obstacles', selectedObstacleId);
+                await updateDoc(obstacleRef, { direction: newDir });
+              }}
+            >
+              Inverser sens ⇄
+            </Button>
+          )}
+
           <Button
             variant="destructive"
             size="sm"
@@ -2993,6 +3136,58 @@ export default function Component() {
                 <polyline points="4,18 10,8 18,12 22,4" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </Button>
+
+            {/* Sélection du type d'obstacle (visible uniquement si outil chain actif) */}
+            {currentVisibilityTool === 'chain' && (
+              <div className="flex items-center gap-1 ml-1 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
+                <span className="text-[10px] text-gray-400 mr-1">Type:</span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-7 px-2 text-xs ${currentObstacleType === 'wall' ? 'bg-white/20 text-white' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+                  onClick={() => setCurrentObstacleType('wall')}
+                  title="Mur normal"
+                >
+                  Mur
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-7 px-2 text-xs ${currentObstacleType === 'one-way-wall' ? 'bg-orange-500/30 text-orange-300' : 'text-gray-400 hover:text-orange-300 hover:bg-orange-500/20'}`}
+                  onClick={() => setCurrentObstacleType('one-way-wall')}
+                  title="Mur à sens unique"
+                >
+                  <ArrowRight className="w-3 h-3 mr-1" />
+                  Sens unique
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className={`h-7 px-2 text-xs ${currentObstacleType === 'door' ? 'bg-green-500/30 text-green-300' : 'text-gray-400 hover:text-green-300 hover:bg-green-500/20'}`}
+                  onClick={() => setCurrentObstacleType('door')}
+                  title="Porte"
+                >
+                  <DoorOpen className="w-3 h-3 mr-1" />
+                  Porte
+                </Button>
+
+                {/* Sélecteur de direction pour murs à sens unique (Mode simplifié : Normal / Inversé) */}
+                {currentObstacleType === 'one-way-wall' && (
+                  <div className="flex items-center gap-1 ml-2 pl-2 border-l border-white/10">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`h-7 px-2 text-xs border border-orange-500/30 ${isOneWayReversed ? 'bg-orange-500/40 text-white' : 'text-orange-400 hover:bg-orange-500/10'}`}
+                      onClick={() => setIsOneWayReversed(!isOneWayReversed)}
+                      title="Inverser le sens bloquant (basculer de quel côté on voit)"
+                    >
+                      Inverser le sens ⇄
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <Button
               variant="ghost"
               size="icon"
@@ -3011,7 +3206,7 @@ export default function Component() {
               onClick={() => setCurrentVisibilityTool('edit')}
               title="Éditer / Déplacer les murs"
             >
-              <Move className="w-5 h-5" strokeWidth={currentVisibilityTool === 'edit' ? 2.5 : 2} />
+              <Pen className="w-5 h-5" strokeWidth={currentVisibilityTool === 'edit' ? 2.5 : 2} />
             </Button>
             <Button
               variant="ghost"
@@ -3035,9 +3230,6 @@ export default function Component() {
             {/* Contrôle d'opacité des ombres */}
             <div className="flex items-center gap-2 px-3">
               <div className="flex items-center gap-2 min-w-[140px]">
-                <svg className="w-4 h-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M12 2v20M17 7h-5M17 12h-5M17 17h-5" />
-                </svg>
                 <span className="text-xs text-gray-400 whitespace-nowrap">Opacité</span>
                 <input
                   type="range"
@@ -5296,7 +5488,8 @@ export default function Component() {
 
           // 3. Vérifier si on clique sur un autre obstacle pour le sélectionner
           const clickedObstacle = obstacles.find(obstacle => {
-            if (obstacle.type === 'wall' && obstacle.points.length >= 2) {
+            // 🚪 PORTES et MURS À SENS UNIQUE : détection comme les murs normaux
+            if ((obstacle.type === 'wall' || obstacle.type === 'one-way-wall' || obstacle.type === 'door') && obstacle.points.length >= 2) {
               const p1 = obstacle.points[0];
               const p2 = obstacle.points[1];
               const A = clickX - p1.x;
@@ -5329,6 +5522,14 @@ export default function Component() {
           });
 
           if (clickedObstacle) {
+            // 🚪 COMPORTEMENT SPÉCIAL POUR LES PORTES : toggle au lieu de sélectionner
+            if (clickedObstacle.type === 'door') {
+              await toggleDoorState(clickedObstacle.id);
+              // Ne pas sélectionner, juste toggler
+              return;
+            }
+
+            // Pour les autres types d'obstacles : sélection normale
             setSelectedObstacleId(clickedObstacle.id);
           } else {
             setSelectedObstacleId(null);
@@ -5348,7 +5549,43 @@ export default function Component() {
             if (currentVisibilityTool === 'chain' && currentObstaclePoints.length >= 1) {
               // Murs connectés : sauvegarde le segment actuel, puis continue
               const finalPoints = [...currentObstaclePoints, clickPoint];
-              await saveObstacle('wall', finalPoints);
+
+              // Utiliser le type d'obstacle sélectionné
+              const additionalProps: any = {};
+
+              if (currentObstacleType === 'one-way-wall' && finalPoints.length >= 2) {
+                // Calculer la direction automatiquement basé sur le segment et le sens (Normal/Inversé)
+                const p1 = finalPoints[0];
+                const p2 = finalPoints[1];
+                const dx = p2.x - p1.x;
+                const dy = p2.y - p1.y;
+
+                // Normale par défaut (rotation -90° / main gauche) : (-dy, dx)
+                // Ou (+90° / main droite) : (dy, -dx)
+                // Choisissons Main Droite par défaut (dy, -dx)
+                let nx = dy;
+                let ny = -dx;
+
+                // Si inversé, on prend l'opposé
+                if (isOneWayReversed) {
+                  nx = -nx;
+                  ny = -ny;
+                }
+
+                // Déterminer la cardinalité dominante
+                if (Math.abs(nx) > Math.abs(ny)) {
+                  // Dominante X -> Est ou Ouest
+                  additionalProps.direction = nx > 0 ? 'east' : 'west';
+                } else {
+                  // Dominante Y -> Nord ou Sud
+                  additionalProps.direction = ny > 0 ? 'south' : 'north';
+                }
+
+              } else if (currentObstacleType === 'door') {
+                additionalProps.isOpen = false; // Nouvelles portes fermées par défaut
+              }
+
+              await saveObstacle(currentObstacleType, finalPoints, additionalProps);
               setCurrentObstaclePoints([clickPoint]);
 
             } else if (currentVisibilityTool === 'polygon') {
@@ -5660,8 +5897,8 @@ export default function Component() {
                   clickedObstacleId = obs.id;
                   break;
                 }
-              } else if (obs.type === 'wall') {
-                // Line check
+              } else if (obs.type === 'wall' || obs.type === 'one-way-wall' || obs.type === 'door') {
+                // Line check (pour murs normaux, murs à sens unique et portes)
                 for (let i = 0; i < obs.points.length - 1; i++) {
                   const p1 = obs.points[i];
                   const p2 = obs.points[i + 1];
@@ -5689,15 +5926,21 @@ export default function Component() {
 
             setContextMenuOpen(false);
 
+
+
             // Start Drag
             setIsDraggingObstacle(true);
             setDraggedObstacleId(clickedObstacleId);
             const obs = obstacles.find(o => o.id === clickedObstacleId);
             if (obs) {
-              // Deep copy points
-              setDraggedObstacleOriginalPoints(obs.points.map(p => ({ ...p })));
+              // Deep copy points for state AND ref
+              const pointsCopy = obs.points.map(p => ({ ...p }));
+              setDraggedObstacleOriginalPoints(pointsCopy);
+              draggedObstacleOriginalPointsRef.current = pointsCopy;
             }
             setDragStart({ x: e.clientX, y: e.clientY });
+            setDragStartPos({ x: e.clientX, y: e.clientY }); // Keep state for sync if needed elsewhere
+            dragStartPosRef.current = { x: e.clientX, y: e.clientY };
           } else {
             // Clic sur zone vide
             setSelectedCharacterIndex(null);
@@ -5901,7 +6144,7 @@ export default function Component() {
     }
 
     // ✏️ MODE EDIT - Drag d'un point individuel
-    if (visibilityMode && currentVisibilityTool === 'edit' && isDraggingObstaclePoint && dragStartPos) {
+    if (visibilityMode && currentVisibilityTool === 'edit' && isDraggingObstaclePoint && dragStartPosRef.current) {
       // Utiliser le snap point ou la position souris
       const targetX = activeSnapPoint ? activeSnapPoint.x : currentX;
       const targetY = activeSnapPoint ? activeSnapPoint.y : currentY;
@@ -5922,13 +6165,23 @@ export default function Component() {
     }
 
     // ✏️ MODE EDIT - Drag de l'obstacle entier
-    if (visibilityMode && currentVisibilityTool === 'edit' && isDraggingObstacle && selectedObstacleId && dragStartPos) {
-      const deltaX = currentX - dragStartPos.x;
-      const deltaY = currentY - dragStartPos.y;
-      const newPoints = draggedObstacleOriginalPoints.map(p => ({
+    if (visibilityMode && currentVisibilityTool === 'edit' && isDraggingObstacle && selectedObstacleId && dragStartPosRef.current) {
+      const startPos = dragStartPosRef.current;
+      const originals = draggedObstacleOriginalPointsRef.current;
+
+      if (!originals || originals.length === 0) return;
+
+      const deltaX = currentX - startPos.x;
+      const deltaY = currentY - startPos.y;
+
+      const newPoints = originals.map((p: Point) => ({
         x: p.x + deltaX,
         y: p.y + deltaY,
       }));
+
+      // Safety check for NaN
+      if (newPoints.some(p => isNaN(p.x) || isNaN(p.y))) return;
+
       // Mise à jour locale pour le rendu
       setObstacles(prev => prev.map(o => o.id === selectedObstacleId ? { ...o, points: newPoints } : o));
       return;
@@ -6461,16 +6714,7 @@ export default function Component() {
       return;
     }
     // ✏️ FIN DU DRAG OBSTACLE ENTIER
-    if (isDraggingObstacle && selectedObstacleId) {
-      const obstacle = obstacles.find(o => o.id === selectedObstacleId);
-      if (obstacle) {
-        await updateObstacle(selectedObstacleId, obstacle.points);
-      }
-      setIsDraggingObstacle(false);
-      setDraggedObstacleOriginalPoints([]);
-      setDragStartPos(null);
-      return;
-    }
+
 
     // 🎯 FIN RESIZE DESSIN
     if (isResizingDrawing && selectedDrawingIndex !== null) {
@@ -6540,6 +6784,9 @@ export default function Component() {
       setIsDraggingObstacle(false);
       setDraggedObstacleId(null);
       setDraggedObstacleOriginalPoints([]);
+      // Clear Refs
+      dragStartPosRef.current = null;
+      draggedObstacleOriginalPointsRef.current = [];
       return;
     }
 
