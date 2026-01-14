@@ -74,6 +74,7 @@ import ContextMenuPanel from '@/components/(overlays)/ContextMenuPanel';
 import ObjectContextMenu from '@/components/(overlays)/ObjectContextMenu';
 import LightContextMenu from '@/components/(overlays)/LightContextMenu';
 import MusicZoneContextMenu from '@/components/(overlays)/MusicZoneContextMenu';
+import PortalContextMenu from '@/components/(overlays)/PortalContextMenu';
 import { BulkCharacterContextMenu } from '@/components/(overlays)/BulkCharacterContextMenu';
 import { NPCTemplateDrawer } from '@/components/(personnages)/NPCTemplateDrawer';
 import { ObjectDrawer } from '@/components/(personnages)/ObjectDrawer';
@@ -100,7 +101,7 @@ import {
 } from '@/lib/visibility';
 import { LayerControl } from '@/components/(map)/LayerControl';
 import { SelectionMenu, type SelectionCandidates, type SelectionType } from '@/components/(map)/SelectionMenu';
-import { type ViewMode, type Point, type Character, type LightSource, type MapText, type SavedDrawing, type NewCharacter, type Note, type MapObject, type ObjectTemplate, type Layer, type LayerType, type MusicZone, type Scene, type DrawingTool, type Ping } from './types';
+import { type ViewMode, type Point, type Character, type LightSource, type MapText, type SavedDrawing, type NewCharacter, type Note, type MapObject, type ObjectTemplate, type Layer, type LayerType, type MusicZone, type Scene, type DrawingTool, type Ping, type Portal } from './types';
 import { useAudioZones } from '@/hooks/map/useAudioZones';
 import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath } from './drawings';
 import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
@@ -154,6 +155,7 @@ const StaticToken = React.memo(({ src, alt, style, className, performanceMode }:
 import { AudioMixerPanel, useAudioMixer } from '@/components/(audio)/AudioMixerPanel';
 import MeasurementShapeSelector from '@/components/(map)/MeasurementShapeSelector';
 import ConeConfigDialog from '@/components/(map)/ConeConfigDialog';
+import PortalConfigDialog from '@/components/(map)/PortalConfigDialog';
 import MeasurementContextMenu from '@/components/(overlays)/MeasurementContextMenu';
 import {
   type MeasurementShape,
@@ -650,6 +652,19 @@ export default function Component() {
   // 🎯 PING SYSTEM STATE
   const [pings, setPings] = useState<Ping[]>([]);
 
+  // 🔮 PORTAL SYSTEM STATE
+  const [portals, setPortals] = useState<Portal[]>([]);
+  const [portalMode, setPortalMode] = useState(false);
+  const [showPortalConfig, setShowPortalConfig] = useState(false);
+  const [newPortalPos, setNewPortalPos] = useState<Point | null>(null);
+  const [editingPortal, setEditingPortal] = useState<Portal | null>(null);
+  const [activePortalForPlayer, setActivePortalForPlayer] = useState<Portal | null>(null);
+  const [isDraggingPortal, setIsDraggingPortal] = useState(false);
+  const [draggedPortalId, setDraggedPortalId] = useState<string | null>(null);
+  const [selectedPortalIds, setSelectedPortalIds] = useState<string[]>([]);
+  const [contextMenuPortalOpen, setContextMenuPortalOpen] = useState(false);
+  const [contextMenuPortalId, setContextMenuPortalId] = useState<string | null>(null);
+
   // 📡 PING FIREBASE LISTENER
   useEffect(() => {
     if (!roomId) return;
@@ -687,6 +702,53 @@ export default function Component() {
     }, 1000);
     return () => clearInterval(interval);
   }, [pings, roomId, userId, isMJ]);
+
+  // 🔮 PORTAL FIREBASE LISTENER
+  useEffect(() => {
+    if (!roomId) return;
+    const q = query(collection(db, 'cartes', roomId, 'portals'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const newPortals: Portal[] = [];
+      snapshot.forEach(doc => {
+        newPortals.push({ id: doc.id, ...doc.data() } as Portal);
+      });
+      setPortals(newPortals);
+    });
+    return () => unsubscribe();
+  }, [roomId]);
+
+  // 🔮 CHECK FOR PORTAL COLLISIONS (Player characters only)
+  useEffect(() => {
+    if (!persoId || !portals.length || !characters.length) {
+      setActivePortalForPlayer(null);
+      return;
+    }
+
+    // Find the player's character
+    const playerChar = characters.find(c => c.id === persoId);
+    if (!playerChar) {
+      setActivePortalForPlayer(null);
+      return;
+    }
+
+    // Filter portals for current scene
+    const scenePortals = portals.filter(p => !p.cityId || p.cityId === selectedCityId);
+
+    // Check if player is in any portal
+    for (const portal of scenePortals) {
+      const distance = Math.sqrt(
+        Math.pow(playerChar.x - portal.x, 2) + Math.pow(playerChar.y - portal.y, 2)
+      );
+
+      if (distance <= portal.radius) {
+        setActivePortalForPlayer(portal);
+        return;
+      }
+    }
+
+    setActivePortalForPlayer(null);
+  }, [persoId, portals, characters, selectedCityId]);
+
 
 
   // 🆕 AUTO-DELETE TEMPORARY MEASUREMENTS
@@ -2636,6 +2698,7 @@ export default function Component() {
       case TOOLS.ADD_NOTE: handleAddNote(); break;
       case TOOLS.MUSIC: if (isMJ) { deactivateIncompatible(TOOLS.MUSIC); setIsSoundDrawerOpen(!isSoundDrawerOpen); } break;
       case TOOLS.UNIFIED_SEARCH: if (isMJ) { deactivateIncompatible(TOOLS.UNIFIED_SEARCH); setIsUnifiedSearchOpen(!isUnifiedSearchOpen); } break;
+      case TOOLS.PORTAL: if (isMJ) { deactivateIncompatible(TOOLS.PORTAL); setPortalMode(!portalMode); } break;
       case TOOLS.MULTI_SELECT: if (isMJ) { deactivateIncompatible(TOOLS.MULTI_SELECT); setMultiSelectMode(!multiSelectMode); } break;
       case TOOLS.BACKGROUND_EDIT: if (isMJ) setIsBackgroundEditMode(!isBackgroundEditMode); break;
       case TOOLS.DRAW: deactivateIncompatible(TOOLS.DRAW); toggleDrawMode(); break;
@@ -2664,6 +2727,7 @@ export default function Component() {
     if (isNPCDrawerOpen) active.push(TOOLS.ADD_CHAR);
     if (isSoundDrawerOpen) active.push(TOOLS.MUSIC);
     if (isUnifiedSearchOpen) active.push(TOOLS.UNIFIED_SEARCH);
+    if (portalMode) active.push(TOOLS.PORTAL);
 
     if (multiSelectMode) active.push(TOOLS.MULTI_SELECT);
     if (isBackgroundEditMode) active.push(TOOLS.BACKGROUND_EDIT);
@@ -3755,6 +3819,43 @@ export default function Component() {
         scaledHeight
       );
     }
+
+    // 🔮 DRAW PORTAL ZONES (Visible to all - shows activation area)
+    const effectivePortals = portals.filter(p => !p.cityId || p.cityId === selectedCityId);
+    effectivePortals.forEach(portal => {
+      // Show to MJ always, or show to players if visible flag is true
+      if (!isMJ && !portal.visible) return;
+
+      const center = transformPoint({ x: portal.x, y: portal.y });
+      const screenRadius = (portal.radius || 50) * scale * zoom;
+
+      // Safety check
+      if (!isFinite(center.x) || !isFinite(center.y) || !isFinite(screenRadius)) return;
+
+      const portalColor = portal.color || '#3b82f6';
+      ctx.save();
+
+      // Outer glow
+      const gradient = ctx.createRadialGradient(center.x, center.y, 0, center.x, center.y, screenRadius);
+      gradient.addColorStop(0, `${portalColor}40`);
+      gradient.addColorStop(0.7, `${portalColor}20`);
+      gradient.addColorStop(1, `${portalColor}00`);
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, screenRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Border (dashed for portals)
+      ctx.strokeStyle = isMJ ? portalColor : `${portalColor}80`;
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5, 5]);
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, screenRadius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.restore();
+    });
 
   };
 
@@ -5213,6 +5314,15 @@ export default function Component() {
       }
 
 
+      // 🔮 PORTAL MODE - CREATE PORTAL
+      if (portalMode && isMJ && e.button === 0) {
+        e.preventDefault();
+        setNewPortalPos({ x: clickX, y: clickY });
+        setEditingPortal(null);
+        setShowPortalConfig(true);
+        return;
+      }
+
       // 🎵 MUSIC MODE - CREATE ZONE
       if (isMusicMode && isMJ && e.button === 0) {
         e.preventDefault();
@@ -6503,6 +6613,24 @@ export default function Component() {
       return;
     }
 
+    // 🔮 DRAG PORTAL
+    if (isDraggingPortal && draggedPortalId) {
+      if (!dragStart) return;
+
+      const deltaX = currentX - dragStart.x;
+      const deltaY = currentY - dragStart.y;
+
+      setPortals(prev => prev.map(p => {
+        if (p.id === draggedPortalId) {
+          return { ...p, x: p.x + deltaX, y: p.y + deltaY };
+        }
+        return p;
+      }));
+
+      setDragStart({ x: currentX, y: currentY });
+      return;
+    }
+
     // 🎯 DRAG & DROP PERSONNAGE
     if (isDraggingCharacter && draggedCharacterIndex !== null && draggedCharactersOriginalPositions.length > 0) {
       const originalRefChar = draggedCharactersOriginalPositions.find(pos => pos.index === draggedCharacterIndex);
@@ -6728,6 +6856,24 @@ export default function Component() {
       }
       setIsDraggingLight(false);
       setDraggedLightId(null);
+      return;
+    }
+
+    // 🔮 FIN DRAG PORTAL
+    if (isDraggingPortal && draggedPortalId) {
+      if (roomId) {
+        const portal = portals.find(p => p.id === draggedPortalId);
+        if (portal) {
+          updateDoc(doc(db, 'cartes', roomId, 'portals', portal.id), {
+            x: portal.x,
+            y: portal.y
+          }).catch(err => {
+            console.error("Error saving portal pos:", err);
+          });
+        }
+      }
+      setIsDraggingPortal(false);
+      setDraggedPortalId(null);
       return;
     }
 
@@ -7735,6 +7881,27 @@ export default function Component() {
     }
   };
 
+  const handlePortalAction = async (action: string, portalId: string) => {
+    try {
+      if (action === 'delete') {
+        if (!roomId) return;
+        await deleteDoc(doc(db, 'cartes', roomId, 'portals', portalId));
+        setContextMenuPortalOpen(false);
+        setContextMenuPortalId(null);
+      } else if (action === 'edit') {
+        const portal = portals.find(p => p.id === portalId);
+        if (portal) {
+          setEditingPortal(portal);
+          setShowPortalConfig(true);
+          setContextMenuPortalOpen(false);
+          setContextMenuPortalId(null);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Error in handlePortalAction:", error);
+    }
+  };
+
   const handleLightAction = async (action: string, lightId: string, value?: any) => {
     if (!roomId) return;
     const lightDoc = doc(db, 'cartes', roomId, 'lights', lightId);
@@ -7858,6 +8025,41 @@ export default function Component() {
           }}
         />
       )}
+
+      {/* 🔮 PLAYER PORTAL ENTER BUTTON */}
+      {!isMJ && activePortalForPlayer && (
+        <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]">
+          <div className="bg-black/90 backdrop-blur-xl border-2 border-[#c0a080] rounded-2xl p-6 shadow-2xl shadow-[#c0a080]/20 animate-in fade-in zoom-in duration-300">
+            <div className="text-center space-y-4">
+              <div className="text-[#c0a080] text-lg font-bold">
+                {activePortalForPlayer.name || 'Portail'}
+              </div>
+              <Button
+                onClick={async () => {
+                  if (!roomId || !persoId) return;
+
+                  const targetX = activePortalForPlayer.targetX || 0;
+                  const targetY = activePortalForPlayer.targetY || 0;
+
+                  // Update character position and scene
+                  await updateDoc(doc(db, 'cartes', roomId, 'characters', persoId), {
+                    currentSceneId: activePortalForPlayer.targetSceneId,
+                    x: targetX,
+                    y: targetY
+                  });
+
+                  // Change to the new scene (this will trigger CitiesManager logic)
+                  setSelectedCityId(activePortalForPlayer.targetSceneId);
+                }}
+                className="bg-[#c0a080] text-black hover:bg-[#d4b594] font-bold px-8 py-3 text-lg"
+              >
+                Entrer →
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 🆕 Bouton Retour à la World Map - UNIQUEMENT POUR LE MJ */}
       {/* 🆕 Bouton Retour à la World Map - UNIQUEMENT POUR LE MJ (DEPLACÉ EN HAUT À DROITE) */}
       {/* L'ancien emplacement en haut à gauche est supprimé pour Importer PNJ et Retour au Monde */}
@@ -7935,6 +8137,15 @@ export default function Component() {
         isMJ={isMJ}
       />
 
+      {/* 🔮 Portal Context Menu */}
+      <PortalContextMenu
+        portal={contextMenuPortalId ? portals.find(p => p.id === contextMenuPortalId) || null : null}
+        isOpen={contextMenuPortalOpen}
+        onClose={() => setContextMenuPortalOpen(false)}
+        onAction={handlePortalAction}
+        isMJ={isMJ}
+      />
+
       {/* 🎯 Cone Configuration Dialog */}
       <ConeConfigDialog
         isOpen={coneConfigDialogOpen}
@@ -7944,6 +8155,37 @@ export default function Component() {
           setConeConfigDialogOpen(false);
         }}
         unitName={unitName}
+      />
+
+      <PortalConfigDialog
+        open={showPortalConfig}
+        onOpenChange={setShowPortalConfig}
+        portal={editingPortal || (newPortalPos ? { x: newPortalPos.x, y: newPortalPos.y, radius: 50, targetSceneId: '', name: '', iconType: 'portal', visible: true, color: '#3b82f6' } : null)}
+        onSave={async (portalData) => {
+          if (!roomId) return;
+
+          if (editingPortal) {
+            // Update existing portal
+            await updateDoc(doc(db, 'cartes', roomId, 'portals', editingPortal.id), {
+              ...portalData,
+              cityId: selectedCityId
+            });
+          } else if (newPortalPos) {
+            // Create new portal
+            await addDoc(collection(db, 'cartes', roomId, 'portals'), {
+              ...portalData,
+              x: newPortalPos.x,
+              y: newPortalPos.y,
+              cityId: selectedCityId
+            });
+          }
+
+          setShowPortalConfig(false);
+          setNewPortalPos(null);
+          setEditingPortal(null);
+        }}
+        roomId={roomId || ''}
+        currentCityId={selectedCityId}
       />
       <MapToolbar
         isMJ={isMJ}
@@ -8402,6 +8644,95 @@ export default function Component() {
                   {isMJ && (
                     <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-2 py-0.5 rounded text-[10px] text-yellow-500 whitespace-nowrap pointer-events-none opacity-0 hover:opacity-100 transition-opacity">
                       {light.radius}m
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 🔮 PORTALS LAYER - Icons for MJ */}
+          <div className="portals-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden', zIndex: 46 }}>
+            {isMJ && portals.filter(p => !p.cityId || p.cityId === selectedCityId).map((portal) => {
+              if (!bgImageObject) return null;
+              const image = bgImageObject;
+              const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
+              const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
+              const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
+              if (cWidth === 0 || cHeight === 0) return null;
+
+              const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
+              const scaledWidth = imgWidth * scale * zoom;
+              const scaledHeight = imgHeight * scale * zoom;
+
+              const portalScreenX = (portal.x / imgWidth) * scaledWidth;
+              const portalScreenY = (portal.y / imgHeight) * scaledHeight;
+              const size = 40 * zoom;
+              const isSelected = contextMenuPortalId === portal.id;
+
+              return (
+                <div
+                  key={portal.id}
+                  style={{
+                    position: 'absolute',
+                    left: portalScreenX - offset.x,
+                    top: portalScreenY - offset.y,
+                    width: size + 'px',
+                    height: size + 'px',
+                    transform: 'translate(-50%, -50%)',
+                    pointerEvents: 'auto',
+                    cursor: 'move',
+                    zIndex: 50
+                  }}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setIsDraggingPortal(true);
+                    setDraggedPortalId(portal.id);
+
+                    const rect = bgCanvasRef.current?.getBoundingClientRect();
+                    if (rect) {
+                      const startMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
+                      const startMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
+                      setDragStart({ x: startMapX, y: startMapY });
+                    }
+                  }}
+                  onDoubleClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setEditingPortal(portal);
+                    setShowPortalConfig(true);
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setContextMenuPortalId(portal.id);
+                    setContextMenuPortalOpen(true);
+                  }}
+                >
+                  <div style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '50%',
+                    background: portal.color || '#3b82f6',
+                    border: isSelected ? '4px solid #fbbf24' : '3px solid white',
+                    boxShadow: isSelected
+                      ? '0 0 20px rgba(251, 191, 36, 0.8), 0 0 10px rgba(0,0,0,0.3)'
+                      : '0 0 10px rgba(0,0,0,0.3)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.2s ease',
+                    transform: isSelected ? 'scale(1.1)' : 'scale(1)'
+                  }}>
+                    <svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="none">
+                      <circle cx="12" cy="12" r="8" stroke="white" strokeWidth="2" fill="none" />
+                      <path d="M12 4 L12 20 M4 12 L20 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                  </div>
+                  {portal.name && (
+                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-2 py-0.5 rounded text-[10px] text-white whitespace-nowrap pointer-events-none">
+                      {portal.name}
                     </div>
                   )}
                 </div>
