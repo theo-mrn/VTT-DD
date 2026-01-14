@@ -2,14 +2,12 @@
 // Analyzing for Ping System implementation
 
 
-import { renderToStaticMarkup } from 'react-dom/server';
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion'
 import poisonIcon from './icons/poison.svg';
 import stunIcon from './icons/stun.svg';
 import blindIcon from './icons/blind.svg';
-import otherIcon from './icons/other.svg';
 import invisibleIcon from './icons/invisible.svg';
 
 
@@ -26,27 +24,22 @@ const useStatusEffectIcons = () => {
   useEffect(() => {
     const loadIcon = (key: string, src: any) => {
       const img = new Image();
-      // Handle Next.js import (might be object with .src or just string)
       img.src = src.src || src;
       img.onload = () => {
         setIconCache(prev => ({ ...prev, [key]: img }));
       };
     };
 
-    // Load predefined
     Object.entries(CONDITION_ICONS).forEach(([key, config]) => {
       loadIcon(key, config.src);
     });
     loadIcon('invisible', invisibleIcon);
-
   }, []);
 
   const getIcon = (conditionId: string): HTMLImageElement | null => {
-    // Predefined
     if (CONDITION_ICONS[conditionId]) {
       return iconCache[conditionId] || null;
     }
-    // Custom/Default (always use 'other' for everything else)
     return iconCache['invisible'] || null;
   };
 
@@ -60,6 +53,7 @@ import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
 import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Map as MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, Lightbulb, ArrowRight, DoorOpen, Pen } from 'lucide-react'
+import { toast } from 'sonner';
 import { auth, db, onAuthStateChanged } from '@/lib/firebase'
 import { doc, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
 import Combat from '@/components/(combat)/combat2';
@@ -223,8 +217,6 @@ export default function Component() {
     } else {
       setIsBackgroundLoading(false);
     }
-
-    // Cleanup function
     return () => {
       if (videoRef.current) {
         videoRef.current.pause();
@@ -238,12 +230,10 @@ export default function Component() {
     setIsBackgroundLoading(true);
     setLoadingProgress(0);
 
-    // Cleanup previous video if exists
     if (videoRef.current) {
       videoRef.current.pause();
       videoRef.current.src = "";
       videoRef.current = null;
-      // Revoke object URL if it was a blob (optional but good practice if we track it)
     }
 
     try {
@@ -402,18 +392,18 @@ export default function Component() {
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
 
-  // 🎯 NOUVEAUX ÉTATS pour le drag & drop des personnages
+  //  NOUVEAUX ÉTATS pour le drag & drop des personnages
   const [isDraggingCharacter, setIsDraggingCharacter] = useState(false)
   const [draggedCharacterIndex, setDraggedCharacterIndex] = useState<number | null>(null)
 
   const [draggedCharactersOriginalPositions, setDraggedCharactersOriginalPositions] = useState<{ index: number, x: number, y: number }[]>([])
 
-  // 🎯 LIGHT SOURCE DRAG & DROP
+  //  LIGHT SOURCE DRAG & DROP
   const [isDraggingLight, setIsDraggingLight] = useState(false);
   const [draggedLightId, setDraggedLightId] = useState<string | null>(null);
   const [draggedLightOriginalPos, setDraggedLightOriginalPos] = useState({ x: 0, y: 0 });
 
-  // 🎯 NOUVEAUX ÉTATS pour le drag & drop des objets
+  //  NOUVEAUX ÉTATS pour le drag & drop des objets
   const [isObjectDrawerOpen, setIsObjectDrawerOpen] = useState(false);
   const [isSoundDrawerOpen, setIsSoundDrawerOpen] = useState(false)
   const [isAudioMixerOpen, setIsAudioMixerOpen] = useState(false)
@@ -432,12 +422,12 @@ export default function Component() {
   const [draggedObjectTemplate, setDraggedObjectTemplate] = useState<any>(null)
   const [draggedSoundTemplate, setDraggedSoundTemplate] = useState<any>(null)
 
-  // 🎯 NOUVEAUX ÉTATS pour le drag & drop des notes
+  //  NOUVEAUX ÉTATS pour le drag & drop des notes
   const [isDraggingNote, setIsDraggingNote] = useState(false)
   const [draggedNoteIndex, setDraggedNoteIndex] = useState<number | null>(null)
   const [draggedNoteOriginalPos, setDraggedNoteOriginalPos] = useState({ x: 0, y: 0 })
 
-  // 🎯 Focus on Character Logic
+  //  Focus on Character Logic
   const lastFocusTimestampRef = useRef<number>(0);
 
   useEffect(() => {
@@ -498,7 +488,7 @@ export default function Component() {
   const [hoveredCondition, setHoveredCondition] = useState<{ x: number, y: number, text: string } | null>(null);
   const iconHitRegionsRef = useRef<{ x: number, y: number, w: number, h: number, label: string }[]>([]);
 
-  // 🎯 Object Resizing State
+  //  Object Resizing State
   const [isResizingObject, setIsResizingObject] = useState(false);
   const [resizeStartData, setResizeStartData] = useState<{
     index: number;
@@ -513,7 +503,7 @@ export default function Component() {
   const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [editingNote, setEditingNote] = useState<MapText | null>(null);
 
-  // 🎯 Context Menu State
+  //  Context Menu State
   const [contextMenuOpen, setContextMenuOpen] = useState(false);
   const [contextMenuCharacterId, setContextMenuCharacterId] = useState<string | null>(null);
   const [contextMenuObjectOpen, setContextMenuObjectOpen] = useState(false);
@@ -525,23 +515,23 @@ export default function Component() {
   const [isRadialMenuOpen, setIsRadialMenuOpen] = useState(false);
   const [isRadialMenuCentered, setIsRadialMenuCentered] = useState(false);
 
-  // 🎯 Drawing Selection State
+  //  Drawing Selection State
   const [selectedDrawingIndex, setSelectedDrawingIndex] = useState<number | null>(null);
   const [isDraggingDrawing, setIsDraggingDrawing] = useState(false);
   const [draggedDrawingOriginalPoints, setDraggedDrawingOriginalPoints] = useState<Point[]>([]);
-  // 🎯 Drawing Resize State
+  //  Drawing Resize State
   const [draggedHandleIndex, setDraggedHandleIndex] = useState<number | null>(null); // 0, 1, 2, 3...
   const [isResizingDrawing, setIsResizingDrawing] = useState(false);
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
   const [characterDialogOpen, setCharacterDialogOpen] = useState(false)
 
-  // 🎯 NPC Template Drag & Drop States
+  //  NPC Template Drag & Drop States
   const [isNPCDrawerOpen, setIsNPCDrawerOpen] = useState(false)
   const [draggedTemplate, setDraggedTemplate] = useState<NPC | null>(null)
   const [dropPosition, setDropPosition] = useState<{ x: number; y: number } | null>(null)
   const [isUnifiedSearchOpen, setIsUnifiedSearchOpen] = useState(false)
 
-  // 🎯 LIGHT SOURCE PLACEMENT STATE
+  //  LIGHT SOURCE PLACEMENT STATE
   const [isLightPlacementMode, setIsLightPlacementMode] = useState(false);
   const [contextMenuLightOpen, setContextMenuLightOpen] = useState(false);
   const [contextMenuLightId, setContextMenuLightId] = useState<string | null>(null);
@@ -550,17 +540,17 @@ export default function Component() {
   const [showCreateNoteModal, setShowCreateNoteModal] = useState(false)
   const [showNoBackgroundModal, setShowNoBackgroundModal] = useState(false)
 
-  // 🎯 CENTRALIZED DELETION MODAL STATE
+  //  CENTRALIZED DELETION MODAL STATE
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [entityToDelete, setEntityToDelete] = useState<EntityToDelete | null>(null);
 
 
-  // 🎯 MULTI-SELECTION STATE
+  //  MULTI-SELECTION STATE
   const [selectionCandidates, setSelectionCandidates] = useState<SelectionCandidates | null>(null);
   const [showSelectionMenu, setShowSelectionMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState<{ x: number, y: number }>({ x: 0, y: 0 });
 
-  // 🎯 BULK CHARACTER CONTEXT MENU STATE
+  //  BULK CHARACTER CONTEXT MENU STATE
   const [bulkContextMenuOpen, setBulkContextMenuOpen] = useState(false);
 
 
@@ -569,7 +559,7 @@ export default function Component() {
   const [drawMode, setDrawMode] = useState(false)
   const [drawings, setDrawings] = useState<SavedDrawing[]>([]);
 
-  // 🎯 Drawing Tools State
+  //  Drawing Tools State
   const [currentTool, setCurrentTool] = useState<DrawingTool>('pen');
   const [drawingColor, setDrawingColor] = useState('#000000');
   const [drawingSize, setDrawingSize] = useState(5);
@@ -603,7 +593,7 @@ export default function Component() {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const [visibilityRadius, setVisibilityRadius] = useState(100);
-  // 🎯 NOUVEAU SYSTÈME DE BROUILLARD PAR QUADRILLAGE
+  //  NOUVEAU SYSTÈME DE BROUILLARD PAR QUADRILLAGE
   const [fogMode, setFogMode] = useState(false);
   const [fogGrid, setFogGrid] = useState<Map<string, boolean>>(new Map()); // clé: "x,y", valeur: true = brouillard
 
@@ -635,12 +625,11 @@ export default function Component() {
   const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
   const [mouseButton, setMouseButton] = useState<number | null>(null); // Pour tracker quel bouton de souris est pressé
   const fileInputRef = useRef<HTMLInputElement>(null); // Ref pour l'input de changement de fond
-  const characterInputRef = useRef<HTMLInputElement>(null); // Ref pour l'input d'ajout de personnage
   const [panMode, setPanMode] = useState(false); // Mode déplacement de carte
 
   const [playerViewMode, setPlayerViewMode] = useState(false); // Mode "Vue Joueur" pour le MJ
 
-  // 🎯 MEASUREMENT & CALIBRATION STATE
+  //  MEASUREMENT & CALIBRATION STATE
   const [measureMode, setMeasureMode] = useState(false);
   const [measurementShape, setMeasurementShape] = useState<MeasurementShape>('line');
   const [isCalibrating, setIsCalibrating] = useState(false); // Sub-mode of measureMode
@@ -661,10 +650,10 @@ export default function Component() {
     setSelectedSkin(''); // Reset to no animation
   }, [measurementShape]);
 
-  // 🎯 PING SYSTEM STATE
+  //  PING SYSTEM STATE
   const [pings, setPings] = useState<Ping[]>([]);
 
-  // 🔮 PORTAL SYSTEM STATE
+  //  PORTAL SYSTEM STATE
   const [portals, setPortals] = useState<Portal[]>([]);
   const [portalMode, setPortalMode] = useState(false);
   const [showPortalConfig, setShowPortalConfig] = useState(false);
@@ -673,14 +662,13 @@ export default function Component() {
   const [activePortalForPlayer, setActivePortalForPlayer] = useState<Portal | null>(null);
   const [isDraggingPortal, setIsDraggingPortal] = useState(false);
   const [draggedPortalId, setDraggedPortalId] = useState<string | null>(null);
-  const [selectedPortalIds, setSelectedPortalIds] = useState<string[]>([]);
   const [contextMenuPortalOpen, setContextMenuPortalOpen] = useState(false);
   const [contextMenuPortalId, setContextMenuPortalId] = useState<string | null>(null);
 
-  // 🎯 SPAWN POINT SYSTEM STATE
-  const [spawnPointMode, setSpawnPointMode] = useState(false);  // 🆕 Mode to set spawn point
-  const [isDraggingSpawnPoint, setIsDraggingSpawnPoint] = useState(false);  // 🆕 Dragging spawn marker
-  const [currentScene, setCurrentScene] = useState<Scene | null>(null);  // 🆕 Current scene data for spawn points
+  //  SPAWN POINT SYSTEM STATE
+  const [spawnPointMode, setSpawnPointMode] = useState(false);  // Mode to set spawn point
+  const [isDraggingSpawnPoint, setIsDraggingSpawnPoint] = useState(false);  // Dragging spawn marker
+  const [currentScene, setCurrentScene] = useState<Scene | null>(null);  // Current scene data for spawn points
 
   // 📡 CURRENT SCENE FIREBASE LISTENER (for spawn points)
   useEffect(() => {
@@ -737,7 +725,7 @@ export default function Component() {
     return () => clearInterval(interval);
   }, [pings, roomId, userId, isMJ]);
 
-  // 🔮 PORTAL FIREBASE LISTENER
+  //  PORTAL FIREBASE LISTENER
   useEffect(() => {
     if (!roomId) return;
     const q = query(collection(db, 'cartes', roomId, 'portals'));
@@ -751,7 +739,7 @@ export default function Component() {
     return () => unsubscribe();
   }, [roomId]);
 
-  // 🔮 CHECK FOR PORTAL COLLISIONS (Player characters only)
+  //  CHECK FOR PORTAL COLLISIONS (Player characters only)
   useEffect(() => {
     if (!persoId || !portals.length || !characters.length) {
       setActivePortalForPlayer(null);
@@ -868,7 +856,7 @@ export default function Component() {
   const [currentObstacleType, setCurrentObstacleType] = useState<'wall' | 'one-way-wall' | 'door'>('wall');
   const [isOneWayReversed, setIsOneWayReversed] = useState<boolean>(false); // Sens par défaut ou inversé
 
-  // 🎯 LAYERS STATE
+  //  LAYERS STATE
   const [showLayerControl, setShowLayerControl] = useState(false);
   const [layers, setLayers] = useState<Layer[]>([
     { id: 'background', label: 'Fond', isVisible: true, order: 0 },
@@ -1053,7 +1041,7 @@ export default function Component() {
     await updateDoc(doc(db, 'cartes', roomId, 'musicZones', id), { x, y });
   };
 
-  // 🎯 BULK CHARACTER OPERATIONS
+  //  BULK CHARACTER OPERATIONS
   const handleBulkVisibilityChange = async (visibility: 'visible' | 'hidden' | 'ally' | 'custom') => {
     if (!roomId || selectedCharacters.length === 0) return;
 
@@ -1284,7 +1272,7 @@ export default function Component() {
         return;
       }
 
-      // 🎯 CENTRALIZED DELETE - Handle Delete/Backspace for any selected entity
+      //  CENTRALIZED DELETE - Handle Delete/Backspace for any selected entity
       if ((e.key === 'Delete' || e.key === 'Backspace') && isMJ) {
         // Check if we have any selected entity
         const hasSelection =
@@ -1328,9 +1316,16 @@ export default function Component() {
         // Check if a character is selected
         if (selectedCharacterIndex !== null && characters[selectedCharacterIndex]) {
           const charToCopy = characters[selectedCharacterIndex];
+
+          if (charToCopy.type === 'joueurs') {
+            toast.error("Impossible de copier un personnage joueur");
+            return;
+          }
+
           setCopiedCharacterTemplate(charToCopy);
           setCopiedObjectTemplate(null); // Clear object copy
           console.log("Character copied:", charToCopy.name);
+          toast.success(`Personnage copié : ${charToCopy.name}`);
         }
         // Check if an object is selected
         else if (selectedObjectIndices.length > 0) {
@@ -1341,6 +1336,7 @@ export default function Component() {
             setCopiedObjectTemplate(objToCopy);
             setCopiedCharacterTemplate(null); // Clear char copy
             console.log("Object copied:", objToCopy.name);
+            toast.success(`Objet copié : ${objToCopy.name}`);
           }
         }
       }
@@ -1350,9 +1346,11 @@ export default function Component() {
         if (isMJ) { // Ensure only MJ can paste for now
           if (copiedCharacterTemplate) {
             pasteCharacter(roomId, copiedCharacterTemplate, selectedCityId)
+              .then(() => toast.success(`Personnage collé : ${copiedCharacterTemplate.name}`))
               .catch(err => console.error("Failed to paste character:", err));
           } else if (copiedObjectTemplate) {
             pasteObject(roomId, copiedObjectTemplate, selectedCityId)
+              .then(() => toast.success(`Objet collé : ${copiedObjectTemplate.name}`))
               .catch(err => console.error("Failed to paste object:", err));
           }
         }
@@ -1687,7 +1685,7 @@ export default function Component() {
     setLoading(false);
   }, [globalCityId]); // ✅ Removed parseCharacterDoc - it never changes (empty deps)
 
-  // 🎯 PERFORMANCE: Create refs for callbacks to use in onSnapshot listeners
+  //  PERFORMANCE: Create refs for callbacks to use in onSnapshot listeners
   const parseCharacterDocRef = useRef(parseCharacterDoc);
   const mergeAndSetCharactersRef = useRef(mergeAndSetCharacters);
 
@@ -1788,27 +1786,6 @@ export default function Component() {
 
     // 1. CHARGER ET FILTRER LES PERSONNAGES (Split: Players Global + NPCs Local)
     const charactersRef = collection(db, 'cartes', roomId, 'characters');
-    // let loadedPlayers: Character[] = []; // MOVED TO REF
-    // let loadedNPCs: Character[] = []; // MOVED TO REF
-
-    // PARSE FUNCTION MOVED OUTSIDE FOR REUSE
-    // const parseCharacterDoc = ...
-
-    // A. Subscribe to Players (Global)
-    // MOVED TO GLOBAL EFFECT
-    // const playersQuery = query(charactersRef, where('type', '==', 'joueurs'));
-    // const playersUnsub = onSnapshot(playersQuery, (snapshot) => {
-    //    loadedPlayers = snapshot.docs.map(doc => parseCharacterDoc(doc, selectedCityId));
-    //    mergeAndSetCharacters();
-    // });
-    // unsubscribers.push(playersUnsub);
-
-    // B. Subscribe to NPCs (Local)
-    // Note: We include 'ally' visibility in global usually? 
-    // The original code said: "isGlobal = data.type === 'joueurs' || data.visibility === 'ally'".
-    // For now, let's assume allies are also players OR handled by city. 
-    // If allies are NPCs, we might miss them if they are in another city but "allied".
-    // Let's stick to cityId for NPCs to save reads.
     const npcsQuery = query(charactersRef, where('cityId', '==', selectedCityId));
     const npcsUnsub = onSnapshot(npcsQuery, (snapshot) => {
       // Filter out players if they appear here (shouldn't if data is clean, but safe to filter)
@@ -2244,7 +2221,7 @@ export default function Component() {
 
 
 
-  // 🎯 NPC Template Drag & Drop Handlers
+  //  NPC Template Drag & Drop Handlers
   const handleTemplateDragStart = (template: NPC) => {
     setDraggedTemplate(template)
   }
@@ -2415,7 +2392,7 @@ export default function Component() {
 
   // Firebase Functions
 
-  // 🎯 Configuration du menu radial
+  //  Configuration du menu radial
   const radialMenuItems = isMJ ? [
     { id: 1, label: 'Ajouter Personnage', icon: CircleUserRound },
     { id: 2, label: 'Objets', icon: Package },
@@ -2438,7 +2415,7 @@ export default function Component() {
     { id: 6, label: 'Mesurer', icon: Ruler },
   ];
 
-  // 🎯 Calculer les IDs des outils actuellement actifs (peut être plusieurs)
+  //  Calculer les IDs des outils actuellement actifs (peut être plusieurs)
   const getActiveToolIds = (): number[] => {
     const activeIds: number[] = [];
 
@@ -2590,7 +2567,7 @@ export default function Component() {
   };
 
   const handleRadialMenuSelect = (item: { id: number; label: string; icon: any }) => {
-    // 🎯 Désactiver les outils incompatibles avant d'activer le nouveau
+    //  Désactiver les outils incompatibles avant d'activer le nouveau
     const desactiverOutilsIncompatibles = (toolId: number) => {
       if (isMJ) {
         // Pour le MJ : ID 3 (Dessin), ID 4 (Visibilité), ID 8 (Déplacement), ID 10 (Mesure), ID 13 (Musique) sont incompatibles
@@ -2741,7 +2718,7 @@ export default function Component() {
           setFogMode(false);
         }
 
-        // 🎯 MUTUAL EXCLUSION: Close other drawers
+        //  MUTUAL EXCLUSION: Close other drawers
         if (currentTool !== TOOLS.ADD_OBJ && isObjectDrawerOpen) setIsObjectDrawerOpen(false);
         if (currentTool !== TOOLS.ADD_CHAR && isNPCDrawerOpen) setIsNPCDrawerOpen(false);
         if (currentTool !== TOOLS.MUSIC && isSoundDrawerOpen) setIsSoundDrawerOpen(false);
@@ -2826,7 +2803,7 @@ export default function Component() {
   };
 
   const getToolOptionsContent = () => {
-    // 🎯 SELECTION : Dessin
+    //  SELECTION : Dessin
     if (selectedDrawingIndex !== null) {
       return (
         <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
@@ -2857,7 +2834,7 @@ export default function Component() {
       );
     }
 
-    // 🎯 SELECTION : Note
+    //  SELECTION : Note
     if (selectedNoteIndex !== null) {
       return (
         <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
@@ -2884,7 +2861,7 @@ export default function Component() {
       );
     }
 
-    // 🎯 SELECTION : Obstacle (MJ)
+    //  SELECTION : Obstacle (MJ)
     if (selectedObstacleId && isMJ) {
       const selectedObs = obstacles.find(o => o.id === selectedObstacleId);
 
@@ -3046,7 +3023,7 @@ export default function Component() {
       );
     }
 
-    // 🎯 SELECTION : Multi-Char (MJ)
+    //  SELECTION : Multi-Char (MJ)
     if (selectedCharacters.length > 1 && isMJ) {
       const hasNonPlayerCharacter = selectedCharacters.some(index =>
         characters[index]?.type !== 'joueurs'
@@ -3070,7 +3047,7 @@ export default function Component() {
       }
     }
 
-    // 🎯 SELECTION : Brouillard (MJ)
+    //  SELECTION : Brouillard (MJ)
     if (isMJ && selectedFogIndex !== null) {
       return (
         <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
@@ -3202,7 +3179,7 @@ export default function Component() {
       );
     }
 
-    // 🎯 MODE : Mesure
+    //  MODE : Mesure
     if (measureMode) {
       return (
         <div className="flex flex-col items-center gap-2">
@@ -3599,7 +3576,7 @@ export default function Component() {
   };
 
 
-  // 🎯 NAVIGATION FUNCTIONS
+  //  NAVIGATION FUNCTIONS
   const navigateToCity = async (cityId: string) => {
     setSelectedCityId(cityId);
     setViewMode('city');
@@ -3688,7 +3665,7 @@ export default function Component() {
 
 
 
-  // 🎯 NOUVELLE FONCTION : Vérifier si un personnage est visible pour l'utilisateur actuel
+  //  NOUVELLE FONCTION : Vérifier si un personnage est visible pour l'utilisateur actuel
   const isCharacterVisibleToUser = (char: Character): boolean => {
     // Le MJ en mode normal voit toujours tout
     const effectiveIsMJ = isMJ && !playerViewMode;
@@ -3789,7 +3766,7 @@ export default function Component() {
     return true;
   };
 
-  // 🎯 NOUVELLE FONCTION : Vérifier si un objet est visible pour l'utilisateur actuel
+  //  NOUVELLE FONCTION : Vérifier si un objet est visible pour l'utilisateur actuel
   const isObjectVisibleToUser = (obj: MapObject): boolean => {
 
     // Le MJ en mode normal voit toujours tout
@@ -3909,7 +3886,7 @@ export default function Component() {
       );
     }
 
-    // 🔮 DRAW PORTAL ZONES (Visible to all - shows activation area)
+    //  DRAW PORTAL ZONES (Visible to all - shows activation area)
     const effectivePortals = portals.filter(p => !p.cityId || p.cityId === selectedCityId);
     effectivePortals.forEach(portal => {
       // Show to MJ always, or show to players if visible flag is true
@@ -3948,7 +3925,7 @@ export default function Component() {
 
   };
 
-  // 🎯 DRAW MEASUREMENTS (Shared + Local) - NOW RENDERED LAST (ON TOP)
+  //  DRAW MEASUREMENTS (Shared + Local) - NOW RENDERED LAST (ON TOP)
   const drawMeasurements = (
     ctx: CanvasRenderingContext2D,
     imgWidth: number,
@@ -4043,7 +4020,7 @@ export default function Component() {
   };
 
 
-  // 🎯 Draw character borders only (rendered on separate canvas BEFORE character images)
+  //  Draw character borders only (rendered on separate canvas BEFORE character images)
   const drawCharacterBorders = (ctx: CanvasRenderingContext2D, image: CanvasImageSource, containerWidth: number, containerHeight: number) => {
     const canvas = ctx.canvas;
     const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
@@ -4169,7 +4146,7 @@ export default function Component() {
           const baseBorderRadius = isPlayerCharacter ? 32 : 22;
           const borderRadius = baseBorderRadius * finalScale * zoom;
 
-          // 🎯 FILTER VISIBILITY OF BORDER CIRCLES
+          //  FILTER VISIBILITY OF BORDER CIRCLES
           const isSelected = selectedCharacters.includes(index);
           const isAreaMatch = isSelectingArea && selectionStart && selectionEnd &&
             char.x >= Math.min(selectionStart.x, selectionEnd.x) &&
@@ -4208,7 +4185,7 @@ export default function Component() {
       y: (p.y / imgHeight) * scaledHeight - offset.y,
     });
 
-    // 🎯 Optionnel : Dessiner les cercles de visibilité des joueurs et alliés (pour debug)
+    //  Optionnel : Dessiner les cercles de visibilité des joueurs et alliés (pour debug)
     // En mode Vue Joueur, le MJ ne voit pas les cercles de debug
     if (isMJ && !playerViewMode && showFogGrid) {
       characters.forEach(character => {
@@ -4359,7 +4336,7 @@ export default function Component() {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        // 🎯 RESIZE HANDLE (If Selected)
+        //  RESIZE HANDLE (If Selected)
         if (isSelected) {
           const handleX = center.x + screenRadius;
           const handleY = center.y;
@@ -4426,7 +4403,7 @@ export default function Component() {
       });
     }
 
-    // 🎯 DRAW SPAWN POINT (Only visible to MJ)
+    //  DRAW SPAWN POINT (Only visible to MJ)
     if (isMJ && currentScene && currentScene.spawnX !== undefined && currentScene.spawnY !== undefined) {
       const spawnPos = transformPoint({ x: currentScene.spawnX, y: currentScene.spawnY });
       const markerSize = 24 * zoom; // Fixed base size scaled by zoom
@@ -4601,7 +4578,7 @@ export default function Component() {
       }
     }
 
-    // 🎯 CALCUL DES OMBRES POUR MASQUER LES PNJs ET OBJETS (Côté Client seulement)
+    //  CALCUL DES OMBRES POUR MASQUER LES PNJs ET OBJETS (Côté Client seulement)
     // Si un PNJ ou objet est dans l'ombre du joueur (ou allié), il ne doit pas être affiché
     let activeShadowsForFiltering: Point[][] | null = null;
     let polygonsContainingViewerForFiltering: Obstacle[] = [];
@@ -4617,7 +4594,7 @@ export default function Component() {
 
 
 
-    // 🎯 Dessiner la zone de sélection en cours
+    //  Dessiner la zone de sélection en cours
     if (isSelectingArea && selectionStart && selectionEnd) {
       const startX = (selectionStart.x / imgWidth) * scaledWidth - offset.x;
       const startY = (selectionStart.y / imgHeight) * scaledHeight - offset.y;
@@ -4695,7 +4672,7 @@ export default function Component() {
 
         let isVisible = true;
 
-        // 🎯 Vérifier si le personnage est masqué par une ombre (uniquement pour les joueurs)
+        //  Vérifier si le personnage est masqué par une ombre (uniquement pour les joueurs)
         if ((activeShadowsForFiltering || polygonsContainingViewerForFiltering.length > 0) &&
           char.type !== 'joueurs' && char.visibility !== 'ally') {
           const charPos = { x: char.x, y: char.y };
@@ -4723,7 +4700,7 @@ export default function Component() {
           if (!isVisible) return; // Ne pas dessiner si dans l'ombre
         }
 
-        // 🎯 Déterminer la visibilité effective du personnage
+        //  Déterminer la visibilité effective du personnage
         let effectiveVisibility = char.visibility;
 
         // Utiliser la fonction centralisée qui gère les lumières, le brouillard, etc.
@@ -4774,7 +4751,7 @@ export default function Component() {
 
 
         if (isVisible) {
-          // 🎯 Couleur spéciale pour les personnages dans la zone de sélection
+          //  Couleur spéciale pour les personnages dans la zone de sélection
           let borderColor;
           let lineWidth = 3;
 
@@ -4840,8 +4817,8 @@ export default function Component() {
           ctx.strokeStyle = borderColor;
           ctx.lineWidth = lineWidth;
 
-          // 🎯 Taille différente pour les personnages joueurs (avec imageURLFinal)
-          // 🎯 Taille différente pour les personnages joueurs (avec imageURLFinal)
+          //  Taille différente pour les personnages joueurs (avec imageURLFinal)
+          //  Taille différente pour les personnages joueurs (avec imageURLFinal)
           const isPlayerCharacter = char.type === 'joueurs';
           const charScale = char.scale || 1;
           const finalScale = charScale * globalTokenScale;
@@ -4870,7 +4847,7 @@ export default function Component() {
           const canSeeHP = (isMJ && !playerViewMode) || char.id === persoId; // Visible MJ or Owner
 
           // Only render labels if showCharBorders is true
-          // 🎯 DRAW NAME/HP BAR ONLY IF BADGE IS VISIBLE (global toggle OR individual selection)
+          //  DRAW NAME/HP BAR ONLY IF BADGE IS VISIBLE (global toggle OR individual selection)
           if (showAllBadges || visibleBadges.has(char.id)) {
             // --- DIMENSIONS & POSITIONS ---
             // On place la pilule en HAUT du cercle ("en dessus")
@@ -5179,10 +5156,10 @@ export default function Component() {
 
 
 
-  // 🎯 CALIBRATION SUBMIT
+  //  CALIBRATION SUBMIT
   const handleCalibrationSubmit = async () => {
     const distanceVal = parseFloat(tempCalibrationDistance);
-    console.log('🎯 Calibration submit:', { distanceVal, measureStart, measureEnd, roomId });
+    console.log(' Calibration submit:', { distanceVal, measureStart, measureEnd, roomId });
     if (!isNaN(distanceVal) && distanceVal > 0 && measureStart && measureEnd && roomId) {
       // Calculate pixel distance in WORLD space (image coordinates)
       // measureStart and measureEnd are already in world/image pixel coordinates
@@ -5373,7 +5350,7 @@ export default function Component() {
   };
 
 
-  // 🎯 Handle Object Resize Start
+  //  Handle Object Resize Start
   const handleResizeStart = (e: React.MouseEvent, index: number) => {
     e.stopPropagation(); // Prevent drag start
     e.preventDefault();
@@ -5464,7 +5441,7 @@ export default function Component() {
       }
 
 
-      // 🔮 PORTAL MODE - CREATE PORTAL
+      //  PORTAL MODE - CREATE PORTAL
       if (portalMode && isMJ && e.button === 0) {
         e.preventDefault();
         setNewPortalPos({ x: clickX, y: clickY });
@@ -5473,7 +5450,7 @@ export default function Component() {
         return;
       }
 
-      // 🎯 SPAWN POINT MODE - SET SPAWN POINT
+      //  SPAWN POINT MODE - SET SPAWN POINT
       if (spawnPointMode && isMJ && e.button === 0 && selectedCityId) {
         e.preventDefault();
 
@@ -5640,7 +5617,7 @@ export default function Component() {
 
       // CLIC GAUCHE (button = 0) : SÉLECTION ET INTERACTIONS
       if (e.button === 0) {
-        // 🎯 MODE MESURE
+        //  MODE MESURE
         if (measureMode) {
 
 
@@ -5710,7 +5687,7 @@ export default function Component() {
           return;
         }
 
-        // 🎯 MODE DÉPLACEMENT DE CARTE - Seulement si le mode est explicitement activé (MJ uniquement)
+        //  MODE DÉPLACEMENT DE CARTE - Seulement si le mode est explicitement activé (MJ uniquement)
         // Pour les joueurs, le pan est géré dans la section "clic sur zone vide" plus bas
         if (panMode && isMJ) {
           setIsDragging(true);
@@ -5941,7 +5918,7 @@ export default function Component() {
           return;
         }
 
-        // 🎯 NOUVEAU Mode brouillard - priorité élevée (placement continu)
+        //  NOUVEAU Mode brouillard - priorité élevée (placement continu)
         if (fogMode && isLayerVisible('fog')) {
           setIsFogDragging(true);
           const firstCellKey = getCellKey(clickX, clickY, fogCellSize);
@@ -5987,7 +5964,7 @@ export default function Component() {
           return;
         }
 
-        // 🎯 MODE SÉLECTION PAR DÉFAUT - Nouveau comportement principal
+        //  MODE SÉLECTION PAR DÉFAUT - Nouveau comportement principal
         // Vérifier si on clique sur un élément existant ET s'il est visible
         const clickedCharIndex = isLayerVisible('characters') ? characters.findIndex(char => {
           // 🔒 Vérifier d'abord si le personnage est visible pour le joueur
@@ -6026,12 +6003,12 @@ export default function Component() {
           return isInX && isInY;
         }) : -1;
 
-        // 🎯 NOUVEAU : Vérifier si on clique sur un objet
+        //  NOUVEAU : Vérifier si on clique sur un objet
         // This logic is now handled by the DOM element's onMouseDown, as pointerEvents: 'auto' will prevent this from firing.
         // So, this block will effectively be skipped for objects.
         const clickedObjectIndex = -1; // No longer detected here
 
-        // 🎯 NOUVEAU : Vérifier si on clique sur une cellule de brouillard
+        //  NOUVEAU : Vérifier si on clique sur une cellule de brouillard
         const clickedFogIndex = isCellInFog(clickX, clickY, fogGrid, fogCellSize) ? 0 : -1;
 
         // 🆕 Détecter si on clique sur une case de brouillard (pour sélection multiple)
@@ -6047,10 +6024,10 @@ export default function Component() {
           return hasFog ? cellKey : null;
         })();
 
-        // 🎯 NOUVEAU : Vérifier si on clique sur un dessin (pour sélection)
+        //  NOUVEAU : Vérifier si on clique sur un dessin (pour sélection)
         const clickedDrawingIndex = drawings.findIndex(drawing => isPointOnDrawing(clickX, clickY, drawing, zoom));
 
-        // 🎯 NOUVEAU : Vérifier si on clique sur une poignée de redimensionnement
+        //  NOUVEAU : Vérifier si on clique sur une poignée de redimensionnement
         let clickedHandleIndex = -1;
         if (selectedDrawingIndex !== null) {
           const drawing = drawings[selectedDrawingIndex];
@@ -6081,7 +6058,7 @@ export default function Component() {
               setSelectedCharacters(prev => [...prev, clickedCharIndex]);
             }
           } else {
-            // 🎯 NOUVEAU : Commencer le drag & drop du personnage ou groupe
+            //  NOUVEAU : Commencer le drag & drop du personnage ou groupe
             const isAlreadySelected = selectedCharacters.includes(clickedCharIndex);
             const charactersToMove = isAlreadySelected && selectedCharacters.length > 1
               ? selectedCharacters
@@ -6120,7 +6097,7 @@ export default function Component() {
               setSelectedCharacterIndex(clickedCharIndex);
               setSelectedCharacters([clickedCharIndex]);
 
-              // 🎯 Show badge visibility (no toggle, only add)
+              //  Show badge visibility (no toggle, only add)
               const char = characters[clickedCharIndex];
               if (char && char.id) {
                 setVisibleBadges(prev => {
@@ -6154,7 +6131,7 @@ export default function Component() {
           setSelectedFogIndex(null);
           setSelectedCharacters([]);
 
-          // 🎯 NOUVEAU : Commencer le drag & drop de la note
+          //  NOUVEAU : Commencer le drag & drop de la note
           const note = notes[clickedNoteIndex];
           setIsDraggingNote(true);
           setDraggedNoteIndex(clickedNoteIndex);
@@ -6166,7 +6143,7 @@ export default function Component() {
           // Object selection and drag start will be handled by the object's onMouseDown.
           // Keeping it here for now, but it won't be reached.
         } else if (clickedDrawingIndex !== -1) {
-          // 🎯 SELECTION DESSIN
+          //  SELECTION DESSIN
           setSelectedDrawingIndex(clickedDrawingIndex);
           setSelectedCharacterIndex(null);
           setSelectedNoteIndex(null);
@@ -6207,7 +6184,7 @@ export default function Component() {
           setSelectedDrawingIndex(null);
           setSelectedObjectIndices([]);
         } else {
-          // 🎯 DETECTION D'OBSTACLE (Polygones / Murs)
+          //  DETECTION D'OBSTACLE (Polygones / Murs)
           // On ne peut sélectionner un obstacle que si on est en mode visibilité ou MJ
           let clickedObstacleId: string | null = null;
 
@@ -6278,7 +6255,7 @@ export default function Component() {
             setSelectedDrawingIndex(null);
             setSelectedObjectIndices([]); // Désélectionner l'objet
             setSelectedObstacleId(null);
-            // 🎯 Clear individual visible badges when clicking on empty area (but keep global toggle)
+            //  Clear individual visible badges when clicking on empty area (but keep global toggle)
             if (!showAllBadges) {
               setVisibleBadges(new Set());
             }
@@ -6398,7 +6375,7 @@ export default function Component() {
     const x = currentX;
     const y = currentY;
 
-    // 🎯 RESIZING OBJECT
+    //  RESIZING OBJECT
     if (isResizingObject && resizeStartData && bgImageObject) {
       const mouseXScreen = e.clientX;
       const mouseYScreen = e.clientY;
@@ -6420,7 +6397,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 PRIORITÉ 0: Placement continu de brouillard pendant le drag
+    //  PRIORITÉ 0: Placement continu de brouillard pendant le drag
     if (isFogDragging && (fogMode || (visibilityMode && currentVisibilityTool === 'fog'))) {
       const addMode = isFogAddMode;
       addFogCellIfNew(currentX, currentY, addMode);
@@ -6535,7 +6512,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 MEASURE DRAG
+    //  MEASURE DRAG
     if (measureMode && measureStart && e.buttons === 1) {
       setMeasureEnd({ x: currentX, y: currentY });
 
@@ -6623,7 +6600,7 @@ export default function Component() {
     }
 
 
-    // 🎯 DRAG OBSTACLE
+    //  DRAG OBSTACLE
     if (isDraggingObstacle && draggedObstacleId) {
       if (draggedObstacleOriginalPoints.length === 0) {
         // Prevent disappearance due to race condition or empty state
@@ -6656,7 +6633,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 DÉPLACEMENT DE CARTE
+    //  DÉPLACEMENT DE CARTE
     // Pour le MJ : clic milieu OU clic gauche en panMode
     // Pour les joueurs : clic milieu OU clic gauche sur zone vide (isDragging sans autre action en cours)
     if (isDragging && (mouseButton === 1 || (mouseButton === 0 && (panMode || !isMJ)))) {
@@ -6667,7 +6644,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 RESIZE DESSIN
+    //  RESIZE DESSIN
     if (isResizingDrawing && selectedDrawingIndex !== null && draggedHandleIndex !== null) {
       setDrawings(prev => prev.map((drawing, index) => {
         if (index === selectedDrawingIndex) {
@@ -6702,7 +6679,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 DRAG & DROP DESSIN
+    //  DRAG & DROP DESSIN
     if (isDraggingDrawing && selectedDrawingIndex !== null) {
       const startX = (dragStart.x - rect.left + offset.x) / scaledWidth * imgWidth;
       const startY = (dragStart.y - rect.top + offset.y) / scaledHeight * imgHeight;
@@ -6722,7 +6699,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 DRAG & DROP NOTE
+    //  DRAG & DROP NOTE
     if (isDraggingNote && draggedNoteIndex !== null) {
       setNotes(prev => prev.map((note, index) => {
         if (index === draggedNoteIndex) {
@@ -6733,8 +6710,8 @@ export default function Component() {
       return;
     }
 
-    // 🎯 DRAG & DROP OBJET
-    // 🎯 DRAG & DROP OBJET (MULTI)
+    //  DRAG & DROP OBJET
+    //  DRAG & DROP OBJET (MULTI)
     if (isDraggingObject && draggedObjectIndex !== null && draggedObjectsOriginalPositions.length > 0) {
       // dragStart now contains MAP coordinates (fixed), not client coordinates
       // Calculate the movement directly
@@ -6787,7 +6764,7 @@ export default function Component() {
       return;
     }
 
-    // 🔮 DRAG PORTAL
+    //  DRAG PORTAL
     if (isDraggingPortal && draggedPortalId) {
       if (!dragStart) return;
 
@@ -6805,7 +6782,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 DRAG & DROP PERSONNAGE
+    //  DRAG & DROP PERSONNAGE
     if (isDraggingCharacter && draggedCharacterIndex !== null && draggedCharactersOriginalPositions.length > 0) {
       const originalRefChar = draggedCharactersOriginalPositions.find(pos => pos.index === draggedCharacterIndex);
       if (originalRefChar) {
@@ -6828,7 +6805,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 SÉLECTION PAR ZONE
+    //  SÉLECTION PAR ZONE
     if (isSelectingArea && selectionStart) {
       setSelectionEnd({ x: currentX, y: currentY });
       const selectedChars = characters
@@ -6844,7 +6821,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 MODE DESSIN (Drawing Tools)
+    //  MODE DESSIN (Drawing Tools)
     if (isDrawing && drawMode && !fogMode) {
       if (currentTool === 'eraser') {
         const drawingIndexToDelete = drawings.findIndex(drawing => isPointOnDrawing(x, y, drawing, zoom));
@@ -6873,7 +6850,7 @@ export default function Component() {
 
   const handleCanvasMouseUp = async () => {
     const rect = bgCanvasRef.current?.getBoundingClientRect();
-    // 🎯 CALIBRATION END (OPEN DIALOG)
+    //  CALIBRATION END (OPEN DIALOG)
     if (isCalibrating && measureMode && measureStart && measureEnd) {
       // If dragged distance is significant, open dialog
       const dist = calculateDistance(measureStart.x, measureStart.y, measureEnd.x, measureEnd.y);
@@ -6900,7 +6877,7 @@ export default function Component() {
     const currentMouseButton = mouseButton;
     setMouseButton(null);
 
-    // 🎯 FIN RESIZE OBJET
+    //  FIN RESIZE OBJET
     if (isResizingObject && resizeStartData && roomId) {
       const resizedObject = objects[resizeStartData.index];
       if (resizedObject && resizedObject.id) {
@@ -7033,7 +7010,7 @@ export default function Component() {
       return;
     }
 
-    // 🔮 FIN DRAG PORTAL
+    //  FIN DRAG PORTAL
     if (isDraggingPortal && draggedPortalId) {
       if (roomId) {
         const portal = portals.find(p => p.id === draggedPortalId);
@@ -7080,7 +7057,7 @@ export default function Component() {
     // ✏️ FIN DU DRAG OBSTACLE ENTIER
 
 
-    // 🎯 FIN RESIZE DESSIN
+    //  FIN RESIZE DESSIN
     if (isResizingDrawing && selectedDrawingIndex !== null) {
       const drawing = drawings[selectedDrawingIndex];
       if (roomId) {
@@ -7097,7 +7074,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 FIN DU DRAG & DROP DESSIN
+    //  FIN DU DRAG & DROP DESSIN
     if (isDraggingDrawing && selectedDrawingIndex !== null) {
       const drawing = drawings[selectedDrawingIndex];
       // Check if actually moved
@@ -7121,7 +7098,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 FIN DU DRAG & DROP OBSTACLE
+    //  FIN DU DRAG & DROP OBSTACLE
     if (isDraggingObstacle && draggedObstacleId && roomId) {
       const obs = obstacles.find(o => o.id === draggedObstacleId);
       if (obs) {
@@ -7154,7 +7131,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 FIN DU DRAG BROUILLARD
+    //  FIN DU DRAG BROUILLARD
     if (isFogDragging) {
       setIsFogDragging(false);
       // 🔥 FLUSH UPDATES TO FIREBASE
@@ -7162,7 +7139,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 FIN DU DRAG & DROP NOTE - Priorité élevée
+    //  FIN DU DRAG & DROP NOTE - Priorité élevée
     if (isDraggingNote && draggedNoteIndex !== null) {
       const draggedNote = notes[draggedNoteIndex];
 
@@ -7196,7 +7173,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 FIN DU DRAG & DROP OBJET (MULTI)
+    //  FIN DU DRAG & DROP OBJET (MULTI)
     if (isDraggingObject && draggedObjectIndex !== null && draggedObjectsOriginalPositions.length > 0) {
       if (roomId) {
         try {
@@ -7231,7 +7208,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 FIN DU DRAG & DROP PERSONNAGE(S) - Priorité élevée
+    //  FIN DU DRAG & DROP PERSONNAGE(S) - Priorité élevée
     if (isDraggingCharacter && draggedCharacterIndex !== null && draggedCharactersOriginalPositions.length > 0) {
       try {
         // Sauvegarder toutes les nouvelles positions en Firebase
@@ -7287,7 +7264,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 FIN DE SÉLECTION PAR ZONE
+    //  FIN DE SÉLECTION PAR ZONE
     if (isSelectingArea && selectionStart && selectionEnd) {
       const minX = Math.min(selectionStart.x, selectionEnd.x);
       const maxX = Math.max(selectionStart.x, selectionEnd.x);
@@ -7457,7 +7434,7 @@ export default function Component() {
       setIsDragging(false);
     }
 
-    // 🎯 Fin du placement continu de brouillard (dans fogMode classique ou visibilityMode avec outil fog)
+    //  Fin du placement continu de brouillard (dans fogMode classique ou visibilityMode avec outil fog)
     if (isFogDragging && (fogMode || (visibilityMode && currentVisibilityTool === 'fog'))) {
       setIsFogDragging(false);
       setIsFogAddMode(true);
@@ -7465,7 +7442,7 @@ export default function Component() {
       return;
     }
 
-    // 🎯 Fin du mode dessin normal - Sauvegarder le tracé
+    //  Fin du mode dessin normal - Sauvegarder le tracé
     if (isDrawing && !fogMode && drawMode) {
       setIsDrawing(false);
 
@@ -7518,18 +7495,13 @@ export default function Component() {
     return () => unsubscribe();
   }, [roomId, selectedCityId]);
 
-  // 🎯 SUPPRIMÉ : useEffect pour shadowOpacity
-
-
-  // 🎯 SUPPRIMÉ : Mode donjon et fonctions associées
-
   const toggleFogMode = () => {
     setFogMode(!fogMode);
     setSelectedCharacterIndex(null);
     setSelectedNoteIndex(null);
   };
 
-  // 🎯 NOUVELLE FONCTION : Gérer le changement du mode brouillard complet
+  //  NOUVELLE FONCTION : Gérer le changement du mode brouillard complet
   const handleFullMapFogChange = async (newValue: boolean) => {
     setFullMapFog(newValue);
 
@@ -7543,7 +7515,6 @@ export default function Component() {
     }
   };
 
-  // 🎯 SUPPRIMÉ : toggleRevealMode (ancien système)
 
 
 
@@ -7556,23 +7527,20 @@ export default function Component() {
         .filter(c => c && c.type !== 'joueurs');
 
       if (charsToDelete.length > 0) {
-        // 1. Clear selection IMMEDIATELY
         setSelectedCharacters([]);
 
-        // 2. Perform DB deletions
         const deletePromises = charsToDelete.map(async (char) => {
           if (char?.id) {
             await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', char.id));
+            toast.success(`Personnages "${char.name}" supprimé`);
           }
         });
 
         await Promise.all(deletePromises);
 
-        // 3. Update local state safely using IDs
         const deletedIds = charsToDelete.map((c: Character) => c.id);
         setCharacters(prev => prev.filter(c => !deletedIds.includes(c.id)));
       } else {
-        // Clear selection if only players were selected (and ignored)
         setSelectedCharacters([]);
       }
     }
@@ -7580,32 +7548,6 @@ export default function Component() {
 
 
 
-  // 🎯 SUPPRIMÉ : Anciennes fonctions de brouillard (toggleClearFogMode, handleDeleteFog)
-
-  const handleZoom = (delta: number) => {
-    const newZoom = Math.max(0.1, Math.min(5, zoom + delta));
-    const zoomFactor = newZoom / zoom;
-
-    if (zoomFactor === 1 || isNaN(zoomFactor)) return;
-
-    if (containerRef.current) {
-      const { clientWidth, clientHeight } = containerRef.current;
-      const centerX = clientWidth / 2;
-      const centerY = clientHeight / 2;
-
-      setOffset((prevOffset) => ({
-        x: prevOffset.x * zoomFactor + centerX * (zoomFactor - 1),
-        y: prevOffset.y * zoomFactor + centerY * (zoomFactor - 1)
-      }));
-    } else {
-      setOffset((prevOffset) => ({
-        x: prevOffset.x * zoomFactor,
-        y: prevOffset.y * zoomFactor
-      }));
-    }
-
-    setZoom(newZoom);
-  };
 
   const handleDeleteCharacter = async () => {
     if (characterToDelete && roomId) {
@@ -7614,11 +7556,14 @@ export default function Component() {
           await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', characterToDelete.id));
           setCharacters(characters.filter((char) => char.id !== characterToDelete.id));
           setSelectedCharacterIndex(null);
+          toast.success(`Personnage "${characterToDelete.name}" supprimé`);
         } catch (error) {
           console.error("Erreur lors de la suppression du personnage :", error);
+          toast.error(`Erreur lors de la suppression du personnage "${characterToDelete.name}"`);
         }
       } else {
         console.error("ID du personnage introuvable pour la suppression.");
+        toast.error("ID du personnage introuvable pour la suppression.");
       }
     } else {
       console.error("Aucun personnage sélectionné ou roomId invalide.");
@@ -7634,8 +7579,10 @@ export default function Component() {
           setSelectedNoteIndex(null);
           await deleteDoc(doc(db, 'cartes', roomIdStr, 'text', noteToDelete.id));
           setNotes((prevNotes) => prevNotes.filter((n) => n.id !== noteToDelete.id));
+          toast.success(`Note "${noteToDelete.text}" supprimée`);
         } catch (error) {
           console.error("Erreur lors de la suppression de la note :", error);
+          toast.error(`Erreur lors de la suppression de la note "${noteToDelete.text}"`);
         }
       }
     }
@@ -7655,7 +7602,7 @@ export default function Component() {
     }
   };
 
-  // 🎯 CENTRALIZED DELETE HANDLER
+  //  CENTRALIZED DELETE HANDLER
   const handleDeleteKeyPress = () => {
     if (!isMJ) return; // Only MJ can delete
 
@@ -7779,7 +7726,7 @@ export default function Component() {
     }
   };
 
-  // 🎯 CONFIRM DELETE HANDLER
+  //  CONFIRM DELETE HANDLER
   const handleConfirmDelete = async () => {
     if (!entityToDelete || !roomId) return;
 
@@ -7794,11 +7741,17 @@ export default function Component() {
             await Promise.all(deletePromises);
             setCharacters(prev => prev.filter(c => !entityToDelete.ids!.includes(c.id)));
             setSelectedCharacters([]);
+            if (entityToDelete.count === 1) {
+              toast.success(`Personnage "${entityToDelete.name || 'Inconnu'}" supprimé`);
+            } else {
+              toast.success(`${entityToDelete.ids?.length || 0} personnages supprimés`);
+            }
           } else if (entityToDelete.id) {
             // Single character
             await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', entityToDelete.id));
             setCharacters(prev => prev.filter(c => c.id !== entityToDelete.id));
             setSelectedCharacterIndex(null);
+            toast.success(`Personnage "${entityToDelete.name}" supprimé`);
           }
           break;
 
@@ -7811,6 +7764,11 @@ export default function Component() {
             await Promise.all(deletePromises);
             setObjects(prev => prev.filter(o => !entityToDelete.ids!.includes(o.id)));
             setSelectedObjectIndices([]);
+            if (entityToDelete.count === 1) {
+              toast.success(`Objet "${entityToDelete.name || 'Inconnu'}" supprimé`);
+            } else {
+              toast.success(`${entityToDelete.ids?.length || 0} objets supprimés`);
+            }
           }
           break;
 
@@ -7820,6 +7778,7 @@ export default function Component() {
             setLights(prev => prev.filter(l => l.id !== entityToDelete.id));
             setContextMenuLightOpen(false);
             setContextMenuLightId(null);
+            toast.success(`Lumière supprimée`); // Light usually has no name, keep generic or use name if available
           }
           break;
 
@@ -7828,6 +7787,7 @@ export default function Component() {
             await deleteDoc(doc(db, 'cartes', String(roomId), 'obstacles', entityToDelete.id));
             setObstacles(prev => prev.filter(o => o.id !== entityToDelete.id));
             setSelectedObstacleId(null);
+            toast.success(`Obstacle supprimé`);
           }
           break;
 
@@ -7840,6 +7800,11 @@ export default function Component() {
             await Promise.all(deletePromises);
             setMusicZones(prev => prev.filter(z => !entityToDelete.ids!.includes(z.id)));
             setSelectedMusicZoneIds([]);
+            if (entityToDelete.count === 1) {
+              toast.success(`Zone musicale "${entityToDelete.name || 'Inconnue'}" supprimée`);
+            } else {
+              toast.success(`${entityToDelete.ids?.length || 0} zones musicales supprimées`);
+            }
           }
           break;
 
@@ -7848,6 +7813,7 @@ export default function Component() {
             await deleteDoc(doc(db, 'cartes', String(roomId), 'text', entityToDelete.id));
             setNotes(prev => prev.filter(n => n.id !== entityToDelete.id));
             setSelectedNoteIndex(null);
+            toast.success(`Note "${entityToDelete.name}" supprimée`);
           }
           break;
 
@@ -7856,6 +7822,7 @@ export default function Component() {
             await deleteDoc(doc(db, 'cartes', String(roomId), 'measurements', entityToDelete.id));
             setMeasurements(prev => prev.filter(m => m.id !== entityToDelete.id));
           }
+          toast.success("Mesure supprimée");
           break;
 
         case 'drawing':
@@ -7863,6 +7830,7 @@ export default function Component() {
             await deleteDoc(doc(db, 'cartes', String(roomId), 'drawings', entityToDelete.id));
             setDrawings(prev => prev.filter(d => d.id !== entityToDelete.id));
             setSelectedDrawingIndex(null);
+            toast.success(`Dessin supprimé`);
           }
           break;
 
@@ -7879,6 +7847,7 @@ export default function Component() {
             // Save to Firebase
             saveFogGrid(newFogGrid);
           }
+          toast.success("Brouillard supprimé");
           break;
       }
     } catch (error) {
@@ -8184,10 +8153,10 @@ export default function Component() {
     setSelectionCandidates(null);
   };
 
-  // 🎯 RENDER CITY MAP (existing functionality)
+  //  RENDER CITY MAP (existing functionality)
   return (
     <div className="flex flex-col relative" ref={containerRef}>
-      {/* 🎯 SELECTION MENU */}
+      {/*  SELECTION MENU */}
       {showSelectionMenu && selectionCandidates && (
         <SelectionMenu
           position={menuPosition}
@@ -8200,7 +8169,7 @@ export default function Component() {
         />
       )}
 
-      {/* 🔮 PLAYER PORTAL ENTER BUTTON */}
+      {/*  PLAYER PORTAL ENTER BUTTON */}
       {!isMJ && activePortalForPlayer && (
         <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[100]">
           <div className="bg-black/90 backdrop-blur-xl border-2 border-[#c0a080] rounded-2xl p-6 shadow-2xl shadow-[#c0a080]/20 animate-in fade-in zoom-in duration-300">
@@ -8215,7 +8184,7 @@ export default function Component() {
                   let targetX = activePortalForPlayer.targetX || 0;
                   let targetY = activePortalForPlayer.targetY || 0;
 
-                  // 🎯 Fix: If target is 0,0 (default), check if the target scene has a defined spawn point
+                  //  Fix: If target is 0,0 (default), check if the target scene has a defined spawn point
                   if (targetX === 0 && targetY === 0) {
                     const targetCity = cities.find(c => c.id === activePortalForPlayer.targetSceneId);
                     if (targetCity && targetCity.spawnX !== undefined && targetCity.spawnY !== undefined) {
@@ -8244,14 +8213,6 @@ export default function Component() {
         </div>
       )}
 
-      {/* 🆕 Bouton Retour à la World Map - UNIQUEMENT POUR LE MJ */}
-      {/* 🆕 Bouton Retour à la World Map - UNIQUEMENT POUR LE MJ (DEPLACÉ EN HAUT À DROITE) */}
-      {/* L'ancien emplacement en haut à gauche est supprimé pour Importer PNJ et Retour au Monde */}
-
-      {/* 🎯 Contrôles de zoom flottants en haut à droite */}
-      {/* 🎯 Contrôles de zoom flottants en haut à droite */}
-
-
 
 
       {/* 🆕 InfoComponent Integré */}
@@ -8265,7 +8226,7 @@ export default function Component() {
         </div>
       )}
 
-      {/* 🎯 BULK CHARACTER CONTEXT MENU */}
+      {/*  BULK CHARACTER CONTEXT MENU */}
       <BulkCharacterContextMenu
         isOpen={bulkContextMenuOpen}
         selectedCount={selectedCharacters.length}
@@ -8285,7 +8246,7 @@ export default function Component() {
         }}
       />
 
-      {/* 🎯 Object Context Menu */}
+      {/*  Object Context Menu */}
       <ObjectContextMenu
         object={contextMenuObjectId ? objects.find(o => o.id === contextMenuObjectId) || null : null}
         isOpen={contextMenuObjectOpen}
@@ -8321,7 +8282,7 @@ export default function Component() {
         isMJ={isMJ}
       />
 
-      {/* 🔮 Portal Context Menu */}
+      {/*  Portal Context Menu */}
       <PortalContextMenu
         portal={contextMenuPortalId ? portals.find(p => p.id === contextMenuPortalId) || null : null}
         isOpen={contextMenuPortalOpen}
@@ -8330,7 +8291,7 @@ export default function Component() {
         isMJ={isMJ}
       />
 
-      {/* 🎯 Cone Configuration Dialog */}
+      {/*  Cone Configuration Dialog */}
       <ConeConfigDialog
         isOpen={coneConfigDialogOpen}
         onClose={() => setConeConfigDialogOpen(false)}
@@ -8402,7 +8363,7 @@ export default function Component() {
             return;
           }
 
-          // 🎯 CONFLICT RESOLUTION: Character Context Menu vs Tool interactions
+          //  CONFLICT RESOLUTION: Character Context Menu vs Tool interactions
 
           // If we are hovering over a character, we want the CHARACTER context menu to open (handled elsewhere or natively if implemented),
           // and we want to PREVENT the Radial Menu from opening.
@@ -8454,7 +8415,7 @@ export default function Component() {
 
 
             if (hoveredCharIndex !== -1) {
-              // 🎯 Check if the hovered character is part of a multi-selection
+              //  Check if the hovered character is part of a multi-selection
               if (selectedCharacters.length > 1 && selectedCharacters.includes(hoveredCharIndex)) {
                 // Show bulk context menu for multi-selection
                 e.preventDefault();
@@ -8476,7 +8437,7 @@ export default function Component() {
               return;
             }
 
-            // 🎯 PING CREATION (Empty Space Click)
+            //  PING CREATION (Empty Space Click)
             e.preventDefault();
 
             // Only create ping if not dragging (to avoid pinging after panning)
@@ -8499,7 +8460,7 @@ export default function Component() {
         }
       >
         <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
-          {/* 🎯 PINGS LAYER */}
+          {/*  PINGS LAYER */}
           <div className="pings-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 60 }}>
             {pings.filter(p => Date.now() - p.timestamp < 3500).map(ping => { // Extra 500ms buffer for animation to finish if needed
               if (ping.cityId !== selectedCityId) return null; // Only show pings for current city
@@ -8589,7 +8550,7 @@ export default function Component() {
               const isSelected = selectedObjectIndices.includes(index);
 
               // Visibility Check (Shadows & Fog) logic
-              // 🎯 CALCUL DES OMBRES POUR MASQUER LES PNJs ET OBJETS (Côté Client seulement)
+              //  CALCUL DES OMBRES POUR MASQUER LES PNJs ET OBJETS (Côté Client seulement)
               let objectIsVisible = true;
 
               const activeShadows = precalculatedShadows?.shadows;
@@ -8835,7 +8796,7 @@ export default function Component() {
             })}
           </div>
 
-          {/* 🔮 PORTALS LAYER - Icons for MJ */}
+          {/*  PORTALS LAYER - Icons for MJ */}
           <div className="portals-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden', zIndex: 46 }}>
             {isMJ && portals.filter(p => !p.cityId || p.cityId === selectedCityId).map((portal) => {
               if (!bgImageObject) return null;
@@ -9404,7 +9365,7 @@ export default function Component() {
         )
       }
 
-      {/* 🎯 PAN MODE OVERLAY */}
+      {/*  PAN MODE OVERLAY */}
       {
         panMode && (
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-40 backdrop-blur-sm">
@@ -9416,7 +9377,7 @@ export default function Component() {
         )
       }
 
-      {/* 🎯 FOG MODE OVERLAY */}
+      {/*  FOG MODE OVERLAY */}
       {
         fogMode && (
           <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-neutral-900/90 text-neutral-200 px-4 py-2 rounded-full border border-neutral-700 shadow-xl flex items-center gap-4 z-40 backdrop-blur-sm">
@@ -9447,7 +9408,7 @@ export default function Component() {
 
 
 
-      {/* 🎯 CALIBRATION DIALOG */}
+      {/*  CALIBRATION DIALOG */}
       <Dialog open={calibrationDialogOpen} onOpenChange={setCalibrationDialogOpen}>
         <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] border-[#FFD700]">
           <DialogHeader>
@@ -9498,7 +9459,7 @@ export default function Component() {
         }} />
       )}
 
-      {/* 🎯 GLOBAL SETTINGS DIALOG */}
+      {/*  GLOBAL SETTINGS DIALOG */}
       <GlobalSettingsDialog
         isOpen={showGlobalSettingsDialog}
         onOpenChange={setShowGlobalSettingsDialog}
@@ -9948,3 +9909,4 @@ function pDistance(x: number, y: number, x1: number, y1: number, x2: number, y2:
   var dy = y - yy;
   return Math.sqrt(dx * dx + dy * dy);
 }
+

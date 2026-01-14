@@ -286,7 +286,7 @@ Les contributions sont les bienvenues ! N'hésitez pas à :
 
 Ce projet est destiné à un usage personnel et éducatif.
 
-## 🎯 Roadmap
+##  Roadmap
 
 - [ ] Système de chat en temps réel
 - [ ] Macros personnalisables

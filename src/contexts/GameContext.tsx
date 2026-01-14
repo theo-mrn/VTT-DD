@@ -288,7 +288,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
             setPersoId(userData.persoId);
             setPlayerData(fullCharacterData);
             console.log("🎉 Player data restored from Firebase:", fullCharacterData);
-            console.log("🎯 Set as PLAYER (isMJ = false)");
+            console.log(" Set as PLAYER (isMJ = false)");
           } else {
             console.log("❌ Character document not found for persoId:", userData.persoId);
             // Si le personnage n'existe pas, on ne peut pas être sûr du rôle
