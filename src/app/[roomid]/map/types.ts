@@ -58,6 +58,25 @@ export interface Character {
         loop?: boolean;
         name?: string;
     };
+    interactions?: Interaction[];
+}
+
+export type Interaction = VendorInteraction;
+
+export interface VendorInteraction {
+    id: string;
+    type: 'vendor';
+    name: string; // "Magasin", "Auberge", etc.
+    description?: string; // 🆕 Customizable welcome message
+    items: VendorItem[];
+}
+
+export interface VendorItem {
+    id: string;
+    name: string;
+    price: string | number;
+    description?: string;
+    image?: string;
 }
 
 export interface MapText {
