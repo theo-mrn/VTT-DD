@@ -59,6 +59,7 @@ export interface Character {
         name?: string;
     };
     interactions?: Interaction[];
+    positions?: Record<string, { x: number; y: number }>;
 }
 
 export type Interaction = VendorInteraction;

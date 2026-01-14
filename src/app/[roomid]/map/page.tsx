@@ -112,6 +112,8 @@ import MapToolbar, { TOOLS } from '@/components/(map)/MapToolbar';
 import BackgroundSelector from '@/components/(map)/BackgroundSelector';
 import GlobalSettingsDialog from '@/components/(map)/GlobalSettingsDialog';
 import { useMapControl } from '@/contexts/MapControlContext';
+import { pasteCharacter } from '@/utils/pasteCharacter';
+import { pasteObject } from '@/utils/pasteObject';
 
 // ⚡ Static Token Component for Performance Mode (Moved Outside Component to avoid Remounting/Flickering)
 const StaticToken = React.memo(({ src, alt, style, className, performanceMode }: { src: string, alt: string, style?: React.CSSProperties, className?: string, performanceMode: string }) => {
@@ -208,6 +210,11 @@ export default function Component() {
   const [activeInteraction, setActiveInteraction] = useState<{ interaction: VendorInteraction, vendor: Character } | null>(null);
   const [interactionConfigTarget, setInteractionConfigTarget] = useState<Character | null>(null);
   const fireballVideo = useSkinVideo(selectedSkin); // For LOCAL active measurement
+
+  // 📋 COPY/PASTE STATE
+  const [copiedCharacterTemplate, setCopiedCharacterTemplate] = useState<Character | null>(null);
+  const [copiedObjectTemplate, setCopiedObjectTemplate] = useState<MapObject | null>(null);
+
 
 
   useEffect(() => {
@@ -1306,6 +1313,41 @@ export default function Component() {
         e.preventDefault();
         setVisibilityMode(false);
       }
+
+      // 📋 COPY (Ctrl+C / Cmd+C)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        // Check if a character is selected
+        if (selectedCharacterIndex !== null && characters[selectedCharacterIndex]) {
+          const charToCopy = characters[selectedCharacterIndex];
+          setCopiedCharacterTemplate(charToCopy);
+          setCopiedObjectTemplate(null); // Clear object copy
+          console.log("Character copied:", charToCopy.name);
+        }
+        // Check if an object is selected
+        else if (selectedObjectIndices.length > 0) {
+          // For now, take the first selected object (single copy support)
+          const objIndex = selectedObjectIndices[0];
+          const objToCopy = objects[objIndex];
+          if (objToCopy) {
+            setCopiedObjectTemplate(objToCopy);
+            setCopiedCharacterTemplate(null); // Clear char copy
+            console.log("Object copied:", objToCopy.name);
+          }
+        }
+      }
+
+      // 📋 PASTE (Ctrl+V / Cmd+V)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+        if (isMJ) { // Ensure only MJ can paste for now
+          if (copiedCharacterTemplate) {
+            pasteCharacter(roomId, copiedCharacterTemplate, selectedCityId)
+              .catch(err => console.error("Failed to paste character:", err));
+          } else if (copiedObjectTemplate) {
+            pasteObject(roomId, copiedObjectTemplate, selectedCityId)
+              .catch(err => console.error("Failed to paste object:", err));
+          }
+        }
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -1321,7 +1363,11 @@ export default function Component() {
     selectedFogCells,
     visibilityMode,
     isDrawingObstacle,
-    isMJ
+    isMJ,
+    copiedCharacterTemplate,
+    copiedObjectTemplate, // Added dependency
+    roomId,
+    selectedCityId
   ]);
 
   // 🎵 Global audio reference for quick sounds
@@ -8595,7 +8641,7 @@ export default function Component() {
                     transform: `rotate(${obj.rotation}deg)`,
                     pointerEvents: obj.isBackground && !isBackgroundEditMode ? 'none' : 'auto', // Allow interactions only if not background or in edit mode
                     cursor: isResizingObject ? 'nwse-resize' : (obj.isLocked && !isMJ ? 'default' : 'move'), // Change cursor if resizing or locked
-                    zIndex: obj.isBackground ? 1 : 5 // Background objects: 1, Normal objects: 5
+                    zIndex: obj.isBackground ? 1 : 2 // Background objects: 1, Normal objects: 2
                   }}
                   onMouseDown={(e) => {
                     // Prevent canvas from picking up this click
@@ -8871,7 +8917,7 @@ export default function Component() {
 
           <canvas
             ref={characterBordersCanvasRef}
-            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 3 }}
           />
           <div className="characters-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' }}>
             {isLayerVisible('characters') && characters.map((char, index) => {
@@ -8964,7 +9010,8 @@ export default function Component() {
                     height: iconRadius * 2,
                     pointerEvents: 'none',
                     borderRadius: isPlayerCharacter ? '0' : '50%', // Only NPCs are circular
-                    overflow: 'hidden'
+                    overflow: 'hidden',
+                    zIndex: 5 // Characters above objects (z=2) and borders (z=3)
                   }}
                 >
                   {char.imageUrl && (
