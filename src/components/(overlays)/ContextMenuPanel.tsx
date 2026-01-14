@@ -16,7 +16,8 @@ import {
     Music,
     Volume2,
     VolumeX,
-    Settings
+    Settings,
+    Store
 } from 'lucide-react';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
 import { Input } from "@/components/ui/input";
@@ -118,9 +119,11 @@ export default function ContextMenuPanel({
 
                             <div className="absolute bottom-0 left-0 right-0 p-4 z-20">
                                 <h2 className="text-2xl font-bold text-white font-serif tracking-wide text-shadow-lg leading-none mb-1">{character.name}</h2>
-                                <Badge variant="outline" className="bg-black/40 text-gray-300 border-white/10 backdrop-blur-md text-[10px] px-2 h-5">
-                                    {character.type === 'joueurs' ? 'Joueur' : 'PNJ'}
-                                </Badge>
+                                <div className="flex gap-2">
+                                    <Badge variant="outline" className="bg-black/40 text-gray-300 border-white/10 backdrop-blur-md text-[10px] px-2 h-5">
+                                        {character.type === 'joueurs' ? 'Joueur' : 'PNJ'}
+                                    </Badge>
+                                </div>
                             </div>
                         </div>
 
@@ -156,6 +159,19 @@ export default function ContextMenuPanel({
                                 <Sword className="mr-3 h-6 w-6 group-hover:rotate-12 transition-transform" />
                                 ATTAQUER
                             </Button>
+
+                            {/* Interaction Action (Player View) */}
+                            {character.interactions && character.interactions.length > 0 && (
+                                <Button
+                                    className="w-full h-14 text-lg font-bold bg-gradient-to-r from-amber-700 via-amber-600 to-amber-700 border border-amber-500/50 hover:border-amber-400 text-white shadow-lg shadow-amber-900/20 group relative overflow-hidden transition-all hover:scale-[1.02]"
+                                    onClick={() => onAction('interact', character.id, character.interactions?.[0]?.id)}
+                                >
+                                    <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay" />
+                                    <div className="absolute inset-0 bg-amber-500/0 group-hover:bg-amber-500/10 transition-colors" />
+                                    <Store className="mr-3 h-6 w-6 group-hover:rotate-12 transition-transform" />
+                                    {character.interactions[0].name ? character.interactions[0].name.toUpperCase() : "INTERAGIR"}
+                                </Button>
+                            )}
 
                             {/* Secondary Actions */}
                             {canViewDetails && (
@@ -301,6 +317,35 @@ export default function ContextMenuPanel({
                                                 >
                                                     <FileText size={16} />
                                                     Fiche
+                                                </Button>
+                                            )}
+                                        </div>
+
+                                        {/* Interaction Section */}
+                                        <div className="space-y-2">
+                                            {/* Players: Interact Button */}
+                                            {character.interactions && character.interactions.length > 0 && (
+                                                <Button
+                                                    className="w-full bg-gradient-to-r from-amber-700 to-amber-900 border border-amber-500/30 hover:from-amber-600 hover:to-amber-800 text-white shadow-lg"
+                                                    onClick={() => onAction('interact', character.id, character.interactions?.[0]?.id)}
+                                                >
+                                                    <Store className="mr-2 h-4 w-4" />
+                                                    {character.interactions[0].name || "Interagir"}
+                                                </Button>
+                                            )}
+
+                                            {/* GM: Add/Edit Interaction */}
+                                            {isMJ && (
+                                                <Button
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="w-full h-8 text-xs border-dashed border-white/20 text-gray-400 hover:text-white hover:bg-white/5"
+                                                    onClick={() => onAction('configureInteraction', character.id)}
+                                                >
+                                                    <Plus className="mr-1 h-3 w-3" />
+                                                    {character.interactions && character.interactions.length > 0
+                                                        ? "Modifier l'interaction"
+                                                        : "Ajouter une interaction (Vendeur)"}
                                                 </Button>
                                             )}
                                         </div>

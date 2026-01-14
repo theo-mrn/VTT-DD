@@ -71,6 +71,9 @@ import CharacterSheet from '@/components/(fiches)/CharacterSheet';
 import { Component as RadialMenu } from '@/components/ui/radial-menu';
 import CitiesManager from '@/components/(worldmap)/CitiesManager';
 import ContextMenuPanel from '@/components/(overlays)/ContextMenuPanel';
+import ShopComponent from '@/components/(interactions)/ShopComponent';
+import InteractionConfigDialog from '@/components/(dialogs)/InteractionConfigDialog';
+import { VendorInteraction } from '@/app/[roomid]/map/types';
 import ObjectContextMenu from '@/components/(overlays)/ObjectContextMenu';
 import LightContextMenu from '@/components/(overlays)/LightContextMenu';
 import MusicZoneContextMenu from '@/components/(overlays)/MusicZoneContextMenu';
@@ -202,6 +205,8 @@ export default function Component() {
   const videoRef = useRef<HTMLVideoElement | null>(null); // Ref to keep track of video element for cleanup
   const [selectedSkin, setSelectedSkin] = useState<string>('Fireballs/explosion1.webm');
   const [isPermanent, setIsPermanent] = useState(false); // 🆕 Permanent measurement toggle
+  const [activeInteraction, setActiveInteraction] = useState<{ interaction: VendorInteraction, vendor: Character } | null>(null);
+  const [interactionConfigTarget, setInteractionConfigTarget] = useState<Character | null>(null);
   const fireballVideo = useSkinVideo(selectedSkin); // For LOCAL active measurement
 
 
@@ -1588,7 +1593,8 @@ export default function Component() {
       conditions: data.conditions || [],
       scale: data.scale || 1,
       Actions: data.Actions || [],
-      audio: data.audio || undefined // 🆕 Audio data assignment
+      audio: data.audio || undefined, // 🆕 Audio data assignment
+      interactions: data.interactions || undefined // 🆕 Interactions for Vendor/NPC system
     };
     return charObj;
   }, []);
@@ -9591,6 +9597,15 @@ export default function Component() {
               const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
               updateDoc(charRef, { visibleToPlayerIds: newPlayerIds });
             }
+          } else if (action === 'configureInteraction') {
+            setInteractionConfigTarget(char);
+            setContextMenuOpen(false);
+          } else if (action === 'interact') {
+            const interaction = char.interactions?.find(i => i.id === value);
+            if (interaction && interaction.type === 'vendor') {
+              setActiveInteraction({ interaction: interaction as VendorInteraction, vendor: char });
+              setContextMenuOpen(false);
+            }
           }
         }}
       />
@@ -9797,6 +9812,28 @@ export default function Component() {
           </div>
         )
       }
+
+      {/* Interaction Components */}
+      {activeInteraction && (
+        <ShopComponent
+          isOpen={!!activeInteraction}
+          onClose={() => setActiveInteraction(null)}
+          interaction={activeInteraction.interaction}
+          vendor={activeInteraction.vendor}
+        />
+      )}
+
+      <InteractionConfigDialog
+        isOpen={!!interactionConfigTarget}
+        onClose={() => setInteractionConfigTarget(null)}
+        currentInteraction={interactionConfigTarget?.interactions?.[0] as VendorInteraction}
+        onSave={async (interaction) => {
+          if (interactionConfigTarget && roomId) {
+            const charRef = doc(db, 'cartes', roomId, 'characters', interactionConfigTarget.id);
+            await updateDoc(charRef, { interactions: [interaction] });
+          }
+        }}
+      />
 
       {/* SCENE INVENTORY DRAWER */}
       <AnimatePresence>
