@@ -32,7 +32,8 @@ import {
     Check,
     Cloud,
     Lightbulb,
-    Search
+    Search,
+    Hexagon
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -80,6 +81,7 @@ export const TOOLS = {
     MUSIC: 'music',
     BACKGROUND_EDIT: 'background_edit',
     UNIFIED_SEARCH: 'unified_search',
+    PORTAL: 'portal',
 
     // Tools
     DRAW: 'draw',
@@ -442,6 +444,12 @@ function MapToolbar({
                                         icon={Search}
                                         label="Recherche (Tout)"
                                         isActive={activeTools.includes(TOOLS.UNIFIED_SEARCH)}
+                                    />
+                                    <ToolButton onAction={onAction}
+                                        id={TOOLS.PORTAL}
+                                        icon={Hexagon}
+                                        label="Portail"
+                                        isActive={activeTools.includes(TOOLS.PORTAL)}
                                     />
                                     <ToolButton onAction={onAction}
                                         id={TOOLS.ADD_CHAR}

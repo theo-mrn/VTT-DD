@@ -207,3 +207,18 @@ export interface Ping {
     userId: string;
     cityId?: string | null;
 }
+
+export interface Portal {
+    id: string;
+    x: number;
+    y: number;
+    radius: number;
+    targetSceneId: string;
+    targetX?: number;
+    targetY?: number;
+    name: string;
+    iconType?: 'stairs' | 'door' | 'portal' | 'ladder';
+    visible?: boolean;
+    color?: string;
+    cityId?: string | null;
+}
