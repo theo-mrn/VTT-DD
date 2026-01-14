@@ -186,6 +186,8 @@ export interface Scene {
     groupId?: string;
     x?: number;
     y?: number;
+    spawnX?: number;  // 🆕 Default spawn X coordinate for players
+    spawnY?: number;  // 🆕 Default spawn Y coordinate for players
 }
 
 export interface LightSource {

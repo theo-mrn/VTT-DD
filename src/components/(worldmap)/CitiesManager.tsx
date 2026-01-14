@@ -30,6 +30,8 @@ interface Scene {
     groupId?: string;
     x?: number;
     y?: number;
+    spawnX?: number;  // 🆕 Default spawn X coordinate for players
+    spawnY?: number;  // 🆕 Default spawn Y coordinate for players
 }
 
 interface SceneGroup {
@@ -345,25 +347,40 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                 batch.set(settingsRef, { currentCityId: moveTargetCity.id }, { merge: true });
 
                 // B. Réinitialiser les positions individuelles de TOUS les joueurs (pour qu'ils suivent le global)
-                // On doit le faire pour tous les joueurs trouvés
+                // 🆕 Si la scène a un spawn point défini, placer les joueurs à cette position
+                const spawnX = moveTargetCity.spawnX ?? 0;
+                const spawnY = moveTargetCity.spawnY ?? 0;
+
                 players.forEach(p => {
                     const charRef = doc(charactersRef, p.id);
-                    batch.update(charRef, { currentSceneId: null }); // Remove override
+                    batch.update(charRef, {
+                        currentSceneId: null, // Remove override
+                        x: spawnX,  // 🆕 Place at spawn point
+                        y: spawnY   // 🆕 Place at spawn point
+                    });
                 });
 
                 if (onCitySelect) onCitySelect(moveTargetCity.id);
             }
             // 2. Si mode "sélection" (Individuel)
             else {
+                // 🆕 Si la scène a un spawn point défini, placer les joueurs sélectionnés à cette position
+                const spawnX = moveTargetCity.spawnX ?? 0;
+                const spawnY = moveTargetCity.spawnY ?? 0;
+
                 // Mettre à jour uniquement les joueurs sélectionnés avec l'ID de la scène
                 selectedPlayerIds.forEach(pId => {
                     const charRef = doc(charactersRef, pId);
-                    batch.update(charRef, { currentSceneId: moveTargetCity.id });
+                    batch.update(charRef, {
+                        currentSceneId: moveTargetCity.id,
+                        x: spawnX,  // 🆕 Place at spawn point
+                        y: spawnY   // 🆕 Place at spawn point
+                    });
                 });
             }
 
             await batch.commit();
-            console.log(`✅ [CitiesManager] Moved ${moveMode === 'all' ? 'everyone' : selectedPlayerIds.size + ' players'} to ${moveTargetCity.name}`);
+            console.log(`✅ [CitiesManager] Moved ${moveMode === 'all' ? 'everyone' : selectedPlayerIds.size + ' players'} to ${moveTargetCity.name}${moveTargetCity.spawnX !== undefined ? ` at spawn (${moveTargetCity.spawnX}, ${moveTargetCity.spawnY})` : ''}`);
             setShowMoveDialog(false);
 
         } catch (error) {
