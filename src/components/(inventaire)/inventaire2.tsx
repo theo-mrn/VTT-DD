@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Search, Plus, Sword, Target, Shield, Beaker, ChevronRight, Coins, Apple, X, ArrowUpDown } from 'lucide-react';
 import { db, doc, collection, onSnapshot, getDoc, updateDoc, setDoc, deleteDoc, addDoc } from '@/lib/firebase';
+import { toast } from 'sonner';
 
 interface InventoryItem {
   id: string;
@@ -189,6 +190,10 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
       if (existingItem) {
         const itemRef = doc(inventoryRef, existingItem.id);
         await updateDoc(itemRef, { quantity: existingItem.quantity + 1 });
+        toast.success(`${item} ajouté`, {
+          description: `Quantité : ${existingItem.quantity + 1}`,
+          duration: 2000,
+        });
       } else {
         await addDoc(inventoryRef, {
           message: item,
@@ -199,11 +204,17 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
           visibility: 'public',
           weight: 1
         });
+        toast.success(`${item} créé`, {
+          duration: 2000,
+        });
       }
-      // Fermer le modal après l'ajout réussi
       setIsAddItemDialogOpen(false);
     } catch (error) {
       console.error('Erreur lors de l\'ajout de l\'objet:', error);
+      toast.error('Erreur', {
+        description: "Impossible d'ajouter l'objet.",
+        duration: 3000,
+      });
     }
   };
 
@@ -213,6 +224,10 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
       if (existingItem) {
         const itemRef = doc(inventoryRef, existingItem.id);
         await updateDoc(itemRef, { quantity: existingItem.quantity + 1 });
+        toast.success(`${item} ajouté`, {
+          description: `Quantité : ${existingItem.quantity + 1}`,
+          duration: 2000,
+        });
       } else {
         await addDoc(inventoryRef, {
           message: item,
@@ -223,35 +238,78 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
           visibility: 'public',
           weight: 1
         });
+        toast.success(`${item} ajouté`, {
+          duration: 2000,
+        });
       }
-      // Fermer le modal après l'ajout réussi
       setIsAddItemDialogOpen(false);
     } catch (error) {
       console.error('Erreur lors de l\'ajout de l\'objet:', error);
+      toast.error('Erreur', {
+        description: "Impossible d'ajouter l'objet.",
+        duration: 3000,
+      });
     }
   };
 
   const handleDeleteItem = async (id: string) => {
-    await deleteDoc(doc(inventoryRef, id));
+    try {
+      const item = inventory.find(i => i.id === id);
+      await deleteDoc(doc(inventoryRef, id));
+      toast.success('Objet supprimé', {
+        description: item?.message,
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      toast.error('Erreur', {
+        description: "Impossible de supprimer l'objet.",
+        duration: 3000,
+      });
+    }
   };
 
   const handleRenameItem = async () => {
     if (currentItem && newItemName) {
-      const itemRef = doc(inventoryRef, currentItem.id);
-      await updateDoc(itemRef, { message: newItemName });
-      setIsRenameDialogOpen(false);
-      setNewItemName('');
+      try {
+        const itemRef = doc(inventoryRef, currentItem.id);
+        await updateDoc(itemRef, { message: newItemName });
+        toast.success('Nom modifié', {
+          description: `${currentItem.message} → ${newItemName}`,
+          duration: 2000,
+        });
+        setIsRenameDialogOpen(false);
+        setNewItemName('');
+      } catch (error) {
+        console.error('Erreur lors du renommage:', error);
+        toast.error('Erreur', {
+          description: "Impossible de renommer l'objet.",
+          duration: 3000,
+        });
+      }
     }
   };
 
   const handleUpdateQuantity = async () => {
     if (currentItem && newItemQuantity > 0) {
-      const itemRef = doc(inventoryRef, currentItem.id);
-      await updateDoc(itemRef, {
-        quantity: newItemQuantity
-      });
-      setIsQuantityDialogOpen(false);
-      setNewItemQuantity(1);
+      try {
+        const itemRef = doc(inventoryRef, currentItem.id);
+        await updateDoc(itemRef, {
+          quantity: newItemQuantity
+        });
+        toast.success('Quantité modifiée', {
+          description: `${currentItem.message} : ${newItemQuantity}`,
+          duration: 2000,
+        });
+        setIsQuantityDialogOpen(false);
+        setNewItemQuantity(1);
+      } catch (error) {
+        console.error('Erreur lors de la modification de quantité:', error);
+        toast.error('Erreur', {
+          description: "Impossible de modifier la quantité.",
+          duration: 3000,
+        });
+      }
     }
   };
 
@@ -260,22 +318,38 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
     console.log("Bonus type:", bonusType);
     console.log("Bonus value:", bonusValue);
     if (currentItem && bonusType && bonusValue) {
-      const itemRef = doc(db, `Bonus/${roomId}/${playerName}/${currentItem.id}`);
-      await setDoc(itemRef, {
-        [bonusType]: parseInt(bonusValue),
-        active: true,
-        category: 'Inventaire'
-      }, { merge: true });
+      try {
+        const itemRef = doc(db, `Bonus/${roomId}/${playerName}/${currentItem.id}`);
+        await setDoc(itemRef, {
+          [bonusType]: parseInt(bonusValue),
+          active: true,
+          category: 'Inventaire'
+        }, { merge: true });
 
-      // Ajouter l'item au Set des items avec bonus
-      setItemsWithBonus(prev => new Set([...prev, currentItem.id]));
-      setBonusActiveMap(prev => ({ ...prev, [currentItem.id]: true }));
+        setItemsWithBonus(prev => new Set([...prev, currentItem.id]));
+        setBonusActiveMap(prev => ({ ...prev, [currentItem.id]: true }));
 
-      setBonusType('');
-      setBonusValue('');
-      setIsBonusDialogOpen(false);
+        toast.success('Bonus ajouté', {
+          description: `${currentItem.message} : ${bonusType} +${bonusValue}`,
+          duration: 2000,
+        });
+
+        setBonusType('');
+        setBonusValue('');
+        setIsBonusDialogOpen(false);
+      } catch (error) {
+        console.error('Erreur lors de l\'ajout du bonus:', error);
+        toast.error('Erreur', {
+          description: "Impossible d'ajouter le bonus.",
+          duration: 3000,
+        });
+      }
     } else {
       console.log("Missing data for bonus.");
+      toast.error('Données manquantes', {
+        description: "Veuillez remplir tous les champs.",
+        duration: 3000,
+      });
     }
   };
 
@@ -290,13 +364,13 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
           const newActiveState = !currentActiveState;
           await updateDoc(itemRef, { active: newActiveState });
 
-          // Mettre à jour le state local immédiatement
+          const item = inventory.find(i => i.id === itemId);
+
           setBonusActiveMap(prev => ({
             ...prev,
             [itemId]: newActiveState
           }));
 
-          // Mettre à jour le bonusesMap pour le tooltip
           const bonusArray = statAttributes
             .map(stat => ({
               type: stat,
@@ -305,23 +379,33 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
             .filter(bonus => bonus.value !== 0);
 
           if (newActiveState && bonusArray.length > 0) {
-            // Si on active, charger les bonus
             setBonusesMap(prev => ({
               ...prev,
               [itemId]: bonusArray
             }));
+            toast.success('Bonus activé', {
+              description: item?.message,
+              duration: 2000,
+            });
           } else {
-            // Si on désactive, retirer les bonus du tooltip
             setBonusesMap(prev => {
               const newMap = { ...prev };
               delete newMap[itemId];
               return newMap;
+            });
+            toast.success('Bonus désactivé', {
+              description: item?.message,
+              duration: 2000,
             });
           }
         }
       }
     } catch (error) {
       console.error("Error toggling active state:", error);
+      toast.error('Erreur', {
+        description: "Impossible de modifier l'état du bonus.",
+        duration: 3000,
+      });
     }
   };
 
@@ -355,39 +439,62 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
 
   const handleDeleteBonus = async (bonusType: string) => {
     if (currentItem) {
-      const itemRef = doc(db, `Bonus/${roomId}/${playerName}/${currentItem.id}`);
-      await setDoc(itemRef, { [bonusType]: 0 }, { merge: true });
+      try {
+        const itemRef = doc(db, `Bonus/${roomId}/${playerName}/${currentItem.id}`);
+        await setDoc(itemRef, { [bonusType]: 0 }, { merge: true });
 
-      // Vérifier s'il reste des bonus après la suppression
-      const itemSnapshot = await getDoc(itemRef);
-      if (itemSnapshot.exists()) {
-        const data = itemSnapshot.data();
-        const remainingBonuses = statAttributes
-          .map(stat => data[stat] || 0)
-          .filter(value => value !== 0);
+        const itemSnapshot = await getDoc(itemRef);
+        if (itemSnapshot.exists()) {
+          const data = itemSnapshot.data();
+          const remainingBonuses = statAttributes
+            .map(stat => data[stat] || 0)
+            .filter(value => value !== 0);
 
-        // Si plus aucun bonus, retirer l'item du Set
-        if (remainingBonuses.length === 0) {
-          setItemsWithBonus(prev => {
-            const newSet = new Set(prev);
-            newSet.delete(currentItem.id);
-            return newSet;
-          });
-          setBonusActiveMap(prev => {
-            const newMap = { ...prev };
-            delete newMap[currentItem.id];
-            return newMap;
-          });
+          if (remainingBonuses.length === 0) {
+            setItemsWithBonus(prev => {
+              const newSet = new Set(prev);
+              newSet.delete(currentItem.id);
+              return newSet;
+            });
+            setBonusActiveMap(prev => {
+              const newMap = { ...prev };
+              delete newMap[currentItem.id];
+              return newMap;
+            });
+          }
         }
+
+        toast.success('Bonus supprimé', {
+          description: `${currentItem.message} : ${bonusType}`,
+          duration: 2000,
+        });
+      } catch (error) {
+        console.error('Erreur lors de la suppression du bonus:', error);
+        toast.error('Erreur', {
+          description: "Impossible de supprimer le bonus.",
+          duration: 3000,
+        });
       }
     }
   };
 
   const handleUpdateDice = async () => {
     if (currentItem) {
-      const itemRef = doc(inventoryRef, currentItem.id);
-      await updateDoc(itemRef, { diceSelection: `${diceCount}d${diceFaces}` });
-      setIsDiceDialogOpen(false);
+      try {
+        const itemRef = doc(inventoryRef, currentItem.id);
+        await updateDoc(itemRef, { diceSelection: `${diceCount}d${diceFaces}` });
+        toast.success('Dés modifiés', {
+          description: `${currentItem.message} : ${diceCount}d${diceFaces}`,
+          duration: 2000,
+        });
+        setIsDiceDialogOpen(false);
+      } catch (error) {
+        console.error('Erreur lors de la modification des dés:', error);
+        toast.error('Erreur', {
+          description: "Impossible de modifier les dés.",
+          duration: 3000,
+        });
+      }
     }
   };
 

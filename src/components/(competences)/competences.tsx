@@ -6,6 +6,7 @@ import { auth, db, getDoc, onAuthStateChanged, doc, collection, getDocs, updateD
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { toast } from 'sonner'
 import dynamic from 'next/dynamic'
 
 const ChangeComponent = dynamic(() => import('@/components/(competences)/change'), {
@@ -285,45 +286,71 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
 
     const unlockSkill = async () => {
         if (selectedSkill && selectedCharacter && roomID && selectedCharacter.id === userPersoId) {
-            const updatedCharacterData = { ...selectedCharacter, [selectedSkill.voie]: selectedSkill.rank }
-            await updateDoc(doc(db, `cartes/${roomID}/characters`, selectedCharacter.id), updatedCharacterData)
+            try {
+                const updatedCharacterData = { ...selectedCharacter, [selectedSkill.voie]: selectedSkill.rank }
+                await updateDoc(doc(db, `cartes/${roomID}/characters`, selectedCharacter.id), updatedCharacterData)
 
-            setSelectedCharacter(updatedCharacterData)
-            setModalVisible(false)
-            calculateTotalPoints(updatedCharacterData)
+                setSelectedCharacter(updatedCharacterData)
+                setModalVisible(false)
+                calculateTotalPoints(updatedCharacterData)
 
-            // Émettre un événement pour notifier les autres composants de la mise à jour
-            window.dispatchEvent(new CustomEvent('competences-updated', {
-                detail: {
-                    characterId: selectedCharacter.id,
-                    roomId: roomID
-                }
-            }))
+                toast.success('Compétence débloquée', {
+                    description: selectedSkill.name,
+                    duration: 2000,
+                })
+
+                // Émettre un événement pour notifier les autres composants de la mise à jour
+                window.dispatchEvent(new CustomEvent('competences-updated', {
+                    detail: {
+                        characterId: selectedCharacter.id,
+                        roomId: roomID
+                    }
+                }))
+            } catch (error) {
+                console.error('Erreur lors du déblocage de la compétence:', error)
+                toast.error('Erreur', {
+                    description: "Impossible de débloquer la compétence.",
+                    duration: 3000,
+                })
+            }
         }
     }
 
     const resetSkills = async () => {
         if (selectedCharacter && roomID && selectedCharacter.id === userPersoId) {
-            const resetData: Partial<Character> = { ...selectedCharacter }
+            try {
+                const resetData: Partial<Character> = { ...selectedCharacter }
 
-            // Reset all v properties dynamically
-            for (let i = 1; i <= 10; i++) {
-                if (selectedCharacter[`v${i}`] !== undefined) {
-                    resetData[`v${i}`] = 0
+                // Reset all v properties dynamically
+                for (let i = 1; i <= 10; i++) {
+                    if (selectedCharacter[`v${i}`] !== undefined) {
+                        resetData[`v${i}`] = 0
+                    }
                 }
+
+                await updateDoc(doc(db, `cartes/${roomID}/characters`, selectedCharacter.id), resetData)
+                setSelectedCharacter(resetData as Character)
+                calculateTotalPoints(resetData as Character)
+
+                toast.success('Compétences réinitialisées', {
+                    description: `${selectedCharacter.Nomperso} : toutes les compétences ont été réinitialisées.`,
+                    duration: 2000,
+                })
+
+                // Émettre un événement pour notifier les autres composants de la mise à jour
+                window.dispatchEvent(new CustomEvent('competences-updated', {
+                    detail: {
+                        characterId: selectedCharacter.id,
+                        roomId: roomID
+                    }
+                }))
+            } catch (error) {
+                console.error('Erreur lors de la réinitialisation:', error)
+                toast.error('Erreur', {
+                    description: "Impossible de réinitialiser les compétences.",
+                    duration: 3000,
+                })
             }
-
-            await updateDoc(doc(db, `cartes/${roomID}/characters`, selectedCharacter.id), resetData)
-            setSelectedCharacter(resetData as Character)
-            calculateTotalPoints(resetData as Character)
-
-            // Émettre un événement pour notifier les autres composants de la mise à jour
-            window.dispatchEvent(new CustomEvent('competences-updated', {
-                detail: {
-                    characterId: selectedCharacter.id,
-                    roomId: roomID
-                }
-            }))
         }
     }
 

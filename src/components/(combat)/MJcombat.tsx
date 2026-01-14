@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
+import { toast } from 'sonner'
 import poisonIcon from '../../app/[roomid]/map/icons/poison.svg';
 import stunIcon from '../../app/[roomid]/map/icons/stun.svg';
 import blindIcon from '../../app/[roomid]/map/icons/blind.svg';
@@ -388,11 +389,20 @@ export function GMDashboard() {
         prevChars.map(char => char.id === targetId ? { ...char, pv: newPv } : char)
       )
 
+      toast.success('Dégâts appliqués', {
+        description: `${targetCharacter.name} : -${damage} PV (${newPv} PV restants)`,
+        duration: 2000,
+      })
+
       if (newPv <= 0 && targetCharacter.type !== 'joueurs') {
         confirmDeleteCharacter(targetCharacter)
       }
     } catch (error) {
       console.error("Erreur lors de l'application des dégâts :", error)
+      toast.error('Erreur', {
+        description: "Impossible d'appliquer les dégâts.",
+        duration: 3000,
+      })
     }
   }
 
@@ -426,8 +436,17 @@ export function GMDashboard() {
           const combatRef = doc(db, `cartes/${roomId}/cities/${currentCityId}/combat/state`)
           await setDoc(combatRef, { activePlayer: newActiveCharacterId }, { merge: true })
         }
+
+        toast.success('Initiatives relancées', {
+          description: `${sortedCharacters.length} personnages ont relancé leur initiative.`,
+          duration: 2000,
+        })
       } catch (error) {
         console.error("Erreur lors de la mise à jour des initiatives :", error)
+        toast.error('Erreur', {
+          description: "Impossible de relancer les initiatives.",
+          duration: 3000,
+        })
       }
     }
     setIsRollingInitiative(false)
@@ -536,11 +555,20 @@ export function GMDashboard() {
           prevChars.map(char => char.id === selectedCharacter.id ? { ...char, pv: newPv } : char)
         )
 
+        toast.success('PV modifiés', {
+          description: `${selectedCharacter.name} : ${hpChange > 0 ? '+' : ''}${hpChange} PV (${newPv} PV)`,
+          duration: 2000,
+        })
+
         if (newPv <= 0 && selectedCharacter.type !== 'joueurs') {
           confirmDeleteCharacter(selectedCharacter)
         }
       } catch (error) {
         console.error("Erreur lors de la mise à jour des PV :", error)
+        toast.error('Erreur', {
+          description: "Impossible de modifier les PV.",
+          duration: 3000,
+        })
       } finally {
         setIsDrawerOpen(false)
       }
@@ -562,8 +590,9 @@ export function GMDashboard() {
 
     const currentConditions = char.conditions || []
     let newConditions: string[]
+    const isRemoving = currentConditions.includes(conditionId)
 
-    if (currentConditions.includes(conditionId)) {
+    if (isRemoving) {
       newConditions = currentConditions.filter(c => c !== conditionId)
     } else {
       newConditions = [...currentConditions, conditionId]
@@ -572,8 +601,20 @@ export function GMDashboard() {
     try {
       const characterRef = doc(db, `cartes/${roomId}/characters/${characterId}`)
       await updateDoc(characterRef, { conditions: newConditions })
+
+      const condition = CONDITIONS.find(c => c.id === conditionId)
+      const conditionLabel = condition?.label || conditionId
+
+      toast.success(isRemoving ? 'Effet retiré' : 'Effet ajouté', {
+        description: `${char.name} : ${conditionLabel}`,
+        duration: 2000,
+      })
     } catch (error) {
       console.error("Erreur lors de la mise à jour des conditions :", error)
+      toast.error('Erreur', {
+        description: "Impossible de modifier l'état.",
+        duration: 3000,
+      })
     }
   }
 

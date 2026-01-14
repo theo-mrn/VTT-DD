@@ -35,6 +35,7 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
+import { toast } from 'sonner';
 
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
@@ -387,9 +388,15 @@ export default function Component() {
       await updateCharacter(selectedCharacter.id, editForm);
 
       setIsEditing(false);
+      toast.success(`Modification de ${selectedCharacter.Nomperso} réussi`, {
+        duration: 2000,
+      });
     } catch (error) {
       console.error("Erreur lors de la sauvegarde:", error);
-      alert("Erreur lors de la sauvegarde des modifications");
+      toast.error('Erreur de sauvegarde', {
+        description: "Impossible de sauvegarder les modifications.",
+        duration: 4000,
+      });
     }
   };
 
@@ -447,18 +454,22 @@ export default function Component() {
 
   const confirmLevelUp = async () => {
     if (rollResult == null || !selectedCharacter) {
-      alert("Veuillez lancer le dé avant de valider.");
+      toast.error('Lancer requis', {
+        description: "Veuillez lancer le dé avant de valider.",
+        duration: 3000,
+      });
       return;
     }
 
     const newPV_Max = (parseInt(selectedCharacter.PV_Max as any) || 0) + rollResult;
+    const newNiveau = (selectedCharacter.niveau || 0) + 1;
     const updates = {
       PV_Max: newPV_Max,
       PV: newPV_Max,
       Contact: (parseInt(selectedCharacter.Contact as any) || 0) + 1,
       Distance: (parseInt(selectedCharacter.Distance as any) || 0) + 1,
       Magie: (parseInt(selectedCharacter.Magie as any) || 0) + 1,
-      niveau: (selectedCharacter.niveau || 0) + 1,
+      niveau: newNiveau,
     };
 
     try {
@@ -466,9 +477,17 @@ export default function Component() {
 
       setShowLevelUpModal(false);
       setShowLevelUpConfirmationModal(true);
+
+      toast.success(`🎉 Niveau ${newNiveau} atteint !`, {
+        description: `${selectedCharacter.Nomperso} a gagné ${rollResult} PV et +1 en Contact, Distance et Magie.`,
+        duration: 5000,
+      });
     } catch (error) {
       console.error("Erreur lors de l'augmentation de niveau:", error);
-      alert("Erreur lors de l'augmentation de niveau");
+      toast.error('Erreur de montée de niveau', {
+        description: "Impossible d'augmenter le niveau du personnage.",
+        duration: 4000,
+      });
     }
   };
 

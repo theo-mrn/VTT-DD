@@ -2268,6 +2268,8 @@ export default function Component() {
           cityId: selectedCityId,
           createdAt: new Date()
         })
+
+        toast.success(`Objet "${template.name}" ajouté sur la carte`)
         return
       }
 
@@ -2296,6 +2298,8 @@ export default function Component() {
         }
 
         await addDoc(collection(db, 'cartes', roomId, 'musicZones'), newZone)
+
+        toast.success(`Zone sonore "${sound.name}" ajoutée sur la carte`)
         return
       }
 
@@ -2323,6 +2327,7 @@ export default function Component() {
       setShowPlaceModal(true)
     } catch (error) {
       console.error('❌ Error parsing template data:', error)
+      toast.error('Erreur lors du placement de l\'élément')
     }
   }
 
@@ -2381,8 +2386,16 @@ export default function Component() {
         })
       }
 
+      // Toast de succès
+      if (config.nombre > 1) {
+        toast.success(`${config.nombre} PNJ "${draggedTemplate.Nomperso}" ajoutés sur la carte`)
+      } else {
+        toast.success(`PNJ "${draggedTemplate.Nomperso}" ajouté sur la carte`)
+      }
+
     } catch (error) {
       console.error('❌ Error placing NPC:', error)
+      toast.error('Erreur lors du placement du PNJ')
     } finally {
       setShowPlaceModal(false)
       setDraggedTemplate(null)
@@ -2542,8 +2555,16 @@ export default function Component() {
       const obstacleRef = doc(db, 'cartes', String(roomId), 'obstacles', obstacleId);
       await updateDoc(obstacleRef, { isOpen: newIsOpen });
 
+      toast.success(newIsOpen ? 'Porte ouverte' : 'Porte fermée', {
+        duration: 2000,
+      });
+
     } catch (error) {
       console.error('❌ Erreur toggle porte:', error);
+      toast.error('Erreur', {
+        description: "Impossible de modifier l'état de la porte.",
+        duration: 3000,
+      });
     }
   };
 
@@ -2967,6 +2988,7 @@ export default function Component() {
               if (selectedObstacleId && roomId && isMJ) {
                 await deleteDoc(doc(db, 'cartes', String(roomId), 'obstacles', selectedObstacleId));
                 setObstacles(prev => prev.filter(o => o.id !== selectedObstacleId));
+                toast.success("Obstacle supprimé")
                 setSelectedObstacleId(null);
               }
             }}
@@ -5245,7 +5267,6 @@ export default function Component() {
         return isInside;
       });
 
-      console.log("DEBUG: targetsInZone found", targetsInZone.length);
 
       if (targetsInZone.length > 0) {
         setTargetIds(targetsInZone.map(c => c.id));
@@ -5340,6 +5361,7 @@ export default function Component() {
             y: centerY,
             cityId: selectedCityId
           });
+          toast.success("Note créée")
         }
         setShowCreateNoteModal(false);
         setEditingNote(null);
@@ -5431,6 +5453,7 @@ export default function Component() {
           };
           // Save to 'lights' collection, NOT 'characters'
           await setDoc(doc(db, 'cartes', roomId, 'lights', newLight.id), newLight);
+          toast.success("zone de lumiere créée");
 
           console.log("💡 Light source created in 'lights' collection:", newLight.id);
           setIsLightPlacementMode(false);
@@ -5468,7 +5491,7 @@ export default function Component() {
           spawnY: clickY
         });
         console.log(`✅ [SpawnPoint] Set spawn point for scene ${selectedCityId} at (${clickX}, ${clickY})`);
-
+        toast.success("Point d'apparition mis à jour")
         // Deactivate spawn point mode after placement
         setSpawnPointMode(false);
         return;
@@ -7509,8 +7532,17 @@ export default function Component() {
     if (roomId) {
       try {
         await saveFullMapFog(newValue);
+
+        toast.success(newValue ? 'Brouillard complet activé' : 'Brouillard complet désactivé', {
+          description: newValue ? 'Toute la carte est maintenant dans le brouillard.' : 'Le brouillard complet a été retiré.',
+          duration: 2000,
+        });
       } catch (error) {
         console.error('Erreur lors de la sauvegarde du mode brouillard complet:', error);
+        toast.error('Erreur', {
+          description: "Impossible de modifier le mode brouillard.",
+          duration: 3000,
+        });
       }
     }
   };
@@ -7599,21 +7631,18 @@ export default function Component() {
     if (selectedNoteIndex !== null) {
       setEditingNote(notes[selectedNoteIndex]);
       setShowCreateNoteModal(true);
+      toast.success(`Note "${notes[selectedNoteIndex].text}" modifiée`);
     }
   };
 
   //  CENTRALIZED DELETE HANDLER
   const handleDeleteKeyPress = () => {
     if (!isMJ) return; // Only MJ can delete
-
-    // Priority order: check what's currently selected
-
     // 1. Check for selected characters (multi-select)
     if (selectedCharacters.length > 0) {
       const charsToDelete = selectedCharacters
         .map(index => characters[index])
         .filter(c => c && c.type !== 'joueurs');
-
       if (charsToDelete.length > 0) {
         setEntityToDelete({
           type: 'character',
@@ -7897,6 +7926,7 @@ export default function Component() {
           }
 
           await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToUpdate.id), updatedData);
+          toast.success(`${charToUpdate.name} à été mis à jour`)
 
           setCharacters((prevCharacters) =>
             prevCharacters.map((character, index) =>
@@ -7947,6 +7977,7 @@ export default function Component() {
       if (snapshot.empty) return;
       const deletePromises = snapshot.docs.map((doc) => deleteDoc(doc.ref));
       await Promise.all(deletePromises);
+      toast.success("les dessin ont bien été éffacés")
     } catch (error) {
       console.error('Error clearing drawings:', error);
     }
@@ -8031,6 +8062,7 @@ export default function Component() {
         await deleteDoc(doc(db, 'cartes', roomId, 'portals', portalId));
         setContextMenuPortalOpen(false);
         setContextMenuPortalId(null);
+        toast.success("Portail supprimé")
       } else if (action === 'edit') {
         const portal = portals.find(p => p.id === portalId);
         if (portal) {
@@ -8053,9 +8085,11 @@ export default function Component() {
       if (confirm('Supprimer cette lumière ?')) {
         await deleteDoc(lightDoc);
         setContextMenuLightOpen(false);
+        toast.success("Lumiere supprimé")
       }
     } else if (action === 'updateRadius') {
       await updateDoc(lightDoc, { radius: value });
+      toast.success("Rayon de la lumière mis à jour")
     }
   };
 
@@ -8069,10 +8103,13 @@ export default function Component() {
         setContextMenuMusicZoneOpen(false);
         setContextMenuMusicZoneId(null);
         setSelectedMusicZoneIds(prev => prev.filter(id => id !== zoneId));
+        toast.success("Zone sonore supprimée")
       } else if (action === 'rename') {
         await updateDoc(doc(db, 'cartes', String(roomId), 'musicZones', zoneId), { name: value });
+        toast.success("Nom de la zone sonore mis à jour")
       } else if (action === 'updateVolume') {
         await updateDoc(doc(db, 'cartes', String(roomId), 'musicZones', zoneId), { volume: value });
+        toast.success("Volume de la zone sonore mis à jour")
       } else if (action === 'updateRadius') {
         await updateDoc(doc(db, 'cartes', String(roomId), 'musicZones', zoneId), { radius: value });
       } else if (action === 'togglePlay') {

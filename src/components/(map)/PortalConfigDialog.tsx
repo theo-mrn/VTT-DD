@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { db, collection, onSnapshot, query } from '@/lib/firebase';
 import type { Portal, Scene } from '@/app/[roomid]/map/types';
 import { ArrowUpDown, DoorOpen, Hexagon, ArrowDownUp } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface PortalConfigDialogProps {
     open: boolean;
@@ -105,6 +106,7 @@ export default function PortalConfigDialog({
         }
         onSave(formData);
         onOpenChange(false);
+        toast.success("Portail posé")
     };
 
     return (
