@@ -1275,6 +1275,15 @@ export default function Component() {
   // 🔦 KEYBOARD EVENT HANDLER pour les obstacles
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // 🛡️ IGNORE INPUTS (Fix for typing deletion issue)
+      if (
+        document.activeElement instanceof HTMLInputElement ||
+        document.activeElement instanceof HTMLTextAreaElement ||
+        (document.activeElement instanceof HTMLElement && document.activeElement.isContentEditable)
+      ) {
+        return;
+      }
+
       // 🎯 CENTRALIZED DELETE - Handle Delete/Backspace for any selected entity
       if ((e.key === 'Delete' || e.key === 'Backspace') && isMJ) {
         // Check if we have any selected entity
