@@ -31,6 +31,8 @@ interface RollResult {
   timestamp: Date;
   output: string;
 }
+import { toast } from 'sonner';
+
 
 // Type compatible avec campagne.tsx
 interface FirebaseRoll {
@@ -184,7 +186,13 @@ export function DiceRoller() {
       setShowDetails(false);
       const timer = setTimeout(() => {
         setShowDetails(true);
-      }, 1500);
+        // Afficher le toast avec le résultat
+        if (result.result !== "?" && result.result !== "...") {
+          toast.success(`${result.notation} : ${result.total}`, {
+            duration: 4000,
+          });
+        }
+      }, 1100);
       return () => clearTimeout(timer);
     } else {
       setShowDetails(false);

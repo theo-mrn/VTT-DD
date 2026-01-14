@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from "framer-motion"
 
 import { db, auth, addDoc, collection, doc, updateDoc, deleteDoc, onSnapshot, getDoc, onAuthStateChanged } from "@/lib/firebase"
 import { cn } from "@/lib/utils"
+import { toast } from 'sonner'
 
 // --- TYPES ---
 interface SubQuest {
@@ -167,93 +168,140 @@ export default function Notes() {
     }
     delete payload.id
 
-    // Determine if shared or private
     const isSharedNote = data.isShared === true
-    const wasPrivate = !data.createdBy // Private notes don't have createdBy
+    const wasPrivate = !data.createdBy
+    const isNewNote = !data.id
 
-    if (data.id) {
-      // Converting private to shared
-      if (isSharedNote && wasPrivate) {
-        // Create new shared note
-        payload.createdAt = data.createdAt || new Date()
-        payload.createdBy = characterId
-        payload.createdByName = characterName
-        await addDoc(collection(db, 'SharedNotes', roomId, 'notes'), payload)
+    try {
+      if (data.id) {
+        // Converting private to shared
+        if (isSharedNote && wasPrivate) {
+          payload.createdAt = data.createdAt || new Date()
+          payload.createdBy = characterId
+          payload.createdByName = characterName
+          await addDoc(collection(db, 'SharedNotes', roomId, 'notes'), payload)
+          await deleteDoc(doc(db, 'Notes', roomId, characterId, data.id))
 
-        // Delete old private note
-        await deleteDoc(doc(db, 'Notes', roomId, characterId, data.id))
-      }
-      // Converting shared to private (edge case)
-      else if (!isSharedNote && !wasPrivate) {
-        // Create new private note
-        payload.createdAt = data.createdAt || new Date()
-        await addDoc(collection(db, 'Notes', roomId, characterId), payload)
-
-        // Delete old shared note (only if user is creator)
-        if (data.createdBy === characterId) {
-          await deleteDoc(doc(db, 'SharedNotes', roomId, 'notes', data.id))
+          toast.success('Note partagée', {
+            description: `"${data.title}" est maintenant visible par tous.`,
+            duration: 2000,
+          })
         }
-      }
-      // Update existing note (same type)
-      else if (isSharedNote) {
-        // Anyone in the room can edit shared notes
-        await updateDoc(doc(db, 'SharedNotes', roomId, 'notes', data.id), payload)
-      } else {
-        // Update private note
-        await updateDoc(doc(db, 'Notes', roomId, characterId, data.id), payload)
-      }
-    } else {
-      // Create new note
-      payload.createdAt = new Date()
+        // Converting shared to private
+        else if (!isSharedNote && !wasPrivate) {
+          payload.createdAt = data.createdAt || new Date()
+          await addDoc(collection(db, 'Notes', roomId, characterId), payload)
+          if (data.createdBy === characterId) {
+            await deleteDoc(doc(db, 'SharedNotes', roomId, 'notes', data.id))
+          }
 
-      if (isSharedNote) {
-        payload.createdBy = characterId
-        payload.createdByName = characterName
-        await addDoc(collection(db, 'SharedNotes', roomId, 'notes'), payload)
+          toast.success('Note rendue privée', {
+            description: `"${data.title}" est maintenant privée.`,
+            duration: 2000,
+          })
+        }
+        // Update existing note
+        else if (isSharedNote) {
+          await updateDoc(doc(db, 'SharedNotes', roomId, 'notes', data.id), payload)
+          toast.success('Note modifiée', {
+            description: data.title,
+            duration: 2000,
+          })
+        } else {
+          await updateDoc(doc(db, 'Notes', roomId, characterId, data.id), payload)
+          toast.success('Note modifiée', {
+            description: data.title,
+            duration: 2000,
+          })
+        }
       } else {
-        await addDoc(collection(db, 'Notes', roomId, characterId), payload)
+        // Create new note
+        payload.createdAt = new Date()
+
+        if (isSharedNote) {
+          payload.createdBy = characterId
+          payload.createdByName = characterName
+          await addDoc(collection(db, 'SharedNotes', roomId, 'notes'), payload)
+        } else {
+          await addDoc(collection(db, 'Notes', roomId, characterId), payload)
+        }
+
+        toast.success('Note créée', {
+          description: data.title,
+          duration: 2000,
+        })
       }
+      setEditorOpen(false)
+    } catch (error) {
+      console.error('Erreur lors de la sauvegarde:', error)
+      toast.error('Erreur', {
+        description: isNewNote ? "Impossible de créer la note." : "Impossible de modifier la note.",
+        duration: 3000,
+      })
     }
-    setEditorOpen(false)
   }
 
   const handleDelete = async () => {
     if (!deleteId || !roomId || !characterId) return
 
-    // Find the note to determine if it's shared
     const noteToDelete = notes.find(n => n.id === deleteId)
     if (!noteToDelete) return
 
-    if (noteToDelete.isShared) {
-      // Anyone in the room can delete shared notes
-      await deleteDoc(doc(db, 'SharedNotes', roomId, 'notes', deleteId))
-    } else {
-      await deleteDoc(doc(db, 'Notes', roomId, characterId, deleteId))
-    }
+    try {
+      if (noteToDelete.isShared) {
+        await deleteDoc(doc(db, 'SharedNotes', roomId, 'notes', deleteId))
+      } else {
+        await deleteDoc(doc(db, 'Notes', roomId, characterId, deleteId))
+      }
 
-    setDeleteId(null)
-    setEditorOpen(false)
+      toast.success('Note supprimée', {
+        description: noteToDelete.title,
+        duration: 2000,
+      })
+
+      setDeleteId(null)
+      setEditorOpen(false)
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error)
+      toast.error('Erreur', {
+        description: "Impossible de supprimer la note.",
+        duration: 3000,
+      })
+    }
   }
 
   // Quick share: convert private note to shared
   const handleQuickShare = async (note: Note) => {
     if (!roomId || !characterId || note.isShared) return
 
-    // Create shared version
-    const payload = {
-      ...note,
-      isShared: true,
-      createdBy: characterId,
-      createdByName: characterName,
-      createdAt: note.createdAt,
-      updatedAt: new Date()
+    try {
+      // Create shared version
+      const payload = {
+        ...note,
+        isShared: true,
+        createdBy: characterId,
+        createdByName: characterName,
+        createdAt: note.createdAt,
+        updatedAt: new Date()
+      }
+      delete (payload as any).id
+
+      await addDoc(collection(db, 'SharedNotes', roomId, 'notes'), payload)
+
+      // Delete private version
+      await deleteDoc(doc(db, 'Notes', roomId, characterId, note.id))
+
+      toast.success('Note partagée', {
+        description: `"${note.title}" est maintenant visible par tous.`,
+        duration: 2000,
+      })
+    } catch (error) {
+      console.error('Erreur lors du partage:', error)
+      toast.error('Erreur', {
+        description: "Impossible de partager la note.",
+        duration: 3000,
+      })
     }
-    delete (payload as any).id
-
-    await addDoc(collection(db, 'SharedNotes', roomId, 'notes'), payload)
-
-    // Delete private version
-    await deleteDoc(doc(db, 'Notes', roomId, characterId, note.id))
   }
 
   // Filtering
