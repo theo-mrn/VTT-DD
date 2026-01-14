@@ -665,6 +665,28 @@ export default function Component() {
   const [contextMenuPortalOpen, setContextMenuPortalOpen] = useState(false);
   const [contextMenuPortalId, setContextMenuPortalId] = useState<string | null>(null);
 
+  // 🎯 SPAWN POINT SYSTEM STATE
+  const [spawnPointMode, setSpawnPointMode] = useState(false);  // 🆕 Mode to set spawn point
+  const [isDraggingSpawnPoint, setIsDraggingSpawnPoint] = useState(false);  // 🆕 Dragging spawn marker
+  const [currentScene, setCurrentScene] = useState<Scene | null>(null);  // 🆕 Current scene data for spawn points
+
+  // 📡 CURRENT SCENE FIREBASE LISTENER (for spawn points)
+  useEffect(() => {
+    if (!roomId || !selectedCityId) {
+      setCurrentScene(null);
+      return;
+    }
+    const sceneDoc = doc(db, 'cartes', roomId, 'cities', selectedCityId);
+    const unsubscribe = onSnapshot(sceneDoc, (snapshot) => {
+      if (snapshot.exists()) {
+        setCurrentScene({ id: snapshot.id, ...snapshot.data() } as Scene);
+      } else {
+        setCurrentScene(null);
+      }
+    });
+    return () => unsubscribe();
+  }, [roomId, selectedCityId]);
+
   // 📡 PING FIREBASE LISTENER
   useEffect(() => {
     if (!roomId) return;
@@ -2138,7 +2160,9 @@ export default function Component() {
     isDraggingObstaclePoint, isDraggingObstacle, isMusicMode, isDraggingMusicZone,
     currentMeasurementId, bgImageObject, containerSize,
     // Animation-related dependencies
-    selectedSkin, measurementShape, fireballVideo
+    selectedSkin, measurementShape, fireballVideo,
+    // 🆕 Spawn point dependencies
+    currentScene, spawnPointMode, isDraggingSpawnPoint
   ]);
 
   // 🎥 TOKEN VIDEO PAUSE LOGIC (Separate Effect)
@@ -2673,6 +2697,8 @@ export default function Component() {
         if (currentTool !== TOOLS.MUSIC && isMusicMode) setIsMusicMode(false);
         if (currentTool !== TOOLS.MULTI_SELECT && multiSelectMode) setMultiSelectMode(false);
         if (isLightPlacementMode) setIsLightPlacementMode(false);
+        if (currentTool !== TOOLS.PORTAL && portalMode) setPortalMode(false); // 🆕 Fix conflict
+        if (currentTool !== TOOLS.SPAWN_POINT && spawnPointMode) setSpawnPointMode(false); // 🆕 Fix conflict
       }
     };
     switch (actionId) {
@@ -2699,6 +2725,7 @@ export default function Component() {
       case TOOLS.MUSIC: if (isMJ) { deactivateIncompatible(TOOLS.MUSIC); setIsSoundDrawerOpen(!isSoundDrawerOpen); } break;
       case TOOLS.UNIFIED_SEARCH: if (isMJ) { deactivateIncompatible(TOOLS.UNIFIED_SEARCH); setIsUnifiedSearchOpen(!isUnifiedSearchOpen); } break;
       case TOOLS.PORTAL: if (isMJ) { deactivateIncompatible(TOOLS.PORTAL); setPortalMode(!portalMode); } break;
+      case TOOLS.SPAWN_POINT: if (isMJ) { deactivateIncompatible(TOOLS.SPAWN_POINT); setSpawnPointMode(!spawnPointMode); } break;  // 🆕 Toggle spawn point mode
       case TOOLS.MULTI_SELECT: if (isMJ) { deactivateIncompatible(TOOLS.MULTI_SELECT); setMultiSelectMode(!multiSelectMode); } break;
       case TOOLS.BACKGROUND_EDIT: if (isMJ) setIsBackgroundEditMode(!isBackgroundEditMode); break;
       case TOOLS.DRAW: deactivateIncompatible(TOOLS.DRAW); toggleDrawMode(); break;
@@ -2728,6 +2755,7 @@ export default function Component() {
     if (isSoundDrawerOpen) active.push(TOOLS.MUSIC);
     if (isUnifiedSearchOpen) active.push(TOOLS.UNIFIED_SEARCH);
     if (portalMode) active.push(TOOLS.PORTAL);
+    if (spawnPointMode) active.push(TOOLS.SPAWN_POINT);  // 🆕 Show spawn point mode as active
 
     if (multiSelectMode) active.push(TOOLS.MULTI_SELECT);
     if (isBackgroundEditMode) active.push(TOOLS.BACKGROUND_EDIT);
@@ -4337,6 +4365,67 @@ export default function Component() {
       });
     }
 
+    // 🎯 DRAW SPAWN POINT (Only visible to MJ)
+    if (isMJ && currentScene && currentScene.spawnX !== undefined && currentScene.spawnY !== undefined) {
+      const spawnPos = transformPoint({ x: currentScene.spawnX, y: currentScene.spawnY });
+      const markerSize = 24 * zoom; // Fixed base size scaled by zoom
+
+      // Draw marker icon (MapPin style)
+      // Background circle
+      ctx.beginPath();
+      ctx.arc(spawnPos.x, spawnPos.y, markerSize / 2, 0, Math.PI * 2);
+      ctx.fillStyle = isDraggingSpawnPoint ? 'rgba(192, 160, 128, 0.9)' : 'rgba(192, 160, 128, 0.7)';
+      ctx.fill();
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      // Pin icon (simplified)
+      ctx.fillStyle = '#fff';
+      ctx.font = `${markerSize * 0.7}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('📍', spawnPos.x, spawnPos.y);
+
+      // Label
+      if (!isDraggingSpawnPoint) {
+        const labelText = 'Spawn';
+        ctx.font = `bold ${11 * zoom}px sans-serif`;
+        const textWidth = ctx.measureText(labelText).width;
+        const labelPadding = 4 * zoom;
+        const labelHeight = 16 * zoom;
+        const labelY = spawnPos.y + markerSize / 2 + 6 * zoom;
+
+        // Label background
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.beginPath();
+        ctx.roundRect(
+          spawnPos.x - textWidth / 2 - labelPadding,
+          labelY,
+          textWidth + (labelPadding * 2),
+          labelHeight,
+          4 * zoom
+        );
+        ctx.fill();
+
+        // Label text
+        ctx.fillStyle = '#c0a080';
+        ctx.textBaseline = 'top';
+        ctx.fillText(labelText, spawnPos.x, labelY + (2 * zoom));
+      }
+
+      // Pulsing ring effect when in spawn point mode
+      if (spawnPointMode) {
+        const time = Date.now() / 1000;
+        const pulseRadius = markerSize / 2 + (Math.sin(time * 3) * 5 + 10) * zoom;
+        ctx.beginPath();
+        ctx.arc(spawnPos.x, spawnPos.y, pulseRadius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(192, 160, 128, ${0.3 + Math.sin(time * 3) * 0.2})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
     // 🔦 DESSINER LES OBSTACLES (visible seulement pour le MJ en mode édition)
     if (isLayerVisible('obstacles') && (visibilityMode || (effectiveIsMJ && obstacles.length > 0))) {
       // 1. Base Layer (Thick Black)
@@ -5320,6 +5409,30 @@ export default function Component() {
         setNewPortalPos({ x: clickX, y: clickY });
         setEditingPortal(null);
         setShowPortalConfig(true);
+        return;
+      }
+
+      // 🎯 SPAWN POINT MODE - SET SPAWN POINT
+      if (spawnPointMode && isMJ && e.button === 0 && selectedCityId) {
+        e.preventDefault();
+
+        // 🚀 Optimistic update: Update local state immediately so the marker appears instantly
+        if (currentScene) {
+          setCurrentScene({ ...currentScene, spawnX: clickX, spawnY: clickY });
+        } else {
+          // If currentScene is null (rare but possible during load), we can't easily construct a full scene object without more data,
+          // but usually it's loaded if we are clicking. If not, the snapshot will handle it shortly.
+        }
+
+        // Update the current scene's spawn point
+        await updateDoc(doc(db, 'cartes', roomId, 'cities', selectedCityId), {
+          spawnX: clickX,
+          spawnY: clickY
+        });
+        console.log(`✅ [SpawnPoint] Set spawn point for scene ${selectedCityId} at (${clickX}, ${clickY})`);
+
+        // Deactivate spawn point mode after placement
+        setSpawnPointMode(false);
         return;
       }
 
@@ -8038,8 +8151,18 @@ export default function Component() {
                 onClick={async () => {
                   if (!roomId || !persoId) return;
 
-                  const targetX = activePortalForPlayer.targetX || 0;
-                  const targetY = activePortalForPlayer.targetY || 0;
+                  let targetX = activePortalForPlayer.targetX || 0;
+                  let targetY = activePortalForPlayer.targetY || 0;
+
+                  // 🎯 Fix: If target is 0,0 (default), check if the target scene has a defined spawn point
+                  if (targetX === 0 && targetY === 0) {
+                    const targetCity = cities.find(c => c.id === activePortalForPlayer.targetSceneId);
+                    if (targetCity && targetCity.spawnX !== undefined && targetCity.spawnY !== undefined) {
+                      targetX = targetCity.spawnX;
+                      targetY = targetCity.spawnY;
+                      console.log(`📍 Using default spawn point for scene ${targetCity.name}: (${targetX}, ${targetY})`);
+                    }
+                  }
 
                   // Update character position and scene
                   await updateDoc(doc(db, 'cartes', roomId, 'characters', persoId), {
@@ -8201,7 +8324,7 @@ export default function Component() {
         className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${isDraggingCharacter || isDraggingNote ? 'cursor-grabbing' :
           isDragging || isDraggingObject ? 'cursor-move' :
             panMode ? 'cursor-grab' :
-              drawMode ? 'cursor-crosshair' :
+              drawMode || spawnPointMode ? 'cursor-crosshair' :
                 fogMode ? 'cursor-cell' : 'cursor-default'
           } relative`}
         style={{

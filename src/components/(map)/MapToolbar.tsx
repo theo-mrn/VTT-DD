@@ -33,7 +33,8 @@ import {
     Cloud,
     Lightbulb,
     Search,
-    Hexagon
+    Hexagon,
+    MapPin  // 🆕 For spawn point icon
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -82,6 +83,7 @@ export const TOOLS = {
     BACKGROUND_EDIT: 'background_edit',
     UNIFIED_SEARCH: 'unified_search',
     PORTAL: 'portal',
+    SPAWN_POINT: 'spawn_point',  // 🆕 Set default spawn point for scene
 
     // Tools
     DRAW: 'draw',
@@ -450,6 +452,12 @@ function MapToolbar({
                                         icon={Hexagon}
                                         label="Portail"
                                         isActive={activeTools.includes(TOOLS.PORTAL)}
+                                    />
+                                    <ToolButton onAction={onAction}
+                                        id={TOOLS.SPAWN_POINT}
+                                        icon={MapPin}
+                                        label="Point d'apparition"
+                                        isActive={activeTools.includes(TOOLS.SPAWN_POINT)}
                                     />
                                     <ToolButton onAction={onAction}
                                         id={TOOLS.ADD_CHAR}
