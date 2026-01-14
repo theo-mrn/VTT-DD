@@ -72,7 +72,7 @@ export default function RootLayout({
           <GameProvider>
             <CharacterProvider>
               <CompetencesProvider>
-                <Toaster />
+                <Toaster position="top-right" />
                 {children}
               </CompetencesProvider>
             </CharacterProvider>

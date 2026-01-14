@@ -1,6 +1,6 @@
 # ✅ Migration des Effets vers R2 - Terminée
 
-## 🎯 Objectif
+##  Objectif
 Migrer les effets visuels (Cone et Fireballs) du stockage local vers Cloudflare R2 pour améliorer les performances et la scalabilité.
 
 ## ✅ Ce qui a été fait
@@ -78,7 +78,7 @@ https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/Effect/Fireballs/explosion1.
 - Aucune modification de la base de données n'est nécessaire
 - Le changement est transparent pour les utilisateurs
 
-## 🔮 Prochaines Étapes (Optionnel)
+##  Prochaines Étapes (Optionnel)
 
 - [ ] Monitorer l'utilisation de la bande passante R2
 - [ ] Optimiser le cache des vidéos côté client

@@ -7,7 +7,7 @@ export const calculateDistance = (x1: number, y1: number, x2: number, y2: number
     return Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
 };
 
-// 🎯 NOUVELLES FONCTIONS UTILITAIRES POUR LE BROUILLARD
+//  NOUVELLES FONCTIONS UTILITAIRES POUR LE BROUILLARD
 export const getCellKey = (x: number, y: number, fogCellSize: number): string => {
     const cellX = Math.floor(x / fogCellSize);
     const cellY = Math.floor(y / fogCellSize);

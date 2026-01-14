@@ -152,7 +152,7 @@ const generateSingleEncounter = (
         candidates.sort(() => Math.random() - 0.5);
     }
 
-    // 🎯 VARIETY CONTROL: Pre-select a limited pool of creature types
+    //  VARIETY CONTROL: Pre-select a limited pool of creature types
     let allowedCandidates = [...candidates];
 
     if (scenario === 'Horde') {
