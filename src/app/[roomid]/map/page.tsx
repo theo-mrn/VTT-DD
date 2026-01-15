@@ -1660,7 +1660,8 @@ export default function Component() {
       scale: data.scale || 1,
       Actions: data.Actions || [],
       audio: data.audio || undefined, // 🆕 Audio data assignment
-      interactions: data.interactions || undefined // 🆕 Interactions for Vendor/NPC system
+      interactions: data.interactions || undefined, // 🆕 Interactions for Vendor/NPC system
+      shape: data.shape || 'circle' // 🆕 Shape property
     };
     return charObj;
   }, []);
@@ -9343,6 +9344,13 @@ export default function Component() {
               const effectiveIsMJ = (playerViewMode && viewAsPersoId) ? false : isMJ;
               const shouldApplyInvisibilityEffect = (effectiveVisibility === 'hidden' || effectiveVisibility === 'custom') && effectiveIsMJ && char.type !== 'joueurs';
 
+              // Déterminer le borderRadius en fonction de la forme choisie ou par défaut
+              let borderRadius = isPlayerCharacter ? '0' : '50%';
+              if (char.shape === 'square') borderRadius = '0';
+              if (char.shape === 'circle') borderRadius = '50%';
+
+
+
               return (
                 <div
                   key={char.id}
@@ -9353,7 +9361,7 @@ export default function Component() {
                     width: iconRadius * 2,
                     height: iconRadius * 2,
                     pointerEvents: 'none',
-                    borderRadius: isPlayerCharacter ? '0' : '50%', // Only NPCs are circular
+                    borderRadius: borderRadius,
                     overflow: 'hidden',
                     zIndex: 5 // Characters above objects (z=2) and borders (z=3)
                   }}
@@ -9899,6 +9907,11 @@ export default function Component() {
             // value is audioData
             await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {
               audio: value
+            });
+          } else if (action === 'updateShape') {
+            console.log('Page: updateShape called', characterId, value);
+            await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {
+              shape: value
             });
           } else if (action === 'deleteCharacterAudio') {
             await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {

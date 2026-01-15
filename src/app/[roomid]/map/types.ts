@@ -13,6 +13,7 @@ export interface Character {
     x: number;
     y: number;
     scale?: number;
+    shape?: 'circle' | 'square';
     imageUrl?: string | { src: string };
     image?: string | { src: string };
     PV?: number;
