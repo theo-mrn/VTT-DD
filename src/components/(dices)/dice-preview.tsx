@@ -59,7 +59,7 @@ export function DicePreview({ skinId, type = "d20", className = "" }: { skinId: 
 }
 
 // Static 2D representation of a die
-function StaticDie2D({ skinId, type = "d20" }: { skinId: string, type?: string }) {
+export function StaticDie2D({ skinId, type = "d20" }: { skinId: string, type?: string }) {
     const skin = getSkinById(skinId);
 
     return (
