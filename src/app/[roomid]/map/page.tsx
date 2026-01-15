@@ -838,7 +838,7 @@ export default function Component() {
   const [currentVisibilityTool, setCurrentVisibilityTool] = useState<'fog' | 'chain' | 'polygon' | 'edit' | 'none'>('chain');
   const [isDrawingObstacle, setIsDrawingObstacle] = useState(false);
   const [currentObstaclePoints, setCurrentObstaclePoints] = useState<Point[]>([]);
-  const [selectedObstacleId, setSelectedObstacleId] = useState<string | null>(null);
+  const [selectedObstacleIds, setSelectedObstacleIds] = useState<string[]>([]); // MULTI-SELECTION
   const [shadowOpacity, setShadowOpacity] = useState<number>(1.0); // 0.0 to 1.0 (0% to 100%)
   const [isDraggingObstacle, setIsDraggingObstacle] = useState(false);
   const [draggedObstacleId, setDraggedObstacleId] = useState<string | null>(null);
@@ -886,6 +886,11 @@ export default function Component() {
   // 🎵 MUSIC ZONE RESIZING
   const [isResizingMusicZone, setIsResizingMusicZone] = useState(false);
   const [resizingMusicZoneId, setResizingMusicZoneId] = useState<string | null>(null);
+
+  // 💡 LIGHTS AND PORTALS MULTI-SELECTION
+  const [selectedLightIds, setSelectedLightIds] = useState<string[]>([]);
+  const [selectedPortalIds, setSelectedPortalIds] = useState<string[]>([]);
+
 
   // ⚡ PERFORMANCE: Refs for frequently changing render states
   // These refs prevent the main render useEffect from re-executing on every state change
@@ -1281,7 +1286,7 @@ export default function Component() {
           selectedObjectIndices.length > 0 ||
           selectedNoteIndex !== null ||
           selectedMusicZoneIds.length > 0 ||
-          (selectedObstacleId && visibilityMode) ||
+          (selectedObstacleIds.length > 0 && visibilityMode) ||
           selectedDrawingIndex !== null ||
           selectedFogCells.length > 0;
 
@@ -1365,7 +1370,7 @@ export default function Component() {
     selectedObjectIndices,
     selectedNoteIndex,
     selectedMusicZoneIds,
-    selectedObstacleId,
+    selectedObstacleIds,
     selectedDrawingIndex,
     selectedFogCells,
     visibilityMode,
@@ -2193,7 +2198,7 @@ export default function Component() {
     isDraggingNote, draggedNoteIndex, isDraggingObject, draggedObjectIndex,
     draggedObjectsOriginalPositions, isFogDragging, measureMode, measureStart,
     measureEnd, pixelsPerUnit, unitName, isCalibrating, visibilityMode,
-    selectedObstacleId, currentObstaclePoints, snapPoint, currentVisibilityTool,
+    selectedObstacleIds, currentObstaclePoints, snapPoint, currentVisibilityTool,
     isDraggingObstaclePoint, isDraggingObstacle, isMusicMode, isDraggingMusicZone,
     currentMeasurementId, bgImageObject, containerSize,
     // Animation-related dependencies
@@ -2468,7 +2473,7 @@ export default function Component() {
       // Quitter le mode visibilité : réinitialiser les états
       setIsDrawingObstacle(false);
       setCurrentObstaclePoints([]);
-      setSelectedObstacleId(null);
+      setSelectedObstacleIds([]);
       setFogMode(false);
     } else {
       // Entrer en mode visibilité : désélectionner les autres éléments
@@ -2517,7 +2522,7 @@ export default function Component() {
 
     try {
       await deleteDoc(doc(db, 'cartes', String(roomId), 'obstacles', obstacleId));
-      setSelectedObstacleId(null);
+      setSelectedObstacleIds([]);
 
     } catch (error) {
       console.error('❌ Erreur suppression obstacle:', error);
@@ -2882,7 +2887,45 @@ export default function Component() {
     }
 
     //  SELECTION : Obstacle (MJ)
-    if (selectedObstacleId && isMJ) {
+    if (selectedObstacleIds.length > 0 && isMJ) {
+      // Multiple obstacles selected - simplified panel
+      if (selectedObstacleIds.length > 1) {
+        return (
+          <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+            <span className="text-white text-sm font-medium pr-2">
+              {selectedObstacleIds.length} Obstacles sélectionnés
+            </span>
+
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={async () => {
+                if (roomId && isMJ) {
+                  for (const obstacleId of selectedObstacleIds) {
+                    await deleteDoc(doc(db, 'cartes', String(roomId), 'obstacles', obstacleId));
+                  }
+                  setObstacles(prev => prev.filter(o => !selectedObstacleIds.includes(o.id)));
+                  toast.success(`${selectedObstacleIds.length} obstacles supprimés`);
+                  setSelectedObstacleIds([]);
+                }
+              }}
+            >
+              <Trash2 className="w-4 h-4 mr-2" /> Supprimer tout
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSelectedObstacleIds([])}
+              className="text-gray-400 hover:text-white"
+            >
+              Fermer
+            </Button>
+          </div>
+        );
+      }
+
+      // Single obstacle selected - full panel
+      const selectedObstacleId = selectedObstacleIds[0];
       const selectedObs = obstacles.find(o => o.id === selectedObstacleId);
 
       return (
@@ -2988,7 +3031,7 @@ export default function Component() {
                 await deleteDoc(doc(db, 'cartes', String(roomId), 'obstacles', selectedObstacleId));
                 setObstacles(prev => prev.filter(o => o.id !== selectedObstacleId));
                 toast.success("Obstacle supprimé")
-                setSelectedObstacleId(null);
+                setSelectedObstacleIds([]);
               }
             }}
           >
@@ -2997,7 +3040,7 @@ export default function Component() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => setSelectedObstacleId(null)}
+            onClick={() => setSelectedObstacleIds([])}
             className="text-gray-400 hover:text-white"
           >
             Fermer
@@ -4493,7 +4536,7 @@ export default function Component() {
         fillColor: visibilityMode ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.5)',
         strokeWidth: 10,
         showHandles: false, // Don't draw handles twice
-        selectedId: selectedObstacleId,
+        selectedIds: selectedObstacleIds, // Pass all selected IDs
       });
 
       // 2. Detail Layer (Inner Grey Line) - Makes it look like a constructed wall
@@ -4501,8 +4544,8 @@ export default function Component() {
         strokeColor: '#555555',
         fillColor: 'transparent', // Don't fill twice
         strokeWidth: 4,
-        showHandles: visibilityMode || !!selectedObstacleId,
-        selectedId: selectedObstacleId,
+        showHandles: visibilityMode || selectedObstacleIds.length > 0,
+        selectedIds: selectedObstacleIds, // Pass all selected IDs
       });
 
       // Dessiner l'obstacle en cours de création
@@ -5740,8 +5783,8 @@ export default function Component() {
           const handleRadius = 12 / zoom; // Rayon de détection des poignées
 
           // 1. Si un obstacle est sélectionné, vérifier si on clique sur une poignée
-          if (selectedObstacleId) {
-            const selectedObs = obstacles.find(o => o.id === selectedObstacleId);
+          if (selectedObstacleIds.length > 0) {
+            const selectedObs = obstacles.find(o => selectedObstacleIds.includes(o.id));
             if (selectedObs) {
               for (let i = 0; i < selectedObs.points.length; i++) {
                 const point = selectedObs.points[i];
@@ -5857,9 +5900,9 @@ export default function Component() {
             }
 
             // Pour les autres types d'obstacles : sélection normale
-            setSelectedObstacleId(clickedObstacle.id);
+            setSelectedObstacleIds([clickedObstacle.id]);
           } else {
-            setSelectedObstacleId(null);
+            setSelectedObstacleIds([]);
           }
           return;
         }
@@ -5867,7 +5910,7 @@ export default function Component() {
         // 🔦 MODE VISIBILITÉ - OUTILS DESSIN (chain, polygon)
         if (visibilityMode && (currentVisibilityTool === 'chain' || currentVisibilityTool === 'polygon')) {
           // Désélectionner tout obstacle si on dessine
-          setSelectedObstacleId(null);
+          setSelectedObstacleIds([]);
 
           if (isDrawingObstacle) {
             // CONTINUER le dessin en cours
@@ -6242,7 +6285,7 @@ export default function Component() {
           }
 
           if (clickedObstacleId) {
-            setSelectedObstacleId(clickedObstacleId);
+            setSelectedObstacleIds([clickedObstacleId]);
             // Clear others
             setSelectedCharacterIndex(null);
             setSelectedNoteIndex(null);
@@ -6276,7 +6319,7 @@ export default function Component() {
             setSelectedCharacters([]);
             setSelectedDrawingIndex(null);
             setSelectedObjectIndices([]); // Désélectionner l'objet
-            setSelectedObstacleId(null);
+            setSelectedObstacleIds([]);
             //  Clear individual visible badges when clicking on empty area (but keep global toggle)
             if (!showAllBadges) {
               setVisibleBadges(new Set());
@@ -6492,7 +6535,7 @@ export default function Component() {
     }
 
     // ✏️ MODE EDIT - Drag de l'obstacle entier
-    if (visibilityMode && currentVisibilityTool === 'edit' && isDraggingObstacle && selectedObstacleId && dragStartPosRef.current) {
+    if (visibilityMode && currentVisibilityTool === 'edit' && isDraggingObstacle && selectedObstacleIds.length > 0 && dragStartPosRef.current) {
       const startPos = dragStartPosRef.current;
       const originals = draggedObstacleOriginalPointsRef.current;
 
@@ -6510,7 +6553,7 @@ export default function Component() {
       if (newPoints.some(p => isNaN(p.x) || isNaN(p.y))) return;
 
       // Mise à jour locale pour le rendu
-      setObstacles(prev => prev.map(o => o.id === selectedObstacleId ? { ...o, points: newPoints } : o));
+      setObstacles(prev => prev.map(o => selectedObstacleIds.includes(o.id) ? { ...o, points: newPoints } : o));
       return;
     }
 
@@ -6928,7 +6971,7 @@ export default function Component() {
     if (isDraggingObstaclePoint) {
       // Sauvegarder TOUS les obstacles modifiés
       const obstacleIdsToUpdate = new Set<string>();
-      if (selectedObstacleId) obstacleIdsToUpdate.add(selectedObstacleId);
+      if (selectedObstacleIds.length > 0) selectedObstacleIds.forEach(id => obstacleIdsToUpdate.add(id));
       connectedPoints.forEach(cp => obstacleIdsToUpdate.add(cp.obstacleId));
 
       for (const obsId of obstacleIdsToUpdate) {
@@ -7332,7 +7375,25 @@ export default function Component() {
         .map((zone) => isInRect(zone.x, zone.y) ? zone.id : null)
         .filter((id): id is string => id !== null);
 
-      // 🆕 7. Find Fog Cells in selection area (MJ only)
+      // 7. Find Light Sources (center point, current city only)
+      const selectedLightsIds = lights
+        .map((light) => {
+          // Filter by current city/scene
+          if (light.cityId && light.cityId !== selectedCityId) return null;
+          return isInRect(light.x, light.y) ? light.id : null;
+        })
+        .filter((id): id is string => id !== null);
+
+      // 8. Find Portals (center point, current city only)
+      const selectedPortalsIds = portals
+        .map((portal) => {
+          // Filter by current city/scene
+          if (portal.cityId && portal.cityId !== selectedCityId) return null;
+          return isInRect(portal.x, portal.y) ? portal.id : null;
+        })
+        .filter((id): id is string => id !== null);
+
+      // 🆕 9. Find Fog Cells in selection area (MJ only)
       const selectedFogCellKeys: string[] = [];
       if (isMJ && (fogGrid.size > 0 || fullMapFog)) { // 🔒 Réservé au MJ
         // Calculate which fog cells are in the selection rectangle
@@ -7367,7 +7428,9 @@ export default function Component() {
         selectedDrawings.length +
         selectedObstacles.length +
         selectedMusicZonesIds.length +
-        selectedFogCellKeys.length; // 🆕 Include fog cells in count
+        selectedLightsIds.length +
+        selectedPortalsIds.length +
+        selectedFogCellKeys.length;
 
       if (totalFound === 0) {
         // Clear all selections
@@ -7375,8 +7438,11 @@ export default function Component() {
         setSelectedObjectIndices([]);
         setSelectedNoteIndex(null);
         setSelectedDrawingIndex(null);
-        setSelectedObstacleId(null);
+        setSelectedObstacleIds([]);
         setSelectedMusicZoneIds([]);
+        setSelectedLightIds([]);
+        setSelectedPortalIds([]);
+        setSelectedFogCells([]);
       } else {
         const candidates: SelectionCandidates = {
           characters: selectedChars,
@@ -7385,7 +7451,9 @@ export default function Component() {
           drawings: selectedDrawings,
           obstacles: selectedObstacles,
           musicZones: selectedMusicZonesIds,
-          fogCells: selectedFogCellKeys // 🆕
+          fogCells: selectedFogCellKeys,
+          lights: selectedLightsIds,
+          portals: selectedPortalsIds
         };
 
         // Determine if we need to show the menu
@@ -7396,7 +7464,9 @@ export default function Component() {
           selectedDrawings.length > 0,
           selectedObstacles.length > 0,
           selectedMusicZonesIds.length > 0,
-          selectedFogCellKeys.length > 0 // 🆕 Include fog cells
+          selectedFogCellKeys.length > 0,
+          selectedLightsIds.length > 0,
+          selectedPortalsIds.length > 0
         ].filter(Boolean).length;
 
         if (typesFound > 1) {
@@ -7436,8 +7506,17 @@ export default function Component() {
           if (selectedDrawings.length > 0) setSelectedDrawingIndex(selectedDrawings[0]);
           else setSelectedDrawingIndex(null);
 
-          if (selectedObstacles.length > 0) setSelectedObstacleId(selectedObstacles[0]);
-          else setSelectedObstacleId(null);
+          if (selectedObstacles.length > 0) setSelectedObstacleIds(selectedObstacles);
+          else setSelectedObstacleIds([]);
+
+          if (selectedMusicZonesIds.length > 0) setSelectedMusicZoneIds(selectedMusicZonesIds);
+          else setSelectedMusicZoneIds([]);
+
+          if (selectedLightsIds.length > 0) setSelectedLightIds(selectedLightsIds);
+          else setSelectedLightIds([]);
+
+          if (selectedPortalsIds.length > 0) setSelectedPortalIds(selectedPortalsIds);
+          else setSelectedPortalIds([]);
 
           // 🆕 Set selected fog cells
           if (selectedFogCellKeys.length > 0) setSelectedFogCells(selectedFogCellKeys);
@@ -7707,11 +7786,12 @@ export default function Component() {
     }
 
     // 6. Check for selected obstacle
-    if (selectedObstacleId && visibilityMode) {
-      const obstacle = obstacles.find(o => o.id === selectedObstacleId);
+    if (selectedObstacleIds.length > 0 && visibilityMode) {
+      const obstacleId = selectedObstacleIds[0];
+      const obstacle = obstacles.find(o => o.id === obstacleId);
       setEntityToDelete({
         type: 'obstacle',
-        id: selectedObstacleId,
+        id: obstacleId,
         name: `Obstacle`
       });
       setDeleteModalOpen(true);
@@ -7814,7 +7894,7 @@ export default function Component() {
           if (entityToDelete.id) {
             await deleteDoc(doc(db, 'cartes', String(roomId), 'obstacles', entityToDelete.id));
             setObstacles(prev => prev.filter(o => o.id !== entityToDelete.id));
-            setSelectedObstacleId(null);
+            setSelectedObstacleIds([]);
             toast.success(`Obstacle supprimé`);
           }
           break;
@@ -8152,8 +8232,11 @@ export default function Component() {
     setSelectedObjectIndices([]);
     setSelectedNoteIndex(null);
     setSelectedDrawingIndex(null);
-    setSelectedObstacleId(null);
+    setSelectedObstacleIds([]);
     setSelectedMusicZoneIds([]);
+    setSelectedLightIds([]);
+    setSelectedPortalIds([]);
+    setSelectedFogCells([]);
 
     switch (type) {
       case 'characters':
@@ -8173,14 +8256,18 @@ export default function Component() {
         }
         break;
       case 'obstacles':
-        if (selectionCandidates.obstacles.length > 0) {
-          setSelectedObstacleId(selectionCandidates.obstacles[0]);
-        }
+        setSelectedObstacleIds(selectionCandidates.obstacles);
         break;
       case 'musicZones':
         setSelectedMusicZoneIds(selectionCandidates.musicZones);
         break;
-      case 'fogCells': // 🆕
+      case 'lights':
+        setSelectedLightIds(selectionCandidates.lights);
+        break;
+      case 'portals':
+        setSelectedPortalIds(selectionCandidates.portals);
+        break;
+      case 'fogCells':
         setSelectedFogCells(selectionCandidates.fogCells);
         break;
     }

@@ -552,6 +552,7 @@ export function drawObstacles(
         strokeWidth?: number;
         showHandles?: boolean;
         selectedId?: string | null;
+        selectedIds?: string[]; // NEW: support multiple selected IDs
     } = {}
 ): void {
     const {
@@ -560,10 +561,12 @@ export function drawObstacles(
         strokeWidth = 2,
         showHandles = false,
         selectedId = null,
+        selectedIds = [],
     } = options;
 
     for (const obstacle of obstacles) {
-        const isSelected = obstacle.id === selectedId;
+        // Check if selected either by single ID or in array
+        const isSelected = obstacle.id === selectedId || selectedIds.includes(obstacle.id);
 
         // Définir les couleurs selon le type d'obstacle
         let obstacleStrokeColor = strokeColor;
