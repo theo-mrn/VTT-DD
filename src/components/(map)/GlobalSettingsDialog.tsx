@@ -25,6 +25,7 @@ import { useShortcuts, SHORTCUT_ACTIONS, formatKeyEvent } from "@/contexts/Short
 import { Button } from "@/components/ui/button";
 import { Keyboard, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Kbd } from "@/components/ui/kbd";
 
 interface GlobalSettingsDialogProps {
     isOpen: boolean;
@@ -56,6 +57,11 @@ function ShortcutRecorder({ actionId, label }: { actionId: string, label: string
                 return;
             }
 
+            // Ignore standalone modifiers
+            if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) {
+                return;
+            }
+
             const combo = formatKeyEvent(e);
             updateShortcut(actionId, combo);
             setIsRecording(false);
@@ -72,11 +78,23 @@ function ShortcutRecorder({ actionId, label }: { actionId: string, label: string
                 size="sm"
                 onClick={() => setIsRecording(true)}
                 className={cn(
-                    "min-w-[100px] font-mono text-xs h-8 border border-white/10",
+                    "min-w-[100px] h-8 border border-white/10 flex items-center gap-1",
                     isRecording ? "animate-pulse" : ""
                 )}
             >
-                {isRecording ? "Appuyez..." : (currentShortcut || "Aucun")}
+                {isRecording ? (
+                    <span className="text-xs font-mono">Appuyez...</span>
+                ) : (
+                    currentShortcut ? (
+                        currentShortcut.split('+').map((key, i) => (
+                            <Kbd key={i} className="bg-black/40 border-white/10 text-white min-w-[20px] h-5 text-[10px] px-1.5">
+                                {key}
+                            </Kbd>
+                        ))
+                    ) : (
+                        <span className="text-xs text-gray-500">Aucun</span>
+                    )
+                )}
             </Button>
         </div>
     );
