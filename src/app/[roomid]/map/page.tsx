@@ -2282,7 +2282,7 @@ export default function Component() {
           createdAt: new Date()
         })
 
-        toast.success(`Objet "${template.name}" ajouté sur la carte`)
+        toast.success(`Objet "${template.name}" ajouté sur la carte`, { duration: 1000 })
         return
       }
 
@@ -2312,7 +2312,7 @@ export default function Component() {
 
         await addDoc(collection(db, 'cartes', roomId, 'musicZones'), newZone)
 
-        toast.success(`Zone sonore "${sound.name}" ajoutée sur la carte`)
+        toast.success(`Zone sonore "${sound.name}" ajoutée sur la carte`, { duration: 1000 })
         return
       }
 
