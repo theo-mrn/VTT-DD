@@ -17,7 +17,6 @@ import { SUGGESTED_OBJECTS, ITEM_CATEGORIES, SuggestedItem } from '@/lib/suggest
 import { advancedSearch, type SearchResult } from '@/lib/advanced-search'
 import { CreatureLibraryModal } from './CreatureLibraryModal'
 import { type NewCharacter } from '@/app/[roomid]/map/types'
-import { toast } from 'sonner';
 
 interface SoundTemplate {
     id: string
@@ -438,7 +437,6 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
                 category: creationType === 'music' ? 'music' : 'sound',
                 createdAt: new Date()
             })
-            toast.success(`zone ${newSoundName} créée`)
 
             // Reset form
             setNewSoundName('')
