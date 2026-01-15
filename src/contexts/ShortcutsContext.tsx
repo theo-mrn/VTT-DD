@@ -29,6 +29,15 @@ export const SHORTCUT_ACTIONS = {
     TOOL_GRID: 'tool_grid',
     TOOL_FOG: 'tool_fog',
 
+    // Dice
+    ROLL_D4: 'roll_d4',
+    ROLL_D6: 'roll_d6',
+    ROLL_D8: 'roll_d8',
+    ROLL_D10: 'roll_d10',
+    ROLL_D12: 'roll_d12',
+    ROLL_D20: 'roll_d20',
+    ROLL_D100: 'roll_d100', // d100 usually 2d10 but let's assume standard notation "1d100"
+
     // Missing Tools
     TOOL_LAYERS: 'tool_layers',
     TOOL_BACKGROUND: 'tool_background',
@@ -77,6 +86,10 @@ const DEFAULT_SHORTCUTS: Record<string, string> = {
     [SHORTCUT_ACTIONS.TOOL_MEASURE]: 'M',
     [SHORTCUT_ACTIONS.TOOL_GRID]: 'G',
     [SHORTCUT_ACTIONS.TOOL_FOG]: 'F',
+
+    // Dice Defaults (optional, maybe none by default to avoid clutter?)
+    // Let's omit defaults for now or maybe just D20 for 'D'? but 'D' is Tab Dice...
+    // Let's leave them empty by default, user can bind them.
 
     // Defaults for new tools
     [SHORTCUT_ACTIONS.TOOL_LAYERS]: 'L',
