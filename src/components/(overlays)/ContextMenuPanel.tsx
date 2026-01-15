@@ -542,10 +542,7 @@ export default function ContextMenuPanel({
                                                     className={`text-xs h-8 ${!character.shape || character.shape === 'circle'
                                                         ? 'bg-blue-600 border-blue-500 text-white'
                                                         : 'bg-[#252525] border-[#333] text-gray-400'}`}
-                                                    onClick={() => {
-                                                        console.log("updateShape circle clicked");
-                                                        onAction('updateShape', character.id, 'circle');
-                                                    }}
+                                                    onClick={() => onAction('updateShape', character.id, 'circle')}
                                                 >
                                                     <CircleIcon size={14} className="mr-2" />
                                                     Rond
@@ -556,10 +553,7 @@ export default function ContextMenuPanel({
                                                     className={`text-xs h-8 ${character.shape === 'square'
                                                         ? 'bg-blue-600 border-blue-500 text-white'
                                                         : 'bg-[#252525] border-[#333] text-gray-400'}`}
-                                                    onClick={() => {
-                                                        console.log("updateShape square clicked");
-                                                        onAction('updateShape', character.id, 'square');
-                                                    }}
+                                                    onClick={() => onAction('updateShape', character.id, 'square')}
                                                 >
                                                     <Square size={14} className="mr-2" />
                                                     Carré

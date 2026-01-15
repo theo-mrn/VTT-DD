@@ -4333,9 +4333,22 @@ export default function Component() {
 
           // Only draw if selected, badge visible, or important GM info (active player)
           if (isSelected || isAreaMatch || isBadgeVisible || isGMAndActivePlayer) {
-            // Draw character border circle
+            // Draw character border circle or square
             ctx.beginPath();
-            ctx.arc(x, y, borderRadius, 0, 2 * Math.PI);
+            if (char.shape === 'square') {
+              // Draw rounded square (matching rounded-lg ~ 0.5rem = 8px usually, but scaling with zoom)
+              // rounded-lg is fixed in CSS, but for canvas we might want it proportional or fixed?
+              // The CSS uses 'rounded-lg' which is 0.5rem (8px). 
+              // Let's use a small proportional radius for the square corners to look nice.
+              const cornerRadius = borderRadius * 0.25; // Experimental value
+              const size = borderRadius * 2;
+
+              // Draw rounded rect
+              ctx.roundRect(x - borderRadius, y - borderRadius, size, size, cornerRadius);
+            } else {
+              // Default Circle
+              ctx.arc(x, y, borderRadius, 0, 2 * Math.PI);
+            }
             ctx.stroke();
           }
         }
@@ -9909,7 +9922,6 @@ export default function Component() {
               audio: value
             });
           } else if (action === 'updateShape') {
-            console.log('Page: updateShape called', characterId, value);
             await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {
               shape: value
             });
