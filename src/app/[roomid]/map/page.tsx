@@ -169,6 +169,7 @@ import {
 import { useSkinVideo } from '@/hooks/map/useSkinVideo';
 import { useMeasurementSkins } from '@/hooks/map/useMeasurementSkins';
 import { ToolbarSkinSelector } from '@/components/(map)/MapToolbar';
+import { useShortcuts, SHORTCUT_ACTIONS } from '@/contexts/ShortcutsContext';
 
 const getMediaDimensions = (media: HTMLImageElement | HTMLVideoElement | CanvasImageSource) => {
   if (media instanceof HTMLVideoElement) {
@@ -205,9 +206,14 @@ export default function Component() {
   const [interactionConfigTarget, setInteractionConfigTarget] = useState<Character | null>(null);
   const fireballVideo = useSkinVideo(selectedSkin); // For LOCAL active measurement
 
+
   // 📋 COPY/PASTE STATE
   const [copiedCharacterTemplate, setCopiedCharacterTemplate] = useState<Character | null>(null);
   const [copiedObjectTemplate, setCopiedObjectTemplate] = useState<MapObject | null>(null);
+
+  const { isShortcutPressed } = useShortcuts();
+
+
 
 
 
@@ -2811,6 +2817,41 @@ export default function Component() {
       case TOOLS.TOGGLE_ALL_BADGES: setShowAllBadges(!showAllBadges); break;
     }
   };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Map Tools
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_PAN)) { e.preventDefault(); handleToolbarAction(TOOLS.PAN); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_MEASURE)) { e.preventDefault(); handleToolbarAction(TOOLS.MEASURE); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_DRAW)) { e.preventDefault(); handleToolbarAction(TOOLS.DRAW); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_GRID)) { e.preventDefault(); handleToolbarAction(TOOLS.GRID); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_FOG)) { e.preventDefault(); handleToolbarAction(TOOLS.VISIBILITY); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_SELECT)) { e.preventDefault(); setMeasureMode(false); setDrawMode(false); setPanMode(false); } // Default to "Select" (Pointer)
+
+      // New Tools
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_LAYERS)) { e.preventDefault(); handleToolbarAction(TOOLS.LAYERS); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_BACKGROUND)) { e.preventDefault(); handleToolbarAction(TOOLS.BACKGROUND); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_VIEW_MODE)) { e.preventDefault(); handleToolbarAction(TOOLS.VIEW_MODE); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_SETTINGS)) { e.preventDefault(); handleToolbarAction(TOOLS.SETTINGS); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_ZOOM_IN)) { e.preventDefault(); handleToolbarAction(TOOLS.ZOOM_IN); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_ZOOM_OUT)) { e.preventDefault(); handleToolbarAction(TOOLS.ZOOM_OUT); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_WORLD_MAP)) { e.preventDefault(); handleToolbarAction(TOOLS.WORLD_MAP); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_ADD_CHAR)) { e.preventDefault(); handleToolbarAction(TOOLS.ADD_CHAR); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_ADD_OBJ)) { e.preventDefault(); handleToolbarAction(TOOLS.ADD_OBJ); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_ADD_NOTE)) { e.preventDefault(); handleToolbarAction(TOOLS.ADD_NOTE); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_MUSIC)) { e.preventDefault(); handleToolbarAction(TOOLS.MUSIC); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_SEARCH)) { e.preventDefault(); handleToolbarAction(TOOLS.UNIFIED_SEARCH); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_PORTAL)) { e.preventDefault(); handleToolbarAction(TOOLS.PORTAL); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_SPAWN)) { e.preventDefault(); handleToolbarAction(TOOLS.SPAWN_POINT); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_CLEAR)) { e.preventDefault(); handleToolbarAction(TOOLS.CLEAR_DRAWINGS); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_MULTI)) { e.preventDefault(); handleToolbarAction(TOOLS.MULTI_SELECT); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_MIXER)) { e.preventDefault(); handleToolbarAction(TOOLS.AUDIO_MIXER); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_BORDERS)) { e.preventDefault(); handleToolbarAction(TOOLS.TOGGLE_CHAR_BORDERS); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_BADGES)) { e.preventDefault(); handleToolbarAction(TOOLS.TOGGLE_ALL_BADGES); }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isShortcutPressed, handleToolbarAction]);
 
   const getActiveToolbarTools = (): string[] => {
     const active: string[] = [];

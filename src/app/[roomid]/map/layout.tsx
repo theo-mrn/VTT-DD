@@ -22,6 +22,7 @@ import PlayerMusicControl from "@/components/(music)/PlayerMusicControl";
 import { useAudioMixer } from '@/components/(audio)/AudioMixerPanel';
 import { MapControlProvider } from '@/contexts/MapControlContext';
 import { DialogVisibilityProvider } from '@/contexts/DialogVisibilityContext';
+import { ShortcutsProvider } from '@/contexts/ShortcutsContext';
 
 type LayoutProps = {
   children: ReactNode;
@@ -99,43 +100,24 @@ export default function Layout({ children }: LayoutProps) {
 
 
   return (
-    <DialogVisibilityProvider>
-      <MapControlProvider>
-        <div className="relative h-screen bg-[#1c1c1c] text-[#d4d4d4] flex z-30">
-          <div className="z-10">
-            <Sidebar activeTab={activeTab} handleIconClick={handleIconClick} isMJ={isMJ} />
-          </div>
+    <ShortcutsProvider>
+      <DialogVisibilityProvider>
+        <MapControlProvider>
+          <div className="relative h-screen bg-[#1c1c1c] text-[#d4d4d4] flex z-30">
+            <div className="z-10">
+              <Sidebar activeTab={activeTab} handleIconClick={handleIconClick} isMJ={isMJ} />
+            </div>
 
-          <div className="absolute left-0 z-0">
-            <OverlayComponent />
-          </div>
+            <div className="absolute left-0 z-0">
+              <OverlayComponent />
+            </div>
 
-          {/* Persistent Music Player Container */}
-          <aside
-            className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#242424] h-auto max-h-[85vh] rounded-xl border border-[#333]
+            {/* Persistent Music Player Container */}
+            <aside
+              className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#242424] h-auto max-h-[85vh] rounded-xl border border-[#333]
           w-full sm:w-[95vw] md:w-[90vw] lg:w-[900px] text-black shadow-lg z-20 overflow-y-auto
           ${activeTab === 'Music' ? 'block' : 'hidden'}`}
-          >
-            <button
-              onClick={() => setActiveTab("")}
-              className={`lg:hidden fixed top-3 right-3 z-10 rounded-full p-2 transition-colors shadow-lg bg-[#1c1c1c] text-white hover:bg-[#333]`}
-              aria-label="Fermer le panneau"
             >
-              <X className="h-5 w-5" />
-            </button>
-
-            <div className="">
-              {isMJ ? <MJMusicPlayer roomId={roomId} masterVolume={audioVolumes.backgroundMusic} /> : <PlayerMusicControl roomId={roomId} />}
-            </div>
-          </aside>
-
-          {activeTab && activeTab !== 'Music' && (
-            <aside
-              className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${getPanelWidth()} text-black shadow-lg z-20
-            ${activeTab === 'Chat' ? 'overflow-hidden' : 'overflow-y-auto'}`}
-            >
-
-              {/* Bouton de fermeture pour mobile/tablette */}
               <button
                 onClick={() => setActiveTab("")}
                 className={`lg:hidden fixed top-3 right-3 z-10 rounded-full p-2 transition-colors shadow-lg bg-[#1c1c1c] text-white hover:bg-[#333]`}
@@ -144,20 +126,41 @@ export default function Layout({ children }: LayoutProps) {
                 <X className="h-5 w-5" />
               </button>
 
-              <div className={activeTab === 'Chat' || activeTab === 'NPCManager' ? 'h-full' : ""}>
-                {renderActiveTab()}
+              <div className="">
+                {isMJ ? <MJMusicPlayer roomId={roomId} masterVolume={audioVolumes.backgroundMusic} /> : <PlayerMusicControl roomId={roomId} />}
               </div>
             </aside>
-          )}
+
+            {activeTab && activeTab !== 'Music' && (
+              <aside
+                className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${getPanelWidth()} text-black shadow-lg z-20
+            ${activeTab === 'Chat' ? 'overflow-hidden' : 'overflow-y-auto'}`}
+              >
+
+                {/* Bouton de fermeture pour mobile/tablette */}
+                <button
+                  onClick={() => setActiveTab("")}
+                  className={`lg:hidden fixed top-3 right-3 z-10 rounded-full p-2 transition-colors shadow-lg bg-[#1c1c1c] text-white hover:bg-[#333]`}
+                  aria-label="Fermer le panneau"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+
+                <div className={activeTab === 'Chat' || activeTab === 'NPCManager' ? 'h-full' : ""}>
+                  {renderActiveTab()}
+                </div>
+              </aside>
+            )}
 
 
-          <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c] -z-10">
-            <div className="w-full h-full">{children}</div>
-          </main>
-          {/* 3D Dice Overlay */}
-          <DiceThrower />
-        </div>
-      </MapControlProvider>
-    </DialogVisibilityProvider>
+            <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c] -z-10">
+              <div className="w-full h-full">{children}</div>
+            </main>
+            {/* 3D Dice Overlay */}
+            <DiceThrower />
+          </div>
+        </MapControlProvider>
+      </DialogVisibilityProvider>
+    </ShortcutsProvider >
   );
 }
