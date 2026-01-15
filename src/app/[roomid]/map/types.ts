@@ -235,9 +235,10 @@ export interface Portal {
     x: number;
     y: number;
     radius: number;
-    targetSceneId: string;
-    targetX?: number;
-    targetY?: number;
+    portalType: 'scene-change' | 'same-map';  // Type of portal behavior
+    targetSceneId?: string;  // Optional - only required for scene-change portals
+    targetX?: number;  // Target X coordinate (required for same-map, optional for scene-change)
+    targetY?: number;  // Target Y coordinate (required for same-map, optional for scene-change)
     name: string;
     iconType?: 'stairs' | 'door' | 'portal' | 'ladder';
     visible?: boolean;
