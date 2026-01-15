@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 // import { DiceRoll } from "@dice-roller/rpg-dice-roller"; // Removed unused import
 import { motion, AnimatePresence } from "framer-motion";
-import { Dice1, RotateCcw, History, Trash2, Shield, BarChart3, Palette, Check, EyeOff, Box } from "lucide-react";
+import { Dice1, RotateCcw, History, Trash2, Shield, BarChart3, Store, Check, EyeOff, Box } from "lucide-react";
 import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy, serverTimestamp, limit } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
@@ -20,6 +20,7 @@ import {
 import { DiceStats } from "./dice-stats";
 import { DICE_SKINS, DiceSkin } from "./dice-definitions";
 import { DicePreview } from "./dice-preview";
+import { DiceStoreModal } from "./dice-store-modal"; // Import new modal
 import { getAssetUrl } from "@/lib/asset-loader";
 
 // Types
@@ -53,93 +54,7 @@ interface FirebaseRoll {
   persoId?: string;
 }
 
-// Static 2D representation of a die
-function StaticDie2D({ skinId, type = "d20" }: { skinId: string, type?: string }) {
-  const skin = DICE_SKINS[skinId];
-  const [imageError, setImageError] = useState(false);
 
-  if (!imageError) {
-    return (
-      <div className="w-full h-full flex items-center justify-center rounded-lg overflow-hidden bg-black/20">
-        <img
-          src={getAssetUrl(`/dice-previews/${skinId}.png`)}
-          alt={skin.name}
-          className="w-full h-full object-contain transform hover:scale-110 transition-transform duration-300"
-          onError={() => setImageError(true)}
-        />
-        <div className="absolute bottom-1 left-0 right-0 text-center">
-          <span className="text-[10px] text-white/80 bg-black/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
-            {skin.name}
-          </span>
-        </div>
-      </div>
-    );
-  }
-
-  // Fallback to CSS version
-  return (
-    <div className="w-full h-full flex flex-col items-center justify-center rounded-lg border-2 transition-all duration-200"
-      style={{
-        background: `linear-gradient(135deg, ${skin.bodyColor} 0%, ${skin.edgeColor} 100%)`,
-        borderColor: skin.borderColor,
-        boxShadow: `0 4px 12px ${skin.shadowColor}66, inset 0 1px 2px ${skin.edgeColor}44`
-      }}
-    >
-      <div className="text-center">
-        <div className="text-3xl font-bold mb-1" style={{ color: skin.textColor }}>
-          {type.toUpperCase()}
-        </div>
-        <div className="text-[10px] opacity-75 px-2 truncate max-w-full" style={{ color: skin.textColor }}>
-          {skin.name}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Individual dice item in the grid
-function DiceGridItem({
-  skinId,
-  type = "d20",
-  isSelected = false,
-  onSelect
-}: {
-  skinId: string,
-  type?: string,
-  isSelected?: boolean,
-  onSelect?: () => void
-}) {
-  const [isHovered, setIsHovered] = useState(false);
-
-  return (
-    <div
-      className={`relative aspect-square cursor-pointer rounded-lg transition-all duration-200 ${isSelected
-        ? 'ring-2 ring-[var(--accent-gold)] ring-offset-2 ring-offset-[#242424] scale-105'
-        : 'hover:scale-105'
-        }`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      onClick={onSelect}
-    >
-      {/* Static 2D version - always rendered */}
-      <div className={`absolute inset-0 transition-opacity duration-300 ${isHovered ? 'opacity-0' : 'opacity-100'}`}>
-        <StaticDie2D skinId={skinId} type={type} />
-      </div>
-
-      {/* 3D animated version - only visible on hover */}
-      <div className={`absolute inset-0 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        {isHovered && <DicePreview skinId={skinId} type={type} className="w-full h-full" />}
-      </div>
-
-      {/* Selection indicator */}
-      {isSelected && (
-        <div className="absolute top-2 right-2 bg-[var(--accent-gold)] rounded-full p-1 z-10">
-          <Check className="h-3 w-3 text-black" />
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function DiceRoller() {
   const [input, setInput] = useState("");
@@ -843,34 +758,19 @@ export function DiceRoller() {
               className="h-7 text-xs gap-1.5 bg-transparent border-white/10 hover:bg-white/5"
               onClick={() => setIsSkinDialogOpen(true)}
             >
-              <Palette className="h-3.5 w-3.5" />
-              Apparence
+              <Store className="h-3.5 w-3.5" />
+              Boutique
             </Button>
 
-            <Dialog open={isSkinDialogOpen} onOpenChange={setIsSkinDialogOpen}>
-              <DialogContent className="bg-[#242424] border-[#333] text-[var(--text-primary)] sm:max-w-6xl max-h-[85vh]">
-                <DialogHeader>
-                  <DialogTitle>Choisir l'apparence des dés</DialogTitle>
-                </DialogHeader>
-                <div className="py-4 overflow-y-auto max-h-[calc(85vh-80px)]">
-                  {/* Grille de dés */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                    {Object.values(DICE_SKINS).map((skin) => (
-                      <DiceGridItem
-                        key={skin.id}
-                        skinId={skin.id}
-                        isSelected={selectedSkinId === skin.id}
-                        onSelect={() => {
-                          setSelectedSkinId(skin.id);
-                          localStorage.setItem("vtt_dice_skin", skin.id);
-                          setIsSkinDialogOpen(false);
-                        }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <DiceStoreModal
+              isOpen={isSkinDialogOpen}
+              onClose={() => setIsSkinDialogOpen(false)}
+              currentSkinId={selectedSkinId}
+              onSelectSkin={(skinId) => {
+                setSelectedSkinId(skinId);
+                localStorage.setItem("vtt_dice_skin", skinId);
+              }}
+            />
           </div>
 
           {error && (
