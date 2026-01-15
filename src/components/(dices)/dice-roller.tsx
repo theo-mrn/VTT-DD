@@ -568,30 +568,11 @@ export function DiceRoller() {
         // --- API MODE (INSTANT / NO ANIMATION) ---
         // Utiliser l'API pour générer et enregistrer
 
-        let token = "";
-        if (auth.currentUser) {
-          try {
-            token = await auth.currentUser.getIdToken();
-          } catch (e) {
-            console.error("Error getting token:", e);
-          }
-        }
-
         const apiResponse = await fetch('/api/roll-dice', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            notation: processedNotation,
-            roomId: roomId,
-            userId: auth.currentUser?.uid,
-            username: userName,
-            userAvatar: userAvatar,
-            persoId: persoId,
-            isPrivate: isPrivate,
-            isBlind: isBlind
+            notation: processedNotation
           })
         });
 
