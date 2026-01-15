@@ -1,7 +1,7 @@
 import React from 'react';
-import { User, Box, Type, Pencil, BrickWall, Music, Cloud } from 'lucide-react';
+import { User, Box, Type, Pencil, BrickWall, Music, Cloud, Lightbulb, DoorOpen } from 'lucide-react';
 
-export type SelectionType = 'characters' | 'objects' | 'notes' | 'drawings' | 'obstacles' | 'musicZones' | 'fogCells';
+export type SelectionType = 'characters' | 'objects' | 'notes' | 'drawings' | 'obstacles' | 'musicZones' | 'fogCells' | 'lights' | 'portals';
 
 export interface SelectionCandidates {
     characters: number[];
@@ -11,6 +11,8 @@ export interface SelectionCandidates {
     obstacles: string[];
     musicZones: string[];
     fogCells: string[]; // 🆕 Array of fog cell keys "x,y"
+    lights: string[]; // Array of light source IDs
+    portals: string[]; // Array of portal IDs
 }
 
 interface SelectionMenuProps {
@@ -36,6 +38,10 @@ const getLabelAndIcon = (type: SelectionType, count: number) => {
             return { label: `${count} Zone${count > 1 ? 's' : ''} Audio`, icon: Music, color: 'text-fuchsia-400' };
         case 'fogCells':
             return { label: `${count} Case${count > 1 ? 's' : ''} de Brouillard`, icon: Cloud, color: 'text-gray-400' };
+        case 'lights':
+            return { label: `${count} Source${count > 1 ? 's' : ''} de Lumière`, icon: Lightbulb, color: 'text-yellow-300' };
+        case 'portals':
+            return { label: `${count} Portail${count > 1 ? 's' : ''}`, icon: DoorOpen, color: 'text-cyan-400' };
     }
 };
 
@@ -47,7 +53,9 @@ export const SelectionMenu: React.FC<SelectionMenuProps> = ({ position, candidat
     if (candidates.drawings.length > 0) options.push('drawings');
     if (candidates.obstacles.length > 0) options.push('obstacles');
     if (candidates.musicZones.length > 0) options.push('musicZones');
-    if (candidates.fogCells.length > 0) options.push('fogCells'); // 🆕
+    if (candidates.fogCells.length > 0) options.push('fogCells');
+    if (candidates.lights.length > 0) options.push('lights');
+    if (candidates.portals.length > 0) options.push('portals');
 
     const containerRef = React.useRef<HTMLDivElement>(null);
 
