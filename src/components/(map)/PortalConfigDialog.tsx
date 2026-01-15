@@ -48,6 +48,7 @@ export default function PortalConfigDialog({
     const [formData, setFormData] = useState<Partial<Portal>>({
         name: '',
         radius: 50,
+        portalType: 'scene-change',
         targetSceneId: '',
         targetX: 0,
         targetY: 0,
@@ -89,6 +90,7 @@ export default function PortalConfigDialog({
             setFormData({
                 name: '',
                 radius: 50,
+                portalType: 'scene-change',
                 targetSceneId: '',
                 targetX: 0,
                 targetY: 0,
@@ -101,9 +103,24 @@ export default function PortalConfigDialog({
     }, [portal]);
 
     const handleSave = () => {
-        if (!formData.name || !formData.targetSceneId) {
+        // Validation
+        if (!formData.name) {
+            toast.error("Le nom du portail est requis");
             return;
         }
+
+        if (formData.portalType === 'scene-change' && !formData.targetSceneId) {
+            toast.error("Sélectionnez une scène de destination");
+            return;
+        }
+
+        if (formData.portalType === 'same-map') {
+            if (formData.targetX === undefined || formData.targetY === undefined) {
+                toast.error("Les coordonnées de destination sont requises");
+                return;
+            }
+        }
+
         onSave(formData);
         onOpenChange(false);
         toast.success("Portail posé")
@@ -133,24 +150,85 @@ export default function PortalConfigDialog({
                         />
                     </div>
 
-                    {/* Target Scene */}
+                    {/* Portal Type */}
                     <div className="space-y-2">
-                        <Label className="text-white">Scène de destination</Label>
+                        <Label className="text-white">Type de portail</Label>
                         <Select
-                            value={formData.targetSceneId}
-                            onValueChange={(value) => setFormData({ ...formData, targetSceneId: value })}
+                            value={formData.portalType}
+                            onValueChange={(value: 'scene-change' | 'same-map') =>
+                                setFormData({ ...formData, portalType: value })
+                            }
                         >
                             <SelectTrigger className="bg-white/5 border-white/10 text-white">
-                                <SelectValue placeholder="Sélectionner une scène..." />
+                                <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
-                                {scenes.map((scene) => (
-                                    <SelectItem key={scene.id} value={scene.id}>
-                                        {scene.name}
-                                    </SelectItem>
-                                ))}
+                                <SelectItem value="scene-change">Changement de scène</SelectItem>
+                                <SelectItem value="same-map">Téléportation sur la carte</SelectItem>
                             </SelectContent>
                         </Select>
+                        <p className="text-xs text-gray-400">
+                            {formData.portalType === 'scene-change'
+                                ? 'Téléporte vers une autre scène/carte'
+                                : 'Téléporte vers des coordonnées sur la même carte'}
+                        </p>
+                    </div>
+
+                    {/* Target Scene - Only for scene-change portals */}
+                    {formData.portalType === 'scene-change' && (
+                        <div className="space-y-2">
+                            <Label className="text-white">Scène de destination</Label>
+                            <Select
+                                value={formData.targetSceneId}
+                                onValueChange={(value) => setFormData({ ...formData, targetSceneId: value })}
+                            >
+                                <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                                    <SelectValue placeholder="Sélectionner une scène..." />
+                                </SelectTrigger>
+                                <SelectContent className="bg-[#1a1a1a] border-white/10 text-white">
+                                    {scenes.map((scene) => (
+                                        <SelectItem key={scene.id} value={scene.id}>
+                                            {scene.name}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    )}
+
+                    {/* Target Coordinates */}
+                    <div className="space-y-2">
+                        <Label className="text-white">
+                            Coordonnées de destination
+                            {formData.portalType === 'same-map' && <span className="text-red-400 ml-1">*</span>}
+                        </Label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div>
+                                <Label className="text-xs text-gray-400">X</Label>
+                                <Input
+                                    type="number"
+                                    value={formData.targetX || 0}
+                                    onChange={(e) => setFormData({ ...formData, targetX: parseInt(e.target.value) || 0 })}
+                                    className="bg-white/5 border-white/10 text-white"
+                                    placeholder="X"
+                                />
+                            </div>
+                            <div>
+                                <Label className="text-xs text-gray-400">Y</Label>
+                                <Input
+                                    type="number"
+                                    value={formData.targetY || 0}
+                                    onChange={(e) => setFormData({ ...formData, targetY: parseInt(e.target.value) || 0 })}
+                                    className="bg-white/5 border-white/10 text-white"
+                                    placeholder="Y"
+                                />
+                            </div>
+                        </div>
+                        <p className="text-xs text-gray-400">
+                            {formData.portalType === 'same-map'
+                                ? 'Position de téléportation sur la carte actuelle'
+                                : 'Position d\'apparition dans la scène de destination (optionnel)'}
+                        </p>
                     </div>
 
                     {/* Radius */}
@@ -189,7 +267,11 @@ export default function PortalConfigDialog({
                     <Button
                         onClick={handleSave}
                         className="bg-[#c0a080] text-black hover:bg-[#d4b594] font-bold"
-                        disabled={!formData.name || !formData.targetSceneId}
+                        disabled={
+                            !formData.name ||
+                            (formData.portalType === 'scene-change' && !formData.targetSceneId) ||
+                            (formData.portalType === 'same-map' && (formData.targetX === undefined || formData.targetY === undefined))
+                        }
                     >
                         {portal?.id ? 'Enregistrer' : 'Créer'}
                     </Button>

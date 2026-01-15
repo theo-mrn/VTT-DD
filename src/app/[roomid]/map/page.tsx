@@ -52,7 +52,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Map as MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, Lightbulb, ArrowRight, DoorOpen, Pen } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Map as MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, Lightbulb, ArrowRight, DoorOpen, Pen, ArrowDownUp, Hexagon } from 'lucide-react'
 import { toast } from 'sonner';
 import { auth, db, onAuthStateChanged } from '@/lib/firebase'
 import { doc, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
@@ -656,6 +656,9 @@ export default function Component() {
   //  PORTAL SYSTEM STATE
   const [portals, setPortals] = useState<Portal[]>([]);
   const [portalMode, setPortalMode] = useState(false);
+  const [portalPlacementMode, setPortalPlacementMode] = useState<'scene-change' | 'same-map' | null>(null);
+  const [firstPortalPoint, setFirstPortalPoint] = useState<Point | null>(null);
+  const [firstPortalId, setFirstPortalId] = useState<string | null>(null); // Track first portal ID
   const [showPortalConfig, setShowPortalConfig] = useState(false);
   const [newPortalPos, setNewPortalPos] = useState<Point | null>(null);
   const [editingPortal, setEditingPortal] = useState<Portal | null>(null);
@@ -732,7 +735,13 @@ export default function Component() {
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const newPortals: Portal[] = [];
       snapshot.forEach(doc => {
-        newPortals.push({ id: doc.id, ...doc.data() } as Portal);
+        const data = doc.data();
+        // Add default portalType for legacy portals (backward compatibility)
+        newPortals.push({
+          id: doc.id,
+          portalType: 'scene-change', // Default for legacy portals
+          ...data
+        } as Portal);
       });
       setPortals(newPortals);
     });
@@ -3596,6 +3605,59 @@ export default function Component() {
         </div>
       );
     }
+
+    //  PORTAL MODE
+    if (portalMode && isMJ) {
+      return (
+        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+          <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
+            <Hexagon className="w-4 h-4 text-[#c0a080]" />
+            <span className="text-[#c0a080] font-medium text-xs tracking-wide uppercase">Mode Portail</span>
+          </div>
+
+          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+
+          <span className="text-xs text-gray-400 hidden sm:inline-block">Choisissez le type :</span>
+
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setPortalPlacementMode('scene-change')}
+              className={`h-8 px-3 text-xs font-medium rounded-lg transition-colors ${portalPlacementMode === 'scene-change'
+                ? 'bg-[#c0a080] text-black hover:bg-[#d4b594]'
+                : 'text-gray-400 hover:text-white hover:bg-white/10'
+                }`}
+            >
+              <DoorOpen className="w-3 h-3 mr-1.5" />
+              Autre carte
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setPortalPlacementMode('same-map');
+                setFirstPortalPoint(null); // Reset pour un nouveau portail
+              }}
+              className={`h-8 px-3 text-xs font-medium rounded-lg transition-colors ${portalPlacementMode === 'same-map'
+                ? 'bg-[#c0a080] text-black hover:bg-[#d4b594]'
+                : 'text-gray-400 hover:text-white hover:bg-white/10'
+                }`}
+            >
+              <ArrowDownUp className="w-3 h-3 mr-1.5" />
+              Même carte
+            </Button>
+          </div>
+
+          {portalPlacementMode === 'same-map' && firstPortalPoint && (
+            <div className="ml-2 px-2 py-1 bg-blue-500/20 border border-blue-400/30 rounded text-xs text-blue-300">
+              Cliquez pour placer la sortie
+            </div>
+          )}
+        </div>
+      );
+    }
+
     return null;
   };
 
@@ -4003,6 +4065,36 @@ export default function Component() {
 
       ctx.restore();
     });
+
+    //  DRAW FIRST PORTAL POINT INDICATOR (when placing same-map portal)
+    if (firstPortalPoint && portalPlacementMode === 'same-map' && isMJ) {
+      const center = transformPoint({ x: firstPortalPoint.x, y: firstPortalPoint.y });
+      const radius = 30 * zoom;
+
+      ctx.save();
+      // Pulsing blue circle for entrance
+      ctx.strokeStyle = '#3b82f6';
+      ctx.fillStyle = '#3b82f680';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Inner marker
+      ctx.fillStyle = '#3b82f6';
+      ctx.beginPath();
+      ctx.arc(center.x, center.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Label
+      ctx.font = `${12 * zoom}px Arial`;
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.fillText('Entrée', center.x, center.y + radius + 15);
+      ctx.restore();
+    }
 
   };
 
@@ -5526,9 +5618,55 @@ export default function Component() {
       //  PORTAL MODE - CREATE PORTAL
       if (portalMode && isMJ && e.button === 0) {
         e.preventDefault();
-        setNewPortalPos({ x: clickX, y: clickY });
-        setEditingPortal(null);
-        setShowPortalConfig(true);
+
+        // Check if a portal type has been selected
+        if (!portalPlacementMode) {
+          toast.error("Choisissez d'abord le type de portail");
+          return;
+        }
+
+        if (portalPlacementMode === 'scene-change') {
+          // Scene-change portal: traditional one-click workflow
+          setNewPortalPos({ x: clickX, y: clickY });
+          setEditingPortal(null);
+          setShowPortalConfig(true);
+        } else if (portalPlacementMode === 'same-map') {
+          // Same-map portal: two-step workflow
+          if (!firstPortalPoint || !firstPortalId) {
+            // First click: Create first portal immediately in Firebase
+            const portalData = {
+              x: clickX,
+              y: clickY,
+              radius: 50,
+              targetX: clickX, // Temporary - will update on second click
+              targetY: clickY,
+              portalType: 'same-map' as const,
+              name: 'Portail (en cours...)',
+              iconType: 'portal' as const,
+              visible: true,
+              color: '#3b82f6',
+              cityId: selectedCityId
+            };
+
+            const docRef = await addDoc(collection(db, 'cartes', roomId, 'portals'), portalData);
+            setFirstPortalPoint({ x: clickX, y: clickY });
+            setFirstPortalId(docRef.id);
+            toast.success("Premier portail placé. Cliquez pour placer le deuxième.");
+          } else {
+            // Second click: Open config with both points
+            setNewPortalPos(firstPortalPoint);
+            setEditingPortal({
+              ...({} as Portal),
+              id: firstPortalId, // Include the ID so we know to update it
+              x: firstPortalPoint.x,
+              y: firstPortalPoint.y,
+              targetX: clickX,
+              targetY: clickY,
+              portalType: 'same-map'
+            });
+            setShowPortalConfig(true);
+          }
+        }
         return;
       }
 
@@ -8321,28 +8459,59 @@ export default function Component() {
                 onClick={async () => {
                   if (!roomId || !persoId) return;
 
-                  let targetX = activePortalForPlayer.targetX || 0;
-                  let targetY = activePortalForPlayer.targetY || 0;
+                  console.log('🔵 Portal activation:', activePortalForPlayer);
 
-                  //  Fix: If target is 0,0 (default), check if the target scene has a defined spawn point
-                  if (targetX === 0 && targetY === 0) {
-                    const targetCity = cities.find(c => c.id === activePortalForPlayer.targetSceneId);
-                    if (targetCity && targetCity.spawnX !== undefined && targetCity.spawnY !== undefined) {
-                      targetX = targetCity.spawnX;
-                      targetY = targetCity.spawnY;
-                      console.log(`📍 Using default spawn point for scene ${targetCity.name}: (${targetX}, ${targetY})`);
+                  let targetX = activePortalForPlayer.targetX;
+                  let targetY = activePortalForPlayer.targetY;
+
+                  // Handle portal type: same-map or scene-change
+                  if (activePortalForPlayer.portalType === 'same-map') {
+                    // Same-map teleportation: validate coordinates
+                    if (targetX === undefined || targetY === undefined) {
+                      toast.error("Coordonnées de destination manquantes");
+                      console.error('❌ Missing targetX or targetY for same-map portal:', activePortalForPlayer);
+                      return;
                     }
+
+                    console.log(`🎯 Teleporting to (${targetX}, ${targetY}) on scene ${selectedCityId}`);
+
+                    // Update position using the nested structure for player characters
+                    await updateDoc(doc(db, 'cartes', roomId, 'characters', persoId), {
+                      [`positions.${selectedCityId}.x`]: targetX,
+                      [`positions.${selectedCityId}.y`]: targetY,
+                      currentSceneId: selectedCityId
+                    });
+
+                    console.log('✅ Teleportation complete');
+                    toast.success(`Téléporté vers ${activePortalForPlayer.name}`);
+                  } else {
+                    // Scene-change portal: teleport to different scene
+                    if (!activePortalForPlayer.targetSceneId) {
+                      toast.error("Ce portail n'a pas de scène de destination");
+                      return;
+                    }
+
+                    // If target is 0,0 (default), check if the target scene has a defined spawn point
+                    if (targetX === 0 && targetY === 0) {
+                      const targetCity = cities.find(c => c.id === activePortalForPlayer.targetSceneId);
+                      if (targetCity && targetCity.spawnX !== undefined && targetCity.spawnY !== undefined) {
+                        targetX = targetCity.spawnX;
+                        targetY = targetCity.spawnY;
+                        console.log(`📍 Using default spawn point for scene ${targetCity.name}: (${targetX}, ${targetY})`);
+                      }
+                    }
+
+                    // Update character position and scene
+                    await updateDoc(doc(db, 'cartes', roomId, 'characters', persoId), {
+                      currentSceneId: activePortalForPlayer.targetSceneId,
+                      x: targetX,
+                      y: targetY
+                    });
+
+                    // Change to the new scene (this will trigger CitiesManager logic)
+                    setSelectedCityId(activePortalForPlayer.targetSceneId!);
+                    toast.success(`Téléporté vers ${activePortalForPlayer.name}`);
                   }
-
-                  // Update character position and scene
-                  await updateDoc(doc(db, 'cartes', roomId, 'characters', persoId), {
-                    currentSceneId: activePortalForPlayer.targetSceneId,
-                    x: targetX,
-                    y: targetY
-                  });
-
-                  // Change to the new scene (this will trigger CitiesManager logic)
-                  setSelectedCityId(activePortalForPlayer.targetSceneId);
                 }}
                 className="bg-[#c0a080] text-black hover:bg-[#d4b594] font-bold px-8 py-3 text-lg"
               >
@@ -8444,30 +8613,95 @@ export default function Component() {
 
       <PortalConfigDialog
         open={showPortalConfig}
-        onOpenChange={setShowPortalConfig}
-        portal={editingPortal || (newPortalPos ? { x: newPortalPos.x, y: newPortalPos.y, radius: 50, targetSceneId: '', name: '', iconType: 'portal', visible: true, color: '#3b82f6' } : null)}
+        onOpenChange={(open) => {
+          setShowPortalConfig(open);
+          if (!open) {
+            setFirstPortalPoint(null);
+            setFirstPortalId(null);
+            setNewPortalPos(null);
+            setEditingPortal(null);
+          }
+        }}
+        portal={editingPortal || (newPortalPos ? { x: newPortalPos.x, y: newPortalPos.y, radius: 50, portalType: portalPlacementMode || 'scene-change', targetSceneId: '', name: '', iconType: 'portal', visible: true, color: '#3b82f6' } : null)}
         onSave={async (portalData) => {
           if (!roomId) return;
 
-          if (editingPortal) {
-            // Update existing portal
+          if (editingPortal && editingPortal.id && editingPortal.portalType === 'same-map') {
+            // Same-map portal: Update first portal + create second
+            await updateDoc(doc(db, 'cartes', roomId, 'portals', editingPortal.id), {
+              ...portalData,
+              x: editingPortal.x,
+              y: editingPortal.y,
+              targetX: portalData.targetX,
+              targetY: portalData.targetY,
+              cityId: selectedCityId,
+              name: portalData.name || 'Portail'
+            });
+
+            // Create Portal 2 (reverse direction)
+            await addDoc(collection(db, 'cartes', roomId, 'portals'), {
+              ...portalData,
+              x: portalData.targetX,
+              y: portalData.targetY,
+              targetX: editingPortal.x,
+              targetY: editingPortal.y,
+              cityId: selectedCityId,
+              name: portalData.name || 'Portail'
+            });
+
+            toast.success("Portails bidirectionnels créés");
+          } else if (editingPortal && editingPortal.id) {
+            // Update existing scene-change portal
             await updateDoc(doc(db, 'cartes', roomId, 'portals', editingPortal.id), {
               ...portalData,
               cityId: selectedCityId
             });
+            toast.success("Portail modifié");
           } else if (newPortalPos) {
             // Create new portal
-            await addDoc(collection(db, 'cartes', roomId, 'portals'), {
-              ...portalData,
-              x: newPortalPos.x,
-              y: newPortalPos.y,
-              cityId: selectedCityId
-            });
+            if (portalData.portalType === 'same-map' && portalData.targetX !== undefined && portalData.targetY !== undefined) {
+              // Same-map portal: create TWO portals for bidirectional teleportation
+
+              // Portal 1: Entrance -> Exit
+              await addDoc(collection(db, 'cartes', roomId, 'portals'), {
+                ...portalData,
+                x: newPortalPos.x,
+                y: newPortalPos.y,
+                targetX: portalData.targetX,
+                targetY: portalData.targetY,
+                cityId: selectedCityId,
+                name: portalData.name || 'Portail'
+              });
+
+              // Portal 2: Exit -> Entrance (reverse)
+              await addDoc(collection(db, 'cartes', roomId, 'portals'), {
+                ...portalData,
+                x: portalData.targetX,
+                y: portalData.targetY,
+                targetX: newPortalPos.x,
+                targetY: newPortalPos.y,
+                cityId: selectedCityId,
+                name: portalData.name || 'Portail'
+              });
+
+              toast.success("Portails bidirectionnels créés");
+            } else {
+              // Scene-change portal: single portal
+              await addDoc(collection(db, 'cartes', roomId, 'portals'), {
+                ...portalData,
+                x: newPortalPos.x,
+                y: newPortalPos.y,
+                cityId: selectedCityId
+              });
+              toast.success("Portail créé");
+            }
           }
 
           setShowPortalConfig(false);
           setNewPortalPos(null);
           setEditingPortal(null);
+          setFirstPortalPoint(null);
+          setFirstPortalId(null);
         }}
         roomId={roomId || ''}
         currentCityId={selectedCityId}
@@ -8938,7 +9172,7 @@ export default function Component() {
 
           {/*  PORTALS LAYER - Icons for MJ */}
           <div className="portals-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden', zIndex: 46 }}>
-            {isMJ && portals.filter(p => !p.cityId || p.cityId === selectedCityId).map((portal) => {
+            {isMJ && portals.filter(p => !p.cityId || p.cityId === selectedCityId).map((portal, index) => {
               if (!bgImageObject) return null;
               const image = bgImageObject;
               const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
@@ -8957,7 +9191,7 @@ export default function Component() {
 
               return (
                 <div
-                  key={portal.id}
+                  key={`${portal.id}-${index}`}
                   style={{
                     position: 'absolute',
                     left: portalScreenX - offset.x,
