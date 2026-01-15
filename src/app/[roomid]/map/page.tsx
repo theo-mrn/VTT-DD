@@ -1624,7 +1624,6 @@ export default function Component() {
       visibility: data.visibility || 'hidden',
       visibilityRadius: (() => {
         const val = parseFloat(data.visibilityRadius);
-        console.log('[DEBUG] Reading visibilityRadius for', doc.id, 'Value:', val, 'Raw:', data.visibilityRadius);
         if (val > 2000) return 2000; // Safety cap
         return isNaN(val) ? 100 : val;
       })(),
