@@ -57,14 +57,13 @@ export default function Layout({ children }: LayoutProps) {
         return <Component />;
       case "NewComponent":
         return <MedievalNotes />;
-      case "DiceRoller":
-        return <DiceRoller />;
+      case "EncounterGenerator":
+        return <EncounterGenerator />;
       case "Competences":
         return <Competences />;
       case "Chat":
         return <Chat />;
-      case "EncounterGenerator":
-        return <EncounterGenerator />;
+      // Case DiceRoller removed from here to separate persistent rendering
       default:
         return null;
     }
@@ -84,8 +83,7 @@ export default function Layout({ children }: LayoutProps) {
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] h-auto";
       case "NPCManager":
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[1200px]";
-      case "DiceRoller":
-        return "w-full sm:w-[400px] md:w-[400px] lg:w-[380px]";
+      // Case DiceRoller handled separately
       case "NewComponent":
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1400px]";
       case "Chat":
@@ -131,7 +129,7 @@ export default function Layout({ children }: LayoutProps) {
               </div>
             </aside>
 
-            {activeTab && activeTab !== 'Music' && (
+            {activeTab && activeTab !== 'Music' && activeTab !== 'DiceRoller' && (
               <aside
                 className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${getPanelWidth()} text-black shadow-lg z-20
             ${activeTab === 'Chat' ? 'overflow-hidden' : 'overflow-y-auto'}`}
@@ -151,6 +149,23 @@ export default function Layout({ children }: LayoutProps) {
                 </div>
               </aside>
             )}
+
+            {/* Persistent DiceRoller Container */}
+            <div className={activeTab === 'DiceRoller' ? 'block' : 'hidden'}>
+              <aside
+                className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full w-full sm:w-[400px] md:w-[400px] lg:w-[380px] text-black shadow-lg z-20 overflow-y-auto`}
+              >
+                {/* Bouton de fermeture pour mobile/tablette */}
+                <button
+                  onClick={() => setActiveTab("")}
+                  className={`lg:hidden fixed top-3 right-3 z-10 rounded-full p-2 transition-colors shadow-lg bg-[#1c1c1c] text-white hover:bg-[#333]`}
+                  aria-label="Fermer le panneau"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                <DiceRoller />
+              </aside>
+            </div>
 
 
             <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c] -z-10">
