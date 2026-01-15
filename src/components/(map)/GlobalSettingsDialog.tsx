@@ -277,6 +277,20 @@ export default function GlobalSettingsDialog({
 
                                     <Separator className="bg-white/5" />
 
+                                    {/* Dice Shortcuts */}
+                                    <div className="space-y-3">
+                                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Lancer de dés</h4>
+                                        <div className="space-y-2">
+                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D4} label="Lancer d4" />
+                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D6} label="Lancer d6" />
+                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D8} label="Lancer d8" />
+                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D10} label="Lancer d10" />
+                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D12} label="Lancer d12" />
+                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D20} label="Lancer d20" />
+                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D100} label="Lancer d100" />
+                                        </div>
+                                    </div>
+
                                     {/* Map Tools Shortcuts */}
                                     <div className="space-y-3">
                                         <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Outils de Carte</h4>

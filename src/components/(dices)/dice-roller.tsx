@@ -56,7 +56,10 @@ interface FirebaseRoll {
 
 
 
+import { useShortcuts, SHORTCUT_ACTIONS } from "@/contexts/ShortcutsContext";
+
 export function DiceRoller() {
+  const { isShortcutPressed } = useShortcuts();
   const [input, setInput] = useState("");
   const [result, setResult] = useState<RollResult | null>(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -94,6 +97,8 @@ export function DiceRoller() {
       setShow3DAnimations(saved3D === "true");
     }
   }, []);
+
+
 
   // Effet pour afficher les détails 1 seconde après le résultat
   useEffect(() => {
@@ -725,6 +730,26 @@ export function DiceRoller() {
     }, []);
     return <span>{num}</span>;
   };
+
+  // Effet pour les raccourcis clavier
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignorer si on écrit dans un input
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
+
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D4)) rollDice("1d4");
+      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D6)) rollDice("1d6");
+      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D8)) rollDice("1d8");
+      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D10)) rollDice("1d10");
+      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D12)) rollDice("1d12");
+      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D20)) rollDice("1d20");
+      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D100)) rollDice("1d100");
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isShortcutPressed, rollDice]);
 
   return (
     <div className="mx-auto p-3 space-y-4 bg-[var(--bg-dark)] min-h-screen relative">
