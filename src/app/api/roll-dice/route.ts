@@ -1,21 +1,4 @@
 import { NextResponse } from 'next/server';
-import { adminAuth, adminDb } from "@/lib/firebase-admin";
-// Note: In a real Next.js API route, we would typically use firebase-admin for server-side operations to bypass RLS,
-// but since the user is using client SDK in components, we'll try to stick to what's available or standard in this repo.
-// However, client SDK in API routes might have auth issues if not signed in. 
-// Given the user wants "cleaner" architecture, ideally we pass the roll data to the server, 
-// BUT the server calculates the values to prevent cheating.
-//
-// The client SDK is initialized in @/lib/firebase. If we use it here, it might not have the current user authenticated.
-// For now, we will just calculate the values and return them.
-// The PERSISTENCE can happen on the client side (after receiving validated values) OR here if we trust the API to write to "public" collections or if we have admin access.
-//
-// Looking at package.json, "firebase-admin" is NOT listed. So we probably only have client SDK.
-// Writing to Firestore from a Next.js API route using client SDK without a signed-in user might fail if rules require auth.
-//
-// HACK: For this specific request "passer par une API (qui enregistre)", let's try to write from the API.
-// If it fails due to auth, we might need to write from the client with the values returned by the API.
-// Let's implement the calculation logic first.
 
 interface RollRequest {
     notation: string;
@@ -30,28 +13,8 @@ interface RollRequest {
 
 export async function POST(request: Request) {
     try {
-        // 1. Authenticate Request
-        const authHeader = request.headers.get('Authorization');
-        let uid: string | undefined;
-
-        if (authHeader && authHeader.startsWith('Bearer ')) {
-            const token = authHeader.split('Bearer ')[1];
-            try {
-                const decodedToken = await adminAuth.verifyIdToken(token);
-                uid = decodedToken.uid;
-            } catch (e) {
-                console.error("Invalid token:", e);
-                // We can choose to block or allow anonymous with limited rights.
-                // For now, let's allow but log, or maybe enforce it if roomId is present.
-            }
-        }
-
         const body: RollRequest = await request.json();
-        const { notation, roomId, userId, username, userAvatar, persoId, isPrivate, isBlind } = body;
-
-        // Security check: Match token UID with requested userId if provided?
-        // optional but good practice.
-
+        const { notation } = body;
 
         if (!notation) {
             return NextResponse.json({ error: 'Notation is required' }, { status: 400 });
@@ -159,49 +122,12 @@ export async function POST(request: Request) {
 
         const output = `${notation} = ${processedNotation} = ${grandTotal}`;
 
-        // Save to Firebase (Server Side with Admin SDK)
-        let saved = false;
-        if (roomId && username && uid) { // Only save if authenticated and has room info
-            try {
-                // Reconstruct FirebaseRoll object
-                let mainDieFaces = 20;
-                let mainDieCount = 1;
-                if (rolls.length > 0) {
-                    mainDieFaces = parseInt(rolls[0].type.substring(1));
-                    mainDieCount = rolls.filter(r => r.type === rolls[0].type).length;
-                }
-
-                const firebaseRoll = {
-                    isPrivate: !!isPrivate,
-                    isBlind: !!isBlind,
-                    diceCount: mainDieCount,
-                    diceFaces: mainDieFaces,
-                    modifier: 0,
-                    results: rolls.map(r => r.value),
-                    total: grandTotal,
-                    userName: username,
-                    ...(userAvatar ? { userAvatar } : {}),
-                    type: "Dice Roller/API",
-                    timestamp: Date.now(), // Use number for timestamp to match client type
-                    notation: notation,
-                    output: output,
-                    ...(persoId ? { persoId } : {})
-                };
-
-                await adminDb.collection(`rolls/${roomId}/rolls`).add(firebaseRoll);
-                saved = true;
-            } catch (dbError) {
-                console.error("Failed to save to Firebase from API:", dbError);
-            }
-        }
-
-
         return NextResponse.json({
             total: grandTotal,
             rolls: rolls, // These are the raw values [ {type:'d20', value: 15}, ... ]
             output: output,
             timestamp: Date.now(),
-            saved: saved
+            saved: false // API does not save anymore
         });
 
     } catch (error) {
