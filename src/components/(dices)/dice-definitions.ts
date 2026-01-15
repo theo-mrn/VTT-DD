@@ -363,7 +363,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         textureMap: getAssetUrl('/textures/marblebleu_diffuse.jpg'),
         price: 250,
         description: "Élégance classique avec une touche royale.",
-        rarity: 'uncommon'
+        rarity: 'legendary'
     },
     cosmos: {
         id: 'cosmos',

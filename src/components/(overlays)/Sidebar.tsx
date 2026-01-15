@@ -4,6 +4,8 @@ import { Swords, FileText, Edit, Dice5, ImagePlay, UsersRound, Skull } from "luc
 import { useGame } from "@/contexts/GameContext";
 import SearchMenu from "./SearchMenu";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
+import { useShortcuts, SHORTCUT_ACTIONS } from "@/contexts/ShortcutsContext";
+import { useEffect } from "react";
 
 type SidebarProps = {
   activeTab: string;
@@ -15,6 +17,41 @@ type SidebarProps = {
 export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarProps) {
   const { isHydrated } = useGame();
   const { isDialogOpen } = useDialogVisibility();
+  const { isShortcutPressed } = useShortcuts();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // GM Shortcuts
+      if (isMJ) {
+        if (isShortcutPressed(e, SHORTCUT_ACTIONS.TAB_COMBAT)) {
+          e.preventDefault();
+          handleIconClick("GMDashboard");
+        }
+        if (isShortcutPressed(e, SHORTCUT_ACTIONS.TAB_NPC)) {
+          e.preventDefault();
+          handleIconClick("NPCManager");
+        }
+        // EncounterGenerator has no default shortcut yet, maybe add one or reuse?
+      }
+
+      // General Shortcuts
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TAB_NOTES)) {
+        e.preventDefault();
+        handleIconClick("NewComponent"); // MedievalNotes maps to "NewComponent" in layout
+      }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TAB_DICE)) {
+        e.preventDefault();
+        handleIconClick("DiceRoller");
+      }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TAB_CHAT)) {
+        e.preventDefault();
+        handleIconClick("Chat");
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isMJ, handleIconClick, isShortcutPressed]);
 
   // Hide sidebar when dialog is open
   if (isDialogOpen) {
