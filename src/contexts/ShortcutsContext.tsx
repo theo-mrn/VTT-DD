@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 
 // Define the shape of a shortcut
 export type KeyCombination = {
@@ -139,6 +139,62 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
     const [shortcuts, setShortcuts] = useState<Record<string, string>>(DEFAULT_SHORTCUTS);
     const [isLoaded, setIsLoaded] = useState(false);
 
+    // History handling
+    const keyHistory = useRef<string[]>([]);
+    const historyTimeout = useRef<NodeJS.Timeout | null>(null);
+
+    // Global listener to update history
+    useEffect(() => {
+        const handleGlobalKeyDown = (e: KeyboardEvent) => {
+            // Ignore modifier-only presses for history (unless single key shortcut?)
+            // Actually formatKeyEvent handles exclusions.
+            const keyStr = formatKeyEvent(e);
+            if (!keyStr) return; // Should not happen with current formatKeyEvent logic unless skipped
+
+            // If just modifiers, ignore for sequence building usually, but user might want Ctrl then ...
+            // Let's rely on formatKeyEvent. If it returns "Ctrl", it's a key.
+
+            // We only update history here. 
+            // IMPORTANT: This listener might run BEFORE or AFTER the consumer listener.
+            // If AFTER, the consumer needs to assume current key is NOT in history yet.
+            // If BEFORE, consumer assumes it IS.
+            // Since we can't guarantee order across the app easily, let's treat history as "previous keys".
+            // We will append current key in `isShortcutPressed` to check.
+            // We will append current key to history HERE for *future* checks.
+            // But we need to make sure we don't double count if we check in the same event loop?
+            // Actually, `isShortcutPressed` is purely a checker. It doesn't modify state. 
+            // This effect modifies state.
+
+            // To ensure consistency: History contains keys from PREVIOUS events.
+            // We update it here for the NEXT event.
+
+            // Wait, if I type "d", then "2".
+            // Event "d": history=[], current="d". Match?
+            // Listener updates history=["d"].
+            // Event "2": history=["d"], current="2". Match "d 2"? Yes.
+
+            // So we just need to append to history here.
+
+            // Clear timeout
+            if (historyTimeout.current) clearTimeout(historyTimeout.current);
+
+            keyHistory.current.push(keyStr);
+
+            // Limit history size (e.g. 10 keys)
+            if (keyHistory.current.length > 10) {
+                keyHistory.current = keyHistory.current.slice(-10);
+            }
+
+            // Set timeout to clear history
+            historyTimeout.current = setTimeout(() => {
+                keyHistory.current = [];
+            }, 1000); // 1.5s timeout? Let's try 1000ms.
+        };
+
+        window.addEventListener('keydown', handleGlobalKeyDown);
+        return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+    }, []);
+
     // Load from local storage
     useEffect(() => {
         try {
@@ -173,8 +229,30 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
         const shortcut = shortcuts[actionId];
         if (!shortcut) return false;
 
-        const pressed = formatKeyEvent(event);
-        return pressed === shortcut;
+        const currentKey = formatKeyEvent(event);
+
+        // Handle sequences (space separated)
+        const sequence = shortcut.split(' ');
+
+        if (sequence.length === 1) {
+            // Simple shortcut
+            return currentKey === sequence[0];
+        }
+
+        // Complex shortcut
+        // Check if [history + current] ends with sequence
+        if (currentKey !== sequence[sequence.length - 1]) return false;
+
+        // Optim check: last key matches. Now check previous keys.
+        // We need (sequence.length - 1) previous keys from history
+        const needed = sequence.length - 1;
+        if (keyHistory.current.length < needed) return false;
+
+        const historySlice = keyHistory.current.slice(-needed);
+        const sequenceSlice = sequence.slice(0, needed);
+
+        // Array compare
+        return historySlice.every((k, i) => k === sequenceSlice[i]);
     };
 
     const getShortcutLabel = (actionId: string) => {

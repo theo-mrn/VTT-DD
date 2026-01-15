@@ -719,13 +719,19 @@ export function DiceRoller() {
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
 
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D4)) rollDice("1d4");
-      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D6)) rollDice("1d6");
-      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D8)) rollDice("1d8");
-      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D10)) rollDice("1d10");
-      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D12)) rollDice("1d12");
-      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D20)) rollDice("1d20");
-      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D100)) rollDice("1d100");
+      let rollCmd = "";
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D4)) rollCmd = "1d4";
+      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D6)) rollCmd = "1d6";
+      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D8)) rollCmd = "1d8";
+      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D10)) rollCmd = "1d10";
+      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D12)) rollCmd = "1d12";
+      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D20)) rollCmd = "1d20";
+      else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D100)) rollCmd = "1d100";
+
+      if (rollCmd) {
+        toast.info("Lancer en cours...", { duration: 1000 });
+        rollDice(rollCmd);
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);

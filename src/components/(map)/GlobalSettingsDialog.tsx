@@ -43,7 +43,13 @@ interface GlobalSettingsDialogProps {
 function ShortcutRecorder({ actionId, label }: { actionId: string, label: string }) {
     const { getShortcutLabel, updateShortcut } = useShortcuts();
     const [isRecording, setIsRecording] = useState(false);
+    const [recordingKeys, setRecordingKeys] = useState<string[]>([]);
     const currentShortcut = getShortcutLabel(actionId);
+
+    // Reset recording keys when recording starts
+    useEffect(() => {
+        if (isRecording) setRecordingKeys([]);
+    }, [isRecording]);
 
     useEffect(() => {
         if (!isRecording) return;
@@ -54,6 +60,22 @@ function ShortcutRecorder({ actionId, label }: { actionId: string, label: string
             // Cancel on Escape
             if (e.key === 'Escape') {
                 setIsRecording(false);
+                setRecordingKeys([]);
+                return;
+            }
+
+            // Save on Enter
+            if (e.key === 'Enter') {
+                if (recordingKeys.length > 0) {
+                    updateShortcut(actionId, recordingKeys.join(' '));
+                }
+                setIsRecording(false);
+                return;
+            }
+
+            // Remove last key on Backspace
+            if (e.key === 'Backspace') {
+                setRecordingKeys(prev => prev.slice(0, -1));
                 return;
             }
 
@@ -63,12 +85,13 @@ function ShortcutRecorder({ actionId, label }: { actionId: string, label: string
             }
 
             const combo = formatKeyEvent(e);
-            updateShortcut(actionId, combo);
-            setIsRecording(false);
+            setRecordingKeys(prev => [...prev, combo]);
         };
         window.addEventListener('keydown', handler, { capture: true });
         return () => window.removeEventListener('keydown', handler, { capture: true });
-    }, [isRecording, actionId, updateShortcut]);
+    }, [isRecording, actionId, updateShortcut, recordingKeys]);
+
+    const displayKeys = isRecording ? recordingKeys : (currentShortcut ? currentShortcut.split(' ') : []);
 
     return (
         <div className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-black/20 hover:bg-black/40 transition-colors">
@@ -78,16 +101,16 @@ function ShortcutRecorder({ actionId, label }: { actionId: string, label: string
                 size="sm"
                 onClick={() => setIsRecording(true)}
                 className={cn(
-                    "min-w-[100px] h-8 border border-white/10 flex items-center gap-1",
-                    isRecording ? "animate-pulse" : ""
+                    "min-w-[100px] h-auto min-h-8 border border-white/10 flex flex-wrap items-center gap-1",
+                    isRecording ? "animate-pulse ring-1 ring-red-500" : ""
                 )}
             >
-                {isRecording ? (
-                    <span className="text-xs font-mono">Appuyez...</span>
+                {isRecording && recordingKeys.length === 0 ? (
+                    <span className="text-xs font-mono opacity-70">Tapez... (Entrée)</span>
                 ) : (
-                    currentShortcut ? (
-                        currentShortcut.split('+').map((key, i) => (
-                            <Kbd key={i} className="bg-black/40 border-white/10 text-white min-w-[20px] h-5 text-[10px] px-1.5">
+                    displayKeys.length > 0 ? (
+                        displayKeys.map((key, i) => (
+                            <Kbd key={i} className="bg-black/40 border-white/10 text-white min-w-[20px] h-5 text-[10px] px-1.5 whitespace-nowrap">
                                 {key}
                             </Kbd>
                         ))
