@@ -852,12 +852,13 @@ export const VisualDie = React.forwardRef(({ type, skin, isShattered, critType }
 VisualDie.displayName = 'VisualDie';
 
 // Premium Die component with skin-based appearance
-const Die = React.forwardRef(({ type, position, impulse, skin, onResult }: {
+const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetValue }: {
     type: string,
     position: [number, number, number],
     impulse: [number, number, number],
     skin: DiceSkin,
-    onResult: (val: string) => void
+    onResult: (val: string) => void,
+    targetValue?: number
 }, fRef: any) => {
     const { vertices, faces, trueFaces } = useMemo(() => createBeveledGeometry(type), [type]);
     const [stopped, setStopped] = useState(false);
@@ -915,8 +916,54 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult }: {
             const speed = Math.abs(v[0]) + Math.abs(v[1]) + Math.abs(v[2]);
             const spin = Math.abs(av[0]) + Math.abs(av[1]) + Math.abs(av[2]);
 
-            if (speed < 0.2 && spin < 0.5) {
-                const q = new THREE.Quaternion(quaternion.current[0], quaternion.current[1], quaternion.current[2], quaternion.current[3]);
+            // If strict target is set, we might want to intervene earlier or just wait for low speed
+            if (speed < 0.5 && spin < 1.0) { // Increased threshold slightly to catch it settling
+                let q = new THREE.Quaternion(quaternion.current[0], quaternion.current[1], quaternion.current[2], quaternion.current[3]);
+
+                // --- SNAP TO TARGET LOGIC ---
+                if (targetValue) {
+                    // Find the face that corresponds to targetValue
+                    // We need to scan all faces to find which one IS the value (using getDieValue inverted logic)
+                    // Since getDieValue is efficient enough, let's just loop.
+                    let targetFaceIndex = -1;
+                    for (let i = 0; i < trueFaces.length; i++) {
+                        if (getDieValue(type, i) === targetValue.toString()) {
+                            targetFaceIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (targetFaceIndex !== -1) {
+                        // We found the target face. We want THIS face normal to point UP (0,1,0).
+                        // Get local normal
+                        const localNormal = trueFaces[targetFaceIndex].norm.clone();
+
+                        // We need a rotation R such that R * localNormal = (0,1,0)
+                        // The current rotation is q.
+                        // We want to smoothly interpolate to the target rotation or just SNAP if speed is very low.
+
+                        const targetDir = new THREE.Vector3(0, 1, 0);
+                        const targetQuat = new THREE.Quaternion().setFromUnitVectors(localNormal, targetDir);
+
+                        // However, setFromUnitVectors doesn't constrain the "yaw" (rotation around Y).
+                        // We want the die to look somewhat natural, close to its current rotation if possible?
+                        // Actually, we can just take the current rotation, apply it to get world normal, find the diff...
+
+                        // Easier approach: force it.
+                        // If we are close to stopping, just SET the rotation and kill velocity.
+                        api.velocity.set(0, 0, 0);
+                        api.angularVelocity.set(0, 0, 0);
+                        api.quaternion.set(targetQuat.x, targetQuat.y, targetQuat.z, targetQuat.w);
+
+                        // Update q immediately for the check below (or just skip check and emit)
+                        q.copy(targetQuat);
+
+                        // Force update refs to avoid race conditions in next frame (though we setStopped)
+                        quaternion.current = [targetQuat.x, targetQuat.y, targetQuat.z, targetQuat.w];
+                    }
+                }
+                // -----------------------------
+
                 const up = new THREE.Vector3(0, 1, 0);
 
                 let maxDot = -Infinity;
@@ -933,6 +980,14 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult }: {
 
                 if (bestIndex !== -1) {
                     const resultValue = getDieValue(type, bestIndex);
+
+                    // Validation: if targetValue was set, ensure we actually got it.
+                    if (targetValue && resultValue !== targetValue.toString()) {
+                        console.warn(`Die landed on ${resultValue} but target was ${targetValue}. Snapping failed or mismatch.`);
+                        // Optional: force retry or overwrite?
+                        // For now we trust the snap above worked.
+                    }
+
                     console.log(`Die stopped. Face: ${bestIndex}, Native: ${resultValue}`);
 
                     // Check for critical on d20
@@ -952,7 +1007,7 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult }: {
             }
         }, 100);
         return () => clearInterval(interval);
-    }, [stopped, canCheck, trueFaces, onResult, type]);
+    }, [stopped, canCheck, trueFaces, onResult, type, targetValue]);
 
     return (
         <group ref={ref as any}>
@@ -964,7 +1019,7 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult }: {
 Die.displayName = 'Die';
 
 export const DiceThrower = () => {
-    const [dice, setDice] = useState<{ id: string, rollId: string, type: string, pos: [number, number, number], imp: [number, number, number], skinId: string }[]>([]);
+    const [dice, setDice] = useState<{ id: string, rollId: string, type: string, pos: [number, number, number], imp: [number, number, number], skinId: string, targetValue?: number }[]>([]);
     const activeRollsRef = useRef<Map<string, { expected: number, results: { type: string, value: number }[] }>>(new Map());
     const diceRefs = useRef<any[]>([]);
 
@@ -991,9 +1046,20 @@ export const DiceThrower = () => {
 
         diceRefs.current = [];
 
+        // Initialize available targets
+        const availableTargets = (event.detail.targets || []) as { type: string, value: number }[];
+
         requests.forEach(req => {
             totalDiceCount += req.count;
             for (let i = 0; i < req.count; i++) {
+                // Find a target value for this die type if available
+                let targetValue: number | undefined = undefined;
+                const targetIndex = availableTargets.findIndex(t => t.type === req.type);
+                if (targetIndex !== -1) {
+                    targetValue = availableTargets[targetIndex].value;
+                    availableTargets.splice(targetIndex, 1);
+                }
+
                 // Décalage significatif vers la droite (2/3 de l'écran)
                 // Écran visible environ [-25, 25] -> 2/3 Droite correspond à X ~ 15-18
                 const startX = 15 + (Math.random() - 0.5) * 6; // Zone de départ entre X=15 et X=21
@@ -1014,7 +1080,8 @@ export const DiceThrower = () => {
                     pos: [startX, startY, startZ],
                     imp: [forceX, forceY, forceZ],
                     // Use skin from event or default to gold
-                    skinId: event.detail.skinId || event.detail.skin || 'gold'
+                    skinId: event.detail.skinId || event.detail.skin || 'gold',
+                    targetValue: targetValue // Pass the target value
                 });
             }
         });
@@ -1077,6 +1144,7 @@ export const DiceThrower = () => {
                             impulse={d.imp}
                             skin={getSkinById(d.skinId)}
                             onResult={(val) => handleResult(d.rollId, d.type, val)}
+                            targetValue={d.targetValue}
                         />
                     ))}
                 </Physics>

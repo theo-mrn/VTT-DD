@@ -284,7 +284,7 @@ export function DiceRoller() {
     return () => window.removeEventListener('vtt-3d-roll-complete', handleRollComplete);
   }, []);
 
-  const perform3DRoll = async (requests: { type: string, count: number }[]): Promise<{ type: string, value: number }[]> => {
+  const perform3DRoll = async (requests: { type: string, count: number }[], targets?: { type: string, value: number }[]): Promise<{ type: string, value: number }[]> => {
     if (typeof window === 'undefined' || requests.length === 0) return Promise.resolve([]);
 
     // Filtrer les dés supportés par la 3D (d6, d10, d12, d20 comme demandé)
@@ -295,8 +295,12 @@ export function DiceRoller() {
     // Générer immédiatement les résultats pour les dés non-3D
     const instantResults: { type: string, value: number }[] = [];
     requestsInstant.forEach(req => {
+      // Check if we have a target for this
+      // Logic complex for instant dice if targets are mixed, but generally targets will cover all if from API
       const faces = parseInt(req.type.substring(1));
       for (let i = 0; i < req.count; i++) {
+        // Simple random fallback or try to find in targets?
+        // For now fallback random
         instantResults.push({
           type: req.type,
           value: Math.floor(Math.random() * faces) + 1
@@ -304,22 +308,28 @@ export function DiceRoller() {
       }
     });
 
-    // Si aucun dé 3D n'est requis OU si les animations sont désactivées OU si le jet est caché (blind)
+    // Si aucun dé 3D n'est requis
     if (requests3D.length === 0 || !show3DAnimations || isBlind) {
-      // Si on veut aussi simuler les dés 3D instantanément quand animation désactivée :
-      const simulated3DResults: { type: string, value: number }[] = [];
       if ((!show3DAnimations || isBlind) && requests3D.length > 0) {
+        // Return targets directly if available, else random
+        const simulatedResults: { type: string, value: number }[] = [];
         requests3D.forEach(req => {
-          const faces = parseInt(req.type.substring(1));
           for (let i = 0; i < req.count; i++) {
-            simulated3DResults.push({
-              type: req.type,
-              value: Math.floor(Math.random() * faces) + 1
-            });
+            // Try to grab from targets
+            let val = Math.floor(Math.random() * parseInt(req.type.substring(1))) + 1;
+            if (targets) {
+              const tIdx = targets.findIndex(t => t.type === req.type);
+              if (tIdx !== -1) {
+                val = targets[tIdx].value;
+                targets.splice(tIdx, 1);
+              }
+            }
+            simulatedResults.push({ type: req.type, value: val });
           }
         });
+        return Promise.resolve([...simulatedResults, ...instantResults]);
       }
-      return Promise.resolve([...simulated3DResults, ...instantResults]);
+      return Promise.resolve([...instantResults]);
     }
 
     const rollId = crypto.randomUUID();
@@ -329,18 +339,31 @@ export function DiceRoller() {
         if (pendingRollsRef.current.has(rollId)) {
           console.warn("Roll timed out, generating fallback values");
           // Fallback: générer des valeurs aléatoires locales pour les dés 3D manquants
+          // OR use targets if available!
           const fallbackResults: { type: string, value: number }[] = [];
+
+          // Use targets copy to consume
+          const fallbackTargets = targets ? [...targets] : [];
+
           requests3D.forEach(req => {
             const faces = parseInt(req.type.substring(1));
             for (let i = 0; i < req.count; i++) {
+              let val = Math.floor(Math.random() * faces) + 1;
+              if (fallbackTargets.length > 0) {
+                const tIdx = fallbackTargets.findIndex(t => t.type === req.type);
+                if (tIdx !== -1) {
+                  val = fallbackTargets[tIdx].value;
+                  fallbackTargets.splice(tIdx, 1);
+                }
+              }
               fallbackResults.push({
                 type: req.type,
-                value: Math.floor(Math.random() * faces) + 1
+                value: val
               });
             }
           });
           pendingRollsRef.current.delete(rollId);
-          // On retourne tout (fallback 3D + instantanés déjà calculés)
+          // On retourne tout
           resolve([...fallbackResults, ...instantResults]);
         }
       }, 10000); // 10 secondes max
@@ -351,12 +374,13 @@ export function DiceRoller() {
         resolve([...results3D, ...instantResults]);
       });
 
-      // Déclencher l'animation uniquement pour les dés supportés
+      // Déclencher l'animation avec les targets !
       window.dispatchEvent(new CustomEvent('vtt-trigger-3d-roll', {
         detail: {
           rollId,
           requests: requests3D,
-          skinId: selectedSkinId
+          skinId: selectedSkinId,
+          targets: targets ? [...targets] : undefined // Pass copy of targets
         }
       }));
     });
@@ -502,27 +526,81 @@ export function DiceRoller() {
 
       // 1. Identifier les dés à lancer
       const requests = parseDiceRequests(processedNotation);
+      let physicalResults: { type: string, value: number }[] = [];
+      let total = 0;
+      let output = "";
+      let savedByApi = false;
+      let timestamp = Date.now();
 
-      // 2. Lancer les dés 3D et attendre le résultat physique
-      // (Si aucune dé trouvé ex: "1+2", requests est vide, perform3DRoll retourne direct [])
-      let physicalResults = await perform3DRoll(requests);
+      if (show3DAnimations && !isBlind) {
+        // --- 3D MODE (PHYSICS) ---
+        // On n'utilise PAS l'API pour générer les résultats ici, on laisse la physique faire.
+        // On sauvegarde ensuite via le client.
 
-      // Cheat code via console: window.CHEAT_DICE = 20 (or { d20: 20 })
-      // @ts-ignore
-      if (typeof window !== "undefined" && window.CHEAT_DICE !== undefined) {
+        // Lancer les dés 3D et attendre le résultat physique
+        physicalResults = await perform3DRoll(requests);
+
+        // Cheat code via console
         // @ts-ignore
-        const cheat = window.CHEAT_DICE;
-        console.log("CHEAT MODE:", cheat);
-        physicalResults = physicalResults.map((r) => {
-          let newVal = r.value;
-          if (typeof cheat === "number") newVal = cheat;
-          else if (typeof cheat === "object" && cheat[r.type]) newVal = cheat[r.type];
-          return { ...r, value: newVal };
-        });
-      }
+        if (typeof window !== "undefined" && window.CHEAT_DICE !== undefined) {
+          // @ts-ignore
+          const cheat = window.CHEAT_DICE;
+          console.log("CHEAT MODE:", cheat);
+          physicalResults = physicalResults.map((r) => {
+            let newVal = r.value;
+            if (typeof cheat === "number") newVal = cheat;
+            else if (typeof cheat === "object" && cheat[r.type]) newVal = cheat[r.type];
+            return { ...r, value: newVal };
+          });
+        }
 
-      // 3. Calculer le résultat logique BASÉ sur le résultat physique
-      const { total, output } = calculateFinalResult(processedNotation, physicalResults);
+        // Calculer le résultat logique BASÉ sur le résultat physique
+        const calculated = calculateFinalResult(processedNotation, physicalResults);
+        total = calculated.total;
+        output = calculated.output;
+
+      } else {
+        // --- API MODE (INSTANT / NO ANIMATION) ---
+        // Utiliser l'API pour générer et enregistrer
+
+        let token = "";
+        if (auth.currentUser) {
+          try {
+            token = await auth.currentUser.getIdToken();
+          } catch (e) {
+            console.error("Error getting token:", e);
+          }
+        }
+
+        const apiResponse = await fetch('/api/roll-dice', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            notation: processedNotation,
+            roomId: roomId,
+            userId: auth.currentUser?.uid,
+            username: userName,
+            userAvatar: userAvatar,
+            persoId: persoId,
+            isPrivate: isPrivate,
+            isBlind: isBlind
+          })
+        });
+
+        if (!apiResponse.ok) {
+          throw new Error("Erreur API : " + apiResponse.statusText);
+        }
+
+        const apiData = await apiResponse.json();
+        physicalResults = apiData.rolls as { type: string, value: number }[];
+        total = apiData.total;
+        output = apiData.output;
+        savedByApi = apiData.saved;
+        timestamp = apiData.timestamp;
+      }
 
       // Créer le résultat pour l'affichage
       const result: RollResult = {
@@ -530,7 +608,7 @@ export function DiceRoller() {
         notation: originalNotation,
         result: total.toString(),
         total: total,
-        timestamp: new Date(),
+        timestamp: new Date(timestamp),
         output: output
       };
 
@@ -546,18 +624,11 @@ export function DiceRoller() {
           output: "Résultat caché (envoyé au MJ)"
         });
       } else {
-        const result: RollResult = {
-          id: Date.now().toString(),
-          notation: originalNotation,
-          result: total.toString(),
-          total: total,
-          timestamp: new Date(),
-          output: output
-        };
         setResult(result);
       }
 
       if (roomId && userName) {
+        // Prepare FirebaseRoll for state update
 
         // Note: parseNotation était utilisé pour extraire diceFaces pour les stats firebase
         // On peut essayer de deviner le "dé principal" pour les stats
@@ -569,34 +640,37 @@ export function DiceRoller() {
           mainDieCount = requests[0].count;
         }
 
-        // Extraire les valeurs brutes pur les stats (tous les dés mélangés)
-        // On garde la compatibilité avec le format 'results: number[]'
         const flatResults = physicalResults.map(r => r.value);
 
         const firebaseRoll: FirebaseRoll = {
-          id: crypto.randomUUID(),
+          id: crypto.randomUUID(), // Local ID
           isPrivate,
           isBlind,
           diceCount: mainDieCount,
           diceFaces: mainDieFaces,
-          modifier: 0, // Compliqué à calculer rétroactivement exactement, on met 0 ou on essaie de parser
+          modifier: 0,
           results: flatResults,
           total: total,
           userName,
           ...(userAvatar ? { userAvatar } : {}),
-          type: "Dice Roller",
-          timestamp: Date.now(),
+          type: show3DAnimations ? "Dice Roller" : "Dice Roller/API",
+          timestamp: timestamp,
           notation: originalNotation,
           output: output,
           ...(persoId ? { persoId } : {})
         };
 
-        await addDoc(collection(db, `rolls/${roomId}/rolls`), firebaseRoll);
+        // If NOT saved by API (either because we are in 3D mode, or API failed to save), save it here.
+        if (!savedByApi) {
+          await addDoc(collection(db, `rolls/${roomId}/rolls`), firebaseRoll);
+        }
+
+        // Update local state so we see it immediately
         setFirebaseRolls((prevRolls) => [firebaseRoll, ...prevRolls]);
       }
 
     } catch (err) {
-      setError("Erreur lors du lancer. Vérifiez la notation.");
+      setError("Erreur lors du lancer ou de l'API.");
       console.error("Erreur de lancer de dés:", err);
     } finally {
       setIsLoading(false);
