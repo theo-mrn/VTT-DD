@@ -3922,14 +3922,31 @@ export default function Component() {
         const fontFamily = fontFamilyMap[fontVar] || 'Arial';
 
         ctx.font = `${fontSize}px ${fontFamily}`;
-        ctx.fillText(note.text, x, y);
+
+        // 🆕 Gérer les sauts de ligne (\n ou <br>)
+        const textLines = note.text.replace(/<br\s*\/?>/gi, '\n').split('\n');
+        const lineHeight = fontSize * 1.2; // Espacement entre les lignes
+
+        // Afficher chaque ligne séparément
+        textLines.forEach((line, lineIndex) => {
+          const lineY = y + (lineIndex * lineHeight);
+          ctx.fillText(line, x, lineY);
+        });
 
         if (index === selectedNoteIndex) {
           ctx.strokeStyle = '#4285F4';
           ctx.lineWidth = 2;
-          const metrics = ctx.measureText(note.text);
+
+          // Calculer les dimensions du rectangle de sélection en tenant compte de toutes les lignes
+          let maxWidth = 0;
+          textLines.forEach(line => {
+            const metrics = ctx.measureText(line);
+            if (metrics.width > maxWidth) maxWidth = metrics.width;
+          });
+
           const padding = 4;
-          ctx.strokeRect(x - padding, y - fontSize, metrics.width + (padding * 2), fontSize + padding);
+          const totalHeight = (textLines.length * lineHeight);
+          ctx.strokeRect(x - padding, y - fontSize, maxWidth + (padding * 2), totalHeight + padding);
         }
       });
     }
