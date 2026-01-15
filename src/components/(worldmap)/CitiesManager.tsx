@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 
 
 import { useGame } from "@/contexts/GameContext";
-import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where, writeBatch, getDoc, setDoc } from "@/lib/firebase";
+import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where, writeBatch, getDoc, setDoc, getDocs } from "@/lib/firebase";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -306,9 +306,143 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
 
         showConfirm(
             "Supprimer cette scène ?",
-            "Êtes-vous sûr de vouloir supprimer cette scène ? Cette action est irréversible.",
+            "Êtes-vous sûr de vouloir supprimer cette scène ? Tous les éléments associés (PNJ, objets, sons, brouillard, obstacles, lumières, etc.) seront également supprimés. Cette action est irréversible.",
             async () => {
-                await deleteDoc(doc(db, `cartes/${effectiveRoomId}/cities/${id}`));
+                try {
+                    console.log(`🗑️ [CitiesManager] Starting cascading deletion for city: ${id}`);
+
+                    // Count entities for user feedback
+                    let deletedCount = {
+                        npcs: 0,
+                        objects: 0,
+                        drawings: 0,
+                        notes: 0,
+                        obstacles: 0,
+                        lights: 0,
+                        musicZones: 0,
+                        measurements: 0,
+                        fog: 0
+                    };
+
+                    // 🔥 Use batch operations for atomic deletion (max 500 operations per batch)
+                    const batch = writeBatch(db);
+
+                    // 1. Delete NPCs/Characters with cityId
+                    const charactersRef = collection(db, `cartes/${effectiveRoomId}/characters`);
+                    const charactersQuery = query(charactersRef, where('cityId', '==', id));
+                    const charactersSnapshot = await getDocs(charactersQuery);
+                    charactersSnapshot.forEach((docSnap) => {
+                        batch.delete(docSnap.ref);
+                        deletedCount.npcs++;
+                    });
+
+                    // 2. Delete Objects
+                    const objectsRef = collection(db, `cartes/${effectiveRoomId}/objects`);
+                    const objectsQuery = query(objectsRef, where('cityId', '==', id));
+                    const objectsSnapshot = await getDocs(objectsQuery);
+                    objectsSnapshot.forEach((docSnap) => {
+                        batch.delete(docSnap.ref);
+                        deletedCount.objects++;
+                    });
+
+                    // 3. Delete Drawings
+                    const drawingsRef = collection(db, `cartes/${effectiveRoomId}/drawings`);
+                    const drawingsQuery = query(drawingsRef, where('cityId', '==', id));
+                    const drawingsSnapshot = await getDocs(drawingsQuery);
+                    drawingsSnapshot.forEach((docSnap) => {
+                        batch.delete(docSnap.ref);
+                        deletedCount.drawings++;
+                    });
+
+                    // 4. Delete Notes (text)
+                    const notesRef = collection(db, `cartes/${effectiveRoomId}/text`);
+                    const notesQuery = query(notesRef, where('cityId', '==', id));
+                    const notesSnapshot = await getDocs(notesQuery);
+                    notesSnapshot.forEach((docSnap) => {
+                        batch.delete(docSnap.ref);
+                        deletedCount.notes++;
+                    });
+
+                    // 5. Delete Obstacles
+                    const obstaclesRef = collection(db, `cartes/${effectiveRoomId}/obstacles`);
+                    const obstaclesQuery = query(obstaclesRef, where('cityId', '==', id));
+                    const obstaclesSnapshot = await getDocs(obstaclesQuery);
+                    obstaclesSnapshot.forEach((docSnap) => {
+                        batch.delete(docSnap.ref);
+                        deletedCount.obstacles++;
+                    });
+
+                    // 6. Delete Lights
+                    const lightsRef = collection(db, `cartes/${effectiveRoomId}/lights`);
+                    const lightsQuery = query(lightsRef, where('cityId', '==', id));
+                    const lightsSnapshot = await getDocs(lightsQuery);
+                    lightsSnapshot.forEach((docSnap) => {
+                        batch.delete(docSnap.ref);
+                        deletedCount.lights++;
+                    });
+
+                    // 7. Delete Music Zones
+                    const musicZonesRef = collection(db, `cartes/${effectiveRoomId}/musicZones`);
+                    const musicZonesQuery = query(musicZonesRef, where('cityId', '==', id));
+                    const musicZonesSnapshot = await getDocs(musicZonesQuery);
+                    musicZonesSnapshot.forEach((docSnap) => {
+                        batch.delete(docSnap.ref);
+                        deletedCount.musicZones++;
+                    });
+
+                    // 8. Delete Measurements
+                    const measurementsRef = collection(db, `cartes/${effectiveRoomId}/measurements`);
+                    const measurementsQuery = query(measurementsRef, where('cityId', '==', id));
+                    const measurementsSnapshot = await getDocs(measurementsQuery);
+                    measurementsSnapshot.forEach((docSnap) => {
+                        batch.delete(docSnap.ref);
+                        deletedCount.measurements++;
+                    });
+
+                    // 9. Delete Fog (specific document)
+                    const fogDocId = `fog_${id}`;
+                    const fogRef = doc(db, `cartes/${effectiveRoomId}/fog/${fogDocId}`);
+                    const fogSnapshot = await getDoc(fogRef);
+                    if (fogSnapshot.exists()) {
+                        batch.delete(fogRef);
+                        deletedCount.fog++;
+                    }
+
+                    // 10. Delete the City itself
+                    const cityRef = doc(db, `cartes/${effectiveRoomId}/cities/${id}`);
+                    batch.delete(cityRef);
+
+                    // Commit the batch
+                    await batch.commit();
+
+                    // Calculate total deleted entities
+                    const totalDeleted = Object.values(deletedCount).reduce((sum, count) => sum + count, 0);
+
+                    console.log('✅ [CitiesManager] Cascading deletion completed:', deletedCount);
+
+                    // Show success message with details
+                    const deletedItems = [];
+                    if (deletedCount.npcs > 0) deletedItems.push(`${deletedCount.npcs} PNJ`);
+                    if (deletedCount.objects > 0) deletedItems.push(`${deletedCount.objects} objet(s)`);
+                    if (deletedCount.musicZones > 0) deletedItems.push(`${deletedCount.musicZones} son(s)`);
+                    if (deletedCount.drawings > 0) deletedItems.push(`${deletedCount.drawings} dessin(s)`);
+                    if (deletedCount.notes > 0) deletedItems.push(`${deletedCount.notes} note(s)`);
+                    if (deletedCount.obstacles > 0) deletedItems.push(`${deletedCount.obstacles} obstacle(s)`);
+                    if (deletedCount.lights > 0) deletedItems.push(`${deletedCount.lights} lumière(s)`);
+                    if (deletedCount.measurements > 0) deletedItems.push(`${deletedCount.measurements} mesure(s)`);
+                    if (deletedCount.fog > 0) deletedItems.push('brouillard');
+
+                    if (deletedItems.length > 0) {
+                        showAlert(
+                            "Scène supprimée",
+                            `Scène supprimée avec succès. Éléments supprimés : ${deletedItems.join(', ')}.`
+                        );
+                    }
+
+                } catch (error) {
+                    console.error('❌ [CitiesManager] Error during cascading deletion:', error);
+                    showAlert('Erreur', 'Erreur lors de la suppression de la scène: ' + (error as Error).message);
+                }
             }
         );
     };
