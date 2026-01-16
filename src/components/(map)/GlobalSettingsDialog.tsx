@@ -173,7 +173,7 @@ export default function GlobalSettingsDialog({
                         {/* Footer */}
                         <div className="p-4 border-t border-white/5 bg-[#242424]">
                             <p className="text-center text-xs text-gray-600">
-                                VTT D&D System v2.0 • Created by Théo
+                                VTT D&D System v2.0
                             </p>
                         </div>
                     </div>
