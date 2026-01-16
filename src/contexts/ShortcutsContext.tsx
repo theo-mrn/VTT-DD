@@ -62,6 +62,10 @@ export const SHORTCUT_ACTIONS = {
 
     // General
     CLOSE_DIALOG: 'close_dialog',
+
+    // Undo/Redo
+    UNDO: 'undo',
+    REDO: 'redo',
 } as const;
 
 export type ActionId = typeof SHORTCUT_ACTIONS[keyof typeof SHORTCUT_ACTIONS] | string;
@@ -127,6 +131,10 @@ const DEFAULT_SHORTCUTS: Record<string, string> = {
     [SHORTCUT_ACTIONS.ROLL_D12]: '(',       // Dé 12 faces (touche 5 sur AZERTY)
     [SHORTCUT_ACTIONS.ROLL_D20]: '-',       // Dé 20 faces (touche 6 sur AZERTY)
     [SHORTCUT_ACTIONS.ROLL_D100]: 'È',      // Dé 100 faces (touche 7 sur AZERTY)
+
+    // ========== UNDO/REDO ==========
+    [SHORTCUT_ACTIONS.UNDO]: 'Ctrl+Z',      // Annuler
+    [SHORTCUT_ACTIONS.REDO]: 'Ctrl+Y',      // Refaire (Ctrl+Shift+Z aussi possible sur Mac)
 };
 
 // Helper to format event to string

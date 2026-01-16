@@ -169,6 +169,8 @@ import { useSkinVideo } from '@/hooks/map/useSkinVideo';
 import { useMeasurementSkins } from '@/hooks/map/useMeasurementSkins';
 import { ToolbarSkinSelector } from '@/components/(map)/MapToolbar';
 import { useShortcuts, SHORTCUT_ACTIONS } from '@/contexts/ShortcutsContext';
+import { useUndoRedo } from '@/contexts/UndoRedoContext';
+import { useFirestoreWithHistory } from '@/hooks/map/useFirestoreWithHistory';
 
 const getMediaDimensions = (media: HTMLImageElement | HTMLVideoElement | CanvasImageSource) => {
   if (media instanceof HTMLVideoElement) {
@@ -211,10 +213,27 @@ export default function Component() {
   const [copiedObjectTemplate, setCopiedObjectTemplate] = useState<MapObject | null>(null);
 
   const { isShortcutPressed } = useShortcuts();
+  const { undo, redo, canUndo, canRedo, recordAction } = useUndoRedo();
+  const { addWithHistory, deleteWithHistory, updateWithHistory, setWithHistory } = useFirestoreWithHistory(roomId);
 
 
 
 
+  // 🔄 UNDO/REDO KEYBOARD SHORTCUTS
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.UNDO)) {
+        e.preventDefault();
+        undo();
+      } else if (isShortcutPressed(e, SHORTCUT_ACTIONS.REDO)) {
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isShortcutPressed, undo, redo]);
 
   useEffect(() => {
     if (backgroundImage) {
@@ -983,6 +1002,31 @@ export default function Component() {
     fogCellSize
   });
 
+  // 🌫️ Wrapper for saveFogGrid with undo/redo support
+  const saveFogGridWithHistory = async (newGrid: Map<string, boolean>, description: string = 'Modification du brouillard') => {
+    if (!roomId) return;
+
+    // Save current grid state for undo
+    const previousGrid = new Map(fogGrid);
+
+    // Create fog document ID
+    const fogDocId = selectedCityId ? `fog_${selectedCityId}` : 'fogData';
+
+    // Save to Firebase (this updates the grid)
+    await saveFogGrid(newGrid);
+
+    // Record in undo/redo history
+    recordAction({
+      type: 'SET',
+      collection: 'fog',
+      documentId: fogDocId,
+      roomId,
+      previousData: { grid: Object.fromEntries(previousGrid) },
+      newData: { grid: Object.fromEntries(newGrid) },
+      description
+    });
+  };
+
   const [audioCharacterId, setAudioCharacterId] = useState<string | null>(null);
 
   const handleConfigureCharacterAudio = (characterId: string) => {
@@ -1080,7 +1124,13 @@ export default function Component() {
 
   const updateMusicZonePosition = async (id: string, x: number, y: number) => {
     if (!roomId) return;
-    await updateDoc(doc(db, 'cartes', roomId, 'musicZones', id), { x, y });
+    const zone = musicZones.find(z => z.id === id);
+    await updateWithHistory(
+      'musicZones',
+      id,
+      { x, y },
+      `Déplacement de la zone musicale${zone?.name ? ` "${zone.name}"` : ''}`
+    );
   };
 
   //  BULK CHARACTER OPERATIONS
@@ -2301,7 +2351,7 @@ export default function Component() {
         const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth
         const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight
 
-        await addDoc(collection(db, `cartes/${roomId}/objects`), {
+        const objectData = {
           x,
           y,
           width: 100, // Default size
@@ -2311,7 +2361,13 @@ export default function Component() {
           name: template.name,
           cityId: selectedCityId,
           createdAt: new Date()
-        })
+        };
+
+        await addWithHistory(
+          'objects',
+          objectData,
+          `Ajout de l'objet "${template.name}"`
+        );
 
         toast.success(`Objet "${template.name}" ajouté sur la carte`, { duration: 1000 })
         return
@@ -2402,7 +2458,8 @@ export default function Component() {
 
         const finalX = dropPosition.x + offsetX
         const finalY = dropPosition.y + offsetY
-        await addDoc(charactersRef, {
+
+        const characterData = {
           Nomperso: config.nombre > 1 ? `${draggedTemplate.Nomperso} ${i + 1}` : draggedTemplate.Nomperso,
           type: 'pnj',
           imageURL2: draggedTemplate.imageURL2 || '',
@@ -2427,7 +2484,13 @@ export default function Component() {
           x: finalX,
           y: finalY,
           createdAt: new Date()
-        })
+        };
+
+        await addWithHistory(
+          'characters',
+          characterData,
+          `Ajout de "${characterData.Nomperso}"`
+        );
       }
 
       // Toast de succès
@@ -2551,7 +2614,11 @@ export default function Component() {
         obstacleData.isOpen = additionalProps?.isOpen ?? false; // Par défaut fermée
       }
 
-      const docRef = await addDoc(collection(db, 'cartes', String(roomId), 'obstacles'), obstacleData);
+      const docRef = await addWithHistory(
+        'obstacles',
+        obstacleData,
+        `Ajout d'un obstacle${type ? ` (${type})` : ''}`
+      );
     } catch (error) {
       console.error('❌ Erreur sauvegarde obstacle:', error);
     }
@@ -2561,7 +2628,11 @@ export default function Component() {
     if (!roomId || !obstacleId) return;
 
     try {
-      await deleteDoc(doc(db, 'cartes', String(roomId), 'obstacles', obstacleId));
+      await deleteWithHistory(
+        'obstacles',
+        obstacleId,
+        `Suppression d'obstacle`
+      );
       setSelectedObstacleIds([]);
 
     } catch (error) {
@@ -2596,8 +2667,12 @@ export default function Component() {
       ));
 
       // Sauvegarder dans Firebase
-      const obstacleRef = doc(db, 'cartes', String(roomId), 'obstacles', obstacleId);
-      await updateDoc(obstacleRef, { isOpen: newIsOpen });
+      await updateWithHistory(
+        'obstacles',
+        obstacleId,
+        { isOpen: newIsOpen },
+        `Porte ${newIsOpen ? 'ouverte' : 'fermée'}`
+      );
 
       toast.success(newIsOpen ? 'Porte ouverte' : 'Porte fermée', {
         duration: 2000,
@@ -2976,9 +3051,14 @@ export default function Component() {
               size="sm"
               onClick={async () => {
                 if (roomId && isMJ) {
-                  for (const obstacleId of selectedObstacleIds) {
-                    await deleteDoc(doc(db, 'cartes', String(roomId), 'obstacles', obstacleId));
-                  }
+                  const deletePromises = selectedObstacleIds.map(async (obstacleId) => {
+                    await deleteWithHistory(
+                      'obstacles',
+                      obstacleId,
+                      `Suppression d'obstacle (bulk)`
+                    );
+                  });
+                  await Promise.all(deletePromises);
                   setObstacles(prev => prev.filter(o => !selectedObstacleIds.includes(o.id)));
                   toast.success(`${selectedObstacleIds.length} obstacles supprimés`);
                   setSelectedObstacleIds([]);
@@ -3014,15 +3094,18 @@ export default function Component() {
           <div className="flex items-center gap-1 border-l border-r border-white/10 px-2 mx-2">
             <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${selectedObs?.type === 'wall' ? 'bg-white/20 text-white' : 'text-gray-400'}`} onClick={async () => {
               if (!roomId || !selectedObstacleId) return;
-              const obstacleRef = doc(db, 'cartes', String(roomId), 'obstacles', selectedObstacleId);
-              await updateDoc(obstacleRef, { type: 'wall' });
+              await updateWithHistory(
+                'obstacles',
+                selectedObstacleId,
+                { type: 'wall' },
+                `Conversion en mur`
+              );
               setObstacles(prev => prev.map(o => o.id === selectedObstacleId ? { ...o, type: 'wall' } : o));
             }} title="Convertir en Mur">
               <div className="w-3 h-3 bg-current rounded-[1px]" />
             </Button>
             <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${selectedObs?.type === 'one-way-wall' ? 'bg-orange-500/20 text-orange-400' : 'text-gray-400'}`} onClick={async () => {
               if (!roomId || !selectedObstacleId) return;
-              const obstacleRef = doc(db, 'cartes', String(roomId), 'obstacles', selectedObstacleId);
 
               // Calculer direction par défaut
               const p1 = selectedObs?.points[0];
@@ -3041,15 +3124,24 @@ export default function Component() {
                 }
               }
 
-              await updateDoc(obstacleRef, { type: 'one-way-wall', direction: defaultDir });
+              await updateWithHistory(
+                'obstacles',
+                selectedObstacleId,
+                { type: 'one-way-wall', direction: defaultDir },
+                `Conversion en mur sens-unique`
+              );
               setObstacles(prev => prev.map(o => o.id === selectedObstacleId ? { ...o, type: 'one-way-wall', direction: defaultDir as any } : o));
             }} title="Convertir en Mur sens-unique">
               <ArrowRight className="w-3 h-3" />
             </Button>
             <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${selectedObs?.type === 'door' ? 'bg-green-500/20 text-green-400' : 'text-gray-400'}`} onClick={async () => {
               if (!roomId || !selectedObstacleId) return;
-              const obstacleRef = doc(db, 'cartes', String(roomId), 'obstacles', selectedObstacleId);
-              await updateDoc(obstacleRef, { type: 'door', isOpen: false });
+              await updateWithHistory(
+                'obstacles',
+                selectedObstacleId,
+                { type: 'door', isOpen: false },
+                `Conversion en porte`
+              );
               setObstacles(prev => prev.map(o => o.id === selectedObstacleId ? { ...o, type: 'door', isOpen: false } : o));
             }} title="Convertir en Porte">
               <DoorOpen className="w-3 h-3" />
@@ -3090,8 +3182,12 @@ export default function Component() {
                 setObstacles(prev => prev.map(o => o.id === selectedObstacleId ? { ...o, direction: newDir as any } : o));
 
                 // Update Firebase
-                const obstacleRef = doc(db, 'cartes', String(roomId), 'obstacles', selectedObstacleId);
-                await updateDoc(obstacleRef, { direction: newDir });
+                await updateWithHistory(
+                  'obstacles',
+                  selectedObstacleId,
+                  { direction: newDir },
+                  `Inversion de direction`
+                );
               }}
             >
               Inverser sens ⇄
@@ -3103,7 +3199,11 @@ export default function Component() {
             size="sm"
             onClick={async () => {
               if (selectedObstacleId && roomId && isMJ) {
-                await deleteDoc(doc(db, 'cartes', String(roomId), 'obstacles', selectedObstacleId));
+                await deleteWithHistory(
+                  'obstacles',
+                  selectedObstacleId,
+                  `Suppression d'obstacle`
+                );
                 setObstacles(prev => prev.filter(o => o.id !== selectedObstacleId));
                 toast.success("Obstacle supprimé")
                 setSelectedObstacleIds([]);
@@ -3143,7 +3243,7 @@ export default function Component() {
                   }
                 });
                 setFogGrid(newGrid);
-                saveFogGrid(newGrid);
+                saveFogGridWithHistory(newGrid, 'Suppression de cellules de brouillard');
                 setSelectedFogCells([]);
               }
             }}
@@ -3198,7 +3298,7 @@ export default function Component() {
               setFullMapFog(false);
               saveFullMapFog(false);
               setFogGrid(new Map());
-              saveFogGrid(new Map());
+              saveFogGridWithHistory(new Map(), 'Suppression de tout le brouillard');
             }}>
             <X className="w-4 h-4 mr-2" /> Supprimer tout
           </Button>
@@ -3371,7 +3471,7 @@ export default function Component() {
                     saveFullMapFog(false);
                   }
                   setFogGrid(new Map());
-                  saveFogGrid(new Map());
+                  saveFogGridWithHistory(new Map(), 'Suppression de tout le brouillard');
                 }
               }}
               title="Supprimer tout le brouillard"
@@ -3398,7 +3498,7 @@ export default function Component() {
                       }
                     });
                     setFogGrid(newGrid);
-                    saveFogGrid(newGrid);
+                    saveFogGridWithHistory(newGrid, 'Suppression de cellules de brouillard sélectionnées');
                     setSelectedFogCells([]);
                   }
                 }}
@@ -5547,12 +5647,17 @@ export default function Component() {
     if (note.text.trim() && typeof roomIdStr === 'string') {
       try {
         if (editingNote && editingNote.id) {
-          await updateDoc(doc(db, 'cartes', roomIdStr, 'text', editingNote.id), {
-            content: note.text,
-            color: note.color,
-            fontSize: note.fontSize,
-            fontFamily: note.fontFamily
-          });
+          await updateWithHistory(
+            'text',
+            editingNote.id,
+            {
+              content: note.text,
+              color: note.color,
+              fontSize: note.fontSize,
+              fontFamily: note.fontFamily
+            },
+            `Modification du texte`
+          );
         } else if (containerRef.current) {
           const container = containerRef.current;
           let centerX = (container.clientWidth / 2 - offset.x) / zoom;
@@ -5565,7 +5670,7 @@ export default function Component() {
             centerY = height / 2;
           }
 
-          await addDoc(collection(db, 'cartes', roomIdStr, 'text'), {
+          const noteData = {
             content: note.text,
             color: note.color,
             fontSize: note.fontSize,
@@ -5573,7 +5678,13 @@ export default function Component() {
             x: centerX,
             y: centerY,
             cityId: selectedCityId
-          });
+          };
+
+          await addWithHistory(
+            'text',
+            noteData,
+            `Ajout de la note "${note.text.substring(0, 30)}${note.text.length > 30 ? '...' : ''}"`
+          );
           toast.success("Note créée")
         }
         setShowCreateNoteModal(false);
@@ -7277,10 +7388,15 @@ export default function Component() {
           // Check if changed
           const hasChanged = light.x !== draggedLightOriginalPos.x || light.y !== draggedLightOriginalPos.y;
           if (hasChanged) {
-            updateDoc(doc(db, 'cartes', roomId, 'lights', light.id), {
-              x: light.x,
-              y: light.y
-            }).catch(err => {
+            updateWithHistory(
+              'lights',
+              light.id,
+              {
+                x: light.x,
+                y: light.y
+              },
+              `Déplacement de la source de lumière`
+            ).catch(err => {
               console.error("Error saving light pos:", err);
               // Revert
               setLights(prev => prev.map(l => l.id === draggedLightId ? { ...l, x: draggedLightOriginalPos.x, y: draggedLightOriginalPos.y } : l));
@@ -7389,9 +7505,12 @@ export default function Component() {
         const hasChanged = JSON.stringify(obs.points) !== JSON.stringify(draggedObstacleOriginalPoints);
         if (hasChanged) {
           try {
-            await updateDoc(doc(db, 'cartes', String(roomId), 'obstacles', obs.id), {
-              points: obs.points
-            });
+            await updateWithHistory(
+              'obstacles',
+              obs.id,
+              { points: obs.points },
+              `Modification de l'obstacle`
+            );
           } catch (e) {
             console.error("Error saving obstacle:", e);
             // Revert
@@ -7433,10 +7552,15 @@ export default function Component() {
       if (hasChanged && roomId && draggedNote?.id) {
         try {
           // Sauvegarder la nouvelle position en Firebase
-          await updateDoc(doc(db, 'cartes', String(roomId), 'text', draggedNote.id), {
-            x: draggedNote.x,
-            y: draggedNote.y
-          });
+          await updateWithHistory(
+            'text',
+            draggedNote.id,
+            {
+              x: draggedNote.x,
+              y: draggedNote.y
+            },
+            `Déplacement de la note "${draggedNote.text?.substring(0, 30) || 'Sans titre'}${draggedNote.text && draggedNote.text.length > 30 ? '...' : ''}"`
+          );
         } catch (error) {
           console.error("Erreur lors de la sauvegarde du déplacement de la note:", error);
           // Remettre à la position originale en cas d'erreur
@@ -7465,10 +7589,15 @@ export default function Component() {
             const hasChanged = currentObj.x !== originalPos.x || currentObj.y !== originalPos.y;
 
             if (hasChanged && currentObj?.id) {
-              await updateDoc(doc(db, 'cartes', String(roomId), 'objects', currentObj.id), {
-                x: currentObj.x,
-                y: currentObj.y
-              });
+              await updateWithHistory(
+                'objects',
+                currentObj.id,
+                {
+                  x: currentObj.x,
+                  y: currentObj.y
+                },
+                `Déplacement de l'objet${currentObj.name ? ` "${currentObj.name}"` : ''}`
+              );
             }
           });
 
@@ -7506,20 +7635,31 @@ export default function Component() {
 
             if (selectedCityId) {
               // Mode Ville : Sauvegarder dans positions.{cityId} (deep merge)
-              await setDoc(charRef, {
-                positions: {
-                  [selectedCityId]: {
-                    x: currentChar.x,
-                    y: currentChar.y
+              await setWithHistory(
+                'characters',
+                currentChar.id,
+                {
+                  positions: {
+                    [selectedCityId]: {
+                      x: currentChar.x,
+                      y: currentChar.y
+                    }
                   }
-                }
-              }, { merge: true });
+                },
+                `Déplacement de "${currentChar.name}"`,
+                true // merge
+              );
             } else {
               // Mode World Map : Sauvegarder dans la racine
-              await updateDoc(charRef, {
-                x: currentChar.x,
-                y: currentChar.y
-              });
+              await updateWithHistory(
+                'characters',
+                currentChar.id,
+                {
+                  x: currentChar.x,
+                  y: currentChar.y
+                },
+                `Déplacement de "${currentChar.name}"`
+              );
             }
             return `${currentChar.name}: (${Math.round(currentChar.x)}, ${Math.round(currentChar.y)})`;
           }
@@ -7881,7 +8021,11 @@ export default function Component() {
     if (characterToDelete && roomId) {
       if (characterToDelete?.id) {
         try {
-          await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', characterToDelete.id));
+          await deleteWithHistory(
+            'characters',
+            characterToDelete.id,
+            `Suppression de "${characterToDelete.name}"`
+          );
           setCharacters(characters.filter((char) => char.id !== characterToDelete.id));
           setSelectedCharacterIndex(null);
           toast.success(`Personnage "${characterToDelete.name}" supprimé`);
@@ -7905,7 +8049,11 @@ export default function Component() {
       if (noteToDelete && typeof noteToDelete.id === 'string') {
         try {
           setSelectedNoteIndex(null);
-          await deleteDoc(doc(db, 'cartes', roomIdStr, 'text', noteToDelete.id));
+          await deleteWithHistory(
+            'text',
+            noteToDelete.id,
+            `Suppression de la note "${noteToDelete.text}"`
+          );
           setNotes((prevNotes) => prevNotes.filter((n) => n.id !== noteToDelete.id));
           toast.success(`Note "${noteToDelete.text}" supprimée`);
         } catch (error) {
@@ -8062,7 +8210,12 @@ export default function Component() {
           if (entityToDelete.ids && entityToDelete.ids.length > 0) {
             // Multiple characters
             const deletePromises = entityToDelete.ids.map(async (id) => {
-              await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', id));
+              const char = characters.find(c => c.id === id);
+              await deleteWithHistory(
+                'characters',
+                id,
+                `Suppression de "${char?.name || 'Personnage'}"`
+              );
             });
             await Promise.all(deletePromises);
             setCharacters(prev => prev.filter(c => !entityToDelete.ids!.includes(c.id)));
@@ -8074,7 +8227,11 @@ export default function Component() {
             }
           } else if (entityToDelete.id) {
             // Single character
-            await deleteDoc(doc(db, 'cartes', String(roomId), 'characters', entityToDelete.id));
+            await deleteWithHistory(
+              'characters',
+              entityToDelete.id,
+              `Suppression de "${entityToDelete.name}"`
+            );
             setCharacters(prev => prev.filter(c => c.id !== entityToDelete.id));
             setSelectedCharacterIndex(null);
             toast.success(`Personnage "${entityToDelete.name}" supprimé`);
@@ -8100,7 +8257,11 @@ export default function Component() {
 
         case 'light':
           if (entityToDelete.id) {
-            await deleteDoc(doc(db, 'cartes', String(roomId), 'lights', entityToDelete.id));
+            await deleteWithHistory(
+              'lights',
+              entityToDelete.id,
+              `Suppression de la source de lumière`
+            );
             setLights(prev => prev.filter(l => l.id !== entityToDelete.id));
             setContextMenuLightOpen(false);
             setContextMenuLightId(null);
@@ -8110,7 +8271,11 @@ export default function Component() {
 
         case 'obstacle':
           if (entityToDelete.id) {
-            await deleteDoc(doc(db, 'cartes', String(roomId), 'obstacles', entityToDelete.id));
+            await deleteWithHistory(
+              'obstacles',
+              entityToDelete.id,
+              `Suppression de l'obstacle`
+            );
             setObstacles(prev => prev.filter(o => o.id !== entityToDelete.id));
             setSelectedObstacleIds([]);
             toast.success(`Obstacle supprimé`);
@@ -8121,7 +8286,12 @@ export default function Component() {
           if (entityToDelete.ids && entityToDelete.ids.length > 0) {
             // Multiple zones
             const deletePromises = entityToDelete.ids.map(async (id) => {
-              await deleteDoc(doc(db, 'cartes', String(roomId), 'musicZones', id));
+              const zone = musicZones.find(z => z.id === id);
+              await deleteWithHistory(
+                'musicZones',
+                id,
+                `Suppression de la zone musicale${zone?.name ? ` "${zone.name}"` : ''}`
+              );
             });
             await Promise.all(deletePromises);
             setMusicZones(prev => prev.filter(z => !entityToDelete.ids!.includes(z.id)));
@@ -8136,7 +8306,11 @@ export default function Component() {
 
         case 'note':
           if (entityToDelete.id) {
-            await deleteDoc(doc(db, 'cartes', String(roomId), 'text', entityToDelete.id));
+            await deleteWithHistory(
+              'text',
+              entityToDelete.id,
+              `Suppression de la note "${entityToDelete.name}"`
+            );
             setNotes(prev => prev.filter(n => n.id !== entityToDelete.id));
             setSelectedNoteIndex(null);
             toast.success(`Note "${entityToDelete.name}" supprimée`);
@@ -8145,7 +8319,11 @@ export default function Component() {
 
         case 'measurement':
           if (entityToDelete.id) {
-            await deleteDoc(doc(db, 'cartes', String(roomId), 'measurements', entityToDelete.id));
+            await deleteWithHistory(
+              'measurements',
+              entityToDelete.id,
+              `Suppression de la mesure`
+            );
             setMeasurements(prev => prev.filter(m => m.id !== entityToDelete.id));
           }
           toast.success("Mesure supprimée");
@@ -8171,7 +8349,7 @@ export default function Component() {
             setSelectedFogCells([]);
 
             // Save to Firebase
-            saveFogGrid(newFogGrid);
+            saveFogGridWithHistory(newFogGrid, 'Révélation de toute la carte');
           }
           toast.success("Brouillard supprimé");
           break;
@@ -8284,7 +8462,7 @@ export default function Component() {
     const emptyGrid = new Map<string, boolean>();
     setFogGrid(emptyGrid);
     if (roomId) {
-      await saveFogGrid(emptyGrid);
+      await saveFogGridWithHistory(emptyGrid, 'Suppression de la carte');
     }
   };
 
@@ -8361,7 +8539,12 @@ export default function Component() {
     try {
       if (action === 'delete') {
         if (!roomId) return;
-        await deleteDoc(doc(db, 'cartes', roomId, 'portals', portalId));
+        const portal = portals.find(p => p.id === portalId);
+        await deleteWithHistory(
+          'portals',
+          portalId,
+          `Suppression du portail${portal?.name ? ` "${portal.name}"` : ''}`
+        );
         setContextMenuPortalOpen(false);
         setContextMenuPortalId(null);
         toast.success("Portail supprimé")
