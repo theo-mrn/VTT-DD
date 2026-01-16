@@ -14,6 +14,8 @@ export interface SharedMeasurement {
     color: string;
     unitName: string;
     coneWidth?: number | null;
+    coneAngle?: number; // New: Angle in degrees
+    coneShape?: 'flat' | 'rounded'; // New: Shape type
     skin?: string | null;
     timestamp: number;
     permanent?: boolean; // If true, persists. If false, auto-deletes after 6s.
@@ -34,7 +36,8 @@ export interface MeasurementRenderOptions {
     unitName: string;
     isCalibrating: boolean;
     coneAngle?: number;
-    coneWidth?: number | null; // Width at the end of the cone in units
+    coneShape?: 'flat' | 'rounded'; // New
+    coneWidth?: number | null; // Width at the end of the cone in units (Legacy/Override)
     skin?: string | null;
     skinElement?: HTMLVideoElement | HTMLImageElement | null;
 }
@@ -44,6 +47,47 @@ export interface MeasurementRenderOptions {
  */
 export function calculateDistance(x1: number, y1: number, x2: number, y2: number): number {
     return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+}
+
+/**
+ * Snap a point to the grid based on the mode
+ */
+export function snapToGrid(
+    x: number,
+    y: number,
+    mode: 'none' | 'center' | 'intersection' | 'all',
+    gridSize: number
+): Point {
+    if (mode === 'none' || gridSize <= 0) return { x, y };
+
+    const halfGrid = gridSize / 2;
+
+    if (mode === 'intersection') {
+        return {
+            x: Math.round(x / gridSize) * gridSize,
+            y: Math.round(y / gridSize) * gridSize
+        };
+    }
+
+    if (mode === 'center') {
+        // Center of the cell: (k + 0.5) * gridSize
+        // k = floor(x / gridSize)
+        return {
+            x: Math.floor(x / gridSize) * gridSize + halfGrid,
+            y: Math.floor(y / gridSize) * gridSize + halfGrid
+        };
+    }
+
+    if (mode === 'all') {
+        // Snap to nearest intersection OR center
+        // Equivalent to snapping to half-grid
+        return {
+            x: Math.round(x / halfGrid) * halfGrid,
+            y: Math.round(y / halfGrid) * halfGrid
+        };
+    }
+
+    return { x, y };
 }
 
 /**
@@ -111,7 +155,7 @@ export function renderLineMeasurement(options: MeasurementRenderOptions): void {
  * Render cone measurement (spell cone)
  */
 export function renderConeMeasurement(options: MeasurementRenderOptions): void {
-    const { ctx, start, end, zoom, scale, pixelsPerUnit, unitName, isCalibrating, coneWidth, skinElement } = options;
+    const { ctx, start, end, zoom, scale, pixelsPerUnit, unitName, isCalibrating, coneWidth, coneAngle, coneShape = 'rounded', skinElement } = options;
 
     const angle = calculateAngle(start, end);
     const pixelDist = calculateDistance(start.x, start.y, end.x, end.y);
@@ -123,16 +167,14 @@ export function renderConeMeasurement(options: MeasurementRenderOptions): void {
     let actualConeWidth: number;
 
     if (coneWidth && coneWidth > 0) {
-        // If width is specified, calculate angle from width and length
-        // width = 2 * length * tan(halfAngle)
-        // halfAngle = atan(width / (2 * length))
+        // Legacy/Fixed width mode
         halfAngleRad = Math.atan(coneWidth / (2 * unitDist));
         actualConeWidth = coneWidth;
     } else {
-        // Default 30° cone (narrower per user request)
-        const defaultAngle = 30;
-        halfAngleRad = (defaultAngle / 2) * (Math.PI / 180);
-        // Calculate width from angle: width = 2 * length * tan(halfAngle)
+        // Angle mode
+        const targetAngle = coneAngle || 53.13; // Default to ~53 degrees (standard 1-1 cone)
+        halfAngleRad = (targetAngle / 2) * (Math.PI / 180);
+        // Calculate width: width = 2 * length * tan(halfAngle)
         actualConeWidth = 2 * unitDist * Math.tan(halfAngleRad);
     }
 
@@ -161,7 +203,13 @@ export function renderConeMeasurement(options: MeasurementRenderOptions): void {
         ctx.beginPath();
         ctx.moveTo(start.x, start.y);
         ctx.lineTo(leftEnd.x, leftEnd.y);
-        ctx.arc(start.x, start.y, pixelDist, leftAngle, rightAngle);
+
+        if (coneShape === 'rounded') {
+            ctx.arc(start.x, start.y, pixelDist, leftAngle, rightAngle);
+        } else {
+            ctx.lineTo(rightEnd.x, rightEnd.y);
+        }
+
         ctx.lineTo(start.x, start.y);
         ctx.clip(); // Clip to cone shape
 
@@ -170,15 +218,10 @@ export function renderConeMeasurement(options: MeasurementRenderOptions): void {
         ctx.rotate(angle); // Rotate to face direction of cone
 
         // Video Scaling:
-        // Adjust scale to cover the cone area.
         const scaleFactor = 0.5; // Reduced to 0.5 to exactly fit length (1.0 * dist)
         const adjustedRadius = pixelDist * scaleFactor;
         const adjustedDiameter = adjustedRadius * 2;
 
-        // Draw video aligned to the cone tip (start point)
-        // We assume the video effect starts from the left side (if pointing right)
-        // or we visually center it vertically.
-        // Drawing at (0, -radius) puts the left-center of the video at the cone tip (0,0).
         ctx.drawImage(skinElement!, 0, -adjustedRadius, adjustedDiameter, adjustedDiameter);
 
         ctx.restore();
@@ -188,7 +231,13 @@ export function renderConeMeasurement(options: MeasurementRenderOptions): void {
         ctx.beginPath();
         ctx.moveTo(start.x, start.y);
         ctx.lineTo(leftEnd.x, leftEnd.y);
-        ctx.arc(start.x, start.y, pixelDist, leftAngle, rightAngle);
+
+        if (coneShape === 'rounded') {
+            ctx.arc(start.x, start.y, pixelDist, leftAngle, rightAngle);
+        } else {
+            ctx.lineTo(rightEnd.x, rightEnd.y);
+        }
+
         ctx.lineTo(start.x, start.y);
         ctx.fill();
     }
@@ -199,7 +248,13 @@ export function renderConeMeasurement(options: MeasurementRenderOptions): void {
     ctx.beginPath();
     ctx.moveTo(start.x, start.y);
     ctx.lineTo(leftEnd.x, leftEnd.y);
-    ctx.arc(start.x, start.y, pixelDist, leftAngle, rightAngle);
+
+    if (coneShape === 'rounded') {
+        ctx.arc(start.x, start.y, pixelDist, leftAngle, rightAngle);
+    } else {
+        ctx.lineTo(rightEnd.x, rightEnd.y);
+    }
+
     ctx.lineTo(start.x, start.y);
     ctx.stroke();
 
@@ -217,11 +272,20 @@ export function renderConeMeasurement(options: MeasurementRenderOptions): void {
     ctx.arc(start.x, start.y, 5 * zoom, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Calculate area using the trapezoidal cone formula
-    // For a cone: area ≈ (length * width) / 2
-    const area = (unitDist * actualConeWidth) / 2;
+    // Calculate area
+    // Rounded: Area = (angle_rad/2) * r^2
+    // Flat (Triangle): Area = 0.5 * base * height = 0.5 * actualConeWidth * unitDist (Need helper?)
+    // Actually simpler: Triangle Area = 0.5 * r * r * sin(angle) ?? No, Area = l^2 * tan(halfAngle)
 
-    // Format with length and width info
+    let area = 0;
+    if (coneShape === 'rounded') {
+        const fullAngleRad = halfAngleRad * 2;
+        area = 0.5 * Math.pow(unitDist, 2) * fullAngleRad;
+    } else {
+        // Triangle
+        area = Math.pow(unitDist, 2) * Math.tan(halfAngleRad);
+    }
+
     // Format with length and width info
     const text = `${unitDist.toFixed(1)} ${unitName} (L) x ${actualConeWidth.toFixed(1)} ${unitName} (W)\nAire: ${area.toFixed(1)} ${unitName}²`;
 

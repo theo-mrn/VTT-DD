@@ -152,8 +152,7 @@ const StaticToken = React.memo(({ src, alt, style, className, performanceMode }:
   return <img src={src} alt={alt} style={style} className={className} draggable={false} />;
 });
 import { AudioMixerPanel, useAudioMixer } from '@/components/(audio)/AudioMixerPanel';
-import MeasurementShapeSelector from '@/components/(map)/MeasurementShapeSelector';
-import ConeConfigDialog from '@/components/(map)/ConeConfigDialog';
+import MeasurementPanel from '@/components/(map)/MeasurementPanel';
 import PortalConfigDialog from '@/components/(map)/PortalConfigDialog';
 import MeasurementContextMenu from '@/components/(overlays)/MeasurementContextMenu';
 import {
@@ -637,6 +636,7 @@ export default function Component() {
 
   //  MEASUREMENT & CALIBRATION STATE
   const [measureMode, setMeasureMode] = useState(false);
+  const [isMeasurementPanelOpen, setIsMeasurementPanelOpen] = useState(false);
   const [measurementShape, setMeasurementShape] = useState<MeasurementShape>('line');
   const [isCalibrating, setIsCalibrating] = useState(false); // Sub-mode of measureMode
   const [measureStart, setMeasureStart] = useState<Point | null>(null);
@@ -645,11 +645,33 @@ export default function Component() {
   const [unitName, setUnitName] = useState('m'); // Default unit
   const [calibrationDialogOpen, setCalibrationDialogOpen] = useState(false);
   const [tempCalibrationDistance, setTempCalibrationDistance] = useState('');
-  const [coneConfigDialogOpen, setConeConfigDialogOpen] = useState(false);
-  const [coneWidth, setConeWidth] = useState<number | undefined>(undefined); // Custom cone width
+  const [coneConfigDialogOpen, setConeConfigDialogOpen] = useState(false); // Legacy, kept to avoid errors if used elsewhere but unused
+  const [coneWidth, setConeWidth] = useState<number | undefined>(undefined); // Legacy
+
+  // New Cone & Grid Settings
+  const [coneAngle, setConeAngle] = useState(53.13);
+  const [coneShape, setConeShape] = useState<'flat' | 'rounded'>('rounded');
+  const [lockWidthHeight, setLockWidthHeight] = useState(false);
   const [measurements, setMeasurements] = useState<SharedMeasurement[]>([]);
   const measurementSkins = useMeasurementSkins(measurements); // For SHARED measurements
   const [currentMeasurementId, setCurrentMeasurementId] = useState<string | null>(null);
+
+  // Sync changes to active measurement
+  useEffect(() => {
+    if (currentMeasurementId && roomId && measurementShape === 'cone') {
+      const docRef = doc(db, 'cartes', roomId, 'measurements', currentMeasurementId);
+      updateDoc(docRef, {
+        coneAngle,
+        coneShape,
+        coneWidth: null // Ensure angle mode is used
+      }).catch(console.error);
+    }
+  }, [coneAngle, coneShape, currentMeasurementId, roomId, measurementShape]);
+
+  // Open panel when mode activates
+  useEffect(() => {
+    if (measureMode) setIsMeasurementPanelOpen(true);
+  }, [measureMode]);
 
   // Reset skin when shape changes to prevent cone skins on circles and vice-versa
   useEffect(() => {
@@ -3300,27 +3322,7 @@ export default function Component() {
     if (measureMode) {
       return (
         <div className="flex flex-col items-center gap-2">
-          {(measurementShape === 'circle' || measurementShape === 'cone') && (
-            <ToolbarSkinSelector selectedSkin={selectedSkin} onSkinChange={setSelectedSkin} shape={measurementShape === 'circle' ? 'circle' : 'cone'} />
-          )}
-
-          <MeasurementShapeSelector
-            selectedShape={measurementShape}
-            onShapeChange={setMeasurementShape}
-            onConeConfig={() => setConeConfigDialogOpen(true)}
-            isCalibrating={isCalibrating}
-            onStartCalibration={() => {
-              setIsCalibrating(true);
-              setMeasurementShape('line'); // Force line shape for calibration
-              setMeasureStart(null);
-              setMeasureEnd(null);
-            }}
-            onCancelCalibration={() => setIsCalibrating(false)}
-
-            onClearMeasurements={handleClearMeasurements}
-            isPermanent={isPermanent}
-            onPermanentChange={setIsPermanent}
-          />
+          {/* Panel moved to main render */}
         </div>
       );
     }
@@ -4177,7 +4179,9 @@ export default function Component() {
         pixelsPerUnit,
         unitName: m.unitName || unitName,
         isCalibrating: false,
-        coneAngle: 53,
+
+        coneAngle: m.coneAngle || 53.13,
+        coneShape: m.coneShape || 'rounded',
         coneWidth: m.coneWidth,
         skinElement: (m.skin && measurementSkins[m.skin]) ? measurementSkins[m.skin] : null
       };
@@ -4214,7 +4218,8 @@ export default function Component() {
           pixelsPerUnit,
           unitName,
           isCalibrating,
-          coneAngle: 53,
+          coneAngle: coneAngle,
+          coneShape: coneShape,
           coneWidth: coneWidth, // Custom
           skinElement: ((measurementShape === 'circle' || measurementShape === 'cone') && fireballVideo) ? fireballVideo : null
         };
@@ -5906,6 +5911,7 @@ export default function Component() {
 
             setMeasureStart({ x: clickX, y: clickY });
             setMeasureEnd(null);
+            setIsMeasurementPanelOpen(false); // 🆕 Auto-close panel on interaction
 
             // 🆕 CREATE SHARED MEASUREMENT
             if (roomId) {
@@ -5925,23 +5931,23 @@ export default function Component() {
                 id: newDocRef.id,
                 type: measurementShape,
                 start: { x: clickX, y: clickY },
-                end: { x: clickX, y: clickY }, // Start = End initially
-                ownerId: userId || 'unknown', // Need userId, fallback to 'unknown'
+                end: { x: clickX, y: clickY },
+                ownerId: userId || 'unknown',
                 cityId: selectedCityId,
-                color: '#FFD700', // Default gold
+                color: '#FFD700',
                 unitName: unitName,
+
                 coneWidth: coneWidth ?? null,
+                ...(measurementShape === 'cone' ? { coneAngle, coneShape } : {}),
                 skin: (measurementShape === 'circle' || measurementShape === 'cone') ? selectedSkin : null,
                 timestamp: Date.now(),
-                permanent: isPermanent // 🆕 Persist flag
+                permanent: isPermanent
               };
 
               // Fire and forget (optimistic)
               setDoc(newDocRef, newMeasurement).catch(console.error);
             }
           } else {
-            // Set end point
-
             setMeasureEnd({ x: clickX, y: clickY });
 
             // 🆕 FINISH SHARED MEASUREMENT
@@ -8644,6 +8650,39 @@ export default function Component() {
         onAction={handleMeasurementAction}
       />
 
+      {measureMode && isMeasurementPanelOpen && (
+        <MeasurementPanel
+          selectedShape={measurementShape}
+          onShapeChange={setMeasurementShape}
+
+          isCalibrating={isCalibrating}
+          onStartCalibration={() => {
+            setIsCalibrating(true);
+            setMeasurementShape('line'); // Force line shape for calibration
+            setMeasureStart(null);
+            setMeasureEnd(null);
+          }}
+          onCancelCalibration={() => setIsCalibrating(false)}
+
+          onClearMeasurements={handleClearMeasurements}
+
+          isPermanent={isPermanent}
+          onPermanentChange={setIsPermanent}
+
+          coneAngle={coneAngle}
+          setConeAngle={setConeAngle}
+          coneShape={coneShape}
+          setConeShape={setConeShape}
+          lockWidthHeight={lockWidthHeight}
+          setLockWidthHeight={setLockWidthHeight}
+
+          selectedSkin={selectedSkin}
+          onSkinChange={setSelectedSkin}
+
+          onClose={() => setMeasureMode(false)}
+        />
+      )}
+
       {/* 💡 LIGHT SOURCE CONTEXT MENU */}
       <LightContextMenu
         light={contextMenuLightId ? lights.find(l => l.id === contextMenuLightId) || null : null}
@@ -8662,16 +8701,7 @@ export default function Component() {
         isMJ={isMJ}
       />
 
-      {/*  Cone Configuration Dialog */}
-      <ConeConfigDialog
-        isOpen={coneConfigDialogOpen}
-        onClose={() => setConeConfigDialogOpen(false)}
-        onConfirm={(length, width) => {
-          setConeWidth(width);
-          setConeConfigDialogOpen(false);
-        }}
-        unitName={unitName}
-      />
+
 
       <PortalConfigDialog
         open={showPortalConfig}
