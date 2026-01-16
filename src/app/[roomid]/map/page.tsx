@@ -10530,6 +10530,8 @@ export default function Component() {
           onClose={() => setActiveInteraction(null)}
           interaction={activeInteraction.interaction as GameInteraction}
           gameHost={activeInteraction.host}
+          roomId={roomId}
+          currentPlayerId={persoId || undefined}
         />
       )}
 
