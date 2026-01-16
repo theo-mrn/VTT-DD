@@ -337,6 +337,18 @@ export function DiceRoller() {
       return Promise.resolve([...instantResults]);
     }
 
+    // Play dice sound
+    try {
+      const audioUrl = getAssetUrl("/dice.mp3");
+      const audio = new Audio(audioUrl);
+      audio.volume = 0.5; // Reasonable volume
+      setTimeout(() => {
+        audio.play().catch(e => console.warn("Could not play dice sound:", e));
+      }, 500);
+    } catch (e) {
+      console.error("Audio error:", e);
+    }
+
     const rollId = crypto.randomUUID();
     return new Promise((resolve) => {
       // Set timeout de sécurité (si jamais la 3D plante ou n'est pas chargée)
@@ -706,7 +718,7 @@ export function DiceRoller() {
     useEffect(() => {
       const interval = setInterval(() => {
         setNum(Math.floor(Math.random() * 20) + 1);
-      }, 50);
+      }, 100);
       return () => clearInterval(interval);
     }, []);
     return <span>{num}</span>;
