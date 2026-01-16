@@ -4,7 +4,9 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { CompetencesProvider } from "@/contexts/CompetencesContext"
 import { GameProvider } from '@/contexts/GameContext';
 import { CharacterProvider } from '@/contexts/CharacterContext';
+import { UndoRedoProvider } from '@/contexts/UndoRedoContext';
 import { Toaster } from "@/components/ui/sonner"
+
 
 
 import { IM_Fell_English, Cinzel, Caveat, MedievalSharp, Inter } from 'next/font/google';
@@ -72,8 +74,10 @@ export default function RootLayout({
           <GameProvider>
             <CharacterProvider>
               <CompetencesProvider>
-                <Toaster position="top-right" />
-                {children}
+                <UndoRedoProvider>
+                  <Toaster position="top-right" />
+                  {children}
+                </UndoRedoProvider>
               </CompetencesProvider>
             </CharacterProvider>
           </GameProvider>
