@@ -8775,8 +8775,9 @@ export default function Component() {
         className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${isDraggingCharacter || isDraggingNote ? 'cursor-grabbing' :
           isDragging || isDraggingObject ? 'cursor-move' :
             panMode ? 'cursor-grab' :
-              drawMode || spawnPointMode ? 'cursor-crosshair' :
-                fogMode ? 'cursor-cell' : 'cursor-default'
+              multiSelectMode ? 'cursor-crosshair' :
+                drawMode || spawnPointMode ? 'cursor-crosshair' :
+                  fogMode ? 'cursor-cell' : 'cursor-default'
           } relative`}
         style={{
           height: '100vh',
