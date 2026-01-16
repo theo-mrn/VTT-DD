@@ -1667,7 +1667,8 @@ export default function Component() {
       Actions: data.Actions || [],
       audio: data.audio || undefined, // 🆕 Audio data assignment
       interactions: data.interactions || undefined, // 🆕 Interactions for Vendor/NPC system
-      shape: data.shape || 'circle' // 🆕 Shape property
+      shape: data.shape || 'circle', // 🆕 Shape property
+      notes: data.notes || undefined // 🆕 Notes du personnage
     };
     return charObj;
   }, []);
@@ -1961,7 +1962,8 @@ export default function Component() {
           isLocked: data.isLocked || false, // 🆕 Charger l'état de verrouillage
           visibility: data.visibility || undefined,
           type: (data.type || 'decors') as 'decors' | 'weapon' | 'item',
-          visibleToPlayerIds: data.visibleToPlayerIds || undefined
+          visibleToPlayerIds: data.visibleToPlayerIds || undefined,
+          notes: data.notes || undefined // 🆕 Notes de l'objet
         });
       });
       setObjects(objs);
@@ -8338,6 +8340,11 @@ export default function Component() {
         await updateDoc(doc(db, 'cartes', String(roomId), 'objects', objectId), {
           name: value
         });
+      } else if (action === 'updateNotes') {
+        // 🆕 Mettre à jour les notes
+        await updateDoc(doc(db, 'cartes', String(roomId), 'objects', objectId), {
+          notes: value
+        });
       }
     } catch (error) {
       console.error("Error handling object action:", error);
@@ -10054,6 +10061,12 @@ export default function Component() {
               const newPlayerIds = value; // array de player IDs
               const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
               updateDoc(charRef, { visibleToPlayerIds: newPlayerIds });
+            }
+          } else if (action === 'updateNotes') {
+            if (roomId) {
+              updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {
+                notes: value
+              });
             }
           } else if (action === 'configureInteraction') {
             setInteractionConfigTarget(char);
