@@ -12,6 +12,12 @@ const nextConfig: NextConfig = {
             },
             {
                 protocol: 'https',
+                hostname: 'assets.yner.fr',
+                port: '',
+                pathname: '/**',
+            },
+            {
+                protocol: 'https',
                 hostname: 'www.dnd5eapi.co',
                 port: '',
                 pathname: '/**',
