@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 // import { DiceRoll } from "@dice-roller/rpg-dice-roller"; // Removed unused import
 import { motion, AnimatePresence } from "framer-motion";
 import { Dice1, RotateCcw, History, Trash2, Shield, BarChart3, Store, Check, EyeOff, Box } from "lucide-react";
@@ -108,7 +108,18 @@ export function DiceRoller() {
         setShowDetails(true);
         // Afficher le toast avec le résultat
         if (result.result !== "?" && result.result !== "...") {
-          toast.success(`${result.notation} : ${result.total}`, {
+          let message = `${result.notation} : ${result.total}`;
+          // Try to extract detailed view from output: "notation = details = total"
+          if (result.output && result.output.includes('=')) {
+            const parts = result.output.split('=');
+            if (parts.length >= 3) {
+              const details = parts.slice(1, parts.length - 1).join('=').trim();
+              const total = parts[parts.length - 1].trim();
+              message = `${details} = ${total}`;
+            }
+          }
+
+          toast.success(message, {
             duration: 4000,
           });
         }
@@ -724,6 +735,10 @@ export function DiceRoller() {
     return <span>{num}</span>;
   };
 
+  // Refs for debouncing roll shortcuts
+  const pendingDiceRef = useRef<string[]>([]);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   // Effet pour les raccourcis clavier
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -741,13 +756,38 @@ export function DiceRoller() {
       else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D100)) rollCmd = "1d100";
 
       if (rollCmd) {
-        toast.info("Lancer en cours...", { duration: 1000 });
-        rollDice(rollCmd);
+        // Add to pending rolls
+        pendingDiceRef.current.push(rollCmd);
+
+        // Clear existing timer
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+
+        // Set new timer
+        debounceTimerRef.current = setTimeout(() => {
+          if (pendingDiceRef.current.length > 0) {
+            // Combine all dice
+            const combinedNotation = pendingDiceRef.current.join("+");
+
+            toast.info("Lancer en cours...", { duration: 1000 });
+            rollDice(combinedNotation);
+
+            // Clear pending
+            pendingDiceRef.current = [];
+            debounceTimerRef.current = null;
+          }
+        }, 300); // 300ms delay to allow multiple key presses
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
   }, [isShortcutPressed, rollDice]);
 
   return (
