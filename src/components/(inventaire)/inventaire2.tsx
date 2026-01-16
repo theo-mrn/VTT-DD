@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Search, Plus, Sword, Target, Shield, Beaker, ChevronRight, Coins, Apple, X, ArrowUpDown } from 'lucide-react';
+import { Search, Plus, Sword, Target, Shield, Beaker, ChevronRight, Coins, Apple, X, ArrowUpDown, MinusCircle, PlusCircle } from 'lucide-react';
 import { db, doc, collection, onSnapshot, getDoc, updateDoc, setDoc, deleteDoc, addDoc } from '@/lib/firebase';
 import { toast } from 'sonner';
 
@@ -419,26 +419,19 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
   };
 
   const renderBonuses = () => (
-    <div>
-      <h3 className="mb-2 text-sm font-semibold">Bonus associés :</h3>
+    <div className="space-y-4">
       {statAttributes.map((stat) => (
         bonuses.some((bonus) => bonus.type === stat && bonus.value !== 0) && (
-          <div key={stat} className="mb-4">
-            <h4 className="text-sm font-semibold text-[#c0a080]">{stat} :</h4>
-            {bonuses
-              .filter((bonus) => bonus.type === stat && bonus.value !== 0)
-              .map((bonus, index) => (
-                <div key={`${bonus.type}-${index}`} className="flex items-center mb-2">
-                  <span className="mr-2 text-xs text-blue-500">+{bonus.value}</span>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteBonus(bonus.type)}
-                  >
-                    <X className="w-4 h-4 text-red-500" />
-                  </Button>
-                </div>
-              ))}
+          <div key={stat} className="flex justify-between items-center bg-[#1c1c1c] p-3 rounded border border-[#333]">
+            <span className="font-bold text-[#d4d4d4]">{stat}: <span className="text-[#c0a080]">{bonuses.find(b => b.type === stat)?.value}</span></span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
+              onClick={() => handleDeleteBonus(stat)}
+            >
+              <MinusCircle className="h-4 w-4" />
+            </Button>
           </div>
         )
       ))}
@@ -955,33 +948,44 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
               setBonusValue('');
             }
           }}>
-            <DialogContent className="modal-content max-w-lg">
+            <DialogContent className="bg-[#242424] border-[#333] text-[#d4d4d4] max-w-lg">
               <DialogHeader>
-                <DialogTitle className="modal-title">Gérer les bonus de {currentItem?.message}</DialogTitle>
+                <DialogTitle className="text-[#c0a080]">Gérer les bonus de {currentItem?.message}</DialogTitle>
               </DialogHeader>
-              <div className="py-4">
+              <div className="py-4 space-y-4">
                 {renderBonuses()}
-                <h3 className="mt-4 mb-2 text-sm font-semibold">Ajouter un nouveau bonus :</h3>
-                <Select onValueChange={setBonusType} value={bonusType}>
-                  <SelectTrigger className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
-                    <SelectValue placeholder="Type de bonus" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[var(--bg-card)] border border-[var(--border-color)]">
-                    {statAttributes.map(attr => (
-                      <SelectItem key={attr} value={attr}>{attr}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
 
-                <Input
-                  type="number"
-                  placeholder="Valeur du bonus"
-                  value={bonusValue}
-                  onChange={(e) => setBonusValue(e.target.value)}
-                  className="input-field mt-2"
-                />
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#333]">
+                  <div className="space-y-2">
+                    <Label className="text-[#a0a0a0]">Type de bonus</Label>
+                    <Select onValueChange={setBonusType} value={bonusType}>
+                      <SelectTrigger className="bg-[#1c1c1c] border-[#333] text-[#d4d4d4]">
+                        <SelectValue placeholder="Choisir..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-[#2a2a2a] border-[#333] text-[#d4d4d4]">
+                        {statAttributes.map(attr => (
+                          <SelectItem key={attr} value={attr}>{attr}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                <Button className="button-primary mt-2" onClick={handleAddBonus}>Ajouter le bonus</Button>
+                  <div className="space-y-2">
+                    <Label className="text-[#a0a0a0]">Valeur</Label>
+                    <Input
+                      type="number"
+                      placeholder="Valeur"
+                      value={bonusValue}
+                      onChange={(e) => setBonusValue(e.target.value)}
+                      className="bg-[#1c1c1c] border-[#333] text-[#d4d4d4]"
+                    />
+                  </div>
+                </div>
+
+                <Button className="w-full bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f] font-bold" onClick={handleAddBonus}>
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Ajouter le bonus
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
