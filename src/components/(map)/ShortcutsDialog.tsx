@@ -61,11 +61,13 @@ function ShortcutRecorder({ actionId, label }: { actionId: string, label: string
 
     const displayKeys = isRecording ? recordingKeys : (currentShortcut ? currentShortcut.split(' ') : []);
 
+    const buttonVariant = isRecording ? "destructive" : "secondary" as const;
+
     return (
         <div className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-black/20 hover:bg-black/40 transition-colors">
             <span className="text-sm font-medium text-gray-300">{label}</span>
             <Button
-                variant={isRecording ? "destructive" : "secondary"}
+                variant={buttonVariant}
                 size="sm"
                 onClick={() => setIsRecording(!isRecording)}
                 className={cn(
@@ -201,7 +203,7 @@ export function ShortcutsDialog({
                                     <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_ADD_NOTE} label="Ajouter Note" />
                                     <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_MUSIC} label="Musique / Sons" />
                                     <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_MIXER} label="Table de Mixage" />
-                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_SEARCH} label="Recherche Unifiée" />
+                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_OPEN_SEARCH} label="Recherche Unifiée" />
                                     <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_PORTAL} label="Portails" />
                                     <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_SPAWN} label="Point d'Apparition" />
                                 </>

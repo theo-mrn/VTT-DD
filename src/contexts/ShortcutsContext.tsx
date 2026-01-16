@@ -50,7 +50,8 @@ export const SHORTCUT_ACTIONS = {
     TOOL_ADD_OBJ: 'tool_add_obj',
     TOOL_ADD_NOTE: 'tool_add_note',
     TOOL_MUSIC: 'tool_music',
-    TOOL_SEARCH: 'tool_search', // Unified Search
+    TOOL_OPEN_SEARCH: 'tool_open_search', // Open Unified Search Dialog
+    TOOL_SEARCH: 'tool_search', // Unified Search (obsolete, kept for compatibility)
     TOOL_PORTAL: 'tool_portal',
     TOOL_SPAWN: 'tool_spawn',
     TOOL_CLEAR: 'tool_clear', // Clear drawings
@@ -76,41 +77,56 @@ interface ShortcutsContextType {
 const ShortcutsContext = createContext<ShortcutsContextType | undefined>(undefined);
 
 const DEFAULT_SHORTCUTS: Record<string, string> = {
-    [SHORTCUT_ACTIONS.TAB_CHAT]: 'C',
-    [SHORTCUT_ACTIONS.TAB_DICE]: 'D',
-    [SHORTCUT_ACTIONS.TAB_NOTES]: 'N',
-    [SHORTCUT_ACTIONS.TAB_COMBAT]: 'K',
-    [SHORTCUT_ACTIONS.TOOL_PAN]: 'H',
-    [SHORTCUT_ACTIONS.TOOL_SELECT]: 'V',
-    [SHORTCUT_ACTIONS.TOOL_DRAW]: 'B',
-    [SHORTCUT_ACTIONS.TOOL_MEASURE]: 'M',
-    [SHORTCUT_ACTIONS.TOOL_GRID]: 'G',
-    [SHORTCUT_ACTIONS.TOOL_FOG]: 'F',
+    // ========== TABS (Onglets latéraux) ==========
+    [SHORTCUT_ACTIONS.TAB_CHAT]: 'C',       // Chat
+    [SHORTCUT_ACTIONS.TAB_DICE]: 'D',       // Dice (Dés)
+    [SHORTCUT_ACTIONS.TAB_NOTES]: 'N',      // Notes
+    [SHORTCUT_ACTIONS.TAB_COMBAT]: 'I',     // Initiative/Combat
 
-    // Dice Defaults (optional, maybe none by default to avoid clutter?)
-    // Let's omit defaults for now or maybe just D20 for 'D'? but 'D' is Tab Dice...
-    // Let's leave them empty by default, user can bind them.
+    // ========== OUTILS DE CARTE PRINCIPAUX ==========
+    [SHORTCUT_ACTIONS.TOOL_PAN]: 'H',       // Hand (Main pour déplacer)
+    [SHORTCUT_ACTIONS.TOOL_SELECT]: 'E',    // sElection
+    [SHORTCUT_ACTIONS.TOOL_DRAW]: 'B',      // Brush/Brosse (dessin)
+    [SHORTCUT_ACTIONS.TOOL_MEASURE]: 'R',   // Ruler (Règle/Mesure)
+    [SHORTCUT_ACTIONS.TOOL_GRID]: 'G',      // Grid (Grille)
+    [SHORTCUT_ACTIONS.TOOL_FOG]: 'V',       // Visibilité/Fog
 
-    // Defaults for new tools
-    [SHORTCUT_ACTIONS.TOOL_LAYERS]: 'L',
-    [SHORTCUT_ACTIONS.TOOL_BACKGROUND]: 'J',
-    [SHORTCUT_ACTIONS.TOOL_VIEW_MODE]: 'P', // Player view
-    [SHORTCUT_ACTIONS.TOOL_SETTINGS]: ',', // Standard for settings
-    [SHORTCUT_ACTIONS.TOOL_ZOOM_IN]: '+',
-    [SHORTCUT_ACTIONS.TOOL_ZOOM_OUT]: '-',
-    [SHORTCUT_ACTIONS.TOOL_WORLD_MAP]: 'W',
-    [SHORTCUT_ACTIONS.TOOL_ADD_CHAR]: 'A',
-    [SHORTCUT_ACTIONS.TOOL_ADD_OBJ]: 'O',
-    [SHORTCUT_ACTIONS.TOOL_ADD_NOTE]: 'S', // Sticky Note
-    [SHORTCUT_ACTIONS.TOOL_MUSIC]: 'U', // Audio/Music
-    [SHORTCUT_ACTIONS.TOOL_SEARCH]: 'F', // Ctrl+F usually, but single key? Let's try 'Q' or 'Search' logic. 'F' is taken by Fog. Let's use 'E' (Search/Explorer).
-    [SHORTCUT_ACTIONS.TOOL_PORTAL]: 'T', // Teleport
-    [SHORTCUT_ACTIONS.TOOL_SPAWN]: 'Y',
-    [SHORTCUT_ACTIONS.TOOL_CLEAR]: 'Backscpace',
-    [SHORTCUT_ACTIONS.TOOL_MULTI]: 'X',
-    [SHORTCUT_ACTIONS.TOOL_MIXER]: 'VolumeUp', // Hard to map single key, maybe '9'?
-    [SHORTCUT_ACTIONS.TOOL_BORDERS]: 'I', // Interface
-    [SHORTCUT_ACTIONS.TOOL_BADGES]: 'Delete',
+    // ========== GESTION DES CALQUES ET VUE ==========
+    [SHORTCUT_ACTIONS.TOOL_LAYERS]: 'L',    // Layers (Calques)
+    [SHORTCUT_ACTIONS.TOOL_BACKGROUND]: 'F', // Fond (background)
+    [SHORTCUT_ACTIONS.TOOL_VIEW_MODE]: 'P', // Player view (Vue Joueur)
+
+    // ========== NAVIGATION ET ZOOM ==========
+    [SHORTCUT_ACTIONS.TOOL_ZOOM_IN]: '+',   // Zoom avant
+    [SHORTCUT_ACTIONS.TOOL_ZOOM_OUT]: '-',  // Zoom arrière
+    [SHORTCUT_ACTIONS.TOOL_WORLD_MAP]: 'M', // Map (Carte du monde)
+
+    // ========== AJOUT D'ÉLÉMENTS ==========
+    [SHORTCUT_ACTIONS.TOOL_ADD_CHAR]: 'A',  // Add character (Ajouter personnage)
+    [SHORTCUT_ACTIONS.TOOL_ADD_OBJ]: 'O',   // Object (Ajouter objet)
+    [SHORTCUT_ACTIONS.TOOL_ADD_NOTE]: 'T',  // Texte/Note
+    [SHORTCUT_ACTIONS.TOOL_PORTAL]: 'Y',    // Portal
+    [SHORTCUT_ACTIONS.TOOL_SPAWN]: 'W',     // Spawn (Invocation)
+
+    // ========== UTILITAIRES ==========
+    [SHORTCUT_ACTIONS.TOOL_OPEN_SEARCH]: 'Ctrl+K', // Ouvrir la recherche (Ctrl+K ou Cmd+K)
+    [SHORTCUT_ACTIONS.TOOL_SEARCH]: '/',    // Search (Standard pour recherche) - obsolete
+    [SHORTCUT_ACTIONS.TOOL_SETTINGS]: ',',  // Settings (Standard)
+    [SHORTCUT_ACTIONS.TOOL_MUSIC]: 'S',     // Sons/Musique
+    [SHORTCUT_ACTIONS.TOOL_MIXER]: 'Q',     // miKseur/Mixer audio (déplacé de K)
+    [SHORTCUT_ACTIONS.TOOL_CLEAR]: 'Backspace', // Clear drawings
+    [SHORTCUT_ACTIONS.TOOL_MULTI]: 'X',     // Multi-select
+    [SHORTCUT_ACTIONS.TOOL_BORDERS]: 'J',   // Borders
+    [SHORTCUT_ACTIONS.TOOL_BADGES]: 'Delete', // Badges
+
+    // ========== LANCÉS DE DÉS (AZERTY) ==========
+    [SHORTCUT_ACTIONS.ROLL_D4]: '&',        // Dé 4 faces (touche 1 sur AZERTY)
+    [SHORTCUT_ACTIONS.ROLL_D6]: 'É',        // Dé 6 faces (touche 2 sur AZERTY)
+    [SHORTCUT_ACTIONS.ROLL_D8]: '"',        // Dé 8 faces (touche 3 sur AZERTY)
+    [SHORTCUT_ACTIONS.ROLL_D10]: "'",       // Dé 10 faces (touche 4 sur AZERTY)
+    [SHORTCUT_ACTIONS.ROLL_D12]: '(',       // Dé 12 faces (touche 5 sur AZERTY)
+    [SHORTCUT_ACTIONS.ROLL_D20]: '-',       // Dé 20 faces (touche 6 sur AZERTY)
+    [SHORTCUT_ACTIONS.ROLL_D100]: 'È',      // Dé 100 faces (touche 7 sur AZERTY)
 };
 
 // Helper to format event to string
