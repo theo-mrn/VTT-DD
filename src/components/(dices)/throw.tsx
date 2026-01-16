@@ -620,7 +620,7 @@ const Table = () => {
     const [ref] = usePlane(() => ({
         rotation: [-Math.PI / 2, 0, 0],
         position: [0, 0, 0],
-        material: { friction: 0.3, restitution: 0.5 }
+        material: { friction: 0.4, restitution: 0.4 } // Slightly more bounce/slide than before
     }));
 
     return (
@@ -870,9 +870,9 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
         mass: 5,
         position,
         args: [vertices as any, faces],
-        material: { friction: 0.1, restitution: 0.5 },
-        linearDamping: 0.05,
-        angularDamping: 0.05,
+        material: { friction: 0.15, restitution: 0.5 }, // Balanced friction/restitution
+        linearDamping: 0.08, // Moderate damping
+        angularDamping: 0.08,
         allowSleep: false
     }));
 
@@ -881,7 +881,7 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
     }));
 
     useEffect(() => {
-        const t = setTimeout(() => setCanCheck(true), 500);
+        const t = setTimeout(() => setCanCheck(true), 400); // 400ms check delay
         return () => clearTimeout(t);
     }, []);
 
@@ -1005,7 +1005,7 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
                     onResult(resultValue);
                 }
             }
-        }, 100);
+        }, 80); // Checks every 80ms
         return () => clearInterval(interval);
     }, [stopped, canCheck, trueFaces, onResult, type, targetValue]);
 
@@ -1068,9 +1068,10 @@ export const DiceThrower = () => {
 
                 // Force dirigée pour rester dans le tiers droit (cible X=15)
                 const targetX = 15;
-                const forceX = -(startX - targetX) * (0.8 + Math.random() * 0.4) + (Math.random() - 0.5) * 2;
-                const forceY = Math.random() * 5;
-                const forceZ = -startZ * (0.5 + Math.random() * 0.3); // Légèrement ralenti pour rester visible
+                // Forces équilibrées
+                const forceX = -(startX - targetX) * (1.2 + Math.random() * 0.6) + (Math.random() - 0.5) * 3;
+                const forceY = 4 + Math.random() * 8;
+                const forceZ = -startZ * (0.8 + Math.random() * 0.4);
 
                 const id = crypto.randomUUID();
                 newDice.push({
@@ -1133,7 +1134,7 @@ export const DiceThrower = () => {
                 {/* Studio environment for better reflections */}
                 <Environment preset="studio" />
 
-                <Physics gravity={[0, -40, 0]} defaultContactMaterial={{ friction: 0.01, restitution: 0.6 }} allowSleep={false} iterations={20}>
+                <Physics gravity={[0, -60, 0]} defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }} allowSleep={false} iterations={20}>
                     <Table />
                     {dice.map((d, i) => (
                         <Die

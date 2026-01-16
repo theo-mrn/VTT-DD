@@ -22813,5 +22813,14 @@
     "type": "image",
     "size": 92296,
     "uploadedAt": "2026-01-12T12:47:52.390Z"
+  },
+  {
+    "name": "dice.mp3",
+    "path": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/dice.mp3",
+    "localPath": "/dice.mp3",
+    "category": "Audio",
+    "type": "audio",
+    "size": 44544,
+    "uploadedAt": "2026-01-16T09:41:30.061Z"
   }
 ]
