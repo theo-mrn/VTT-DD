@@ -279,7 +279,14 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
           duration: 2000,
         });
         setIsRenameDialogOpen(false);
+        setIsRenameDialogOpen(false);
         setNewItemName('');
+
+        // Also update the name in the Bonus collection if it exists
+        const bonusRef = doc(db, `Bonus/${roomId}/${playerName}/${currentItem.id}`);
+        updateDoc(bonusRef, { name: newItemName }).catch(() => {
+          // Ignore error if bonus doc doesn't exist
+        });
       } catch (error) {
         console.error('Erreur lors du renommage:', error);
         toast.error('Erreur', {
@@ -323,7 +330,9 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
         await setDoc(itemRef, {
           [bonusType]: parseInt(bonusValue),
           active: true,
-          category: 'Inventaire'
+          [bonusType]: parseInt(bonusValue),
+          category: 'Inventaire',
+          name: currentItem.message
         }, { merge: true });
 
         setItemsWithBonus(prev => new Set([...prev, currentItem.id]));

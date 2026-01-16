@@ -95,6 +95,7 @@ export interface BonusData {
   SAG: number;
   active: boolean;
   category: string;
+  name?: string;
 }
 
 export interface CustomCompetence {
@@ -364,6 +365,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
         PV_Max: bonusData.PV_Max || 0,
         SAG: bonusData.SAG || 0,
         active: bonusData.active || false,
+        name: bonusData.name,
       };
     } else {
       return {};
@@ -444,6 +446,13 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
                     // Récupérer les bonus associés depuis Firestore
                     const bonusData = await fetchBonusData(roomId, characterData.Nomperso, skillId);
 
+                    // Sync name if missing or different (Auto-fix for widget display)
+                    if (bonusData && (!bonusData.name || bonusData.name !== skillName)) {
+                      const bonusRef = doc(db, `Bonus/${roomId}/${characterData.Nomperso}/${skillId}`);
+                      // Fire and forget update
+                      updateDoc(bonusRef, { name: skillName }).catch(err => console.error("Error syncing bonus name", err));
+                    }
+
                     skills.push({
                       id: skillId,
                       name: skillName,
@@ -522,6 +531,12 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
                 if (skillName && skillDescription && skillType) {
                   const skillId = `${voieFile}-${j}`;
                   const bonusData = await fetchBonusData(roomId, characterData.Nomperso, skillId);
+
+                  // Sync name if missing or different (Auto-fix for widget display)
+                  if (bonusData && (!bonusData.name || bonusData.name !== skillName)) {
+                    const bonusRef = doc(db, `Bonus/${roomId}/${characterData.Nomperso}/${skillId}`);
+                    updateDoc(bonusRef, { name: skillName }).catch(err => console.error("Error syncing bonus name", err));
+                  }
 
                   skills.push({
                     id: skillId,

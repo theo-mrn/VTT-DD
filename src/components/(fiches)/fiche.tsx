@@ -12,7 +12,7 @@ import {
   uploadBytes,
   getDownloadURL
 } from '@/lib/firebase';
-import { Heart, Shield, Edit, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react';
+import { Heart, Shield, Edit, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Trash2, PlusCircle } from 'lucide-react';
 import InventoryManagement2 from '@/components/(inventaire)/inventaire2';
 import CompetencesDisplay from "@/components/(competences)/competencesD";
 import Competences from "@/components/(competences)/competences";
@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useCharacter, Character } from '@/contexts/CharacterContext';
 import { Statistiques } from '@/components/Statistiques';
 import { WidgetAvatar, WidgetDetails, WidgetStats, WidgetVitals, WidgetCombatStats } from './FicheWidgets';
+import { WidgetDices, WidgetBourse, WidgetEffects, WidgetNotes } from './FicheWidgetsExtra';
 import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -34,6 +35,14 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from 'sonner';
 
@@ -49,6 +58,17 @@ const DEFAULT_LAYOUT: Layout[] = [
   { i: 'skills', x: 0, y: 17, w: 12, h: 8, minW: 6, minH: 6 }
 ];
 
+const WIDGET_REGISTRY = [
+  { id: 'dices', label: 'Lanceur de dés', default: { w: 6, h: 4, minW: 4, minH: 3 } },
+  { id: 'bourse', label: 'Bourse', default: { w: 6, h: 4, minW: 4, minH: 3 } },
+  { id: 'effects', label: 'Effets Actifs', default: { w: 6, h: 4, minW: 4, minH: 3 } },
+  { id: 'notes', label: 'Notes', default: { w: 6, h: 4, minW: 4, minH: 3 } },
+  // Core widgets available to re-add if removed
+  // { id: 'stats', label: 'Caractéristiques', default: { w: 6, h: 5, minW: 4, minH: 3 } },
+  // { id: 'inventory', label: 'Inventaire', default: { w: 6, h: 5, minW: 4, minH: 4 } },
+  // { id: 'skills', label: 'Compétences', default: { w: 12, h: 8, minW: 6, minH: 6 } },
+];
+
 interface UserData {
   persoId?: string;
   perso?: string;
@@ -58,9 +78,10 @@ interface WidgetControlsProps {
   id: string;
   updateWidgetDim: (id: string, type: 'w' | 'h', value: number | 'inc' | 'dec') => void;
   widthMode?: 'presets' | 'incremental';
+  onRemove?: (id: string) => void;
 }
 
-const WidgetControls: React.FC<WidgetControlsProps> = ({ id, updateWidgetDim, widthMode = 'presets' }) => (
+const WidgetControls: React.FC<WidgetControlsProps> = ({ id, updateWidgetDim, widthMode = 'presets', onRemove }) => (
   <div className="absolute -top-9 right-0 z-50 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none pr-1">
     <div className="flex bg-[#2a2a2a] border border-[#3a3a3a] rounded-t-lg shadow-xl text-xs overflow-hidden pointer-events-auto">
       <div className="flex border-r border-[#3a3a3a]">
@@ -95,6 +116,13 @@ const WidgetControls: React.FC<WidgetControlsProps> = ({ id, updateWidgetDim, wi
           <Upload size={14} className="rotate-45" />
         </div>
       </div>
+      {onRemove && (
+        <div className="flex border-l border-[#3a3a3a]">
+          <button onClick={(e) => { e.stopPropagation(); onRemove(id); }} className="px-2 py-1.5 hover:bg-red-900/50 text-[#a0a0a0] hover:text-red-400 transition-colors" title="Supprimer le widget">
+            <Trash2 size={14} />
+          </button>
+        </div>
+      )}
     </div>
   </div>
 );
@@ -135,6 +163,7 @@ export default function Component() {
   // Layout State
   const [layout, setLayout] = useState<Layout[]>(DEFAULT_LAYOUT);
   const [isLayoutEditing, setIsLayoutEditing] = useState(false);
+  const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
 
   useEffect(() => {
     if (selectedCharacter?.layout && selectedCharacter.layout.length > 0) {
@@ -241,6 +270,34 @@ export default function Component() {
         return item;
       });
     });
+  };
+
+  const handleAddWidget = (widgetId: string) => {
+    const widgetDef = WIDGET_REGISTRY.find(w => w.id === widgetId);
+    if (!widgetDef) return;
+
+    setLayout(prev => {
+      // Avoid duplicates
+      if (prev.find(l => l.i === widgetId)) return prev;
+
+      // Find first available gap at the bottom
+      const maxY = prev.reduce((max, item) => Math.max(max, item.y + item.h), 0);
+
+      return [
+        ...prev,
+        {
+          i: widgetId,
+          x: 0,
+          y: maxY,
+          ...widgetDef.default
+        }
+      ];
+    });
+    setIsAddWidgetOpen(false);
+  };
+
+  const handleRemoveWidget = (widgetId: string) => {
+    setLayout(prev => prev.filter(l => l.i !== widgetId));
   };
 
 
@@ -660,9 +717,42 @@ export default function Component() {
                 <LayoutDashboard size={14} />
                 <RotateCcw size={12} />
               </button>
+
+              {/* Add Widget Dialog */}
+              <Dialog open={isAddWidgetOpen} onOpenChange={setIsAddWidgetOpen}>
+                <DialogTrigger asChild>
+                  <button className="bg-[#3a3a3a] hover:bg-[#4a4a4a] text-[#d4d4d4] px-3 py-1.5 rounded flex items-center gap-2 text-xs font-bold border border-[#4a4a4a] h-full">
+                    <PlusCircle size={14} /> Ajouter
+                  </button>
+                </DialogTrigger>
+                <DialogContent className="bg-[#242424] border-[#3a3a3a] text-[#d4d4d4] max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle className="text-[#c0a080]">Ajouter un widget</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-2 mt-2">
+                    {WIDGET_REGISTRY.filter(w => !layout.find(l => l.i === w.id)).length > 0 ? (
+                      WIDGET_REGISTRY.filter(w => !layout.find(l => l.i === w.id)).map(widget => (
+                        <button
+                          key={widget.id}
+                          onClick={() => handleAddWidget(widget.id)}
+                          className="w-full text-left px-4 py-3 bg-[#3a3a3a] hover:bg-[#4a4a4a] rounded-lg text-sm font-bold text-[#d4d4d4] hover:text-[#fff] transition-colors border border-[#444] flex items-center justify-between"
+                        >
+                          {widget.label}
+                          <PlusCircle size={16} className="opacity-50" />
+                        </button>
+                      ))
+                    ) : (
+                      <div className="p-4 text-center text-[#888] italic bg-[#1c1c1c] rounded-lg">
+                        Tous les widgets sont déjà présents sur la fiche.
+                      </div>
+                    )}
+                  </div>
+                </DialogContent>
+              </Dialog>
+
               <button
                 onClick={handleSaveLayout}
-                className="bg-[#c0a080] text-[#1c1c1c] px-4 py-1.5 rounded hover:bg-[#d4b48f] transition text-xs font-bold"
+                className="bg-[#c0a080] text-[#1c1c1c] px-4 py-1.5 rounded hover:bg-[#d4b48f] transition text-xs font-bold flex items-center gap-1"
               >
                 Sauvegarder
               </button>
@@ -738,6 +828,38 @@ export default function Component() {
                     />
                   </div>
                 </div>
+                {layout.find(l => l.i === 'dices') && (
+                  <div key="dices" className="relative group hover:z-[100]">
+                    <WidgetControls id="dices" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} />
+                    <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                      <WidgetDices style={boxStyle} />
+                    </div>
+                  </div>
+                )}
+                {layout.find(l => l.i === 'bourse') && (
+                  <div key="bourse" className="relative group hover:z-[100]">
+                    <WidgetControls id="bourse" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} />
+                    <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                      <WidgetBourse style={boxStyle} />
+                    </div>
+                  </div>
+                )}
+                {layout.find(l => l.i === 'effects') && (
+                  <div key="effects" className="relative group hover:z-[100]">
+                    <WidgetControls id="effects" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} />
+                    <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                      <WidgetEffects style={boxStyle} />
+                    </div>
+                  </div>
+                )}
+                {layout.find(l => l.i === 'notes') && (
+                  <div key="notes" className="relative group hover:z-[100]">
+                    <WidgetControls id="notes" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} />
+                    <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                      <WidgetNotes style={boxStyle} />
+                    </div>
+                  </div>
+                )}
               </ResponsiveGridLayout>
             ) : (
               <ResponsiveGridLayout
@@ -754,6 +876,10 @@ export default function Component() {
                 <div key="avatar" className="overflow-hidden h-full"><WidgetAvatar style={boxStyle} /></div>
                 <div key="details" className="overflow-hidden h-full"><WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} /></div>
                 <div key="stats" className="overflow-hidden h-full"><WidgetStats style={boxStyle} /></div>
+                {layout.find(l => l.i === 'dices') && <div key="dices" className="overflow-hidden h-full"><WidgetDices style={boxStyle} /></div>}
+                {layout.find(l => l.i === 'bourse') && <div key="bourse" className="overflow-hidden h-full"><WidgetBourse style={boxStyle} /></div>}
+                {layout.find(l => l.i === 'effects') && <div key="effects" className="overflow-hidden h-full"><WidgetEffects style={boxStyle} /></div>}
+                {layout.find(l => l.i === 'notes') && <div key="notes" className="overflow-hidden h-full"><WidgetNotes style={boxStyle} /></div>}
                 <div key="vitals" className="overflow-hidden h-full">
                   <Drawer>
                     <DrawerTrigger asChild>
