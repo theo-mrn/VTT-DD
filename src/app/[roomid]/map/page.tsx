@@ -66,8 +66,9 @@ import { Component as RadialMenu } from '@/components/ui/radial-menu';
 import CitiesManager from '@/components/(worldmap)/CitiesManager';
 import ContextMenuPanel from '@/components/(overlays)/ContextMenuPanel';
 import ShopComponent from '@/components/(interactions)/ShopComponent';
+import GameComponent from '@/components/(interactions)/GameComponent';
 import InteractionConfigDialog from '@/components/(dialogs)/InteractionConfigDialog';
-import { VendorInteraction } from '@/app/[roomid]/map/types';
+import { VendorInteraction, GameInteraction } from '@/app/[roomid]/map/types';
 import ObjectContextMenu from '@/components/(overlays)/ObjectContextMenu';
 import LightContextMenu from '@/components/(overlays)/LightContextMenu';
 import MusicZoneContextMenu from '@/components/(overlays)/MusicZoneContextMenu';
@@ -203,7 +204,7 @@ export default function Component() {
   const videoRef = useRef<HTMLVideoElement | null>(null); // Ref to keep track of video element for cleanup
   const [selectedSkin, setSelectedSkin] = useState<string>('Fireballs/explosion1.webm');
   const [isPermanent, setIsPermanent] = useState(false); // 🆕 Permanent measurement toggle
-  const [activeInteraction, setActiveInteraction] = useState<{ interaction: VendorInteraction, vendor: Character } | null>(null);
+  const [activeInteraction, setActiveInteraction] = useState<{ interaction: VendorInteraction | GameInteraction, host: Character } | null>(null);
   const [interactionConfigTarget, setInteractionConfigTarget] = useState<Character | null>(null);
   const fireballVideo = useSkinVideo(selectedSkin); // For LOCAL active measurement
 
@@ -1005,17 +1006,9 @@ export default function Component() {
   // 🌫️ Wrapper for saveFogGrid with undo/redo support
   const saveFogGridWithHistory = async (newGrid: Map<string, boolean>, description: string = 'Modification du brouillard') => {
     if (!roomId) return;
-
-    // Save current grid state for undo
     const previousGrid = new Map(fogGrid);
-
-    // Create fog document ID
     const fogDocId = selectedCityId ? `fog_${selectedCityId}` : 'fogData';
-
-    // Save to Firebase (this updates the grid)
     await saveFogGrid(newGrid);
-
-    // Record in undo/redo history
     recordAction({
       type: 'SET',
       collection: 'fog',
@@ -1028,7 +1021,6 @@ export default function Component() {
   };
 
   const [audioCharacterId, setAudioCharacterId] = useState<string | null>(null);
-
   const handleConfigureCharacterAudio = (characterId: string) => {
     const char = characters.find(c => c.id === characterId);
     if (!char) return;
@@ -10306,9 +10298,14 @@ export default function Component() {
             setContextMenuOpen(false);
           } else if (action === 'interact') {
             const interaction = char.interactions?.find(i => i.id === value);
-            if (interaction && interaction.type === 'vendor') {
-              setActiveInteraction({ interaction: interaction as VendorInteraction, vendor: char });
-              setContextMenuOpen(false);
+            if (interaction) {
+              if (interaction.type === 'vendor') {
+                setActiveInteraction({ interaction: interaction as VendorInteraction, host: char });
+                setContextMenuOpen(false);
+              } else if (interaction.type === 'game') {
+                setActiveInteraction({ interaction: interaction as GameInteraction, host: char });
+                setContextMenuOpen(false);
+              }
             }
           }
         }}
@@ -10518,19 +10515,28 @@ export default function Component() {
       }
 
       {/* Interaction Components */}
-      {activeInteraction && (
+      {activeInteraction && activeInteraction.interaction.type === 'vendor' && (
         <ShopComponent
           isOpen={!!activeInteraction}
           onClose={() => setActiveInteraction(null)}
-          interaction={activeInteraction.interaction}
-          vendor={activeInteraction.vendor}
+          interaction={activeInteraction.interaction as VendorInteraction}
+          vendor={activeInteraction.host}
+        />
+      )}
+
+      {activeInteraction && activeInteraction.interaction.type === 'game' && (
+        <GameComponent
+          isOpen={!!activeInteraction}
+          onClose={() => setActiveInteraction(null)}
+          interaction={activeInteraction.interaction as GameInteraction}
+          gameHost={activeInteraction.host}
         />
       )}
 
       <InteractionConfigDialog
         isOpen={!!interactionConfigTarget}
         onClose={() => setInteractionConfigTarget(null)}
-        currentInteraction={interactionConfigTarget?.interactions?.[0] as VendorInteraction}
+        currentInteraction={interactionConfigTarget?.interactions?.[0]}
         onSave={async (interaction) => {
           if (interactionConfigTarget && roomId) {
             const charRef = doc(db, 'cartes', roomId, 'characters', interactionConfigTarget.id);
