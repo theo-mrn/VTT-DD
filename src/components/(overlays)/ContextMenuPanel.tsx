@@ -32,6 +32,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Character } from '@/app/[roomid]/map/types';
 import { CharacterAudioDialog } from '@/components/(dialogs)/CharacterAudioDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { EntityNotes } from './EntityNotes';
 
 interface ContextMenuPanelProps {
     character: Character | null;
@@ -291,10 +292,11 @@ export default function ContextMenuPanel({
 
                         <Tabs defaultValue="actions" className="flex-1 flex flex-col min-h-0 w-full">
                             <div className="px-4 pb-2">
-                                <TabsList className="w-full bg-[#252525]/80 p-1 border border-white/5 grid grid-cols-3">
+                                <TabsList className="w-full bg-[#252525]/80 p-1 border border-white/5 grid grid-cols-4">
                                     <TabsTrigger value="actions" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Actions</TabsTrigger>
                                     <TabsTrigger value="effects" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Effets</TabsTrigger>
                                     <TabsTrigger value="params" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white" disabled={!isMJ}>Param</TabsTrigger>
+                                    <TabsTrigger value="notes" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Notes</TabsTrigger>
                                 </TabsList>
                             </div>
 
@@ -638,6 +640,15 @@ export default function ContextMenuPanel({
                                         )}
 
                                     </TabsContent>
+
+                                    <TabsContent value="notes" className="mt-0 pt-2 focus-visible:ring-0">
+                                        <EntityNotes
+                                            initialNotes={character.notes}
+                                            onSave={(notes) => onAction('updateNotes', character.id, notes)}
+                                            isReadOnly={!isMJ && character.type !== 'joueurs'}
+                                        />
+                                    </TabsContent>
+
                                 </div>
                             </ScrollArea>
                         </Tabs>

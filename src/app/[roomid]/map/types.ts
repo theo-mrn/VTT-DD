@@ -61,6 +61,7 @@ export interface Character {
     };
     interactions?: Interaction[];
     positions?: Record<string, { x: number; y: number }>;
+    notes?: string;
 }
 
 export type Interaction = VendorInteraction;
@@ -160,6 +161,7 @@ export interface MapObject {
     isLocked?: boolean;
     visibleToPlayerIds?: string[];
     cityId?: string | null;
+    notes?: string;
 }
 
 export interface ObjectTemplate {
