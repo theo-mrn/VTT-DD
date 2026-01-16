@@ -6,6 +6,7 @@ import debounce from "lodash/debounce";
 import { FileText, Search, X, Layers, Users, Crown, Sparkles, Sword, Heart, Ruler, Weight, BookOpen } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useShortcuts, SHORTCUT_ACTIONS } from "@/contexts/ShortcutsContext";
 
 type TabId = "all" | "races" | "classes" | "prestiges" | "regles";
 
@@ -20,6 +21,7 @@ const TABS = [
 export default function SearchMenu() {
     const [open, setOpen] = useState(false);
     const { searchCompetences, isLoading, allCompetences } = useCompetences();
+    const { isShortcutPressed } = useShortcuts();
     const [searchResults, setSearchResults] = useState<Competence[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
@@ -38,7 +40,8 @@ export default function SearchMenu() {
 
     useEffect(() => {
         const down = (e: KeyboardEvent) => {
-            if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
+            // Check for search shortcut
+            if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_OPEN_SEARCH)) {
                 e.preventDefault();
                 setOpen((open) => {
                     if (!open) {
@@ -54,7 +57,7 @@ export default function SearchMenu() {
 
         document.addEventListener("keydown", down);
         return () => document.removeEventListener("keydown", down);
-    }, [open]);
+    }, [open, isShortcutPressed]);
 
     // Reset selection when results change or tab changes
     useEffect(() => {
