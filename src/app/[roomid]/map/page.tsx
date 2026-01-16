@@ -9277,11 +9277,28 @@ export default function Component() {
                       }
 
                       // Select
+                      // Calculate which objects will be dragged BEFORE updating state
+                      // This is critical because React state updates are async
+                      let objectsToDrag: number[];
                       if (!e.shiftKey) {
+                        // Single selection - will drag only this object
+                        objectsToDrag = [index];
                         setSelectedObjectIndices([index]);
                       } else {
-                        // Multi-select logic pending
-                        setSelectedObjectIndices(prev => [...prev, index]);
+                        // Multi-select with Shift
+                        if (selectedObjectIndices.includes(index)) {
+                          // Already selected, drag all selected
+                          objectsToDrag = selectedObjectIndices;
+                        } else {
+                          // Add to selection and drag all
+                          objectsToDrag = [...selectedObjectIndices, index];
+                          setSelectedObjectIndices(objectsToDrag);
+                        }
+                      }
+
+                      // If clicking on an already selected object (without Shift), drag all selected
+                      if (!e.shiftKey && selectedObjectIndices.includes(index) && selectedObjectIndices.length > 1) {
+                        objectsToDrag = selectedObjectIndices;
                       }
 
                       // Initiate Drag - Convert client coords to map coords for consistency
@@ -9301,9 +9318,12 @@ export default function Component() {
                       setDraggedObjectIndex(index);
                       setDraggedObjectOriginalPos({ x: obj.x, y: obj.y });
 
-                      const originalPositions = selectedObjectIndices.includes(index) && selectedObjectIndices.length > 1
-                        ? selectedObjectIndices.map(idx => ({ index: idx, x: objects[idx].x, y: objects[idx].y }))
-                        : [{ index, x: obj.x, y: obj.y }];
+                      // Store original positions for all objects to drag
+                      const originalPositions = objectsToDrag.map(idx => ({
+                        index: idx,
+                        x: objects[idx].x,
+                        y: objects[idx].y
+                      }));
                       setDraggedObjectsOriginalPositions(originalPositions);
                     }
                   }}
