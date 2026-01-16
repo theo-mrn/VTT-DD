@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
     Sheet,
     SheetContent,
@@ -20,12 +20,9 @@ import {
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useShortcuts, SHORTCUT_ACTIONS, formatKeyEvent } from "@/contexts/ShortcutsContext";
 import { Button } from "@/components/ui/button";
-import { Keyboard, RotateCcw } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Kbd } from "@/components/ui/kbd";
+import { Keyboard, ChevronRight } from "lucide-react";
+import { ShortcutsDialog } from "./ShortcutsDialog";
 
 interface GlobalSettingsDialogProps {
     isOpen: boolean;
@@ -40,89 +37,6 @@ interface GlobalSettingsDialogProps {
     setShowCharBorders: (show: boolean) => void;
 }
 
-function ShortcutRecorder({ actionId, label }: { actionId: string, label: string }) {
-    const { getShortcutLabel, updateShortcut } = useShortcuts();
-    const [isRecording, setIsRecording] = useState(false);
-    const [recordingKeys, setRecordingKeys] = useState<string[]>([]);
-    const currentShortcut = getShortcutLabel(actionId);
-
-    // Reset recording keys when recording starts
-    useEffect(() => {
-        if (isRecording) setRecordingKeys([]);
-    }, [isRecording]);
-
-    useEffect(() => {
-        if (!isRecording) return;
-        const handler = (e: KeyboardEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
-
-            // Cancel on Escape
-            if (e.key === 'Escape') {
-                setIsRecording(false);
-                setRecordingKeys([]);
-                return;
-            }
-
-            // Save on Enter
-            if (e.key === 'Enter') {
-                if (recordingKeys.length > 0) {
-                    updateShortcut(actionId, recordingKeys.join(' '));
-                }
-                setIsRecording(false);
-                return;
-            }
-
-            // Remove last key on Backspace
-            if (e.key === 'Backspace') {
-                setRecordingKeys(prev => prev.slice(0, -1));
-                return;
-            }
-
-            // Ignore standalone modifiers
-            if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) {
-                return;
-            }
-
-            const combo = formatKeyEvent(e);
-            setRecordingKeys(prev => [...prev, combo]);
-        };
-        window.addEventListener('keydown', handler, { capture: true });
-        return () => window.removeEventListener('keydown', handler, { capture: true });
-    }, [isRecording, actionId, updateShortcut, recordingKeys]);
-
-    const displayKeys = isRecording ? recordingKeys : (currentShortcut ? currentShortcut.split(' ') : []);
-
-    return (
-        <div className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-black/20 hover:bg-black/40 transition-colors">
-            <span className="text-sm font-medium text-gray-300">{label}</span>
-            <Button
-                variant={isRecording ? "destructive" : "secondary"}
-                size="sm"
-                onClick={() => setIsRecording(true)}
-                className={cn(
-                    "min-w-[100px] h-auto min-h-8 border border-white/10 flex flex-wrap items-center gap-1",
-                    isRecording ? "animate-pulse ring-1 ring-red-500" : ""
-                )}
-            >
-                {isRecording && recordingKeys.length === 0 ? (
-                    <span className="text-xs font-mono opacity-70">Tapez... (Entrée)</span>
-                ) : (
-                    displayKeys.length > 0 ? (
-                        displayKeys.map((key, i) => (
-                            <Kbd key={i} className="bg-black/40 border-white/10 text-white min-w-[20px] h-5 text-[10px] px-1.5 whitespace-nowrap">
-                                {key}
-                            </Kbd>
-                        ))
-                    ) : (
-                        <span className="text-xs text-gray-500">Aucun</span>
-                    )
-                )}
-            </Button>
-        </div>
-    );
-}
-
 export default function GlobalSettingsDialog({
     isOpen,
     onOpenChange,
@@ -135,234 +49,142 @@ export default function GlobalSettingsDialog({
     showCharBorders,
     setShowCharBorders
 }: GlobalSettingsDialogProps) {
-    const { resetShortcuts } = useShortcuts();
+    const [showShortcuts, setShowShortcuts] = useState(false);
 
     return (
-        <Sheet open={isOpen} onOpenChange={onOpenChange}>
-            <SheetContent side="right" className="sm:max-w-[420px] w-full bg-[#1c1c1c] text-[#d4d4d4] border-l border-[#333] shadow-2xl p-0">
-                <div className="flex flex-col h-full">
-                    <SheetHeader className="p-6 pb-2 border-b border-white/5 bg-[#242424]">
-                        <SheetTitle className="font-title text-2xl text-[#c0a080] tracking-wide">
-                            Paramètres
-                        </SheetTitle>
-                        <SheetDescription className="text-gray-500">
-                            Configuration globale de l'interface
-                        </SheetDescription>
-                    </SheetHeader>
+        <>
+            <Sheet open={isOpen} onOpenChange={onOpenChange}>
+                <SheetContent side="right" className="sm:max-w-[420px] w-full bg-[#1c1c1c] text-[#d4d4d4] border-l border-[#333] shadow-2xl p-0">
+                    <div className="flex flex-col h-full">
+                        <SheetHeader className="p-6 pb-6 border-b border-white/5 bg-[#242424]">
+                            <SheetTitle className="font-title text-2xl text-[#c0a080] tracking-wide">
+                                Paramètres
+                            </SheetTitle>
+                            <SheetDescription className="text-gray-500">
+                                Configuration globale de l'interface
+                            </SheetDescription>
+                        </SheetHeader>
 
-                    <Tabs defaultValue="general" className="flex-1 flex flex-col overflow-hidden">
-                        <div className="px-6 pt-4 bg-[#242424]">
-                            <TabsList className="w-full bg-black/40 border border-white/5">
-                                <TabsTrigger value="general" className="flex-1 data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Général</TabsTrigger>
-                                <TabsTrigger value="shortcuts" className="flex-1 data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Raccourcis</TabsTrigger>
-                            </TabsList>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto">
-                            <TabsContent value="general" className="p-6 space-y-8 m-0 focus-visible:ring-0">
-                                {/* GM Section */}
-                                {isMJ && (
-                                    <div className="space-y-4">
-                                        <div className="flex items-center gap-2">
-                                            <h4 className="font-title text-sm font-semibold text-white uppercase tracking-wider">
-                                                Maître du Jeu
-                                            </h4>
-                                            <Separator className="flex-1 bg-white/10" />
+                        <div className="flex-1 overflow-y-auto p-6 space-y-8 m-0 focus-visible:ring-0">
+                            {/* Shortcuts Section */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2">
+                                    <h4 className="font-title text-sm font-semibold text-white uppercase tracking-wider">
+                                        Raccourcis
+                                    </h4>
+                                    <Separator className="flex-1 bg-white/10" />
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    className="w-full bg-[#242424] border-white/10 hover:bg-[#2c2c2c] hover:text-[#c0a080] text-gray-300 justify-between h-auto py-4 group"
+                                    onClick={() => {
+                                        onOpenChange(false);
+                                        setShowShortcuts(true);
+                                    }}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 bg-black/20 rounded-lg group-hover:bg-[#c0a080]/10 transition-colors">
+                                            <Keyboard className="w-5 h-5" />
                                         </div>
-
-                                        <Card className="p-5 border-white/5 bg-black/20 shadow-none">
-                                            <div className="space-y-5">
-                                                <div className="flex items-center justify-between">
-                                                    <Label htmlFor="token-scale" className="text-base font-medium text-gray-200">
-                                                        Échelle des Pions
-                                                    </Label>
-                                                    <span className="text-sm font-mono font-bold text-[#c0a080] bg-[#c0a080]/10 px-2.5 py-1 rounded-md border border-[#c0a080]/20">
-                                                        x{globalTokenScale.toFixed(1)}
-                                                    </span>
-                                                </div>
-                                                <Slider
-                                                    id="token-scale"
-                                                    min={0.5}
-                                                    max={3}
-                                                    step={0.1}
-                                                    value={[globalTokenScale]}
-                                                    onValueChange={(vals) => setGlobalTokenScale(vals[0])}
-                                                    onValueCommit={(vals) => updateGlobalTokenScale(vals[0])}
-                                                    className="py-2"
-                                                />
-                                                <p className="text-xs text-gray-500 leading-relaxed">
-                                                    Ajuste la taille globale de tous les pions sur la carte pour tous les joueurs.
-                                                </p>
-                                            </div>
-                                        </Card>
+                                        <div className="text-left">
+                                            <div className="font-medium">Raccourcis Clavier</div>
+                                            <div className="text-xs text-gray-500 font-normal">Gérer les commandes rapides</div>
+                                        </div>
                                     </div>
-                                )}
+                                    <ChevronRight className="w-4 h-4 text-gray-600 group-hover:text-[#c0a080] transition-colors" />
+                                </Button>
+                            </div>
 
-                                {/* Display Section */}
+                            {/* Appearance Section */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2">
+                                    <h4 className="font-title text-sm font-semibold text-white uppercase tracking-wider">
+                                        Apparence
+                                    </h4>
+                                    <Separator className="flex-1 bg-white/10" />
+                                </div>
+
                                 <div className="space-y-4">
-                                    <div className="flex items-center gap-2">
-                                        <h4 className="font-title text-sm font-semibold text-white uppercase tracking-wider">
-                                            Affichage
-                                        </h4>
-                                        <Separator className="flex-1 bg-white/10" />
-                                    </div>
-
-                                    <Card className="flex items-center justify-between p-5 border-white/5 bg-black/20 hover:bg-black/30 transition-all cursor-pointer" onClick={() => setShowCharBorders(!showCharBorders)}>
+                                    {/* Token Scale */}
+                                    <Card className="p-4 bg-[#242424] border-white/5 space-y-4">
                                         <div className="space-y-1.5">
-                                            <Label htmlFor="char-borders" className="text-base font-medium text-gray-200 cursor-pointer pointer-events-none">
-                                                Interface Personnages
-                                            </Label>
-                                            <p className="text-xs text-gray-500 pointer-events-none">
-                                                Afficher cercles, noms et stats
-                                            </p>
+                                            <Label className="text-base text-gray-200">Échelle des Tokens</Label>
+                                            <p className="text-xs text-gray-500">Taille par défaut des nouveaux tokens (0.5 - 2.0)</p>
+                                        </div>
+                                        <div className="flex items-center gap-4">
+                                            <Slider
+                                                value={[globalTokenScale]}
+                                                min={0.5}
+                                                max={2}
+                                                step={0.1}
+                                                onValueChange={(val) => setGlobalTokenScale(val[0])}
+                                                onValueCommit={(val) => updateGlobalTokenScale(val[0])}
+                                                className="flex-1"
+                                            />
+                                            <span className="w-12 text-right font-mono text-sm text-[#c0a080]">
+                                                {globalTokenScale.toFixed(1)}x
+                                            </span>
+                                        </div>
+                                    </Card>
+
+                                    {/* Character Borders */}
+                                    <Card className="p-4 bg-[#242424] border-white/5 flex items-center justify-between">
+                                        <div className="space-y-1">
+                                            <Label className="text-base text-gray-200">Bordures de Personnage</Label>
+                                            <p className="text-xs text-gray-500">Afficher les bordures colorées sur la carte</p>
                                         </div>
                                         <Switch
-                                            id="char-borders"
                                             checked={showCharBorders}
                                             onCheckedChange={setShowCharBorders}
                                             className="data-[state=checked]:bg-[#c0a080]"
                                         />
                                     </Card>
                                 </div>
+                            </div>
 
-                                {/* Performance Section */}
-                                <div className="space-y-4">
-                                    <div className="flex items-center gap-2">
-                                        <h4 className="font-title text-sm font-semibold text-white uppercase tracking-wider">
-                                            Performance
-                                        </h4>
-                                        <Separator className="flex-1 bg-white/10" />
-                                    </div>
-                                    <Card className="p-1 border-white/5 bg-black/20">
-                                        <Select
-                                            value={performanceMode}
-                                            onValueChange={(val: 'high' | 'eco' | 'static') => setPerformanceMode(val)}
-                                        >
-                                            <SelectTrigger className="w-full border-0 bg-transparent focus:ring-0 shadow-none h-14 pl-4 text-gray-200">
-                                                <SelectValue placeholder="Sélectionner le mode" />
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-[#242424] border-[#333] text-gray-200">
-                                                <SelectItem value="high" className="py-3 focus:bg-white/5 focus:text-white">
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="font-semibold text-base">Haute Qualité</span>
-                                                        <span className="text-gray-500 text-xs">Expérience visuelle maximale (Défaut)</span>
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="eco" className="py-3 focus:bg-white/5 focus:text-white">
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="font-semibold text-base">Économie</span>
-                                                        <span className="text-gray-500 text-xs">Limité à 30 FPS pour économiser la batterie</span>
-                                                    </div>
-                                                </SelectItem>
-                                                <SelectItem value="static" className="py-3 focus:bg-white/5 focus:text-white">
-                                                    <div className="flex flex-col gap-1">
-                                                        <span className="font-semibold text-base">Statique</span>
-                                                        <span className="text-gray-500 text-xs">Pas d'animations, performance maximale</span>
-                                                    </div>
-                                                </SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                    </Card>
-                                </div>
-                            </TabsContent>
-
-                            <TabsContent value="shortcuts" className="p-6 space-y-6 m-0 focus-visible:ring-0">
-                                <div className="flex items-center justify-between mb-2">
-                                    <div className="space-y-1">
-                                        <h3 className="font-medium text-white flex items-center gap-2">
-                                            <Keyboard className="w-4 h-4 text-[#c0a080]" />
-                                            Raccourcis Clavier
-                                        </h3>
-                                        <p className="text-xs text-gray-500">Cliquez pour enregistrer un nouveau raccourci.</p>
-                                    </div>
-                                    <Button variant="ghost" size="sm" onClick={resetShortcuts} className="text-xs h-7 hover:text-red-400">
-                                        <RotateCcw className="w-3 h-3 mr-1.5" />
-                                        Rétablir
-                                    </Button>
+                            {/* Performance Section */}
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-2">
+                                    <h4 className="font-title text-sm font-semibold text-white uppercase tracking-wider">
+                                        Performance
+                                    </h4>
+                                    <Separator className="flex-1 bg-white/10" />
                                 </div>
 
-                                <div className="space-y-6">
-                                    {/* Sidebar Shortcuts */}
-                                    <div className="space-y-3">
-                                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Navigation (Sidebar)</h4>
-                                        <div className="space-y-2">
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_CHAT} label="Chat" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_DICE} label="Lanceur de Dés" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_NOTES} label="Notes" />
-                                            {isMJ && (
-                                                <>
-                                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_COMBAT} label="Tableau de Bord MJ" />
-                                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_NPC} label="Gestion PNJ" />
-                                                </>
-                                            )}
-                                        </div>
+                                <Card className="p-4 bg-[#242424] border-white/5 space-y-4">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-base text-gray-200">Mode de Rendu</Label>
+                                        <p className="text-xs text-gray-500">Optimisez pour votre configuration</p>
                                     </div>
-
-                                    <Separator className="bg-white/5" />
-
-                                    {/* Dice Shortcuts */}
-                                    <div className="space-y-3">
-                                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Lancer de dés</h4>
-                                        <div className="space-y-2">
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D4} label="Lancer d4" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D6} label="Lancer d6" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D8} label="Lancer d8" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D10} label="Lancer d10" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D12} label="Lancer d12" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D20} label="Lancer d20" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D100} label="Lancer d100" />
-                                        </div>
-                                    </div>
-
-                                    {/* Map Tools Shortcuts */}
-                                    <div className="space-y-3">
-                                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Outils de Carte</h4>
-                                        <div className="space-y-2">
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_PAN} label="Déplacement (Pan)" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_SELECT} label="Sélection (Défaut)" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_DRAW} label="Dessin" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_MEASURE} label="Mesure" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_GRID} label="Afficher/Masquer Grille" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_CLEAR} label="Effacer Dessins" />
-                                            {isMJ && (
-                                                <>
-                                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_FOG} label="Brouillard de Guerre" />
-                                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_MULTI} label="Sélection Multiple" />
-                                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_LAYERS} label="Calques" />
-                                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_BACKGROUND} label="Changer Fond" />
-                                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_VIEW_MODE} label="Vue Joueur" />
-                                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_ADD_CHAR} label="Ajouter Personnage" />
-                                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_ADD_OBJ} label="Ajouter Objet" />
-                                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_ADD_NOTE} label="Ajouter Note" />
-                                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_MUSIC} label="Musique / Sons" />
-                                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_MIXER} label="Table de Mixage" />
-                                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_SEARCH} label="Recherche Unifiée" />
-                                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_PORTAL} label="Portails" />
-                                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_SPAWN} label="Point d'Apparition" />
-                                                </>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <Separator className="bg-white/5" />
-
-                                    <div className="space-y-3">
-                                        <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest pl-1">Interface & Vues</h4>
-                                        <div className="space-y-2">
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_ZOOM_IN} label="Zoom Avant (+)" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_ZOOM_OUT} label="Zoom Arrière (-)" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_WORLD_MAP} label="Carte du Monde" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_SETTINGS} label="Paramètres" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_BORDERS} label="Bordures Perso" />
-                                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_BADGES} label="Badges États" />
-                                        </div>
-                                    </div>
-                                </div>
-                            </TabsContent>
+                                    <Select value={performanceMode} onValueChange={(v: any) => setPerformanceMode(v)}>
+                                        <SelectTrigger className="bg-black/20 border-white/10">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="high">Haute Qualité (Toutes animations)</SelectItem>
+                                            <SelectItem value="eco">Économique (Animations réduites)</SelectItem>
+                                            <SelectItem value="static">Statique (Performance maximale)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </Card>
+                            </div>
                         </div>
-                    </Tabs>
-                </div>
-            </SheetContent>
-        </Sheet>
+
+                        {/* Footer */}
+                        <div className="p-4 border-t border-white/5 bg-[#242424]">
+                            <p className="text-center text-xs text-gray-600">
+                                VTT D&D System v2.0 • Created by Théo
+                            </p>
+                        </div>
+                    </div>
+                </SheetContent>
+
+                <ShortcutsDialog
+                    isOpen={showShortcuts}
+                    onClose={() => setShowShortcuts(false)}
+                    isMJ={isMJ}
+                />
+            </Sheet>
+        </>
     );
 }
