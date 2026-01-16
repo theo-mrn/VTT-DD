@@ -132,9 +132,10 @@ interface ToolbarSkinSelectorProps {
     selectedSkin: string;
     onSkinChange: (skin: string) => void;
     shape?: 'circle' | 'cone' | 'line' | 'cube';
+    className?: string;
 }
 
-export function ToolbarSkinSelector({ selectedSkin, onSkinChange, shape = 'circle' }: ToolbarSkinSelectorProps) {
+export function ToolbarSkinSelector({ selectedSkin, onSkinChange, shape = 'circle', className }: ToolbarSkinSelectorProps) {
     const options = shape === 'cone' ? CONE_SKIN_OPTIONS : FIREBALL_SKIN_OPTIONS;
     const [isOpen, setIsOpen] = useState(true);
     const [hoveredSkin, setHoveredSkin] = useState<string | null>(null);
@@ -144,7 +145,10 @@ export function ToolbarSkinSelector({ selectedSkin, onSkinChange, shape = 'circl
     const { effects, isLoading } = useEffects(category);
 
     return (
-        <div className="flex flex-col gap-2 bg-[#0a0a0a]/90 backdrop-blur-xl border border-[#333] rounded-xl p-3 shadow-[0_20px_50px_rgba(0,0,0,0.8)] w-[340px] relative pointer-events-auto transition-all duration-300">
+        <div className={cn(
+            "flex flex-col gap-2 bg-[#0a0a0a]/90 backdrop-blur-xl border border-[#333] rounded-xl p-3 shadow-[0_20px_50px_rgba(0,0,0,0.8)] w-full relative pointer-events-auto transition-all duration-300",
+            className || ""
+        )}>
             <div
                 className="flex items-center justify-between border-b border-white/5 pb-2 cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => setIsOpen(!isOpen)}
@@ -159,14 +163,14 @@ export function ToolbarSkinSelector({ selectedSkin, onSkinChange, shape = 'circl
             </div>
 
             {isOpen && (
-                <ScrollArea className="w-full h-[240px] pr-3 animate-in slide-in-from-top-2 duration-200">
+                <ScrollArea className="w-full h-[180px] pr-3 animate-in slide-in-from-top-2 duration-200">
                     {isLoading ? (
                         <div className="flex items-center justify-center h-full text-gray-500">
                             <Cloud className="w-6 h-6 animate-pulse mr-2" />
                             <span>Chargement des effets...</span>
                         </div>
                     ) : (
-                        <div className="grid grid-cols-4 gap-2 p-1">
+                        <div className="grid grid-cols-3 gap-2 p-1">
                             {options.map((option) => (
                                 <button
                                     key={option.value}
