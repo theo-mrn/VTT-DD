@@ -64,7 +64,7 @@ export interface Character {
     notes?: string;
 }
 
-export type Interaction = VendorInteraction;
+export type Interaction = VendorInteraction | GameInteraction;
 
 export interface VendorInteraction {
     id: string;
@@ -72,6 +72,14 @@ export interface VendorInteraction {
     name: string; // "Magasin", "Auberge", etc.
     description?: string; // 🆕 Customizable welcome message
     items: VendorItem[];
+}
+
+export interface GameInteraction {
+    id: string;
+    type: 'game';
+    name: string; // "Jeux de dés", "Cartes", etc.
+    description?: string;
+    gameType?: 'dice' | 'cards' | 'custom'; // Type de jeu
 }
 
 export interface VendorItem {
