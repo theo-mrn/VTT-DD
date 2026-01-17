@@ -89,6 +89,7 @@ export interface LootInteraction {
     description?: string;
     items: LootItem[];
     locked?: boolean;
+    linkedId?: string; // For shared/synchronized containers
 }
 
 export interface LootItem {
@@ -196,6 +197,8 @@ export interface MapObject {
     visibleToPlayerIds?: string[];
     cityId?: string | null;
     notes?: string;
+    items?: LootItem[]; // 🆕 For chest/container objects
+    linkedId?: string; // 🆕 For shared inventories
 }
 
 export interface ObjectTemplate {

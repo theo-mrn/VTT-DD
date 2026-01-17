@@ -12,7 +12,8 @@ import {
     EyeOff,
     Check,
     RotateCw,
-    Edit2
+    Edit2,
+    Package
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -166,6 +167,15 @@ export default function ObjectContextMenu({
                                     {isMJ && <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Actions Objet</h3>}
 
                                     <div className="grid grid-cols-1 gap-2">
+                                        <Button
+                                            variant="outline"
+                                            className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-[#333] hover:text-amber-400 text-gray-300"
+                                            onClick={() => onAction('openLoot', object.id)}
+                                        >
+                                            <Package size={16} />
+                                            Fouiller
+                                        </Button>
+
                                         {isMJ && (
                                             <>
                                                 {/* Lock / Unlock Object */}
