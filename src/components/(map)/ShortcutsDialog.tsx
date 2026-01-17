@@ -2,17 +2,16 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Keyboard, RotateCcw } from "lucide-react";
+import { X, Keyboard, RotateCcw, Plus, Trash2, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { useShortcuts, SHORTCUT_ACTIONS, formatKeyEvent } from "@/contexts/ShortcutsContext";
+import { useShortcuts, SHORTCUT_ACTIONS, formatKeyEvent, CustomShortcut } from "@/contexts/ShortcutsContext";
 import { cn } from "@/lib/utils";
 
-function ShortcutRecorder({ actionId, label }: { actionId: string, label: string }) {
-    const { getShortcutLabel, updateShortcut } = useShortcuts();
+function KeyRecorder({ value, onChange, placeholder = "Aucun" }: { value: string, onChange: (val: string) => void, placeholder?: string }) {
     const [isRecording, setIsRecording] = useState(false);
     const [recordingKeys, setRecordingKeys] = useState<string[]>([]);
-    const currentShortcut = getShortcutLabel(actionId);
 
     // Reset recording keys when recording starts
     useEffect(() => {
@@ -35,7 +34,7 @@ function ShortcutRecorder({ actionId, label }: { actionId: string, label: string
             // Save on Enter
             if (e.key === 'Enter') {
                 if (recordingKeys.length > 0) {
-                    updateShortcut(actionId, recordingKeys.join(' '));
+                    onChange(recordingKeys.join(' '));
                 }
                 setIsRecording(false);
                 return;
@@ -57,25 +56,69 @@ function ShortcutRecorder({ actionId, label }: { actionId: string, label: string
         };
         window.addEventListener('keydown', handler, { capture: true });
         return () => window.removeEventListener('keydown', handler, { capture: true });
-    }, [isRecording, actionId, updateShortcut, recordingKeys]);
+    }, [isRecording, onChange, recordingKeys]);
 
-    const displayKeys = isRecording ? recordingKeys : (currentShortcut ? currentShortcut.split(' ') : []);
-
+    const displayKeys = isRecording ? recordingKeys : (value ? value.split(' ') : []);
     const buttonVariant = isRecording ? "destructive" : "secondary" as const;
+
+    return (
+        <Button
+            variant={buttonVariant}
+            size="sm"
+            onClick={() => setIsRecording(!isRecording)}
+            className={cn(
+                "min-w-[100px] font-mono",
+                isRecording && "animate-pulse"
+            )}
+        >
+            {isRecording ? "Enregistrement..." : (displayKeys.join(' + ') || placeholder)}
+        </Button>
+    );
+}
+
+function ShortcutRecorder({ actionId, label }: { actionId: string, label: string }) {
+    const { getShortcutLabel, updateShortcut } = useShortcuts();
+    const currentShortcut = getShortcutLabel(actionId);
 
     return (
         <div className="flex items-center justify-between p-3 rounded-lg border border-white/5 bg-black/20 hover:bg-black/40 transition-colors">
             <span className="text-sm font-medium text-gray-300">{label}</span>
+            <KeyRecorder value={currentShortcut} onChange={(v) => updateShortcut(actionId, v)} />
+        </div>
+    );
+}
+
+function CustomShortcutRow({ shortcut }: { shortcut: CustomShortcut }) {
+    const { updateCustomShortcut, removeCustomShortcut } = useShortcuts();
+
+    return (
+        <div className="flex items-center gap-2 p-3 rounded-lg border border-white/5 bg-black/20 hover:bg-black/40 transition-colors">
+            <Input
+                value={shortcut.label}
+                onChange={(e) => updateCustomShortcut(shortcut.id, { label: e.target.value })}
+                placeholder="Nom (ex: Dé de feu)"
+                className="h-8 max-w-[150px] bg-black/20 border-white/10"
+            />
+            <Input
+                value={shortcut.command}
+                onChange={(e) => updateCustomShortcut(shortcut.id, { command: e.target.value })}
+                placeholder="Ex: 1d20+CON"
+                className="h-8 max-w-[150px] bg-black/20 border-white/10 font-mono"
+            />
+            <div className="flex-1 flex justify-end">
+                <KeyRecorder
+                    value={shortcut.keyString}
+                    onChange={(v) => updateCustomShortcut(shortcut.id, { keyString: v })}
+                    placeholder="Touche..."
+                />
+            </div>
             <Button
-                variant={buttonVariant}
-                size="sm"
-                onClick={() => setIsRecording(!isRecording)}
-                className={cn(
-                    "min-w-[100px] font-mono",
-                    isRecording && "animate-pulse"
-                )}
+                variant="ghost"
+                size="icon"
+                onClick={() => removeCustomShortcut(shortcut.id)}
+                className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-950/30"
             >
-                {isRecording ? "Enregistrement..." : (displayKeys.join(' + ') || "Aucun")}
+                <Trash2 className="w-4 h-4" />
             </Button>
         </div>
     );
@@ -90,7 +133,7 @@ export function ShortcutsDialog({
     onClose: () => void;
     isMJ: boolean;
 }) {
-    const { resetShortcuts } = useShortcuts();
+    const { resetShortcuts, customShortcuts, addCustomShortcut } = useShortcuts();
     const contentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
@@ -178,6 +221,34 @@ export function ShortcutsDialog({
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D12} label="Lancer d12" />
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D20} label="Lancer d20" />
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D100} label="Lancer d100" />
+                        </div>
+                    </div>
+
+                    <Separator className="bg-white/5" />
+
+                    <div className="space-y-3">
+                        <div className="flex items-center justify-between pl-1 border-l-2 border-[#c0a080] ml-1 pl-3">
+                            <h4 className="text-xs font-bold text-gray-500 uppercase tracking-widest">Raccourcis Personnalisés</h4>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => addCustomShortcut({ label: 'Attaque', command: '1d20+FOR', keyString: '' })}
+                                className="h-6 text-xs text-[#c0a080] hover:bg-[#c0a080]/10"
+                            >
+                                <Plus className="w-3 h-3 mr-1" />
+                                Ajouter
+                            </Button>
+                        </div>
+                        <div className="space-y-2">
+                            {customShortcuts.map(shortcut => (
+                                <CustomShortcutRow key={shortcut.id} shortcut={shortcut} />
+                            ))}
+                            {customShortcuts.length === 0 && (
+                                <div className="text-sm text-gray-600 italic text-center py-2">
+                                    Aucun raccourci personnalisé. <br />
+                                    <span className="text-xs text-gray-500">Ex: "1d20+CON", "2d6+3"...</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 

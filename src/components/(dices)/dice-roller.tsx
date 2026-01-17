@@ -59,7 +59,7 @@ interface FirebaseRoll {
 import { useShortcuts, SHORTCUT_ACTIONS } from "@/contexts/ShortcutsContext";
 
 export function DiceRoller() {
-  const { isShortcutPressed } = useShortcuts();
+  const { isShortcutPressed, customShortcuts, checkKeyCombination } = useShortcuts();
   const [input, setInput] = useState("");
   const [result, setResult] = useState<RollResult | null>(null);
   const [showDetails, setShowDetails] = useState(false);
@@ -304,7 +304,7 @@ export function DiceRoller() {
     if (typeof window === 'undefined' || requests.length === 0) return Promise.resolve([]);
 
     // Filtrer les dés supportés par la 3D (d6, d10, d12, d20 comme demandé)
-    const SUPPORTED_3D_DICE = ['d6', 'd10', 'd12', 'd20'];
+    const SUPPORTED_3D_DICE = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'];
     const requests3D = requests.filter(req => SUPPORTED_3D_DICE.includes(req.type));
     const requestsInstant = requests.filter(req => !SUPPORTED_3D_DICE.includes(req.type));
 
@@ -754,6 +754,16 @@ export function DiceRoller() {
       else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D12)) rollCmd = "1d12";
       else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D20)) rollCmd = "1d20";
       else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D100)) rollCmd = "1d100";
+
+      // check for custom shortcuts
+      if (!rollCmd) {
+        for (const shortcut of customShortcuts) {
+          if (checkKeyCombination(e, shortcut.keyString)) {
+            rollCmd = shortcut.command;
+            break;
+          }
+        }
+      }
 
       if (rollCmd) {
         // Add to pending rolls

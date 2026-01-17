@@ -11,6 +11,13 @@ export type KeyCombination = {
     altKey?: boolean;
 };
 
+export type CustomShortcut = {
+    id: string;
+    label: string;
+    command: string;
+    keyString: string;
+};
+
 // Define all available actions
 export const SHORTCUT_ACTIONS = {
     // Sidebar
@@ -76,6 +83,11 @@ interface ShortcutsContextType {
     resetShortcuts: () => void;
     isShortcutPressed: (event: KeyboardEvent, actionId: string) => boolean;
     getShortcutLabel: (actionId: string) => string;
+    checkKeyCombination: (event: KeyboardEvent, keyString: string) => boolean;
+    customShortcuts: CustomShortcut[];
+    addCustomShortcut: (shortcut: Omit<CustomShortcut, 'id'>) => void;
+    updateCustomShortcut: (id: string, updates: Partial<CustomShortcut>) => void;
+    removeCustomShortcut: (id: string) => void;
 }
 
 const ShortcutsContext = createContext<ShortcutsContextType | undefined>(undefined);
@@ -158,9 +170,11 @@ export const formatKeyEvent = (e: KeyboardEvent | React.KeyboardEvent): string =
 };
 
 const STORAGE_KEY = 'vtt-dd-shortcuts-v2';
+const CUSTOM_STORAGE_KEY = 'vtt-dd-custom-shortcuts';
 
 export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
     const [shortcuts, setShortcuts] = useState<Record<string, string>>(DEFAULT_SHORTCUTS);
+    const [customShortcuts, setCustomShortcuts] = useState<CustomShortcut[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
 
     // History handling
@@ -226,11 +240,36 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
             if (stored) {
                 setShortcuts({ ...DEFAULT_SHORTCUTS, ...JSON.parse(stored) });
             }
+
+            const storedCustom = localStorage.getItem(CUSTOM_STORAGE_KEY);
+            if (storedCustom) {
+                setCustomShortcuts(JSON.parse(storedCustom));
+            }
         } catch (e) {
             console.error("Failed to load shortcuts", e);
         }
         setIsLoaded(true);
     }, []);
+
+    const updateCustomShortcutsStorage = (newShortcuts: CustomShortcut[]) => {
+        setCustomShortcuts(newShortcuts);
+        localStorage.setItem(CUSTOM_STORAGE_KEY, JSON.stringify(newShortcuts));
+    };
+
+    const addCustomShortcut = (shortcut: Omit<CustomShortcut, 'id'>) => {
+        const newShortcut = { ...shortcut, id: crypto.randomUUID() };
+        updateCustomShortcutsStorage([...customShortcuts, newShortcut]);
+    };
+
+    const updateCustomShortcut = (id: string, updates: Partial<CustomShortcut>) => {
+        const newShortcuts = customShortcuts.map(s => s.id === id ? { ...s, ...updates } : s);
+        updateCustomShortcutsStorage(newShortcuts);
+    };
+
+    const removeCustomShortcut = (id: string) => {
+        const newShortcuts = customShortcuts.filter(s => s.id !== id);
+        updateCustomShortcutsStorage(newShortcuts);
+    };
 
     const updateShortcut = (actionId: string, keyString: string) => {
         const newShortcuts = { ...shortcuts, [actionId]: keyString };
@@ -243,20 +282,19 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SHORTCUTS));
     };
 
-    const isShortcutPressed = (event: KeyboardEvent, actionId: string): boolean => {
+    const checkKeyCombination = (event: KeyboardEvent, keyString: string): boolean => {
+        if (!keyString) return false;
+
         // Ignore if user is typing in an input
         const target = event.target as HTMLElement;
         if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
             return false;
         }
 
-        const shortcut = shortcuts[actionId];
-        if (!shortcut) return false;
-
         const currentKey = formatKeyEvent(event);
 
         // Handle sequences (space separated)
-        const sequence = shortcut.split(' ');
+        const sequence = keyString.split(' ');
 
         if (sequence.length === 1) {
             // Simple shortcut
@@ -279,12 +317,28 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
         return historySlice.every((k, i) => k === sequenceSlice[i]);
     };
 
+    const isShortcutPressed = (event: KeyboardEvent, actionId: string): boolean => {
+        const shortcut = shortcuts[actionId];
+        return checkKeyCombination(event, shortcut);
+    };
+
     const getShortcutLabel = (actionId: string) => {
         return shortcuts[actionId] || '';
     };
 
     return (
-        <ShortcutsContext.Provider value={{ shortcuts, updateShortcut, resetShortcuts, isShortcutPressed, getShortcutLabel }}>
+        <ShortcutsContext.Provider value={{
+            shortcuts,
+            updateShortcut,
+            resetShortcuts,
+            isShortcutPressed,
+            checkKeyCombination,
+            getShortcutLabel,
+            customShortcuts,
+            addCustomShortcut,
+            updateCustomShortcut,
+            removeCustomShortcut
+        }}>
             {children}
         </ShortcutsContext.Provider>
     );
