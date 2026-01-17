@@ -2121,9 +2121,9 @@ export default function Component() {
   const lastMapDrawTimeRef = React.useRef<number>(0); // ⚡ Ref for throttling render
 
   const precalculatedShadows = React.useMemo<ShadowResult | null>(() => {
-    // If we are dragging a character, throttle updates to 50ms (20fps)
+    // If we are dragging a character OR obstacle, throttle updates to 50ms (20fps)
     // This prevents the expensive shadow calculation from blocking the UI thread
-    if (isDraggingCharacter) {
+    if (isDraggingCharacter || isDraggingObstacle) {
       const now = Date.now();
       if (now - lastShadowUpdateRef.current < 50 && lastShadowResultRef.current) {
         return lastShadowResultRef.current;
