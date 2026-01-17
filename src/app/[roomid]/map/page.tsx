@@ -66,7 +66,7 @@ import { Component as RadialMenu } from '@/components/ui/radial-menu';
 import CitiesManager from '@/components/(worldmap)/CitiesManager';
 import ContextMenuPanel from '@/components/(overlays)/ContextMenuPanel';
 import InteractionLayer from '@/components/(interactions)/InteractionLayer';
-import { VendorInteraction, GameInteraction, LootInteraction, Interaction } from '@/app/[roomid]/map/types';
+import { VendorInteraction, GameInteraction, LootInteraction, Interaction, MapObject } from '@/app/[roomid]/map/types';
 import ObjectContextMenu from '@/components/(overlays)/ObjectContextMenu';
 import LightContextMenu from '@/components/(overlays)/LightContextMenu';
 import MusicZoneContextMenu from '@/components/(overlays)/MusicZoneContextMenu';
@@ -97,7 +97,7 @@ import {
 } from '@/lib/visibility';
 import { LayerControl } from '@/components/(map)/LayerControl';
 import { SelectionMenu, type SelectionCandidates, type SelectionType } from '@/components/(map)/SelectionMenu';
-import { type ViewMode, type Point, type Character, type LightSource, type MapText, type SavedDrawing, type NewCharacter, type Note, type MapObject, type ObjectTemplate, type Layer, type LayerType, type MusicZone, type Scene, type DrawingTool, type Ping, type Portal } from './types';
+import { type ViewMode, type Point, type Character, type LightSource, type MapText, type SavedDrawing, type NewCharacter, type Note, type ObjectTemplate, type Layer, type LayerType, type MusicZone, type Scene, type DrawingTool, type Ping, type Portal } from './types';
 import { useAudioZones } from '@/hooks/map/useAudioZones';
 import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath } from './drawings';
 import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
@@ -202,7 +202,7 @@ export default function Component() {
   const videoRef = useRef<HTMLVideoElement | null>(null); // Ref to keep track of video element for cleanup
   const [selectedSkin, setSelectedSkin] = useState<string>('Fireballs/explosion1.webm');
   const [isPermanent, setIsPermanent] = useState(false); // 🆕 Permanent measurement toggle
-  const [activeInteraction, setActiveInteraction] = useState<{ interaction: VendorInteraction | GameInteraction | LootInteraction, host: Character } | null>(null);
+  const [activeInteraction, setActiveInteraction] = useState<{ interaction: VendorInteraction | GameInteraction | LootInteraction, host: Character | MapObject } | null>(null);
   const [interactionConfigTarget, setInteractionConfigTarget] = useState<Character | null>(null);
   const fireballVideo = useSkinVideo(selectedSkin); // For LOCAL active measurement
 
@@ -8474,6 +8474,19 @@ export default function Component() {
     const obj = objects[objIndex];
 
     try {
+      if (action === 'openLoot') {
+        const lootInteraction: LootInteraction = {
+          id: obj.id,
+          type: 'loot' as const,
+          name: obj.name,
+          items: obj.items || [],
+          linkedId: obj.linkedId
+        };
+        setActiveInteraction({ interaction: lootInteraction, host: obj });
+        setContextMenuObjectOpen(false);
+        return;
+      }
+
       if (action === 'delete') {
         await deleteDoc(doc(db, 'cartes', String(roomId), 'objects', objectId));
         setContextMenuObjectOpen(false);

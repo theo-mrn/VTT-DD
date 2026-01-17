@@ -3,7 +3,7 @@
 import React from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Character, Interaction, VendorInteraction, GameInteraction, LootInteraction } from '@/app/[roomid]/map/types';
+import { Character, Interaction, VendorInteraction, GameInteraction, LootInteraction, MapObject, LootItem } from '@/app/[roomid]/map/types';
 import ShopComponent from '@/components/(interactions)/ShopComponent';
 import LootComponent from '@/components/(interactions)/LootComponent';
 import GameComponent from '@/components/(interactions)/GameComponent';
@@ -13,8 +13,8 @@ interface InteractionLayerProps {
     roomId: string; // Made required as it's essential for updates
     isMJ: boolean;
     characters: Character[];
-    activeInteraction: { interaction: VendorInteraction | GameInteraction | LootInteraction, host: Character } | null;
-    setActiveInteraction: (interaction: { interaction: VendorInteraction | GameInteraction | LootInteraction, host: Character } | null) => void;
+    activeInteraction: { interaction: VendorInteraction | GameInteraction | LootInteraction, host: Character | MapObject } | null;
+    setActiveInteraction: (interaction: { interaction: VendorInteraction | GameInteraction | LootInteraction, host: Character | MapObject } | null) => void;
     interactionConfigTarget: Character | null;
     setInteractionConfigTarget: (character: Character | null) => void;
     persoId: string | null;
@@ -36,16 +36,29 @@ export default function InteractionLayer({
     const handleUpdateInteraction = async (updatedInteraction: Interaction, hostId: string) => {
         if (!roomId) return;
 
+        // Check if host is a Character
         const hostChar = characters.find(c => c.id === hostId);
-        if (!hostChar) return;
+        if (hostChar) {
+            const currentInteractions = hostChar.interactions || [];
+            const updatedInteractions = currentInteractions.map(i =>
+                i.id === updatedInteraction.id ? updatedInteraction : i
+            );
 
-        const currentInteractions = hostChar.interactions || [];
-        const updatedInteractions = currentInteractions.map(i =>
-            i.id === updatedInteraction.id ? updatedInteraction : i
-        );
-
-        const charRef = doc(db, 'cartes', roomId, 'characters', hostId);
-        await updateDoc(charRef, { interactions: updatedInteractions });
+            const charRef = doc(db, 'cartes', roomId, 'characters', hostId);
+            await updateDoc(charRef, { interactions: updatedInteractions });
+        } else {
+            // Assume host is a MapObject (for Loot)
+            // For MapObjects, the "interaction" IS the object itself in a way, or we are updating its 'items' field.
+            // But MapObject doesn't have 'interactions' array. It has direct 'items' and 'linkedId'.
+            if (updatedInteraction.type === 'loot') {
+                const objectRef = doc(db, 'cartes', roomId, 'objects', hostId);
+                // We only update the specific loot fields
+                await updateDoc(objectRef, {
+                    items: (updatedInteraction as LootInteraction).items,
+                    linkedId: (updatedInteraction as LootInteraction).linkedId
+                });
+            }
+        }
 
         // Update active interaction if it's the one being modified
         if (activeInteraction && activeInteraction.interaction.id === updatedInteraction.id) {
@@ -61,7 +74,7 @@ export default function InteractionLayer({
                     isOpen={!!activeInteraction}
                     onClose={() => setActiveInteraction(null)}
                     interaction={activeInteraction.interaction as VendorInteraction}
-                    vendor={activeInteraction.host}
+                    vendor={activeInteraction.host as Character}
                     isMJ={isMJ}
                     onUpdateInteraction={(updated) => handleUpdateInteraction(updated, activeInteraction.host.id)}
                 />
@@ -73,7 +86,10 @@ export default function InteractionLayer({
                     isOpen={!!activeInteraction}
                     onClose={() => setActiveInteraction(null)}
                     interaction={activeInteraction.interaction as LootInteraction}
-                    character={characters.find(c => c.id === (viewAsPersoId || persoId)) || activeInteraction.host}
+                    character={
+                        characters.find(c => c.id === (viewAsPersoId || persoId)) ||
+                        (('items' in activeInteraction.host) ? undefined : activeInteraction.host as Character)
+                    }
                     isMJ={isMJ}
                     roomId={roomId}
                     onUpdateInteraction={(updated) => handleUpdateInteraction(updated, activeInteraction.host.id)}
@@ -86,7 +102,7 @@ export default function InteractionLayer({
                     isOpen={!!activeInteraction}
                     onClose={() => setActiveInteraction(null)}
                     interaction={activeInteraction.interaction as GameInteraction}
-                    gameHost={activeInteraction.host}
+                    gameHost={activeInteraction.host as Character}
                     roomId={roomId}
                     currentPlayerId={persoId || undefined}
                     isMJ={isMJ}
