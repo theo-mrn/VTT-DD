@@ -218,27 +218,49 @@ export default function GameComponent({
         return false;
     }
 
-    async function resetGame() {
+    async function resetGame(clearPlayers: boolean = false) {
         chessGameRef.current.reset();
         const newFen = chessGameRef.current.fen();
         setFen(newFen);
         setGameStatus("");
 
+        // Réinitialiser les états locaux si on libère les places
+        if (clearPlayers) {
+            setWhitePlayer(null);
+            setBlackPlayer(null);
+            setSelectedSide(null);
+            setShowSideSelection(true);
+        }
+
         // Réinitialiser dans Firebase
         const gameRef = doc(db, gameDocPath);
-        await setDoc(gameRef, {
+        const updates: any = {
             fen: newFen,
-            whitePlayer,
-            blackPlayer,
             turn: 'w',
-            lastMove: undefined
-        } as ChessGameState);
+            lastMove: null // Utiliser null pour supprimer le champ ou indiquer qu'il n'y a pas de dernier mouvement
+        };
+
+        if (clearPlayers) {
+            updates.whitePlayer = null;
+            updates.blackPlayer = null;
+        } else {
+            // Garder les joueurs actuels
+            updates.whitePlayer = whitePlayer;
+            updates.blackPlayer = blackPlayer;
+        }
+
+        await setDoc(gameRef, updates, { merge: true });
     }
 
     if (!isOpen) return null;
 
     // Déterminer l'orientation de l'échiquier
     const boardOrientation = selectedSide === 'black' ? 'black' : 'white';
+
+    // Vérifier si la partie est pleine (les deux places sont prises)
+    const isGameFull = !!whitePlayer && !!blackPlayer;
+    // Vérifier si le joueur est déjà installé
+    const isPlayerSeated = (whitePlayer === currentPlayerId) || (blackPlayer === currentPlayerId);
 
     return (
         <AnimatePresence>
@@ -266,15 +288,19 @@ export default function GameComponent({
                                 <motion.div
                                     initial={{ opacity: 0, scale: 0.9 }}
                                     animate={{ opacity: 1, scale: 1 }}
-                                    className="bg-[#1a1a1a] border border-[#444] rounded-2xl p-8 space-y-6 max-w-md"
+                                    className="bg-[#1a1a1a] border border-[#444] rounded-2xl p-8 space-y-6 max-w-md w-full"
                                 >
                                     <div className="text-center">
                                         <div className="inline-block p-3 bg-purple-900/30 rounded-xl mb-4">
                                             <Users size={32} className="text-purple-400" />
                                         </div>
-                                        <h3 className="text-2xl font-bold text-white mb-2">Choisissez votre camp</h3>
+                                        <h3 className="text-2xl font-bold text-white mb-2">
+                                            {isGameFull ? "Partie en cours" : "Choisissez votre camp"}
+                                        </h3>
                                         <p className="text-gray-400 text-sm">
-                                            Sélectionnez les blancs ou les noirs pour commencer à jouer
+                                            {isGameFull
+                                                ? "Les deux camps sont déjà occupés."
+                                                : "Sélectionnez les blancs ou les noirs pour commencer à jouer"}
                                         </p>
                                     </div>
 
@@ -296,8 +322,6 @@ export default function GameComponent({
                                         <Button
                                             onClick={() => {
                                                 console.log('[Chess] Black button clicked');
-                                                console.log('[Chess] blackPlayer:', blackPlayer, 'currentPlayerId:', currentPlayerId);
-                                                console.log('[Chess] Button disabled?', !!blackPlayer && blackPlayer !== currentPlayerId);
                                                 handleSelectSide('black');
                                             }}
                                             disabled={!!blackPlayer && blackPlayer !== currentPlayerId}
@@ -310,18 +334,36 @@ export default function GameComponent({
                                         </Button>
                                     </div>
 
+                                    {/* Additional Options */}
+                                    <div className="space-y-3 pt-4 border-t border-gray-800">
+                                        {/* Spectator Mode - Always available */}
+                                        <Button
+                                            variant="ghost"
+                                            className="w-full text-gray-400 hover:text-white hover:bg-white/5"
+                                            onClick={() => setShowSideSelection(false)}
+                                        >
+                                            👁️ Observer la partie
+                                        </Button>
+
+                                        {/* Force Reset logic: if game is full OR user is MJ */}
+                                        {(isGameFull || isMJ) && (
+                                            <Button
+                                                variant="destructive"
+                                                className="w-full bg-red-900/20 text-red-400 hover:bg-red-900/40 hover:text-red-300 border border-red-900/50"
+                                                onClick={() => resetGame(true)}
+                                            >
+                                                <RotateCcw className="w-4 h-4 mr-2" />
+                                                Nouvelle partie (Libérer les places)
+                                            </Button>
+                                        )}
+                                    </div>
+
                                     {/* Debug info */}
-                                    <div className="text-xs text-gray-500 text-center space-y-1">
+                                    <div className="text-xs text-gray-500 text-center space-y-1 hidden">
                                         <div>White: {whitePlayer || 'null'}</div>
                                         <div>Black: {blackPlayer || 'null'}</div>
                                         <div>Current: {currentPlayerId || 'null'}</div>
                                     </div>
-
-                                    {whitePlayer && blackPlayer && (
-                                        <div className="text-center text-green-400 text-sm">
-                                            ✓ Les deux camps sont prêts !
-                                        </div>
-                                    )}
                                 </motion.div>
                             </div>
                         )}
@@ -376,7 +418,7 @@ export default function GameComponent({
                                         Changer de camp
                                     </Button>
                                     <Button
-                                        onClick={resetGame}
+                                        onClick={() => resetGame(false)}
                                         className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg font-semibold gap-2"
                                     >
                                         <RotateCcw size={16} />
