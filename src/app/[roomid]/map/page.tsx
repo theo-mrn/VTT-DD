@@ -898,6 +898,7 @@ export default function Component() {
   const [isDraggingObstacle, setIsDraggingObstacle] = useState(false);
   const [draggedObstacleId, setDraggedObstacleId] = useState<string | null>(null);
   const [draggedObstacleOriginalPoints, setDraggedObstacleOriginalPoints] = useState<Point[]>([]);
+  const [draggedObstaclesOriginalPoints, setDraggedObstaclesOriginalPoints] = useState<{ id: string, points: Point[] }[]>([]); // For multi-drag
   const [isDraggingObstaclePoint, setIsDraggingObstaclePoint] = useState(false);
   const [draggedPointIndex, setDraggedPointIndex] = useState<number | null>(null);
   const [dragStartPos, setDragStartPos] = useState<Point | null>(null);
@@ -2158,7 +2159,7 @@ export default function Component() {
 
     lastShadowResultRef.current = result;
     return result;
-  }, [activeViewer?.x, activeViewer?.y, obstacles, bgImageObject, isMJ, playerViewMode, layers, activeViewer, isDraggingCharacter]);
+  }, [activeViewer?.x, activeViewer?.y, obstacles, bgImageObject, isMJ, playerViewMode, layers, activeViewer, isDraggingCharacter, isDraggingObstacle]);
 
   useEffect(() => {
     const bgCanvas = bgCanvasRef.current;
@@ -6110,42 +6111,19 @@ export default function Component() {
 
           // 1. Si un obstacle est sélectionné, vérifier si on clique sur une poignée
           if (selectedObstacleIds.length > 0) {
-            const selectedObs = obstacles.find(o => selectedObstacleIds.includes(o.id));
-            if (selectedObs) {
-              for (let i = 0; i < selectedObs.points.length; i++) {
-                const point = selectedObs.points[i];
-                const dist = Math.sqrt(Math.pow(clickX - point.x, 2) + Math.pow(clickY - point.y, 2));
-                if (dist < handleRadius) {
-                  // Clic sur une poignée → commencer le drag du point
-                  // Identifier TOUS les points connectés (même position) pour les déplacer ensemble
-                  const connected: { obstacleId: string, pointIndex: number }[] = [];
-                  const clickedPoint = selectedObs.points[i];
-                  const epsilon = 2 / zoom; // Tolérance pour considérer les points comme identiques
+            // 🔧 FIX: Find WHICH selected obstacle was actually clicked, not just the first one
+            let clickedSelectedObs: Obstacle | null = null;
 
-                  obstacles.forEach(obs => {
-                    obs.points.forEach((p: Point, idx: number) => {
-                      if (Math.abs(p.x - clickedPoint.x) < epsilon && Math.abs(p.y - clickedPoint.y) < epsilon) {
-                        connected.push({ obstacleId: obs.id, pointIndex: idx });
-                      }
-                    });
-                  });
+            // Check each selected obstacle to see if the click is on it
+            for (const obsId of selectedObstacleIds) {
+              const obs = obstacles.find(o => o.id === obsId);
+              if (!obs) continue;
 
-                  setIsDraggingObstaclePoint(true);
-                  setDraggedPointIndex(i);
-                  // Sauvegarder l'état original de TOUS les obstacles affectés serait lourd
-                  // On utilisera la position actuelle + delta
-                  setDraggedObstacleOriginalPoints([...selectedObs.points]); // Toujours utile de garder une ref
-                  setConnectedPoints(connected);
-                  setDragStartPos({ x: clickX, y: clickY });
-                  return;
-                }
-              }
-
-              // 2. Vérifier si on clique sur le corps de l'obstacle sélectionné (pour le déplacer)
-              let clickedOnSelected = false;
-              if (selectedObs.type === 'wall' && selectedObs.points.length >= 2) {
-                const p1 = selectedObs.points[0];
-                const p2 = selectedObs.points[1];
+              // Check if click is on this obstacle's body
+              let clickedOnThis = false;
+              if ((obs.type === 'wall' || obs.type === 'one-way-wall' || obs.type === 'door') && obs.points.length >= 2) {
+                const p1 = obs.points[0];
+                const p2 = obs.points[1];
                 const A = clickX - p1.x;
                 const B = clickY - p1.y;
                 const C = p2.x - p1.x;
@@ -6159,26 +6137,68 @@ export default function Component() {
                 else if (param > 1) { xx = p2.x; yy = p2.y; }
                 else { xx = p1.x + param * C; yy = p1.y + param * D; }
                 const dist = Math.sqrt(Math.pow(clickX - xx, 2) + Math.pow(clickY - yy, 2));
-                clickedOnSelected = dist < 15 / zoom;
-              } else if (selectedObs.type === 'polygon' && selectedObs.points.length >= 3) {
+                clickedOnThis = dist < 15 / zoom;
+              } else if (obs.type === 'polygon' && obs.points.length >= 3) {
                 let inside = false;
-                for (let i = 0, j = selectedObs.points.length - 1; i < selectedObs.points.length; j = i++) {
-                  const xi = selectedObs.points[i].x, yi = selectedObs.points[i].y;
-                  const xj = selectedObs.points[j].x, yj = selectedObs.points[j].y;
+                for (let i = 0, j = obs.points.length - 1; i < obs.points.length; j = i++) {
+                  const xi = obs.points[i].x, yi = obs.points[i].y;
+                  const xj = obs.points[j].x, yj = obs.points[j].y;
                   if (((yi > clickY) !== (yj > clickY)) && (clickX < (xj - xi) * (clickY - yi) / (yj - yi) + xi)) {
                     inside = !inside;
                   }
                 }
-                clickedOnSelected = inside;
+                clickedOnThis = inside;
               }
 
-              if (clickedOnSelected) {
-                // Clic sur l'obstacle sélectionné → commencer le drag de tout l'obstacle
-                setIsDraggingObstacle(true);
-                setDraggedObstacleOriginalPoints([...selectedObs.points]);
-                setDragStartPos({ x: clickX, y: clickY });
-                return;
+              if (clickedOnThis) {
+                clickedSelectedObs = obs;
+                break; // Found the clicked obstacle
               }
+            }
+
+            // If we clicked on one of the selected obstacles, check for handle clicks first
+            if (clickedSelectedObs) {
+              // Check if clicking on a handle (vertex point)
+              for (let i = 0; i < clickedSelectedObs.points.length; i++) {
+                const point = clickedSelectedObs.points[i];
+                const dist = Math.sqrt(Math.pow(clickX - point.x, 2) + Math.pow(clickY - point.y, 2));
+                if (dist < handleRadius) {
+                  // Clic sur une poignée → commencer le drag du point
+                  // Identifier TOUS les points connectés (même position) pour les déplacer ensemble
+                  const connected: { obstacleId: string, pointIndex: number }[] = [];
+                  const clickedPoint = clickedSelectedObs.points[i];
+                  const epsilon = 2 / zoom; // Tolérance pour considérer les points comme identiques
+
+                  obstacles.forEach(obs => {
+                    obs.points.forEach((p: Point, idx: number) => {
+                      if (Math.abs(p.x - clickedPoint.x) < epsilon && Math.abs(p.y - clickedPoint.y) < epsilon) {
+                        connected.push({ obstacleId: obs.id, pointIndex: idx });
+                      }
+                    });
+                  });
+
+                  setIsDraggingObstaclePoint(true);
+                  setDraggedPointIndex(i);
+                  setDraggedObstacleOriginalPoints([...clickedSelectedObs.points]);
+                  setConnectedPoints(connected);
+                  setDragStartPos({ x: clickX, y: clickY });
+                  return;
+                }
+              }
+
+              // Not clicking on a handle, so start dragging the whole obstacle(s)
+              setIsDraggingObstacle(true);
+              setDraggedObstacleId(clickedSelectedObs.id);
+              setDragStartPos({ x: clickX, y: clickY }); // Save click position for delta calc
+
+              // ✅ Store original points for ALL selected obstacles (multi-drag - PNJ pattern)
+              const originalPoints = selectedObstacleIds.map(obsId => {
+                const obs = obstacles.find(o => o.id === obsId);
+                return obs ? { id: obsId, points: [...obs.points] } : null;
+              }).filter((item): item is { id: string, points: Point[] } => item !== null);
+
+              setDraggedObstaclesOriginalPoints(originalPoints);
+              return;
             }
           }
 
@@ -6225,9 +6245,22 @@ export default function Component() {
               return;
             }
 
-            // Pour les autres types d'obstacles : sélection normale
-            setSelectedObstacleIds([clickedObstacle.id]);
+            // ✅ MULTI-SÉLECTION avec Shift (comme pour les objets)
+            if (e.shiftKey) {
+              // Si Shift est pressé, ajouter/retirer de la sélection
+              if (selectedObstacleIds.includes(clickedObstacle.id)) {
+                // Déjà sélectionné : retirer de la sélection
+                setSelectedObstacleIds(prev => prev.filter(id => id !== clickedObstacle.id));
+              } else {
+                // Pas encore sélectionné : ajouter à la sélection
+                setSelectedObstacleIds(prev => [...prev, clickedObstacle.id]);
+              }
+            } else {
+              // Sans Shift : sélection simple (remplacer)
+              setSelectedObstacleIds([clickedObstacle.id]);
+            }
           } else {
+            // Clic dans le vide : désélectionner tout
             setSelectedObstacleIds([]);
           }
           return;
@@ -6611,7 +6644,17 @@ export default function Component() {
           }
 
           if (clickedObstacleId) {
-            setSelectedObstacleIds([clickedObstacleId]);
+            // Check if clicking on already selected obstacle
+            const isAlreadySelected = selectedObstacleIds.includes(clickedObstacleId);
+            const obstaclesToMove = isAlreadySelected && selectedObstacleIds.length > 1
+              ? selectedObstacleIds
+              : [clickedObstacleId];
+
+            // Update selection if not already selected
+            if (!isAlreadySelected) {
+              setSelectedObstacleIds([clickedObstacleId]);
+            }
+
             // Clear others
             setSelectedCharacterIndex(null);
             setSelectedNoteIndex(null);
@@ -6619,24 +6662,20 @@ export default function Component() {
             setSelectedCharacters([]);
             setSelectedDrawingIndex(null);
             setSelectedObjectIndices([]);
-
             setContextMenuOpen(false);
 
-
-
-            // Start Drag
+            // Start Drag - USING MAP COORDINATES (clickX, clickY)
             setIsDraggingObstacle(true);
             setDraggedObstacleId(clickedObstacleId);
-            const obs = obstacles.find(o => o.id === clickedObstacleId);
-            if (obs) {
-              // Deep copy points for state AND ref
-              const pointsCopy = obs.points.map(p => ({ ...p }));
-              setDraggedObstacleOriginalPoints(pointsCopy);
-              draggedObstacleOriginalPointsRef.current = pointsCopy;
-            }
-            setDragStart({ x: e.clientX, y: e.clientY });
-            setDragStartPos({ x: e.clientX, y: e.clientY }); // Keep state for sync if needed elsewhere
-            dragStartPosRef.current = { x: e.clientX, y: e.clientY };
+            setDragStartPos({ x: clickX, y: clickY }); // MAP coordinates!
+
+            // Store original points for ALL selected obstacles (multi-drag)
+            const originalPoints = obstaclesToMove.map(obsId => {
+              const obs = obstacles.find(o => o.id === obsId);
+              return obs ? { id: obsId, points: [...obs.points] } : null;
+            }).filter((item): item is { id: string, points: Point[] } => item !== null);
+
+            setDraggedObstaclesOriginalPoints(originalPoints);
           } else {
             // Clic sur zone vide
             setSelectedCharacterIndex(null);
@@ -6860,30 +6899,26 @@ export default function Component() {
       return;
     }
 
-    // ✏️ MODE EDIT - Drag de l'obstacle entier
-    if (visibilityMode && currentVisibilityTool === 'edit' && isDraggingObstacle && selectedObstacleIds.length > 0 && dragStartPosRef.current) {
-      const startPos = dragStartPosRef.current;
-      const originals = draggedObstacleOriginalPointsRef.current;
+    // ✏️ DRAG OBSTACLES
+    if (isDraggingObstacle && dragStartPos && draggedObstaclesOriginalPoints.length > 0) {
+      const deltaX = currentX - dragStartPos.x;
+      const deltaY = currentY - dragStartPos.y;
 
-      if (!originals || originals.length === 0) return;
-
-      const deltaX = currentX - startPos.x;
-      const deltaY = currentY - startPos.y;
-
-      const newPoints = originals.map((p: Point) => ({
-        x: p.x + deltaX,
-        y: p.y + deltaY,
+      setObstacles(prev => prev.map(obs => {
+        const originalObs = draggedObstaclesOriginalPoints.find(orig => orig.id === obs.id);
+        if (originalObs) {
+          const newPoints = originalObs.points.map(p => ({
+            x: p.x + deltaX,
+            y: p.y + deltaY
+          }));
+          return { ...obs, points: newPoints };
+        }
+        return obs;
       }));
-
-      // Safety check for NaN
-      if (newPoints.some(p => isNaN(p.x) || isNaN(p.y))) return;
-
-      // Mise à jour locale pour le rendu
-      setObstacles(prev => prev.map(o => selectedObstacleIds.includes(o.id) ? { ...o, points: newPoints } : o));
       return;
     }
 
-    // 🔦 PRÉVISUALISATION OBSTACLE en cours de création
+
     if (visibilityMode && (currentVisibilityTool === 'chain' || currentVisibilityTool === 'polygon')) {
       if (isDrawingObstacle && currentObstaclePoints.length > 0) {
         // Utiliser le snap point pour la prévisualisation si disponible
@@ -7494,41 +7529,47 @@ export default function Component() {
       return;
     }
 
-    //  FIN DU DRAG & DROP OBSTACLE
-    if (isDraggingObstacle && draggedObstacleId && roomId) {
-      const obs = obstacles.find(o => o.id === draggedObstacleId);
-      if (obs) {
-        // Check if changed
-        const hasChanged = JSON.stringify(obs.points) !== JSON.stringify(draggedObstacleOriginalPoints);
-        if (hasChanged) {
-          try {
+    //  FIN DU DRAG & DROP OBSTACLE (MULTI)
+    if (isDraggingObstacle && draggedObstaclesOriginalPoints.length > 0 && roomId) {
+      try {
+        // ✅ Update ALL selected obstacles in Firebase
+        const updatePromises = draggedObstaclesOriginalPoints.map(async (originalObs) => {
+          const currentObs = obstacles.find(o => o.id === originalObs.id);
+          if (!currentObs) return;
+
+          // Check if points actually changed
+          const hasChanged = JSON.stringify(currentObs.points) !== JSON.stringify(originalObs.points);
+
+          if (hasChanged) {
             await updateWithHistory(
               'obstacles',
-              obs.id,
-              { points: obs.points },
-              `Modification de l'obstacle`
+              currentObs.id,
+              { points: currentObs.points },
+              `Déplacement de l'obstacle${selectedObstacleIds.length > 1 ? ` (${selectedObstacleIds.length} obstacles)` : ''}`
             );
-          } catch (e) {
-            console.error("Error saving obstacle:", e);
-            // Revert
-            setObstacles(prev => prev.map(o => {
-              if (o.id === draggedObstacleId) {
-                return { ...o, points: draggedObstacleOriginalPoints };
-              }
-              return o;
-            }));
           }
-        }
+        });
+
+        await Promise.all(updatePromises);
+      } catch (e) {
+        console.error("Error saving obstacles:", e);
+        // Revert to original positions on error
+        setObstacles(prev => prev.map(o => {
+          const originalObs = draggedObstaclesOriginalPoints.find(orig => orig.id === o.id);
+          return originalObs ? { ...o, points: originalObs.points } : o;
+        }));
       }
 
       setIsDraggingObstacle(false);
       setDraggedObstacleId(null);
       setDraggedObstacleOriginalPoints([]);
+      setDraggedObstaclesOriginalPoints([]);
       // Clear Refs
       dragStartPosRef.current = null;
       draggedObstacleOriginalPointsRef.current = [];
       return;
     }
+
 
     //  FIN DU DRAG BROUILLARD
     if (isFogDragging) {
@@ -9002,7 +9043,7 @@ export default function Component() {
 
       <div
         ref={containerRef}
-        className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${isDraggingCharacter || isDraggingNote ? 'cursor-grabbing' :
+        className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${isDraggingCharacter || isDraggingNote || isDraggingObstacle ? 'cursor-grabbing' :
           isDragging || isDraggingObject ? 'cursor-move' :
             panMode ? 'cursor-grab' :
               multiSelectMode ? 'cursor-crosshair' :
@@ -9011,7 +9052,7 @@ export default function Component() {
           } relative`}
         style={{
           height: '100vh',
-          userSelect: isDraggingCharacter || isDraggingNote || isDraggingObject ? 'none' : 'auto'
+          userSelect: isDraggingCharacter || isDraggingNote || isDraggingObject || isDraggingObstacle ? 'none' : 'auto'
         }}
         onMouseDown={handleCanvasMouseDown}
         onMouseMove={handleCanvasMouseMove}
