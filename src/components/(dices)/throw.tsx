@@ -41,6 +41,10 @@ const TexturedMaterial = ({ skin }: { skin: DiceSkin }) => {
 
 // Helper for consistent values
 const getDieValue = (type: string, index: number) => {
+    if (type === 'd4') {
+        const val = (index % 4) + 1;
+        return val.toString();
+    }
     if (type === 'd10') {
         const val = index % 10;
         return val === 0 ? "10" : val.toString();
@@ -62,7 +66,7 @@ export const createBeveledGeometry = (type: string) => {
     const detail = 0; // Higher detail for smoother look
 
     switch (type) {
-        case 'd4': geo = new THREE.TetrahedronGeometry(1.8, detail); break;
+        case 'd4': geo = new THREE.OctahedronGeometry(1.8, detail); break;
         case 'd6': geo = new THREE.BoxGeometry(2.2, 2.2, 2.2, 2, 2, 2); break;
         case 'd8': geo = new THREE.OctahedronGeometry(1.8, detail); break;
         case 'd10': geo = new THREE.IcosahedronGeometry(1.8, detail); break;
