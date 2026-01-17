@@ -5,19 +5,19 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Eye, EyeOff, Users, Check, UserCheck } from 'lucide-react'
+import { Eye, EyeOff, Users, Check, UserCheck, Ghost } from 'lucide-react'
 import { type NPC } from '@/components/(personnages)/personnages'
 
 interface PlaceNPCModalProps {
     isOpen: boolean
     template: NPC | null
     onClose: () => void
-    onConfirm: (config: { nombre: number; visibility: 'visible' | 'hidden' | 'ally' }) => void
+    onConfirm: (config: { nombre: number; visibility: 'visible' | 'hidden' | 'ally' | 'invisible' }) => void
 }
 
 export function PlaceNPCModal({ isOpen, template, onClose, onConfirm }: PlaceNPCModalProps) {
     const [nombre, setNombre] = useState(1)
-    const [visibility, setVisibility] = useState<'visible' | 'hidden' | 'ally'>('visible')
+    const [visibility, setVisibility] = useState<'visible' | 'hidden' | 'ally' | 'invisible'>('visible')
 
     const handleConfirm = () => {
         onConfirm({ nombre, visibility })
@@ -114,14 +114,14 @@ export function PlaceNPCModal({ isOpen, template, onClose, onConfirm }: PlaceNPC
                     {/* Visibilité */}
                     <div className="space-y-3">
                         <Label className="text-gray-400 text-sm uppercase">Visibilité</Label>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-4 gap-2">
                             <Button
                                 type="button"
                                 variant={visibility === 'visible' ? 'default' : 'outline'}
                                 onClick={() => setVisibility('visible')}
                                 className={`h-auto p-3 flex flex-col items-center gap-2 ${visibility === 'visible'
-                                        ? 'bg-[#c0a080] text-black hover:bg-[#b09070]'
-                                        : 'border-[#444] hover:bg-[#222] text-white'
+                                    ? 'bg-[#c0a080] text-black hover:bg-[#b09070]'
+                                    : 'border-[#444] hover:bg-[#222] text-white'
                                     }`}
                             >
                                 <Eye className="w-5 h-5" />
@@ -134,8 +134,8 @@ export function PlaceNPCModal({ isOpen, template, onClose, onConfirm }: PlaceNPC
                                 variant={visibility === 'hidden' ? 'default' : 'outline'}
                                 onClick={() => setVisibility('hidden')}
                                 className={`h-auto p-3 flex flex-col items-center gap-2 ${visibility === 'hidden'
-                                        ? 'bg-[#c0a080] text-black hover:bg-[#b09070]'
-                                        : 'border-[#444] hover:bg-[#222] text-white'
+                                    ? 'bg-[#c0a080] text-black hover:bg-[#b09070]'
+                                    : 'border-[#444] hover:bg-[#222] text-white'
                                     }`}
                             >
                                 <EyeOff className="w-5 h-5" />
@@ -148,13 +148,27 @@ export function PlaceNPCModal({ isOpen, template, onClose, onConfirm }: PlaceNPC
                                 variant={visibility === 'ally' ? 'default' : 'outline'}
                                 onClick={() => setVisibility('ally')}
                                 className={`h-auto p-3 flex flex-col items-center gap-2 ${visibility === 'ally'
-                                        ? 'bg-[#c0a080] text-black hover:bg-[#b09070]'
-                                        : 'border-[#444] hover:bg-[#222] text-white'
+                                    ? 'bg-[#c0a080] text-black hover:bg-[#b09070]'
+                                    : 'border-[#444] hover:bg-[#222] text-white'
                                     }`}
                             >
                                 <UserCheck className="w-5 h-5" />
                                 <div className="text-center">
                                     <p className="text-xs font-bold">Allié</p>
+                                </div>
+                            </Button>
+                            <Button
+                                type="button"
+                                variant={visibility === 'invisible' ? 'default' : 'outline'}
+                                onClick={() => setVisibility('invisible')}
+                                className={`h-auto p-3 flex flex-col items-center gap-2 ${visibility === 'invisible'
+                                    ? 'bg-[#c0a080] text-black hover:bg-[#b09070]'
+                                    : 'border-[#444] hover:bg-[#222] text-white'
+                                    }`}
+                            >
+                                <Ghost className="w-5 h-5" />
+                                <div className="text-center">
+                                    <p className="text-xs font-bold">Invisible</p>
                                 </div>
                             </Button>
                         </div>

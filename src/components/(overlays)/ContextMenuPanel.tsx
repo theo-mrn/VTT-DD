@@ -22,7 +22,8 @@ import {
     Grid,
     Square,
     Circle as CircleIcon,
-    Package
+    Package,
+    Ghost
 } from 'lucide-react';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
 import { Input } from "@/components/ui/input";
@@ -529,8 +530,8 @@ export default function ContextMenuPanel({
                                         {character.type !== 'joueurs' && (
                                             <div className="space-y-3">
                                                 <h3 className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Visibilité</h3>
-                                                <div className="grid grid-cols-2 gap-2">
-                                                    {['visible', 'ally', 'hidden', 'custom'].map((mode) => (
+                                                <div className="grid grid-cols-3 gap-2">
+                                                    {['visible', 'ally', 'hidden', 'custom', 'invisible'].map((mode) => (
                                                         <Button
                                                             key={mode}
                                                             variant="outline"
@@ -540,7 +541,7 @@ export default function ContextMenuPanel({
                                                                 : 'bg-[#252525] border-[#333] text-gray-400'}`}
                                                             onClick={() => onAction('setVisibility', character.id, mode)}
                                                         >
-                                                            {mode}
+                                                            {mode === 'invisible' ? <><Ghost size={12} className="mr-1" />{mode}</> : mode}
                                                         </Button>
                                                     ))}
                                                 </div>

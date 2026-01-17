@@ -21,7 +21,7 @@ export interface Character {
     visible?: boolean;
     niveau?: number;
     conditions?: string[];
-    visibility?: 'public' | 'gm_only' | 'ally' | 'hidden' | 'visible' | 'custom';
+    visibility?: 'public' | 'gm_only' | 'ally' | 'hidden' | 'visible' | 'custom' | 'invisible';
     visibilityRadius?: number;
 
     visibleToPlayerIds?: string[];
@@ -146,7 +146,7 @@ export interface NewCharacter {
     name: string;
     image: string | { src: string } | null;
     niveau: number;
-    visibility: 'hidden' | 'visible' | 'public' | 'gm_only' | 'custom' | 'ally';
+    visibility: 'hidden' | 'visible' | 'public' | 'gm_only' | 'custom' | 'ally' | 'invisible';
     visibilityRadius?: number;
     PV: number;
     PV_Max?: number;
@@ -191,7 +191,7 @@ export interface MapObject {
     type: 'decors' | 'weapon' | 'item';
     visible?: boolean;
     locked?: boolean;
-    visibility?: 'visible' | 'hidden' | 'public' | 'gm_only' | 'custom';
+    visibility?: 'visible' | 'hidden' | 'public' | 'gm_only' | 'custom' | 'invisible';
     isBackground?: boolean;
     isLocked?: boolean;
     visibleToPlayerIds?: string[];
