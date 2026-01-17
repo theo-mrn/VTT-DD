@@ -8,6 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
 import { GameInteraction, Character } from '@/app/[roomid]/map/types';
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea"; // Assuming it exists
+import { Pencil, Save } from 'lucide-react';
 import { doc, setDoc, onSnapshot, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
@@ -18,6 +21,8 @@ interface GameComponentProps {
     gameHost: Character;
     roomId: string;
     currentPlayerId?: string;
+    isMJ?: boolean;
+    onUpdateInteraction?: (interaction: GameInteraction) => void;
 }
 
 interface ChessGameState {
@@ -34,12 +39,24 @@ export default function GameComponent({
     interaction,
     gameHost,
     roomId,
-    currentPlayerId
+    currentPlayerId,
+    isMJ,
+    onUpdateInteraction
 }: GameComponentProps) {
     // Moteur de jeu d'échecs
     const chessGameRef = useRef(new Chess());
     const [fen, setFen] = useState(chessGameRef.current.fen());
     const [gameStatus, setGameStatus] = useState("");
+    const [isEditMode, setIsEditMode] = useState(false);
+
+    // Handlers
+    const handleUpdateName = (name: string) => {
+        onUpdateInteraction?.({ ...interaction, name });
+    };
+
+    const handleUpdateDescription = (description: string) => {
+        onUpdateInteraction?.({ ...interaction, description });
+    };
 
     // États multijoueur
     const [selectedSide, setSelectedSide] = useState<'white' | 'black' | null>(null);
@@ -392,10 +409,37 @@ export default function GameComponent({
                                         </Badge>
                                     </div>
 
-                                    <div className="bg-black/60 backdrop-blur-md rounded-xl border border-white/5 p-4">
-                                        <p className="text-sm text-gray-300 italic leading-relaxed">
-                                            "Deux esprits stratégiques s'affrontent. Que la meilleure tactique l'emporte !"
-                                        </p>
+                                    <div className="bg-black/60 backdrop-blur-md rounded-xl border border-white/5 p-4 relative">
+                                        {isEditMode ? (
+                                            <div className="space-y-2">
+                                                <Input
+                                                    value={interaction.name}
+                                                    onChange={(e) => handleUpdateName(e.target.value)}
+                                                    className="bg-[#111] border-[#333] text-white font-bold"
+                                                    placeholder="Nom du jeu"
+                                                />
+                                                <Textarea
+                                                    value={interaction.description || ""}
+                                                    onChange={(e) => handleUpdateDescription(e.target.value)}
+                                                    className="bg-[#111] border-[#333] text-sm text-gray-300 min-h-[80px]"
+                                                    placeholder="Description..."
+                                                />
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm text-gray-300 italic leading-relaxed">
+                                                "{interaction.description || "Deux esprits stratégiques s'affrontent. Que la meilleure tactique l'emporte !"}"
+                                            </p>
+                                        )}
+                                        {isMJ && (
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className={`absolute -top-3 -right-3 rounded-full ${isEditMode ? 'bg-amber-900 text-amber-500' : 'text-gray-500 hover:text-white hover:bg-black/50'}`}
+                                                onClick={() => setIsEditMode(!isEditMode)}
+                                            >
+                                                {isEditMode ? <Save size={14} /> : <Pencil size={14} />}
+                                            </Button>
+                                        )}
                                     </div>
 
                                     {/* Game Rules */}
@@ -411,6 +455,16 @@ export default function GameComponent({
                                 </div>
                             </div>
                         </div>
+
+                        {/* Close Button */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-4 right-4 z-50 text-white/50 hover:text-white hover:bg-black/50 rounded-full"
+                            onClick={onClose}
+                        >
+                            <X size={20} />
+                        </Button>
                     </motion.div>
                 </div>
             )}
