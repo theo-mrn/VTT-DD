@@ -1124,7 +1124,7 @@ export default function Component() {
   };
 
   //  BULK CHARACTER OPERATIONS
-  const handleBulkVisibilityChange = async (visibility: 'visible' | 'hidden' | 'ally' | 'custom') => {
+  const handleBulkVisibilityChange = async (visibility: 'visible' | 'hidden' | 'ally' | 'custom' | 'invisible') => {
     if (!roomId || selectedCharacters.length === 0) return;
 
     // Update visibility for all selected characters
@@ -2434,7 +2434,7 @@ export default function Component() {
   }
 
   const handlePlaceConfirm = async (config: {
-    nombre: number; visibility?: 'public' | 'gm_only' | 'ally' | 'hidden' | 'visible' | 'custom';
+    nombre: number; visibility?: 'public' | 'gm_only' | 'ally' | 'hidden' | 'visible' | 'custom' | 'invisible';
   }) => {
     if (!draggedTemplate || !dropPosition) return
 
@@ -3932,6 +3932,13 @@ export default function Component() {
     // Le MJ en mode normal voit toujours tout
     const effectiveIsMJ = isMJ && !playerViewMode;
     if (effectiveIsMJ) return true;
+
+    // 👻 INVISIBLE : Visible UNIQUEMENT par le MJ (sauf en vue joueur)
+    // Cette vérification doit être faite AVANT tout le reste pour garantir l'invisibilité totale
+    if ((char.visibility as string) === 'invisible') {
+      if (effectiveIsMJ) return true;
+      return false;
+    }
 
     // Les joueurs et alliés sont toujours visibles
     if (char.type === 'joueurs' || char.visibility === 'ally') {
@@ -9598,6 +9605,7 @@ export default function Component() {
 
               // Utiliser la fonction centralisée qui gère les lumières, le brouillard, etc.
               if (!isCharacterVisibleToUser(char)) {
+                if (char.visibility === 'invisible') return null;
                 effectiveVisibility = 'hidden';
               }
 

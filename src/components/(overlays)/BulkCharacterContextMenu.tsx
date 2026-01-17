@@ -10,7 +10,8 @@ import {
     Trash2,
     X,
     Plus,
-    Sparkles
+    Sparkles,
+    Ghost
 } from 'lucide-react';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
 import { Button } from "@/components/ui/button";
@@ -22,7 +23,7 @@ interface BulkCharacterContextMenuProps {
     isOpen: boolean;
     selectedCount: number;
     onClose: () => void;
-    onVisibilityChange: (visibility: 'visible' | 'hidden' | 'ally' | 'custom') => void;
+    onVisibilityChange: (visibility: 'visible' | 'hidden' | 'ally' | 'custom' | 'invisible') => void;
     onConditionToggle: (conditionId: string) => void;
     onDelete: () => void;
 }
@@ -140,6 +141,15 @@ export const BulkCharacterContextMenu: React.FC<BulkCharacterContextMenuProps> =
                                 >
                                     <Users size={14} />
                                     Custom
+                                </Button>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="justify-start gap-2 bg-[#252525] border-white/5 hover:bg-gray-700/20 hover:border-gray-500/30 hover:text-gray-300 text-gray-400 h-9 text-xs"
+                                    onClick={() => onVisibilityChange('invisible')}
+                                >
+                                    <Ghost size={14} />
+                                    Invisible
                                 </Button>
                             </div>
                         </div>

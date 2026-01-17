@@ -41,7 +41,7 @@ interface ExistingNPC {
     Distance: number
     Magie: number
     INIT: number
-    visibility: 'visible' | 'hidden' | 'ally'
+    visibility: 'visible' | 'hidden' | 'ally' | 'invisible'
     cityName?: string
     cityId?: string | null
 }
