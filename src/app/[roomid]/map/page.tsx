@@ -65,10 +65,8 @@ import CharacterSheet from '@/components/(fiches)/CharacterSheet';
 import { Component as RadialMenu } from '@/components/ui/radial-menu';
 import CitiesManager from '@/components/(worldmap)/CitiesManager';
 import ContextMenuPanel from '@/components/(overlays)/ContextMenuPanel';
-import ShopComponent from '@/components/(interactions)/ShopComponent';
-import GameComponent from '@/components/(interactions)/GameComponent';
-import InteractionConfigDialog from '@/components/(dialogs)/InteractionConfigDialog';
-import { VendorInteraction, GameInteraction } from '@/app/[roomid]/map/types';
+import InteractionLayer from '@/components/(interactions)/InteractionLayer';
+import { VendorInteraction, GameInteraction, LootInteraction, Interaction } from '@/app/[roomid]/map/types';
 import ObjectContextMenu from '@/components/(overlays)/ObjectContextMenu';
 import LightContextMenu from '@/components/(overlays)/LightContextMenu';
 import MusicZoneContextMenu from '@/components/(overlays)/MusicZoneContextMenu';
@@ -204,7 +202,7 @@ export default function Component() {
   const videoRef = useRef<HTMLVideoElement | null>(null); // Ref to keep track of video element for cleanup
   const [selectedSkin, setSelectedSkin] = useState<string>('Fireballs/explosion1.webm');
   const [isPermanent, setIsPermanent] = useState(false); // 🆕 Permanent measurement toggle
-  const [activeInteraction, setActiveInteraction] = useState<{ interaction: VendorInteraction | GameInteraction, host: Character } | null>(null);
+  const [activeInteraction, setActiveInteraction] = useState<{ interaction: VendorInteraction | GameInteraction | LootInteraction, host: Character } | null>(null);
   const [interactionConfigTarget, setInteractionConfigTarget] = useState<Character | null>(null);
   const fireballVideo = useSkinVideo(selectedSkin); // For LOCAL active measurement
 
@@ -10305,6 +10303,9 @@ export default function Component() {
               } else if (interaction.type === 'game') {
                 setActiveInteraction({ interaction: interaction as GameInteraction, host: char });
                 setContextMenuOpen(false);
+              } else if (interaction.type === 'loot') {
+                setActiveInteraction({ interaction: interaction as LootInteraction, host: char });
+                setContextMenuOpen(false);
               }
             }
           }
@@ -10515,36 +10516,17 @@ export default function Component() {
       }
 
       {/* Interaction Components */}
-      {activeInteraction && activeInteraction.interaction.type === 'vendor' && (
-        <ShopComponent
-          isOpen={!!activeInteraction}
-          onClose={() => setActiveInteraction(null)}
-          interaction={activeInteraction.interaction as VendorInteraction}
-          vendor={activeInteraction.host}
-        />
-      )}
-
-      {activeInteraction && activeInteraction.interaction.type === 'game' && (
-        <GameComponent
-          isOpen={!!activeInteraction}
-          onClose={() => setActiveInteraction(null)}
-          interaction={activeInteraction.interaction as GameInteraction}
-          gameHost={activeInteraction.host}
-          roomId={roomId}
-          currentPlayerId={persoId || undefined}
-        />
-      )}
-
-      <InteractionConfigDialog
-        isOpen={!!interactionConfigTarget}
-        onClose={() => setInteractionConfigTarget(null)}
-        currentInteraction={interactionConfigTarget?.interactions?.[0]}
-        onSave={async (interaction) => {
-          if (interactionConfigTarget && roomId) {
-            const charRef = doc(db, 'cartes', roomId, 'characters', interactionConfigTarget.id);
-            await updateDoc(charRef, { interactions: [interaction] });
-          }
-        }}
+      {/* Interaction Components Layer */}
+      <InteractionLayer
+        roomId={roomId}
+        isMJ={isMJ}
+        characters={characters}
+        activeInteraction={activeInteraction}
+        setActiveInteraction={setActiveInteraction}
+        interactionConfigTarget={interactionConfigTarget}
+        setInteractionConfigTarget={setInteractionConfigTarget}
+        persoId={persoId}
+        viewAsPersoId={viewAsPersoId}
       />
 
       {/* SCENE INVENTORY DRAWER */}

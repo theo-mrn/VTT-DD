@@ -64,7 +64,7 @@ export interface Character {
     notes?: string;
 }
 
-export type Interaction = VendorInteraction | GameInteraction;
+export type Interaction = VendorInteraction | GameInteraction | LootInteraction;
 
 export interface VendorInteraction {
     id: string;
@@ -80,6 +80,32 @@ export interface GameInteraction {
     name: string; // "Jeux de dés", "Cartes", etc.
     description?: string;
     gameType?: 'dice' | 'cards' | 'custom'; // Type de jeu
+}
+
+export interface LootInteraction {
+    id: string;
+    type: 'loot';
+    name: string; // "Coffre", "Cadavre", etc.
+    description?: string;
+    items: LootItem[];
+    locked?: boolean;
+}
+
+export interface LootItem {
+    id: string;
+    name: string;
+    quantity: number;
+    description?: string;
+    image?: string;
+    weight?: number;
+    // Inventory compatibility fields
+    category?: string;
+    diceSelection?: string;
+    visibility?: string;
+    bonusTypes?: any;
+    target?: string;
+    range?: string;
+    damage?: string;
 }
 
 export interface VendorItem {

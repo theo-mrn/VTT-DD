@@ -21,7 +21,8 @@ import {
     Dices,
     Grid,
     Square,
-    Circle as CircleIcon
+    Circle as CircleIcon,
+    Package
 } from 'lucide-react';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
 import { Input } from "@/components/ui/input";
@@ -171,24 +172,35 @@ export default function ContextMenuPanel({
                                     {character.interactions.map((interaction) => {
                                         const isVendor = interaction.type === 'vendor';
                                         const isGame = interaction.type === 'game';
+                                        const isLoot = interaction.type === 'loot';
 
                                         return (
                                             <Button
                                                 key={interaction.id}
-                                                className={`w-full h-14 text-lg font-bold bg-gradient-to-r border shadow-lg group relative overflow-hidden transition-all hover:scale-[1.02] ${isVendor ? 'from-amber-700 via-amber-600 to-amber-700 border-amber-500/50 hover:border-amber-400 shadow-amber-900/20' :
-                                                        isGame ? 'from-purple-700 via-purple-600 to-purple-700 border-purple-500/50 hover:border-purple-400 shadow-purple-900/20' :
+                                                className={`w-full h-auto py-3 text-lg font-bold bg-gradient-to-r border shadow-lg group relative overflow-hidden transition-all hover:scale-[1.02] flex flex-col items-start px-4 ${isVendor ? 'from-amber-700 via-amber-600 to-amber-700 border-amber-500/50 hover:border-amber-400 shadow-amber-900/20' :
+                                                    isGame ? 'from-purple-700 via-purple-600 to-purple-700 border-purple-500/50 hover:border-purple-400 shadow-purple-900/20' :
+                                                        isLoot ? 'from-emerald-700 via-emerald-600 to-emerald-700 border-emerald-500/50 hover:border-emerald-400 shadow-emerald-900/20' :
                                                             'from-blue-700 via-blue-600 to-blue-700 border-blue-500/50 hover:border-blue-400 shadow-blue-900/20'
                                                     } text-white`}
                                                 onClick={() => onAction('interact', character.id, interaction.id)}
                                             >
                                                 <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay" />
                                                 <div className={`absolute inset-0 transition-colors ${isVendor ? 'bg-amber-500/0 group-hover:bg-amber-500/10' :
-                                                        isGame ? 'bg-purple-500/0 group-hover:bg-purple-500/10' :
+                                                    isGame ? 'bg-purple-500/0 group-hover:bg-purple-500/10' :
+                                                        isLoot ? 'bg-emerald-500/0 group-hover:bg-emerald-500/10' :
                                                             'bg-blue-500/0 group-hover:bg-blue-500/10'
                                                     }`} />
-                                                {isVendor && <Store className="mr-3 h-6 w-6 group-hover:rotate-12 transition-transform" />}
-                                                {isGame && <Dices className="mr-3 h-6 w-6 group-hover:rotate-12 transition-transform" />}
-                                                {interaction.name ? interaction.name.toUpperCase() : "INTERAGIR"}
+                                                <div className="flex items-center w-full relative z-10">
+                                                    {isVendor && <Store className="mr-3 h-6 w-6 group-hover:rotate-12 transition-transform shrink-0" />}
+                                                    {isGame && <Dices className="mr-3 h-6 w-6 group-hover:rotate-12 transition-transform shrink-0" />}
+                                                    {isLoot && <Package className="mr-3 h-6 w-6 group-hover:rotate-12 transition-transform shrink-0" />}
+                                                    <span className="truncate">{interaction.name ? interaction.name.toUpperCase() : "INTERAGIR"}</span>
+                                                </div>
+                                                {interaction.description && (
+                                                    <span className="text-xs font-normal opacity-80 pl-9 line-clamp-1 relative z-10 text-left w-full">
+                                                        {interaction.description}
+                                                    </span>
+                                                )}
                                             </Button>
                                         );
                                     })}
@@ -352,18 +364,21 @@ export default function ContextMenuPanel({
                                                     {character.interactions.map((interaction) => {
                                                         const isVendor = interaction.type === 'vendor';
                                                         const isGame = interaction.type === 'game';
+                                                        const isLoot = interaction.type === 'loot';
 
                                                         return (
                                                             <Button
                                                                 key={interaction.id}
                                                                 className={`w-full bg-gradient-to-r border shadow-lg ${isVendor ? 'from-amber-700 to-amber-900 border-amber-500/30 hover:from-amber-600 hover:to-amber-800' :
-                                                                        isGame ? 'from-purple-700 to-purple-900 border-purple-500/30 hover:from-purple-600 hover:to-purple-800' :
+                                                                    isGame ? 'from-purple-700 to-purple-900 border-purple-500/30 hover:from-purple-600 hover:to-purple-800' :
+                                                                        isLoot ? 'from-emerald-700 to-emerald-900 border-emerald-500/30 hover:from-emerald-600 hover:to-emerald-800' :
                                                                             'from-blue-700 to-blue-900 border-blue-500/30 hover:from-blue-600 hover:to-blue-800'
                                                                     } text-white`}
                                                                 onClick={() => onAction('interact', character.id, interaction.id)}
                                                             >
                                                                 {isVendor && <Store className="mr-2 h-4 w-4" />}
                                                                 {isGame && <Dices className="mr-2 h-4 w-4" />}
+                                                                {isLoot && <Package className="mr-2 h-4 w-4" />}
                                                                 {interaction.name || "Interagir"}
                                                             </Button>
                                                         );
