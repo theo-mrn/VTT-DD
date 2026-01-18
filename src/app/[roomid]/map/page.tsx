@@ -2026,7 +2026,9 @@ export default function Component() {
           visibility: data.visibility || undefined,
           type: (data.type || 'decors') as 'decors' | 'weapon' | 'item',
           visibleToPlayerIds: data.visibleToPlayerIds || undefined,
-          notes: data.notes || undefined // 🆕 Notes de l'objet
+          notes: data.notes || undefined, // 🆕 Notes de l'objet
+          items: data.items || [], // 🆕 Items d'inventaire pour les conteneurs
+          linkedId: data.linkedId || undefined // 🆕 ID de partage pour inventaires partagés
         });
       });
       setObjects(objs);

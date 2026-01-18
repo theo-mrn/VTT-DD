@@ -43,6 +43,7 @@ export default function AddItemDialog({ isOpen, onOpenChange, onAdd }: AddItemDi
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [currentCategory, setCurrentCategory] = useState<string>('all');
     const [newItemName, setNewItemName] = useState<string>('');
+    const [customQuantity, setCustomQuantity] = useState<number>(1);
     const [itemDescriptions, setItemDescriptions] = useState<Record<string, ItemDescription>>({});
 
     useEffect(() => {
@@ -67,14 +68,15 @@ export default function AddItemDialog({ isOpen, onOpenChange, onAdd }: AddItemDi
 
         if (isOpen) {
             loadItemDescriptions();
+            setCustomQuantity(1); // Reset quantity when dialog opens
         }
     }, [isOpen]);
 
-    const handleAddItem = (name: string, category: string) => {
+    const handleAddItem = (name: string, category: string, quantity: number = 1) => {
         onAdd({
             name,
             category,
-            quantity: 1,
+            quantity,
             weight: 1
         });
         onOpenChange(false);
@@ -124,10 +126,22 @@ export default function AddItemDialog({ isOpen, onOpenChange, onAdd }: AddItemDi
                     <div className="flex gap-8 flex-1 min-h-0 overflow-hidden pt-4">
                         {/* Predefined Items */}
                         <div className="flex-[3] overflow-hidden flex flex-col">
-                            <h3 className="font-semibold mb-4 text-amber-500 flex items-center gap-2 text-lg flex-shrink-0">
-                                <Search className="w-5 h-5" />
-                                Objets prédéfinis
-                            </h3>
+                            <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                                <h3 className="font-semibold text-amber-500 flex items-center gap-2 text-lg">
+                                    <Search className="w-5 h-5" />
+                                    Objets prédéfinis
+                                </h3>
+                                <div className="flex items-center gap-2">
+                                    <Label className="text-gray-400 text-sm">Quantité:</Label>
+                                    <Input
+                                        type="number"
+                                        value={customQuantity}
+                                        onChange={(e) => setCustomQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                        className="w-20 h-9 bg-[#222] border-[#333] text-white text-center"
+                                        min={1}
+                                    />
+                                </div>
+                            </div>
 
                             <div className="overflow-y-auto flex-1 pr-3 custom-scrollbar">
                                 <div className="space-y-6">
@@ -160,7 +174,7 @@ export default function AddItemDialog({ isOpen, onOpenChange, onAdd }: AddItemDi
                                                                 <div
                                                                     key={item}
                                                                     className="bg-[#2a2a2a] rounded-lg p-4 hover:bg-[#333] transition-all duration-200 cursor-pointer border border-[#333] group"
-                                                                    onClick={() => handleAddItem(item, categoryKey)}
+                                                                    onClick={() => handleAddItem(item, categoryKey, customQuantity)}
                                                                 >
                                                                     <div className="flex items-start flex-col gap-2">
                                                                         <div className="flex items-center justify-between w-full">
@@ -226,11 +240,24 @@ export default function AddItemDialog({ isOpen, onOpenChange, onAdd }: AddItemDi
                                             </Select>
                                         </div>
 
+                                        <div>
+                                            <Label className="text-gray-400 text-sm font-medium mb-2 block">Quantité</Label>
+                                            <Input
+                                                type="number"
+                                                value={customQuantity}
+                                                onChange={(e) => setCustomQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                                                className="h-10 bg-[#1a1a1a] border-[#333] text-white"
+                                                placeholder="1"
+                                                min={1}
+                                            />
+                                        </div>
+
                                         <Button
                                             onClick={() => {
                                                 if (newItemName && currentCategory && currentCategory !== 'all') {
-                                                    handleAddItem(newItemName, currentCategory);
+                                                    handleAddItem(newItemName, currentCategory, customQuantity);
                                                     setNewItemName('');
+                                                    setCustomQuantity(1);
                                                 }
                                             }}
                                             disabled={!newItemName || !currentCategory || currentCategory === 'all'}

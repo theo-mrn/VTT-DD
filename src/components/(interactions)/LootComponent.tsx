@@ -364,6 +364,7 @@ export default function LootComponent({
                         newContainerItems.push(newItem);
                     }
 
+                    console.log('📦 [LOOTCOMPONENT DEBUG] Calling onUpdateInteraction for MapObject with items:', newContainerItems.length);
                     onUpdateInteraction?.({ ...interaction, items: newContainerItems });
                 } else {
                     // Shared Logic
