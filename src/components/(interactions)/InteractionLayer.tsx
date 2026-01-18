@@ -51,12 +51,31 @@ export default function InteractionLayer({
             // For MapObjects, the "interaction" IS the object itself in a way, or we are updating its 'items' field.
             // But MapObject doesn't have 'interactions' array. It has direct 'items' and 'linkedId'.
             if (updatedInteraction.type === 'loot') {
+                console.log('🔍 [MAPOBJECT DEBUG] Updating MapObject:', {
+                    hostId,
+                    itemsCount: (updatedInteraction as LootInteraction).items.length,
+                    linkedId: (updatedInteraction as LootInteraction).linkedId,
+                    items: (updatedInteraction as LootInteraction).items
+                });
+
                 const objectRef = doc(db, 'cartes', roomId, 'objects', hostId);
                 // We only update the specific loot fields
-                await updateDoc(objectRef, {
-                    items: (updatedInteraction as LootInteraction).items,
-                    linkedId: (updatedInteraction as LootInteraction).linkedId
-                });
+                // Filter out undefined values to avoid Firebase errors
+                const updateData: any = {
+                    items: (updatedInteraction as LootInteraction).items
+                };
+                const linkedId = (updatedInteraction as LootInteraction).linkedId;
+                if (linkedId !== undefined) {
+                    updateData.linkedId = linkedId;
+                }
+
+                try {
+                    await updateDoc(objectRef, updateData);
+                    console.log('✅ [MAPOBJECT DEBUG] Successfully updated MapObject with data:', updateData);
+                } catch (error) {
+                    console.error('❌ [MAPOBJECT DEBUG] Failed to update MapObject:', error);
+                    console.error('Update data was:', updateData);
+                }
             }
         }
 
