@@ -1165,48 +1165,54 @@ export default function Component() {
 
     console.log(`🔍 Détection @ ${Math.round(clickX)},${Math.round(clickY)} - Radius: ${Math.round(DETECTION_RADIUS)}`);
 
-    // Détecter les sources de lumière
-    lights.forEach(light => {
-      if (!light.cityId || light.cityId === selectedCityId) {
-        const dist = Math.sqrt(Math.pow(light.x - clickX, 2) + Math.pow(light.y - clickY, 2));
-        if (dist < DETECTION_RADIUS) {
-          detected.push({
-            id: light.id,
-            type: 'light',
-            name: light.name || 'Source de Lumière',
-            position: { x: light.x, y: light.y }
-          });
+    // Détecter les sources de lumière (MJ only)
+    if (isMJ) {
+      lights.forEach(light => {
+        if (!light.cityId || light.cityId === selectedCityId) {
+          const dist = Math.sqrt(Math.pow(light.x - clickX, 2) + Math.pow(light.y - clickY, 2));
+          if (dist < DETECTION_RADIUS) {
+            detected.push({
+              id: light.id,
+              type: 'light',
+              name: light.name || 'Source de Lumière',
+              position: { x: light.x, y: light.y }
+            });
+          }
         }
-      }
-    });
+      });
+    }
 
-    // Détecter les portails
-    portals
-      .filter(p => !p.cityId || p.cityId === selectedCityId)
-      .forEach(portal => {
-        const dist = Math.sqrt(Math.pow(portal.x - clickX, 2) + Math.pow(portal.y - clickY, 2));
+    // Détecter les portails (MJ only)
+    if (isMJ) {
+      portals
+        .filter(p => !p.cityId || p.cityId === selectedCityId)
+        .forEach(portal => {
+          const dist = Math.sqrt(Math.pow(portal.x - clickX, 2) + Math.pow(portal.y - clickY, 2));
+          if (dist < DETECTION_RADIUS) {
+            detected.push({
+              id: portal.id,
+              type: 'portal',
+              name: portal.name || 'Portail',
+              position: { x: portal.x, y: portal.y }
+            });
+          }
+        });
+    }
+
+    // Détecter les zones de musique (MJ only)
+    if (isMJ) {
+      musicZones.forEach(zone => {
+        const dist = Math.sqrt(Math.pow(zone.x - clickX, 2) + Math.pow(zone.y - clickY, 2));
         if (dist < DETECTION_RADIUS) {
           detected.push({
-            id: portal.id,
-            type: 'portal',
-            name: portal.name || 'Portail',
-            position: { x: portal.x, y: portal.y }
+            id: zone.id,
+            type: 'musicZone',
+            name: zone.name || 'Zone de Musique',
+            position: { x: zone.x, y: zone.y }
           });
         }
       });
-
-    // Détecter les zones de musique
-    musicZones.forEach(zone => {
-      const dist = Math.sqrt(Math.pow(zone.x - clickX, 2) + Math.pow(zone.y - clickY, 2));
-      if (dist < DETECTION_RADIUS) {
-        detected.push({
-          id: zone.id,
-          type: 'musicZone',
-          name: zone.name || 'Zone de Musique',
-          position: { x: zone.x, y: zone.y }
-        });
-      }
-    });
+    }
 
     // 🎯 Détecter les personnages (PNJ et joueurs)
     characters.forEach(char => {
@@ -1232,21 +1238,23 @@ export default function Component() {
       }
     });
 
-    // 🎯 Détecter les objets
-    objects
-      .filter(obj => !obj.cityId || obj.cityId === selectedCityId)
-      .forEach(obj => {
-        const dist = Math.sqrt(Math.pow(obj.x - clickX, 2) + Math.pow(obj.y - clickY, 2));
-        if (dist < DETECTION_RADIUS) {
-          detected.push({
-            id: obj.id,
-            type: 'object',
-            name: obj.name || 'Objet',
-            position: { x: obj.x, y: obj.y },
-            image: obj.imageUrl
-          });
-        }
-      });
+    // 🎯 Détecter les objets (MJ only)
+    if (isMJ) {
+      objects
+        .filter(obj => !obj.cityId || obj.cityId === selectedCityId)
+        .forEach(obj => {
+          const dist = Math.sqrt(Math.pow(obj.x - clickX, 2) + Math.pow(obj.y - clickY, 2));
+          if (dist < DETECTION_RADIUS) {
+            detected.push({
+              id: obj.id,
+              type: 'object',
+              name: obj.name || 'Objet',
+              position: { x: obj.x, y: obj.y },
+              image: obj.imageUrl
+            });
+          }
+        });
+    }
 
     return detected;
   };
@@ -1256,6 +1264,24 @@ export default function Component() {
    * Active l'élément sélectionné et prépare le drag
    */
   const handleElementSelection = (element: DetectedElement, screenX: number, screenY: number) => {
+    // 🔒 Vérifier les permissions AVANT d'appliquer la sélection
+    if (element.type === 'character') {
+      const charIndex = characters.findIndex(c => c.id === element.id);
+      if (charIndex !== -1) {
+        const char = characters[charIndex];
+        const canControl = isMJ || (char.type === 'joueurs' && char.id === persoId) || char.visibility === 'ally';
+
+        if (!canControl) {
+          // Au lieu d'afficher une erreur, on ouvre le menu contextuel pour voir les infos/interagir
+          setContextMenuCharacterId(char.id);
+          setContextMenuOpen(true);
+          setShowElementSelectionMenu(false);
+          // On ne change PAS l'élément actif (pas de drag ni de transparence)
+          return;
+        }
+      }
+    }
+
     setActiveElementType(element.type);
     setActiveElementId(element.id);
     setShowElementSelectionMenu(false);
