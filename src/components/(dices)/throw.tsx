@@ -1115,7 +1115,7 @@ export const DiceThrower = () => {
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[5]">
-            <Canvas shadows camera={{ position: [0, 40, 0], fov: 45 }} gl={{ alpha: true }}>
+            <Canvas shadows camera={{ position: [0, 40, 0], fov: 45 }} gl={{ alpha: true }} style={{ pointerEvents: 'none' }}>
                 {/* Enhanced lighting for metallic materials */}
                 <ambientLight intensity={0.4} />
                 <spotLight
