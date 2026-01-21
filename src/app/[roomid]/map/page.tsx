@@ -80,6 +80,8 @@ import { PlaceNPCModal } from '@/components/(personnages)/PlaceNPCModal';
 import { CreateNoteModal } from '@/components/(map)/CreateNoteModal';
 import { NoBackgroundModal } from '@/components/(map)/NoBackgroundModal';
 import { DeleteConfirmationModal, type EntityToDelete } from '@/components/(map)/DeleteConfirmationModal';
+import ElementSelectionMenu, { type DetectedElement } from '@/components/(map)/ElementSelectionMenu';
+
 
 import { doc as firestoreDoc } from 'firebase/firestore'
 import InfoComponent, { type InfoSection } from "@/components/(infos)/info";
@@ -947,6 +949,13 @@ export default function Component() {
   const [selectedLightIds, setSelectedLightIds] = useState<string[]>([]);
   const [selectedPortalIds, setSelectedPortalIds] = useState<string[]>([]);
 
+  // 🎯 OVERLAPPING ELEMENTS SELECTION MENU
+  const [detectedElements, setDetectedElements] = useState<DetectedElement[]>([]);
+  const [showElementSelectionMenu, setShowElementSelectionMenu] = useState(false);
+  const [selectionMenuPosition, setSelectionMenuPosition] = useState({ x: 0, y: 0 });
+  const [activeElementType, setActiveElementType] = useState<'light' | 'portal' | 'musicZone' | 'character' | 'object' | null>(null);
+  const [activeElementId, setActiveElementId] = useState<string | null>(null);
+
 
   // ⚡ PERFORMANCE: Refs for frequently changing render states
   // These refs prevent the main render useEffect from re-executing on every state change
@@ -1122,6 +1131,172 @@ export default function Component() {
       { x, y },
       `Déplacement de la zone musicale${zone?.name ? ` "${zone.name}"` : ''}`
     );
+  };
+
+  // 🎯 OVERLAPPING ELEMENTS DETECTION SYSTEM
+  /**
+   * Détecte tous les éléments (lumières, portails, zones de musique) à une position donnée
+   * @param clickX - Coordonnée X du clic en coordonnées monde/image
+   * @param clickY - Coordonnée Y du clic en coordonnées monde/image
+   * @returns Liste des éléments détectés
+   */
+  const detectElementsAtPosition = (clickX: number, clickY: number): DetectedElement[] => {
+    const detected: DetectedElement[] = [];
+
+    // Calculer un rayon adapté à la taille de l'image
+    // Taille standard d'un token ~40-50px à l'écran
+    // Rayon monde = Rayon écran / (scale * zoom)
+    // On prend un rayon généreux pour faciliter le clic
+    let worldRadius = 50;
+
+    if (bgImageObject && containerRef.current) {
+      const { width: imgWidth, height: imgHeight } = getMediaDimensions(bgImageObject);
+      const cWidth = containerRef.current.clientWidth;
+      const cHeight = containerRef.current.clientHeight;
+      const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
+      // Rayon écran ~30px -> Monde
+      if (scale > 0) {
+        worldRadius = 30 / scale;
+      }
+    }
+
+    // Fallback si calcul impossible ou trop petit
+    const DETECTION_RADIUS = Math.max(worldRadius, 20 / zoom);
+
+    console.log(`🔍 Détection @ ${Math.round(clickX)},${Math.round(clickY)} - Radius: ${Math.round(DETECTION_RADIUS)}`);
+
+    // Détecter les sources de lumière
+    lights.forEach(light => {
+      if (!light.cityId || light.cityId === selectedCityId) {
+        const dist = Math.sqrt(Math.pow(light.x - clickX, 2) + Math.pow(light.y - clickY, 2));
+        if (dist < DETECTION_RADIUS) {
+          detected.push({
+            id: light.id,
+            type: 'light',
+            name: light.name || 'Source de Lumière',
+            position: { x: light.x, y: light.y }
+          });
+        }
+      }
+    });
+
+    // Détecter les portails
+    portals
+      .filter(p => !p.cityId || p.cityId === selectedCityId)
+      .forEach(portal => {
+        const dist = Math.sqrt(Math.pow(portal.x - clickX, 2) + Math.pow(portal.y - clickY, 2));
+        if (dist < DETECTION_RADIUS) {
+          detected.push({
+            id: portal.id,
+            type: 'portal',
+            name: portal.name || 'Portail',
+            position: { x: portal.x, y: portal.y }
+          });
+        }
+      });
+
+    // Détecter les zones de musique
+    musicZones.forEach(zone => {
+      const dist = Math.sqrt(Math.pow(zone.x - clickX, 2) + Math.pow(zone.y - clickY, 2));
+      if (dist < DETECTION_RADIUS) {
+        detected.push({
+          id: zone.id,
+          type: 'musicZone',
+          name: zone.name || 'Zone de Musique',
+          position: { x: zone.x, y: zone.y }
+        });
+      }
+    });
+
+    // 🎯 Détecter les personnages (PNJ et joueurs)
+    characters.forEach(char => {
+      // Vérifier que le personnage est dans la scène actuelle
+      if (typeof char.x === 'number' && typeof char.y === 'number') {
+        const dist = Math.sqrt(Math.pow(char.x - clickX, 2) + Math.pow(char.y - clickY, 2));
+        if (dist < DETECTION_RADIUS) {
+          let imgUrl: string | null = null;
+          if (char.image) {
+            imgUrl = typeof char.image === 'string' ? char.image : char.image.src;
+          } else if (char.imageUrl) {
+            imgUrl = typeof char.imageUrl === 'string' ? char.imageUrl : char.imageUrl.src;
+          }
+
+          detected.push({
+            id: char.id,
+            type: 'character',
+            name: char.name || 'Personnage',
+            position: { x: char.x, y: char.y },
+            image: imgUrl
+          });
+        }
+      }
+    });
+
+    // 🎯 Détecter les objets
+    objects
+      .filter(obj => !obj.cityId || obj.cityId === selectedCityId)
+      .forEach(obj => {
+        const dist = Math.sqrt(Math.pow(obj.x - clickX, 2) + Math.pow(obj.y - clickY, 2));
+        if (dist < DETECTION_RADIUS) {
+          detected.push({
+            id: obj.id,
+            type: 'object',
+            name: obj.name || 'Objet',
+            position: { x: obj.x, y: obj.y },
+            image: obj.imageUrl
+          });
+        }
+      });
+
+    return detected;
+  };
+
+  /**
+   * Gestionnaire de sélection d'un élément depuis le menu
+   * Active l'élément sélectionné et prépare le drag
+   */
+  const handleElementSelection = (element: DetectedElement, screenX: number, screenY: number) => {
+    setActiveElementType(element.type);
+    setActiveElementId(element.id);
+    setShowElementSelectionMenu(false);
+
+    // Stocker les informations pour le contexte approprié
+    // Le drag sera effectivement initié au prochain clic sur l'élément actif
+    switch (element.type) {
+      case 'light':
+        setContextMenuLightId(element.id);
+        break;
+      case 'portal':
+        setContextMenuPortalId(element.id);
+        break;
+      case 'musicZone':
+        setSelectedMusicZoneIds([element.id]);
+        break;
+      case 'character':
+        // Trouver l'index du personnage
+        const charIndex = characters.findIndex(c => c.id === element.id);
+        if (charIndex !== -1) {
+          setSelectedCharacterIndex(charIndex);
+        }
+        break;
+      case 'object':
+        // Trouver l'index de l'objet
+        const objIndex = objects.findIndex(o => o.id === element.id);
+        if (objIndex !== -1) {
+          setSelectedObjectIndices([objIndex]);
+        }
+        break;
+    }
+  };
+
+  /**
+   * Réinitialise la sélection active sur clic dans le vide ou changement de mode
+   */
+  const resetActiveElementSelection = () => {
+    setActiveElementType(null);
+    setActiveElementId(null);
+    setDetectedElements([]);
+    setShowElementSelectionMenu(false);
   };
 
   //  BULK CHARACTER OPERATIONS
@@ -5932,11 +6107,6 @@ export default function Component() {
         const clickedZone = musicZones.find(z => {
           const dx = z.x - clickX;
           const dy = z.y - clickY;
-          // Icon radius approx 15/zoom? No, world coordinates.
-          // Let's assume click precision 
-          // The icon is drawn with screen radius 15.
-          // We need to convert screen radius to world.
-          // screen = world * zoom. world = screen / zoom.
           const dist = Math.sqrt(dx * dx + dy * dy);
           return dist < (20 / zoom);
         });
@@ -5944,6 +6114,45 @@ export default function Component() {
         if (clickedZone) {
           e.preventDefault();
 
+          // 🎯 Vérifier si un autre élément est actuellement actif
+          if (activeElementType !== null && (activeElementType !== 'musicZone' || activeElementId !== clickedZone.id)) {
+            // Un autre élément est actif, ne rien faire
+            return;
+          }
+
+          // 🎯 Si cet élément est déjà actif, bypasser la détection et continuer
+          if (activeElementType === 'musicZone' && activeElementId === clickedZone.id) {
+            // Élément déjà actif → continuer sans refaire la détection
+            mouseClickStartRef.current = { x: e.clientX, y: e.clientY };
+
+            if (!selectedMusicZoneIds.includes(clickedZone.id)) {
+              setSelectedMusicZoneIds([clickedZone.id]);
+            }
+            setIsDraggingMusicZone(true);
+            setDraggedMusicZoneId(clickedZone.id);
+            setDragStart({ x: e.clientX, y: e.clientY });
+            const originalPositions = (selectedMusicZoneIds.includes(clickedZone.id) ? selectedMusicZoneIds : [clickedZone.id])
+              .map(id => {
+                const zone = musicZones.find(z => z.id === id);
+                return zone ? { id: zone.id, x: zone.x, y: zone.y } : null;
+              })
+              .filter(pos => pos !== null) as { id: string, x: number, y: number }[];
+            setDraggedMusicZonesOriginalPositions(originalPositions);
+            return;
+          }
+
+          // 🎯 Détection d'éléments superposés (seulement si pas encore actif)
+          const elementsAtPosition = detectElementsAtPosition(clickX, clickY);
+
+          if (elementsAtPosition.length > 1) {
+            // Plusieurs éléments détectés → afficher le menu
+            setDetectedElements(elementsAtPosition);
+            setSelectionMenuPosition({ x: e.clientX, y: e.clientY });
+            setShowElementSelectionMenu(true);
+            return;
+          }
+
+          // Un seul élément ou élément déjà actif → continuer avec la sélection
           // Tracking for click vs drag
           mouseClickStartRef.current = { x: e.clientX, y: e.clientY };
 
@@ -6392,7 +6601,7 @@ export default function Component() {
 
         //  MODE SÉLECTION PAR DÉFAUT - Nouveau comportement principal
         // Vérifier si on clique sur un élément existant ET s'il est visible
-        const clickedCharIndex = isLayerVisible('characters') ? characters.findIndex(char => {
+        let clickedCharIndex = isLayerVisible('characters') ? characters.findIndex(char => {
           // 🔒 Vérifier d'abord si le personnage est visible pour le joueur
           // (pas dans l'ombre ou le brouillard)
           if (!isMJ && !isCharacterVisibleToUser(char)) {
@@ -6404,6 +6613,27 @@ export default function Component() {
           const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
           return Math.abs(charX - e.clientX + rect.left) < clickRadius && Math.abs(charY - e.clientY + rect.top) < clickRadius;
         }) : -1;
+
+        // 🎯 PRIORITÉ AU PERSONNAGE ACTIF
+        // Si un personnage est déjà sélectionné (actif), on vérifie si le clic est sur lui.
+        // Si oui, on force la sélection sur lui, même si un autre perso est "au-dessus" (visuellement ou dans l'array).
+        if (activeElementType === 'character' && activeElementId && isLayerVisible('characters')) {
+          const activeIndex = characters.findIndex(c => c.id === activeElementId);
+          if (activeIndex !== -1) {
+            const char = characters[activeIndex];
+            // Vérifier si le clic est sur ce personnage (copie logique ci-dessus)
+            const charX = (char.x / imgWidth) * scaledWidth - offset.x;
+            const charY = (char.y / imgHeight) * scaledHeight - offset.y;
+            const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
+
+            const isClickOnActive = Math.abs(charX - e.clientX + rect.left) < clickRadius && Math.abs(charY - e.clientY + rect.top) < clickRadius;
+
+            // Si on clique sur le perso actif, on ignore tout autre perso qui serait "au dessus"
+            if (isClickOnActive) {
+              clickedCharIndex = activeIndex;
+            }
+          }
+        }
 
         const clickedNoteIndex = isLayerVisible('notes') ? notes.findIndex(note => {
           const noteX = (note.x / imgWidth) * scaledWidth - offset.x;
@@ -6474,8 +6704,29 @@ export default function Component() {
           }
         }
 
-        // Si on clique sur un élément, le sélectionner
+        // 🎯 DÉTECTION D'ÉLÉMENTS SUPERPOSÉS - Vérifier AVANT de sélectionner un personnage
         if (clickedCharIndex !== -1) {
+          // Vérifier si un autre élément est déjà actif et si ce n'est pas ce personnage
+          const clickedChar = characters[clickedCharIndex];
+          if (activeElementType !== null && (activeElementType !== 'character' || activeElementId !== clickedChar.id)) {
+            // Un autre élément est actif, ne rien faire
+            return;
+          }
+
+          // Si ce personnage n'est PAS déjà actif, vérifier s'il y a des éléments superposés
+          if (activeElementType !== 'character' || activeElementId !== clickedChar.id) {
+            const elementsAtPosition = detectElementsAtPosition(clickX, clickY);
+
+            if (elementsAtPosition.length > 1) {
+              // Plusieurs éléments détectés → afficher le menu
+              setDetectedElements(elementsAtPosition);
+              setSelectionMenuPosition({ x: e.clientX, y: e.clientY });
+              setShowElementSelectionMenu(true);
+              return;
+            }
+          }
+
+          // 👇 Logique de sélection (FUSIONNÉE ici au lieu d'être dans un bloc séparé)
           // Si Ctrl/Cmd est pressé, ajouter à la sélection multiple
           if (e.ctrlKey || e.metaKey) {
             if (selectedCharacters.includes(clickedCharIndex)) {
@@ -7408,6 +7659,9 @@ export default function Component() {
       setDraggedMusicZoneId(null);
       setDraggedMusicZonesOriginalPositions([]);
       setDragStart({ x: 0, y: 0 }); // Clean up
+
+      // 🎯 Réinitialiser la sélection active après le drag
+      resetActiveElementSelection();
       return;
     }
 
@@ -7440,6 +7694,9 @@ export default function Component() {
       }
       setIsDraggingLight(false);
       setDraggedLightId(null);
+
+      // 🎯 Réinitialiser la sélection active après le drag
+      resetActiveElementSelection();
       return;
     }
 
@@ -7458,6 +7715,9 @@ export default function Component() {
       }
       setIsDraggingPortal(false);
       setDraggedPortalId(null);
+
+      // 🎯 Réinitialiser la sélection active après le drag
+      resetActiveElementSelection();
       return;
     }
 
@@ -7657,6 +7917,9 @@ export default function Component() {
       setIsDraggingObject(false);
       setDraggedObjectIndex(null);
       setDraggedObjectsOriginalPositions([]);
+
+      // 🎯 Réinitialiser la sélection active après le drag
+      resetActiveElementSelection();
       return;
     }
 
@@ -7724,6 +7987,9 @@ export default function Component() {
       setDraggedCharacterIndex(null);
 
       setDraggedCharactersOriginalPositions([]);
+
+      // 🎯 Réinitialiser la sélection active après le drag
+      resetActiveElementSelection();
       return;
     }
 
@@ -9312,13 +9578,23 @@ export default function Component() {
                     width: w,
                     height: h,
                     transform: `rotate(${obj.rotation}deg)`,
-                    pointerEvents: obj.isBackground && !isBackgroundEditMode ? 'none' : 'auto', // Allow interactions only if not background or in edit mode
-                    cursor: isResizingObject ? 'nwse-resize' : (obj.isLocked && !isMJ ? 'default' : 'move'), // Change cursor if resizing or locked
-                    zIndex: obj.isBackground ? 1 : 2 // Background objects: 1, Normal objects: 2
+                    pointerEvents: obj.isBackground && !isBackgroundEditMode ? 'none' : (
+                      // 🎯 Désactiver les interactions si un autre élément est actif
+                      activeElementType !== null && (activeElementType !== 'object' || activeElementId !== obj.id) ? 'none' : 'auto'
+                    ),
+                    cursor: isResizingObject ? 'nwse-resize' : (obj.isLocked && !isMJ ? 'default' : 'move'),
+                    zIndex: obj.isBackground ? 1 : 2,
+                    opacity: activeElementType !== null && (activeElementType !== 'object' || activeElementId !== obj.id) ? 0.3 : 1, // Semi-transparent si désactivé
+                    transition: 'opacity 0.2s ease',
                   }}
                   onMouseDown={(e) => {
                     // Prevent canvas from picking up this click
                     e.stopPropagation();
+
+                    // 🎯 Vérifier si un autre élément est déjà actif
+                    if (activeElementType !== null && (activeElementType !== 'object' || activeElementId !== obj.id)) {
+                      return; // Ne devrait pas arriver avec pointerEvents: none, mais sécurité
+                    }
 
                     if (e.button === 0) {
                       // Tracking for click vs drag - ALWAYS set this even if locked
@@ -9327,6 +9603,38 @@ export default function Component() {
                       // 🆕 Empêcher le drag si objet verrouillé et utilisateur non-MJ
                       if (obj.isLocked && !isMJ) {
                         return;
+                      }
+
+                      // 🎯 Si cet objet est déjà actif, bypasser la détection
+                      const isThisObjectActive = activeElementType === 'object' && activeElementId === obj.id;
+
+                      if (!isThisObjectActive) {
+                        // Calculer coordonnées monde pour la détection
+                        // On utilise les coords existantes du clic si possible, ou on recalcule
+                        const rect = bgCanvasRef.current?.getBoundingClientRect();
+                        if (rect) {
+                          // approximatif car on n'a pas accès facile à scale ici sans recalculer
+                          // Mais on peut utiliser e.clientX directement dans detectElementsAtPosition car il recalcule scale
+                          const cWidth = containerRef.current?.clientWidth || 0;
+                          const cHeight = containerRef.current?.clientHeight || 0;
+                          if (cWidth > 0 && cHeight > 0 && bgImageObject) {
+                            const { width: imgW, height: imgH } = getMediaDimensions(bgImageObject);
+                            const scale = Math.min(cWidth / imgW, cHeight / imgH);
+                            const sWidth = imgW * scale * zoom;
+                            const sHeight = imgH * scale * zoom;
+                            const clickMapX = ((e.clientX - rect.left + offset.x) / sWidth) * imgW;
+                            const clickMapY = ((e.clientY - rect.top + offset.y) / sHeight) * imgH;
+
+                            const elementsAtPosition = detectElementsAtPosition(clickMapX, clickMapY);
+
+                            if (elementsAtPosition.length > 1) {
+                              setDetectedElements(elementsAtPosition);
+                              setSelectionMenuPosition({ x: e.clientX, y: e.clientY });
+                              setShowElementSelectionMenu(true);
+                              return;
+                            }
+                          }
+                        }
                       }
 
                       // Select
@@ -9463,6 +9771,10 @@ export default function Component() {
               const lightScreenY = (light.y / imgHeight) * scaledHeight;
               const size = 40 * zoom;
 
+              // 🎯 Désactiver les interactions si un autre élément est actif
+              const isThisElementActive = activeElementType === 'light' && activeElementId === light.id;
+              const shouldDisableInteraction = activeElementType !== null && !isThisElementActive;
+
               return (
                 <div
                   key={light.id}
@@ -9473,19 +9785,60 @@ export default function Component() {
                     width: size + 'px',
                     height: size + 'px',
                     transform: 'translate(-50%, -50%)',
-                    pointerEvents: 'auto', // Allow interaction
+                    pointerEvents: shouldDisableInteraction ? 'none' : 'auto', // Désactiver si un autre élément est actif
                     cursor: isMJ ? 'move' : 'default',
+                    opacity: shouldDisableInteraction ? 0.3 : 1, // Semi-transparent si désactivé
+                    transition: 'opacity 0.2s ease',
                     zIndex: 50
                   }}
                   onMouseDown={(e) => {
                     if (!isMJ) return;
+
+                    // 🎯 Vérifier si un autre élément est actuellement actif
+                    if (activeElementType !== null && (activeElementType !== 'light' || activeElementId !== light.id)) {
+                      // Un autre élément est actif, bloquer cette interaction
+                      e.preventDefault();
+                      e.stopPropagation();
+                      return;
+                    }
+
                     e.preventDefault();
                     e.stopPropagation();
+
+                    // Calculer les coordonnées monde pour la détection
+                    const rect = bgCanvasRef.current?.getBoundingClientRect();
+                    if (!rect) return;
+
+                    const clickMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
+                    const clickMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
+
+                    // 🎯 Si cet élément est déjà actif, bypasser la détection et commencer le drag directement
+                    if (activeElementType === 'light' && activeElementId === light.id) {
+                      setIsDraggingLight(true);
+                      setDraggedLightId(light.id);
+                      setDraggedLightOriginalPos({ x: light.x, y: light.y });
+                      const startMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
+                      const startMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
+                      setDragStart({ x: startMapX, y: startMapY });
+                      return;
+                    }
+
+                    // 🎯 Détection d'éléments superposés (seulement si pas encore actif)
+                    const elementsAtPosition = detectElementsAtPosition(clickMapX, clickMapY);
+
+                    if (elementsAtPosition.length > 1) {
+                      // Plusieurs éléments détectés → afficher le menu
+                      setDetectedElements(elementsAtPosition);
+                      setSelectionMenuPosition({ x: e.clientX, y: e.clientY });
+                      setShowElementSelectionMenu(true);
+                      return;
+                    }
+
+                    // Un seul élément ou élément déjà actif → commencer le drag
                     setIsDraggingLight(true);
                     setDraggedLightId(light.id);
                     setDraggedLightOriginalPos({ x: light.x, y: light.y });
 
-                    const rect = bgCanvasRef.current?.getBoundingClientRect();
                     if (rect) {
                       const startMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
                       const startMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
@@ -9538,6 +9891,10 @@ export default function Component() {
               const size = 40 * zoom;
               const isSelected = contextMenuPortalId === portal.id;
 
+              // 🎯 Désactiver les interactions si un autre élément est actif
+              const isThisElementActive = activeElementType === 'portal' && activeElementId === portal.id;
+              const shouldDisableInteraction = activeElementType !== null && !isThisElementActive;
+
               return (
                 <div
                   key={`${portal.id}-${index}`}
@@ -9548,17 +9905,58 @@ export default function Component() {
                     width: size + 'px',
                     height: size + 'px',
                     transform: 'translate(-50%, -50%)',
-                    pointerEvents: 'auto',
+                    pointerEvents: shouldDisableInteraction ? 'none' : 'auto', // Désactiver si un autre élément est actif
                     cursor: 'move',
+                    opacity: shouldDisableInteraction ? 0.3 : 1, // Semi-transparent si désactivé
+                    transition: 'opacity 0.2s ease',
                     zIndex: 50
                   }}
                   onMouseDown={(e) => {
+                    // 🎯 Vérifier si un autre élément est actuellement actif
+                    if (activeElementType !== null && (activeElementType !== 'portal' || activeElementId !== portal.id)) {
+                      // Un autre élément est actif, bloquer cette interaction
+                      e.preventDefault();
+                      e.stopPropagation();
+                      return;
+                    }
+
                     e.preventDefault();
                     e.stopPropagation();
+
+                    // Calculer les coordonnées monde pour la détection
+                    const rect = bgCanvasRef.current?.getBoundingClientRect();
+                    if (!rect) return;
+
+
+                    const clickMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
+                    const clickMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
+
+                    // 🎯 Si cet élément est déjà actif, bypasser la détection et commencer le drag directement
+                    if (activeElementType === 'portal' && activeElementId === portal.id) {
+                      setIsDraggingPortal(true);
+                      setDraggedPortalId(portal.id);
+                      const startMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
+                      const startMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
+                      setDragStart({ x: startMapX, y: startMapY });
+                      return;
+                    }
+
+                    // 🎯 Détection d'éléments superposés (seulement si pas encore actif)
+                    const elementsAtPosition = detectElementsAtPosition(clickMapX, clickMapY);
+
+
+                    if (elementsAtPosition.length > 1) {
+                      // Plusieurs éléments détectés → afficher le menu
+                      setDetectedElements(elementsAtPosition);
+                      setSelectionMenuPosition({ x: e.clientX, y: e.clientY });
+                      setShowElementSelectionMenu(true);
+                      return;
+                    }
+
+                    // Un seul élément ou élément déjà actif → commencer le drag
                     setIsDraggingPortal(true);
                     setDraggedPortalId(portal.id);
 
-                    const rect = bgCanvasRef.current?.getBoundingClientRect();
                     if (rect) {
                       const startMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
                       const startMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
@@ -9698,7 +10096,9 @@ export default function Component() {
               if (char.shape === 'square') borderRadius = '0';
               if (char.shape === 'circle') borderRadius = '50%';
 
-
+              // 🎯 Désactiver visuellement si un autre élément est actif
+              const isThisCharacterActive = activeElementType === 'character' && activeElementId === char.id;
+              const shouldDisableCharacter = activeElementType !== null && !isThisCharacterActive;
 
               return (
                 <div
@@ -9712,6 +10112,8 @@ export default function Component() {
                     pointerEvents: 'none',
                     borderRadius: borderRadius,
                     overflow: 'hidden',
+                    opacity: shouldDisableCharacter ? 0.3 : 1, // Semi-transparent si désactivé
+                    transition: 'opacity 0.2s ease',
                     zIndex: 5 // Characters above objects (z=2) and borders (z=3)
                   }}
                 >
@@ -10615,7 +11017,21 @@ export default function Component() {
         )}
       </AnimatePresence>
 
+      {/* 🎯 OVERLAPPING ELEMENTS SELECTION MENU */}
+      {showElementSelectionMenu && (
+        <ElementSelectionMenu
+          elements={detectedElements}
+          position={selectionMenuPosition}
+          onSelect={(element) => handleElementSelection(element, selectionMenuPosition.x, selectionMenuPosition.y)}
+          onClose={() => {
+            setShowElementSelectionMenu(false);
+            setDetectedElements([]);
+          }}
+        />
+      )}
+
     </div >
+
   )
 }
 
