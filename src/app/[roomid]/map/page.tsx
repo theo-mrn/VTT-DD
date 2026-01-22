@@ -713,6 +713,7 @@ export default function Component() {
   const [activePortalForPlayer, setActivePortalForPlayer] = useState<Portal | null>(null);
   const [isDraggingPortal, setIsDraggingPortal] = useState(false);
   const [draggedPortalId, setDraggedPortalId] = useState<string | null>(null);
+  const [draggedPortalOriginalPos, setDraggedPortalOriginalPos] = useState<{ x: number, y: number }>({ x: 0, y: 0 }); // For same-map twin portal update
   const [contextMenuPortalOpen, setContextMenuPortalOpen] = useState(false);
   const [contextMenuPortalId, setContextMenuPortalId] = useState<string | null>(null);
 
@@ -967,6 +968,7 @@ export default function Component() {
   const fogGridRenderRef = useRef<Map<string, boolean>>(new Map());
   const obstaclesRenderRef = useRef<Obstacle[]>([]);
   const musicZonesRenderRef = useRef<MusicZone[]>([]);
+  const portalsRenderRef = useRef<Portal[]>([]);
   const measurementsRenderRef = useRef<SharedMeasurement[]>([]);
   const layersRenderRef = useRef<Layer[]>([]);
   const selectedCharacterIndexRef = useRef<number | null>(null);
@@ -2472,7 +2474,7 @@ export default function Component() {
   }, [
     // Only the data that affects what's drawn, not canvas configuration
     characters, objects, notes, drawings, currentPath, fogGrid, obstacles,
-    musicZones, measurements, layers, zoom, offset, showGrid, showFogGrid,
+    musicZones, portals, measurements, layers, zoom, offset, showGrid, showFogGrid,
     fullMapFog, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex,
     selectedMusicZoneIds, globalTokenScale, performanceMode, playerViewMode,
     isMJ, viewAsPersoId, activePlayerId, showCharBorders, showAllBadges, visibleBadges,
@@ -7731,16 +7733,49 @@ export default function Component() {
       if (roomId) {
         const portal = portals.find(p => p.id === draggedPortalId);
         if (portal) {
+          // Update the dragged portal's position
           updateDoc(doc(db, 'cartes', roomId, 'portals', portal.id), {
             x: portal.x,
             y: portal.y
           }).catch(err => {
             console.error("Error saving portal pos:", err);
           });
+
+          // 🔄 For same-map portals: update the twin portal's targetX/targetY
+          if (portal.portalType === 'same-map' && portal.targetX !== undefined && portal.targetY !== undefined) {
+            // Store in local constants for TypeScript
+            const portalTargetX = portal.targetX;
+            const portalTargetY = portal.targetY;
+
+            // The twin portal is located at (portal.targetX, portal.targetY)
+            // and its targetX/targetY should point to the original position (draggedPortalOriginalPos)
+            const twinPortal = portals.find(p =>
+              p.id !== portal.id &&
+              p.portalType === 'same-map' &&
+              p.targetX !== undefined &&
+              p.targetY !== undefined &&
+              Math.abs(p.x - portalTargetX) < 0.1 &&
+              Math.abs(p.y - portalTargetY) < 0.1 &&
+              Math.abs(p.targetX - draggedPortalOriginalPos.x) < 0.1 &&
+              Math.abs(p.targetY - draggedPortalOriginalPos.y) < 0.1 &&
+              (!p.cityId || p.cityId === selectedCityId)
+            );
+
+            if (twinPortal) {
+              // Update the twin's target to point to the new position of the dragged portal
+              updateDoc(doc(db, 'cartes', roomId, 'portals', twinPortal.id), {
+                targetX: portal.x,
+                targetY: portal.y
+              }).catch(err => {
+                console.error("Error updating twin portal target:", err);
+              });
+            }
+          }
         }
       }
       setIsDraggingPortal(false);
       setDraggedPortalId(null);
+      setDraggedPortalOriginalPos({ x: 0, y: 0 }); // Reset
 
       // 🎯 Réinitialiser la sélection active après le drag
       resetActiveElementSelection();
@@ -8885,14 +8920,56 @@ export default function Component() {
       if (action === 'delete') {
         if (!roomId) return;
         const portal = portals.find(p => p.id === portalId);
-        await deleteWithHistory(
-          'portals',
-          portalId,
-          `Suppression du portail${portal?.name ? ` "${portal.name}"` : ''}`
-        );
+
+        // 🔄 For same-map portals: also delete the twin portal
+        if (portal && portal.portalType === 'same-map' && portal.targetX !== undefined && portal.targetY !== undefined) {
+          // Store in local constants for TypeScript
+          const portalX = portal.x;
+          const portalY = portal.y;
+          const portalTargetX = portal.targetX;
+          const portalTargetY = portal.targetY;
+
+          // Find the twin portal
+          const twinPortal = portals.find(p =>
+            p.id !== portal.id &&
+            p.portalType === 'same-map' &&
+            p.targetX !== undefined &&
+            p.targetY !== undefined &&
+            Math.abs(p.x - portalTargetX) < 0.1 &&
+            Math.abs(p.y - portalTargetY) < 0.1 &&
+            Math.abs(p.targetX - portalX) < 0.1 &&
+            Math.abs(p.targetY - portalY) < 0.1 &&
+            (!p.cityId || p.cityId === selectedCityId)
+          );
+
+          // Delete both portals
+          await deleteWithHistory(
+            'portals',
+            portalId,
+            `Suppression du portail same-map${portal?.name ? ` "${portal.name}"` : ''}`
+          );
+
+          if (twinPortal) {
+            await deleteWithHistory(
+              'portals',
+              twinPortal.id,
+              `Suppression du portail jumeau${twinPortal?.name ? ` "${twinPortal.name}"` : ''}`
+            );
+          }
+
+          toast.success(twinPortal ? "Portails jumeaux supprimés" : "Portail supprimé");
+        } else {
+          // Regular portal (scene-change)
+          await deleteWithHistory(
+            'portals',
+            portalId,
+            `Suppression du portail${portal?.name ? ` "${portal.name}"` : ''}`
+          );
+          toast.success("Portail supprimé");
+        }
+
         setContextMenuPortalOpen(false);
         setContextMenuPortalId(null);
-        toast.success("Portail supprimé")
       } else if (action === 'edit') {
         const portal = portals.find(p => p.id === portalId);
         if (portal) {
@@ -9259,8 +9336,10 @@ export default function Component() {
             });
 
             // Create Portal 2 (reverse direction)
+            // IMPORTANT: Don't copy the ID from the first portal
+            const { id, ...portalDataWithoutId } = portalData;
             await addDoc(collection(db, 'cartes', roomId, 'portals'), {
-              ...portalData,
+              ...portalDataWithoutId,
               x: portalData.targetX,
               y: portalData.targetY,
               targetX: editingPortal.x,
@@ -9961,6 +10040,7 @@ export default function Component() {
                     if (activeElementType === 'portal' && activeElementId === portal.id) {
                       setIsDraggingPortal(true);
                       setDraggedPortalId(portal.id);
+                      setDraggedPortalOriginalPos({ x: portal.x, y: portal.y }); // Store original position for twin portal update
                       const startMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
                       const startMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
                       setDragStart({ x: startMapX, y: startMapY });
@@ -9982,6 +10062,7 @@ export default function Component() {
                     // Un seul élément ou élément déjà actif → commencer le drag
                     setIsDraggingPortal(true);
                     setDraggedPortalId(portal.id);
+                    setDraggedPortalOriginalPos({ x: portal.x, y: portal.y }); // Store original position for twin portal update
 
                     if (rect) {
                       const startMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
