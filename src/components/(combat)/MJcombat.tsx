@@ -17,6 +17,8 @@ import poisonIcon from '../../app/[roomid]/map/icons/poison.svg';
 import stunIcon from '../../app/[roomid]/map/icons/stun.svg';
 import blindIcon from '../../app/[roomid]/map/icons/blind.svg';
 import otherIcon from '../../app/[roomid]/map/icons/other.svg';
+import { LightRays } from "@/components/ui/light-rays"
+
 
 type Character = {
   cityId?: string
@@ -646,10 +648,10 @@ export function GMDashboard() {
 
       {/* Main Content Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full min-h-0">
-
+        <LightRays />
         {/* Turn Order Panel (List - Left, slightly larger) */}
         <div className="lg:col-span-5 flex flex-col min-h-0">
-          <Card className="flex-1 flex flex-col bg-[var(--bg-card)] border-[var(--border-color)] shadow-md overflow-hidden">
+          <Card className="flex-1 flex flex-col border-[var(--border-color)] shadow-md overflow-hidden">
             <CardHeader className="pb-3 border-b border-[var(--border-color)]">
               <CardTitle className="flex items-center gap-2">
                 <Dice1 className="h-5 w-5 text-[var(--text-secondary)]" />
