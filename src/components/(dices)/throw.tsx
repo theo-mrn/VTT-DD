@@ -1,10 +1,10 @@
 "use client";
+import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Physics, usePlane, useConvexPolyhedron, useBox } from '@react-three/cannon';
 import { Text, Environment, Line, useTexture } from '@react-three/drei';
 import { DICE_SKINS, DiceSkin, DEFAULT_SKIN, getSkinById, CriticalType } from './dice-definitions';
-
 import * as THREE from 'three';
 
 // ============================================================================
@@ -1026,8 +1026,40 @@ export const DiceThrower = () => {
     const [dice, setDice] = useState<{ id: string, rollId: string, type: string, pos: [number, number, number], imp: [number, number, number], skinId: string, targetValue?: number }[]>([]);
     const activeRollsRef = useRef<Map<string, { expected: number, results: { type: string, value: number }[] }>>(new Map());
     const diceRefs = useRef<any[]>([]);
+    const confettiRef = useRef<ConfettiRef>(null);
 
     const handleResult = (rollId: string, type: string, val: string) => {
+        if (type === 'd20' && val === '20') {
+            const defaults = { origin: { y: 0.7 }, colors: ['#FFD700', '#FDB931', '#FFFFFF'] };
+
+            // Central explosion
+            confettiRef.current?.fire({
+                ...defaults,
+                particleCount: 100,
+                spread: 100,
+                startVelocity: 40,
+                scalar: 1.2
+            });
+
+            // Side cannons
+            setTimeout(() => {
+                confettiRef.current?.fire({
+                    particleCount: 80,
+                    angle: 60,
+                    spread: 80,
+                    origin: { x: 0, y: 0.7 },
+                    colors: ['#FFD700', '#FDB931', '#FFFFFF']
+                });
+                confettiRef.current?.fire({
+                    particleCount: 80,
+                    angle: 120,
+                    spread: 80,
+                    origin: { x: 1, y: 0.7 },
+                    colors: ['#FFD700', '#FDB931', '#FFFFFF']
+                });
+            }, 250);
+        }
+
         const rollData = activeRollsRef.current.get(rollId);
         if (rollData) {
             rollData.results.push({ type, value: parseInt(val) });
@@ -1115,6 +1147,11 @@ export const DiceThrower = () => {
 
     return (
         <div className="fixed inset-0 pointer-events-none z-[5]">
+            <Confetti
+                ref={confettiRef}
+                className="absolute left-0 top-0 z-0 size-full"
+                manualstart
+            />
             <Canvas shadows camera={{ position: [0, 40, 0], fov: 45 }} gl={{ alpha: true }} style={{ pointerEvents: 'none' }}>
                 {/* Enhanced lighting for metallic materials */}
                 <ambientLight intensity={0.4} />

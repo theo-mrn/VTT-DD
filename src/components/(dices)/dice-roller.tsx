@@ -22,7 +22,7 @@ import { DICE_SKINS, DiceSkin } from "./dice-definitions";
 import { DicePreview } from "./dice-preview";
 import { DiceStoreModal } from "./dice-store-modal"; // Import new modal
 import { getAssetUrl } from "@/lib/asset-loader";
-
+import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
 // Types
 interface RollResult {
   id: string;
@@ -872,23 +872,25 @@ export function DiceRoller() {
               className="input-field flex-1"
               disabled={isLoading}
             />
-            <Button
+            <InteractiveHoverButton
               onClick={() => rollDice()}
               disabled={isLoading}
-              className="button-primary flex items-center gap-2"
+              className=""
             >
-              {isLoading ? (
-                <motion.div
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 0.5, repeat: Infinity, ease: "linear" }}
-                >
+              <span className="flex items-center gap-2">
+                {isLoading ? (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 0.5, repeat: Infinity, ease: "linear" }}
+                  >
+                    <Dice1 className="h-5 w-5" />
+                  </motion.div>
+                ) : (
                   <Dice1 className="h-5 w-5" />
-                </motion.div>
-              ) : (
-                <Dice1 className="h-5 w-5" />
-              )}
-              {isLoading ? "Lancement..." : "Lancer"}
-            </Button>
+                )}
+                <span>{isLoading ? "Lancement..." : "Lancer"}</span>
+              </span>
+            </InteractiveHoverButton>
           </div>
 
           <div className="pt-2 flex justify-between items-center">
