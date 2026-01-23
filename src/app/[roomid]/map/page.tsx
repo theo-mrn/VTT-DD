@@ -197,7 +197,7 @@ export default function Component() {
   const [targetIds, setTargetIds] = useState<string[]>([]); // 🆕 Multiple targets for AoE
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
   const [performanceMode, setPerformanceMode] = useState<'high' | 'eco' | 'static'>('high'); // ⚡ Performance Mode
-  const [backgroundImage, setBackgroundImage] = useState('/placeholder.svg?height=600&width=800')
+  const [backgroundImage, setBackgroundImage] = useState<string | null>(null)
   const [bgImageObject, setBgImageObject] = useState<HTMLImageElement | HTMLVideoElement | null>(null);
   const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0); // 🆕 Progress state
@@ -261,9 +261,16 @@ export default function Component() {
       videoRef.current = null;
     }
 
+    // 💡 Add cache busting to force fresh CORS headers check
+    const cacheBustedUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+
     try {
       // 1. Fetch with progress
-      const response = await fetch(url);
+      // We use cache: 'reload' to force network request and avoid browser cache
+      const response = await fetch(cacheBustedUrl, { cache: 'reload', mode: 'cors' });
+
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+
       const contentLength = response.headers.get('content-length');
       const total = parseInt(contentLength || '0', 10);
 
@@ -296,11 +303,10 @@ export default function Component() {
         video.src = objectUrl;
         video.autoplay = true;
         video.loop = true;
-        video.loop = true;
         video.muted = audioVolumes.backgroundAudio === 0;
         video.volume = audioVolumes.backgroundAudio;
         video.playsInline = true;
-        // video.crossOrigin = "anonymous"; // Not needed for Blob URL
+        // Blob URLs don't need crossOrigin as they are local
 
         video.onloadedmetadata = () => {
           setBgImageObject(video);
@@ -309,6 +315,7 @@ export default function Component() {
         };
         video.onerror = () => {
           setIsBackgroundLoading(false);
+          loadBackgroundFallback(url); // Retry with fallback if blob fails
         };
         videoRef.current = video;
       } else {
@@ -320,28 +327,31 @@ export default function Component() {
         }
         img.onerror = () => {
           setIsBackgroundLoading(false);
+          loadBackgroundFallback(url); // Retry with fallback if blob fails
         }
       }
 
     } catch (error) {
-      console.warn("Chargement avec progression échoué (CORS probable), passage en chargement standard...");
+      console.warn("Chargement avec progression échoué (CORS probable), passage en chargement standard...", error);
       // Fallback: Default standard load
       loadBackgroundFallback(url);
     }
   };
 
   const loadBackgroundFallback = (url: string) => {
-    const isVideo = url.toLowerCase().includes('.webm');
+    // 💡 Add cache busting to force fresh CORS headers check
+    const cacheBustedUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
+
+    const isVideo = url.toLowerCase().includes('.webm') || url.toLowerCase().includes('.mp4');
     if (isVideo) {
       const video = document.createElement('video');
-      video.src = url;
+      video.crossOrigin = "anonymous";
+      video.src = cacheBustedUrl;
       video.autoplay = true;
-      video.loop = true;
       video.loop = true;
       video.muted = audioVolumes.backgroundAudio === 0;
       video.volume = audioVolumes.backgroundAudio;
       video.playsInline = true;
-      video.crossOrigin = "anonymous";
 
       video.onloadedmetadata = () => {
         setBgImageObject(video);
@@ -351,12 +361,29 @@ export default function Component() {
       videoRef.current = video;
     } else {
       const img = new Image();
-      img.src = url;
+      img.crossOrigin = "anonymous";
+      img.src = cacheBustedUrl;
       img.onload = () => {
         setBgImageObject(img);
         setIsBackgroundLoading(false);
       }
-      img.crossOrigin = "anonymous";
+      img.onerror = () => {
+        // Attempt recovery without CORS (will taint canvas but show image)
+        console.warn("CORS load failed. Trying without CORS.");
+        const imgNoCors = new Image();
+        imgNoCors.removeAttribute('crossOrigin');
+        imgNoCors.src = url; // Use original URL for non-CORS fallback
+        imgNoCors.onload = () => {
+          setBgImageObject(imgNoCors);
+          setIsBackgroundLoading(false);
+          // toast.warning("Image chargée sans CORS. Certaines fonctionnalités (Brouillard/Ping) peuvent être limitées.");
+        }
+        imgNoCors.onerror = (e) => {
+          console.error("Non-CORS Load Failed:", e, url);
+          setIsBackgroundLoading(false);
+          // toast.error("Échec du chargement de l'image de fond.");
+        }
+      }
     }
   }
 
@@ -1813,7 +1840,7 @@ export default function Component() {
             setBackgroundImage(cityData.backgroundUrl);
           } else {
             // Clear background when scene has no background
-            setBackgroundImage('/placeholder.svg?height=600&width=800');
+            setBackgroundImage(null);
             setBgImageObject(null); // Clear the previous background
           }
         }
@@ -1847,7 +1874,7 @@ export default function Component() {
       }
     } else {
       // En mode world map, vérifier si le fond est un placeholder
-      const isPlaceholder = backgroundImage.includes('placeholder.svg');
+      const isPlaceholder = !backgroundImage || backgroundImage.includes('placeholder.svg');
       if (isPlaceholder) {
         setShowNoBackgroundModal(true);
       }
