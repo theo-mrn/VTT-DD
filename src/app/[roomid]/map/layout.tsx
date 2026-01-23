@@ -18,6 +18,7 @@ import { auth, onAuthStateChanged } from "@/lib/firebase";
 import { X } from "lucide-react";
 
 import MJMusicPlayer from "@/components/(music)/MJMusicPlayer";
+import YouTubeSFXPlayer from "@/components/(music)/YouTubeSFXPlayer";
 import PlayerMusicControl from "@/components/(music)/PlayerMusicControl";
 import { useAudioMixer } from '@/components/(audio)/AudioMixerPanel';
 import { MapControlProvider } from '@/contexts/MapControlContext';
@@ -126,6 +127,8 @@ export default function Layout({ children }: LayoutProps) {
 
               <div className="">
                 {isMJ ? <MJMusicPlayer roomId={roomId} masterVolume={audioVolumes.backgroundMusic} /> : <PlayerMusicControl roomId={roomId} />}
+                {/* Dedicated Player for Global YouTube SFX */}
+                <YouTubeSFXPlayer roomId={roomId} volume={audioVolumes.globalSound} />
               </div>
             </aside>
 

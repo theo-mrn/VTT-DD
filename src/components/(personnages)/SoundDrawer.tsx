@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect, useRef } from 'react'
+import YouTube from 'react-youtube';
 import { Volume2, Search, X, Plus, Trash2, Library, Music, Play, Pause, MapPin, Youtube, FileAudio, ListMusic, GripVertical, Check, StopCircle, PlayCircle, Filter, SkipBack, SkipForward, Repeat, Shuffle } from 'lucide-react'
 import { collection, onSnapshot, query, addDoc, deleteDoc, doc, setDoc, doc as firestoreDoc } from 'firebase/firestore'
 import { db, realtimeDb, dbRef, update, onValue, set } from '@/lib/firebase'
@@ -59,6 +60,8 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
     const [isGlobalPlayback, setIsGlobalPlayback] = useState(true) // Default to global
     const [playingLocalId, setPlayingLocalId] = useState<string | null>(null)
     const localAudioRef = useRef<HTMLAudioElement | null>(null)
+
+    const [localYoutubeId, setLocalYoutubeId] = useState<string | null>(null) // Local YouTube Preview
 
     // --- Library Dialog States ---
     const [isLibraryOpen, setIsLibraryOpen] = useState(false)
@@ -266,23 +269,25 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                 await setDoc(firestoreDoc(db, 'global_sounds', roomId), { soundUrl: sound.soundUrl, soundId: sound.id, timestamp: Date.now(), type: sound.type })
             }
         } else {
-            // Local mode: play locally for preview
+            // Local mode
             const isCurrentlyPlaying = playingLocalId === sound.id
 
-            if (isCurrentlyPlaying) {
-                // Stop current sound
-                if (localAudioRef.current) {
-                    localAudioRef.current.pause()
-                    localAudioRef.current = null
-                }
-                setPlayingLocalId(null)
-            } else {
-                // Stop previous sound if any
-                if (localAudioRef.current) {
-                    localAudioRef.current.pause()
-                }
+            // Reset all local states first
+            setLocalYoutubeId(null)
+            if (localAudioRef.current) {
+                localAudioRef.current.pause()
+                localAudioRef.current = null
+            }
+            setPlayingLocalId(null)
 
-                // Play new sound locally
+            // If it was just stopping the current one, return
+            if (isCurrentlyPlaying) return
+
+            // Local Playback Logic
+            if (sound.type === 'youtube') {
+                setLocalYoutubeId(sound.soundUrl)
+                setPlayingLocalId(sound.id)
+            } else {
                 const audio = new Audio(sound.soundUrl)
                 audio.volume = 0.5
                 audio.play().catch(err => console.error('Error playing audio:', err))
@@ -428,11 +433,27 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                         </div>
                         <Input placeholder="Nom du son" value={newSoundName} onChange={e => setNewSoundName(e.target.value)} className="h-8 bg-[#252525]" />
                         {creationType === 'file' ? (
-                            <Input type="file" accept="audio/*" className="text-xs text-gray-400 file:text-white file:bg-[#333] file:border-0 file:rounded-sm" onChange={e => {
-                                const f = e.target.files?.[0]; if (f) { setNewSoundFile({ file: f, name: f.name.split('.')[0] }); if (!newSoundName) setNewSoundName(f.name.split('.')[0]); }
-                            }} />
+                            <Input
+                                key="file-input"
+                                type="file"
+                                accept="audio/*"
+                                className="text-xs text-gray-400 file:text-white file:bg-[#333] file:border-0 file:rounded-sm"
+                                onChange={e => {
+                                    const f = e.target.files?.[0];
+                                    if (f) {
+                                        setNewSoundFile({ file: f, name: f.name.split('.')[0] });
+                                        if (!newSoundName) setNewSoundName(f.name.split('.')[0]);
+                                    }
+                                }}
+                            />
                         ) : (
-                            <Input placeholder="URL YouTube" value={youtubeInput} onChange={e => setYoutubeInput(e.target.value)} className="h-8 bg-[#252525]" />
+                            <Input
+                                key="youtube-input"
+                                placeholder="URL YouTube"
+                                value={youtubeInput}
+                                onChange={e => setYoutubeInput(e.target.value)}
+                                className="h-8 bg-[#252525]"
+                            />
                         )}
                         <Button onClick={handleCreate} disabled={isSubmitting} size="sm" className="w-full bg-[#c0a080] text-black hover:bg-[#d4b494]">Ajouter</Button>
                     </div>
@@ -688,6 +709,26 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                         </div>
                     )
                 })()}
+            </div>
+
+            {/* Hidden Local YouTube Player */}
+            <div className="hidden">
+                {localYoutubeId && (
+                    <YouTube
+                        videoId={localYoutubeId}
+                        opts={{
+                            height: '0',
+                            width: '0',
+                            playerVars: {
+                                autoplay: 1,
+                            },
+                        }}
+                        onEnd={() => {
+                            setLocalYoutubeId(null)
+                            setPlayingLocalId(null)
+                        }}
+                    />
+                )}
             </div>
 
             {/* --- CUSTOM LIBRARY MODAL (No Shadcn) --- */}
