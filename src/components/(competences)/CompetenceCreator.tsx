@@ -448,7 +448,7 @@ export default function CompetenceCreator({ initialProfile, initialRace, onVoies
         { value: 'Forgesort', label: 'Forgesort' },
         { value: 'Invocateur', label: 'Invocateur' },
         { value: 'Moine', label: 'Moine' },
-        { value: 'Necromencien', label: 'Nécromancien' },
+        { value: 'Necromancien', label: 'Nécromancien' },
         { value: 'Psionique', label: 'Psionique' },
         { value: 'Pretre', label: 'Prêtre' },
         { value: 'Rodeur', label: 'Rôdeur' },
@@ -484,7 +484,7 @@ export default function CompetenceCreator({ initialProfile, initialRace, onVoies
         { value: 'barde', label: 'Barde', count: 3 },
         { value: 'barbare', label: 'Barbare', count: 2 },
         { value: 'arquebusier', label: 'Arquebusier', count: 3 },
-        { value: 'necromencien', label: 'Nécromancien', count: 2 },
+        { value: 'necromancien', label: 'Nécromancien', count: 2 },
     ];
 
     /* HANDLERS */

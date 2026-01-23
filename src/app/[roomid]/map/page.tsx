@@ -2049,11 +2049,9 @@ export default function Component() {
     if (isMJ) {
       if (!selectedCityId) {
         if (globalCityId) {
-          console.log('🔀 [Sync MJ] Navigation vers la ville du groupe:', globalCityId);
           setSelectedCityId(globalCityId);
           setViewMode('city');
         } else if (viewMode === 'city') {
-          console.log('🌍 [Sync MJ] Pas de ville définie, retour à la carte du monde');
           setViewMode('world');
         }
       }

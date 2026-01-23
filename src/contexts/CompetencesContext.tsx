@@ -3,6 +3,22 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { mapImagePath } from '@/utils/imagePathMapper';
 
+const PRESTIGE_FILE_COUNTS: Record<string, number> = {
+  arquebusier: 3,
+  barbare: 2,
+  barde: 3,
+  chevalier: 3,
+  druide: 2,
+  ensorceleur: 2,
+  forgesort: 3,
+  guerrier: 2,
+  moine: 3,
+  necromancien: 2,
+  pretre: 3,
+  rodeur: 3,
+  voleur: 3,
+};
+
 export type Competence = {
   titre: string;
   description: string;
@@ -167,50 +183,53 @@ export function CompetencesProvider({ children }: { children: React.ReactNode })
 
         // Fetch profiles
         const profileNames = ["Barbare", "Barde", "Chevalier", "Druide", "Ensorceleur", "Forgesort", "Guerrier", "Invocateur", "Magicien", "Moine", "Necromancien", "Pretre", "Psionique", "Rodeur", "Samourai", "Voleur"];
-        // Note: added missing profiles from list based on profile.json check if needed
-        const profileData: Profile[] = [];
 
-        for (const name of profileNames) {
-          const voies = [];
+        const profilePromises = profileNames.map(async (name) => {
+          const filePromises = [];
           for (let i = 1; i <= 5; i++) {
-            try {
-              const response = await fetch(`/tabs/${name}${i}.json`);
-              if (response.ok) {
-                const data = await response.json();
-                const competences: Competence[] = [];
-                for (let j = 1; j <= 20; j++) {
-                  const affichageKey = `Affichage${j}`;
-                  const rangKey = `rang${j}`;
-                  const typeKey = `type${j}`;
+            filePromises.push(
+              fetch(`/tabs/${name}${i}.json`)
+                .then(res => res.ok ? res.json() : null)
+                .catch(err => null)
+            );
+          }
 
-                  if (data[affichageKey] && data[rangKey]) {
-                    competences.push({
-                      titre: data[affichageKey],
-                      description: data[rangKey],
-                      type: data[typeKey] || '',
-                      source: `${name} - ${data.Voie}`
-                    });
-                  }
-                }
-                if (competences.length > 0) {
-                  voies.push({ nom: data.Voie, competences });
-                }
+          const filesData = await Promise.all(filePromises);
+          const voies: Voie[] = [];
+
+          filesData.forEach((data) => {
+            if (!data) return;
+
+            const competences: Competence[] = [];
+            for (let j = 1; j <= 20; j++) {
+              const affichageKey = `Affichage${j}`;
+              const rangKey = `rang${j}`;
+              const typeKey = `type${j}`;
+
+              if (data[affichageKey] && data[rangKey]) {
+                competences.push({
+                  titre: data[affichageKey],
+                  description: data[rangKey],
+                  type: data[typeKey] || '',
+                  source: `${name} - ${data.Voie}`
+                });
               }
-            } catch (error) {
-              //console.error(`Error fetching ${name}${i}.json:`, error);
             }
-          }
-          if (voies.length > 0) {
-            profileData.push({ nom: name, voies });
-          }
-        }
-        setProfiles(profileData);
+            if (competences.length > 0) {
+              voies.push({ nom: data.Voie, competences });
+            }
+          });
+
+          return voies.length > 0 ? { nom: name, voies } : null;
+        });
+
+        const resolvedProfiles = await Promise.all(profilePromises);
+        setProfiles(resolvedProfiles.filter((p): p is Profile => p !== null));
 
         // Fetch races
         const raceNames = ["Ame-forgee", "Drakonide", "Elfe", "Elfesylvain", "Elfenoir", "Halfelin", "Humain", "Minotaure", "Ogre", "Orque", "Nain"];
-        const raceData: Voie[] = [];
 
-        for (const name of raceNames) {
+        const racePromises = raceNames.map(async (name) => {
           try {
             const response = await fetch(`/tabs/${name}.json`);
             if (response.ok) {
@@ -232,55 +251,64 @@ export function CompetencesProvider({ children }: { children: React.ReactNode })
                 }
               }
               if (competences.length > 0) {
-                raceData.push({ nom: data.Voie, competences });
+                return { nom: data.Voie, competences };
               }
             }
           } catch (error) {
-            //console.error(`Error fetching ${name}.json:`, error);
+            console.error(`Error fetching ${name}.json:`, error);
           }
-        }
-        setRaces(raceData);
+          return null;
+        });
+
+        const resolvedRaces = await Promise.all(racePromises);
+        setRaces(resolvedRaces.filter((r): r is Voie => r !== null));
 
         // Fetch prestiges
-        const prestigeNames = ["arquebusier", "barbare", "barde", "chevalier", "druide", "ensorceleur", "forgesort", "guerrier", "moine", "necromencien", "pretre", "rodeur", "voleur"];
-        const prestigeData: Profile[] = [];
+        const prestigeNames = Object.keys(PRESTIGE_FILE_COUNTS);
 
-        for (const name of prestigeNames) {
-          const voies = [];
-          for (let i = 1; i <= 5; i++) {
-            try {
-              const response = await fetch(`/tabs/prestige_${name}${i}.json`);
-              if (response.ok) {
-                const data = await response.json();
-                const competences: Competence[] = [];
+        const prestigePromises = prestigeNames.map(async (name) => {
+          const maxFiles = PRESTIGE_FILE_COUNTS[name];
+          const filePromises = [];
 
-                for (let j = 1; j <= 20; j++) {
-                  const affichageKey = `Affichage${j}`;
-                  const rangKey = `rang${j}`;
-                  const typeKey = `type${j}`;
+          for (let i = 1; i <= maxFiles; i++) {
+            filePromises.push(
+              fetch(`/tabs/prestige_${name}${i}.json`)
+                .then(res => res.ok ? res.json() : null)
+                .catch(err => null)
+            );
+          }
 
-                  if (data[affichageKey] && data[rangKey]) {
-                    competences.push({
-                      titre: data[affichageKey],
-                      description: data[rangKey],
-                      type: data[typeKey] || '',
-                      source: `Prestige: ${name} - ${data.Voie}`
-                    });
-                  }
-                }
-                if (competences.length > 0) {
-                  voies.push({ nom: data.Voie, competences });
-                }
+          const filesData = await Promise.all(filePromises);
+          const voies: Voie[] = [];
+
+          filesData.forEach((data) => {
+            if (!data) return;
+
+            const competences: Competence[] = [];
+            for (let j = 1; j <= 20; j++) {
+              const affichageKey = `Affichage${j}`;
+              const rangKey = `rang${j}`;
+              const typeKey = `type${j}`;
+
+              if (data[affichageKey] && data[rangKey]) {
+                competences.push({
+                  titre: data[affichageKey],
+                  description: data[rangKey],
+                  type: data[typeKey] || '',
+                  source: `Prestige: ${name} - ${data.Voie}`
+                });
               }
-            } catch (error) {
-              //console.error(`Error fetching prestige_${name}${i}.json:`, error);
             }
-          }
-          if (voies.length > 0) {
-            prestigeData.push({ nom: name, voies });
-          }
-        }
-        setPrestiges(prestigeData);
+            if (competences.length > 0) {
+              voies.push({ nom: data.Voie, competences });
+            }
+          });
+
+          return voies.length > 0 ? { nom: name, voies } : null;
+        });
+
+        const resolvedPrestiges = await Promise.all(prestigePromises);
+        setPrestiges(resolvedPrestiges.filter((p): p is Profile => p !== null));
 
       } catch (error) {
         //console.error('Error fetching data:', error);

@@ -59,7 +59,7 @@ export default function Capacites() {
       setIsLoading(true);
       try {
         // Fetch profiles
-        const profileNames = ["Barbare", "Barde", "Chevalier", "Druide", "Samourai", "Ensorceleur", "Forgesort", "Guerrier", "Invocateur", "Magicien", "Moine", "Necromencien", "Pretre", "Psionique", "Rodeur", "Voleur"];
+        const profileNames = ["Barbare", "Barde", "Chevalier", "Druide", "Samourai", "Ensorceleur", "Forgesort", "Guerrier", "Invocateur", "Magicien", "Moine", "Necromancien", "Pretre", "Psionique", "Rodeur", "Voleur"];
         const profileData: Profile[] = [];
 
         for (const name of profileNames) {
@@ -137,7 +137,7 @@ export default function Capacites() {
         setRaces(raceData);
 
         // Fetch prestiges
-        const prestigeNames = ["arquebusier", "barbare", "barde", "chevalier", "druide", "ensorceleur", "forgesort", "guerrier", "moine", "necromencien", "pretre", "rodeur", "voleur"];
+        const prestigeNames = ["arquebusier", "barbare", "barde", "chevalier", "druide", "ensorceleur", "forgesort", "guerrier", "moine", "necromancien", "pretre", "rodeur", "voleur"];
         const prestigeData: Profile[] = [];
 
         for (const name of prestigeNames) {

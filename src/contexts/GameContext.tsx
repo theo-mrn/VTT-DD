@@ -122,19 +122,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const setIsMJ = useCallback((value: boolean) => {
     setIsMJState(value);
     saveToLocalStorage(STORAGE_KEYS.IS_MJ, value);
-    console.log('isMJ updated and saved:', value);
   }, []);
 
   const setPersoId = useCallback((value: string | null) => {
     setPersoIdState(value);
     saveToLocalStorage(STORAGE_KEYS.PERSO_ID, value);
-    console.log('persoId updated and saved:', value);
   }, []);
 
   const setPlayerData = useCallback((value: PlayerData | null) => {
     setPlayerDataState(value);
     saveToLocalStorage(STORAGE_KEYS.PLAYER_DATA, value);
-    console.log('playerData updated and saved:', value);
   }, []);
 
   // Fonction pour charger les données du personnage depuis Firebase
@@ -350,7 +347,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
       if (!mounted) return;
 
-      console.log('Auth state changed:', authUser?.uid);
 
       if (authUser) {
         try {

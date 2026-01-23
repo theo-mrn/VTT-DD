@@ -58,6 +58,11 @@ type CustomCompetence = {
   competenceType: string;
 };
 
+
+const normalizeString = (str: string) => {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+};
+
 interface CharacterProfileProps {
   onClose?: () => void;
   characterId?: string;
@@ -535,7 +540,8 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
     { value: 'Forgesort', label: 'Forgesort' },
     { value: 'Invocateur', label: 'Invocateur' },
     { value: 'Moine', label: 'Moine' },
-    { value: 'Necromencien', label: 'Nécromancien' },
+    { value: 'Magicien', label: 'Magicien' },
+    { value: 'Necromancien', label: 'Necromancien' },
     { value: 'Psionique', label: 'Psionique' },
     { value: 'Pretre', label: 'Prêtre' },
     { value: 'Rodeur', label: 'Rôdeur' },
@@ -571,7 +577,7 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
     { value: 'barde', label: 'Barde', count: 3 },
     { value: 'barbare', label: 'Barbare', count: 2 },
     { value: 'arquebusier', label: 'Arquebusier', count: 3 },
-    { value: 'necromencien', label: 'Nécromancien', count: 2 },
+    { value: 'necromancien', label: 'Nécromancien', count: 2 },
   ];
 
   const handleProfileChange = (newProfile: string, profileLabel: string) => {
@@ -620,15 +626,15 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
   };
 
   const filteredProfiles = profiles.filter(profile =>
-    profile.label.toLowerCase().includes(profileSearchTerm.toLowerCase())
+    normalizeString(profile.label).includes(normalizeString(profileSearchTerm))
   );
 
   const filteredRaces = races.filter(race =>
-    race.label.toLowerCase().includes(raceSearchTerm.toLowerCase())
+    normalizeString(race.label).includes(normalizeString(raceSearchTerm))
   );
 
   const filteredPrestigeClasses = prestigeClasses.filter(prestige =>
-    prestige.label.toLowerCase().includes(prestigeSearchTerm.toLowerCase())
+    normalizeString(prestige.label).includes(normalizeString(prestigeSearchTerm))
   );
 
   const applyReplacement = () => {
@@ -931,15 +937,15 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
   };
 
   const filteredProfilesForCompetence = profiles.filter(profile =>
-    profile.label.toLowerCase().includes(profileForCompetenceSearchTerm.toLowerCase())
+    normalizeString(profile.label).includes(normalizeString(profileForCompetenceSearchTerm))
   );
 
   const filteredRacesForCompetence = races.filter(race =>
-    race.label.toLowerCase().includes(raceForCompetenceSearchTerm.toLowerCase())
+    normalizeString(race.label).includes(normalizeString(raceForCompetenceSearchTerm))
   );
 
   const filteredPrestigeClassesForCompetence = prestigeClasses.filter(prestige =>
-    prestige.label.toLowerCase().includes(prestigeForCompetenceSearchTerm.toLowerCase())
+    normalizeString(prestige.label).includes(normalizeString(prestigeForCompetenceSearchTerm))
   );
 
   const resetCompetence = async (voieIndex: number, competenceIndex: number) => {
