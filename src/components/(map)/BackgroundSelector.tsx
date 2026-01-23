@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, X, Film, Image as ImageIcon, Palette, Loader2, AlertCircle } from 'lucide-react';
+import { Search, X, Film, Image as ImageIcon, Palette, Loader2, AlertCircle, Upload } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext';
 
@@ -212,6 +212,16 @@ export default function BackgroundSelector({
     const [search, setSearch] = useState('');
     const [activeMediaType, setActiveMediaType] = useState<MediaType>('static');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            const url = URL.createObjectURL(file);
+            onSelectLocal(url);
+            onClose();
+        }
+    };
 
     useEffect(() => {
         if (isOpen) {
@@ -410,6 +420,23 @@ export default function BackgroundSelector({
                                 Illustration
                                 {selectedCategory && <span className="text-xs opacity-70">({mediaTypeCounts.illustration})</span>}
                             </button>
+
+                            <div className="ml-2 pl-2 border-l border-[#333]">
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    className="hidden"
+                                    accept="image/*,video/*"
+                                    onChange={handleFileUpload}
+                                />
+                                <Button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="bg-[#1a1a1a] border border-[#333] text-gray-300 hover:bg-[#c0a080] hover:text-black hover:border-[#c0a080] transition-all gap-2"
+                                >
+                                    <Upload size={18} />
+                                    Importer
+                                </Button>
+                            </div>
 
                             <div className="flex-1" />
 
