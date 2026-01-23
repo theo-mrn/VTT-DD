@@ -175,7 +175,7 @@ export default function CharacterProfile() {
 
         // Mapping for Profile files (handling typos in filenames)
         const profileMapping: Record<string, string> = {
-          necromancien: 'Necromencien', // Handle typo in filenames
+          necromancien: 'Necromancien', // Handle typo in filenames
         };
 
         const getProfilePrefix = (profileKey: string) => {
@@ -342,7 +342,7 @@ export default function CharacterProfile() {
     const groupedCompetences: { category: string, voies: { voie: string, competences: Competence[] }[] }[] = [];
 
     // Load from all profile voies
-    const profiles = ['Samourai', 'Guerrier', 'Barde', 'Moine', 'Pretre', 'Rodeur', 'Voleur', 'Psionique', 'Necromencien'];
+    const profiles = ['Samourai', 'Guerrier', 'Barde', 'Moine', 'Pretre', 'Rodeur', 'Voleur', 'Psionique', 'Necromancien'];
     for (const profile of profiles) {
       const profileVoies: { voie: string, competences: Competence[] }[] = [];
       for (let i = 1; i <= 5; i++) {
@@ -395,7 +395,7 @@ export default function CharacterProfile() {
       { name: 'Barde', count: 3 },
       { name: 'Barbare', count: 2 },
       { name: 'Arquebusier', count: 3 },
-      { name: 'Necromencien', count: 2 }
+      { name: 'Necromancien', count: 2 }
     ];
 
     for (const prestigeClass of prestigeClasses) {
