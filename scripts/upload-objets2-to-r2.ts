@@ -67,70 +67,7 @@ const CONTENT_TYPES: Record<string, string> = {
     '.gif': 'image/gif',
 };
 
-// Mapping des noms de fichiers vers des catégories
-const FILE_TO_CATEGORY: Record<string, string> = {
-    // Furniture / Meubles
-    'baignoire.png': 'furniture',
-    'bureau.png': 'furniture',
-    'chaise1.png': 'furniture',
-    'chaise2.png': 'furniture',
-    'chaise3.png': 'furniture',
-    'chaise4.png': 'furniture',
-    'commodde.png': 'furniture',
-    'lit1.png': 'furniture',
-    'lit2.png': 'furniture',
-    'lit3.png': 'furniture',
-    'mirroir.png': 'furniture',
-    'table1.png': 'furniture',
-    'table2.png': 'furniture',
-    'piano.png': 'furniture',
-    'orgue.png': 'furniture',
-
-    // Containers / Conteneurs
-    'caisse.png': 'containers',
-    'coffre.png': 'containers',
-    'toneau.png': 'containers',
-
-    // Vehicles / Véhicules
-    'chariole.png': 'vehicles',
-    'chariole2.png': 'vehicles',
-    'chariole3.png': 'vehicles',
-
-    // Stairs / Escaliers
-    'escalier1.png': 'stairs',
-    'escalier2.png': 'stairs',
-    'escalier3.png': 'stairs',
-
-    // Fire / Feu
-    'feu1.png': 'fire',
-    'feu2.png': 'fire',
-
-    // Decorations
-    'decoration.png': 'decorations',
-    'décoration.png': 'decorations',
-    'tapis.png': 'decorations',
-    'foin.png': 'decorations',
-
-    // Dark / Macabre
-    'cercueil.png': 'dark',
-    'ossement.png': 'dark',
-    'ossement2.png': 'dark',
-
-    // Equipment / Équipement
-    'four.png': 'equipment',
-    'shop.png': 'equipment',
-
-    // Misc
-    'sample.png': 'misc',
-    'sample (1).png': 'misc',
-    'thumb (6).png': 'misc',
-};
-
-function getCategoryForFile(filename: string): string {
-    return FILE_TO_CATEGORY[filename] || 'misc';
-}
-
-async function scanDirectory(dirPath: string): Promise<AssetFile[]> {
+async function scanDirectory(dirPath: string, baseFolder: string = '', parentCategory: string = ''): Promise<AssetFile[]> {
     const assets: AssetFile[] = [];
 
     try {
@@ -139,7 +76,12 @@ async function scanDirectory(dirPath: string): Promise<AssetFile[]> {
         for (const entry of entries) {
             const fullPath = path.join(dirPath, entry.name);
 
-            if (entry.isFile() && !entry.name.startsWith('.')) {
+            if (entry.isDirectory() && !entry.name.startsWith('.')) {
+                // Recursively scan subdirectories
+                // Use subdirectory name as category
+                const subAssets = await scanDirectory(fullPath, baseFolder, entry.name);
+                assets.push(...subAssets);
+            } else if (entry.isFile() && !entry.name.startsWith('.')) {
                 const ext = path.extname(entry.name).toLowerCase();
                 const fileStat = await stat(fullPath);
 
@@ -149,17 +91,17 @@ async function scanDirectory(dirPath: string): Promise<AssetFile[]> {
                 }
 
                 if (type) {
-                    const category = getCategoryForFile(entry.name);
-                    const publicDir = path.join(process.cwd(), 'public');
+                    // Use parent directory name as category (e.g., "camps", "farm", "fourniture", etc.)
+                    const category = parentCategory || 'misc';
 
-                    // Create path like: items/furniture/bureau.png
-                    const relativePath = `items/${category}/${entry.name}`;
+                    // Create path like: objets/camps/banniere-1a.png
+                    const relativePath = `objets/${category}/${entry.name}`;
 
                     assets.push({
                         name: entry.name,
                         localPath: fullPath,
                         relativePath,
-                        category: `items/${category}`,
+                        category: `objets/${category}`,
                         type,
                         size: fileStat.size,
                     });
@@ -219,8 +161,8 @@ async function uploadAsset(asset: AssetFile): Promise<string | null> {
 }
 
 async function main() {
-    console.log('📦 Upload des Objets (objets2) vers Cloudflare R2');
-    console.log('==================================================\n');
+    console.log('📦 Upload des Objets (objet2) vers Cloudflare R2');
+    console.log('=================================================\n');
 
     if (isDryRun) {
         console.log('⚠️  DRY RUN MODE - No uploads will be performed\n');
@@ -240,18 +182,18 @@ async function main() {
         }
     }
 
-    // Step 1: Scan objets2 directory
-    console.log('📁 Scanning objets2 directory...\n');
-    const objets2Dir = path.join(process.cwd(), 'public', 'objets2');
+    // Step 1: Scan objet2 directory and its subdirectories
+    console.log('📁 Scanning objet2 directory...\n');
+    const objet2Dir = path.join(process.cwd(), 'public', 'objet2');
 
     let allAssets: AssetFile[] = [];
     try {
-        await stat(objets2Dir);
-        console.log(`  → Scanning objets2/...`);
-        allAssets = await scanDirectory(objets2Dir);
+        await stat(objet2Dir);
+        console.log(`  → Scanning objet2/ and subdirectories...`);
+        allAssets = await scanDirectory(objet2Dir);
         console.log(`    Found ${allAssets.length} files`);
     } catch (error) {
-        console.error(`    ❌ Directory objets2/ not found!`);
+        console.error(`    ❌ Directory objet2/ not found!`);
         process.exit(1);
     }
 

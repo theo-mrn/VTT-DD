@@ -20,8 +20,8 @@ interface AssetMapping {
 const jsonPath = path.join(process.cwd(), 'public', 'asset-mappings.json');
 const mappings: AssetMapping[] = JSON.parse(readFileSync(jsonPath, 'utf-8'));
 
-// Filter for items category
-const itemAssets = mappings.filter(m => m.category.startsWith('items/'));
+// Filter for items and objets categories
+const itemAssets = mappings.filter(m => m.category.startsWith('items/') || m.category.startsWith('objets/'));
 
 // Group by subcategory
 const grouped: Record<string, AssetMapping[]> = {};
