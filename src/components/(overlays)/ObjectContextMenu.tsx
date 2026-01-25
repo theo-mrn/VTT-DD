@@ -250,7 +250,7 @@ export default function ObjectContextMenu({
                                         <div className="mt-4 space-y-2">
                                             <h3 className="text-xs uppercase tracking-wider text-gray-500 font-semibold mb-2">Visibilité</h3>
 
-                                            <div className="grid grid-cols-4 gap-1">
+                                            <div className="grid grid-cols-3 gap-1">
                                                 <Button
                                                     variant="outline"
                                                     size="sm"
@@ -276,15 +276,6 @@ export default function ObjectContextMenu({
                                                     onClick={() => onAction('setObjectVisibility', object.id, 'custom')}
                                                 >
                                                     Custom
-                                                </Button>
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    className={`text-xs ${object.visibility === 'invisible' ? 'bg-gray-800 border-gray-600 text-gray-200' : 'bg-[#252525] border-[#333] text-gray-400'}`}
-                                                    onClick={() => onAction('setObjectVisibility', object.id, 'invisible')}
-                                                >
-                                                    <Ghost size={12} className="mr-1" />
-                                                    Inv.
                                                 </Button>
                                             </div>
 
