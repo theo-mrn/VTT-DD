@@ -802,8 +802,8 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
                                 onChange={handleObjectImageUpload}
                             />
                             {newObjectImage && (
-                                <div className="mt-2 w-20 h-20 rounded-lg overflow-hidden border border-[#333]">
-                                    <img src={newObjectImage} alt="Preview" className="w-full h-full object-cover" />
+                                <div className="mt-2 w-20 h-20 rounded-lg overflow-hidden border border-[#333] bg-black/50">
+                                    <img src={newObjectImage} alt="Preview" className="w-full h-full object-contain" />
                                 </div>
                             )}
                         </div>
@@ -878,7 +878,7 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
                         </div>
                     ) : (
                         // LIST MODE (Search or other tabs)
-                        <div className="p-4 space-y-2">
+                        <div className="p-4 grid grid-cols-2 gap-3">
                             {unifiedItems.map((item) => (
                                 <UnifiedDraggableCard
                                     key={`${item.type}-${item.id}`}
@@ -933,7 +933,7 @@ function UnifiedDraggableCard({ item, onDragStart, handleSoundPreview, playingAu
 
             {/* IMAGE/ICON */}
             {item.imageUrl ? (
-                <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-[#1a1a1a] border border-[#2a2a2a]">
+                <div className="h-12 w-auto max-w-[80px] rounded-lg overflow-hidden flex-shrink-0 bg-[#1a1a1a] border border-[#2a2a2a]">
                     <img
                         src={item.imageUrl}
                         alt={item.name}
