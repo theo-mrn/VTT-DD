@@ -12,6 +12,80 @@ export type SemanticMapping = {
  * Format: terme principal → [synonymes, variantes, termes proches]
  */
 export const SEMANTIC_MAPPINGS: SemanticMapping = {
+    // === CATÉGORIES PRINCIPALES (Normalisées) ===
+    'conteneurs': ['coffre', 'caisse', 'malle', 'boite', 'chest', 'bag', 'barrel'],
+    'nature': ['feu', 'eau', 'arbre', 'plante', 'rocher', 'water', 'fire', 'tree'],
+    'mobilier': ['meuble', 'chaise', 'table', 'lit', 'armoire', 'furniture'],
+    'architecture': ['escalier', 'echelle', 'porte', 'mur', 'fenetre', 'stairs', 'ladder'],
+    'livres': ['book', 'grimoire', 'parchemin', 'ouvrage'],
+    'trésors': ['coffre', 'or', 'gold', 'gem', 'bijou', 'key', 'cle'],
+    'potions': ['potion', 'fiole', 'elixir'],
+    'véhicules': ['charrette', 'chariot', 'wagon', 'boat', 'bateau'],
+    'équipement': ['outils', 'equipment', 'gear'],
+    'armes': ['arme', 'epee', 'arc', 'hache', 'weapon'],
+    'armures': ['armure', 'bouclier', 'casque', 'armor'],
+    'campement': ['tente', 'feu de camp', 'camp', 'bedroll', 'couchage'],
+    'macabre': ['os', 'squelette', 'crane', 'sang', 'dark', 'evil'],
+    'divers': ['misc', 'autre'],
+    'ferme': ['farm', 'animal', 'culture'],
+    'marché': ['market', 'shop', 'stand', 'etalage'],
+
+    // === OBJETS SPÉCIFIQUES (TRADUCTIONS) ===
+    // Conteneurs
+    'tonneau': ['barrel', 'fut', 'barrique', 'cask', 'keg'],
+    'barrel': ['tonneau', 'fut', 'barrique'],
+    'sac à dos': ['backpack', 'sac', 'bag', 'travel'],
+    'backpack': ['sac à dos', 'sac', 'bag'],
+
+    // Campement & Voyage
+    'tente': ['tent', 'camp', 'bivouac', 'abri'],
+    'tent': ['tente', 'camp', 'bivouac'],
+    'couchage': ['bedroll', 'sac de couchage', 'lit', 'bed'],
+    'bedroll': ['couchage', 'sac de couchage', 'lit'],
+    'feu de camp': ['campfire', 'feu', 'fire', 'bivouac'],
+    'campfire': ['feu de camp', 'feu', 'fire'],
+
+    // Animaux & Montures
+    'cheval': ['horse', 'monture', 'etalon', 'poulain'],
+    'horse': ['cheval', 'monture'],
+    'ane': ['donkey', 'mule', 'baudet'],
+    'donkey': ['ane', 'mule'],
+    'boeuf': ['ox', 'taureau', 'vache', 'bovin'],
+    'ox': ['boeuf', 'taureau'],
+    'sanglier': ['boar', 'cochon', 'porc'],
+    'boar': ['sanglier', 'cochon'],
+
+    // Structures & Environnement
+    'pont': ['bridge', 'passerelle', 'traverse'],
+    'bridge': ['pont', 'passerelle'],
+    'poteau': ['post', 'piline', 'pilier'],
+    'post': ['poteau', 'pilier'],
+    'panneau': ['sign', 'affiche', 'pancarte'],
+    'sign': ['panneau', 'pancarte'],
+    'fosse': ['pit', 'trou', 'crevasse'],
+    'pit': ['fosse', 'trou'],
+    'barricade': ['barrier', 'obstacle', 'pieux'],
+    'barrier': ['barricade', 'obstacle'],
+
+    // Objets divers
+    'corde': ['rope', 'ficelle', 'lien'],
+    'rope': ['corde', 'lien'],
+    'selle': ['saddle', 'harnais'],
+    'saddle': ['selle', 'harnais'],
+    'roue': ['wheel', 'chariot'],
+    'wheel': ['roue'],
+    'bombe': ['bomb', 'explosif'],
+    'bomb': ['bombe', 'explosif'],
+    'cage': ['jail', 'prison', 'cellule'],
+    'cible': ['target', 'entrainement'],
+    'target': ['cible'],
+
+    // Eau / Bateaux
+    'bateau': ['boat', 'navire', 'barque', 'ship', 'barge'],
+    'boat': ['bateau', 'navire', 'barque'],
+    'ship': ['bateau', 'navire'],
+    'quai': ['pier', 'dock', 'port'],
+    'pier': ['quai', 'dock'],
     // Véhicules / Transport
     'carrosse': ['chariole', 'chariot', 'voiture', 'vehicule', 'cart', 'wagon'],
     'chariole': ['carrosse', 'chariot', 'charrette', 'cart', 'wagon', 'charriole'],
@@ -28,12 +102,6 @@ export const SEMANTIC_MAPPINGS: SemanticMapping = {
     'boite': ['coffre', 'chest', 'caisse', 'malle'],
     'conteneur': ['coffre', 'caisse', 'chest', 'malle'],
 
-    // Tonneaux
-    'tonneau': ['barrel', 'fut', 'barrique', 'baril'],
-    'barrel': ['tonneau', 'fut', 'barrique', 'baril'],
-    'barrique': ['tonneau', 'barrel', 'fut', 'baril'],
-    'fut': ['tonneau', 'barrel', 'barrique', 'baril'],
-    'baril': ['tonneau', 'barrel', 'barrique', 'fut'],
 
     // Sacs
     'sac': ['bag', 'sacoche', 'besace', 'poche'],
@@ -173,8 +241,7 @@ export const SEMANTIC_MAPPINGS: SemanticMapping = {
     'insecte': ['insect', 'bug'],
     'insect': ['insecte', 'bug'],
     'bug': ['insecte', 'insect'],
-    'camp': ['campfire', 'feu de camp'],
-    'campfire': ['camp', 'feu de camp', 'feu'],
+    'camp': ['campfire', 'feu de camp', 'tente', 'bivouac'],
 
     // Créatures - Dragons
     'dragon': ['wyrm', 'drake'],

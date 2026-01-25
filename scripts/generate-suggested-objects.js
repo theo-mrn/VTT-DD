@@ -1,27 +1,12 @@
-#!/usr/bin/env node
-
-/**
- * Generate suggested-objects.ts from R2 asset mappings
- * This script reads asset-mappings.json and generates the suggested objects list
- */
-
-import { readFileSync, writeFileSync } from 'fs';
-import path from 'path';
-
-interface AssetMapping {
-    name: string;
-    path: string;
-    localPath: string;
-    category: string;
-    type: string;
-}
+const { readFileSync, writeFileSync } = require('fs');
+const path = require('path');
 
 // Read asset mappings
 const jsonPath = path.join(process.cwd(), 'public', 'asset-mappings.json');
-const mappings: AssetMapping[] = JSON.parse(readFileSync(jsonPath, 'utf-8'));
+const mappings = JSON.parse(readFileSync(jsonPath, 'utf-8'));
 
 // Category normalization mappings
-const CATEGORY_MAPPINGS: Record<string, string> = {
+const CATEGORY_MAPPINGS = {
     // Conteneurs
     'bag': 'conteneurs',
     'barrel': 'conteneurs',
@@ -70,7 +55,7 @@ const CATEGORY_MAPPINGS: Record<string, string> = {
 const itemAssets = mappings.filter(m => m.category.startsWith('items/') || m.category.startsWith('objets/'));
 
 // Group by subcategory
-const grouped: Record<string, AssetMapping[]> = {};
+const grouped = {};
 itemAssets.forEach(asset => {
     const parts = asset.category.split('/');
     const subcategory = parts[1] || 'other';
@@ -96,7 +81,7 @@ let tsCode = `export type SuggestedItem = {
 }
 
 // Auto-generated from R2 asset mappings
-// DO NOT EDIT MANUALLY - Run: npx tsx scripts/generate-suggested-objects.ts
+// DO NOT EDIT MANUALLY - Run: node scripts/generate-suggested-objects.js
 export const SUGGESTED_OBJECTS: SuggestedItem[] = [
 `;
 

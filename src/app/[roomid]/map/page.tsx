@@ -2572,11 +2572,30 @@ export default function Component() {
         const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth
         const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight
 
+        // 📏 Calculate aspect ratio to preserve shape
+        let width = 100;
+        let height = 100;
+
+        try {
+          const img = new Image();
+          img.src = template.imageUrl;
+          await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+          });
+          if (img.width && img.height) {
+            const ratio = img.width / img.height;
+            height = width / ratio;
+          }
+        } catch (e) {
+          console.warn("Could not load image for aspect ratio, defaulting to 100x100", e);
+        }
+
         const objectData = {
           x,
           y,
-          width: 100, // Default size
-          height: 100,
+          width,
+          height,
           rotation: 0,
           imageUrl: template.imageUrl,
           name: template.name,
@@ -9854,7 +9873,7 @@ export default function Component() {
                       height: '100%',
                       border: isSelected ? '2px solid #00BFFF' : (obj.isBackground && isBackgroundEditMode ? '2px dashed rgba(255, 255, 255, 0.5)' : 'none'),
                       opacity: obj.isBackground && isBackgroundEditMode ? 0.8 : 1,
-                      objectFit: 'cover',
+                      objectFit: 'fill',
                       display: 'block'
                     }}
                   />
