@@ -11,8 +11,14 @@ export async function register() {
         } = await import('@opentelemetry/semantic-conventions');
         const { HttpInstrumentation } = await import('@opentelemetry/instrumentation-http');
 
+        // Disable metrics to avoid 404 errors on trace endpoint
+        process.env.OTEL_METRICS_EXPORTER = 'none';
+
+        const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'https://otlp-gateway-prod-us-east-0.grafana.net/otlp/v1/traces';
+        const serviceName = process.env.OTEL_SERVICE_NAME || 'vtt-dd-app';
+
         const exporter = new OTLPTraceExporter({
-            url: process.env.OTEL_EXPORTER_OTLP_ENDPOINT || 'https://otlp-gateway-prod-us-east-0.grafana.net/otlp/v1/traces',
+            url: endpoint,
             headers: process.env.OTEL_EXPORTER_OTLP_HEADERS
                 ? parseHeaders(process.env.OTEL_EXPORTER_OTLP_HEADERS)
                 : {},
@@ -20,9 +26,9 @@ export async function register() {
 
         const resource = defaultResource().merge(
             resourceFromAttributes({
-                [SEMRESATTRS_SERVICE_NAME]: process.env.OTEL_SERVICE_NAME || 'vtt-dd-app',
-                [SEMRESATTRS_SERVICE_NAMESPACE]: 'vtt-dd',
-                [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: process.env.NODE_ENV || 'development',
+                [SEMRESATTRS_SERVICE_NAME]: serviceName,
+                [SEMRESATTRS_SERVICE_NAMESPACE]: process.env.OTEL_SERVICE_NAMESPACE || 'vtt-dd',
+                [SEMRESATTRS_DEPLOYMENT_ENVIRONMENT]: process.env.OTEL_DEPLOYMENT_ENVIRONMENT || process.env.NODE_ENV || 'development',
             })
         );
 
@@ -34,7 +40,7 @@ export async function register() {
 
         try {
             sdk.start();
-            console.log('OpenTelemetry SDK started successfully');
+            console.log(`OpenTelemetry SDK started successfully. Service: ${serviceName}, Endpoint: ${endpoint}`);
         } catch (error) {
             console.error('Error starting OpenTelemetry SDK:', error);
         }
@@ -48,9 +54,11 @@ function parseHeaders(headerStr: string): Record<string, string> {
     if (!headerStr) return headers;
 
     headerStr.split(',').forEach(pair => {
-        const [key, value] = pair.split('=');
-        if (key && value) {
-            headers[key.trim()] = value.trim();
+        const firstEquals = pair.indexOf('=');
+        if (firstEquals > 0) {
+            const key = pair.substring(0, firstEquals).trim();
+            const value = pair.substring(firstEquals + 1).trim();
+            headers[key] = value;
         }
     });
     return headers;
