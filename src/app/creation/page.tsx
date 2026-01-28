@@ -170,13 +170,47 @@ export default function CharacterCreationPage() {
     })
   }, [])
 
+
   useEffect(() => {
     async function loadData() {
       try {
-        const races = await fetchJson('/tabs/race.json')
-        const profiles = await fetchJson('/tabs/profile.json')
-        setRaceData(races)
-        setProfileData(profiles)
+        const [races, profiles, mappings] = await Promise.all([
+          fetchJson('/tabs/race.json'),
+          fetchJson('/tabs/profile.json'),
+          fetchJson('/asset-mappings.json')
+        ])
+
+        // Create a lookup map: localPath -> remotePath
+        const urlMap = new Map<string, string>();
+        mappings.forEach((m: any) => {
+          if (m.localPath && m.path) {
+            urlMap.set(m.localPath, m.path);
+          }
+        });
+
+        const resolveImage = (localPath: string) => {
+          if (!localPath) return localPath;
+          return urlMap.get(localPath) || localPath;
+        };
+
+        // Update races with remote images
+        const updatedRaces = { ...races };
+        Object.keys(updatedRaces).forEach(key => {
+          if (updatedRaces[key].image) {
+            updatedRaces[key].image = resolveImage(updatedRaces[key].image);
+          }
+        });
+
+        // Update profiles with remote images
+        const updatedProfiles = { ...profiles };
+        Object.keys(updatedProfiles).forEach(key => {
+          if (updatedProfiles[key].image) {
+            updatedProfiles[key].image = resolveImage(updatedProfiles[key].image);
+          }
+        });
+
+        setRaceData(updatedRaces)
+        setProfileData(updatedProfiles)
       } catch (error) {
         console.error("Error loading data:", error)
       }
