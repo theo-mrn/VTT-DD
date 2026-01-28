@@ -16,6 +16,8 @@ export interface SharedMeasurement {
     coneWidth?: number | null;
     coneAngle?: number; // New: Angle in degrees
     coneShape?: 'flat' | 'rounded'; // New: Shape type
+    coneMode?: 'angle' | 'dimensions'; // New: Mode
+    fixedLength?: number | null; // New: Fixed length for dimensions mode
     skin?: string | null;
     timestamp: number;
     permanent?: boolean; // If true, persists. If false, auto-deletes after 6s.
@@ -37,6 +39,8 @@ export interface MeasurementRenderOptions {
     isCalibrating: boolean;
     coneAngle?: number;
     coneShape?: 'flat' | 'rounded'; // New
+    coneMode?: 'angle' | 'dimensions'; // New
+    fixedLength?: number | null; // New
     coneWidth?: number | null; // Width at the end of the cone in units (Legacy/Override)
     skin?: string | null;
     skinElement?: HTMLVideoElement | HTMLImageElement | null;
@@ -155,7 +159,7 @@ export function renderLineMeasurement(options: MeasurementRenderOptions): void {
  * Render cone measurement (spell cone)
  */
 export function renderConeMeasurement(options: MeasurementRenderOptions): void {
-    const { ctx, start, end, zoom, scale, pixelsPerUnit, unitName, isCalibrating, coneWidth, coneAngle, coneShape = 'rounded', skinElement } = options;
+    const { ctx, start, end, zoom, scale, pixelsPerUnit, unitName, isCalibrating, coneWidth, coneAngle, coneShape = 'rounded', coneMode = 'angle', fixedLength, skinElement } = options;
 
     const angle = calculateAngle(start, end);
     const pixelDist = calculateDistance(start.x, start.y, end.x, end.y);
@@ -166,7 +170,13 @@ export function renderConeMeasurement(options: MeasurementRenderOptions): void {
     let halfAngleRad: number;
     let actualConeWidth: number;
 
-    if (coneWidth && coneWidth > 0) {
+    if (coneMode === 'dimensions' && coneWidth && coneWidth > 0) {
+        // Dimensions mode: Width is PRIORITY
+        // If fixedLength is set, we use that for calculation (though 'unitDist' should match it if drag is constrained)
+        // halfAngle = atan( (width/2) / length )
+        halfAngleRad = Math.atan((coneWidth / 2) / unitDist);
+        actualConeWidth = coneWidth;
+    } else if (coneWidth && coneWidth > 0) {
         // Legacy/Fixed width mode
         halfAngleRad = Math.atan(coneWidth / (2 * unitDist));
         actualConeWidth = coneWidth;

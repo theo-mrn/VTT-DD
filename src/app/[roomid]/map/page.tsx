@@ -698,6 +698,8 @@ export default function Component() {
   // New Cone & Grid Settings
   const [coneAngle, setConeAngle] = useState(53.13);
   const [coneShape, setConeShape] = useState<'flat' | 'rounded'>('rounded');
+  const [coneMode, setConeMode] = useState<'angle' | 'dimensions'>('angle'); // New
+  const [coneLength, setConeLength] = useState<number | undefined>(undefined); // New
   const [lockWidthHeight, setLockWidthHeight] = useState(false);
   const [measurements, setMeasurements] = useState<SharedMeasurement[]>([]);
   const measurementSkins = useMeasurementSkins(measurements); // For SHARED measurements
@@ -710,7 +712,9 @@ export default function Component() {
       updateDoc(docRef, {
         coneAngle,
         coneShape,
-        coneWidth: null // Ensure angle mode is used
+        coneMode,
+        fixedLength: coneLength || null,
+        coneWidth: coneWidth || null // Allow null to clear override
       }).catch(console.error);
     }
   }, [coneAngle, coneShape, currentMeasurementId, roomId, measurementShape]);
@@ -2045,7 +2049,7 @@ export default function Component() {
   // 🆕 EFFET DE SYNCHRONISATION DE SCÈNE (PRIORITÉ AU PERSONNAGE)
   useEffect(() => {
     // Si MJ, on autorise la navigation automatique si aucune ville n'est déjà sélectionnée
-    // On force aussi le mode 'world' (drawer) si aucune ville n'est définie
+    ;    // On force aussi le mode 'world' (drawer) si aucune ville n'est définie
     if (isMJ) {
       if (!selectedCityId) {
         if (globalCityId) {
@@ -4529,6 +4533,8 @@ export default function Component() {
 
         coneAngle: m.coneAngle || 53.13,
         coneShape: m.coneShape || 'rounded',
+        coneMode: m.coneMode || 'angle',
+        fixedLength: m.fixedLength,
         coneWidth: m.coneWidth,
         skinElement: (m.skin && measurementSkins[m.skin]) ? measurementSkins[m.skin] : null
       };
@@ -4567,6 +4573,8 @@ export default function Component() {
           isCalibrating,
           coneAngle: coneAngle,
           coneShape: coneShape,
+          coneMode: coneMode,
+          fixedLength: coneLength,
           coneWidth: coneWidth, // Custom
           skinElement: ((measurementShape === 'circle' || measurementShape === 'cone') && fireballVideo) ? fireballVideo : null
         };
@@ -7264,8 +7272,26 @@ export default function Component() {
     }
 
     //  MEASURE DRAG
+    //  MEASURE DRAG
     if (measureMode && measureStart && e.buttons === 1) {
-      setMeasureEnd({ x: currentX, y: currentY });
+      let targetX = currentX;
+      let targetY = currentY;
+
+      // Cone Length Constraint
+      if (measurementShape === 'cone' && coneMode === 'dimensions' && coneLength && coneLength > 0) {
+        // Calculate constrained point
+        // Target Distance in Image Pixels = Length * PPU * Scale * Zoom?
+        // Wait, render logic uses: unitDist = pixelDist / (PPU * Scale * Zoom).
+        // So pixelDist = unitDist * PPU * Scale * Zoom.
+        const validScale = (globalTokenScale && globalTokenScale > 0) ? globalTokenScale : 1;
+        const requiredPixelDist = coneLength * pixelsPerUnit * validScale * zoom;
+
+        const angle = Math.atan2(currentY - measureStart.y, currentX - measureStart.x);
+        targetX = measureStart.x + Math.cos(angle) * requiredPixelDist;
+        targetY = measureStart.y + Math.sin(angle) * requiredPixelDist;
+      }
+
+      setMeasureEnd({ x: targetX, y: targetY });
 
       // 🆕 UPDATE SHARED MEASUREMENT (THROTTLED OPTIONALLY, but for now direct)
       if (currentMeasurementId && roomId) {
@@ -7273,7 +7299,7 @@ export default function Component() {
         // For now, let's try direct update. If laggy, we'll throttle.
         const docRef = doc(db, 'cartes', roomId, 'measurements', currentMeasurementId);
         updateDoc(docRef, {
-          end: { x: currentX, y: currentY }
+          end: { x: targetX, y: targetY }
         }).catch(console.error);
       }
       return;
@@ -9322,6 +9348,12 @@ export default function Component() {
           setConeAngle={setConeAngle}
           coneShape={coneShape}
           setConeShape={setConeShape}
+          coneMode={coneMode}
+          setConeMode={setConeMode}
+          coneWidth={coneWidth}
+          setConeWidth={setConeWidth}
+          coneLength={coneLength}
+          setConeLength={setConeLength}
           lockWidthHeight={lockWidthHeight}
           setLockWidthHeight={setLockWidthHeight}
 
@@ -9737,6 +9769,9 @@ export default function Component() {
                     transition: 'opacity 0.2s ease',
                   }}
                   onMouseDown={(e) => {
+                    // ✋ Si en mode Pan, laisser l'événement remonter au canvas
+                    if (panMode) return;
+
                     // Prevent canvas from picking up this click
                     e.stopPropagation();
 
@@ -9942,6 +9977,7 @@ export default function Component() {
                   }}
                   onMouseDown={(e) => {
                     if (!isMJ) return;
+                    if (panMode) return; // ✋ Mode Pan prioritaire
 
                     // 🎯 Vérifier si un autre élément est actuellement actif
                     if (activeElementType !== null && (activeElementType !== 'light' || activeElementId !== light.id)) {
@@ -10061,6 +10097,8 @@ export default function Component() {
                     zIndex: 50
                   }}
                   onMouseDown={(e) => {
+                    if (panMode) return; // ✋ Mode Pan prioritaire
+
                     // 🎯 Vérifier si un autre élément est actuellement actif
                     if (activeElementType !== null && (activeElementType !== 'portal' || activeElementId !== portal.id)) {
                       // Un autre élément est actif, bloquer cette interaction
