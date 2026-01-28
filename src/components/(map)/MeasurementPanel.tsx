@@ -43,6 +43,14 @@ interface MeasurementPanelProps {
     lockWidthHeight: boolean;
     setLockWidthHeight: (val: boolean) => void;
 
+    // Measurement Mode (Angle vs Dimensions)
+    coneMode: 'angle' | 'dimensions';
+    setConeMode: (mode: 'angle' | 'dimensions') => void;
+    coneWidth?: number;
+    setConeWidth: (width: number | undefined) => void;
+    coneLength?: number;
+    setConeLength: (length: number | undefined) => void;
+
     // Skin
     selectedSkin?: string;
     onSkinChange?: (skin: string) => void;
@@ -66,6 +74,12 @@ export default function MeasurementPanel({
     setConeShape,
     lockWidthHeight,
     setLockWidthHeight,
+    coneMode,
+    setConeMode,
+    coneWidth,
+    setConeWidth,
+    coneLength,
+    setConeLength,
     selectedSkin,
     onSkinChange,
     onClose
@@ -145,63 +159,126 @@ export default function MeasurementPanel({
 
                 <Separator className="bg-white/10" />
 
-                {/* Settings / Parameters */}
                 <div className="space-y-4">
-                    {/* Toggle Width/Height Lock */}
-                    <div className="flex items-center justify-between">
-                        <Label className="text-sm text-gray-300">Verrouiller largeur/hauteur</Label>
-                        <div className="flex items-center gap-2">
-                            {lockWidthHeight ? <Lock size={14} className="text-[#c0a080]" /> : <Unlock size={14} className="text-gray-500" />}
-                            <Switch
-                                checked={lockWidthHeight}
-                                onCheckedChange={setLockWidthHeight}
-                                className="data-[state=checked]:bg-[#c0a080]"
-                            />
-                        </div>
-                    </div>
-                    <p className="text-[10px] text-gray-500 -mt-2">Force un ratio 1:1 (environ 53°)</p>
-
-                    {/* Cone Specifics */}
-                    {selectedShape === 'cone' && (
+                    {selectedShape === 'cone' ? (
                         <div className="space-y-4 pt-2 animate-in fade-in slide-in-from-top-2">
-
+                            {/* Mode Selection */}
                             <div className="space-y-2">
-                                <Label className="text-xs font-medium text-gray-400 uppercase">Angle du cône</Label>
-                                <div className="flex gap-2">
-                                    {[45, 60, 90].map(angle => (
-                                        <Button
-                                            key={angle}
-                                            variant="ghost"
-                                            size="sm"
-                                            disabled={lockWidthHeight}
-                                            onClick={() => {
-                                                setConeAngle(angle);
-                                                setCustomAngle(angle.toString());
-                                            }}
-                                            className={cn(
-                                                "flex-1 h-9 border",
-                                                coneAngle === angle && !lockWidthHeight
-                                                    ? "bg-white/20 border-white/30 text-white"
-                                                    : "bg-white/5 border-transparent text-gray-400 hover:bg-white/10"
-                                            )}
-                                        >
-                                            {angle}°
-                                        </Button>
-                                    ))}
-                                    <div className="relative flex-1 min-w-[80px]">
-                                        <div className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500">
-                                            <Triangle size={12} className="rotate-90" />
-                                        </div>
-                                        <Input
-                                            type="number"
-                                            value={customAngle}
-                                            disabled={lockWidthHeight}
-                                            onChange={(e) => handleAngleChange(e.target.value)}
-                                            className="h-9 pl-7 bg-white/5 border-white/10 focus:border-[#c0a080] text-center"
-                                        />
-                                    </div>
+                                <Label className="text-xs font-medium text-gray-400 uppercase">Mode de définition</Label>
+                                <div className="flex bg-white/5 p-1 rounded-lg">
+                                    <button
+                                        onClick={() => setConeMode('angle')}
+                                        className={cn(
+                                            "flex-1 py-1.5 text-xs font-medium rounded transition-all",
+                                            coneMode === 'angle'
+                                                ? "bg-white/20 text-white shadow-sm"
+                                                : "text-gray-500 hover:text-gray-300"
+                                        )}
+                                    >
+                                        ANGLE
+                                    </button>
+                                    <button
+                                        onClick={() => setConeMode('dimensions')}
+                                        className={cn(
+                                            "flex-1 py-1.5 text-xs font-medium rounded transition-all",
+                                            coneMode === 'dimensions'
+                                                ? "bg-white/20 text-white shadow-sm"
+                                                : "text-gray-500 hover:text-gray-300"
+                                        )}
+                                    >
+                                        DIMENSIONS
+                                    </button>
                                 </div>
                             </div>
+
+                            {coneMode === 'angle' ? (
+                                <>
+                                    <div className="space-y-2">
+                                        <Label className="text-xs font-medium text-gray-400 uppercase">Angle du cône</Label>
+                                        <div className="flex gap-2">
+                                            {[45, 60, 90].map(angle => (
+                                                <Button
+                                                    key={angle}
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    disabled={lockWidthHeight}
+                                                    onClick={() => {
+                                                        setConeAngle(angle);
+                                                        setCustomAngle(angle.toString());
+                                                    }}
+                                                    className={cn(
+                                                        "flex-1 h-9 border",
+                                                        coneAngle === angle && !lockWidthHeight
+                                                            ? "bg-white/20 border-white/30 text-white"
+                                                            : "bg-white/5 border-transparent text-gray-400 hover:bg-white/10"
+                                                    )}
+                                                >
+                                                    {angle}°
+                                                </Button>
+                                            ))}
+                                            <div className="relative flex-1 min-w-[80px]">
+                                                <div className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500">
+                                                    <Triangle size={12} className="rotate-90" />
+                                                </div>
+                                                <Input
+                                                    type="number"
+                                                    value={customAngle}
+                                                    disabled={lockWidthHeight}
+                                                    onChange={(e) => handleAngleChange(e.target.value)}
+                                                    className="h-9 pl-7 bg-white/5 border-white/10 focus:border-[#c0a080] text-center"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {/* Toggle Width/Height Lock (Only in Angle Mode) */}
+                                    <div className="flex items-center justify-between">
+                                        <Label className="text-sm text-gray-300">Verrouiller ratio 1:1</Label>
+                                        <div className="flex items-center gap-2">
+                                            {lockWidthHeight ? <Lock size={14} className="text-[#c0a080]" /> : <Unlock size={14} className="text-gray-500" />}
+                                            <Switch
+                                                checked={lockWidthHeight}
+                                                onCheckedChange={setLockWidthHeight}
+                                                className="data-[state=checked]:bg-[#c0a080]"
+                                            />
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-gray-500 -mt-2">Force un angle de ~53°</p>
+                                </>
+                            ) : (
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-gray-400">Largeur (à la fin)</Label>
+                                            <Input
+                                                type="number"
+                                                placeholder="Auto"
+                                                value={coneWidth || ''}
+                                                onChange={(e) => {
+                                                    const val = parseFloat(e.target.value);
+                                                    setConeWidth(isNaN(val) ? undefined : val);
+                                                }}
+                                                className="bg-white/5 border-white/10"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs text-gray-400">Longueur (Fixe)</Label>
+                                            <Input
+                                                type="number"
+                                                placeholder="Libre"
+                                                value={coneLength || ''}
+                                                onChange={(e) => {
+                                                    const val = parseFloat(e.target.value);
+                                                    setConeLength(isNaN(val) ? undefined : val);
+                                                }}
+                                                className="bg-white/5 border-white/10"
+                                            />
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-gray-500">
+                                        Laisser vide pour "Auto" / "Libre".
+                                    </p>
+                                </div>
+                            )}
 
                             <div className="space-y-2">
                                 <Label className="text-xs font-medium text-gray-400 uppercase">Forme du cône</Label>
@@ -230,6 +307,23 @@ export default function MeasurementPanel({
                                     </button>
                                 </div>
                             </div>
+                        </div>
+                    ) : (
+                        /* Standard options for other shapes */
+                        <div className="space-y-4">
+                            {/* Toggle Width/Height Lock */}
+                            <div className="flex items-center justify-between">
+                                <Label className="text-sm text-gray-300">Verrouiller largeur/hauteur</Label>
+                                <div className="flex items-center gap-2">
+                                    {lockWidthHeight ? <Lock size={14} className="text-[#c0a080]" /> : <Unlock size={14} className="text-gray-500" />}
+                                    <Switch
+                                        checked={lockWidthHeight}
+                                        onCheckedChange={setLockWidthHeight}
+                                        className="data-[state=checked]:bg-[#c0a080]"
+                                    />
+                                </div>
+                            </div>
+                            <p className="text-[10px] text-gray-500 -mt-2">Force un ratio 1:1</p>
                         </div>
                     )}
                 </div>
