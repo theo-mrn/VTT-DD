@@ -1,5 +1,4 @@
 "use client"
-// Analyzing for Ping System implementation
 
 
 
@@ -54,7 +53,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 
 import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Map as MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, Lightbulb, ArrowRight, DoorOpen, Pen, ArrowDownUp, Hexagon } from 'lucide-react'
 import { toast } from 'sonner';
-import { auth, db, onAuthStateChanged } from '@/lib/firebase'
+import { auth, db, realtimeDb, dbRef, onValue, onAuthStateChanged } from '@/lib/firebase'
 import { doc, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
 import Combat from '@/components/(combat)/combat2';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
@@ -79,6 +78,7 @@ import { UnifiedSearchDrawer } from '@/components/(personnages)/UnifiedSearchDra
 import { PlaceNPCModal } from '@/components/(personnages)/PlaceNPCModal';
 import { CreateNoteModal } from '@/components/(map)/CreateNoteModal';
 import { NoBackgroundModal } from '@/components/(map)/NoBackgroundModal';
+import { getDominantColor } from '@/utils/imageUtils';
 import { DeleteConfirmationModal, type EntityToDelete } from '@/components/(map)/DeleteConfirmationModal';
 import ElementSelectionMenu, { type DetectedElement } from '@/components/(map)/ElementSelectionMenu';
 
@@ -99,7 +99,7 @@ import {
 } from '@/lib/visibility';
 import { LayerControl } from '@/components/(map)/LayerControl';
 import { SelectionMenu, type SelectionCandidates, type SelectionType } from '@/components/(map)/SelectionMenu';
-import { type ViewMode, type Point, type Character, type LightSource, type MapText, type SavedDrawing, type NewCharacter, type Note, type ObjectTemplate, type Layer, type LayerType, type MusicZone, type Scene, type DrawingTool, type Ping, type Portal } from './types';
+import { type ViewMode, type Point, type Character, type LightSource, type MapText, type SavedDrawing, type NewCharacter, type Note, type ObjectTemplate, type Layer, type LayerType, type MusicZone, type Scene, type DrawingTool, type Portal } from './types';
 import { useAudioZones } from '@/hooks/map/useAudioZones';
 import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath } from './drawings';
 import { useFogManager, calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
@@ -109,6 +109,7 @@ import GlobalSettingsDialog from '@/components/(map)/GlobalSettingsDialog';
 import { useMapControl } from '@/contexts/MapControlContext';
 import { pasteCharacter } from '@/utils/pasteCharacter';
 import { pasteObject } from '@/utils/pasteObject';
+import { CursorManager } from '@/components/(map)/CursorManager';
 
 // ⚡ Static Token Component for Performance Mode (Moved Outside Component to avoid Remounting/Flickering)
 const StaticToken = React.memo(({ src, alt, style, className, performanceMode }: { src: string, alt: string, style?: React.CSSProperties, className?: string, performanceMode: string }) => {
@@ -376,7 +377,7 @@ export default function Component() {
         imgNoCors.onload = () => {
           setBgImageObject(imgNoCors);
           setIsBackgroundLoading(false);
-          // toast.warning("Image chargée sans CORS. Certaines fonctionnalités (Brouillard/Ping) peuvent être limitées.");
+          // toast.warning("Image chargée sans CORS. Certaines fonctionnalités (Brouillard) peuvent être limitées.");
         }
         imgNoCors.onerror = (e) => {
           console.error("Non-CORS Load Failed:", e, url);
@@ -410,6 +411,9 @@ export default function Component() {
   const [zoom, setZoom] = useState(1.4)
   const [globalTokenScale, setGlobalTokenScale] = useState(1);
   const [showGlobalSettingsDialog, setShowGlobalSettingsDialog] = useState(false);
+  const [showMyCursor, setShowMyCursor] = useState(true);
+  const [showOtherCursors, setShowOtherCursors] = useState(true);
+  const [cursorColor, setCursorColor] = useState<string>('#000000'); // 🆕 Cursor Color State // 🆕 Show Other Cursors State
   const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
   const [isBackgroundEditMode, setIsBackgroundEditMode] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 })
@@ -618,6 +622,7 @@ export default function Component() {
 
   const [currentPath, setCurrentPath] = useState<Point[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [userName, setUserName] = useState<string>('Anonyme');
   const [loading, setLoading] = useState(true)
   const [fontFamilyMap, setFontFamilyMap] = useState<Record<string, string>>({})
 
@@ -729,8 +734,6 @@ export default function Component() {
     setSelectedSkin(''); // Reset to no animation
   }, [measurementShape]);
 
-  //  PING SYSTEM STATE
-  const [pings, setPings] = useState<Ping[]>([]);
 
   //  PORTAL SYSTEM STATE
   const [portals, setPortals] = useState<Portal[]>([]);
@@ -770,43 +773,7 @@ export default function Component() {
     return () => unsubscribe();
   }, [roomId, selectedCityId]);
 
-  // 📡 PING FIREBASE LISTENER
-  useEffect(() => {
-    if (!roomId) return;
-    const q = query(collection(db, 'cartes', roomId, 'pings')); // Listen to all pings
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newPings: Ping[] = [];
-      snapshot.forEach(doc => {
-        newPings.push({ id: doc.id, ...doc.data() } as Ping);
-      });
-      setPings(newPings);
-    });
-    return () => unsubscribe();
-  }, [roomId]);
 
-  // 🧹 PING AUTO-CLEANUP (Visual & Database)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const now = Date.now();
-      const expiredPings = pings.filter(ping => now - ping.timestamp > 3000);
-
-      if (expiredPings.length > 0) {
-        // 1. Optimistic Visual Removal
-        setPings(prev => prev.filter(p => now - p.timestamp <= 3000));
-
-        // 2. Database Cleanup
-        expiredPings.forEach(ping => {
-          const isOwner = ping.userId === (userId || 'unknown');
-          const isGarbage = now - ping.timestamp > 10000; // Safety net for orphaned pings
-
-          if (isOwner || isMJ || isGarbage) {
-            deleteDoc(doc(db, 'cartes', roomId, 'pings', ping.id)).catch(console.error);
-          }
-        });
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [pings, roomId, userId, isMJ]);
 
   //  PORTAL FIREBASE LISTENER
   useEffect(() => {
@@ -1776,20 +1743,66 @@ export default function Component() {
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (cleanup) cleanup(); // Clean up previous listeners
+
       if (user) {
         setUserId(user.uid);
-        if (cleanup) cleanup(); // Clean up previous listeners if any (though this runs mostly once)
+        setUserName(user.displayName || 'Joueur');
         cleanup = INITializeFirebaseListeners(roomId);
       } else {
         setUserId(null);
-        if (cleanup) cleanup();
+        setUserName('Anonyme');
+
+        if (roomId) {
+          // If logged out but in a room, maybe still listen to characters?
+          // Original code tried to do this.
+          const charsRef = dbRef(realtimeDb, `rooms/${roomId}/characters`);
+          const unsubChars = onValue(charsRef, (snapshot: any) => {
+            const data = snapshot.val();
+            if (data) {
+              setCharacters(Object.values(data) as Character[]);
+            } else {
+              setCharacters([]);
+            }
+          });
+          cleanup = () => unsubChars();
+        }
       }
     });
+
     return () => {
       unsubscribe();
       if (cleanup) cleanup();
     };
   }, [roomId]);
+
+  // 🆕 Dynamic Cursor Color Effect
+  useEffect(() => {
+    if (isMJ) {
+      setCursorColor('#000000'); // MJ Black
+      return;
+    }
+
+    const loadColor = async () => {
+      if (!persoId) {
+        setCursorColor('#FF5733'); // Default random-ish if no perso
+        return;
+      }
+      const char = characters.find(c => c.id === persoId);
+      if (char) {
+        // Prefer imageUrl
+        const img = char.imageUrl;
+        if (img) {
+          const color = await getDominantColor(typeof img === 'string' ? img : img.src);
+          setCursorColor(color);
+        } else {
+          setCursorColor('#FF5733'); // Default
+        }
+      }
+    };
+
+    loadColor();
+  }, [isMJ, persoId, characters]);
 
   // 🆕 Écouter le personnage actif de la ville actuelle (indépendant)
   useEffect(() => {
@@ -2532,9 +2545,6 @@ export default function Component() {
       videos?.forEach(v => v.play().catch(() => { }));
     }
   }, [performanceMode, characters]);
-
-  // StaticToken component definition (assuming it's a simple image/video display)
-  // This is a placeholder. The actual implementation might be more complex.
 
 
 
@@ -9587,81 +9597,27 @@ export default function Component() {
               return;
             }
 
-            //  PING CREATION (Empty Space Click)
-            e.preventDefault();
 
-            // Only create ping if not dragging (to avoid pinging after panning)
-            // But contextmenu fires on mouse up/click usually.
-            // Check if it was a distinct click (brief duration)?
-            // Creating a ping is fine.
-
-            const newPing: Ping = {
-              id: `ping-${Date.now()}`,
-              x: worldPoint.x,
-              y: worldPoint.y,
-              color: '#FF0000', // Default Red
-              timestamp: Date.now(),
-              userId: userId || 'unknown',
-              cityId: selectedCityId
-            };
-            addDoc(collection(db, 'cartes', roomId, 'pings'), newPing).catch(console.error);
           }
         }
         }
       >
+
+        <CursorManager
+          roomId={roomId}
+          userId={userId || ''}
+          userName={isMJ ? 'MJ' : (characters.find(c => c.id === persoId)?.name || userName)}
+          cityId={selectedCityId}
+          containerRef={containerRef}
+          offset={offset}
+          zoom={zoom}
+          bgImageObject={bgImageObject}
+          showCursor={showMyCursor}
+          showOtherCursors={showOtherCursors}
+          userColor={cursorColor} // 🆕
+        />
         <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
-          {/*  PINGS LAYER */}
-          <div className="pings-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 60 }}>
-            {pings.filter(p => Date.now() - p.timestamp < 3500).map(ping => { // Extra 500ms buffer for animation to finish if needed
-              if (ping.cityId !== selectedCityId) return null; // Only show pings for current city
-              if (!bgImageObject) return null;
 
-              const image = bgImageObject;
-              const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-              const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
-              const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
-              if (cWidth === 0 || cHeight === 0) return null;
-
-              const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
-              const scaledWidth = imgWidth * scale * zoom;
-              const scaledHeight = imgHeight * scale * zoom;
-
-              const screenX = (ping.x / imgWidth) * scaledWidth - offset.x;
-              const screenY = (ping.y / imgHeight) * scaledHeight - offset.y;
-
-              const size = 30 * zoom;
-
-              return (
-                <div key={ping.id} style={{ position: 'absolute', left: screenX, top: screenY, transform: 'translate(-50%, -50%)' }}>
-                  <motion.div
-                    initial={{ scale: 0.2, opacity: 1 }}
-                    animate={{ scale: 2, opacity: 0 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "easeOut" }}
-                    style={{
-                      width: size,
-                      height: size,
-                      borderRadius: '50%',
-                      border: `3px solid ${ping.color}`,
-                      backgroundColor: `${ping.color}40`,
-                    }}
-                  />
-                  <motion.div
-                    initial={{ scale: 0, opacity: 1 }}
-                    animate={{ scale: 1, opacity: 0 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: "easeOut", delay: 0.2 }}
-                    style={{
-                      position: 'absolute',
-                      top: 0, left: 0,
-                      width: size,
-                      height: size,
-                      borderRadius: '50%',
-                      border: `1px solid ${ping.color}`,
-                    }}
-                  />
-                </div>
-              );
-            })}
-          </div>
 
           <canvas
             ref={bgCanvasRef}
@@ -10793,6 +10749,10 @@ export default function Component() {
         setPerformanceMode={setPerformanceMode}
         showCharBorders={showCharBorders}
         setShowCharBorders={setShowCharBorders}
+        showMyCursor={showMyCursor}
+        setShowMyCursor={setShowMyCursor}
+        showOtherCursors={showOtherCursors} // 🆕
+        setShowOtherCursors={setShowOtherCursors} // 🆕
       />
 
       <ContextMenuPanel
