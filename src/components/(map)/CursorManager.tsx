@@ -184,7 +184,7 @@ export const CursorManager: React.FC<CursorManagerProps> = ({
             width: '100%',
             height: '100%',
             pointerEvents: 'none',
-            zIndex: 100,
+            zIndex: 10,
             overflow: 'hidden'
         }}>
             {Object.values(cursors).map(cursor => {

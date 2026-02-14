@@ -60,7 +60,12 @@ function Component({
 
   // Calculate angle per item based on the total arc
   const totalArc = endAngle - startAngle
-  const angleStep = itemCount > 1 ? totalArc / (itemCount - 1) : 0
+  // For a full circle (360°), divide by itemCount to avoid overlap at start/end
+  // For partial arcs, divide by (itemCount - 1) to include both endpoints
+  const isFullCircle = Math.abs(totalArc - 360) < 0.01
+  const angleStep = itemCount > 1
+    ? (isFullCircle ? totalArc / itemCount : totalArc / (itemCount - 1))
+    : 0
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -216,6 +221,7 @@ function Component({
                     handleOpenChange(false)
                   }}
                   onMouseEnter={() => setActiveIndex(index)}
+                  style={{ zIndex: isActive ? 5 : 1 }}
                   className={cn(
                     "absolute flex h-12 w-12 items-center justify-center rounded-full",
                     "border border-border bg-card shadow-lg",
@@ -234,6 +240,7 @@ function Component({
                       opacity: isActive ? 1 : 0,
                       scale: isActive ? 1 : 0.9,
                     }}
+                    style={{ zIndex: 10 }}
                     className={cn(
                       "absolute whitespace-nowrap rounded-md bg-popover px-2 py-1 text-xs text-popover-foreground shadow-md border border-border",
                       getTooltipClasses()
