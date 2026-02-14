@@ -94,6 +94,10 @@ export const CursorManager: React.FC<CursorManagerProps> = ({
         return () => unsubscribe();
     }, [roomId, userId, cityId, showOtherCursors]);
 
+    // 🐛 DEBUG: Log color props
+    useEffect(() => {
+    }, [userColor, userTextColor, userName]);
+
     // 2. Track and broadcast our cursor position
     useEffect(() => {
         if (!roomId || !userId || !containerRef.current || !bgImageObject) return;

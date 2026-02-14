@@ -98,6 +98,7 @@ import {
   type ShadowResult
 } from '@/lib/visibility';
 import { LayerControl } from '@/components/(map)/LayerControl';
+import { useSettings } from '@/contexts/SettingsContext';
 import { SelectionMenu, type SelectionCandidates, type SelectionType } from '@/components/(map)/SelectionMenu';
 import { type ViewMode, type Point, type Character, type LightSource, type MapText, type SavedDrawing, type NewCharacter, type Note, type ObjectTemplate, type Layer, type LayerType, type MusicZone, type Scene, type DrawingTool, type Portal } from './types';
 import { useAudioZones } from '@/hooks/map/useAudioZones';
@@ -110,6 +111,7 @@ import { useMapControl } from '@/contexts/MapControlContext';
 import { pasteCharacter } from '@/utils/pasteCharacter';
 import { pasteObject } from '@/utils/pasteObject';
 import { CursorManager } from '@/components/(map)/CursorManager';
+import MapContextMenu from '@/components/(overlays)/MapContextMenu';
 
 // ⚡ Static Token Component for Performance Mode (Moved Outside Component to avoid Remounting/Flickering)
 const StaticToken = React.memo(({ src, alt, style, className, performanceMode }: { src: string, alt: string, style?: React.CSSProperties, className?: string, performanceMode: string }) => {
@@ -196,8 +198,23 @@ export default function Component() {
   const [attackerId, setAttackerId] = useState<string | null>(null);
   const [targetId, setTargetId] = useState<string | null>(null);
   const [targetIds, setTargetIds] = useState<string[]>([]); // 🆕 Multiple targets for AoE
+  const {
+    showGrid, setShowGrid,
+    showCharBorders, setShowCharBorders,
+    globalTokenScale, setGlobalTokenScale,
+    showMyCursor, setShowMyCursor,
+    showOtherCursors, setShowOtherCursors,
+    cursorColor, setCursorColor,
+    cursorTextColor, setCursorTextColor,
+    showBackgroundSelector, setShowBackgroundSelector,
+    performanceMode, setPerformanceMode
+  } = useSettings(); // 🌍 Global Settings
+
+  // 🐛 DEBUG: Log cursor colors
+  useEffect(() => {
+  }, [cursorColor, cursorTextColor]);
+
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
-  const [performanceMode, setPerformanceMode] = useState<'high' | 'eco' | 'static'>('high'); // ⚡ Performance Mode
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null)
   const [bgImageObject, setBgImageObject] = useState<HTMLImageElement | HTMLVideoElement | null>(null);
   const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
@@ -406,16 +423,18 @@ export default function Component() {
   }, [bgImageObject, performanceMode, audioVolumes.backgroundAudio]);
 
 
-  const [showGrid, setShowGrid] = useState(false)
-  const [showCharBorders, setShowCharBorders] = useState(true) // Show character borders & labels
+
+
+  // const [showGrid, setShowGrid] = useState(false)
+  // const [showCharBorders, setShowCharBorders] = useState(true) // Show character borders & labels
   const [zoom, setZoom] = useState(1.4)
-  const [globalTokenScale, setGlobalTokenScale] = useState(1);
+  // const [globalTokenScale, setGlobalTokenScale] = useState(1);
   const [showGlobalSettingsDialog, setShowGlobalSettingsDialog] = useState(false);
-  const [showMyCursor, setShowMyCursor] = useState(true);
-  const [showOtherCursors, setShowOtherCursors] = useState(true);
-  const [cursorColor, setCursorColor] = useState<string>('#000000'); // 🆕 Cursor Color State
-  const [cursorTextColor, setCursorTextColor] = useState<string>('#ffffff'); // 🆕 Cursor Text Color State
-  const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
+  // const [showMyCursor, setShowMyCursor] = useState(true);
+  // const [showOtherCursors, setShowOtherCursors] = useState(true);
+  // const [cursorColor, setCursorColor] = useState<string>('#000000'); // 🆕 Cursor Color State
+  // const [cursorTextColor, setCursorTextColor] = useState<string>('#ffffff'); // 🆕 Cursor Text Color State
+
   const [isBackgroundEditMode, setIsBackgroundEditMode] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [characters, setCharacters] = useState<Character[]>([]);
@@ -525,6 +544,10 @@ export default function Component() {
   }, [focusTarget, bgImageObject, zoom]);
 
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setMapContextMenu({ x: e.clientX, y: e.clientY });
+  }, []);
 
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState<number | null>(null);
   const [selectedObjectIndices, setSelectedObjectIndices] = useState<number[]>([]);
@@ -756,6 +779,9 @@ export default function Component() {
   const [spawnPointMode, setSpawnPointMode] = useState(false);  // Mode to set spawn point
   const [isDraggingSpawnPoint, setIsDraggingSpawnPoint] = useState(false);  // Dragging spawn marker
   const [currentScene, setCurrentScene] = useState<Scene | null>(null);  // Current scene data for spawn points
+
+  // Map Context Menu State
+  const [mapContextMenu, setMapContextMenu] = useState<{ x: number, y: number } | null>(null);
 
   // 📡 CURRENT SCENE FIREBASE LISTENER (for spawn points)
   useEffect(() => {
@@ -1776,37 +1802,6 @@ export default function Component() {
       if (cleanup) cleanup();
     };
   }, [roomId]);
-
-  // 🆕 Dynamic Cursor Color Effect
-  useEffect(() => {
-    if (isMJ) {
-      setCursorColor('#000000'); // MJ Black
-      setCursorTextColor('#ffffff'); // MJ White Text
-      return;
-    }
-
-    const loadColor = async () => {
-      if (!persoId) {
-        setCursorColor('#FF5733'); // Default random-ish if no perso
-        return;
-      }
-      const char = characters.find(c => c.id === persoId);
-      if (char) {
-        // Prefer imageUrl
-        const img = char.imageUrl;
-        if (img) {
-          const color = await getDominantColor(typeof img === 'string' ? img : img.src);
-          setCursorColor(color);
-          setCursorTextColor(getContrastColor(color)); // 🆕 Auto-calculate text color
-        } else {
-          setCursorColor('#FF5733'); // Default
-          setCursorTextColor('#000000'); // Default Text
-        }
-      }
-    };
-
-    loadColor();
-  }, [isMJ, persoId, characters]);
 
   // 🆕 Écouter le personnage actif de la ville actuelle (indépendant)
   useEffect(() => {
@@ -9601,7 +9596,9 @@ export default function Component() {
               return;
             }
 
-
+            // 🆕 If no specific element is hovered, open the General Map Context Menu
+            e.preventDefault();
+            setMapContextMenu({ x: e.clientX, y: e.clientY });
           }
         }
         }
@@ -10747,21 +10744,12 @@ export default function Component() {
         isOpen={showGlobalSettingsDialog}
         onOpenChange={setShowGlobalSettingsDialog}
         isMJ={isMJ}
-        globalTokenScale={globalTokenScale}
-        setGlobalTokenScale={setGlobalTokenScale}
-        updateGlobalTokenScale={updateGlobalTokenScale}
-        performanceMode={performanceMode}
-        setPerformanceMode={setPerformanceMode}
-        showCharBorders={showCharBorders}
-        setShowCharBorders={setShowCharBorders}
-        showMyCursor={showMyCursor}
-        setShowMyCursor={setShowMyCursor}
-        showOtherCursors={showOtherCursors} // 🆕
-        setShowOtherCursors={setShowOtherCursors} // 🆕
-        cursorColor={cursorColor}
-        setCursorColor={setCursorColor}
-        cursorTextColor={cursorTextColor}
-        setCursorTextColor={setCursorTextColor}
+      />
+
+      <MapContextMenu
+        position={mapContextMenu}
+        onClose={() => setMapContextMenu(null)}
+        isMJ={isMJ}
       />
 
       <ContextMenuPanel

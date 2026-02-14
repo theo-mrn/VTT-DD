@@ -22,6 +22,8 @@ export interface CircularCommandMenuProps {
   endAngle?: number
   tooltipPlacement?: "left" | "right" | "top" | "bottom"
   onSelect?: (item: CommandItem) => void
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 function Component({
@@ -34,8 +36,22 @@ function Component({
   endAngle = 360,
   tooltipPlacement = "right",
   onSelect,
+  open,
+  onOpenChange,
 }: CircularCommandMenuProps) {
-  const [isOpen, setIsOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = open !== undefined
+  const isOpen = isControlled ? open : internalOpen
+
+  const handleOpenChange = useCallback((newOpen: boolean) => {
+    if (onOpenChange) {
+      onOpenChange(newOpen)
+    }
+    if (!isControlled) {
+      setInternalOpen(newOpen)
+    }
+  }, [isControlled, onOpenChange])
+
   const [activeIndex, setActiveIndex] = useState(0)
 
   // Defensive check for items
@@ -68,15 +84,15 @@ function Component({
             selectedItem.onClick?.()
             onSelect?.(selectedItem)
           }
-          setIsOpen(false)
+          handleOpenChange(false)
           break
         case "Escape":
           e.preventDefault()
-          setIsOpen(false)
+          handleOpenChange(false)
           break
       }
     },
-    [isOpen, activeIndex, safeItems, itemCount, onSelect],
+    [isOpen, activeIndex, safeItems, itemCount, onSelect, handleOpenChange],
   )
 
   useEffect(() => {
@@ -115,7 +131,7 @@ function Component({
     <div className={cn("relative inline-flex", className || "")}>
       {/* Trigger */}
       <motion.button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => handleOpenChange(!isOpen)}
         className={cn(
           "relative z-30 flex h-14 w-14 items-center justify-center rounded-full",
           "bg-primary text-primary-foreground shadow-lg",
@@ -153,8 +169,8 @@ function Component({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-10 bg-background/80 backdrop-blur-sm"
-            onClick={() => setIsOpen(false)}
+            className="fixed inset-0 z-10 backdrop-blur-sm"
+            onClick={() => handleOpenChange(false)}
           />
         )}
       </AnimatePresence>
@@ -197,7 +213,7 @@ function Component({
                   onClick={() => {
                     item.onClick?.()
                     onSelect?.(item)
-                    setIsOpen(false)
+                    handleOpenChange(false)
                   }}
                   onMouseEnter={() => setActiveIndex(index)}
                   className={cn(
