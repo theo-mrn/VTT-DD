@@ -35,6 +35,10 @@ interface GlobalSettingsDialogProps {
     setPerformanceMode: (mode: 'high' | 'eco' | 'static') => void;
     showCharBorders: boolean;
     setShowCharBorders: (show: boolean) => void;
+    showMyCursor: boolean;
+    setShowMyCursor: (show: boolean) => void;
+    showOtherCursors: boolean;
+    setShowOtherCursors: (show: boolean) => void;
 }
 
 export default function GlobalSettingsDialog({
@@ -47,7 +51,11 @@ export default function GlobalSettingsDialog({
     performanceMode,
     setPerformanceMode,
     showCharBorders,
-    setShowCharBorders
+    setShowCharBorders,
+    showMyCursor,
+    setShowMyCursor,
+    showOtherCursors,
+    setShowOtherCursors
 }: GlobalSettingsDialogProps) {
     const [showShortcuts, setShowShortcuts] = useState(false);
 
@@ -136,6 +144,32 @@ export default function GlobalSettingsDialog({
                                         <Switch
                                             checked={showCharBorders}
                                             onCheckedChange={setShowCharBorders}
+                                            className="data-[state=checked]:bg-[#c0a080]"
+                                        />
+                                    </Card>
+
+                                    {/* Show My Cursor Toggle */}
+                                    <Card className="p-4 bg-[#242424] border-white/5 flex items-center justify-between">
+                                        <div className="space-y-1">
+                                            <Label className="text-base text-gray-200">Montrer mon curseur</Label>
+                                            <p className="text-xs text-gray-500">Visible par les autres joueurs</p>
+                                        </div>
+                                        <Switch
+                                            checked={showMyCursor}
+                                            onCheckedChange={setShowMyCursor}
+                                            className="data-[state=checked]:bg-[#c0a080]"
+                                        />
+                                    </Card>
+
+                                    {/* Show Other Cursors Toggle */}
+                                    <Card className="p-4 bg-[#242424] border-white/5 flex items-center justify-between">
+                                        <div className="space-y-1">
+                                            <Label className="text-base text-gray-200">Voir les autres curseurs</Label>
+                                            <p className="text-xs text-gray-500">Afficher les curseurs des autres joueurs</p>
+                                        </div>
+                                        <Switch
+                                            checked={showOtherCursors}
+                                            onCheckedChange={setShowOtherCursors}
                                             className="data-[state=checked]:bg-[#c0a080]"
                                         />
                                     </Card>
