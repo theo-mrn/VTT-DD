@@ -78,7 +78,7 @@ import { UnifiedSearchDrawer } from '@/components/(personnages)/UnifiedSearchDra
 import { PlaceNPCModal } from '@/components/(personnages)/PlaceNPCModal';
 import { CreateNoteModal } from '@/components/(map)/CreateNoteModal';
 import { NoBackgroundModal } from '@/components/(map)/NoBackgroundModal';
-import { getDominantColor } from '@/utils/imageUtils';
+import { getDominantColor, getContrastColor } from '@/utils/imageUtils';
 import { DeleteConfirmationModal, type EntityToDelete } from '@/components/(map)/DeleteConfirmationModal';
 import ElementSelectionMenu, { type DetectedElement } from '@/components/(map)/ElementSelectionMenu';
 
@@ -413,7 +413,8 @@ export default function Component() {
   const [showGlobalSettingsDialog, setShowGlobalSettingsDialog] = useState(false);
   const [showMyCursor, setShowMyCursor] = useState(true);
   const [showOtherCursors, setShowOtherCursors] = useState(true);
-  const [cursorColor, setCursorColor] = useState<string>('#000000'); // 🆕 Cursor Color State // 🆕 Show Other Cursors State
+  const [cursorColor, setCursorColor] = useState<string>('#000000'); // 🆕 Cursor Color State
+  const [cursorTextColor, setCursorTextColor] = useState<string>('#ffffff'); // 🆕 Cursor Text Color State
   const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
   const [isBackgroundEditMode, setIsBackgroundEditMode] = useState(false);
   const [offset, setOffset] = useState({ x: 0, y: 0 })
@@ -1780,6 +1781,7 @@ export default function Component() {
   useEffect(() => {
     if (isMJ) {
       setCursorColor('#000000'); // MJ Black
+      setCursorTextColor('#ffffff'); // MJ White Text
       return;
     }
 
@@ -1795,8 +1797,10 @@ export default function Component() {
         if (img) {
           const color = await getDominantColor(typeof img === 'string' ? img : img.src);
           setCursorColor(color);
+          setCursorTextColor(getContrastColor(color)); // 🆕 Auto-calculate text color
         } else {
           setCursorColor('#FF5733'); // Default
+          setCursorTextColor('#000000'); // Default Text
         }
       }
     };
@@ -9615,6 +9619,7 @@ export default function Component() {
           showCursor={showMyCursor}
           showOtherCursors={showOtherCursors}
           userColor={cursorColor} // 🆕
+          userTextColor={cursorTextColor} // 🆕
         />
         <div style={{ position: 'relative', width: '100%', height: '100vh' }}>
 
@@ -10753,6 +10758,10 @@ export default function Component() {
         setShowMyCursor={setShowMyCursor}
         showOtherCursors={showOtherCursors} // 🆕
         setShowOtherCursors={setShowOtherCursors} // 🆕
+        cursorColor={cursorColor}
+        setCursorColor={setCursorColor}
+        cursorTextColor={cursorTextColor}
+        setCursorTextColor={setCursorTextColor}
       />
 
       <ContextMenuPanel

@@ -13,6 +13,7 @@ interface Cursor {
     user: {
         name: string;
         color: string;
+        textColor?: string;
         id: string;
     };
 }
@@ -29,6 +30,7 @@ interface CursorManagerProps {
     showCursor: boolean;
     showOtherCursors: boolean;
     userColor: string; // 🆕 Dynamic color
+    userTextColor?: string; // 🆕 Dynamic text color
 }
 
 const getMediaDimensions = (media: HTMLImageElement | HTMLVideoElement) => {
@@ -55,7 +57,8 @@ export const CursorManager: React.FC<CursorManagerProps> = ({
     bgImageObject,
     showCursor,
     showOtherCursors,
-    userColor // 🆕
+    userColor, // 🆕
+    userTextColor // 🆕
 }) => {
     const [cursors, setCursors] = useState<Record<string, Cursor>>({});
     // const userColorRef = useRef(getRandomColor()); // Removed, using prop now
@@ -113,6 +116,7 @@ export const CursorManager: React.FC<CursorManagerProps> = ({
                 user: {
                     name: userName || 'Anonymous',
                     color: userColor, // 🆕 Use calculated color
+                    textColor: userTextColor,
                     id: userId
                 }
             }).catch(console.error);
@@ -154,7 +158,7 @@ export const CursorManager: React.FC<CursorManagerProps> = ({
             // Remove cursor on unmount effectively
             remove(disconnectRef).catch(console.error);
         };
-    }, [roomId, userId, userName, cityId, offset, zoom, bgImageObject, showCursor, userColor]);
+    }, [roomId, userId, userName, cityId, offset, zoom, bgImageObject, showCursor, userColor, userTextColor]);
 
 
     // 3. Render foreign cursors
@@ -221,7 +225,7 @@ export const CursorManager: React.FC<CursorManagerProps> = ({
                                 left: 16,
                                 top: 16,
                                 backgroundColor: cursor.user.color,
-                                color: getContrastColor(cursor.user.color), // 🆕 Dynamic Text Color
+                                color: cursor.user.textColor || getContrastColor(cursor.user.color), // 🆕 Dynamic Text Color
                                 padding: '2px 6px',
                                 borderRadius: '4px',
                                 fontSize: '12px',

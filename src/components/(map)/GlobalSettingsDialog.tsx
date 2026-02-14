@@ -39,6 +39,10 @@ interface GlobalSettingsDialogProps {
     setShowMyCursor: (show: boolean) => void;
     showOtherCursors: boolean;
     setShowOtherCursors: (show: boolean) => void;
+    cursorColor?: string;
+    setCursorColor?: (color: string) => void;
+    cursorTextColor?: string;
+    setCursorTextColor?: (color: string) => void;
 }
 
 export default function GlobalSettingsDialog({
@@ -55,7 +59,11 @@ export default function GlobalSettingsDialog({
     showMyCursor,
     setShowMyCursor,
     showOtherCursors,
-    setShowOtherCursors
+    setShowOtherCursors,
+    cursorColor,
+    setCursorColor,
+    cursorTextColor,
+    setCursorTextColor
 }: GlobalSettingsDialogProps) {
     const [showShortcuts, setShowShortcuts] = useState(false);
 
@@ -173,6 +181,51 @@ export default function GlobalSettingsDialog({
                                             className="data-[state=checked]:bg-[#c0a080]"
                                         />
                                     </Card>
+                                    {/* Cursor Customization */}
+                                    {(cursorColor && setCursorColor && cursorTextColor && setCursorTextColor) && (
+                                        <Card className="p-4 bg-[#242424] border-white/5 space-y-4">
+                                            <div className="space-y-1.5">
+                                                <Label className="text-base text-gray-200">Personnalisation du Curseur</Label>
+                                                <p className="text-xs text-gray-500">Modifier les couleurs de votre curseur</p>
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs text-gray-400">Fond</Label>
+                                                    <div className="flex items-center gap-2">
+                                                        <div
+                                                            className="w-8 h-8 rounded-full border border-white/10 shadow-sm"
+                                                            style={{ backgroundColor: cursorColor }}
+                                                        />
+                                                        <input
+                                                            type="color"
+                                                            value={cursorColor}
+                                                            onChange={(e) => setCursorColor(e.target.value)}
+                                                            className="h-8 w-full bg-transparent cursor-pointer"
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <Label className="text-xs text-gray-400">Texte</Label>
+                                                    <div className="flex items-center gap-2">
+                                                        <div
+                                                            className="w-8 h-8 rounded-full border border-white/10 shadow-sm flex items-center justify-center text-xs font-bold"
+                                                            style={{ backgroundColor: cursorColor, color: cursorTextColor }}
+                                                        >
+                                                            A
+                                                        </div>
+                                                        <input
+                                                            type="color"
+                                                            value={cursorTextColor}
+                                                            onChange={(e) => setCursorTextColor(e.target.value)}
+                                                            className="h-8 w-full bg-transparent cursor-pointer"
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    )}
                                 </div>
                             </div>
 
