@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Component as CircularCommandMenu } from '@/components/ui/circular-command-menu';
-import { Eye, EyeOff, MousePointer2, Users, Square, Scan, Grid, Cloud, Image as ImageIcon } from 'lucide-react';
+import { Eye, EyeOff, MousePointer2, Users, Square, Scan, Grid, Cloud, Image as ImageIcon, Sparkles } from 'lucide-react';
 
 import { useSettings } from '@/contexts/SettingsContext';
 import { useGame } from '@/contexts/GameContext';
@@ -12,12 +12,16 @@ interface MapContextMenuProps {
     position: { x: number, y: number } | null;
     onClose: () => void;
     isMJ: boolean;
+    showAllBadges?: boolean;
+    onToggleBadges?: () => void;
 }
 
 export default function MapContextMenu({
     position,
     onClose,
-    isMJ
+    isMJ,
+    showAllBadges = false,
+    onToggleBadges
 }: MapContextMenuProps) {
     if (!position) return null;
 
@@ -74,6 +78,14 @@ export default function MapContextMenu({
     ];
 
     if (isMJ) {
+        items.push({
+            id: "badges",
+            label: showAllBadges ? "Masquer Badges" : "Afficher Badges",
+            icon: <Sparkles size={20} />,
+            onClick: () => {
+                if (onToggleBadges) onToggleBadges();
+            }
+        });
         items.push({
             id: "background",
             label: "Changer Fond",

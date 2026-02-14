@@ -10750,6 +10750,8 @@ export default function Component() {
         position={mapContextMenu}
         onClose={() => setMapContextMenu(null)}
         isMJ={isMJ}
+        showAllBadges={showAllBadges}
+        onToggleBadges={() => setShowAllBadges(!showAllBadges)}
       />
 
       <ContextMenuPanel
