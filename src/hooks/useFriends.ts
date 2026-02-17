@@ -95,15 +95,15 @@ export function useFriends(uid: string | null): UseFriendsReturn {
             const sentRef = doc(db, "requests", uid, "sent", targetUserId);
 
             await setDoc(requestRef, {
-                name: currentUserData.name,
-                titre: currentUserData.titre,
-                pp: currentUserData.pp,
+                name: currentUserData.name || "Utilisateur",
+                titre: currentUserData.titre || "Aucun titre",
+                pp: currentUserData.pp || "",
             });
 
             await setDoc(sentRef, {
-                name: targetUserData.name,
-                titre: targetUserData.titre,
-                pp: targetUserData.pp,
+                name: targetUserData.name || "Utilisateur",
+                titre: targetUserData.titre || "Aucun titre",
+                pp: targetUserData.pp || "",
             });
 
             const { id: _, ...friendDataWithoutId } = targetUserData;

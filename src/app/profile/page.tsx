@@ -144,7 +144,10 @@ export default function ProfilePage() {
       const results = querySnapshot.docs
         .map((doc) => ({
           id: doc.id,
-          ...(doc.data() as Omit<FriendData, "id">),
+          name: doc.data().name || "Utilisateur",
+          titre: doc.data().titre || "Aucun titre",
+          pp: doc.data().pp || "",
+          imageURL: doc.data().imageURL || "",
         }))
         .filter((user) => user.name.toLowerCase() === searchQuery.toLowerCase());
 
@@ -172,20 +175,29 @@ export default function ProfilePage() {
       const sentRef = doc(db, "requests", uid, "sent", targetUserId);
 
       // FIXED: Use pp instead of imageURL
+      // Explicitly sanitize data to ensure no undefined values are passed
+      const senderName = userData.name || "Utilisateur";
+      const senderTitre = userData.titre || "Aucun titre";
+      const senderPp = userData.pp || "";
+
+      const targetName = targetUserData.name || "Utilisateur";
+      const targetTitre = targetUserData.titre || "Aucun titre";
+      const targetPp = targetUserData.pp || "";
+
       await setDoc(requestRef, {
-        name: userData.name,
-        titre: userData.titre,
-        pp: userData.pp,
+        name: senderName,
+        titre: senderTitre,
+        pp: senderPp,
       });
 
       await setDoc(sentRef, {
-        name: targetUserData.name,
-        titre: targetUserData.titre,
-        pp: targetUserData.pp,
+        name: targetName,
+        titre: targetTitre,
+        pp: targetPp,
       });
 
       // Update local state
-      setSentRequests((prev) => [...prev, { id: targetUserId, ...targetUserData }]);
+      setSentRequests((prev) => [...prev, targetUserData]);
     } catch (error) {
       console.error("Error sending friend request:", error);
     } finally {
