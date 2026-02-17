@@ -76,6 +76,7 @@ import { ObjectDrawer } from '@/components/(personnages)/ObjectDrawer';
 import { SoundDrawer } from '@/components/(personnages)/SoundDrawer';
 import { UnifiedSearchDrawer } from '@/components/(personnages)/UnifiedSearchDrawer';
 import { PlaceNPCModal } from '@/components/(personnages)/PlaceNPCModal';
+import { PlaceObjectModal } from '@/components/(personnages)/PlaceObjectModal';
 import { CreateNoteModal } from '@/components/(map)/CreateNoteModal';
 import { NoBackgroundModal } from '@/components/(map)/NoBackgroundModal';
 import { getDominantColor, getContrastColor } from '@/utils/imageUtils';
@@ -617,6 +618,9 @@ export default function Component() {
   const [contextMenuLightId, setContextMenuLightId] = useState<string | null>(null);
 
   const [showPlaceModal, setShowPlaceModal] = useState(false)
+  const [showPlaceObjectModal, setShowPlaceObjectModal] = useState(false)
+  const [draggedObjectTemplateForPlace, setDraggedObjectTemplateForPlace] = useState<ObjectTemplate | null>(null)
+  const [dropObjectPosition, setDropObjectPosition] = useState<{ x: number, y: number } | null>(null)
   const [showCreateNoteModal, setShowCreateNoteModal] = useState(false)
   const [showNoBackgroundModal, setShowNoBackgroundModal] = useState(false)
 
@@ -2585,44 +2589,10 @@ export default function Component() {
         const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth
         const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight
 
-        // 📏 Calculate aspect ratio to preserve shape
-        let width = 100;
-        let height = 100;
 
-        try {
-          const img = new Image();
-          img.src = template.imageUrl;
-          await new Promise((resolve, reject) => {
-            img.onload = resolve;
-            img.onerror = reject;
-          });
-          if (img.width && img.height) {
-            const ratio = img.width / img.height;
-            height = width / ratio;
-          }
-        } catch (e) {
-          console.warn("Could not load image for aspect ratio, defaulting to 100x100", e);
-        }
-
-        const objectData = {
-          x,
-          y,
-          width,
-          height,
-          rotation: 0,
-          imageUrl: template.imageUrl,
-          name: template.name,
-          cityId: selectedCityId,
-          createdAt: new Date()
-        };
-
-        await addWithHistory(
-          'objects',
-          objectData,
-          `Ajout de l'objet "${template.name}"`
-        );
-
-        toast.success(`Objet "${template.name}" ajouté sur la carte`, { duration: 1000 })
+        setDraggedObjectTemplateForPlace(template)
+        setDropObjectPosition({ x, y })
+        setShowPlaceObjectModal(true)
         return
       }
 
@@ -2760,6 +2730,94 @@ export default function Component() {
       setShowPlaceModal(false)
       setDraggedTemplate(null)
       setDropPosition(null)
+    }
+  }
+
+  const handlePlaceObjectConfirm = async (config: {
+    nombre: number;
+    visibility: 'visible' | 'hidden' | 'custom';
+    visibleToPlayerIds: string[];
+  }) => {
+    if (!draggedObjectTemplateForPlace || !dropObjectPosition || !selectedCityId) return
+
+    try {
+      for (let i = 0; i < config.nombre; i++) {
+        // Add slight offset for multiple objects so they don't stack perfectly
+        const offsetX = i * 20
+        const offsetY = i * 20
+
+        // Calculate width/height (same logic as before)
+        let width = 100;
+        let height = 100;
+
+        try {
+          // Preload image to get dimensions if possible, or just default
+          // In a real scenario we might want to wait, but here we can just fire and forget or await if critical
+          // improved: stick to default if image loading fails quickly
+        } catch (e) {
+          // ignore
+        }
+
+        // Note: resizing logic is a bit complex to duplicate perfectly without refactoring drop logic
+        // For now, we use default 100x100 or try to get ratio if we can efficiently. 
+        // ACTUALLY, let's try to get ratio inside the loop or before.
+        // Better: let's use the template's default dimensions if stored, or 100x100.
+
+        // Let's re-implement the ratio logic briefly
+        if (draggedObjectTemplateForPlace.imageUrl) {
+          try {
+            const img = new Image();
+            img.src = draggedObjectTemplateForPlace.imageUrl;
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+            });
+            if (img.width && img.height) {
+              const ratio = img.width / img.height;
+              height = width / ratio;
+            }
+          } catch (e) {
+            console.warn("Could not load image for aspect ratio", e);
+          }
+        }
+
+        const objectData: any = {
+          x: dropObjectPosition.x + offsetX,
+          y: dropObjectPosition.y + offsetY,
+          width,
+          height,
+          rotation: 0,
+          imageUrl: draggedObjectTemplateForPlace.imageUrl,
+          name: draggedObjectTemplateForPlace.name,
+          cityId: selectedCityId,
+          createdAt: new Date(),
+          visibility: config.visibility,
+          visibleToPlayerIds: config.visibility === 'custom' ? config.visibleToPlayerIds : [],
+          type: 'decors',
+          visible: config.visibility === 'visible' || (config.visibility === 'custom' && config.visibleToPlayerIds.length > 0), // Basic visibility fallback
+          isLocked: false
+        };
+
+        await addWithHistory(
+          'objects',
+          objectData,
+          `Ajout de l'objet (${i + 1}/${config.nombre}) "${draggedObjectTemplateForPlace.name}"`
+        );
+      }
+
+      if (config.nombre > 1) {
+        toast.success(`${config.nombre} objets "${draggedObjectTemplateForPlace.name}" ajoutés`)
+      } else {
+        toast.success(`Objet "${draggedObjectTemplateForPlace.name}" ajouté`)
+      }
+
+    } catch (error) {
+      console.error('Error placing object:', error);
+      toast.error("Erreur lors du placement de l'objet");
+    } finally {
+      setDraggedObjectTemplateForPlace(null)
+      setDropObjectPosition(null)
+      setShowPlaceObjectModal(false)
     }
   }
 
@@ -10986,6 +11044,18 @@ export default function Component() {
           setDropPosition(null)
         }}
         onConfirm={handlePlaceConfirm}
+      />
+
+      <PlaceObjectModal
+        isOpen={showPlaceObjectModal}
+        template={draggedObjectTemplateForPlace}
+        players={characters.filter(c => c.type === 'joueurs')}
+        onClose={() => {
+          setShowPlaceObjectModal(false)
+          setDraggedObjectTemplateForPlace(null)
+          setDropObjectPosition(null)
+        }}
+        onConfirm={handlePlaceObjectConfirm}
       />
 
       {/* Centralized Delete Confirmation Modal */}
