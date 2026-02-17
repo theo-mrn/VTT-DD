@@ -3,6 +3,10 @@ export interface Title {
     label: string; // Display name, e.g., "Vagabond"
     order: number;
     defaultUnlocked: boolean;
+    condition?: {
+        type: 'time';
+        minutes: number;
+    };
 }
 
 export const INITIAL_TITLES = [
@@ -10,14 +14,14 @@ export const INITIAL_TITLES = [
     { label: "Vagabond", defaultUnlocked: true },
     { label: "Rat de taverne", defaultUnlocked: true },
     { label: "Aventurier", defaultUnlocked: true },
-    { label: "Mercenaire", defaultUnlocked: false },
-    { label: "Explorateur", defaultUnlocked: false },
-    { label: "Vétéran", defaultUnlocked: false },
-    { label: "Héros", defaultUnlocked: false },
-    { label: "Champion", defaultUnlocked: false },
-    { label: "Légende", defaultUnlocked: false },
-    { label: "Demi-Dieu", defaultUnlocked: false },
-    { label: "Divinité", defaultUnlocked: false },
+    { label: "Mercenaire", defaultUnlocked: false, condition: { type: 'time', minutes: 5 } },
+    { label: "Explorateur", defaultUnlocked: false, condition: { type: 'time', minutes: 15 } },
+    { label: "Vétéran", defaultUnlocked: false, condition: { type: 'time', minutes: 30 } },
+    { label: "Héros", defaultUnlocked: false, condition: { type: 'time', minutes: 60 } },
+    { label: "Champion", defaultUnlocked: false, condition: { type: 'time', minutes: 120 } },
+    { label: "Légende", defaultUnlocked: false, condition: { type: 'time', minutes: 300 } },
+    { label: "Demi-Dieu", defaultUnlocked: false, condition: { type: 'time', minutes: 600 } },
+    { label: "Divinité", defaultUnlocked: false, condition: { type: 'time', minutes: 1000 } },
 
     // Speciaux
     { label: "Maître du Jeu", defaultUnlocked: false },
@@ -39,7 +43,7 @@ import { db } from "@/lib/firebase";
 import { collection, doc, getDocs, setDoc, query, orderBy, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
 
 // Helper to generate a slug from a label
-const generateSlug = (label: string) => {
+export const generateSlug = (label: string) => {
     return label
         .toLowerCase()
         .normalize("NFD")
@@ -61,7 +65,8 @@ export const seedTitles = async () => {
             id: slug,
             label: t.label,
             order: i,
-            defaultUnlocked: t.defaultUnlocked
+            defaultUnlocked: t.defaultUnlocked,
+            condition: t.condition as any
         };
 
         // We use setDoc to overwrite or create
@@ -111,3 +116,32 @@ export const initializeUserTitles = async (uid: string, allTitles: Title[]) => {
 
     return titlesMap;
 };
+
+export const checkAndUnlockTimeTitles = async (uid: string, totalMinutes: number, currentStatus?: Record<string, TitleStatus>) => {
+    try {
+        const userStatus = currentStatus || await getUserTitlesStatus(uid);
+        const titlesToUnlock: string[] = [];
+        const newStatus: Record<string, TitleStatus> = {};
+
+        // Check if any locked titles met the criteria
+        for (const title of INITIAL_TITLES) {
+            const slug = generateSlug(title.label);
+            if (userStatus[slug] !== 'unlocked' && title.condition?.type === 'time') {
+                if (totalMinutes >= title.condition.minutes) {
+                    titlesToUnlock.push(slug);
+                    newStatus[`titles.${slug}`] = 'unlocked';
+                }
+            }
+        }
+
+        if (titlesToUnlock.length > 0) {
+            const userRef = doc(db, "users", uid);
+            await updateDoc(userRef, newStatus);
+            return titlesToUnlock; // Return unlocked slugs for notification
+        }
+    } catch (error) {
+        console.error("Error checking time titles:", error);
+    }
+    return [];
+};
+

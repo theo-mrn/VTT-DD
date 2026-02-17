@@ -36,6 +36,7 @@ export default function Layout({ children }: LayoutProps) {
   const roomId = params.roomid as string;
   const { isMJ } = useGame();
   const [activeTab, setActiveTab] = useState<string>("");
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
 
   // Audio mixer volumes
   const { volumes: audioVolumes } = useAudioMixer();
@@ -104,11 +105,13 @@ export default function Layout({ children }: LayoutProps) {
         <MapControlProvider>
           <div className="relative h-screen bg-[#1c1c1c] text-[#d4d4d4] flex z-30">
             <div className="z-10">
-              <Sidebar activeTab={activeTab} handleIconClick={handleIconClick} isMJ={isMJ} />
+              {!isPanelOpen && (
+                <Sidebar activeTab={activeTab} handleIconClick={handleIconClick} isMJ={isMJ} />
+              )}
             </div>
 
             <div className="absolute left-0 z-0">
-              <OverlayComponent />
+              <OverlayComponent onPanelToggle={setIsPanelOpen} />
             </div>
 
             {/* Persistent Music Player Container */}
