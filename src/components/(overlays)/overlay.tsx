@@ -21,12 +21,20 @@ type Player = {
   currentSceneId?: string;
 };
 
-export default function Component() {
+type OverlayProps = {
+  onPanelToggle?: (isOpen: boolean) => void;
+};
+
+export default function Component({ onPanelToggle }: OverlayProps) {
   const [players, setPlayers] = useState<Player[]>([]);
   const [npcs, setNpcs] = useState<Player[]>([]);
   const params = useParams();
   const roomId = params.roomid as string;
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarOpen, _setIsSidebarOpen] = useState(false);
+  const setIsSidebarOpen = (open: boolean) => {
+    _setIsSidebarOpen(open);
+    onPanelToggle?.(open);
+  };
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
   const [showCharacterSheet, setShowCharacterSheet] = useState(false);
   const { centerOnCharacter, selectedCityId } = useMapControl();

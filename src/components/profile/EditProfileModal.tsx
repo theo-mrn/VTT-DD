@@ -1,13 +1,14 @@
 "use client";
 
 import { useRef, useState, ChangeEvent, useEffect } from "react";
-import { db, storage, doc, setDoc, ref, uploadBytes, getDownloadURL } from "@/lib/firebase";
+import { db, storage, doc, setDoc, ref, uploadBytes, getDownloadURL, getDoc, onSnapshot } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { X as XIcon, Camera, Loader2, Upload, Lock } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { fetchTitles, getUserTitlesStatus, initializeUserTitles, seedTitles, Title } from "@/lib/titles";
+import { fetchTitles, getUserTitlesStatus, initializeUserTitles, seedTitles, Title, INITIAL_TITLES, checkAndUnlockTimeTitles, generateSlug } from "@/lib/titles";
+import { toast } from "sonner";
 
 interface EditProfileModalProps {
     uid: string;
@@ -41,15 +42,18 @@ export default function EditProfileModal({
     // New state for dynamic titles
     const [allTitles, setAllTitles] = useState<Title[]>([]);
     const [userTitlesStatus, setUserTitlesStatus] = useState<Record<string, "locked" | "unlocked">>({});
+    const [userTimeSpent, setUserTimeSpent] = useState(0); // In minutes
     const [loadingTitles, setLoadingTitles] = useState(true);
 
     const ppInputRef = useRef<HTMLInputElement>(null);
 
     // Fetch titles and user status on mount
     useEffect(() => {
-        const loadTitles = async () => {
+        let unsubscribe: () => void;
+
+        const setupRealtimeListener = async () => {
             try {
-                // 1. Fetch all titles
+                // 1. Fetch all titles (static reference)
                 let titles = await fetchTitles();
 
                 // If no titles exist, seed them (Migration/Init step)
@@ -57,28 +61,56 @@ export default function EditProfileModal({
                     await seedTitles();
                     titles = await fetchTitles();
                 }
-                setAllTitles(titles);
 
-                // 2. Fetch user's titles status
-                let statusMap = await getUserTitlesStatus(uid);
+                // Merge with INITIAL_TITLES to ensure conditions are present
+                const mergedTitles = titles.map(t => {
+                    const codeTitle = INITIAL_TITLES.find(it => it.label === t.label);
+                    if (codeTitle && codeTitle.condition) {
+                        return { ...t, condition: codeTitle.condition as { type: 'time', minutes: number } };
+                    }
+                    return t;
+                });
+                setAllTitles(mergedTitles);
 
-                // If user has no titles map (or empty), initialize it
-                if (Object.keys(statusMap).length === 0) {
-                    statusMap = await initializeUserTitles(uid, titles);
-                }
-                setUserTitlesStatus(statusMap);
+                // 2. Setup real-time listener for user data
+                const userRef = doc(db, "users", uid);
+
+                unsubscribe = onSnapshot(userRef, async (userSnap) => {
+                    let statusMap: Record<string, "locked" | "unlocked"> = {};
+
+                    if (userSnap.exists()) {
+                        const data = userSnap.data();
+                        statusMap = data.titles || {};
+                        const timeSpent = data.timeSpent || 0;
+                        setUserTimeSpent(timeSpent);
+
+                        // If map is empty but user exists, initialize it
+                        if (Object.keys(statusMap).length === 0) {
+                            statusMap = await initializeUserTitles(uid, titles);
+                        }
+                    } else {
+                        // Should not happen for existing users but safe fallback
+                        statusMap = await initializeUserTitles(uid, titles);
+                    }
+
+                    setUserTitlesStatus(statusMap);
+                    setLoadingTitles(false);
+                });
 
             } catch (err) {
                 console.error("Failed to load titles", err);
                 setError("Erreur lors du chargement des titres");
-            } finally {
                 setLoadingTitles(false);
             }
         };
 
         if (uid) {
-            loadTitles();
+            setupRealtimeListener();
         }
+
+        return () => {
+            if (unsubscribe) unsubscribe();
+        };
     }, [uid]);
 
     const handleImagePreview = (
@@ -223,21 +255,59 @@ export default function EditProfileModal({
                                     const isUnlocked = status === "unlocked";
                                     const isSelected = titre === t.label;
 
+                                    // Time progress calculation
+                                    let progress = 0;
+                                    let timeRequired = 0;
+
+                                    const isTimeBased = t.condition?.type === 'time';
+
+                                    if (isTimeBased && t.condition) {
+                                        timeRequired = t.condition.minutes;
+                                        progress = Math.min(100, (userTimeSpent / timeRequired) * 100);
+                                    }
+
                                     return (
                                         <button
                                             key={t.id}
                                             type="button"
-                                            onClick={() => isUnlocked && handleTitleSelect(t.label)}
-                                            disabled={!isUnlocked}
-                                            className={`relative px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center justify-center gap-2 ${isSelected
+                                            onClick={() => {
+                                                if (isUnlocked) {
+                                                    handleTitleSelect(t.label);
+                                                } else {
+                                                    console.log(`Titre verrouillé: ${t.label}`);
+                                                    if (isTimeBased) {
+                                                        console.log(`Temps requis: ${timeRequired}min, Actuel: ${userTimeSpent}min`);
+                                                    }
+                                                }
+                                            }}
+                                            disabled={false} // We want to allow clicking to see logs even if locked
+                                            className={`relative px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex flex-col items-center justify-center gap-1 min-h-[60px] ${isSelected
                                                 ? "bg-[var(--accent-brown)] text-[var(--bg-dark)] shadow-md transform scale-105"
                                                 : isUnlocked
                                                     ? "bg-[var(--bg-dark)] text-[var(--text-secondary)] hover:bg-[var(--bg-darker)] hover:text-[var(--text-primary)] border border-[var(--border-color)] cursor-pointer"
-                                                    : "bg-[var(--bg-dark)] text-[var(--text-secondary)] opacity-50 cursor-not-allowed border border-transparent"
+                                                    : "bg-[var(--bg-dark)] text-[var(--text-secondary)] opacity-70 border border-transparent cursor-not-allowed" // Removed opacity-50 to make progress readable
                                                 }`}
                                         >
-                                            {t.label}
-                                            {!isUnlocked && <Lock className="w-3 h-3" />}
+                                            <div className="flex items-center gap-2">
+                                                {t.label}
+                                                {!isUnlocked && <Lock className="w-3 h-3" />}
+                                            </div>
+
+                                            {/* Progress Bar for Locked Time-Based Titles */}
+                                            {!isUnlocked && isTimeBased && (
+                                                <div className="w-full mt-1">
+                                                    <div className="flex justify-between text-[10px] opacity-80 mb-0.5">
+                                                        <span>{userTimeSpent}min</span>
+                                                        <span>{timeRequired}min</span>
+                                                    </div>
+                                                    <div className="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
+                                                        <div
+                                                            className="h-full bg-[var(--accent-brown)] transition-all duration-500"
+                                                            style={{ width: `${progress}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
                                         </button>
                                     );
                                 })}

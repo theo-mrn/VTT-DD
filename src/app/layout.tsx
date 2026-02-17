@@ -6,6 +6,7 @@ import { GameProvider } from '@/contexts/GameContext';
 import { CharacterProvider } from '@/contexts/CharacterContext';
 import { UndoRedoProvider } from '@/contexts/UndoRedoContext';
 import { Toaster } from "@/components/ui/sonner"
+import TimeTracker from '@/components/TimeTracker';
 
 
 
@@ -76,6 +77,7 @@ export default function RootLayout({
               <CompetencesProvider>
                 <UndoRedoProvider>
                   <Toaster position="top-right" />
+                  <TimeTracker />
                   {children}
                 </UndoRedoProvider>
               </CompetencesProvider>
