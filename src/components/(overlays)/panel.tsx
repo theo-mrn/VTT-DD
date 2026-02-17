@@ -3,8 +3,10 @@
 import React, { useEffect, useState } from "react";
 import { User, LogOut, X, Clipboard, Share2, SquareUserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { auth, db, doc, getDoc, onAuthStateChanged, updateDoc, signOut } from "@/lib/firebase";
+import { auth, db, doc, getDoc, onAuthStateChanged, updateDoc, signOut, onSnapshot } from "@/lib/firebase";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
+import ProfileOverlay from "@/components/profile/ProfileOverlay";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type SidebarProps = {
   onClose: () => void;
@@ -16,27 +18,48 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const [userName, setUserName] = useState<string | null>(null);
   const [userTitle, setUserTitle] = useState<string | null>(null);
   const [userProfilePicture, setUserProfilePicture] = useState<string | null>(null);
+  const [userBanner, setUserBanner] = useState<string | null>(null);
   const [roomId, setRoomId] = useState<string | null>("");
   const [showPopover, setShowPopover] = useState<boolean>(false);
+  const [showProfileOverlay, setShowProfileOverlay] = useState<boolean>(false);
 
   useEffect(() => {
+    let unsubscribeSnapshot: (() => void) | null = null;
+
     // Fetch user information
-    onAuthStateChanged(auth, async (user) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      // Cleanup previous snapshot listener if it exists
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+      }
+
       if (user) {
         const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
 
-        if (userDoc.exists()) {
-          const data = userDoc.data();
-          setUserName(data.name || "Utilisateur");
-          setUserTitle(data.titre || "Aucun titre");
-          setUserProfilePicture(data.pp || "/placeholder.svg");
-          setRoomId(data.room_id || "");
-        } else {
-          console.error("Utilisateur non trouvé dans Firestore");
-        }
+        unsubscribeSnapshot = onSnapshot(userDocRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setUserName(data.name || "Utilisateur");
+            setUserTitle(data.titre || "Aucun titre");
+            setUserProfilePicture(data.pp || null);
+            setUserBanner(data.imageURL || null);
+            setRoomId(data.room_id || "");
+          } else {
+            console.error("Utilisateur non trouvé dans Firestore");
+          }
+        }, (error) => {
+          console.error("Erreur lors de l'écoute du profil:", error);
+        });
       }
     });
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+      }
+    };
   }, []);
 
   const handleQuitterLaPartie = async () => {
@@ -59,7 +82,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   };
 
   const handleVoirProfil = () => {
-    router.push("/profile");
+    setShowProfileOverlay(true);
   };
 
   const handleCopyRoomId = () => {
@@ -92,14 +115,28 @@ export default function Sidebar({ onClose }: SidebarProps) {
         <X className="w-5 h-5" />
       </button>
 
-      <div className="p-4 border-b border-[#444444] w-full text-left">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center">
-            <img src={userProfilePicture || "/placeholder.svg"} alt="Profil" className="w-full h-full object-cover" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-[#c0a080]">{userName || "Utilisateur"}</h2>
-            <p className="text-sm text-[#d4d4d4]">{userTitle || "Aucun titre"}</p>
+      <div className="relative p-4 border-b border-[#444444] w-full text-left overflow-hidden group">
+        {/* Banner Background */}
+        {userBanner && (
+          <>
+            <div
+              className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
+              style={{ backgroundImage: `url(${userBanner})` }}
+            />
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-[1px]" />
+          </>
+        )}
+
+        <div className="relative flex items-center gap-3 z-10">
+          <Avatar className="w-10 h-10 border-2 border-[#c0a080]/30 shadow-sm">
+            <AvatarImage src={userProfilePicture || ""} alt="Profil" className="object-cover" />
+            <AvatarFallback className="bg-[#c0a080] text-white font-bold">
+              {(userName || "U").charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <h2 className="font-semibold text-[#c0a080] truncate max-w-[180px] drop-shadow-sm">{userName || "Utilisateur"}</h2>
+            <p className="text-sm text-[#d4d4d4] truncate max-w-[180px] drop-shadow-sm">{userTitle || "Aucun titre"}</p>
           </div>
         </div>
       </div>
@@ -163,7 +200,10 @@ export default function Sidebar({ onClose }: SidebarProps) {
         </button>
       </div>
 
-
+      {/* Profile Overlay */}
+      {showProfileOverlay && (
+        <ProfileOverlay onClose={() => setShowProfileOverlay(false)} />
+      )}
     </div>
   );
 }
