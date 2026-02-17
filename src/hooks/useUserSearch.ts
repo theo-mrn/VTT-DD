@@ -31,10 +31,15 @@ export function useUserSearch(): UseUserSearchReturn {
             const querySnapshot = await getDocs(usersRef);
 
             const searchResults = querySnapshot.docs
-                .map((doc) => ({
-                    id: doc.id,
-                    ...(doc.data() as Omit<UserResult, "id">),
-                }))
+                .map((doc) => {
+                    const data = doc.data();
+                    return {
+                        id: doc.id,
+                        name: data.name || "Utilisateur",
+                        titre: data.titre || "Aucun titre",
+                        pp: data.pp || "",
+                    } as UserResult;
+                })
                 .filter((user) =>
                     user.name.toLowerCase().includes(query.toLowerCase())
                 );
