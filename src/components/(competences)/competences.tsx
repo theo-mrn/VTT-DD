@@ -479,41 +479,65 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
             )}
             <div className='max-w-3xl'>
                 <Dialog open={isModalVisible} onOpenChange={setModalVisible}>
-                    <DialogContent className="modal-content">
-                        <DialogHeader>
-                            <DialogTitle className="modal-title">{selectedSkill?.name}</DialogTitle>
-                        </DialogHeader>
-                        <p className="modal-text mb-4 whitespace-pre-line">
-                            {selectedSkill?.description}
-                        </p>
-                        <p className="modal-text mb-4">
-                            Points: {selectedSkill && (selectedSkill.rank <= 2 ? '1 point' : '2 points')}
-                        </p>
-                        {selectedCharacter?.id !== userPersoId && (
-                            <p className="modal-text mb-4 text-[var(--text-secondary)] bg-[var(--bg-card)] p-2 rounded">
-                                ⚠️ Vous ne pouvez modifier que votre propre personnage
-                            </p>
+                    <DialogContent className="bg-transparent border-none shadow-none p-0 max-w-lg">
+                        <DialogTitle className="sr-only">
+                            {selectedSkill?.name}
+                        </DialogTitle>
+                        {selectedSkill && (
+                            <div className="p-6">
+                                <div className="flex justify-between items-start mb-4">
+                                    <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)]">
+                                        {selectedSkill.name}
+                                    </h2>
+                                    <div className={`px-2 py-1 rounded text-xs font-semibold border ${selectedCharacter && Number(selectedCharacter[selectedSkill.voie as keyof Character] ?? 0) >= selectedSkill.rank
+                                        ? 'bg-green-500/10 text-green-500 border-green-500/20'
+                                        : 'bg-[var(--accent-brown)]/10 text-[var(--accent-brown)] border-[var(--accent-brown)]/20'
+                                        }`}>
+                                        Rang {selectedSkill.rank}
+                                    </div>
+                                </div>
+
+                                <div className="my-6 text-[var(--text-primary)] leading-relaxed whitespace-pre-line">
+                                    {selectedSkill.description}
+                                </div>
+
+                                <div className="flex items-center justify-between mt-8 pt-4 border-t border-black/5 dark:border-white/5">
+                                    <div className="text-sm text-[var(--text-secondary)]">
+                                        Coût: <strong>{selectedSkill.rank <= 2 ? '1 point' : '2 points'}</strong>
+                                    </div>
+
+                                    <div className="flex gap-3">
+                                        <Button
+                                            variant="ghost"
+                                            onClick={() => setModalVisible(false)}
+                                            className="hover:bg-black/5 dark:hover:bg-white/5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                                        >
+                                            Fermer
+                                        </Button>
+
+                                        {selectedCharacter?.id === userPersoId ? (
+                                            <Button
+                                                onClick={unlockSkill}
+                                                disabled={!isUnlockable}
+                                                className={`relative overflow-hidden transition-all duration-300 ${!isUnlockable
+                                                    ? 'opacity-50 cursor-not-allowed bg-[var(--bg-darker)]'
+                                                    : 'bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] hover:shadow-lg hover:shadow-[var(--accent-brown)]/20 text-[var(--bg-dark)] font-bold'
+                                                    }`}
+                                            >
+                                                {selectedCharacter && Number(selectedCharacter[selectedSkill.voie as keyof Character] ?? 0) >= selectedSkill.rank
+                                                    ? 'Déjà acquis'
+                                                    : 'Débloquer'
+                                                }
+                                            </Button>
+                                        ) : (
+                                            <div className="text-xs text-[var(--text-secondary)] italic flex items-center">
+                                                Lecture seule
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
                         )}
-                        <DialogFooter>
-                            <Button
-                                className="button-cancel"
-                                onClick={() => setModalVisible(false)}
-                            >
-                                Annuler
-                            </Button>
-                            <Button
-                                onClick={unlockSkill}
-                                disabled={!isUnlockable}
-                                className={`button-primary ${!isUnlockable ? 'opacity-50 cursor-not-allowed' : ''
-                                    }`}
-                            >
-                                {selectedSkill && selectedCharacter &&
-                                    Number(selectedCharacter[selectedSkill.voie as keyof Character] ?? 0) >= selectedSkill.rank
-                                    ? 'Débloqué ✓'
-                                    : 'Déverrouiller'
-                                }
-                            </Button>
-                        </DialogFooter>
                     </DialogContent>
                 </Dialog>
             </div>

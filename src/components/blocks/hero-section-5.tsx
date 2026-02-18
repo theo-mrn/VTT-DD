@@ -13,7 +13,11 @@ import { auth } from '../../lib/firebase'
 import { Features1 } from '@/components/blocks/features1'
 import { Features2 } from '@/components/blocks/features2'
 import { Features3 } from '@/components/blocks/features3'
-import { mapImagePath } from '@/utils/imagePathMapper'
+
+import { ShaderBackground, PulsingCircle } from '@/components/ui/shaders-hero-section'
+
+import InfiniteHero from "@/components/ui/infinite-hero";
+
 
 
 const aclonica = Aclonica({
@@ -87,8 +91,7 @@ const Logo = () => {
 export function HeroSection() {
     const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false)
     const [isUserLoggedIn, setIsUserLoggedIn] = React.useState<boolean | null>(null)
-    const [backgroundImage, setBackgroundImage] = React.useState<string>('')
-    const [maskImage, setMaskImage] = React.useState<string>('')
+
     const router = useRouter()
 
     React.useEffect(() => {
@@ -98,16 +101,7 @@ export function HeroSection() {
         return () => unsubscribe()
     }, [])
 
-    // Load images from R2
-    React.useEffect(() => {
-        const loadImages = async () => {
-            const bgImage = await mapImagePath('/images/index9.webp')
-            const mask = await mapImagePath('/test.gif')
-            setBackgroundImage(bgImage)
-            setMaskImage(mask)
-        }
-        loadImages()
-    }, [])
+
 
     const handleStartAdventure = () => {
         if (isUserLoggedIn) {
@@ -143,22 +137,13 @@ export function HeroSection() {
                             </div>
                         </div>
                         <div className="aspect-[2/3] absolute inset-5 overflow-hidden rounded-3xl border border-black/10 sm:aspect-video lg:rounded-[3rem] dark:border-white/5">
-                            <div
-                                className="size-full"
-                                style={{
-                                    backgroundImage: backgroundImage ? `url('${backgroundImage}')` : undefined,
-                                    backgroundSize: 'cover',
-                                    backgroundPosition: 'center',
-                                    maskImage: maskImage ? `url('${maskImage}')` : undefined,
-                                    maskSize: 'cover',
-                                    maskPosition: 'center',
-                                    WebkitMaskImage: maskImage ? `url('${maskImage}')` : undefined,
-                                    opacity: 0.75,
-                                }}
-                            ></div>
+                            <ShaderBackground className="size-full">
+                            </ShaderBackground>
                         </div>
                     </div>
                 </section>
+
+                {/* <InfiniteHero /> */}
 
                 <section>
                     <div className="lg:pt-64 lg:pb-16">

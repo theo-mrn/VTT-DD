@@ -324,133 +324,141 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
 
       {/* Details Dialog */}
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
-        <DialogContent className="bg-[#242424] border-[#333] text-[#d4d4d4] max-w-2xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl font-bold text-[#c0a080] flex items-center gap-2">
-              {(() => {
-                const name = selectedCompetence?.name || "";
-                const cleanName = name.startsWith("🔄 ") ? name.slice(2).trim() : name;
-                return (
-                  <>
-                    {name.startsWith("🔄 ") && <RefreshCw className="h-4 w-4" />}
-                    <span>{cleanName}</span>
-                  </>
-                );
-              })()}
-            </DialogTitle>
-          </DialogHeader>
+        <DialogContent className="bg-transparent border-none shadow-none p-0 max-w-lg">
+          <DialogTitle className="sr-only">
+            {selectedCompetence?.name}
+          </DialogTitle>
+          {selectedCompetence && (
+            <div className="w-full p-6">
 
-          {/* Moved dangerous html out of DialogDescription to avoid hydration error */}
-          <div className="text-[#a0a0a0] mt-2 text-sm md:text-base leading-relaxed p-4 bg-[#1c1c1c] rounded-lg border border-[#333]">
-            <div dangerouslySetInnerHTML={{ __html: selectedCompetence?.description || "" }} />
-          </div>
-
-          {selectedCompetence?.bonuses && Object.entries(selectedCompetence.bonuses)
-            .filter(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name')
-            .length > 0 && (
-              <div className="py-4 border-t border-[#333] mt-2">
-                <h4 className="text-sm font-semibold text-[#c0a080] mb-3">Bonus Actifs</h4>
-                <div className="flex flex-wrap gap-2">
-                  {Object.entries(selectedCompetence.bonuses)
-                    .filter(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name')
-                    .map(([stat, value], index) => (
-                      <span key={index} className="px-3 py-1.5 rounded bg-[#1c1c1c] text-[#c0a080] border border-[#333] text-sm font-medium flex items-center gap-1">
-                        <Star className="w-3 h-3" />
-                        {stat} {Number(value) > 0 ? "+" : ""}{value}
-                      </span>
-                    ))}
-                </div>
+              <div className="flex justify-between items-start mb-4">
+                <h2 className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] flex items-center gap-2">
+                  {(() => {
+                    const name = selectedCompetence?.name || "";
+                    const cleanName = name.startsWith("🔄 ") ? name.slice(2).trim() : name;
+                    return (
+                      <>
+                        {name.startsWith("🔄 ") && <RefreshCw className="h-5 w-5 text-[var(--accent-brown)]" />}
+                        <span>{cleanName}</span>
+                      </>
+                    );
+                  })()}
+                </h2>
               </div>
-            )}
 
-          <DialogFooter className="flex gap-3 sm:justify-between border-t border-[#333] pt-4 mt-2">
-            <div className="flex-1">
-              {canEdit && selectedCompetence && (
+              <div className="my-6 text-[var(--text-primary)] leading-relaxed text-sm md:text-base">
+                <div dangerouslySetInnerHTML={{ __html: selectedCompetence?.description || "" }} />
+              </div>
+
+              {selectedCompetence?.bonuses && Object.entries(selectedCompetence.bonuses)
+                .filter(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name')
+                .length > 0 && (
+                  <div className="py-4 border-t border-black/5 dark:border-white/5 mt-2">
+                    <h4 className="text-sm font-semibold text-[var(--accent-brown)] mb-3">Bonus Actifs</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(selectedCompetence.bonuses)
+                        .filter(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name')
+                        .map(([stat, value], index) => (
+                          <span key={index} className="px-3 py-1.5 rounded bg-black/20 text-[var(--accent-brown)] border border-white/10 text-sm font-medium flex items-center gap-1">
+                            <Star className="w-3 h-3" />
+                            {stat} {Number(value) > 0 ? "+" : ""}{value}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+              <div className="flex items-center justify-between mt-8 pt-4 border-t border-black/5 dark:border-white/5">
                 <Button
-                  className={`
-                    w-full sm:w-auto font-bold transition-all
-                    ${selectedCompetence.isActive
-                      ? "bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/50 border"
-                      : "bg-green-500/10 text-green-400 hover:bg-green-500/20 border-green-500/50 border"}
-                  `}
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    await toggleCompetenceActive(selectedCompetence.id, e);
-                    setIsDetailsDialogOpen(false);
-                  }}
+                  variant="ghost"
+                  onClick={() => setIsDetailsDialogOpen(false)}
+                  className="hover:bg-black/5 dark:hover:bg-white/5 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 >
-                  {selectedCompetence.isActive ? "Désactiver" : "Activer"}
+                  Fermer
                 </Button>
-              )}
+
+                {canEdit && selectedCompetence && (
+                  <Button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      await toggleCompetenceActive(selectedCompetence.id, e);
+                      setIsDetailsDialogOpen(false);
+                    }}
+                    className={`relative overflow-hidden transition-all duration-300 font-bold ${selectedCompetence.isActive
+                      ? "bg-red-500/10 text-red-400 hover:bg-red-500/20 border-red-500/50 border hover:shadow-lg hover:shadow-red-500/20"
+                      : "bg-green-500/10 text-green-400 hover:bg-green-500/20 border-green-500/50 border hover:shadow-lg hover:shadow-green-500/20"
+                      }`}
+                  >
+                    {selectedCompetence.isActive ? "Désactiver" : "Activer"}
+                  </Button>
+                )}
+              </div>
+
             </div>
-            <Button
-              variant="secondary"
-              onClick={() => setIsDetailsDialogOpen(false)}
-              className="bg-[#3a3a3a] text-white hover:bg-[#4a4a4a]"
-            >
-              Fermer
-            </Button>
-          </DialogFooter>
+          )}
         </DialogContent>
       </Dialog>
 
       {/* Bonus Management Dialog */}
       <Dialog open={!!bonusOpenCompetenceId} onOpenChange={(open) => !open && setBonusOpenCompetenceId(null)}>
-        <DialogContent className="bg-[#242424] border-[#333] text-[#d4d4d4]">
-          <DialogHeader>
-            <DialogTitle className="text-[#c0a080]">Gérer les Bonus</DialogTitle>
-            {/* Accessible description for screen readers, optional visuals */}
-            <DialogDescription className="sr-only">
-              Ajouter ou supprimer des bonus pour cette compétence
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            {selectedCompetence?.bonuses &&
-              Object.entries(selectedCompetence.bonuses)
-                .filter(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name')
-                .map(([stat, value]) => (
-                  <div key={stat} className="flex justify-between items-center bg-[#1c1c1c] p-3 rounded border border-[#333]">
-                    <span className="font-bold">{stat}: <span className="text-[#c0a080]">{Number(value) > 0 ? "+" : ""}{value}</span></span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
-                      onClick={() => handleRemoveBonus(stat)}
-                    >
-                      <MinusCircle className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+        <DialogContent className="bg-transparent border-none shadow-none p-0 max-w-lg">
+          <div className="p-6">
 
-            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#333]">
-              <div className="space-y-2">
-                <Label className="text-[#a0a0a0]">Statistique</Label>
-                <Select onValueChange={(value) => setNewBonus({ ...newBonus, stat: value as keyof BonusData })} value={newBonus.stat}>
-                  <SelectTrigger className="bg-[#1c1c1c] border-[#333] text-[#d4d4d4]">
-                    <SelectValue placeholder="Choisir..." />
-                  </SelectTrigger>
-                  <SelectContent className="bg-[#2a2a2a] border-[#333] text-[#d4d4d4]">
-                    {statOptions.map((stat) => (
-                      <SelectItem key={stat} value={stat}>{stat}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-[#a0a0a0]">Valeur</Label>
-                <Input
-                  type="number"
-                  value={newBonus.value}
-                  onChange={(e) => setNewBonus({ ...newBonus, value: parseInt(e.target.value) })}
-                  className="bg-[#1c1c1c] border-[#333] text-[#d4d4d4]"
-                />
-              </div>
+            <div className="flex flex-col gap-2 text-center sm:text-left mb-6">
+              <DialogTitle className="text-xl font-bold text-[var(--accent-brown)]">Gérer les Bonus</DialogTitle>
+              <DialogDescription className="text-[var(--text-secondary)] text-sm">
+                Ajouter ou supprimer des bonus pour cette compétence
+              </DialogDescription>
             </div>
 
-            <Button onClick={handleAddBonus} className="w-full bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f] font-bold">
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Ajouter le bonus
-            </Button>
+            <div className="space-y-4">
+              {selectedCompetence?.bonuses &&
+                Object.entries(selectedCompetence.bonuses)
+                  .filter(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name')
+                  .map(([stat, value]) => (
+                    <div key={stat} className="flex justify-between items-center bg-black/20 p-3 rounded border border-white/10">
+                      <span className="font-bold text-[var(--text-primary)]">{stat}: <span className="text-[var(--accent-brown)]">{Number(value) > 0 ? "+" : ""}{value}</span></span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-400 hover:text-red-300 hover:bg-red-400/10"
+                        onClick={() => handleRemoveBonus(stat)}
+                      >
+                        <MinusCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t border-black/5 dark:border-white/5">
+                <div className="space-y-2">
+                  <Label className="text-[var(--text-secondary)]">Statistique</Label>
+                  <Select onValueChange={(value) => setNewBonus({ ...newBonus, stat: value as keyof BonusData })} value={newBonus.stat}>
+                    <SelectTrigger className="bg-black/20 border-white/10 text-[var(--text-primary)] focus:ring-[var(--accent-brown)]">
+                      <SelectValue placeholder="Choisir..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-[#2a2a2a] border-[#333] text-[var(--text-primary)]">
+                      {statOptions.map((stat) => (
+                        <SelectItem key={stat} value={stat}>{stat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-[var(--text-secondary)]">Valeur</Label>
+                  <Input
+                    type="number"
+                    value={newBonus.value}
+                    onChange={(e) => setNewBonus({ ...newBonus, value: parseInt(e.target.value) })}
+                    className="bg-black/20 border-white/10 text-[var(--text-primary)] focus:ring-[var(--accent-brown)]"
+                  />
+                </div>
+              </div>
+
+              <Button onClick={handleAddBonus} className="w-full mt-4 bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] text-[var(--bg-dark)] hover:shadow-lg hover:shadow-[var(--accent-brown)]/20 font-bold transition-all">
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Ajouter le bonus
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

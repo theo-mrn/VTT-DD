@@ -16,6 +16,9 @@ import Chat from "@/components/(chat)/Chat";
 import EncounterGenerator from "@/components/(encounter)/EncounterGenerator";
 import { auth, onAuthStateChanged } from "@/lib/firebase";
 import { X } from "lucide-react";
+import { FloatingAiAssistant } from "@/components/ui/glowing-ai-chat-assistant";
+
+
 
 import MJMusicPlayer from "@/components/(music)/MJMusicPlayer";
 import YouTubeSFXPlayer from "@/components/(music)/YouTubeSFXPlayer";
@@ -157,22 +160,10 @@ export default function Layout({ children }: LayoutProps) {
             )}
 
             {/* Persistent DiceRoller Container */}
-            <div className={activeTab === 'DiceRoller' ? 'block' : 'hidden'}>
-              <aside
-                className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full w-full sm:w-[400px] md:w-[400px] lg:w-[380px] text-black shadow-lg z-20 overflow-y-auto`}
-              >
-                {/* Bouton de fermeture pour mobile/tablette */}
-                <button
-                  onClick={() => setActiveTab("")}
-                  className={`lg:hidden fixed top-3 right-3 z-10 rounded-full p-2 transition-colors shadow-lg bg-[#1c1c1c] text-white hover:bg-[#333]`}
-                  aria-label="Fermer le panneau"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-                <DiceRoller />
-              </aside>
-            </div>
-
+            <FloatingAiAssistant
+              isOpen={activeTab === 'DiceRoller'}
+              onClose={() => setActiveTab("")}
+            />
 
             <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c] -z-10">
               <div className="w-full h-full">{children}</div>

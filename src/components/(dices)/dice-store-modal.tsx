@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DICE_SKINS, DiceSkin } from './dice-definitions';
@@ -22,6 +23,11 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
     const [balance, setBalance] = useState(INITIAL_BALANCE);
     const [inventory, setInventory] = useState<string[]>(INITIAL_INVENTORY);
     const [activeTab, setActiveTab] = useState("inventory");
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Load state from localStorage on mount
     useEffect(() => {
@@ -78,10 +84,12 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
     const ownedSkins = allSkins.filter(s => inventory.includes(s.id));
     const unownedSkins = allSkins.filter(s => !inventory.includes(s.id));
 
-    return (
+    if (!mounted) return null;
+
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center">
                     {/* Backdrop */}
                     <motion.div
                         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
@@ -189,5 +197,5 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
                 </div>
             )}
         </AnimatePresence>
-    );
+        , document.body);
 }

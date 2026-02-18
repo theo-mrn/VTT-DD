@@ -1,0 +1,948 @@
+
+import React, { useState, useRef, useEffect } from 'react';
+import { X, Send, Info, Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, ChevronRight, Box, Shield, EyeOff, History, RotateCcw, BarChart2, Store } from 'lucide-react';
+import { doc, getDoc, auth, db, addDoc, collection, updateDoc, query, orderBy, limit, onSnapshot } from "@/lib/firebase";
+import { onAuthStateChanged } from "firebase/auth";
+import { toast } from 'sonner';
+import { generateSlug } from "@/lib/titles";
+import { getAssetUrl } from "@/lib/asset-loader";
+import { DiceStats } from "@/components/(dices)/dice-stats";
+import { DiceStoreModal } from "../(dices)/dice-store-modal";
+import { DICE_SKINS } from "../(dices)/dice-definitions";
+
+// --- Types ---
+interface CharacterModifiers {
+  [key: string]: number;
+}
+
+interface FirebaseRoll {
+  id: string;
+  isPrivate: boolean;
+  isBlind?: boolean;
+  diceCount: number;
+  diceFaces: number;
+  modifier: number;
+  results: number[];
+  total: number;
+  userAvatar?: string;
+  userName: string;
+  type?: string;
+  timestamp: number;
+  notation?: string;
+  output?: string;
+  persoId?: string;
+}
+
+interface FloatingAiAssistantProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssistantProps) => {
+  // const [isOpen, setIsOpen] = useState(false); // Controlled by parent
+  const [input, setInput] = useState('');
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const [persoId, setPersoId] = useState<string | null>(null);
+  const [characterModifiers, setCharacterModifiers] = useState<CharacterModifiers>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const [show3DAnimations, setShow3DAnimations] = useState(true);
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [isBlind, setIsBlind] = useState(false);
+
+  // User context
+  const [userName, setUserName] = useState("Utilisateur");
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userAvatar, setUserAvatar] = useState<string | undefined>(undefined);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const pendingRollsRef = useRef<Map<string, (results: { type: string, value: number }[]) => void>>(new Map());
+
+  // History State
+  const [showHistory, setShowHistory] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  const [firebaseRolls, setFirebaseRolls] = useState<FirebaseRoll[]>([]);
+
+  // Skin State
+  const [selectedSkinId, setSelectedSkinId] = useState("gold");
+  const [isSkinDialogOpen, setIsSkinDialogOpen] = useState(false);
+
+  // New state for displaying the latest result in the header
+  const [latestResult, setLatestResult] = useState<{
+    result: string;
+    total: number;
+    notation: string;
+    output: string;
+  } | null>(null);
+
+  // Scramble effect for the result display when it's "..."
+  const [scrambledValue, setScrambledValue] = useState("...");
+
+  // Load skin from localStorage
+  useEffect(() => {
+    const savedSkin = localStorage.getItem("vtt_dice_skin");
+    if (savedSkin && DICE_SKINS[savedSkin]) {
+      setSelectedSkinId(savedSkin);
+    }
+  }, []);
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+    if (isLoading) {
+      const chars = "0123456789";
+      interval = setInterval(() => {
+        setScrambledValue(
+          Array(2).fill(0).map(() => chars[Math.floor(Math.random() * chars.length)]).join("")
+        );
+      }, 50);
+    } else if (latestResult) {
+      setScrambledValue(latestResult.total.toString());
+    }
+    return () => clearInterval(interval);
+  }, [isLoading, latestResult]);
+
+  // History Logic from dice-roller.tsx
+  useEffect(() => {
+    if (!roomId) return;
+
+    const q = query(
+      collection(db, `rolls/${roomId}/rolls`),
+      orderBy("timestamp", "desc"),
+      limit(50)
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const rolls: FirebaseRoll[] = [];
+      snapshot.forEach((doc) => {
+        rolls.push({ id: doc.id, ...doc.data() } as FirebaseRoll);
+      });
+      setFirebaseRolls(rolls);
+    });
+
+    return () => unsubscribe();
+  }, [roomId]);
+
+  const canDisplayRoll = (roll: FirebaseRoll) => {
+    // Basic privacy check - adaptable based on requirements
+    if (roll.isBlind && roll.userName !== userName) return false; // Blind rolls hidden from others (simplify logic as we don't have isMJ prop comfortably here yet without more context, assuming lenient for now or just checking blind)
+    // Actually, let's keep it simple: if blind, only show if it's me. If private, only show if it's me. 
+    // Wait, dice-roller logic: 
+    // if (isMJ) return true;
+    // if (roll.isBlind) return false; 
+    // if (!roll.isPrivate) return true;
+    // return roll.userName === characterName;
+
+    // As a floating widget, we might not know if WE are MJ easily without prop drilling.
+    // However, we fetched user data in useEffect including "perso === 'MJ'".
+    const isMJ = userName === "MJ";
+
+    if (isMJ) return true;
+    if (roll.isBlind) return false;
+    if (!roll.isPrivate) return true;
+    return roll.userName === userName;
+  };
+
+  const getFilteredRolls = () => {
+    return firebaseRolls.filter(canDisplayRoll);
+  };
+
+  const rerollFromFirebase = (roll: FirebaseRoll) => {
+    if (roll.notation) {
+      setInput(roll.notation);
+      setShowHistory(false);
+      // Optional: auto-roll? Let's just fill input for now
+    }
+  };
+
+  // --- Logic from dice-roller.tsx ---
+
+  const calculateModifier = (value: number) => Math.floor(value);
+
+  const fetchCharacterInfo = async (roomId: string, persoId: string) => {
+    try {
+      const charRef = doc(db, `cartes/${roomId}/characters/${persoId}`);
+      const charSnap = await getDoc(charRef);
+
+      if (charSnap.exists()) {
+        const charData = charSnap.data();
+        setUserName(charData.Nomperso || "Utilisateur");
+        setUserAvatar(charData.imageURLFinal || charData.imageURL || undefined);
+
+        setCharacterModifiers({
+          CON: charData.CON_F || charData.CON || 0,
+          DEX: charData.DEX_F || charData.DEX || 0,
+          FOR: charData.FOR_F || charData.FOR || 0,
+          SAG: charData.SAG_F || charData.SAG || 0,
+          INT: charData.INT_F || charData.INT || 0,
+          CHA: charData.CHA_F || charData.CHA || 0,
+          Contact: charData.Contact_F || charData.Contact || 0,
+          Distance: charData.Distance_F || charData.Distance || 0,
+          Magie: charData.Magie_F || charData.Magie || 0,
+          Defense: charData.Defense_F || charData.Defense || 0,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching character info:", error);
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (authUser) => {
+      if (authUser) {
+        setUserEmail(authUser.email || null);
+        const userRef = doc(db, 'users', authUser.uid);
+        getDoc(userRef).then((docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setRoomId(data.room_id);
+            setPersoId(data.persoId);
+
+            if (data.perso === "MJ") {
+              setUserName("MJ");
+              setUserAvatar(undefined);
+            } else if (data.room_id && data.persoId) {
+              fetchCharacterInfo(data.room_id, data.persoId);
+            }
+          }
+        });
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Listen for 3D roll completion
+  useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleRollComplete = (e: any) => {
+      const { rollId, results } = e.detail;
+      const resolve = pendingRollsRef.current.get(rollId);
+      if (resolve) {
+        resolve(results);
+        pendingRollsRef.current.delete(rollId);
+      }
+    };
+
+    window.addEventListener('vtt-3d-roll-complete', handleRollComplete);
+    return () => window.removeEventListener('vtt-3d-roll-complete', handleRollComplete);
+  }, []);
+
+  // Close when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Check if click is outside the content AND not on the sidebar toggle button
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node) &&
+        isOpen &&
+        !(event.target as Element).closest('#sidebar-dice-button')
+      ) {
+        onClose?.();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, onClose]);
+
+
+  const replaceCharacteristics = (notation: string): string => {
+    if (!characterModifiers || Object.keys(characterModifiers).length === 0) {
+      return notation;
+    }
+
+    let processedNotation = notation;
+    const characteristicsRegex = /(CON|FOR|DEX|CHA|INT|SAG|Contact|Distance|Magie|Defense)/gi;
+
+    processedNotation = processedNotation.replace(characteristicsRegex, (match) => {
+      const key = match.toUpperCase();
+      let value = 0;
+
+      if (["CON", "FOR", "DEX", "CHA", "INT", "SAG"].includes(key)) {
+        const rawValue = characterModifiers[key] || 0;
+        value = calculateModifier(rawValue);
+      } else if (key === "CONTACT") {
+        value = characterModifiers.Contact || 0;
+      } else if (key === "DISTANCE") {
+        value = characterModifiers.Distance || 0;
+      } else if (key === "MAGIE") {
+        value = characterModifiers.Magie || 0;
+      } else if (key === "DEFENSE") {
+        value = characterModifiers.Defense || 0;
+      }
+      return value.toString();
+    });
+    return processedNotation;
+  };
+
+  const parseDiceRequests = (notation: string) => {
+    const diceRegex = /(\d+)d(\d+)(?:k([hl])(\d+))?/gi;
+    const requests: { type: string, count: number }[] = [];
+    let match;
+    while ((match = diceRegex.exec(notation)) !== null) {
+      const count = parseInt(match[1]);
+      const faces = parseInt(match[2]);
+      requests.push({ type: `d${faces}`, count });
+    }
+    return requests;
+  };
+
+  const perform3DRoll = async (requests: { type: string, count: number }[], targets?: { type: string, value: number }[]): Promise<{ type: string, value: number }[]> => {
+    if (typeof window === 'undefined' || requests.length === 0) return Promise.resolve([]);
+
+    const SUPPORTED_3D_DICE = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'];
+    const requests3D = requests.filter(req => SUPPORTED_3D_DICE.includes(req.type));
+    const requestsInstant = requests.filter(req => !SUPPORTED_3D_DICE.includes(req.type));
+
+    const instantResults: { type: string, value: number }[] = [];
+    requestsInstant.forEach(req => {
+      const faces = parseInt(req.type.substring(1));
+      for (let i = 0; i < req.count; i++) {
+        instantResults.push({
+          type: req.type,
+          value: Math.floor(Math.random() * faces) + 1
+        });
+      }
+    });
+
+    if (requests3D.length === 0 || !show3DAnimations || isBlind) {
+      // Instant simulation if 3D disabled or blind
+      const simulatedResults: { type: string, value: number }[] = [];
+      requests3D.forEach(req => {
+        for (let i = 0; i < req.count; i++) {
+          simulatedResults.push({
+            type: req.type,
+            value: Math.floor(Math.random() * parseInt(req.type.substring(1))) + 1
+          });
+        }
+      });
+      return Promise.resolve([...simulatedResults, ...instantResults]);
+    }
+
+    // Play Sound
+    try {
+      const audioUrl = getAssetUrl("/dice.mp3");
+      const audio = new Audio(audioUrl);
+      audio.volume = 0.5;
+      setTimeout(() => {
+        audio.play().catch(e => console.warn("Could not play dice sound:", e));
+      }, 500);
+    } catch (e) { console.error("Audio error:", e); }
+
+    const rollId = crypto.randomUUID();
+    return new Promise((resolve) => {
+      const timeoutId = setTimeout(() => {
+        if (pendingRollsRef.current.has(rollId)) {
+          console.warn("Roll timed out, generating fallback values");
+          const fallbackResults: { type: string, value: number }[] = [];
+
+          requests3D.forEach(req => {
+            const faces = parseInt(req.type.substring(1));
+            for (let i = 0; i < req.count; i++) {
+              fallbackResults.push({
+                type: req.type,
+                value: Math.floor(Math.random() * faces) + 1
+              });
+            }
+          });
+          pendingRollsRef.current.delete(rollId);
+          resolve([...fallbackResults, ...instantResults]);
+        }
+      }, 10000);
+
+      pendingRollsRef.current.set(rollId, (results3D) => {
+        clearTimeout(timeoutId);
+        resolve([...results3D, ...instantResults]);
+      });
+
+      window.dispatchEvent(new CustomEvent('vtt-trigger-3d-roll', {
+        detail: {
+          rollId,
+          requests: requests3D,
+          skinId: selectedSkinId,
+          targets: targets ? [...targets] : undefined
+        }
+      }));
+    });
+  };
+
+  const calculateFinalResult = (notation: string, physicalResults: { type: string, value: number }[]) => {
+    const availableResults = [...physicalResults];
+    const detailsParts: string[] = [];
+
+    const diceRegex = /(\d+)d(\d+)(?:k([hl])(\d+))?/gi;
+
+    const processedMathString = notation.replace(diceRegex, (match, countStr, facesStr, keepType, keepCountStr) => {
+      const count = parseInt(countStr);
+      const faces = parseInt(facesStr);
+      const dieType = `d${faces}`;
+      const keepCount = keepCountStr ? parseInt(keepCountStr) : 0;
+
+      const rollsForMatches: number[] = [];
+
+      let foundCount = 0;
+      for (let i = 0; i < availableResults.length && foundCount < count; i++) {
+        if (availableResults[i].type === dieType) {
+          rollsForMatches.push(availableResults[i].value);
+          availableResults.splice(i, 1);
+          i--;
+          foundCount++;
+        }
+      }
+
+      while (rollsForMatches.length < count) {
+        rollsForMatches.push(Math.floor(Math.random() * faces) + 1);
+      }
+
+      let total = 0;
+      let usedRolls: { val: number, keep: boolean }[] = rollsForMatches.map(r => ({ val: r, keep: true }));
+
+      if (keepType) {
+        const sortedIndices = rollsForMatches.map((val, idx) => ({ val, idx }))
+          .sort((a, b) => keepType === 'h' ? b.val - a.val : a.val - b.val);
+
+        const indicesToKeep = new Set(sortedIndices.slice(0, keepCount).map(x => x.idx));
+
+        usedRolls = rollsForMatches.map((val, idx) => ({
+          val,
+          keep: indicesToKeep.has(idx)
+        }));
+
+        total = usedRolls.filter(r => r.keep).reduce((sum, r) => sum + r.val, 0);
+      } else {
+        total = rollsForMatches.reduce((a, b) => a + b, 0);
+      }
+
+      const formattedDice = usedRolls.map(r => r.keep ? `${r.val}` : `r${r.val}`).join(', ');
+      detailsParts.push(`[${formattedDice}]`);
+
+      return total.toString();
+    });
+
+    let grandTotal = 0;
+    try {
+      const safeExpression = processedMathString.replace(/[^0-9+\-*/().\s]/g, '');
+      // eslint-disable-next-line no-eval
+      grandTotal = eval(safeExpression);
+    } catch (e) {
+      console.error("Error evaluating roll expression", e);
+      grandTotal = 0;
+    }
+
+    let detailString = notation;
+    let matchIndex = 0;
+    detailString = detailString.replace(diceRegex, () => {
+      const part = detailsParts[matchIndex] || "[?]";
+      matchIndex++;
+      return part;
+    });
+
+    return {
+      total: Math.floor(grandTotal),
+      output: `${notation} = ${detailString} = ${grandTotal}`
+    };
+  };
+
+  const handleRoll = async () => {
+    if (!input.trim()) return;
+
+    setIsLoading(true);
+    try {
+      const processedNotation = replaceCharacteristics(input);
+      const requests = parseDiceRequests(processedNotation);
+
+      let physicalResults: { type: string, value: number }[] = [];
+      let total = 0;
+      let output = "";
+
+      // Calculate
+      physicalResults = await perform3DRoll(requests);
+      const calculated = calculateFinalResult(processedNotation, physicalResults);
+      total = calculated.total;
+      output = calculated.output;
+
+      // Notifications
+      if (isBlind) {
+        toast.info("Résultat caché (envoyé au MJ)");
+      } else {
+        toast.success(output, { duration: 5000, icon: '🎲' });
+      }
+
+      // Save to Firebase
+      if (roomId && userName) {
+        let mainDieFaces = 20;
+        let mainDieCount = 1;
+        if (requests.length > 0) {
+          mainDieFaces = parseInt(requests[0].type.substring(1));
+          mainDieCount = requests[0].count;
+        }
+
+        const firebaseRoll: FirebaseRoll = {
+          id: crypto.randomUUID(),
+          isPrivate,
+          isBlind,
+          diceCount: mainDieCount,
+          diceFaces: mainDieFaces,
+          modifier: 0,
+          results: physicalResults.map(r => r.value),
+          total: total,
+          userName,
+          ...(userAvatar ? { userAvatar } : {}),
+          type: show3DAnimations ? "Dice Roller" : "Dice Roller/API",
+          timestamp: Date.now(),
+          notation: input,
+          output: output,
+          ...(persoId ? { persoId } : {})
+        };
+
+        await addDoc(collection(db, `rolls/${roomId}/rolls`), firebaseRoll);
+
+        // Critical Checks Logic (Titles & Emails)
+        const hasD20 = requests.some(r => r.type === 'd20');
+        const d20Results = physicalResults.filter(r => r.type === 'd20');
+        const hasNat1 = d20Results.some(r => r.value === 1);
+        const hasNat20 = d20Results.some(r => r.value === 20);
+
+        if (hasD20 && hasNat1 && userEmail && auth.currentUser) {
+          const titleLabel = "Maudit des dés";
+          const slug = generateSlug(titleLabel);
+          const userRef = doc(db, "users", auth.currentUser.uid);
+
+          getDoc(userRef).then((snap) => {
+            if (snap.exists()) {
+              const data = snap.data();
+              if (!data.titles || data.titles[slug] !== "unlocked") {
+                updateDoc(userRef, { [`titles.${slug}`]: "unlocked" }).then(() => {
+                  toast.success(`Nouveau titre débloqué : ${titleLabel} !`, { icon: '🔓' });
+                });
+
+                fetch('/api/send-critical-fail', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ to: userEmail, firstName: userName, rollDetails: output }),
+                });
+              }
+            }
+          });
+        }
+
+        if (hasD20 && hasNat20 && userEmail && auth.currentUser) {
+          const titleLabel = "Béni des Dieux";
+          const slug = generateSlug(titleLabel);
+          const userRef = doc(db, "users", auth.currentUser.uid);
+
+          getDoc(userRef).then((snap) => {
+            if (snap.exists()) {
+              const data = snap.data();
+              if (!data.titles || data.titles[slug] !== "unlocked") {
+                updateDoc(userRef, { [`titles.${slug}`]: "unlocked" }).then(() => {
+                  toast.success(`Nouveau titre débloqué : ${titleLabel} !`, { icon: '🏆' });
+                });
+
+                fetch('/api/send-critical-success', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ to: userEmail, firstName: userName, rollDetails: output }),
+                });
+              }
+            }
+          });
+        }
+      }
+
+      // Update Latest Result for Header Display
+      console.log("Setting latest result:", { total, input, output });
+      setLatestResult({
+        result: total.toString(),
+        total: total,
+        notation: input,
+        output: output
+      });
+
+      setInput('');
+    } catch (e) {
+      console.error(e);
+      toast.error("Erreur lors du lancer");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleRoll();
+    }
+  };
+
+  const addToInput = (str: string) => {
+    setInput(prev => {
+      // 1. Check if we are adding a dice notated as "1dX"
+      const diceMatch = str.match(/^1d(\d+)$/);
+      if (diceMatch) {
+        const faces = diceMatch[1];
+        const diceType = `d${faces}`;
+
+        // Regex to find the LAST occurrence of this die type at the end of the string, 
+        // possibly followed by whitespace.
+        // We look for patterns like "1d6", "2d6", "10d6"
+        // The regex captures (count)d(faces)
+        const lastDiceRegex = new RegExp(`(\\d+)d${faces}\\s*$`);
+        const match = prev.match(lastDiceRegex);
+
+        if (match) {
+          // If the previous input ended with this die type, increment the count
+          const currentCount = parseInt(match[1]);
+          const newCount = currentCount + 1;
+          // Replace the last occurrence with the new count
+          return prev.replace(lastDiceRegex, `${newCount}d${faces}`);
+        }
+      }
+
+      // 2. Standard addition logic for other inputs (modifiers, or different dice)
+      // Check if the input is empty
+      if (prev.length === 0) {
+        // If adding a modifier to empty string, assume "1d20" context or just start with modifier? 
+        // Usually modifiers like "+ FOR" need something before.
+        // But if str is "1d20", just return it.
+        if (str.startsWith('+')) return str.substring(2); // Remove "+ "
+        return str;
+      }
+
+      // Check for trailing operators or spaces to avoid "++"
+      const trimmedPrev = prev.trim();
+      const needsSeparator = !trimmedPrev.endsWith('+') && !trimmedPrev.endsWith('-');
+
+      if (needsSeparator) {
+        if (str.startsWith('+') || str.startsWith('-')) {
+          return `${trimmedPrev} ${str}`;
+        }
+        return `${trimmedPrev} + ${str}`;
+      }
+
+      return `${trimmedPrev} ${str}`;
+    });
+
+    // Focus back to textarea
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        // Move cursor to end
+        textareaRef.current.setSelectionRange(textareaRef.current.value.length, textareaRef.current.value.length);
+      }
+    }, 0);
+  };
+
+  return (
+    <div className="fixed top-1/2 left-20 z-50 pointer-events-none -translate-y-1/2 ml-2">
+      {/* Interface */}
+      {isOpen && (
+        <div
+          ref={containerRef}
+          className="w-max max-w-[500px] transition-all duration-300 origin-left pointer-events-auto"
+          style={{
+            animation: 'popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+          }}
+        >
+          <div className="w-full max-w-[600px] rounded-2xl relative isolate overflow-hidden bg-white/5 dark:bg-black/90 bg-gradient-to-br from-black/5 to-black/[0.02] dark:from-white/5 dark:to-white/[0.02] backdrop-blur-xl backdrop-saturate-[180%] border border-black/10 dark:border-white/10 shadow-[0_8px_16px_rgb(0_0_0_/_0.15)] dark:shadow-[0_8px_16px_rgb(0_0_0_/_0.25)]">
+            <div className="w-full h-full rounded-xl relative bg-gradient-to-br from-black/[0.05] to-transparent dark:from-white/[0.08] dark:to-transparent backdrop-blur-md backdrop-saturate-150 border border-black/[0.05] dark:border-white/[0.08] text-black/90 dark:text-white shadow-sm">
+              <div className="w-full h-full flex items-stretch">
+
+                {/* Left Sidebar - Dice (Only visible when NOT in history) */}
+                {!showHistory && (
+                  <div className="w-[120px] flex-shrink-0 border-r border-white/5 p-2">
+                    <div className="grid grid-cols-2 gap-2 h-full content-center">
+                      {[4, 6, 8, 10, 12, 20].map((d) => (
+                        <button
+                          key={`d${d}`}
+                          onClick={() => addToInput(`1d${d}`)}
+                          className="group relative w-full aspect-square flex items-center justify-center bg-transparent border border-white/5 rounded-lg cursor-pointer transition-all duration-200 hover:bg-white/10 hover:border-white/20 hover:scale-105 active:scale-95"
+                        >
+                          <span className="text-xs font-mono text-zinc-400 group-hover:text-zinc-100 font-bold">d{d}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Right Content */}
+                <div className="flex-1 flex flex-col min-w-0">
+
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-6 pt-3 pb-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-4">
+                      <div className="w-2 h-2 rounded-full bg-zinc-500 flex-shrink-0 animate-pulse"></div>
+                      <span className="text-xs font-medium text-zinc-400">Dice Roller</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowHistory(!showHistory)}
+                        className={`p-1.5 rounded-lg transition-colors ${showHistory ? 'bg-white/10 text-zinc-100' : 'hover:bg-white/5 text-zinc-400'}`}
+                        title="Historique"
+                      >
+                        <History className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => onClose?.()}
+                        className="p-1.5 rounded-full hover:bg-white/5 transition-colors"
+                      >
+                        <X className="w-4 h-4 text-zinc-400" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Content Area - Toggle between Input/Controls and History */}
+                  {!showHistory ? (
+                    <>
+                      {/* Result Display Area (Above Input) */}
+                      <div className="px-6 pt-4 pb-0 min-h-[3.5rem] flex flex-col justify-end">
+                        {(isLoading || latestResult) && (
+                          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+                            <div className="flex items-baseline gap-2 w-full overflow-hidden">
+                              <span className="text-3xl font-bold font-mono text-zinc-100 tabular-nums tracking-tight flex-shrink-0">
+                                {scrambledValue}
+                              </span>
+
+                              <div className="flex items-baseline gap-2 overflow-hidden truncate min-w-0 flex-1">
+                                {!isLoading && latestResult && (
+                                  <>
+                                    <span className="text-sm font-mono text-zinc-500 flex-shrink-0">
+                                      = {latestResult.output.split('=')[1] || ""}
+                                    </span>
+                                    <span className="text-xs text-zinc-600 font-mono opacity-50 truncate flex-shrink">
+                                      ({latestResult.notation})
+                                    </span>
+                                  </>
+                                )}
+                                {isLoading && (
+                                  <span className="text-xs text-zinc-500 font-mono animate-pulse">
+                                    Lancement...
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Input Section */}
+                      <div className="relative overflow-hidden">
+                        <textarea
+                          ref={textareaRef}
+                          value={input}
+                          onChange={(e) => setInput(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                          rows={1}
+                          className="w-full px-6 py-3 bg-transparent border-none outline-none resize-none text-2xl font-light leading-relaxed min-h-[60px] text-zinc-100 placeholder-zinc-600 scrollbar-none font-mono"
+                          placeholder="1d20 + 5..."
+                          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                        />
+                        <div
+                          className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"
+                        ></div>
+                      </div>
+
+                      {/* Controls Section */}
+                      <div className="px-4 pb-4 space-y-3">
+                        <div className="space-y-3">
+                          {/* Modifiers Grid - Hidden for MJ */}
+                          {userName !== "MJ" && (
+                            <div className="grid grid-cols-6 gap-2">
+                              {["FOR", "DEX", "CON", "INT", "SAG", "CHA"].map(stat => (
+                                <button
+                                  key={stat}
+                                  onClick={() => addToInput(`+ ${stat}`)}
+                                  className="group relative py-1.5 bg-transparent border border-white/10 rounded-lg cursor-pointer transition-all duration-300 text-zinc-500 hover:text-red-300 hover:bg-white/5 hover:border-red-500/30 text-[10px] font-mono font-bold uppercase tracking-wider"
+                                >
+                                  {stat.substring(0, 3)}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between pt-1">
+                            {/* Toggles */}
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setIsSkinDialogOpen(true)}
+                                className="p-2 rounded-lg transition-all duration-300 border bg-transparent border-white/10 text-zinc-600 hover:text-amber-400 hover:border-amber-400/30"
+                                title="Boutique de dés"
+                              >
+                                <Store className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => setShow3DAnimations(!show3DAnimations)}
+                                className={`p-2 rounded-lg transition-all duration-300 border ${show3DAnimations ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
+                                title="3D Rolling"
+                              >
+                                <Box className="w-4 h-4" />
+                              </button>
+
+                              {userName !== "MJ" && (
+                                <>
+                                  <button
+                                    onClick={() => setIsPrivate(!isPrivate)}
+                                    className={`p-2 rounded-lg transition-all duration-300 border ${isPrivate ? 'bg-amber-500/20 border-amber-500/50 text-amber-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
+                                    title="GM Only (Masqué)"
+                                  >
+                                    <Shield className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => setIsBlind(!isBlind)}
+                                    className={`p-2 rounded-lg transition-all duration-300 border ${isBlind ? 'bg-red-500/20 border-red-500/50 text-red-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
+                                    title="Blind Roll (Caché)"
+                                  >
+                                    <EyeOff className="w-4 h-4" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => {
+                                  setInput('');
+                                  setLatestResult(null);
+                                }}
+                                className="px-3 py-2 text-[10px] font-bold text-zinc-400 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors hover:text-zinc-200"
+                              >
+                                CLR
+                              </button>
+
+                              {/* Send Button */}
+                              <button
+                                onClick={handleRoll}
+                                className="group relative p-2.5 pl-4 pr-3 bg-gradient-to-r from-red-600 to-red-500 border-none rounded-xl cursor-pointer transition-all duration-300 text-white shadow-lg hover:from-red-500 hover:to-red-400 hover:scale-105 hover:shadow-red-500/30 active:scale-95 transform flex items-center gap-2"
+                                style={{
+                                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 0 0 0 rgba(239, 68, 68, 0.4)',
+                                }}
+                              >
+                                <span className="text-xs font-bold uppercase tracking-wide opacity-90">Roll</span>
+                                <Send className="w-4 h-4 transition-all duration-300 group-hover:translate-x-1" />
+
+                                {/* Animated background glow */}
+                                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-red-600 to-red-500 opacity-0 group-hover:opacity-50 transition-opacity duration-300 blur-lg transform scale-110"></div>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                    </>
+                  ) : (
+                    /* History & Stats Area */
+                    <div className="flex flex-col h-full max-h-[400px]">
+                      {/* Tabs */}
+                      <div className="flex border-b border-white/5 px-4 pt-2">
+                        <button
+                          onClick={() => setShowStats(false)}
+                          className={`flex-1 pb-2 text-xs font-medium border-b-2 transition-colors ${!showStats ? 'border-zinc-200 text-zinc-100' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <History className="w-3 h-3" />
+                            Historique
+                          </div>
+                        </button>
+                        <button
+                          onClick={() => setShowStats(true)}
+                          className={`flex-1 pb-2 text-xs font-medium border-b-2 transition-colors ${showStats ? 'border-zinc-200 text-zinc-100' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                        >
+                          <div className="flex items-center justify-center gap-2">
+                            <BarChart2 className="w-3 h-3" />
+                            Statistiques
+                          </div>
+                        </button>
+                      </div>
+
+                      <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                        {!showStats ? (
+                          // History List
+                          <div className="space-y-3">
+                            {firebaseRolls.filter(canDisplayRoll).length === 0 ? (
+                              <div className="text-center text-zinc-500 py-8 text-xs italic">
+                                Aucun lancer récent...
+                              </div>
+                            ) : (
+                              firebaseRolls.filter(canDisplayRoll).map((roll) => (
+                                <div key={roll.id} className="group relative p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all">
+                                  <div className="flex items-start gap-3">
+                                    <div className="flex-shrink-0 mt-0.5">
+                                      {roll.userAvatar ? (
+                                        <img src={roll.userAvatar} alt="" className="w-8 h-8 rounded-full object-cover border border-white/10" />
+                                      ) : (
+                                        <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center border border-white/10">
+                                          <span className="text-xs font-bold text-zinc-400">{roll.userName.substring(0, 2)}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center justify-between mb-0.5">
+                                        <span className="text-xs font-bold text-zinc-300 truncate">{roll.userName}</span>
+                                        <div className="flex items-center gap-1">
+                                          {roll.isPrivate && <Shield className="w-3 h-3 text-amber-500/70" />}
+                                          {roll.isBlind && <EyeOff className="w-3 h-3 text-red-500/70" />}
+                                          <span className="text-[10px] text-zinc-600">{new Date(roll.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                        </div>
+                                      </div>
+                                      <div className="text-[11px] font-mono text-zinc-500 truncate mb-1">{roll.notation}</div>
+                                      <div className="flex items-center justify-between">
+                                        <div className="text-sm font-bold text-zinc-200">Total: {roll.total}</div>
+                                        <button
+                                          onClick={() => rerollFromFirebase(roll)}
+                                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all text-zinc-400 hover:text-zinc-200"
+                                          title="Relancer"
+                                        >
+                                          <RotateCcw className="w-3 h-3" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        ) : (
+                          // Stats Component
+                          <DiceStats
+                            rolls={getFilteredRolls()}
+                            currentUserName={userName}
+                            isMJ={userName === "MJ"}
+                          />
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <DiceStoreModal
+        isOpen={isSkinDialogOpen}
+        onClose={() => setIsSkinDialogOpen(false)}
+        currentSkinId={selectedSkinId}
+        onSelectSkin={(skinId) => {
+          setSelectedSkinId(skinId);
+          localStorage.setItem("vtt_dice_skin", skinId);
+        }}
+      />
+
+      <style jsx>{`
+        @keyframes popIn {
+          0% {
+            opacity: 0;
+            transform: scale(0.9) translateX(-20px);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) translateX(0);
+          }
+        }
+        
+        .floating-dice-button:hover {
+          transform: scale(1.1);
+        }
+      `}</style>
+    </div >
+  );
+};
