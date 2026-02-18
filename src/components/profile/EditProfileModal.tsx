@@ -56,8 +56,13 @@ export default function EditProfileModal({
                 // 1. Fetch all titles (static reference)
                 let titles = await fetchTitles();
 
-                // If no titles exist, seed them (Migration/Init step)
-                if (titles.length === 0) {
+                // Check if we need to seed new titles (auto-migration)
+                const existingSlugs = new Set(titles.map(t => t.id));
+                const hasMissingTitles = INITIAL_TITLES.some(t => !existingSlugs.has(generateSlug(t.label)));
+                const hasObsoleteTitles = existingSlugs.has("maudit_par_les_des");
+
+                if (titles.length === 0 || hasMissingTitles || hasObsoleteTitles) {
+                    console.log("Seeding/Updating titles...");
                     await seedTitles();
                     titles = await fetchTitles();
                 }
@@ -66,7 +71,7 @@ export default function EditProfileModal({
                 const mergedTitles = titles.map(t => {
                     const codeTitle = INITIAL_TITLES.find(it => it.label === t.label);
                     if (codeTitle && codeTitle.condition) {
-                        return { ...t, condition: codeTitle.condition as { type: 'time', minutes: number } };
+                        return { ...t, condition: codeTitle.condition } as Title;
                     }
                     return t;
                 });
@@ -260,8 +265,9 @@ export default function EditProfileModal({
                                     let timeRequired = 0;
 
                                     const isTimeBased = t.condition?.type === 'time';
+                                    const isEventBased = t.condition?.type === 'event';
 
-                                    if (isTimeBased && t.condition) {
+                                    if (isTimeBased && t.condition && 'minutes' in t.condition) {
                                         timeRequired = t.condition.minutes;
                                         progress = Math.min(100, (userTimeSpent / timeRequired) * 100);
                                     }
@@ -306,6 +312,12 @@ export default function EditProfileModal({
                                                             style={{ width: `${progress}%` }}
                                                         />
                                                     </div>
+                                                </div>
+                                            )}
+
+                                            {!isUnlocked && isEventBased && t.condition && 'description' in t.condition && (
+                                                <div className="w-full mt-1 text-[10px] text-center opacity-80 leading-tight px-1">
+                                                    {t.condition.description}
                                                 </div>
                                             )}
                                         </button>

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "email:dev": "email dev --dir ./src/components --port 4000"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.958.0",
@@ -41,7 +42,7 @@
     "@radix-ui/react-switch": "^1.1.1",
     "@radix-ui/react-tabs": "^1.1.1",
     "@radix-ui/react-tooltip": "^1.2.8",
-    "@react-email/components": "^1.0.4",
+    "@react-email/components": "^1.0.7",
     "@react-email/render": "^2.0.2",
     "@react-hook/media-query": "^1.1.1",
     "@react-three/cannon": "^6.6.0",
@@ -81,12 +82,13 @@
     "react-chessboard": "^5.8.6",
     "react-dom": "^19.2.1",
     "react-easy-crop": "^5.1.0",
+    "react-email": "^5.2.8",
     "react-grid-layout": "^1.5.3",
     "react-pageflip": "^2.0.3",
     "react-use-measure": "^2.1.7",
     "react-youtube": "^10.1.0",
     "recharts": "^2.15.3",
-    "resend": "^6.6.0",
+    "resend": "^6.9.2",
     "sharp": "^0.34.5",
     "sonner": "^2.0.5",
     "styled-jsx": "^5.1.6",
@@ -97,6 +99,7 @@
     "vaul": "^1.1.0"
   },
   "devDependencies": {
+    "@react-email/preview-server": "^5.2.8",
     "@types/node": "^20",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
