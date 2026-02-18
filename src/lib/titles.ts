@@ -6,10 +6,15 @@ export interface Title {
     condition?: {
         type: 'time';
         minutes: number;
+    } | {
+        type: 'event';
+        description: string;
     };
 }
 
-export const INITIAL_TITLES = [
+export type TitleDef = Omit<Title, 'id' | 'order'>;
+
+export const INITIAL_TITLES: TitleDef[] = [
     // Rangs de Progression
     { label: "Vagabond", defaultUnlocked: true },
     { label: "Rat de taverne", defaultUnlocked: true },
@@ -33,14 +38,15 @@ export const INITIAL_TITLES = [
     { label: "Roleplayer", defaultUnlocked: false },
     { label: "Stratège", defaultUnlocked: false },
     { label: "Survivant", defaultUnlocked: false },
-    { label: "Maudit par les Dés", defaultUnlocked: false },
+    { label: "Maudit des dés", defaultUnlocked: false, condition: { type: 'event', description: "Faire un échec critique (1 naturel)" } },
+    { label: "Béni des Dieux", defaultUnlocked: false, condition: { type: 'event', description: "Faire une réussite critique (20 naturel)" } },
     { label: "Toujours en Retard", defaultUnlocked: false },
     { label: "Le Barbare", defaultUnlocked: false },
     { label: "L'Érudit", defaultUnlocked: false }
 ];
 
 import { db } from "@/lib/firebase";
-import { collection, doc, getDocs, setDoc, query, orderBy, getDoc, updateDoc, arrayUnion } from "firebase/firestore";
+import { collection, doc, getDocs, setDoc, query, orderBy, getDoc, updateDoc, deleteDoc } from "firebase/firestore";
 
 // Helper to generate a slug from a label
 export const generateSlug = (label: string) => {
@@ -53,8 +59,18 @@ export const generateSlug = (label: string) => {
 };
 
 export const seedTitles = async () => {
-    const batch = [];
     console.log("Starting seed...");
+
+    // Cleanup deprecated titles
+    const deprecatedSlugs = ["maudit_par_les_des"];
+    for (const slug of deprecatedSlugs) {
+        try {
+            await deleteDoc(doc(db, "titles", slug));
+            console.log(`Removed deprecated title: ${slug}`);
+        } catch (e) {
+            console.warn(`Failed to remove deprecated title ${slug}`, e);
+        }
+    }
 
     for (let i = 0; i < INITIAL_TITLES.length; i++) {
         const t = INITIAL_TITLES[i];
@@ -66,7 +82,7 @@ export const seedTitles = async () => {
             label: t.label,
             order: i,
             defaultUnlocked: t.defaultUnlocked,
-            condition: t.condition as any
+            ...(t.condition ? { condition: t.condition as any } : {})
         };
 
         // We use setDoc to overwrite or create
@@ -126,7 +142,7 @@ export const checkAndUnlockTimeTitles = async (uid: string, totalMinutes: number
         // Check if any locked titles met the criteria
         for (const title of INITIAL_TITLES) {
             const slug = generateSlug(title.label);
-            if (userStatus[slug] !== 'unlocked' && title.condition?.type === 'time') {
+            if (userStatus[slug] !== 'unlocked' && title.condition && title.condition.type === 'time') {
                 if (totalMinutes >= title.condition.minutes) {
                     titlesToUnlock.push(slug);
                     newStatus[`titles.${slug}`] = 'unlocked';

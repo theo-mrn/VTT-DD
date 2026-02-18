@@ -1,4 +1,4 @@
-import { EmailTemplate } from '@/components/email-template';
+import { EmailTemplate } from '@/components/emails/email-template';
 // Initializing independently to safely check for the key
 import { Resend } from 'resend';
 import { db, doc, getDoc } from '@/lib/firebase';

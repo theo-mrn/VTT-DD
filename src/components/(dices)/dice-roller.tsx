@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 // import { DiceRoll } from "@dice-roller/rpg-dice-roller"; // Removed unused import
 import { motion, AnimatePresence } from "framer-motion";
 import { Dice1, RotateCcw, History, Trash2, Shield, BarChart3, Store, Check, EyeOff, Box } from "lucide-react";
-import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy, serverTimestamp, limit } from "@/lib/firebase";
+import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy, serverTimestamp, limit, updateDoc } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
@@ -23,6 +23,7 @@ import { DicePreview } from "./dice-preview";
 import { DiceStoreModal } from "./dice-store-modal"; // Import new modal
 import { getAssetUrl } from "@/lib/asset-loader";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
+import { generateSlug } from "@/lib/titles";
 // Types
 interface RollResult {
   id: string;
@@ -77,6 +78,7 @@ export function DiceRoller() {
   const [persoId, setPersoId] = useState<string | null>(null);
   const [isMJ, setIsMJ] = useState(false);
   const [userName, setUserName] = useState("Utilisateur");
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | undefined>(undefined);
   const [characterName, setCharacterName] = useState("Utilisateur");
   const [characterModifiers, setCharacterModifiers] = useState<{ [key: string]: number }>({});
@@ -179,6 +181,7 @@ export function DiceRoller() {
     console.log("window.CHEAT_DICE=20;");
     const unsubscribe = onAuthStateChanged(auth, (authUser) => {
       if (authUser) {
+        setUserEmail(authUser.email || null);
         const userRef = doc(db, 'users', authUser.uid);
         getDoc(userRef).then((docSnap) => {
           if (docSnap.exists()) {
@@ -676,6 +679,110 @@ export function DiceRoller() {
 
         // Update local state so we see it immediately
         setFirebaseRolls((prevRolls) => [firebaseRoll, ...prevRolls]);
+
+        // === Détection échec critique (nat 1 sur d20) ===
+        const hasD20 = requests.some(r => r.type === 'd20');
+        const d20Results = physicalResults.filter(r => r.type === 'd20');
+        const hasNat1 = d20Results.some(r => r.value === 1);
+        const hasNat20 = d20Results.some(r => r.value === 20);
+
+        if (hasD20 && hasNat1 && userEmail && auth.currentUser) {
+          const titleLabel = "Maudit des dés";
+          const slug = generateSlug(titleLabel);
+          const userRef = doc(db, "users", auth.currentUser.uid);
+
+          // Check if title is already unlocked
+          getDoc(userRef).then((snap) => {
+            if (snap.exists()) {
+              const data = snap.data();
+              const isUnlocked = data.titles && data.titles[slug] === "unlocked";
+
+              if (!isUnlocked) {
+                // Unlock title
+                updateDoc(userRef, {
+                  [`titles.${slug}`]: "unlocked"
+                }).then(() => {
+                  toast.success(`Nouveau titre débloqué : ${titleLabel} !`, {
+                    icon: '🔓',
+                    duration: 5000
+                  });
+                }).catch(e => console.error("Error unlocking title:", e));
+
+                // Send Email (ONLY if unlocking title)
+                fetch('/api/send-critical-fail', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    to: userEmail,
+                    firstName: userName,
+                    rollDetails: output,
+                    campaignName: undefined, // optionnel
+                  }),
+                })
+                  .then(res => {
+                    if (res.ok) {
+                      toast.error('💀 Échec critique ! Un email de honte vous a été envoyé...', { duration: 6000 });
+                    } else {
+                      console.error('Failed to send critical fail email:', res.statusText);
+                    }
+                  })
+                  .catch(err => console.error('Error sending critical fail email:', err));
+
+              } else {
+                console.log("Title 'Maudit des dés' already unlocked, skipping email.");
+              }
+            }
+          });
+        }
+
+        if (hasD20 && hasNat20 && userEmail && auth.currentUser) {
+          const titleLabel = "Béni des Dieux";
+          const slug = generateSlug(titleLabel);
+          const userRef = doc(db, "users", auth.currentUser.uid);
+
+          // Check if title is already unlocked
+          getDoc(userRef).then((snap) => {
+            if (snap.exists()) {
+              const data = snap.data();
+              const isUnlocked = data.titles && data.titles[slug] === "unlocked";
+
+              if (!isUnlocked) {
+                // Unlock title
+                updateDoc(userRef, {
+                  [`titles.${slug}`]: "unlocked"
+                }).then(() => {
+                  toast.success(`Nouveau titre débloqué : ${titleLabel} !`, {
+                    icon: '🏆',
+                    duration: 5000
+                  });
+                }).catch(e => console.error("Error unlocking title:", e));
+
+                // Send Email (ONLY if unlocking title)
+                fetch('/api/send-critical-success', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    to: userEmail,
+                    firstName: userName,
+                    rollDetails: output,
+                    campaignName: undefined, // optionnel
+                  }),
+                })
+                  .then(res => {
+                    if (res.ok) {
+                      toast.success('🏆 Succès critique ! Votre gloire a été immortalisée par email !', { duration: 6000 });
+                    } else {
+                      console.error('Failed to send critical success email:', res.statusText);
+                    }
+                  })
+                  .catch(err => console.error('Error sending critical success email:', err));
+
+              } else {
+                console.log("Title 'Béni des Dieux' already unlocked, skipping email.");
+              }
+            }
+          });
+        }
       }
 
     } catch (err) {
