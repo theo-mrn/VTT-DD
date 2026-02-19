@@ -22,6 +22,9 @@ export const WidgetAvatar: React.FC<WidgetProps> = ({ style }) => {
             <div className="h-full w-full relative">
                 <CharacterImage
                     imageUrl={selectedCharacter.imageURL}
+                    imageURL2={selectedCharacter.imageURL2}
+                    imageURLFinal={selectedCharacter.imageURLFinal}
+                    isGifProp={selectedCharacter.isGif}
                     altText={selectedCharacter.Nomperso}
                     characterId={selectedCharacter.id}
                 />
