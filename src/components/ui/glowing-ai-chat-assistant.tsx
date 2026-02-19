@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { X, Send, Info, Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, ChevronRight, Box, Shield, EyeOff, History, RotateCcw, BarChart2, Store } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { X, Send, Info, Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, ChevronRight, Box, Shield, EyeOff, History, RotateCcw, BarChart2, Store, SwitchCamera, Keyboard, Filter } from 'lucide-react';
 import { doc, getDoc, auth, db, addDoc, collection, updateDoc, query, orderBy, limit, onSnapshot } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { toast } from 'sonner';
@@ -62,6 +63,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
   const [showHistory, setShowHistory] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [firebaseRolls, setFirebaseRolls] = useState<FirebaseRoll[]>([]);
+  const [selectedPlayerFilter, setSelectedPlayerFilter] = useState<string | null>(null);
 
   // Skin State
   const [selectedSkinId, setSelectedSkinId] = useState("gold");
@@ -73,6 +75,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
     total: number;
     notation: string;
     output: string;
+    isBlind?: boolean;
   } | null>(null);
 
   // Scramble effect for the result display when it's "..."
@@ -123,21 +126,12 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
   }, [roomId]);
 
   const canDisplayRoll = (roll: FirebaseRoll) => {
-    // Basic privacy check - adaptable based on requirements
-    if (roll.isBlind && roll.userName !== userName) return false; // Blind rolls hidden from others (simplify logic as we don't have isMJ prop comfortably here yet without more context, assuming lenient for now or just checking blind)
-    // Actually, let's keep it simple: if blind, only show if it's me. If private, only show if it's me. 
-    // Wait, dice-roller logic: 
-    // if (isMJ) return true;
-    // if (roll.isBlind) return false; 
-    // if (!roll.isPrivate) return true;
-    // return roll.userName === characterName;
-
     // As a floating widget, we might not know if WE are MJ easily without prop drilling.
     // However, we fetched user data in useEffect including "perso === 'MJ'".
     const isMJ = userName === "MJ";
 
     if (isMJ) return true;
-    if (roll.isBlind) return false;
+    if (roll.isBlind) return roll.userName === userName;
     if (!roll.isPrivate) return true;
     return roll.userName === userName;
   };
@@ -550,11 +544,16 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
 
       // Update Latest Result for Header Display
       console.log("Setting latest result:", { total, input, output });
+
+      // Update Latest Result for Header Display
+      console.log("Setting latest result:", { total, input, output });
+
       setLatestResult({
         result: total.toString(),
         total: total,
         notation: input,
-        output: output
+        output: output,
+        isBlind: isBlind
       });
 
       setInput('');
@@ -637,7 +636,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
       {isOpen && (
         <div
           ref={containerRef}
-          className="w-max max-w-[500px] transition-all duration-300 origin-left pointer-events-auto"
+          className={`transition-all duration-300 origin-left pointer-events-auto ${showHistory ? 'w-[500px]' : 'w-max max-w-[500px]'}`}
           style={{
             animation: 'popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
           }}
@@ -671,6 +670,120 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                     <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-4">
                       <div className="w-2 h-2 rounded-full bg-zinc-500 flex-shrink-0 animate-pulse"></div>
                       <span className="text-xs font-medium text-zinc-400">Dice Roller</span>
+
+                      <TooltipProvider>
+                        <Tooltip delayDuration={300}>
+                          <TooltipTrigger asChild>
+                            <button className="p-1 hover:bg-white/5 rounded-full text-zinc-500 hover:text-zinc-300 transition-colors">
+                              <Info className="w-3 h-3" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-gradient-to-b from-zinc-900 to-black border border-white/10 text-zinc-300 p-4 w-[380px] space-y-4 text-xs shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-2 max-h-[80vh] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent" side="top" align="start">
+
+                            {/* Section: Actions */}
+                            <div>
+                              <h4 className="font-medium text-zinc-100 text-xs mb-2 flex items-center gap-2">
+                                <Dice5 className="w-3.5 h-3.5 text-zinc-500" />
+                                Contrôles Rapides
+                              </h4>
+                              <ul className="space-y-2 text-zinc-400">
+                                <li className="flex items-start gap-3">
+                                  <div className="mt-1.5 w-1 h-1 rounded-full bg-zinc-600 flex-shrink-0"></div>
+                                  <span>
+                                    <strong className="text-zinc-200 font-medium">Clic sur les dés</strong> : Ajoute à la main.<br />
+                                    <span className="text-[10px] opacity-70">
+                                      • Plusieurs clics = augmente le nombre (ex: 3 clics d6 = 3d6).<br />
+                                      • Dés différents = combinaison (ex: 1d6 + 1d20).
+                                    </span>
+                                  </span>
+                                </li>
+                                <li className="flex items-start gap-3">
+                                  <div className="mt-1.5 w-1 h-1 rounded-full bg-zinc-600 flex-shrink-0"></div>
+                                  <span><strong className="text-zinc-200 font-medium">Clic sur une stat</strong> : Ajoute votre modificateur (FOR, DEX, etc.) au calcul.</span>
+                                </li>
+                                <li className="flex items-start gap-3">
+                                  <div className="mt-1.5 w-1 h-1 rounded-full bg-zinc-600 flex-shrink-0"></div>
+                                  <span><strong className="text-zinc-200 font-medium">Entrée</strong> : Lance les dés immédiatement.</span>
+                                </li>
+                              </ul>
+                            </div>
+
+                            {/* Section: Interface */}
+                            <div>
+                              <h4 className="font-medium text-zinc-100 text-xs mb-2 flex items-center gap-2">
+                                <SwitchCamera className="w-3.5 h-3.5 text-zinc-500" />
+                                Interface & Options
+                              </h4>
+                              <div className="grid grid-cols-2 gap-2 text-[10px] text-zinc-400">
+                                <div className="flex items-center gap-2.5 bg-white/[0.03] p-2 rounded-md border border-white/5">
+                                  <Shield className="w-4 h-4 text-zinc-300 flex-shrink-0" />
+                                  <div className="flex flex-col gap-0.5">
+                                    <strong className="text-zinc-200 font-medium">Privé</strong>
+                                    <span className="text-[9px] opacity-60">Visible par vous & MJ</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2.5 bg-white/[0.03] p-2 rounded-md border border-white/5">
+                                  <Box className="w-4 h-4 text-zinc-300 flex-shrink-0" />
+                                  <div className="flex flex-col gap-0.5">
+                                    <strong className="text-zinc-200 font-medium">3D</strong>
+                                    <span className="text-[9px] opacity-60">Animation des dés</span>
+                                  </div>
+                                </div>
+                                {userName !== "MJ" && (
+                                  <div className="flex items-center gap-2.5 bg-white/[0.03] p-2 rounded-md border border-white/5">
+                                    <EyeOff className="w-4 h-4 text-zinc-300 flex-shrink-0" />
+                                    <div className="flex flex-col gap-0.5">
+                                      <strong className="text-zinc-200 font-medium">Blind</strong>
+                                      <span className="text-[9px] opacity-60">Caché (sauf pour MJ)</span>
+                                    </div>
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-2.5 bg-white/[0.03] p-2 rounded-md border border-white/5">
+                                  <Store className="w-4 h-4 text-zinc-300 flex-shrink-0" />
+                                  <div className="flex flex-col gap-0.5">
+                                    <strong className="text-zinc-200 font-medium">Boutique</strong>
+                                    <span className="text-[9px] opacity-60">Skins de dés</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Section: Commandes Manuelles */}
+                            <div>
+                              <h4 className="font-medium text-zinc-100 text-xs mb-2 flex items-center gap-2">
+                                <Keyboard className="w-3.5 h-3.5 text-zinc-500" />
+                                Syntaxe Manuelle
+                              </h4>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="flex flex-col gap-1 p-2 rounded bg-black/20 border border-white/5">
+                                  <code className="text-zinc-300 font-mono text-[10px]">1d20</code>
+                                  <span className="text-zinc-500 text-[10px]">Lancer simple</span>
+                                </div>
+                                <div className="flex flex-col gap-1 p-2 rounded bg-black/20 border border-white/5">
+                                  <code className="text-zinc-300 font-mono text-[10px]">1d20 + 5</code>
+                                  <span className="text-zinc-500 text-[10px]">Modificateur</span>
+                                </div>
+                                <div className="flex flex-col gap-1 p-2 rounded bg-black/20 border border-white/5">
+                                  <code className="text-zinc-300 font-mono text-[10px]">2d6 + 1d4</code>
+                                  <span className="text-zinc-500 text-[10px]">Combinaison</span>
+                                </div>
+                                <div className="flex flex-col gap-1 p-2 rounded bg-black/20 border border-white/5">
+                                  <code className="text-zinc-300 font-mono text-[10px]">2d20kh1</code>
+                                  <span className="text-zinc-500 text-[10px]">Avantage</span>
+                                </div>
+                                <div className="flex flex-col gap-1 p-2 rounded bg-black/20 border border-white/5">
+                                  <code className="text-zinc-300 font-mono text-[10px]">2d20kl1</code>
+                                  <span className="text-zinc-500 text-[10px]">Désavantage</span>
+                                </div>
+                                <div className="flex flex-col gap-1 p-2 rounded bg-black/20 border border-white/5">
+                                  <code className="text-zinc-300 font-mono text-[10px]">(1d8+2)*2</code>
+                                  <span className="text-zinc-500 text-[10px]">Calculs</span>
+                                </div>
+                              </div>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -695,8 +808,10 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                       {/* Result Display Area (Above Input) */}
                       <div className="px-6 pt-4 pb-0 min-h-[3.5rem] flex flex-col justify-end">
                         {(isLoading || latestResult) && (
-                          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-                            <div className="flex items-baseline gap-2 w-full overflow-hidden">
+                          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 relative group">
+
+                            {/* Blur effect container for Blind Rolls */}
+                            <div className={`flex items-baseline gap-2 w-full overflow-hidden transition-all duration-500 ${latestResult?.isBlind ? 'blur-md opacity-40 select-none' : ''}`}>
                               <span className="text-3xl font-bold font-mono text-zinc-100 tabular-nums tracking-tight flex-shrink-0">
                                 {scrambledValue}
                               </span>
@@ -719,6 +834,15 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                                 )}
                               </div>
                             </div>
+
+                            {/* Overlay for Blind Rolls */}
+                            {latestResult?.isBlind && !isLoading && (
+                              <div className="absolute inset-0 flex items-center justify-start gap-2 text-zinc-500">
+                                <EyeOff className="w-5 h-5 animate-pulse" />
+                                <span className="text-xs font-medium tracking-widest uppercase opacity-80">Résultat Masqué</span>
+                              </div>
+                            )}
+
                           </div>
                         )}
                       </div>
@@ -776,23 +900,21 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                                 <Box className="w-4 h-4" />
                               </button>
 
+                              <button
+                                onClick={() => setIsPrivate(!isPrivate)}
+                                className={`p-2 rounded-lg transition-all duration-300 border ${isPrivate ? 'bg-amber-500/20 border-amber-500/50 text-amber-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
+                                title="Privé"
+                              >
+                                <Shield className="w-4 h-4" />
+                              </button>
                               {userName !== "MJ" && (
-                                <>
-                                  <button
-                                    onClick={() => setIsPrivate(!isPrivate)}
-                                    className={`p-2 rounded-lg transition-all duration-300 border ${isPrivate ? 'bg-amber-500/20 border-amber-500/50 text-amber-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
-                                    title="GM Only (Masqué)"
-                                  >
-                                    <Shield className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    onClick={() => setIsBlind(!isBlind)}
-                                    className={`p-2 rounded-lg transition-all duration-300 border ${isBlind ? 'bg-red-500/20 border-red-500/50 text-red-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
-                                    title="Blind Roll (Caché)"
-                                  >
-                                    <EyeOff className="w-4 h-4" />
-                                  </button>
-                                </>
+                                <button
+                                  onClick={() => setIsBlind(!isBlind)}
+                                  className={`p-2 rounded-lg transition-all duration-300 border ${isBlind ? 'bg-red-500/20 border-red-500/50 text-red-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
+                                  title="Blind Roll (Caché)"
+                                >
+                                  <EyeOff className="w-4 h-4" />
+                                </button>
                               )}
                             </div>
 
@@ -856,12 +978,32 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                         {!showStats ? (
                           // History List
                           <div className="space-y-3">
-                            {firebaseRolls.filter(canDisplayRoll).length === 0 ? (
+                            {/* Filter UI */}
+                            <div className="flex items-center gap-2 pb-2 mb-2 border-b border-white/5 overflow-x-auto scrollbar-none">
+                              <Filter className="w-3 h-3 text-zinc-500 flex-shrink-0" />
+                              <button
+                                onClick={() => setSelectedPlayerFilter(null)}
+                                className={`text-[10px] px-2 py-1 rounded-md transition-colors whitespace-nowrap ${!selectedPlayerFilter ? 'bg-white/10 text-white font-medium' : 'text-zinc-500 hover:text-zinc-300'}`}
+                              >
+                                Tous
+                              </button>
+                              {Array.from(new Set(firebaseRolls.map(r => r.userName))).sort().map(player => (
+                                <button
+                                  key={player}
+                                  onClick={() => setSelectedPlayerFilter(player)}
+                                  className={`text-[10px] px-2 py-1 rounded-md transition-colors whitespace-nowrap ${selectedPlayerFilter === player ? 'bg-white/10 text-white font-medium' : 'text-zinc-500 hover:text-zinc-300'}`}
+                                >
+                                  {player}
+                                </button>
+                              ))}
+                            </div>
+
+                            {firebaseRolls.filter(canDisplayRoll).filter(r => !selectedPlayerFilter || r.userName === selectedPlayerFilter).length === 0 ? (
                               <div className="text-center text-zinc-500 py-8 text-xs italic">
-                                Aucun lancer récent...
+                                Aucun lancer trouvé...
                               </div>
                             ) : (
-                              firebaseRolls.filter(canDisplayRoll).map((roll) => (
+                              firebaseRolls.filter(canDisplayRoll).filter(r => !selectedPlayerFilter || r.userName === selectedPlayerFilter).map((roll) => (
                                 <div key={roll.id} className="group relative p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all">
                                   <div className="flex items-start gap-3">
                                     <div className="flex-shrink-0 mt-0.5">
@@ -884,7 +1026,9 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                                       </div>
                                       <div className="text-[11px] font-mono text-zinc-500 truncate mb-1">{roll.notation}</div>
                                       <div className="flex items-center justify-between">
-                                        <div className="text-sm font-bold text-zinc-200">Total: {roll.total}</div>
+                                        <div className={`text-sm font-bold text-zinc-200 transaction-all duration-300 ${roll.isBlind && userName !== "MJ" ? 'blur-sm opacity-50 select-none' : ''}`}>
+                                          Total: {roll.total}
+                                        </div>
                                         <button
                                           onClick={() => rerollFromFirebase(roll)}
                                           className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all text-zinc-400 hover:text-zinc-200"
