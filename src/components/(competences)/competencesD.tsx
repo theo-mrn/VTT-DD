@@ -266,7 +266,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
     <>
       <div ref={(el) => { containerRef.current = el }} className="w-full bg-[#1c1c1c] rounded-[length:var(--block-radius,0.5rem)] border border-[#333] flex flex-col items-stretch overflow-hidden" style={style}>
         {/* Header Compact */}
-        <div className="p-3 border-b border-[#333] flex flex-col sm:flex-row gap-3 items-center justify-between bg-black/20 backdrop-blur-[2px]">
+        <div className="p-3 border-b border-[#333] flex flex-col sm:flex-row gap-3 items-center justify-between">
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <h2 className="text-lg font-bold text-[#c0a080] shrink-0">
               Compétences
