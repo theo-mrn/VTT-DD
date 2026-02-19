@@ -19,9 +19,10 @@ interface CompetencesDisplayProps {
   canEdit?: boolean;
   onOpenFullscreen?: () => void;
   onHeightChange?: (height: number) => void;
+  style?: React.CSSProperties;
 }
 
-export default function CompetencesDisplay({ roomId, characterId, canEdit = false, onOpenFullscreen, onHeightChange }: CompetencesDisplayProps) {
+export default function CompetencesDisplay({ roomId, characterId, canEdit = false, onOpenFullscreen, onHeightChange, style }: CompetencesDisplayProps) {
   const { competences, refreshCompetences, selectedCharacter, setSelectedCharacter, characters, isLoading } = useCharacter();
   const [selectedCompetence, setSelectedCompetence] = useState<Competence | null>(null);
   const [newBonus, setNewBonus] = useState<{ stat: keyof BonusData | undefined; value: number }>({
@@ -182,7 +183,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
 
     if (filteredCompetences.length === 0) {
       return (
-        <div className="flex flex-col items-center justify-center py-12 text-[#666]">
+        <div className="flex flex-col items-center justify-center py-12 text-[color:var(--text-secondary,#666)]">
           <p className="text-sm">Aucune compétence trouvée</p>
         </div>
       );
@@ -213,7 +214,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
                 w-2 h-2 rounded-full shrink-0
                 ${competence.isActive ? "bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.6)]" : "bg-gray-600"}
               `} />
-              <h3 className={`font-semibold text-sm truncate ${competence.isActive ? "text-[#c0a080]" : "text-[#d4d4d4]"}`}>
+              <h3 className={`font-semibold text-sm truncate ${competence.isActive ? "text-[color:var(--accent-brown)]" : "text-[color:var(--text-primary,#d4d4d4)]"}`}>
                 {competence.name.replace(/^🔄\s*/, "")}
               </h3>
               {competence.name.startsWith("🔄") && (
@@ -255,7 +256,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
 
   if (isLoading) {
     return (
-      <div className="w-full bg-[#242424] rounded-lg p-8 text-center text-[#888]">
+      <div className="w-full bg-[#242424] rounded-lg p-8 text-center text-[color:var(--text-secondary,#888)]">
         Chargement...
       </div>
     );
@@ -263,9 +264,9 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
 
   return (
     <>
-      <div ref={(el) => { containerRef.current = el }} className="w-full bg-[#1c1c1c] rounded-lg border border-[#333] flex flex-col items-stretch">
+      <div ref={(el) => { containerRef.current = el }} className="w-full bg-[#1c1c1c] rounded-[length:var(--block-radius,0.5rem)] border border-[#333] flex flex-col items-stretch overflow-hidden" style={style}>
         {/* Header Compact */}
-        <div className="p-3 border-b border-[#333] flex flex-col sm:flex-row gap-3 items-center justify-between bg-[#242424]">
+        <div className="p-3 border-b border-[#333] flex flex-col sm:flex-row gap-3 items-center justify-between bg-black/20 backdrop-blur-[2px]">
           <div className="flex items-center gap-3 w-full sm:w-auto">
             <h2 className="text-lg font-bold text-[#c0a080] shrink-0">
               Compétences
@@ -277,12 +278,12 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
                 placeholder="Rechercher..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 pl-8 bg-[#1c1c1c] border-[#333] text-[#d4d4d4] text-sm focus:ring-1 focus:ring-[#c0a080]"
+                className="h-9 pl-8 bg-[#1c1c1c] border-[#333] text-[color:var(--text-primary,#d4d4d4)] text-sm focus:ring-1 focus:ring-[#c0a080]"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#666] hover:text-[#d4d4d4]"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[color:var(--text-secondary,#666)] hover:text-[color:var(--text-primary,#d4d4d4)]"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -317,7 +318,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
           </div>
         </div>
 
-        <div className="bg-[#1c1c1c] p-3 flex-1">
+        <div className="bg-transparent p-3 flex-1 rounded-b-lg">
           {renderCompetences(activeTab as "all" | "passive" | "limitée")}
         </div>
       </div>

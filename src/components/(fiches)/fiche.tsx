@@ -12,7 +12,7 @@ import {
   uploadBytes,
   getDownloadURL
 } from '@/lib/firebase';
-import { Heart, Shield, Edit, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Trash2, PlusCircle } from 'lucide-react';
+import { Heart, Shield, Edit, Settings, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Trash2, PlusCircle, Expand, FileEdit, LayoutDashboard, Search, FileDown, UploadCloud, RotateCcw, Droplet, Minus, Plus } from 'lucide-react';
 import InventoryManagement2 from '@/components/(inventaire)/inventaire2';
 import CompetencesDisplay from "@/components/(competences)/competencesD";
 import Competences from "@/components/(competences)/competences";
@@ -20,11 +20,11 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useCharacter, Character } from '@/contexts/CharacterContext';
 import { Statistiques } from '@/components/Statistiques';
 import { WidgetAvatar, WidgetDetails, WidgetStats, WidgetVitals, WidgetCombatStats } from './FicheWidgets';
-import { WidgetDices, WidgetBourse, WidgetEffects, WidgetNotes } from './FicheWidgetsExtra';
+import { WidgetBourse, WidgetEffects } from './FicheWidgetsExtra';
 import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { LayoutDashboard, RotateCcw, Settings, Minus, Plus } from 'lucide-react';
+
 import {
   Drawer,
   DrawerClose,
@@ -59,10 +59,8 @@ const DEFAULT_LAYOUT: Layout[] = [
 ];
 
 const WIDGET_REGISTRY = [
-  { id: 'dices', label: 'Lanceur de dés', default: { w: 6, h: 4, minW: 4, minH: 3 } },
   { id: 'bourse', label: 'Bourse', default: { w: 6, h: 4, minW: 4, minH: 3 } },
   { id: 'effects', label: 'Effets Actifs', default: { w: 6, h: 4, minW: 4, minH: 3 } },
-  { id: 'notes', label: 'Notes', default: { w: 6, h: 4, minW: 4, minH: 3 } },
   // Core widgets available to re-add if removed
   // { id: 'stats', label: 'Caractéristiques', default: { w: 6, h: 5, minW: 4, minH: 3 } },
   // { id: 'inventory', label: 'Inventaire', default: { w: 6, h: 5, minW: 4, minH: 4 } },
@@ -213,13 +211,70 @@ export default function Component() {
     setLayout(DEFAULT_LAYOUT);
   };
 
-  const handleResetColors = async () => {
-    setCustomizationForm({
-      theme_background: '#1c1c1c',
-      theme_secondary_color: '#242424',
-    });
-    setBgType('color');
-    setBlockType('color');
+  const handleExportConfig = () => {
+    const exportData = {
+      theme: customizationForm,
+      layout,
+    };
+    const configData = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([configData], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${selectedCharacter?.Nomperso || 'character'}_theme.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success("Configuration exportée avec succès !");
+  };
+
+  const handleImportConfig = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const json = JSON.parse(event.target?.result as string);
+
+        // Backward compatibility: If no 'theme' root is found, assume the old format
+        const themeData = json.theme ? json.theme : json;
+
+        setCustomizationForm({
+          ...customizationForm,
+          theme_background: themeData.theme_background || customizationForm.theme_background,
+          theme_secondary_color: themeData.theme_secondary_color || customizationForm.theme_secondary_color,
+          theme_text_color: themeData.theme_text_color || customizationForm.theme_text_color,
+          theme_text_secondary_color: themeData.theme_text_secondary_color || customizationForm.theme_text_secondary_color,
+          theme_border_radius: themeData.theme_border_radius ?? customizationForm.theme_border_radius,
+        });
+
+        // Update local UI states for bg/block types if they are images
+        if (themeData.theme_background) {
+          if (themeData.theme_background.startsWith('http') || themeData.theme_background.startsWith('data:')) setBgType('image');
+          else setBgType('color');
+        }
+        if (themeData.theme_secondary_color) {
+          if (themeData.theme_secondary_color.startsWith('http') || themeData.theme_secondary_color.startsWith('data:')) setBlockType('image');
+          else setBlockType('color');
+        }
+
+        // Apply layout if included
+        if (json.layout && Array.isArray(json.layout)) {
+          setLayout(json.layout);
+        }
+
+        toast.success("Thème et disposition importés avec succès !");
+      } catch (error) {
+        toast.error("Format de fichier invalide.");
+        console.error("Error parsing theme config:", error);
+      }
+    };
+    reader.readAsText(file);
+
+    // Reset input so the same file can be imported again if needed
+    e.target.value = '';
   };
 
   useEffect(() => {
@@ -353,6 +408,9 @@ export default function Component() {
         setCustomizationForm({
           theme_background: selectedCharacter.theme_background || '#1c1c1c',
           theme_secondary_color: selectedCharacter.theme_secondary_color || '#242424',
+          theme_text_color: selectedCharacter.theme_text_color || '#d4d4d4',
+          theme_text_secondary_color: selectedCharacter.theme_text_secondary_color || '#a0a0a0',
+          theme_border_radius: selectedCharacter.theme_border_radius ?? 8,
         });
         setBgType(selectedCharacter.theme_background?.startsWith('http') ? 'image' : 'color');
         setBlockType(selectedCharacter.theme_secondary_color?.startsWith('http') ? 'image' : 'color');
@@ -393,7 +451,7 @@ export default function Component() {
 
   const RaceAbilitiesModal: React.FC<RaceAbilitiesModalProps> = ({ abilities, onClose }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] max-w-md w-full text-center max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg sm:text-xl font-bold text-[#c0a080] mb-4">Capacités Raciales</h2>
         <div className="space-y-3 sm:space-y-4">
           {abilities.map((ability, index) => (
@@ -488,7 +546,7 @@ export default function Component() {
 
   const LevelUpConfirmationModal: React.FC<{ onClose: () => void; updatedCharacter: Character }> = ({ onClose, updatedCharacter }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center">
+      <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] max-w-md w-full text-center">
         <h2 className="text-xl sm:text-2xl font-bold text-[#c0a0a0] mb-4">Niveau Augmenté !</h2>
         <p className="text-sm sm:text-base text-[#d4d4d4] mb-4">
           Félicitations, votre personnage a monté de niveau ! Voici les nouvelles valeurs :
@@ -579,6 +637,11 @@ export default function Component() {
 
   const bgValue = (isLayoutEditing ? customizationForm.theme_background : selectedCharacter?.theme_background) || '';
   const secondaryValue = (isLayoutEditing ? customizationForm.theme_secondary_color : selectedCharacter?.theme_secondary_color) || '';
+  const textValue = (isLayoutEditing ? customizationForm.theme_text_color : selectedCharacter?.theme_text_color) || '#d4d4d4';
+  const textSecondaryValue = (isLayoutEditing ? customizationForm.theme_text_secondary_color : selectedCharacter?.theme_text_secondary_color) || '#a0a0a0';
+  const borderRadiusValue = isLayoutEditing
+    ? (customizationForm.theme_border_radius ?? 8)
+    : (selectedCharacter?.theme_border_radius ?? 8);
 
   const mainStyle: React.CSSProperties = bgValue
     ? (bgValue.startsWith('http')
@@ -586,11 +649,16 @@ export default function Component() {
       : { backgroundColor: bgValue })
     : {};
 
-  const boxStyle: React.CSSProperties = secondaryValue
-    ? (secondaryValue.startsWith('http')
-      ? { backgroundImage: `url(${secondaryValue})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }
-      : { backgroundColor: secondaryValue })
-    : {};
+  const boxStyle: React.CSSProperties = {
+    ...(secondaryValue
+      ? (secondaryValue.startsWith('http')
+        ? { backgroundImage: `url(${secondaryValue})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }
+        : { backgroundColor: secondaryValue })
+      : {}),
+    '--text-primary': textValue,
+    '--text-secondary': textSecondaryValue,
+    '--block-radius': `${borderRadiusValue}px`,
+  } as React.CSSProperties & { '--text-primary'?: string, '--text-secondary'?: string, '--block-radius'?: string };
 
   return (
     <TooltipProvider>
@@ -678,6 +746,13 @@ export default function Component() {
                     <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'background')} />
                     <Upload size={14} />
                   </label>
+                  <button
+                    onClick={() => { setCustomizationForm({ ...customizationForm, theme_background: '#1c1c1c' }); setBgType('color'); }}
+                    className="p-0.5 hover:bg-[#333] rounded text-[#666] hover:text-[#a0a0a0] transition-colors"
+                    title="Réinitialiser"
+                  >
+                    <RotateCcw size={12} />
+                  </button>
                 </div>
               </div>
 
@@ -696,22 +771,103 @@ export default function Component() {
                     <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'block')} />
                     <Upload size={14} />
                   </label>
+                  <button
+                    onClick={() => { setCustomizationForm({ ...customizationForm, theme_secondary_color: '#242424' }); setBlockType('color'); }}
+                    className="p-0.5 hover:bg-[#333] rounded text-[#666] hover:text-[#a0a0a0] transition-colors"
+                    title="Réinitialiser"
+                  >
+                    <RotateCcw size={12} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Texte */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-[#a0a0a0] font-semibold">Texte:</span>
+                <div className="flex items-center gap-1 bg-[#1c1c1c] p-1 rounded border border-[#3a3a3a]">
+                  <input
+                    type="color"
+                    value={customizationForm.theme_text_color || '#d4d4d4'}
+                    onChange={(e) => setCustomizationForm({ ...customizationForm, theme_text_color: e.target.value })}
+                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
+                    title="Couleur du texte"
+                  />
+                  <button
+                    onClick={() => setCustomizationForm({ ...customizationForm, theme_text_color: '#d4d4d4' })}
+                    className="p-0.5 hover:bg-[#333] rounded text-[#666] hover:text-[#a0a0a0] transition-colors"
+                    title="Réinitialiser"
+                  >
+                    <RotateCcw size={12} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Texte Sec. */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-[#a0a0a0] font-semibold">Texte Sec.:</span>
+                <div className="flex items-center gap-1 bg-[#1c1c1c] p-1 rounded border border-[#3a3a3a]">
+                  <input
+                    type="color"
+                    value={customizationForm.theme_text_secondary_color || '#a0a0a0'}
+                    onChange={(e) => setCustomizationForm({ ...customizationForm, theme_text_secondary_color: e.target.value })}
+                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
+                    title="Couleur du texte secondaire"
+                  />
+                  <button
+                    onClick={() => setCustomizationForm({ ...customizationForm, theme_text_secondary_color: '#a0a0a0' })}
+                    className="p-0.5 hover:bg-[#333] rounded text-[#666] hover:text-[#a0a0a0] transition-colors"
+                    title="Réinitialiser"
+                  >
+                    <RotateCcw size={12} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Arrondi des bordures */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-[#a0a0a0] font-semibold">Arrondi:</span>
+                <div className="flex items-center gap-2 bg-[#1c1c1c] px-2 py-1 rounded border border-[#3a3a3a]">
+                  <input
+                    type="range"
+                    min="0"
+                    max="32"
+                    step="2"
+                    value={customizationForm.theme_border_radius ?? 8}
+                    onChange={(e) => setCustomizationForm({ ...customizationForm, theme_border_radius: parseInt(e.target.value, 10) })}
+                    className="w-20 cursor-pointer accent-[#d4b48f]"
+                    title="Arrondi des blocs"
+                  />
+                  <span className="text-xs text-[#d4d4d4] w-6 text-right">{customizationForm.theme_border_radius ?? 8}px</span>
+                  <button
+                    onClick={() => setCustomizationForm({ ...customizationForm, theme_border_radius: 8 })}
+                    className="p-0.5 hover:bg-[#333] rounded text-[#666] hover:text-[#a0a0a0] transition-colors"
+                    title="Réinitialiser"
+                  >
+                    <RotateCcw size={12} />
+                  </button>
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
+              <label className="cursor-pointer bg-blue-900/50 text-blue-200 border border-blue-900 px-2 py-1.5 rounded hover:bg-blue-900/80 transition text-xs font-bold flex items-center gap-1" title="Importer un thème">
+                <input type="file" className="hidden" accept=".json" onChange={handleImportConfig} />
+                <UploadCloud size={14} />
+                <span className="hidden sm:inline">Importer</span>
+              </label>
+
               <button
-                onClick={handleResetColors}
-                className="bg-red-900/50 text-red-200 border border-red-900 px-2 py-1.5 rounded hover:bg-red-900/80 transition text-xs font-bold flex items-center gap-1"
-                title="Réinitialiser le style"
+                onClick={handleExportConfig}
+                className="bg-green-900/50 text-green-200 border border-green-900 px-2 py-1.5 rounded hover:bg-green-900/80 transition text-xs font-bold flex items-center gap-1"
+                title="Exporter le thème"
               >
-                <Palette size={14} />
-                <RotateCcw size={12} />
+                <FileDown size={14} />
+                <span className="hidden sm:inline">Exporter</span>
               </button>
+
               <button
                 onClick={handleResetPositions}
-                className="bg-red-900/50 text-red-200 border border-red-900 px-2 py-1.5 rounded hover:bg-red-900/80 transition text-xs font-bold flex items-center gap-1"
+                className="bg-red-900/50 text-red-200 border border-red-900 px-2 py-1.5 rounded hover:bg-red-900/80 transition text-xs font-bold flex items-center gap-1 ml-2"
                 title="Réinitialiser la disposition"
               >
                 <LayoutDashboard size={14} />
@@ -760,7 +916,7 @@ export default function Component() {
           </div>
         )}
 
-        <div className="max-w-7xl mx-auto bg-[#242424] rounded-lg shadow-2xl p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6" style={mainStyle}>
+        <div className="max-w-7xl mx-auto bg-[#242424] rounded-[length:var(--block-radius,0.5rem)] shadow-2xl p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6" style={mainStyle}>
           {selectedCharacter && !isEditing && (
             isLayoutEditing ? (
               <ResponsiveGridLayout
@@ -778,68 +934,62 @@ export default function Component() {
               >
                 <div key="avatar" className="relative group hover:z-[100]">
                   <WidgetControls id="avatar" updateWidgetDim={updateWidgetDim} widthMode="incremental" />
-                  <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                  <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <WidgetAvatar style={boxStyle} />
                   </div>
                 </div>
                 <div key="details" className="relative group hover:z-[100]">
                   <WidgetControls id="details" updateWidgetDim={updateWidgetDim} widthMode="incremental" />
-                  <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                  <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} />
                   </div>
                 </div>
                 <div key="stats" className="relative group hover:z-[100]">
                   <WidgetControls id="stats" updateWidgetDim={updateWidgetDim} widthMode="presets" />
-                  <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                  <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <WidgetStats style={boxStyle} />
                   </div>
                 </div>
                 <div key="vitals" className="relative group hover:z-[100]">
                   <WidgetControls id="vitals" updateWidgetDim={updateWidgetDim} widthMode="presets" />
-                  <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                  <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <WidgetVitals style={boxStyle} />
                   </div>
                 </div>
                 <div key="combat_stats" className="relative group hover:z-[100]">
                   <WidgetControls id="combat_stats" updateWidgetDim={updateWidgetDim} widthMode="presets" />
-                  <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                  <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <WidgetCombatStats style={boxStyle} />
                   </div>
                 </div>
                 <div key="inventory" className="relative group hover:z-[100]">
                   <WidgetControls id="inventory" updateWidgetDim={updateWidgetDim} widthMode="presets" />
-                  <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                  <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <InventoryManagement2
                       playerName={selectedCharacter.Nomperso}
                       roomId={roomId!}
                       canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
+                      style={boxStyle}
                     />
                   </div>
                 </div>
                 <div key="skills" className="relative group hover:z-[100]">
                   <WidgetControls id="skills" updateWidgetDim={updateWidgetDim} widthMode="presets" />
-                  <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                  <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <CompetencesDisplay
                       roomId={roomId!}
                       characterId={selectedCharacter.id}
                       canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
                       onOpenFullscreen={() => setShowCompetencesFullscreen(true)}
                       onHeightChange={(h) => handleWidgetResize('skills', h)}
+                      style={boxStyle}
                     />
                   </div>
                 </div>
-                {layout.find(l => l.i === 'dices') && (
-                  <div key="dices" className="relative group hover:z-[100]">
-                    <WidgetControls id="dices" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} />
-                    <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
-                      <WidgetDices style={boxStyle} />
-                    </div>
-                  </div>
-                )}
                 {layout.find(l => l.i === 'bourse') && (
                   <div key="bourse" className="relative group hover:z-[100]">
                     <WidgetControls id="bourse" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} />
-                    <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                    <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                       <WidgetBourse style={boxStyle} />
                     </div>
                   </div>
@@ -847,16 +997,8 @@ export default function Component() {
                 {layout.find(l => l.i === 'effects') && (
                   <div key="effects" className="relative group hover:z-[100]">
                     <WidgetControls id="effects" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} />
-                    <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
+                    <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                       <WidgetEffects style={boxStyle} />
-                    </div>
-                  </div>
-                )}
-                {layout.find(l => l.i === 'notes') && (
-                  <div key="notes" className="relative group hover:z-[100]">
-                    <WidgetControls id="notes" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} />
-                    <div className="h-full w-full overflow-hidden rounded bg-[#242424] border border-dashed border-gray-600">
-                      <WidgetNotes style={boxStyle} />
                     </div>
                   </div>
                 )}
@@ -876,10 +1018,8 @@ export default function Component() {
                 <div key="avatar" className="overflow-hidden h-full"><WidgetAvatar style={boxStyle} /></div>
                 <div key="details" className="overflow-hidden h-full"><WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} /></div>
                 <div key="stats" className="overflow-hidden h-full"><WidgetStats style={boxStyle} /></div>
-                {layout.find(l => l.i === 'dices') && <div key="dices" className="overflow-hidden h-full"><WidgetDices style={boxStyle} /></div>}
                 {layout.find(l => l.i === 'bourse') && <div key="bourse" className="overflow-hidden h-full"><WidgetBourse style={boxStyle} /></div>}
                 {layout.find(l => l.i === 'effects') && <div key="effects" className="overflow-hidden h-full"><WidgetEffects style={boxStyle} /></div>}
-                {layout.find(l => l.i === 'notes') && <div key="notes" className="overflow-hidden h-full"><WidgetNotes style={boxStyle} /></div>}
                 <div key="vitals" className="overflow-hidden h-full">
                   <Drawer>
                     <DrawerTrigger asChild>
@@ -968,6 +1108,7 @@ export default function Component() {
                     playerName={selectedCharacter.Nomperso}
                     roomId={roomId!}
                     canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
+                    style={boxStyle}
                   />
                 </div>
                 <div key="skills" className="overflow-hidden h-full">
@@ -977,6 +1118,7 @@ export default function Component() {
                     canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
                     onOpenFullscreen={() => setShowCompetencesFullscreen(true)}
                     onHeightChange={(h) => handleWidgetResize('skills', h)}
+                    style={boxStyle}
                   />
                 </div>
               </ResponsiveGridLayout>
@@ -992,7 +1134,7 @@ export default function Component() {
           )}
 
           {isEditing && (
-            <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-lg border border-[#3a3a3a]">
+            <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a]">
               <h2 className="text-lg sm:text-xl font-bold text-[#c0a0a0] mb-4">
                 Modifier {selectedCharacter?.Nomperso || "Personnage"}
               </h2>
@@ -1106,7 +1248,7 @@ export default function Component() {
 
           {showLevelUpModal && selectedCharacter && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-lg border border-[#3a3a3a] max-w-md w-full text-center">
+              <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] max-w-md w-full text-center">
                 <h2 className="text-lg sm:text-xl font-bold text-[#c0a0a0] mb-4">Monter de Niveau</h2>
                 <p className="text-sm sm:text-base text-[#d4d4d4] mb-4">Lancez un dé pour augmenter les PV Max.</p>
                 <button
@@ -1140,7 +1282,7 @@ export default function Component() {
 
           {showStatistiques && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-[#1c1c1c] rounded-lg border border-[#3a3a3a] max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="bg-[#1c1c1c] rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] max-w-5xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="sticky top-0 bg-[#1c1c1c] border-b border-[#3a3a3a] p-4 flex justify-between items-center z-10">
                   <h2 className="text-lg sm:text-xl font-bold text-[#c0a080]">Statistiques des Joueurs</h2>
                   <button
