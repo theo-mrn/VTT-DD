@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { X, Send, Info, Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, ChevronRight, Box, Shield, EyeOff, History, RotateCcw, BarChart2, Store, SwitchCamera, Keyboard, Filter } from 'lucide-react';
@@ -61,7 +60,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
 
   // History State
   const [showHistory, setShowHistory] = useState(false);
-
+  const [showStats, setShowStats] = useState(false);
   const [firebaseRolls, setFirebaseRolls] = useState<FirebaseRoll[]>([]);
   const [selectedPlayerFilter, setSelectedPlayerFilter] = useState<string | null>(null);
 
@@ -956,75 +955,103 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
           >
             <div className="w-full rounded-xl relative bg-gradient-to-br from-black/[0.05] to-transparent dark:from-white/[0.08] dark:to-transparent backdrop-blur-md backdrop-saturate-150 border border-black/[0.05] dark:border-white/[0.08] text-black/90 dark:text-white shadow-sm">
               <div>
-
-
-                <div className="max-h-[280px] overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                  <div className="space-y-2">
-                    {/* Filter UI */}
-                    <div className="flex items-center gap-2 pb-2 mb-1 border-b border-white/5 overflow-x-auto scrollbar-none">
-                      <Filter className="w-3 h-3 text-zinc-500 flex-shrink-0" />
-                      <button
-                        onClick={() => setSelectedPlayerFilter(null)}
-                        className={`text-[10px] px-2 py-0.5 rounded-md transition-colors whitespace-nowrap ${!selectedPlayerFilter ? 'bg-white/10 text-white font-medium' : 'text-zinc-500 hover:text-zinc-300'}`}
-                      >
-                        Tous
-                      </button>
-                      {Array.from(new Set(firebaseRolls.map(r => r.userName))).sort().map(player => (
-                        <button
-                          key={player}
-                          onClick={() => setSelectedPlayerFilter(player)}
-                          className={`text-[10px] px-2 py-0.5 rounded-md transition-colors whitespace-nowrap ${selectedPlayerFilter === player ? 'bg-white/10 text-white font-medium' : 'text-zinc-500 hover:text-zinc-300'}`}
-                        >
-                          {player}
-                        </button>
-                      ))}
+                {/* Tabs */}
+                <div className="flex border-b border-white/5 px-2 pt-2">
+                  <button
+                    onClick={() => setShowStats(false)}
+                    className={`flex-1 pb-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-300 ${!showStats ? 'border-red-500 text-zinc-100' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <History className="w-3.5 h-3.5" />
+                      Historique
                     </div>
+                  </button>
+                  <button
+                    onClick={() => setShowStats(true)}
+                    className={`flex-1 pb-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-300 ${showStats ? 'border-red-500 text-zinc-100' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <BarChart2 className="w-3.5 h-3.5" />
+                      Statistiques
+                    </div>
+                  </button>
+                </div>
 
-                    {firebaseRolls.filter(canDisplayRoll).filter(r => !selectedPlayerFilter || r.userName === selectedPlayerFilter).length === 0 ? (
-                      <div className="text-center text-zinc-500 py-6 text-xs italic">
-                        Aucun lancer récent...
+                <div className="max-h-[300px] overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                  {!showStats ? (
+                    <div className="space-y-2">
+                      {/* Filter UI */}
+                      <div className="flex items-center gap-2 pb-2 mb-1 border-b border-white/5 overflow-x-auto scrollbar-none">
+                        <Filter className="w-3 h-3 text-zinc-500 flex-shrink-0" />
+                        <button
+                          onClick={() => setSelectedPlayerFilter(null)}
+                          className={`text-[10px] px-2 py-0.5 rounded-md transition-colors whitespace-nowrap ${!selectedPlayerFilter ? 'bg-white/10 text-white font-medium' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        >
+                          Tous
+                        </button>
+                        {Array.from(new Set(firebaseRolls.map(r => r.userName))).sort().map(player => (
+                          <button
+                            key={player}
+                            onClick={() => setSelectedPlayerFilter(player)}
+                            className={`text-[10px] px-2 py-0.5 rounded-md transition-colors whitespace-nowrap ${selectedPlayerFilter === player ? 'bg-white/10 text-white font-medium' : 'text-zinc-500 hover:text-zinc-300'}`}
+                          >
+                            {player}
+                          </button>
+                        ))}
                       </div>
-                    ) : (
-                      firebaseRolls.filter(canDisplayRoll).filter(r => !selectedPlayerFilter || r.userName === selectedPlayerFilter).map((roll) => (
-                        <div key={roll.id} className="group relative p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all">
-                          <div className="flex items-start gap-3">
-                            <div className="flex-shrink-0 mt-0.5">
-                              {roll.userAvatar ? (
-                                <img src={roll.userAvatar} alt="" className="w-8 h-8 rounded-full object-cover border border-white/10" />
-                              ) : (
-                                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center border border-white/10">
-                                  <span className="text-xs font-bold text-zinc-400">{roll.userName.substring(0, 2)}</span>
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between mb-0.5">
-                                <span className="text-xs font-bold text-zinc-300 truncate">{roll.userName}</span>
-                                <div className="flex items-center gap-1">
-                                  {roll.isPrivate && <Shield className="w-3 h-3 text-amber-500/70" />}
-                                  {roll.isBlind && <EyeOff className="w-3 h-3 text-red-500/70" />}
-                                  <span className="text-[10px] text-zinc-600">{new Date(roll.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                </div>
+
+                      {firebaseRolls.filter(canDisplayRoll).filter(r => !selectedPlayerFilter || r.userName === selectedPlayerFilter).length === 0 ? (
+                        <div className="text-center text-zinc-500 py-6 text-xs italic">
+                          Aucun lancer récent...
+                        </div>
+                      ) : (
+                        firebaseRolls.filter(canDisplayRoll).filter(r => !selectedPlayerFilter || r.userName === selectedPlayerFilter).map((roll) => (
+                          <div key={roll.id} className="group relative p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all">
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 mt-0.5">
+                                {roll.userAvatar ? (
+                                  <img src={roll.userAvatar} alt="" className="w-8 h-8 rounded-full object-cover border border-white/10" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center border border-white/10">
+                                    <span className="text-xs font-bold text-zinc-400">{roll.userName.substring(0, 2)}</span>
+                                  </div>
+                                )}
                               </div>
-                              <div className="text-[11px] font-mono text-zinc-500 truncate mb-1">{roll.notation}</div>
-                              <div className="flex items-center justify-between">
-                                <div className={`text-sm font-bold text-zinc-200 transition-all duration-300 ${roll.isBlind && userName !== "MJ" ? 'blur-sm opacity-50 select-none' : ''}`}>
-                                  Total: {roll.total}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-0.5">
+                                  <span className="text-xs font-bold text-zinc-300 truncate">{roll.userName}</span>
+                                  <div className="flex items-center gap-1">
+                                    {roll.isPrivate && <Shield className="w-3 h-3 text-amber-500/70" />}
+                                    {roll.isBlind && <EyeOff className="w-3 h-3 text-red-500/70" />}
+                                    <span className="text-[10px] text-zinc-600">{new Date(roll.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                  </div>
                                 </div>
-                                <button
-                                  onClick={() => rerollFromFirebase(roll)}
-                                  className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all text-zinc-400 hover:text-zinc-200"
-                                  title="Relancer"
-                                >
-                                  <RotateCcw className="w-3 h-3" />
-                                </button>
+                                <div className="text-[11px] font-mono text-zinc-500 truncate mb-1">{roll.notation}</div>
+                                <div className="flex items-center justify-between">
+                                  <div className={`text-sm font-bold text-zinc-200 transition-all duration-300 ${roll.isBlind && userName !== "MJ" ? 'blur-sm opacity-50 select-none' : ''}`}>
+                                    Total: {roll.total}
+                                  </div>
+                                  <button
+                                    onClick={() => rerollFromFirebase(roll)}
+                                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all text-zinc-400 hover:text-zinc-200"
+                                    title="Relancer"
+                                  >
+                                    <RotateCcw className="w-3 h-3" />
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
+                        ))
+                      )}
+                    </div>
+                  ) : (
+                    <DiceStats
+                      rolls={getFilteredRolls()}
+                      currentUserName={userName}
+                      isMJ={userName === "MJ"}
+                    />
+                  )}
                 </div>
               </div> {/* end inner div */}
             </div> {/* end rounded-xl card 2 */}
