@@ -53,49 +53,44 @@ export function ThemePublishTab({ currentConfig, onSuccess }: ThemePublishTabPro
     };
 
     return (
-        <div className="p-6 max-w-md mx-auto">
-            <div className="bg-[#1c1c1c] border border-[#3a3a3a] rounded-lg p-6">
-                <h3 className="text-lg font-bold text-[#d4d4d4] mb-2">Partager votre Thème</h3>
-                <p className="text-sm text-[#a0a0a0] mb-6">
-                    Publiez votre configuration actuelle (couleurs, fond, bordures, et disposition des blocs)
-                    pour que d'autres joueurs puissent l'utiliser.
-                </p>
+        <form onSubmit={handlePublish} className="flex flex-col gap-3 mt-2">
+            <p className="text-xs text-[#a0a0a0] leading-relaxed">
+                Publiez votre configuration actuelle (couleurs, fond, bordures, et disposition des blocs)
+                pour que d'autres joueurs puissent l'utiliser.
+            </p>
 
-                <form onSubmit={handlePublish} className="flex flex-col gap-4">
-                    <div className="flex flex-col gap-2">
-                        <label htmlFor="themeName" className="text-sm font-semibold text-[#d4d4d4]">Nom du Thème *</label>
-                        <input
-                            id="themeName"
-                            type="text"
-                            value={themeName}
-                            onChange={(e) => setThemeName(e.target.value)}
-                            placeholder="Ex: Nuit Sombre, Thème Forêt..."
-                            className="bg-[#111] border border-[#3a3a3a] rounded px-3 py-2 text-[#d4d4d4] focus:outline-none focus:border-[#d4b48f] transition-colors"
-                            required
-                            disabled={isPublishing}
-                            maxLength={40}
-                        />
-                    </div>
-
-                    <button
-                        type="submit"
-                        disabled={isPublishing || !themeName.trim()}
-                        className="mt-4 bg-[#7a2e2e]/80 text-[#d4b48f] border border-[#7a2e2e] hover:bg-[#7a2e2e] px-4 py-2.5 rounded font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isPublishing ? (
-                            <>
-                                <Loader2 size={18} className="animate-spin" />
-                                Publication...
-                            </>
-                        ) : (
-                            <>
-                                <Send size={18} />
-                                Publier sur le portail
-                            </>
-                        )}
-                    </button>
-                </form>
+            <div className="flex flex-col gap-1.5 mt-2">
+                <label htmlFor="themeName" className="text-xs font-semibold text-[#d4d4d4] ml-1">Nom du Thème *</label>
+                <input
+                    id="themeName"
+                    type="text"
+                    value={themeName}
+                    onChange={(e) => setThemeName(e.target.value)}
+                    placeholder="Ex: Nuit Sombre, Thème Forêt..."
+                    className="bg-[#111] border border-[#3a3a3a] rounded-lg px-3 py-2 text-sm text-[#d4d4d4] focus:outline-none focus:border-[#80c0a0] transition-colors"
+                    required
+                    disabled={isPublishing}
+                    maxLength={40}
+                />
             </div>
-        </div>
+
+            <button
+                type="submit"
+                disabled={isPublishing || !themeName.trim()}
+                className="mt-2 bg-[#80c0a0]/20 text-[#80c0a0] border border-[#80c0a0]/30 hover:bg-[#80c0a0]/30 hover:border-[#80c0a0]/50 px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+                {isPublishing ? (
+                    <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Publication...
+                    </>
+                ) : (
+                    <>
+                        <Send size={16} />
+                        Publier sur le portail
+                    </>
+                )}
+            </button>
+        </form>
     );
 }

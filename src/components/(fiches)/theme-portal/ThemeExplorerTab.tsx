@@ -9,15 +9,19 @@ interface ThemeExplorerTabProps {
     onApplyTheme: (config: ThemeConfig) => void;
     onPreviewTheme: (config: ThemeConfig) => void;
     onStopPreview: () => void;
+    searchQuery?: string;
 }
 
-export function ThemeExplorerTab({ onApplyTheme, onPreviewTheme, onStopPreview }: ThemeExplorerTabProps) {
+export function ThemeExplorerTab({ onApplyTheme, onPreviewTheme, onStopPreview, searchQuery = '' }: ThemeExplorerTabProps) {
     const [themes, setThemes] = useState<CommunityTheme[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [lockedPreviewId, setLockedPreviewId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchThemes();
+        console.log("ThemeExplorerTab mounted");
+        return () => console.log("ThemeExplorerTab unmounted");
     }, []);
 
     const fetchThemes = async () => {
@@ -71,19 +75,58 @@ export function ThemeExplorerTab({ onApplyTheme, onPreviewTheme, onStopPreview }
         );
     }
 
+    const filteredThemes = themes.filter(theme => {
+        if (!searchQuery.trim()) return true;
+        const lowerQuery = searchQuery.toLowerCase();
+        return theme.name.toLowerCase().includes(lowerQuery) || theme.authorName.toLowerCase().includes(lowerQuery);
+    });
+
+    if (filteredThemes.length === 0 && searchQuery.trim() !== '') {
+        return (
+            <div className="py-12 text-center text-[#a0a0a0]">
+                <p className="text-lg">🔍 Aucun thème ne correspond à "{searchQuery}".</p>
+                <p className="text-sm mt-2">Essayez d'autres mots-clés (par nom ou par auteur).</p>
+            </div>
+        );
+    }
+
     return (
         <div className="flex flex-col gap-2">
-            <p className="text-xs text-[#666] italic mb-1">
-                Survolez un thème pour l'aperçu en direct sur votre fiche, cliquez « Appliquer » pour l'adopter.
-            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                {themes.map((theme) => (
+                {filteredThemes.map((theme) => (
                     <ThemeCard
                         key={theme.id}
                         theme={theme}
-                        onApply={onApplyTheme}
-                        onHover={(t) => onPreviewTheme(theme.config)}
-                        onLeave={onStopPreview}
+                        isPreviewLocked={lockedPreviewId === theme.id}
+                        onTogglePreviewLock={() => {
+                            if (lockedPreviewId === theme.id) {
+                                setLockedPreviewId(null);
+                                onStopPreview(); // Unlock and revert
+                            } else {
+                                setLockedPreviewId(theme.id);
+                                onPreviewTheme(theme.config); // Lock and preview this one
+                            }
+                        }}
+                        onApply={(config) => {
+                            setLockedPreviewId(null);
+                            onApplyTheme(config);
+                        }}
+                        onHover={() => {
+                            if (!lockedPreviewId) {
+                                onPreviewTheme(theme.config);
+                            }
+                        }}
+                        onLeave={() => {
+                            if (!lockedPreviewId) {
+                                onStopPreview();
+                            } else if (lockedPreviewId !== theme.id) {
+                                // Restore the locked preview if leaving a non-locked hovered card
+                                const lockedTheme = themes.find(t => t.id === lockedPreviewId);
+                                if (lockedTheme) {
+                                    onPreviewTheme(lockedTheme.config);
+                                }
+                            }
+                        }}
                     />
                 ))}
             </div>

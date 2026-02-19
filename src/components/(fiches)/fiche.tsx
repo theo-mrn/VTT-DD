@@ -21,10 +21,10 @@ import { useCharacter, Character } from '@/contexts/CharacterContext';
 import { Statistiques } from '@/components/Statistiques';
 import { WidgetAvatar, WidgetDetails, WidgetStats, WidgetVitals, WidgetCombatStats } from './FicheWidgets';
 import { WidgetBourse, WidgetEffects } from './FicheWidgetsExtra';
-import { ThemePortalModal } from './theme-portal/ThemePortalModal';
 import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+import { FloatingEditTabs } from './FloatingEditTabs';
 
 import {
   Drawer,
@@ -59,7 +59,7 @@ const DEFAULT_LAYOUT: Layout[] = [
   { i: 'skills', x: 0, y: 17, w: 12, h: 8, minW: 6, minH: 6 }
 ];
 
-const WIDGET_REGISTRY = [
+export const WIDGET_REGISTRY = [
   { id: 'bourse', label: 'Bourse', default: { w: 6, h: 4, minW: 4, minH: 3 } },
   { id: 'effects', label: 'Effets Actifs', default: { w: 6, h: 4, minW: 4, minH: 3 } },
   // Core widgets available to re-add if removed
@@ -173,6 +173,8 @@ export default function Component() {
   }, [selectedCharacter]);
 
   const onLayoutChange = (currentLayout: Layout[]) => {
+    // Prevent the grid from immediately saving the previewed layout as the actual "layout" state
+    if (previewLayout) return;
     setLayout(currentLayout);
   };
 
@@ -739,7 +741,7 @@ export default function Component() {
                   className={`p-2 rounded-lg transition duration-200 flex items-center gap-1 text-xs sm:text-sm ${isLayoutEditing ? 'bg-[#c0a080] text-[#1c1c1c]' : 'bg-[#3a3a3a] text-[#80c0a0] hover:bg-[#4a4a4a]'}`}
                   title="Mode Édition (Style & Disposition)"
                 >
-                  <Settings size={16} />
+                  <Palette size={16} />
                   <span className="hidden sm:inline">Édition</span>
                 </button>
               )}
@@ -748,206 +750,35 @@ export default function Component() {
         </div>
 
         {isLayoutEditing && (
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-4 bg-[#2a2a2a] p-2 sm:p-4 rounded-lg border border-[#3a3a3a]">
-
-            {/* Zone de style discrète */}
-            <div className="flex items-center gap-4 text-xs sm:text-sm overflow-x-auto w-full md:w-auto">
-              {/* Fond */}
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-[#a0a0a0] font-semibold">Fond:</span>
-                <div className="flex items-center gap-1 bg-[#1c1c1c] p-1 rounded border border-[#3a3a3a]">
-                  <input
-                    type="color"
-                    value={customizationForm.theme_background && !customizationForm.theme_background.startsWith('http') ? customizationForm.theme_background : '#000000'}
-                    onChange={(e) => setCustomizationForm({ ...customizationForm, theme_background: e.target.value })}
-                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
-                    title="Couleur de fond"
-                  />
-                  <label className="cursor-pointer hover:text-white text-[#a0a0a0]">
-                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'background')} />
-                    <Upload size={14} />
-                  </label>
-                  <button
-                    onClick={() => { setCustomizationForm({ ...customizationForm, theme_background: '#1c1c1c' }); setBgType('color'); }}
-                    className="p-0.5 hover:bg-[#333] rounded text-[#666] hover:text-[#a0a0a0] transition-colors"
-                    title="Réinitialiser"
-                  >
-                    <RotateCcw size={12} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Blocs */}
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-[#a0a0a0] font-semibold">Blocs:</span>
-                <div className="flex items-center gap-1 bg-[#1c1c1c] p-1 rounded border border-[#3a3a3a]">
-                  <input
-                    type="color"
-                    value={customizationForm.theme_secondary_color && !customizationForm.theme_secondary_color.startsWith('http') ? customizationForm.theme_secondary_color : '#242424'}
-                    onChange={(e) => setCustomizationForm({ ...customizationForm, theme_secondary_color: e.target.value })}
-                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
-                    title="Couleur des blocs"
-                  />
-                  <label className="cursor-pointer hover:text-white text-[#a0a0a0]">
-                    <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'block')} />
-                    <Upload size={14} />
-                  </label>
-                  <button
-                    onClick={() => { setCustomizationForm({ ...customizationForm, theme_secondary_color: '#242424' }); setBlockType('color'); }}
-                    className="p-0.5 hover:bg-[#333] rounded text-[#666] hover:text-[#a0a0a0] transition-colors"
-                    title="Réinitialiser"
-                  >
-                    <RotateCcw size={12} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Texte */}
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-[#a0a0a0] font-semibold">Texte:</span>
-                <div className="flex items-center gap-1 bg-[#1c1c1c] p-1 rounded border border-[#3a3a3a]">
-                  <input
-                    type="color"
-                    value={customizationForm.theme_text_color || '#d4d4d4'}
-                    onChange={(e) => setCustomizationForm({ ...customizationForm, theme_text_color: e.target.value })}
-                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
-                    title="Couleur du texte"
-                  />
-                  <button
-                    onClick={() => setCustomizationForm({ ...customizationForm, theme_text_color: '#d4d4d4' })}
-                    className="p-0.5 hover:bg-[#333] rounded text-[#666] hover:text-[#a0a0a0] transition-colors"
-                    title="Réinitialiser"
-                  >
-                    <RotateCcw size={12} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Texte Sec. */}
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-[#a0a0a0] font-semibold">Texte Sec.:</span>
-                <div className="flex items-center gap-1 bg-[#1c1c1c] p-1 rounded border border-[#3a3a3a]">
-                  <input
-                    type="color"
-                    value={customizationForm.theme_text_secondary_color || '#a0a0a0'}
-                    onChange={(e) => setCustomizationForm({ ...customizationForm, theme_text_secondary_color: e.target.value })}
-                    className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
-                    title="Couleur du texte secondaire"
-                  />
-                  <button
-                    onClick={() => setCustomizationForm({ ...customizationForm, theme_text_secondary_color: '#a0a0a0' })}
-                    className="p-0.5 hover:bg-[#333] rounded text-[#666] hover:text-[#a0a0a0] transition-colors"
-                    title="Réinitialiser"
-                  >
-                    <RotateCcw size={12} />
-                  </button>
-                </div>
-              </div>
-
-              {/* Arrondi des bordures */}
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-[#a0a0a0] font-semibold">Arrondi:</span>
-                <div className="flex items-center gap-2 bg-[#1c1c1c] px-2 py-1 rounded border border-[#3a3a3a]">
-                  <input
-                    type="range"
-                    min="0"
-                    max="32"
-                    step="2"
-                    value={customizationForm.theme_border_radius ?? 8}
-                    onChange={(e) => setCustomizationForm({ ...customizationForm, theme_border_radius: parseInt(e.target.value, 10) })}
-                    className="w-20 cursor-pointer accent-[#d4b48f]"
-                    title="Arrondi des blocs"
-                  />
-                  <span className="text-xs text-[#d4d4d4] w-6 text-right">{customizationForm.theme_border_radius ?? 8}px</span>
-                  <button
-                    onClick={() => setCustomizationForm({ ...customizationForm, theme_border_radius: 8 })}
-                    className="p-0.5 hover:bg-[#333] rounded text-[#666] hover:text-[#a0a0a0] transition-colors"
-                    title="Réinitialiser"
-                  >
-                    <RotateCcw size={12} />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 flex-shrink-0 ml-auto">
-              <label className="cursor-pointer bg-blue-900/50 text-blue-200 border border-blue-900 px-2 py-1.5 rounded hover:bg-blue-900/80 transition text-xs font-bold flex items-center gap-1" title="Importer un thème">
-                <input type="file" className="hidden" accept=".json" onChange={handleImportConfig} />
-                <UploadCloud size={14} />
-                <span className="hidden sm:inline">Importer</span>
-              </label>
-
-              <button
-                onClick={handleExportConfig}
-                className="bg-green-900/50 text-green-200 border border-green-900 px-2 py-1.5 rounded hover:bg-green-900/80 transition text-xs font-bold flex items-center gap-1"
-                title="Exporter le thème"
-              >
-                <FileDown size={14} />
-                <span className="hidden sm:inline">Exporter</span>
-              </button>
-
-              <ThemePortalModal
-                currentConfig={{ theme: customizationForm, layout }}
-                onApplyTheme={handleApplyTheme}
-                onPreviewTheme={(config) => {
-                  setPreviewTheme(config.theme ?? null);
-                  if (config.layout?.length) setPreviewLayout(config.layout);
-                }}
-                onStopPreview={() => { setPreviewTheme(null); setPreviewLayout(null); }}
-              />
-
-              <button
-                onClick={handleResetPositions}
-                className="bg-red-900/50 text-red-200 border border-red-900 px-2 py-1.5 rounded hover:bg-red-900/80 transition text-xs font-bold flex items-center gap-1 ml-2"
-                title="Réinitialiser la disposition"
-              >
-                <LayoutDashboard size={14} />
-                <RotateCcw size={12} />
-              </button>
-
-              {/* Add Widget Dialog */}
-              <Dialog open={isAddWidgetOpen} onOpenChange={setIsAddWidgetOpen}>
-                <DialogTrigger asChild>
-                  <button className="bg-[#3a3a3a] hover:bg-[#4a4a4a] text-[#d4d4d4] px-3 py-1.5 rounded flex items-center gap-2 text-xs font-bold border border-[#4a4a4a] h-full">
-                    <PlusCircle size={14} /> Ajouter
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="bg-[#242424] border-[#3a3a3a] text-[#d4d4d4] max-w-sm">
-                  <DialogHeader>
-                    <DialogTitle className="text-[#c0a080]">Ajouter un widget</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-2 mt-2">
-                    {WIDGET_REGISTRY.filter(w => !layout.find(l => l.i === w.id)).length > 0 ? (
-                      WIDGET_REGISTRY.filter(w => !layout.find(l => l.i === w.id)).map(widget => (
-                        <button
-                          key={widget.id}
-                          onClick={() => handleAddWidget(widget.id)}
-                          className="w-full text-left px-4 py-3 bg-[#3a3a3a] hover:bg-[#4a4a4a] rounded-lg text-sm font-bold text-[#d4d4d4] hover:text-[#fff] transition-colors border border-[#444] flex items-center justify-between"
-                        >
-                          {widget.label}
-                          <PlusCircle size={16} className="opacity-50" />
-                        </button>
-                      ))
-                    ) : (
-                      <div className="p-4 text-center text-[#888] italic bg-[#1c1c1c] rounded-lg">
-                        Tous les widgets sont déjà présents sur la fiche.
-                      </div>
-                    )}
-                  </div>
-                </DialogContent>
-              </Dialog>
-
-              <button
-                onClick={handleSaveLayout}
-                className="bg-[#c0a080] text-[#1c1c1c] px-4 py-1.5 rounded hover:bg-[#d4b48f] transition text-xs font-bold flex items-center gap-1"
-              >
-                Sauvegarder
-              </button>
-            </div>
-          </div>
+          <FloatingEditTabs
+            customizationForm={customizationForm}
+            setCustomizationForm={setCustomizationForm}
+            handleImageUpload={handleImageUpload}
+            handleImportConfig={handleImportConfig}
+            handleExportConfig={handleExportConfig}
+            handleResetPositions={handleResetPositions}
+            handleSaveLayout={handleSaveLayout}
+            layout={layout}
+            WIDGET_REGISTRY={WIDGET_REGISTRY}
+            isAddWidgetOpen={isAddWidgetOpen}
+            setIsAddWidgetOpen={setIsAddWidgetOpen}
+            handleAddWidget={handleAddWidget}
+            onApplyTheme={handleApplyTheme}
+            onPreviewTheme={(config: any) => {
+              if (config.theme) {
+                setPreviewTheme(config.theme);
+              }
+              if (config.layout?.length) setPreviewLayout(config.layout);
+            }}
+            onStopPreview={() => {
+              setPreviewTheme(null);
+              setPreviewLayout(null);
+            }}
+            onClose={() => setIsLayoutEditing(false)}
+          />
         )}
 
-        <div className="max-w-7xl mx-auto bg-[#242424] rounded-[length:var(--block-radius,0.5rem)] shadow-2xl p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6" style={mainStyle}>
+        <div className={`max-w-7xl mx-auto bg-[#242424] rounded-[length:var(--block-radius,0.5rem)] shadow-2xl p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 ${isLayoutEditing ? 'mb-[40vh]' : ''}`} style={mainStyle}>
           {selectedCharacter && !isEditing && (
             isLayoutEditing ? (
               <ResponsiveGridLayout

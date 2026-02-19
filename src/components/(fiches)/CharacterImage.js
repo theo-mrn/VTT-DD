@@ -19,7 +19,7 @@ import {
   Palette
 } from 'lucide-react';
 
-export default function CharacterImage({ imageUrl, altText, characterId }) {
+export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isGifProp, altText, characterId }) {
   // --- State Management ---
   const [currentUser, setCurrentUser] = useState(null);
   const [crop, setCrop] = useState({ x: 0, y: 0 });
@@ -68,26 +68,11 @@ export default function CharacterImage({ imageUrl, altText, characterId }) {
 
   // 2. Character Data
   useEffect(() => {
-    if (!characterId || !roomId) return;
-    const fetchChar = async () => {
-      try {
-        const docSnap = await getDoc(doc(db, `cartes/${roomId}/characters`, characterId));
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setCroppedImageUrl(data.imageURL2 || imageUrl || "/api/placeholder/192/192");
-          setFinalImageUrl(data.imageURLFinal || null);
-          setIsGif(data.isGif || false);
-
-          if (data.Token) {
-            // Try to resolve token URL (optimistic)
-            // In a real app we might want to wait for the token list, but for now we'll load it when tokens load
-            // or just set the name and let the matcher find it.
-          }
-        }
-      } catch (e) { console.error(e); }
-    };
-    fetchChar();
-  }, [characterId, roomId, imageUrl]);
+    if (!characterId) return;
+    setCroppedImageUrl(imageURL2 || imageUrl || "/api/placeholder/192/192");
+    setFinalImageUrl(imageURLFinal || null);
+    setIsGif(isGifProp || false);
+  }, [characterId, imageUrl, imageURL2, imageURLFinal, isGifProp]);
 
   // 3. Load Tokens (The Armory)
   useEffect(() => {
