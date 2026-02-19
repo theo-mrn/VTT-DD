@@ -17,6 +17,8 @@ interface Character {
   Poids?: number;
   imageURL?: string;
   imageURL2?: string;
+  imageURLFinal?: string;
+  isGif?: boolean;
   PV?: number;
   PV_Max?: number;
   Defense?: number;
@@ -198,6 +200,9 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                     <div className="flex-shrink-0 mx-auto sm:mx-0 w-36 h-36">
                       <CharacterImage
                         imageUrl={character.imageURL}
+                        imageURL2={character.imageURL2}
+                        imageURLFinal={character.imageURLFinal}
+                        isGifProp={character.isGif}
                         altText={character.Nomperso}
                         characterId={character.id}
                       />
