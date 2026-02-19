@@ -33,6 +33,7 @@ interface InventoryManagementProps {
   roomId: string;
   canEdit?: boolean;
   onHeightChange?: (height: number) => void;
+  style?: React.CSSProperties;
 }
 
 interface ItemDescription {
@@ -61,7 +62,7 @@ const categoryIcons: Record<string, React.ReactNode> = {
   'autre': <ChevronRight className="w-6 h-6 text-[#c0a080]" />,
 };
 
-export default function InventoryManagement({ playerName, roomId, canEdit = true, onHeightChange }: InventoryManagementProps) {
+export default function InventoryManagement({ playerName, roomId, canEdit = true, onHeightChange, style }: InventoryManagementProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -524,8 +525,8 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
 
 
   return (
-    <div ref={containerRef} className="h-full bg-[#242424] flex flex-col">
-      <Card className="card w-full max-w-7xl mx-auto h-full !bg-[#242424] flex flex-col border-none shadow-none">
+    <div ref={containerRef} className="h-full bg-[#242424] flex flex-col rounded-[length:var(--block-radius,0.5rem)] overflow-hidden" style={style}>
+      <Card className="card w-full max-w-7xl mx-auto h-full !bg-transparent flex flex-col border-none shadow-none">
 
         {/* Header fixe avec recherche et tri */}
         <div className="p-6 pb-2 flex-shrink-0">
@@ -667,11 +668,11 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                                             >
                                               <div className="flex items-start flex-col gap-2">
                                                 <div className="flex items-center justify-between w-full">
-                                                  <h5 className="font-semibold text-[var(--text-primary)] text-sm">{item}</h5>
+                                                  <h5 className="font-semibold text-[color:var(--text-primary)] text-sm">{item}</h5>
                                                   <Plus className="w-4 h-4 text-[var(--accent-brown)] flex-shrink-0" />
                                                 </div>
                                                 {itemDescription && (
-                                                  <p className="text-xs text-[var(--text-primary)] opacity-70 line-clamp-2 leading-relaxed">
+                                                  <p className="text-xs text-[color:var(--text-secondary,var(--text-primary))] opacity-70 line-clamp-2 leading-relaxed">
                                                     {itemDescription.description}
                                                   </p>
                                                 )}
@@ -697,7 +698,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                                   <div className="text-center py-16">
                                     <Search className="w-16 h-16 mx-auto text-[var(--text-primary)] opacity-50 mb-4" />
                                     <h4 className="text-[var(--text-primary)] font-semibold mb-3 text-lg">Aucun objet trouvé</h4>
-                                    <p className="text-[var(--text-primary)] opacity-70">
+                                    <p className="text-[var(--text-secondary)] opacity-70">
                                       Modifiez votre recherche ou créez un objet personnalisé
                                     </p>
                                   </div>
@@ -720,7 +721,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                             <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-5">
                               <div className="space-y-4">
                                 <div>
-                                  <Label className="text-[var(--text-primary)] text-sm font-medium mb-2 block">Nom de l&apos;objet</Label>
+                                  <Label className="text-[var(--text-secondary)] text-sm font-medium mb-2 block">Nom de l&apos;objet</Label>
                                   <Input
                                     value={newItemName}
                                     onChange={(e) => setNewItemName(e.target.value)}
@@ -730,7 +731,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                                 </div>
 
                                 <div>
-                                  <Label className="text-[var(--text-primary)] text-sm font-medium mb-2 block">Catégorie</Label>
+                                  <Label className="text-[var(--text-secondary)] text-sm font-medium mb-2 block">Catégorie</Label>
                                   <Select value={currentCategory} onValueChange={setCurrentCategory}>
                                     <SelectTrigger className="h-10 bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--accent-brown)]">
                                       <SelectValue placeholder="Choisir une catégorie..." />

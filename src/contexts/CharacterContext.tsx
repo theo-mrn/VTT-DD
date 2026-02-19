@@ -42,6 +42,9 @@ export interface Character {
   deVie?: string;
   theme_background?: string;
   theme_secondary_color?: string;
+  theme_text_color?: string;
+  theme_text_secondary_color?: string;
+  theme_border_radius?: number;
   layout?: Layout[];
   [key: string]: any;
 }

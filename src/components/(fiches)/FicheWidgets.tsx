@@ -41,28 +41,28 @@ export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => 
     return (
         <div className="h-full p-2 overflow-hidden" ref={ref}>
             <div
-                className="bg-[#2a2a2a] p-2 rounded-lg border border-[#3a3a3a] h-full flex flex-col"
+                className="bg-[#2a2a2a] p-2 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] h-full flex flex-col"
                 style={{ ...style, fontSize: `${fontSize}px` }}
             >
-                <h2 className="text-[1.3em] font-bold text-[#c0a0a0] mb-2 text-center sm:text-left shrink-0 leading-tight">
+                <h2 className="text-[1.3em] font-bold text-[color:var(--text-secondary,#c0a0a0)] mb-2 text-center sm:text-left shrink-0 leading-tight">
                     {selectedCharacter.Nomperso}
                 </h2>
-                <div className="grid grid-cols-1 xs:grid-cols-2 gap-x-2 gap-y-1 flex-1 content-evenly items-center">
-                    <div>Niveau: <span className="text-[#a0a0a0]">{selectedCharacter.niveau}</span></div>
-                    <div>Initiative: <span className="text-[#a0a0a0]">{getDisplayValue("INIT")}</span></div>
-                    <div>Profil: <span className="text-[#a0a0a0]">{selectedCharacter.Profile}</span></div>
-                    <div>Taille: <span className="text-[#a0a0a0]">{selectedCharacter.Taille} cm</span></div>
+                <div className="grid grid-cols-1 xs:grid-cols-2 gap-x-2 gap-y-1 flex-1 content-evenly items-center text-[color:var(--text-primary,#d4d4d4)]">
+                    <div>Niveau: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter.niveau}</span></div>
+                    <div>Initiative: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{getDisplayValue("INIT")}</span></div>
+                    <div>Profil: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter.Profile}</span></div>
+                    <div>Taille: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter.Taille} cm</span></div>
                     <div>
                         Race:
                         <span
-                            className="text-[#a0a0a0] underline cursor-pointer ml-1"
+                            className="text-[color:var(--text-secondary,#a0a0a0)] underline cursor-pointer ml-1"
                             onClick={() => onRaceClick && onRaceClick(selectedCharacter.Race || "")}
                         >
                             {selectedCharacter.Race}
                         </span>
                     </div>
-                    <div>Poids: <span className="text-[#a0a0a0]">{selectedCharacter.Poids} Kg</span></div>
-                    <div className="xs:col-span-2">Dé de Vie: <span className="text-[#a0a0a0]">{selectedCharacter.deVie}</span></div>
+                    <div>Poids: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter.Poids} Kg</span></div>
+                    <div className="xs:col-span-2">Dé de Vie: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter.deVie}</span></div>
                 </div>
             </div>
         </div>
@@ -84,12 +84,12 @@ export const WidgetStats: React.FC<WidgetProps> = ({ style }) => {
             ].map((ability) => (
                 <Tooltip key={ability.name}>
                     <TooltipTrigger asChild>
-                        <div className="bg-[#2a2a2a] rounded-lg border border-[#3a3a3a] h-full flex flex-col justify-center items-center overflow-hidden min-h-0 py-1" style={style}>
-                            <div className="text-[#c0a0a0] font-semibold text-xs sm:text-sm">{ability.name}</div>
-                            <div className={`text-lg sm:text-xl md:text-2xl font-bold leading-none ${ability.value >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        <div className="bg-[#2a2a2a] rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] h-full flex flex-col justify-center items-center overflow-hidden min-h-0 py-1" style={style}>
+                            <div className="text-[color:var(--text-secondary,#c0a0a0)] font-semibold text-xs sm:text-sm">{ability.name}</div>
+                            <div className={`text-lg sm:text-xl md:text-2xl font-bold leading-none ${ability.value >= 0 ? 'text-[color:var(--text-primary,#22c55e)]' : 'text-red-500'}`}>
                                 {ability.value >= 0 ? '+' : ''}{ability.value}
                             </div>
-                            <div className="text-[10px] sm:text-xs text-[#a0a0a0]">{selectedCharacter ? (selectedCharacter[ability.name as keyof Character] as number) : 0}</div>
+                            <div className="text-[10px] sm:text-xs text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter ? (selectedCharacter[ability.name as keyof Character] as number) : 0}</div>
                         </div>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -108,12 +108,12 @@ export const WidgetVitals: React.FC<WidgetProps> = ({ style }) => {
 
     return (
         <div className="flex flex-col h-full p-1 justify-center">
-            <div className="bg-[#2a2a2a] px-12 py-1 rounded-lg border border-[#3a3a3a] flex flex-row justify-between items-center gap-2 h-full" style={style}>
+            <div className="bg-[#2a2a2a] px-12 py-1 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] flex flex-row justify-between items-center gap-2 h-full" style={style}>
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <div className="flex items-center space-x-1 cursor-help">
                             <Heart className="text-red-500" size={16} />
-                            <span className="text-sm sm:text-base md:text-xl font-bold text-[#d4d4d4]">
+                            <span className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)]">
                                 {getDisplayValue("PV")} / {getDisplayValue("PV_Max")}
                             </span>
                         </div>
@@ -128,7 +128,7 @@ export const WidgetVitals: React.FC<WidgetProps> = ({ style }) => {
                     <TooltipTrigger asChild>
                         <div className="flex items-center space-x-1 cursor-help">
                             <Shield className="text-blue-500" size={16} />
-                            <span className="text-sm sm:text-base md:text-xl font-bold text-[#d4d4d4]">{getDisplayValue("Defense")}</span>
+                            <span className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)]">{getDisplayValue("Defense")}</span>
                         </div>
                     </TooltipTrigger>
                     <TooltipContent>
@@ -154,9 +154,9 @@ export const WidgetCombatStats: React.FC<WidgetProps> = ({ style }) => {
             ].map((stat) => (
                 <Tooltip key={stat.name}>
                     <TooltipTrigger asChild>
-                        <div className="bg-[#2a2a2a] p-1 rounded-lg border border-[#3a3a3a] text-center h-full flex flex-col justify-center overflow-hidden" style={style}>
-                            <h3 className="text-[10px] sm:text-xs md:text-sm font-semibold text-[#c0a0a0] mb-0.5 whitespace-nowrap">{stat.name}</h3>
-                            <span className="text-base sm:text-lg md:text-xl font-bold text-[#d4d4d4] leading-none">{stat.value}</span>
+                        <div className="bg-[#2a2a2a] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] text-center h-full flex flex-col justify-center overflow-hidden" style={style}>
+                            <h3 className="text-[10px] sm:text-xs md:text-sm font-semibold text-[color:var(--text-secondary,#c0a0a0)] mb-0.5 whitespace-nowrap">{stat.name}</h3>
+                            <span className="text-base sm:text-lg md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] leading-none">{stat.value}</span>
                         </div>
                     </TooltipTrigger>
                     <TooltipContent>
