@@ -13,8 +13,7 @@ import { auth } from '../../lib/firebase'
 import { Features1 } from '@/components/blocks/features1'
 import { Features2 } from '@/components/blocks/features2'
 import { Features3 } from '@/components/blocks/features3'
-
-import { ShaderBackground, PulsingCircle } from '@/components/ui/shaders-hero-section'
+import Image from 'next/image'
 
 import InfiniteHero from "@/components/ui/infinite-hero";
 
@@ -136,9 +135,15 @@ export function HeroSection() {
                                 </div>
                             </div>
                         </div>
-                        <div className="aspect-[2/3] absolute inset-5 overflow-hidden rounded-3xl border border-black/10 sm:aspect-video lg:rounded-[3rem] dark:border-white/5">
-                            <ShaderBackground className="size-full">
-                            </ShaderBackground>
+                        <div className="fixed inset-0 -z-10 w-full h-full">
+                            <Image
+                                src="/images/index9.webp"
+                                alt="Hero"
+                                fill
+                                className="object-cover"
+                                priority
+                            />
+                            <div className="absolute inset-0 bg-black/50" />
                         </div>
                     </div>
                 </section>
@@ -147,8 +152,8 @@ export function HeroSection() {
 
                 <section>
                     <div className="lg:pt-64 lg:pb-16">
-                        <div className="aspect-[2/3] relative mx-5 overflow-hidden rounded-3xl border border-black/10 sm:aspect-video lg:rounded-[3rem] dark:border-white/5">
-                            <div className="size-full bg-background/95 backdrop-blur-xl">
+                        <div className="aspect-[2/3] relative mx-5 overflow-hidden rounded-3xl sm:aspect-video lg:rounded-[3rem]">
+                            <div className="size-full">
                                 <Features1 />
                             </div>
                         </div>
@@ -158,8 +163,8 @@ export function HeroSection() {
                 {/* Troisième carte avec le composant Features */}
                 <section>
                     <div className="lg:pb-16">
-                        <div className="aspect-[2/3] relative mx-5 overflow-hidden rounded-3xl border border-black/10 sm:aspect-video lg:rounded-[3rem] dark:border-white/5">
-                            <div className="size-full bg-background/95 backdrop-blur-xl">
+                        <div className="aspect-[2/3] relative mx-5 overflow-hidden rounded-3xl sm:aspect-video lg:rounded-[3rem]">
+                            <div className="size-full">
                                 <Features2 />
                             </div>
                         </div>
@@ -168,8 +173,8 @@ export function HeroSection() {
 
                 <section>
                     <div className="lg:pb-16">
-                        <div className="aspect-[2/3] relative mx-5 overflow-hidden rounded-3xl border border-black/10 sm:aspect-video lg:rounded-[3rem] dark:border-white/5">
-                            <div className="size-full bg-background/95 backdrop-blur-xl">
+                        <div className="aspect-[2/3] relative mx-5 overflow-hidden rounded-3xl sm:aspect-video lg:rounded-[3rem]">
+                            <div className="size-full">
                                 <Features3 />
                             </div>
                         </div>
