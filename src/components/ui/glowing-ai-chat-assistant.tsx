@@ -61,7 +61,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
 
   // History State
   const [showHistory, setShowHistory] = useState(false);
-  const [showStats, setShowStats] = useState(false);
+
   const [firebaseRolls, setFirebaseRolls] = useState<FirebaseRoll[]>([]);
   const [selectedPlayerFilter, setSelectedPlayerFilter] = useState<string | null>(null);
 
@@ -630,37 +630,40 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
     }, 0);
   };
 
+  const isMJ = userName === "MJ";
+
+
+
   return (
     <div className="fixed top-1/2 left-20 z-50 pointer-events-none -translate-y-1/2 ml-2">
       {/* Interface */}
       {isOpen && (
         <div
           ref={containerRef}
-          className={`transition-all duration-300 origin-left pointer-events-auto ${showHistory ? 'w-[500px]' : 'w-max max-w-[500px]'}`}
+          className="w-[500px] flex flex-col gap-3 transition-all duration-300 origin-left pointer-events-auto"
           style={{
             animation: 'popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
           }}
         >
-          <div className="w-full max-w-[600px] rounded-2xl relative isolate overflow-hidden bg-white/5 dark:bg-black/90 bg-gradient-to-br from-black/5 to-black/[0.02] dark:from-white/5 dark:to-white/[0.02] backdrop-blur-xl backdrop-saturate-[180%] border border-black/10 dark:border-white/10 shadow-[0_8px_16px_rgb(0_0_0_/_0.15)] dark:shadow-[0_8px_16px_rgb(0_0_0_/_0.25)]">
-            <div className="w-full h-full rounded-xl relative bg-gradient-to-br from-black/[0.05] to-transparent dark:from-white/[0.08] dark:to-transparent backdrop-blur-md backdrop-saturate-150 border border-black/[0.05] dark:border-white/[0.08] text-black/90 dark:text-white shadow-sm">
-              <div className="w-full h-full flex items-stretch">
+          <div className="w-full rounded-2xl relative isolate overflow-hidden bg-white/5 dark:bg-black/90 bg-gradient-to-br from-black/5 to-black/[0.02] dark:from-white/5 dark:to-white/[0.02] backdrop-blur-xl backdrop-saturate-[180%] border border-black/10 dark:border-white/10 shadow-[0_8px_16px_rgb(0_0_0_/_0.15)] dark:shadow-[0_8px_16px_rgb(0_0_0_/_0.25)]">
+            <div className="w-full rounded-xl relative bg-gradient-to-br from-black/[0.05] to-transparent dark:from-white/[0.08] dark:to-transparent backdrop-blur-md backdrop-saturate-150 border border-black/[0.05] dark:border-white/[0.08] text-black/90 dark:text-white shadow-sm">
+              {/* TOP ROW: dice sidebar + right controls */}
+              <div className="w-full flex items-stretch">
 
-                {/* Left Sidebar - Dice (Only visible when NOT in history) */}
-                {!showHistory && (
-                  <div className="w-[120px] flex-shrink-0 border-r border-white/5 p-2">
-                    <div className="grid grid-cols-2 gap-2 h-full content-center">
-                      {[4, 6, 8, 10, 12, 20].map((d) => (
-                        <button
-                          key={`d${d}`}
-                          onClick={() => addToInput(`1d${d}`)}
-                          className="group relative w-full aspect-square flex items-center justify-center bg-transparent border border-white/5 rounded-lg cursor-pointer transition-all duration-200 hover:bg-white/10 hover:border-white/20 hover:scale-105 active:scale-95"
-                        >
-                          <span className="text-xs font-mono text-zinc-400 group-hover:text-zinc-100 font-bold">d{d}</span>
-                        </button>
-                      ))}
-                    </div>
+                {/* Left Sidebar - Dice (Always visible) */}
+                <div className="w-[120px] flex-shrink-0 border-r border-white/5 p-2">
+                  <div className="grid grid-cols-2 gap-2 h-full content-center">
+                    {[4, 6, 8, 10, 12, 20].map((d) => (
+                      <button
+                        key={`d${d}`}
+                        onClick={() => addToInput(`1d${d}`)}
+                        className="group relative w-full aspect-square flex items-center justify-center bg-transparent border border-white/5 rounded-lg cursor-pointer transition-all duration-200 hover:bg-white/10 hover:border-white/20 hover:scale-105 active:scale-95"
+                      >
+                        <span className="text-xs font-mono text-zinc-400 group-hover:text-zinc-100 font-bold">d{d}</span>
+                      </button>
+                    ))}
                   </div>
-                )}
+                </div>
 
                 {/* Right Content */}
                 <div className="flex-1 flex flex-col min-w-0">
@@ -787,13 +790,6 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => setShowHistory(!showHistory)}
-                        className={`p-1.5 rounded-lg transition-colors ${showHistory ? 'bg-white/10 text-zinc-100' : 'hover:bg-white/5 text-zinc-400'}`}
-                        title="Historique"
-                      >
-                        <History className="w-4 h-4" />
-                      </button>
-                      <button
                         onClick={() => onClose?.()}
                         className="p-1.5 rounded-full hover:bg-white/5 transition-colors"
                       >
@@ -802,262 +798,237 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                     </div>
                   </div>
 
-                  {/* Content Area - Toggle between Input/Controls and History */}
-                  {!showHistory ? (
-                    <>
-                      {/* Result Display Area (Above Input) */}
-                      <div className="px-6 pt-4 pb-0 min-h-[3.5rem] flex flex-col justify-end">
-                        {(isLoading || latestResult) && (
-                          <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 relative group">
+                  {/* Dice Roller Content (always visible) */}
+                  <>
+                    {/* Result Display Area (Above Input) */}
+                    <div className="px-6 pt-4 pb-0 min-h-[3.5rem] flex flex-col justify-end">
+                      {(isLoading || latestResult) && (
+                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 relative group">
 
-                            {/* Blur effect container for Blind Rolls */}
-                            <div className={`flex items-baseline gap-2 w-full overflow-hidden transition-all duration-500 ${latestResult?.isBlind ? 'blur-md opacity-40 select-none' : ''}`}>
-                              <span className="text-3xl font-bold font-mono text-zinc-100 tabular-nums tracking-tight flex-shrink-0">
-                                {scrambledValue}
-                              </span>
+                          {/* Blur effect container for Blind Rolls */}
+                          <div className={`flex items-baseline gap-2 w-full overflow-hidden transition-all duration-500 ${latestResult?.isBlind ? 'blur-md opacity-40 select-none' : ''}`}>
+                            <span className="text-3xl font-bold font-mono text-zinc-100 tabular-nums tracking-tight flex-shrink-0">
+                              {scrambledValue}
+                            </span>
 
-                              <div className="flex items-baseline gap-2 overflow-hidden truncate min-w-0 flex-1">
-                                {!isLoading && latestResult && (
-                                  <>
-                                    <span className="text-sm font-mono text-zinc-500 flex-shrink-0">
-                                      = {latestResult.output.split('=')[1] || ""}
-                                    </span>
-                                    <span className="text-xs text-zinc-600 font-mono opacity-50 truncate flex-shrink">
-                                      ({latestResult.notation})
-                                    </span>
-                                  </>
-                                )}
-                                {isLoading && (
-                                  <span className="text-xs text-zinc-500 font-mono animate-pulse">
-                                    Lancement...
+                            <div className="flex items-baseline gap-2 overflow-hidden truncate min-w-0 flex-1">
+                              {!isLoading && latestResult && (
+                                <>
+                                  <span className="text-sm font-mono text-zinc-500 flex-shrink-0">
+                                    = {latestResult.output.split('=')[1] || ""}
                                   </span>
-                                )}
-                              </div>
+                                  <span className="text-xs text-zinc-600 font-mono opacity-50 truncate flex-shrink">
+                                    ({latestResult.notation})
+                                  </span>
+                                </>
+                              )}
+                              {isLoading && (
+                                <span className="text-xs text-zinc-500 font-mono animate-pulse">
+                                  Lancement...
+                                </span>
+                              )}
                             </div>
-
-                            {/* Overlay for Blind Rolls */}
-                            {latestResult?.isBlind && !isLoading && (
-                              <div className="absolute inset-0 flex items-center justify-start gap-2 text-zinc-500">
-                                <EyeOff className="w-5 h-5 animate-pulse" />
-                                <span className="text-xs font-medium tracking-widest uppercase opacity-80">Résultat Masqué</span>
-                              </div>
-                            )}
-
                           </div>
-                        )}
-                      </div>
 
-                      {/* Input Section */}
-                      <div className="relative overflow-hidden">
-                        <textarea
-                          ref={textareaRef}
-                          value={input}
-                          onChange={(e) => setInput(e.target.value)}
-                          onKeyDown={handleKeyDown}
-                          rows={1}
-                          className="w-full px-6 py-3 bg-transparent border-none outline-none resize-none text-2xl font-light leading-relaxed min-h-[60px] text-zinc-100 placeholder-zinc-600 scrollbar-none font-mono"
-                          placeholder="1d20 + 5..."
-                          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-                        />
-                        <div
-                          className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"
-                        ></div>
-                      </div>
-
-                      {/* Controls Section */}
-                      <div className="px-4 pb-4 space-y-3">
-                        <div className="space-y-3">
-                          {/* Modifiers Grid - Hidden for MJ */}
-                          {userName !== "MJ" && (
-                            <div className="grid grid-cols-6 gap-2">
-                              {["FOR", "DEX", "CON", "INT", "SAG", "CHA"].map(stat => (
-                                <button
-                                  key={stat}
-                                  onClick={() => addToInput(`+ ${stat}`)}
-                                  className="group relative py-1.5 bg-transparent border border-white/10 rounded-lg cursor-pointer transition-all duration-300 text-zinc-500 hover:text-red-300 hover:bg-white/5 hover:border-red-500/30 text-[10px] font-mono font-bold uppercase tracking-wider"
-                                >
-                                  {stat.substring(0, 3)}
-                                </button>
-                              ))}
+                          {/* Overlay for Blind Rolls */}
+                          {latestResult?.isBlind && !isLoading && (
+                            <div className="absolute inset-0 flex items-center justify-start gap-2 text-zinc-500">
+                              <EyeOff className="w-5 h-5 animate-pulse" />
+                              <span className="text-xs font-medium tracking-widest uppercase opacity-80">Résultat Masqué</span>
                             </div>
                           )}
 
-                          <div className="flex items-center justify-between pt-1">
-                            {/* Toggles */}
-                            <div className="flex items-center gap-2">
-                              <button
-                                onClick={() => setIsSkinDialogOpen(true)}
-                                className="p-2 rounded-lg transition-all duration-300 border bg-transparent border-white/10 text-zinc-600 hover:text-amber-400 hover:border-amber-400/30"
-                                title="Boutique de dés"
-                              >
-                                <Store className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => setShow3DAnimations(!show3DAnimations)}
-                                className={`p-2 rounded-lg transition-all duration-300 border ${show3DAnimations ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
-                                title="3D Rolling"
-                              >
-                                <Box className="w-4 h-4" />
-                              </button>
+                        </div>
+                      )}
+                    </div>
 
-                              <button
-                                onClick={() => setIsPrivate(!isPrivate)}
-                                className={`p-2 rounded-lg transition-all duration-300 border ${isPrivate ? 'bg-amber-500/20 border-amber-500/50 text-amber-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
-                                title="Privé"
-                              >
-                                <Shield className="w-4 h-4" />
-                              </button>
-                              {userName !== "MJ" && (
-                                <button
-                                  onClick={() => setIsBlind(!isBlind)}
-                                  className={`p-2 rounded-lg transition-all duration-300 border ${isBlind ? 'bg-red-500/20 border-red-500/50 text-red-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
-                                  title="Blind Roll (Caché)"
-                                >
-                                  <EyeOff className="w-4 h-4" />
-                                </button>
-                              )}
-                            </div>
+                    {/* Input Section */}
+                    <div className="relative overflow-hidden">
+                      <textarea
+                        ref={textareaRef}
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        rows={1}
+                        className="w-full px-6 py-3 bg-transparent border-none outline-none resize-none text-2xl font-light leading-relaxed min-h-[60px] text-zinc-100 placeholder-zinc-600 scrollbar-none font-mono"
+                        placeholder="1d20 + 5..."
+                        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                      />
+                      <div
+                        className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"
+                      ></div>
+                    </div>
 
-                            <div className="flex items-center gap-2">
+                    {/* Controls Section */}
+                    <div className="px-4 pb-4 space-y-3">
+                      <div className="space-y-3">
+                        {/* Modifiers Grid - Hidden for MJ */}
+                        {userName !== "MJ" && (
+                          <div className="grid grid-cols-6 gap-2">
+                            {["FOR", "DEX", "CON", "INT", "SAG", "CHA"].map(stat => (
                               <button
-                                onClick={() => {
-                                  setInput('');
-                                  setLatestResult(null);
-                                }}
-                                className="px-3 py-2 text-[10px] font-bold text-zinc-400 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors hover:text-zinc-200"
+                                key={stat}
+                                onClick={() => addToInput(`+ ${stat}`)}
+                                className="group relative py-1.5 bg-transparent border border-white/10 rounded-lg cursor-pointer transition-all duration-300 text-zinc-500 hover:text-red-300 hover:bg-white/5 hover:border-red-500/30 text-[10px] font-mono font-bold uppercase tracking-wider"
                               >
-                                CLR
+                                {stat.substring(0, 3)}
                               </button>
+                            ))}
+                          </div>
+                        )}
 
-                              {/* Send Button */}
+                        <div className="flex items-center justify-between pt-1">
+                          {/* Toggles */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setIsSkinDialogOpen(true)}
+                              className="p-2 rounded-lg transition-all duration-300 border bg-transparent border-white/10 text-zinc-600 hover:text-amber-400 hover:border-amber-400/30"
+                              title="Boutique de dés"
+                            >
+                              <Store className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => setShow3DAnimations(!show3DAnimations)}
+                              className={`p-2 rounded-lg transition-all duration-300 border ${show3DAnimations ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
+                              title="3D Rolling"
+                            >
+                              <Box className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              onClick={() => setIsPrivate(!isPrivate)}
+                              className={`p-2 rounded-lg transition-all duration-300 border ${isPrivate ? 'bg-amber-500/20 border-amber-500/50 text-amber-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
+                              title="Privé"
+                            >
+                              <Shield className="w-4 h-4" />
+                            </button>
+                            {userName !== "MJ" && (
                               <button
-                                onClick={handleRoll}
-                                className="group relative p-2.5 pl-4 pr-3 bg-gradient-to-r from-red-600 to-red-500 border-none rounded-xl cursor-pointer transition-all duration-300 text-white shadow-lg hover:from-red-500 hover:to-red-400 hover:scale-105 hover:shadow-red-500/30 active:scale-95 transform flex items-center gap-2"
-                                style={{
-                                  boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 0 0 0 rgba(239, 68, 68, 0.4)',
-                                }}
+                                onClick={() => setIsBlind(!isBlind)}
+                                className={`p-2 rounded-lg transition-all duration-300 border ${isBlind ? 'bg-red-500/20 border-red-500/50 text-red-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
+                                title="Blind Roll (Caché)"
                               >
-                                <span className="text-xs font-bold uppercase tracking-wide opacity-90">Roll</span>
-                                <Send className="w-4 h-4 transition-all duration-300 group-hover:translate-x-1" />
-
-                                {/* Animated background glow */}
-                                <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-red-600 to-red-500 opacity-0 group-hover:opacity-50 transition-opacity duration-300 blur-lg transform scale-110"></div>
+                                <EyeOff className="w-4 h-4" />
                               </button>
-                            </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setInput('');
+                                setLatestResult(null);
+                              }}
+                              className="px-3 py-2 text-[10px] font-bold text-zinc-400 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors hover:text-zinc-200"
+                            >
+                              CLR
+                            </button>
+
+                            {/* Send Button */}
+                            <button
+                              onClick={handleRoll}
+                              className="group relative p-2.5 pl-4 pr-3 bg-gradient-to-r from-red-600 to-red-500 border-none rounded-xl cursor-pointer transition-all duration-300 text-white shadow-lg hover:from-red-500 hover:to-red-400 hover:scale-105 hover:shadow-red-500/30 active:scale-95 transform flex items-center gap-2"
+                              style={{
+                                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 0 0 0 rgba(239, 68, 68, 0.4)',
+                              }}
+                            >
+                              <span className="text-xs font-bold uppercase tracking-wide opacity-90">Roll</span>
+                              <Send className="w-4 h-4 transition-all duration-300 group-hover:translate-x-1" />
+
+                              {/* Animated background glow */}
+                              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-red-600 to-red-500 opacity-0 group-hover:opacity-50 transition-opacity duration-300 blur-lg transform scale-110"></div>
+                            </button>
                           </div>
                         </div>
                       </div>
-
-                    </>
-                  ) : (
-                    /* History & Stats Area */
-                    <div className="flex flex-col h-full max-h-[400px]">
-                      {/* Tabs */}
-                      <div className="flex border-b border-white/5 px-4 pt-2">
-                        <button
-                          onClick={() => setShowStats(false)}
-                          className={`flex-1 pb-2 text-xs font-medium border-b-2 transition-colors ${!showStats ? 'border-zinc-200 text-zinc-100' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <History className="w-3 h-3" />
-                            Historique
-                          </div>
-                        </button>
-                        <button
-                          onClick={() => setShowStats(true)}
-                          className={`flex-1 pb-2 text-xs font-medium border-b-2 transition-colors ${showStats ? 'border-zinc-200 text-zinc-100' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
-                        >
-                          <div className="flex items-center justify-center gap-2">
-                            <BarChart2 className="w-3 h-3" />
-                            Statistiques
-                          </div>
-                        </button>
-                      </div>
-
-                      <div className="flex-1 overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                        {!showStats ? (
-                          // History List
-                          <div className="space-y-3">
-                            {/* Filter UI */}
-                            <div className="flex items-center gap-2 pb-2 mb-2 border-b border-white/5 overflow-x-auto scrollbar-none">
-                              <Filter className="w-3 h-3 text-zinc-500 flex-shrink-0" />
-                              <button
-                                onClick={() => setSelectedPlayerFilter(null)}
-                                className={`text-[10px] px-2 py-1 rounded-md transition-colors whitespace-nowrap ${!selectedPlayerFilter ? 'bg-white/10 text-white font-medium' : 'text-zinc-500 hover:text-zinc-300'}`}
-                              >
-                                Tous
-                              </button>
-                              {Array.from(new Set(firebaseRolls.map(r => r.userName))).sort().map(player => (
-                                <button
-                                  key={player}
-                                  onClick={() => setSelectedPlayerFilter(player)}
-                                  className={`text-[10px] px-2 py-1 rounded-md transition-colors whitespace-nowrap ${selectedPlayerFilter === player ? 'bg-white/10 text-white font-medium' : 'text-zinc-500 hover:text-zinc-300'}`}
-                                >
-                                  {player}
-                                </button>
-                              ))}
-                            </div>
-
-                            {firebaseRolls.filter(canDisplayRoll).filter(r => !selectedPlayerFilter || r.userName === selectedPlayerFilter).length === 0 ? (
-                              <div className="text-center text-zinc-500 py-8 text-xs italic">
-                                Aucun lancer trouvé...
-                              </div>
-                            ) : (
-                              firebaseRolls.filter(canDisplayRoll).filter(r => !selectedPlayerFilter || r.userName === selectedPlayerFilter).map((roll) => (
-                                <div key={roll.id} className="group relative p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all">
-                                  <div className="flex items-start gap-3">
-                                    <div className="flex-shrink-0 mt-0.5">
-                                      {roll.userAvatar ? (
-                                        <img src={roll.userAvatar} alt="" className="w-8 h-8 rounded-full object-cover border border-white/10" />
-                                      ) : (
-                                        <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center border border-white/10">
-                                          <span className="text-xs font-bold text-zinc-400">{roll.userName.substring(0, 2)}</span>
-                                        </div>
-                                      )}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center justify-between mb-0.5">
-                                        <span className="text-xs font-bold text-zinc-300 truncate">{roll.userName}</span>
-                                        <div className="flex items-center gap-1">
-                                          {roll.isPrivate && <Shield className="w-3 h-3 text-amber-500/70" />}
-                                          {roll.isBlind && <EyeOff className="w-3 h-3 text-red-500/70" />}
-                                          <span className="text-[10px] text-zinc-600">{new Date(roll.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                        </div>
-                                      </div>
-                                      <div className="text-[11px] font-mono text-zinc-500 truncate mb-1">{roll.notation}</div>
-                                      <div className="flex items-center justify-between">
-                                        <div className={`text-sm font-bold text-zinc-200 transaction-all duration-300 ${roll.isBlind && userName !== "MJ" ? 'blur-sm opacity-50 select-none' : ''}`}>
-                                          Total: {roll.total}
-                                        </div>
-                                        <button
-                                          onClick={() => rerollFromFirebase(roll)}
-                                          className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all text-zinc-400 hover:text-zinc-200"
-                                          title="Relancer"
-                                        >
-                                          <RotateCcw className="w-3 h-3" />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ))
-                            )}
-                          </div>
-                        ) : (
-                          // Stats Component
-                          <DiceStats
-                            rolls={getFilteredRolls()}
-                            currentUserName={userName}
-                            isMJ={userName === "MJ"}
-                          />
-                        )}
-                      </div>
                     </div>
-                  )}
+
+                  </>
                 </div>
-              </div>
-            </div>
-          </div>
+              </div> {/* end flex items-stretch top row */}
+            </div> {/* end rounded-xl inner */}
+          </div> {/* end card 1: dice roller */}
+
+          {/* CARD 2: History - separate floating card */}
+          <div
+            className="w-full rounded-2xl relative isolate overflow-hidden bg-white/5 dark:bg-black/90 bg-gradient-to-br from-black/5 to-black/[0.02] dark:from-white/5 dark:to-white/[0.02] backdrop-blur-xl backdrop-saturate-[180%] border border-black/10 dark:border-white/10 shadow-[0_8px_16px_rgb(0_0_0_/_0.15)] dark:shadow-[0_8px_16px_rgb(0_0_0_/_0.25)]"
+            style={{ animation: 'popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both' }}
+          >
+            <div className="w-full rounded-xl relative bg-gradient-to-br from-black/[0.05] to-transparent dark:from-white/[0.08] dark:to-transparent backdrop-blur-md backdrop-saturate-150 border border-black/[0.05] dark:border-white/[0.08] text-black/90 dark:text-white shadow-sm">
+              <div>
+
+
+                <div className="max-h-[280px] overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                  <div className="space-y-2">
+                    {/* Filter UI */}
+                    <div className="flex items-center gap-2 pb-2 mb-1 border-b border-white/5 overflow-x-auto scrollbar-none">
+                      <Filter className="w-3 h-3 text-zinc-500 flex-shrink-0" />
+                      <button
+                        onClick={() => setSelectedPlayerFilter(null)}
+                        className={`text-[10px] px-2 py-0.5 rounded-md transition-colors whitespace-nowrap ${!selectedPlayerFilter ? 'bg-white/10 text-white font-medium' : 'text-zinc-500 hover:text-zinc-300'}`}
+                      >
+                        Tous
+                      </button>
+                      {Array.from(new Set(firebaseRolls.map(r => r.userName))).sort().map(player => (
+                        <button
+                          key={player}
+                          onClick={() => setSelectedPlayerFilter(player)}
+                          className={`text-[10px] px-2 py-0.5 rounded-md transition-colors whitespace-nowrap ${selectedPlayerFilter === player ? 'bg-white/10 text-white font-medium' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        >
+                          {player}
+                        </button>
+                      ))}
+                    </div>
+
+                    {firebaseRolls.filter(canDisplayRoll).filter(r => !selectedPlayerFilter || r.userName === selectedPlayerFilter).length === 0 ? (
+                      <div className="text-center text-zinc-500 py-6 text-xs italic">
+                        Aucun lancer récent...
+                      </div>
+                    ) : (
+                      firebaseRolls.filter(canDisplayRoll).filter(r => !selectedPlayerFilter || r.userName === selectedPlayerFilter).map((roll) => (
+                        <div key={roll.id} className="group relative p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0 mt-0.5">
+                              {roll.userAvatar ? (
+                                <img src={roll.userAvatar} alt="" className="w-8 h-8 rounded-full object-cover border border-white/10" />
+                              ) : (
+                                <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center border border-white/10">
+                                  <span className="text-xs font-bold text-zinc-400">{roll.userName.substring(0, 2)}</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-xs font-bold text-zinc-300 truncate">{roll.userName}</span>
+                                <div className="flex items-center gap-1">
+                                  {roll.isPrivate && <Shield className="w-3 h-3 text-amber-500/70" />}
+                                  {roll.isBlind && <EyeOff className="w-3 h-3 text-red-500/70" />}
+                                  <span className="text-[10px] text-zinc-600">{new Date(roll.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                              </div>
+                              <div className="text-[11px] font-mono text-zinc-500 truncate mb-1">{roll.notation}</div>
+                              <div className="flex items-center justify-between">
+                                <div className={`text-sm font-bold text-zinc-200 transition-all duration-300 ${roll.isBlind && userName !== "MJ" ? 'blur-sm opacity-50 select-none' : ''}`}>
+                                  Total: {roll.total}
+                                </div>
+                                <button
+                                  onClick={() => rerollFromFirebase(roll)}
+                                  className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all text-zinc-400 hover:text-zinc-200"
+                                  title="Relancer"
+                                >
+                                  <RotateCcw className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              </div> {/* end inner div */}
+            </div> {/* end rounded-xl card 2 */}
+          </div> {/* end rounded-2xl card 2 */}
         </div>
       )}
 
