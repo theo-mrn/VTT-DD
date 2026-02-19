@@ -21,6 +21,7 @@ import { useCharacter, Character } from '@/contexts/CharacterContext';
 import { Statistiques } from '@/components/Statistiques';
 import { WidgetAvatar, WidgetDetails, WidgetStats, WidgetVitals, WidgetCombatStats } from './FicheWidgets';
 import { WidgetBourse, WidgetEffects } from './FicheWidgetsExtra';
+import { ThemePortalModal } from './theme-portal/ThemePortalModal';
 import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -209,6 +210,23 @@ export default function Component() {
 
   const handleResetPositions = async () => {
     setLayout(DEFAULT_LAYOUT);
+  };
+
+  const handleApplyTheme = (config: { theme: typeof customizationForm; layout: typeof layout }) => {
+    if (config.theme) {
+      setCustomizationForm({ ...customizationForm, ...config.theme });
+
+      const bg = config.theme.theme_background || '';
+      if (bg.startsWith('http') || bg.startsWith('data:')) setBgType('image');
+      else setBgType('color');
+
+      const block = config.theme.theme_secondary_color || '';
+      if (block.startsWith('http') || block.startsWith('data:')) setBlockType('image');
+      else setBlockType('color');
+    }
+    if (config.layout && Array.isArray(config.layout)) {
+      setLayout(config.layout);
+    }
   };
 
   const handleExportConfig = () => {
@@ -635,13 +653,16 @@ export default function Component() {
   }
 
 
-  const bgValue = (isLayoutEditing ? customizationForm.theme_background : selectedCharacter?.theme_background) || '';
-  const secondaryValue = (isLayoutEditing ? customizationForm.theme_secondary_color : selectedCharacter?.theme_secondary_color) || '';
-  const textValue = (isLayoutEditing ? customizationForm.theme_text_color : selectedCharacter?.theme_text_color) || '#d4d4d4';
-  const textSecondaryValue = (isLayoutEditing ? customizationForm.theme_text_secondary_color : selectedCharacter?.theme_text_secondary_color) || '#a0a0a0';
-  const borderRadiusValue = isLayoutEditing
-    ? (customizationForm.theme_border_radius ?? 8)
-    : (selectedCharacter?.theme_border_radius ?? 8);
+  // Temporary preview theme from portal hover – overrides displayed values without saving
+  const [previewTheme, setPreviewTheme] = useState<Record<string, any> | null>(null);
+  const [previewLayout, setPreviewLayout] = useState<any[] | null>(null);
+
+  const bgValue = (previewTheme?.theme_background ?? (isLayoutEditing ? customizationForm.theme_background : selectedCharacter?.theme_background)) || '';
+  const secondaryValue = (previewTheme?.theme_secondary_color ?? (isLayoutEditing ? customizationForm.theme_secondary_color : selectedCharacter?.theme_secondary_color)) || '';
+  const textValue = (previewTheme?.theme_text_color ?? (isLayoutEditing ? customizationForm.theme_text_color : selectedCharacter?.theme_text_color)) || '#d4d4d4';
+  const textSecondaryValue = (previewTheme?.theme_text_secondary_color ?? (isLayoutEditing ? customizationForm.theme_text_secondary_color : selectedCharacter?.theme_text_secondary_color)) || '#a0a0a0';
+  const borderRadiusValue = previewTheme?.theme_border_radius ??
+    (isLayoutEditing ? (customizationForm.theme_border_radius ?? 8) : (selectedCharacter?.theme_border_radius ?? 8));
 
   const mainStyle: React.CSSProperties = bgValue
     ? (bgValue.startsWith('http')
@@ -865,6 +886,16 @@ export default function Component() {
                 <span className="hidden sm:inline">Exporter</span>
               </button>
 
+              <ThemePortalModal
+                currentConfig={{ theme: customizationForm, layout }}
+                onApplyTheme={handleApplyTheme}
+                onPreviewTheme={(config) => {
+                  setPreviewTheme(config.theme ?? null);
+                  if (config.layout?.length) setPreviewLayout(config.layout);
+                }}
+                onStopPreview={() => { setPreviewTheme(null); setPreviewLayout(null); }}
+              />
+
               <button
                 onClick={handleResetPositions}
                 className="bg-red-900/50 text-red-200 border border-red-900 px-2 py-1.5 rounded hover:bg-red-900/80 transition text-xs font-bold flex items-center gap-1 ml-2"
@@ -921,7 +952,7 @@ export default function Component() {
             isLayoutEditing ? (
               <ResponsiveGridLayout
                 className="layout"
-                layouts={{ lg: layout, md: layout, sm: layout, xs: layout, xxs: layout }}
+                layouts={{ lg: previewLayout ?? layout, md: previewLayout ?? layout, sm: previewLayout ?? layout, xs: previewLayout ?? layout, xxs: previewLayout ?? layout }}
                 breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
                 cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
                 rowHeight={40}
