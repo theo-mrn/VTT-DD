@@ -773,11 +773,10 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                 </Dialog>
               )}
 
-              {/* Items de l'inventaire */}
               {filteredInventory.map(item => (
                 <Card
                   key={item.id}
-                  className="relative group hover:shadow-lg transition-all duration-200 bg-[var(--bg-card)] border-[var(--border-color)] overflow-hidden aspect-square"
+                  className="relative group hover:shadow-lg hover:border-[var(--accent-brown)] transition-all duration-200 bg-[var(--bg-card)] hover:bg-[var(--bg-card)] dark:hover:bg-[var(--bg-card)] border-[var(--border-color)] overflow-hidden aspect-square"
                 >
                   <CardContent className="p-2 flex flex-col items-center justify-center h-full">
                     {canEdit ? (
@@ -874,7 +873,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                           <div className="relative w-16 h-16">
                             <div className={`w-16 h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 transition-all ${bonusesMap[item.id] && bonusesMap[item.id].length > 0
                               ? 'border-[var(--accent-brown)] shadow-lg shadow-[var(--accent-brown)]/50'
-                              : 'border-[var(--border-color)]'
+                              : 'border-[var(--border-color)] hover:border-[var(--accent-brown)]'
                               }`}>
                               {categoryIcons[item.category]}
                             </div>
