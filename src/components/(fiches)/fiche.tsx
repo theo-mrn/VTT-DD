@@ -630,6 +630,10 @@ export default function Component() {
     setShowLevelUpModal(false);
   };
 
+  // Temporary preview theme from portal hover – overrides displayed values without saving
+  const [previewTheme, setPreviewTheme] = useState<Record<string, any> | null>(null);
+  const [previewLayout, setPreviewLayout] = useState<any[] | null>(null);
+
   if (isLoading) {
     return <div className="min-h-screen bg-[#1c1c1c] text-[#d4d4d4] p-4 flex items-center justify-center">
       Chargement...
@@ -655,9 +659,6 @@ export default function Component() {
   }
 
 
-  // Temporary preview theme from portal hover – overrides displayed values without saving
-  const [previewTheme, setPreviewTheme] = useState<Record<string, any> | null>(null);
-  const [previewLayout, setPreviewLayout] = useState<any[] | null>(null);
 
   const bgValue = (previewTheme?.theme_background ?? (isLayoutEditing ? customizationForm.theme_background : selectedCharacter?.theme_background)) || '';
   const secondaryValue = (previewTheme?.theme_secondary_color ?? (isLayoutEditing ? customizationForm.theme_secondary_color : selectedCharacter?.theme_secondary_color)) || '';

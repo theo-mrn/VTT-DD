@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider"
 import { CompetencesProvider } from "@/contexts/CompetencesContext"
@@ -78,7 +79,12 @@ export default function RootLayout({
                 <UndoRedoProvider>
                   <Toaster position="top-right" />
                   <TimeTracker />
-                  {children}
+                  <div className="flex flex-col min-h-screen">
+                    <main className="flex-1">
+                      {children}
+                    </main>
+
+                  </div>
                 </UndoRedoProvider>
               </CompetencesProvider>
             </CharacterProvider>
