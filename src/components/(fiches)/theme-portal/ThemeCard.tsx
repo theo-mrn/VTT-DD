@@ -1,6 +1,8 @@
-import React from 'react';
-import { Download, Heart } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Download, Heart, User } from 'lucide-react';
 import { ThemeConfig, CommunityTheme } from './types';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface ThemeCardProps {
     theme: CommunityTheme;
@@ -18,6 +20,30 @@ export function ThemeCard({ theme, onApply, onHover, onLeave, isPreviewLocked, o
     const themeColors = config.theme;
 
     const isLiked = currentUserId && theme.likedBy?.includes(currentUserId);
+
+    const [authorData, setAuthorData] = useState<{ name: string, pp: string | null } | null>(null);
+
+    useEffect(() => {
+        const fetchAuthorData = async () => {
+            if (!theme.authorId) return;
+            try {
+                const userDoc = await getDoc(doc(db, 'users', theme.authorId));
+                if (userDoc.exists()) {
+                    const data = userDoc.data();
+                    setAuthorData({
+                        name: data.name || theme.authorName,
+                        pp: data.pp || null
+                    });
+                }
+            } catch (err) {
+                console.error("Error fetching author data:", err);
+            }
+        };
+
+        fetchAuthorData();
+    }, [theme.authorId, theme.authorName]);
+
+    const displayName = authorData?.name || theme.authorName;
 
     const formatDate = (timestamp: number) => {
         return new Date(timestamp).toLocaleDateString();
@@ -45,7 +71,16 @@ export function ThemeCard({ theme, onApply, onHover, onLeave, isPreviewLocked, o
                         </button>
                     )}
                 </div>
-                <p className="text-xs text-[#a0a0a0] truncate">par {theme.authorName}</p>
+                <div className="flex items-center gap-2 mt-1">
+                    {authorData?.pp ? (
+                        <img src={authorData.pp} alt={displayName} className="w-5 h-5 rounded-full object-cover border border-[#444]" />
+                    ) : (
+                        <div className="w-5 h-5 rounded-full bg-[#2a2a2a] border border-[#444] flex items-center justify-center text-[#888]">
+                            <User size={10} />
+                        </div>
+                    )}
+                    <p className="text-xs text-[#a0a0a0] truncate">par <span className="text-[#d4b48f] font-medium">{displayName}</span></p>
+                </div>
 
                 {/* Color swatches */}
                 <div className="flex gap-2 items-center mt-2">
