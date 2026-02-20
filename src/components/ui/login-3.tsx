@@ -53,7 +53,7 @@ const buttonVariants = cva(
 
 interface ButtonProps
   extends React.ComponentProps<"button">,
-    VariantProps<typeof buttonVariants> {
+  VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }
 
@@ -195,11 +195,28 @@ export default function Login06() {
       if (isSignUp) {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-        // Stocker le nom d&apos;utilisateur et le titre dans Firestore
+        // Stocker le nom d'utilisateur et le titre dans Firestore
         await setDoc(doc(db, "users", user.uid), {
           name: username,
           title: "débutant"
         });
+
+        // Envoyer l'email d'inscription
+        try {
+          await fetch('/api/sent-sign-up', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              to: email,
+              username: username,
+            }),
+          });
+        } catch (emailError) {
+          console.error("Failed to send welcome email:", emailError);
+        }
+
         router.push('/Salle');
       } else {
         await signInWithEmailAndPassword(auth, email, password);
@@ -218,91 +235,91 @@ export default function Login06() {
 
   return (
     <Card className="w-full max-w-sm rounded-2xl px-6 py-10 pt-14 shadow-2xl bg-zinc-900">
-        <CardContent className="">
-          <form onSubmit={handleSubmit} className="flex flex-col items-center space-y-8">
-            <Logo />
+      <CardContent className="">
+        <form onSubmit={handleSubmit} className="flex flex-col items-center space-y-8">
+          <Logo />
 
-            <div className="space-y-2 text-center">
-              <h1 className="text-3xl font-semibold text-foreground">
-                {isSignUp ? 'Créer un compte' : 'Bienvenue !'}
-              </h1>
-              <p className="text-muted-foreground text-sm">
-                {isSignUp ? 'Vous avez déjà un compte ? ' : 'Première visite ? '}
-                <button 
-                  type="button"
-                  onClick={() => setIsSignUp(!isSignUp)} 
-                  className="text-foreground hover:underline"
-                >
-                  {isSignUp ? 'Se connecter' : "S'inscrire gratuitement"}
-                </button>
-              </p>
+          <div className="space-y-2 text-center">
+            <h1 className="text-3xl font-semibold text-foreground">
+              {isSignUp ? 'Créer un compte' : 'Bienvenue !'}
+            </h1>
+            <p className="text-muted-foreground text-sm">
+              {isSignUp ? 'Vous avez déjà un compte ? ' : 'Première visite ? '}
+              <button
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-foreground hover:underline"
+              >
+                {isSignUp ? 'Se connecter' : "S'inscrire gratuitement"}
+              </button>
+            </p>
+          </div>
+
+          {error && (
+            <div className="w-full p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
+              {error}
             </div>
+          )}
 
-            {error && (
-              <div className="w-full p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg">
-                {error}
+          <div className="w-full space-y-4">
+            {isSignUp && (
+              <div className="space-y-2">
+                <Label htmlFor="username">Nom d&apos;utilisateur</Label>
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder="Nom d&apos;utilisateur"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required={isSignUp}
+                  className="w-full rounded-xl"
+                />
               </div>
             )}
 
-            <div className="w-full space-y-4">
-              {isSignUp && (
-                <div className="space-y-2">
-                  <Label htmlFor="username">Nom d&apos;utilisateur</Label>
-                  <Input
-                    id="username"
-                    type="text"
-                                         placeholder="Nom d&apos;utilisateur"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required={isSignUp}
-                    className="w-full rounded-xl"
-                  />
-                </div>
-              )}
-              
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="votre@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="w-full rounded-xl"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="votre@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full rounded-xl"
+              />
+            </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Mot de passe</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="Mot de passe"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="w-full rounded-xl"
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Mot de passe</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Mot de passe"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full rounded-xl"
+              />
+            </div>
 
-              <div className="flex flex-col gap-2">
-                <Button 
-                  type="submit" 
-                  className="w-full rounded-xl" 
-                  size="lg"
-                  disabled={isLoading}
-                >
-                                     {isLoading ? 'Chargement...' : (isSignUp ? "S'inscrire" : 'Se connecter')}
-                </Button>
-              </div>
-
-
+            <div className="flex flex-col gap-2">
+              <Button
+                type="submit"
+                className="w-full rounded-xl"
+                size="lg"
+                disabled={isLoading}
+              >
+                {isLoading ? 'Chargement...' : (isSignUp ? "S'inscrire" : 'Se connecter')}
+              </Button>
             </div>
 
 
-          </form>
-        </CardContent>
-      </Card>
+          </div>
+
+
+        </form>
+      </CardContent>
+    </Card>
   );
 }
