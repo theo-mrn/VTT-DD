@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, orderBy, getDocs, limit } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { collection, query, orderBy, getDocs, limit, doc, updateDoc, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
 import { ThemeCard } from './ThemeCard';
 import { Loader2 } from 'lucide-react';
 import { ThemeConfig, CommunityTheme } from './types';
@@ -45,6 +45,44 @@ export function ThemeExplorerTab({ onApplyTheme, onPreviewTheme, onStopPreview, 
             setError('Erreur lors du chargement des thèmes communautaires.');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleToggleLike = async (themeId: string, isCurrentlyLiked: boolean) => {
+        const user = auth.currentUser;
+        if (!user) return;
+
+        const userId = user.uid;
+        const themeRef = doc(db, 'community_themes', themeId);
+
+        // Optimistic UI updates
+        setThemes(prevThemes => prevThemes.map(t => {
+            if (t.id === themeId) {
+                const likedBy = t.likedBy || [];
+                if (isCurrentlyLiked) {
+                    return { ...t, likes: Math.max(0, t.likes - 1), likedBy: likedBy.filter(id => id !== userId) };
+                } else {
+                    return { ...t, likes: t.likes + 1, likedBy: [...likedBy, userId] };
+                }
+            }
+            return t;
+        }));
+
+        try {
+            if (isCurrentlyLiked) {
+                await updateDoc(themeRef, {
+                    likedBy: arrayRemove(userId),
+                    likes: increment(-1)
+                });
+            } else {
+                await updateDoc(themeRef, {
+                    likedBy: arrayUnion(userId),
+                    likes: increment(1)
+                });
+            }
+        } catch (err) {
+            console.error("Error toggling like:", err);
+            // Optionally rollback or refetch if it fails
         }
     };
 
@@ -97,6 +135,8 @@ export function ThemeExplorerTab({ onApplyTheme, onPreviewTheme, onStopPreview, 
                     <ThemeCard
                         key={theme.id}
                         theme={theme}
+                        currentUserId={auth.currentUser?.uid}
+                        onToggleLike={handleToggleLike}
                         isPreviewLocked={lockedPreviewId === theme.id}
                         onTogglePreviewLock={() => {
                             if (lockedPreviewId === theme.id) {
