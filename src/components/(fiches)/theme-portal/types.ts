@@ -19,5 +19,6 @@ export interface CommunityTheme {
     authorName: string;
     createdAt: number;
     likes: number;
+    likedBy?: string[];
     config: ThemeConfig;
 }

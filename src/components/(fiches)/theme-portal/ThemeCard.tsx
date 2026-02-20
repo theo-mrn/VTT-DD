@@ -1,25 +1,23 @@
 import React from 'react';
-import { Download } from 'lucide-react';
-import { ThemeConfig } from './types';
+import { Download, Heart } from 'lucide-react';
+import { ThemeConfig, CommunityTheme } from './types';
 
 interface ThemeCardProps {
-    theme: {
-        id: string;
-        name: string;
-        authorName: string;
-        createdAt: number;
-        config: ThemeConfig;
-    };
+    theme: CommunityTheme;
     onApply: (config: ThemeConfig) => void;
     onHover: (theme: ThemeConfig['theme']) => void;
     onLeave: () => void;
     isPreviewLocked?: boolean;
     onTogglePreviewLock?: () => void;
+    currentUserId?: string;
+    onToggleLike?: (themeId: string, isLiked: boolean) => void;
 }
 
-export function ThemeCard({ theme, onApply, onHover, onLeave, isPreviewLocked, onTogglePreviewLock }: ThemeCardProps) {
+export function ThemeCard({ theme, onApply, onHover, onLeave, isPreviewLocked, onTogglePreviewLock, currentUserId, onToggleLike }: ThemeCardProps) {
     const { config } = theme;
     const themeColors = config.theme;
+
+    const isLiked = currentUserId && theme.likedBy?.includes(currentUserId);
 
     const formatDate = (timestamp: number) => {
         return new Date(timestamp).toLocaleDateString();
@@ -33,7 +31,20 @@ export function ThemeCard({ theme, onApply, onHover, onLeave, isPreviewLocked, o
             onClick={onTogglePreviewLock}
         >
             <div className="flex flex-col flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-[#d4d4d4] truncate pr-2 uppercase">{theme.name}</h4>
+                <div className="flex items-center gap-2 pr-2">
+                    <h4 className="text-sm font-bold text-[#d4d4d4] truncate uppercase">{theme.name}</h4>
+                    {onToggleLike && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onToggleLike(theme.id, !!isLiked); }}
+                            className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded transition-colors ${isLiked ? 'text-pink-400 bg-pink-400/10 hover:bg-pink-400/20' : 'text-[#888] hover:text-[#bbb] hover:bg-[#333]'
+                                }`}
+                            aria-label={isLiked ? "Unlike" : "Like"}
+                        >
+                            <Heart size={12} className={isLiked ? "fill-pink-400" : ""} />
+                            <span>{theme.likes || 0}</span>
+                        </button>
+                    )}
+                </div>
                 <p className="text-xs text-[#a0a0a0] truncate">par {theme.authorName}</p>
 
                 {/* Color swatches */}

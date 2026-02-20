@@ -38,6 +38,7 @@ export function ThemePublishTab({ currentConfig, onSuccess }: ThemePublishTabPro
                 authorName: user.displayName || 'Utilisateur Anonyme',
                 createdAt: Date.now(),
                 likes: 0,
+                likedBy: [],
                 config: sanitizedConfig
             });
 
