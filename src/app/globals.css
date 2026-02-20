@@ -44,8 +44,8 @@
   --text-secondary: #666666;
   --accent-brown: #c0a080;
   --accent-brown-hover: #d4b48f;
-  --accent-blue: #5c6bc0;
-  --accent-blue-hover: #7986cb;
+  --accent-blue: #cd2020;
+  --accent-blue-hover: #ce1a1a;
 }
 
 /* Dark Theme Colors */
@@ -86,6 +86,7 @@
 .bg-primary {
   @apply bg-[var(--accent-brown)] text-[var(--bg-dark)];
 }
+
 /* Custom Component Styles */
 .card {
   @apply bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-4;
@@ -169,12 +170,14 @@
 
 /* Cartes qui prennent toute la largeur sur tous les écrans */
 .bento-wide {
-  grid-column: 1 / -1; /* Prend toute la largeur disponible */
+  grid-column: 1 / -1;
+  /* Prend toute la largeur disponible */
   min-height: 280px;
 }
 
 .bento-large {
-  grid-column: 1 / -1; /* Prend toute la largeur disponible */
+  grid-column: 1 / -1;
+  /* Prend toute la largeur disponible */
   min-height: 380px;
 }
 
@@ -183,7 +186,7 @@
   .bento-wide {
     min-height: 250px;
   }
-  
+
   .bento-large {
     min-height: 350px;
   }
@@ -206,12 +209,18 @@
   * {
     @apply border-border;
   }
+
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-body), serif;
   }
-  
-  h1, h2, h3, h4, h5, h6 {
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-title), serif;
   }
 }
