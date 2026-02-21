@@ -74,9 +74,7 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
     if (musicState.videoId) {
       isSyncingFromFirebase.current = true;
 
-      // Calculer la position actuelle en tenant compte du temps écoulé
-      const timeSinceUpdate = (Date.now() - musicState.lastUpdate) / 1000;
-      const targetTime = musicState.isPlaying ? musicState.timestamp + timeSinceUpdate : musicState.timestamp;
+      const targetTime = musicState.timestamp;
 
       // Se positionner au bon moment
       playerRef.current.seekTo(targetTime, true);
@@ -132,11 +130,10 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
 
             const currentTime = playerRef.current.getCurrentTime();
             if (typeof currentTime === 'number') {
-              const timeSinceUpdate = (Date.now() - data.lastUpdate) / 1000;
-              const targetTime = data.isPlaying ? data.timestamp + timeSinceUpdate : data.timestamp;
+              const targetTime = data.timestamp;
               const adjustedDiff = Math.abs(currentTime - targetTime);
 
-              if (adjustedDiff > 1) {
+              if (adjustedDiff > 1.5) {
                 playerRef.current.seekTo(targetTime, true);
               }
             }
