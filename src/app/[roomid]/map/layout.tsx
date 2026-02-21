@@ -27,6 +27,8 @@ import { useAudioMixer } from '@/components/(audio)/AudioMixerPanel';
 import { MapControlProvider } from '@/contexts/MapControlContext';
 import { DialogVisibilityProvider } from '@/contexts/DialogVisibilityContext';
 import { ShortcutsProvider } from '@/contexts/ShortcutsContext';
+import { startSidebarTour } from "@/lib/tours";
+import { HelpCircle } from "lucide-react";
 
 type LayoutProps = {
   children: ReactNode;
@@ -140,6 +142,7 @@ export default function Layout({ children }: LayoutProps) {
 
             {activeTab && activeTab !== 'Music' && activeTab !== 'DiceRoller' && (
               <aside
+                id="vtt-side-panel"
                 className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${getPanelWidth()} text-black shadow-lg z-20
             ${activeTab === 'Chat' ? 'overflow-hidden' : 'overflow-y-auto'}`}
               >
@@ -170,6 +173,15 @@ export default function Layout({ children }: LayoutProps) {
             </main>
             {/* 3D Dice Overlay */}
             <DiceThrower />
+
+            {/* Tour Trigger Button */}
+            <button
+              onClick={() => startSidebarTour(isMJ)}
+              className="fixed bottom-4 right-4 z-40 p-3 bg-[#c0a080] text-black rounded-full shadow-lg hover:bg-[#d4b090] transition-colors"
+              title="Commencer le tutoriel"
+            >
+              <HelpCircle className="h-6 w-6" />
+            </button>
           </div>
         </MapControlProvider>
       </DialogVisibilityProvider>

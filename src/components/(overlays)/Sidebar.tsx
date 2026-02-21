@@ -65,28 +65,28 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
           <div className="p-2 sm:p-3 md:p-4 rounded-r-xl relative bg-gradient-to-br from-black/[0.05] to-transparent dark:from-white/[0.08] dark:to-transparent backdrop-blur-md backdrop-saturate-150 border-y border-r border-black/[0.05] dark:border-white/[0.08] text-black/90 dark:text-white shadow-sm flex flex-col items-center space-y-3 sm:space-y-4 md:space-y-6">
             {isHydrated && isMJ && (
               <>
-                <button onClick={() => handleIconClick("GMDashboard")} className="p-1.5 sm:p-2">
+                <button id="vtt-sidebar-combat" onClick={() => handleIconClick("GMDashboard")} className="p-1.5 sm:p-2">
                   <Swords className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "GMDashboard" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
                 </button>
-                <button onClick={() => handleIconClick("NPCManager")} className="p-1.5 sm:p-2">
+                <button id="vtt-sidebar-npc" onClick={() => handleIconClick("NPCManager")} className="p-1.5 sm:p-2">
                   <UsersRound className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "NPCManager" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
                 </button>
-                <button onClick={() => handleIconClick("EncounterGenerator")} className="p-1.5 sm:p-2">
+                <button id="vtt-sidebar-encounter" onClick={() => handleIconClick("EncounterGenerator")} className="p-1.5 sm:p-2">
                   <Skull className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "EncounterGenerator" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
                 </button>
               </>
             )}
-            <button onClick={() => handleIconClick("Component")} className="p-1.5 sm:p-2">
+            <button id="vtt-sidebar-fiche" onClick={() => handleIconClick("Component")} className="p-1.5 sm:p-2">
               <FileText className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Component" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
             </button>
-            <button onClick={() => handleIconClick("NewComponent")} className="p-1.5 sm:p-2">
+            <button id="vtt-sidebar-notes" onClick={() => handleIconClick("NewComponent")} className="p-1.5 sm:p-2">
               <Edit className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "NewComponent" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
             </button>
 
-            <button id="sidebar-dice-button" onClick={() => handleIconClick("DiceRoller")} className="p-1.5 sm:p-2">
+            <button id="vtt-sidebar-dice" onClick={() => handleIconClick("DiceRoller")} className="p-1.5 sm:p-2">
               <Dice5 className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "DiceRoller" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
             </button>
-            <button onClick={() => handleIconClick("Chat")} className="p-1.5 sm:p-2">
+            <button id="vtt-sidebar-chat" onClick={() => handleIconClick("Chat")} className="p-1.5 sm:p-2">
               <ImagePlay className={`h-5 w-5 sm:h-6 sm:w-6 ${activeTab === "Chat" ? "text-[#c0a080]" : "text-[#d4d4d4]"}`} />
             </button>
           </div>
