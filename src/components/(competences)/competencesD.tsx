@@ -307,6 +307,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
             </Tabs>
 
             <Button
+              id="vtt-skills-btn-fullscreen"
               onClick={onOpenFullscreen}
               variant="ghost"
               size="sm"

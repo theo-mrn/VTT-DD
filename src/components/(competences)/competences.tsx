@@ -420,6 +420,7 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
                     </div>
                     <div className="flex gap-4 mb-5">
                         <Button
+                            id="vtt-skills-btn-reset"
                             onClick={resetSkills}
                             disabled={selectedCharacter?.id !== userPersoId}
                             className={`button-secondary ${selectedCharacter?.id !== userPersoId ? 'opacity-50 cursor-not-allowed' : ''
@@ -429,6 +430,7 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
                         </Button>
                         {(selectedCharacter?.id === userPersoId || userRole === 'MJ') && (
                             <Button
+                                id="vtt-skills-btn-manage-voies"
                                 onClick={() => setShowChangeComponent(true)}
                                 className="button-primary"
                             >

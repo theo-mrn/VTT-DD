@@ -534,6 +534,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
             <div className="relative w-full">
               <Search className="absolute right-4 top-3 h-4 w-4 text-[var(--text-primary)]" />
               <Input
+                id="vtt-inventory-search"
                 placeholder="Rechercher"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -574,7 +575,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <DialogTrigger asChild>
-                        <div className="aspect-square flex items-center justify-center">
+                        <div id="vtt-inventory-btn-add" className="aspect-square flex items-center justify-center">
                           <div className="w-16 h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all cursor-pointer hover:scale-110">
                             <Plus className="w-8 h-8 text-[var(--accent-brown)]" />
                           </div>

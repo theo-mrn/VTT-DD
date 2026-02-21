@@ -709,6 +709,7 @@ export default function Component() {
               {(selectedCharacter.id === userPersoId || userRole === "MJ") && (
                 <>
                   <button
+                    id="vtt-fiche-btn-modifier"
                     onClick={handleEdit}
                     className="bg-[#3a3a3a] text-[#c0a080] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
                     title="Modifier"
@@ -717,6 +718,7 @@ export default function Component() {
                     <span className="hidden sm:inline">Modifier</span>
                   </button>
                   <button
+                    id="vtt-fiche-btn-level-up"
                     onClick={openLevelUpModal}
                     className="bg-[#3a3a3a] text-[#5c6bc0] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
                     title="Monter de niveau"
@@ -728,6 +730,7 @@ export default function Component() {
               )}
 
               <button
+                id="vtt-fiche-btn-stats"
                 onClick={() => setShowStatistiques(true)}
                 className="bg-[#3a3a3a] text-[#c0a080] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
                 title="Voir les statistiques"
@@ -738,6 +741,7 @@ export default function Component() {
 
               {(selectedCharacter.id === userPersoId || userRole === "MJ") && (
                 <button
+                  id="vtt-fiche-btn-edition"
                   onClick={handleEditModeToggle}
                   className={`p-2 rounded-lg transition duration-200 flex items-center gap-1 text-xs sm:text-sm ${isLayoutEditing ? 'bg-[#c0a080] text-[#1c1c1c]' : 'bg-[#3a3a3a] text-[#80c0a0] hover:bg-[#4a4a4a]'}`}
                   title="Mode Édition (Style & Disposition)"
@@ -795,37 +799,37 @@ export default function Component() {
                 isResizable={false}
                 draggableHandle=".drag-handle"
               >
-                <div key="avatar" className="relative group hover:z-[100]">
+                <div id="vtt-widget-avatar" key="avatar" className="relative group hover:z-[100]">
                   <WidgetControls id="avatar" updateWidgetDim={updateWidgetDim} widthMode="incremental" />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <WidgetAvatar style={boxStyle} />
                   </div>
                 </div>
-                <div key="details" className="relative group hover:z-[100]">
+                <div id="vtt-widget-details" key="details" className="relative group hover:z-[100]">
                   <WidgetControls id="details" updateWidgetDim={updateWidgetDim} widthMode="incremental" />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} />
                   </div>
                 </div>
-                <div key="stats" className="relative group hover:z-[100]">
+                <div id="vtt-widget-stats" key="stats" className="relative group hover:z-[100]">
                   <WidgetControls id="stats" updateWidgetDim={updateWidgetDim} widthMode="presets" />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <WidgetStats style={boxStyle} />
                   </div>
                 </div>
-                <div key="vitals" className="relative group hover:z-[100]">
+                <div id="vtt-widget-vitals" key="vitals" className="relative group hover:z-[100]">
                   <WidgetControls id="vitals" updateWidgetDim={updateWidgetDim} widthMode="presets" />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <WidgetVitals style={boxStyle} />
                   </div>
                 </div>
-                <div key="combat_stats" className="relative group hover:z-[100]">
+                <div id="vtt-widget-combat-stats" key="combat_stats" className="relative group hover:z-[100]">
                   <WidgetControls id="combat_stats" updateWidgetDim={updateWidgetDim} widthMode="presets" />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <WidgetCombatStats style={boxStyle} />
                   </div>
                 </div>
-                <div key="inventory" className="relative group hover:z-[100]">
+                <div id="vtt-widget-inventory" key="inventory" className="relative group hover:z-[100]">
                   <WidgetControls id="inventory" updateWidgetDim={updateWidgetDim} widthMode="presets" />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <InventoryManagement2
@@ -836,7 +840,7 @@ export default function Component() {
                     />
                   </div>
                 </div>
-                <div key="skills" className="relative group hover:z-[100]">
+                <div id="vtt-widget-skills" key="skills" className="relative group hover:z-[100]">
                   <WidgetControls id="skills" updateWidgetDim={updateWidgetDim} widthMode="presets" />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <CompetencesDisplay
@@ -878,12 +882,12 @@ export default function Component() {
                 isDraggable={false}
                 isResizable={false}
               >
-                <div key="avatar" className="overflow-hidden h-full"><WidgetAvatar style={boxStyle} /></div>
-                <div key="details" className="overflow-hidden h-full"><WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} /></div>
-                <div key="stats" className="overflow-hidden h-full"><WidgetStats style={boxStyle} /></div>
+                <div id="vtt-widget-avatar-view" key="avatar" className="overflow-hidden h-full"><WidgetAvatar style={boxStyle} /></div>
+                <div id="vtt-widget-details-view" key="details" className="overflow-hidden h-full"><WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} /></div>
+                <div id="vtt-widget-stats-view" key="stats" className="overflow-hidden h-full"><WidgetStats style={boxStyle} /></div>
                 {layout.find(l => l.i === 'bourse') && <div key="bourse" className="overflow-hidden h-full"><WidgetBourse style={boxStyle} /></div>}
                 {layout.find(l => l.i === 'effects') && <div key="effects" className="overflow-hidden h-full"><WidgetEffects style={boxStyle} /></div>}
-                <div key="vitals" className="overflow-hidden h-full">
+                <div id="vtt-widget-vitals-view" key="vitals" className="overflow-hidden h-full">
                   <Drawer>
                     <DrawerTrigger asChild>
                       <button className="w-full h-full text-left p-0 bg-transparent border-0 cursor-pointer block hover:brightness-110 transition-all">
@@ -965,8 +969,8 @@ export default function Component() {
                     </DrawerContent>
                   </Drawer>
                 </div>
-                <div key="combat_stats" className="overflow-hidden h-full"><WidgetCombatStats style={boxStyle} /></div>
-                <div key="inventory" className="overflow-hidden h-full">
+                <div id="vtt-widget-combat-stats-view" key="combat_stats" className="overflow-hidden h-full"><WidgetCombatStats style={boxStyle} /></div>
+                <div id="vtt-widget-inventory-view" key="inventory" className="overflow-hidden h-full">
                   <InventoryManagement2
                     playerName={selectedCharacter.Nomperso}
                     roomId={roomId!}
@@ -974,7 +978,7 @@ export default function Component() {
                     style={boxStyle}
                   />
                 </div>
-                <div key="skills" className="overflow-hidden h-full">
+                <div id="vtt-widget-skills-view" key="skills" className="overflow-hidden h-full">
                   <CompetencesDisplay
                     roomId={roomId!}
                     characterId={selectedCharacter.id}
