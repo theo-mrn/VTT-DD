@@ -655,6 +655,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                     {[4, 6, 8, 10, 12, 20].map((d) => (
                       <button
                         key={`d${d}`}
+                        id={`vtt-dice-btn-d${d}`}
                         onClick={() => addToInput(`1d${d}`)}
                         className="group relative w-full aspect-square flex items-center justify-center bg-transparent border border-white/5 rounded-lg cursor-pointer transition-all duration-200 hover:bg-white/10 hover:border-white/20 hover:scale-105 active:scale-95"
                       >
@@ -800,7 +801,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                   {/* Dice Roller Content (always visible) */}
                   <>
                     {/* Result Display Area (Above Input) */}
-                    <div className="px-6 pt-4 pb-0 min-h-[3.5rem] flex flex-col justify-end">
+                    <div id="vtt-dice-result" className="px-6 pt-4 pb-0 min-h-[3.5rem] flex flex-col justify-end">
                       {(isLoading || latestResult) && (
                         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 relative group">
 
@@ -845,6 +846,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                     <div className="relative overflow-hidden">
                       <textarea
                         ref={textareaRef}
+                        id="vtt-dice-input"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
@@ -863,7 +865,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                       <div className="space-y-3">
                         {/* Modifiers Grid - Hidden for MJ */}
                         {userName !== "MJ" && (
-                          <div className="grid grid-cols-6 gap-2">
+                          <div id="vtt-dice-modifiers" className="grid grid-cols-6 gap-2">
                             {["FOR", "DEX", "CON", "INT", "SAG", "CHA"].map(stat => (
                               <button
                                 key={stat}
@@ -880,6 +882,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                           {/* Toggles */}
                           <div className="flex items-center gap-2">
                             <button
+                              id="vtt-dice-btn-store"
                               onClick={() => setIsSkinDialogOpen(true)}
                               className="p-2 rounded-lg transition-all duration-300 border bg-transparent border-white/10 text-zinc-600 hover:text-amber-400 hover:border-amber-400/30"
                               title="Boutique de dés"
@@ -887,6 +890,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                               <Store className="w-4 h-4" />
                             </button>
                             <button
+                              id="vtt-dice-btn-3d"
                               onClick={() => setShow3DAnimations(!show3DAnimations)}
                               className={`p-2 rounded-lg transition-all duration-300 border ${show3DAnimations ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
                               title="3D Rolling"
@@ -895,6 +899,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                             </button>
 
                             <button
+                              id="vtt-dice-btn-private"
                               onClick={() => setIsPrivate(!isPrivate)}
                               className={`p-2 rounded-lg transition-all duration-300 border ${isPrivate ? 'bg-amber-500/20 border-amber-500/50 text-amber-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
                               title="Privé"
@@ -903,6 +908,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                             </button>
                             {userName !== "MJ" && (
                               <button
+                                id="vtt-dice-btn-blind"
                                 onClick={() => setIsBlind(!isBlind)}
                                 className={`p-2 rounded-lg transition-all duration-300 border ${isBlind ? 'bg-red-500/20 border-red-500/50 text-red-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
                                 title="Blind Roll (Caché)"
@@ -925,6 +931,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
 
                             {/* Send Button */}
                             <button
+                              id="vtt-dice-btn-roll"
                               onClick={handleRoll}
                               className="group relative p-2.5 pl-4 pr-3 bg-gradient-to-r from-red-600 to-red-500 border-none rounded-xl cursor-pointer transition-all duration-300 text-white shadow-lg hover:from-red-500 hover:to-red-400 hover:scale-105 hover:shadow-red-500/30 active:scale-95 transform flex items-center gap-2"
                               style={{
@@ -958,6 +965,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                 {/* Tabs */}
                 <div className="flex border-b border-white/5 px-2 pt-2">
                   <button
+                    id="vtt-dice-tab-history"
                     onClick={() => setShowStats(false)}
                     className={`flex-1 pb-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-300 ${!showStats ? 'border-red-500 text-zinc-100' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
                   >
@@ -967,6 +975,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                     </div>
                   </button>
                   <button
+                    id="vtt-dice-tab-stats"
                     onClick={() => setShowStats(true)}
                     className={`flex-1 pb-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-300 ${showStats ? 'border-red-500 text-zinc-100' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
                   >
