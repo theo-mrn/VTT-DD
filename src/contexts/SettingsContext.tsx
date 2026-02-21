@@ -1,9 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { useTheme } from 'next-themes';
 import { db } from '@/lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { useGame } from '@/contexts/GameContext';
+import type { ThemeName } from '@/lib/saveSettings';
 
 interface SettingsContextType {
     // Cursor Settings
@@ -39,6 +41,30 @@ interface SettingsContextType {
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
+/** Syncs the theme from Firestore to next-themes. Kept separate so it can
+ *  safely call useTheme() which requires being inside ThemeProvider. */
+function ThemeSyncFromDB({ userId }: { userId: string | undefined }) {
+    const { setTheme } = useTheme();
+
+    useEffect(() => {
+        if (!userId) return;
+
+        const userRef = doc(db, 'users', userId);
+        const unsubscribe = onSnapshot(userRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const theme = docSnap.data()?.settings?.theme as ThemeName | undefined;
+                if (theme) {
+                    setTheme(theme);
+                }
+            }
+        });
+
+        return () => unsubscribe();
+    }, [userId, setTheme]);
+
+    return null;
+}
+
 export function SettingsProvider({ children }: { children: ReactNode }) {
     const { user } = useGame();
 
@@ -58,10 +84,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
     const [isHydrated, setIsHydrated] = useState(false);
 
-    // 🐛 DEBUG: Log when state actually changes
-    useEffect(() => {
-    }, [cursorColor, cursorTextColor]);
-
     // Subscribe to Firestore updates (READ ONLY - NO WRITES)
     useEffect(() => {
         if (!user || !user.uid) {
@@ -75,8 +97,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
                 const data = docSnap.data();
                 const settings = data.settings || {};
 
-
-                // Apply settings from DB (READ ONLY - Context never writes to DB)
                 if (settings.cursorColor !== undefined) setCursorColor(settings.cursorColor);
                 if (settings.cursorTextColor !== undefined) setCursorTextColor(settings.cursorTextColor);
                 if (settings.showMyCursor !== undefined) setShowMyCursor(settings.showMyCursor);
@@ -112,6 +132,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             showBackgroundSelector, setShowBackgroundSelector,
             isHydrated
         }}>
+            {/* Syncs theme from Firestore → next-themes without polluting context */}
+            <ThemeSyncFromDB userId={user?.uid} />
             {children}
         </SettingsContext.Provider>
     );

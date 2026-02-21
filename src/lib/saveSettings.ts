@@ -1,6 +1,8 @@
 import { db } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 
+export type ThemeName = 'dark' | 'forest' | 'crimson' | 'parchment' | 'midnight';
+
 export interface UserSettings {
     cursorColor?: string;
     cursorTextColor?: string;
@@ -11,6 +13,7 @@ export interface UserSettings {
     showCharBorders?: boolean;
     globalTokenScale?: number;
     performanceMode?: 'high' | 'eco' | 'static';
+    theme?: ThemeName;
 }
 
 /**

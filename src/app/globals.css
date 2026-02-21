@@ -87,7 +87,7 @@
   --border-color: #2a2a2a;
   --text-primary: #d4d4d4;
   --text-secondary: #a0a0a0;
-  --accent-brown: #80c08d;
+  --accent-brown: #c0a080;
   /* c0a080 */
   --accent-brown-hover: #d4b48f;
   --accent-blue: #5c6bc0;
@@ -96,6 +96,162 @@
   --chart-line: #ef4444;
   --chart-bar: #3b82f6;
   --chart-bar-alt: #8b5cf6;
+}
+
+/* ─── Theme: Forest ──────────────────────── */
+.forest {
+  --background: 150 15% 8%;
+  --foreground: 120 10% 88%;
+  --card: 150 15% 8%;
+  --card-foreground: 120 10% 88%;
+  --popover: 150 15% 8%;
+  --popover-foreground: 120 10% 88%;
+  --primary: 120 10% 88%;
+  --primary-foreground: 150 15% 8%;
+  --secondary: 150 12% 14%;
+  --secondary-foreground: 120 10% 88%;
+  --muted: 150 12% 14%;
+  --muted-foreground: 120 8% 55%;
+  --accent: 150 12% 14%;
+  --accent-foreground: 120 10% 88%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 150 12% 18%;
+  --input: 150 12% 18%;
+  --ring: 140 40% 50%;
+
+  --bg-dark: #141f14;
+  --bg-darker: #0a120a;
+  --bg-card: #162016;
+  --bg-canvas: #0f180f;
+  --border-color: #233223;
+  --text-primary: #c8d8c0;
+  --text-secondary: #8aaa80;
+  --accent-brown: #6abf6a;
+  --accent-brown-hover: #80d480;
+  --accent-blue: #4a9e8a;
+  --accent-blue-hover: #5ab4a0;
+  --accent-header: #c8d8c0;
+  --chart-line: #ef4444;
+  --chart-bar: #6abf6a;
+  --chart-bar-alt: #4a9e8a;
+}
+
+/* ─── Theme: Crimson ─────────────────────── */
+.crimson {
+  --background: 0 15% 7%;
+  --foreground: 20 10% 88%;
+  --card: 0 15% 7%;
+  --card-foreground: 20 10% 88%;
+  --popover: 0 15% 7%;
+  --popover-foreground: 20 10% 88%;
+  --primary: 20 10% 88%;
+  --primary-foreground: 0 15% 7%;
+  --secondary: 0 12% 13%;
+  --secondary-foreground: 20 10% 88%;
+  --muted: 0 12% 13%;
+  --muted-foreground: 20 8% 52%;
+  --accent: 0 12% 13%;
+  --accent-foreground: 20 10% 88%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 0 12% 17%;
+  --input: 0 12% 17%;
+  --ring: 0 60% 45%;
+
+  --bg-dark: #1e1010;
+  --bg-darker: #120808;
+  --bg-card: #201212;
+  --bg-canvas: #160c0c;
+  --border-color: #331818;
+  --text-primary: #d8c8c0;
+  --text-secondary: #aa8880;
+  --accent-brown: #c0504a;
+  --accent-brown-hover: #d46460;
+  --accent-blue: #9e5a3a;
+  --accent-blue-hover: #b46e50;
+  --accent-header: #d8c8c0;
+  --chart-line: #ef4444;
+  --chart-bar: #c0504a;
+  --chart-bar-alt: #9e5a3a;
+}
+
+/* ─── Theme: Parchment ───────────────────── */
+.parchment {
+  --background: 40 35% 92%;
+  --foreground: 30 20% 15%;
+  --card: 40 35% 92%;
+  --card-foreground: 30 20% 15%;
+  --popover: 40 35% 92%;
+  --popover-foreground: 30 20% 15%;
+  --primary: 30 20% 15%;
+  --primary-foreground: 40 35% 92%;
+  --secondary: 40 25% 85%;
+  --secondary-foreground: 30 20% 15%;
+  --muted: 40 25% 85%;
+  --muted-foreground: 30 12% 45%;
+  --accent: 40 25% 85%;
+  --accent-foreground: 30 20% 15%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 35 20% 75%;
+  --input: 35 20% 75%;
+  --ring: 30 50% 40%;
+
+  --bg-dark: #f2e8d0;
+  --bg-darker: #e8dfc4;
+  --bg-card: #f5eedc;
+  --bg-canvas: #faf5e8;
+  --border-color: #c8b890;
+  --text-primary: #2c1e0e;
+  --text-secondary: #6a5030;
+  --accent-brown: #8b5e2c;
+  --accent-brown-hover: #a07038;
+  --accent-blue: #4a6880;
+  --accent-blue-hover: #5c7a94;
+  --accent-header: #2c1e0e;
+  --chart-line: #c0383a;
+  --chart-bar: #4a6880;
+  --chart-bar-alt: #8b5e2c;
+}
+
+/* ─── Theme: Midnight ────────────────────── */
+.midnight {
+  --background: 220 25% 8%;
+  --foreground: 210 20% 90%;
+  --card: 220 25% 8%;
+  --card-foreground: 210 20% 90%;
+  --popover: 220 25% 8%;
+  --popover-foreground: 210 20% 90%;
+  --primary: 210 20% 90%;
+  --primary-foreground: 220 25% 8%;
+  --secondary: 220 20% 14%;
+  --secondary-foreground: 210 20% 90%;
+  --muted: 220 20% 14%;
+  --muted-foreground: 210 15% 55%;
+  --accent: 220 20% 14%;
+  --accent-foreground: 210 20% 90%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 0 0% 98%;
+  --border: 220 20% 18%;
+  --input: 220 20% 18%;
+  --ring: 200 70% 55%;
+
+  --bg-dark: #10182a;
+  --bg-darker: #080f1e;
+  --bg-card: #121c30;
+  --bg-canvas: #0c1424;
+  --border-color: #1e2e48;
+  --text-primary: #c8d8e8;
+  --text-secondary: #7a98b8;
+  --accent-brown: #4aa8d8;
+  --accent-brown-hover: #60bce8;
+  --accent-blue: #5060c0;
+  --accent-blue-hover: #6474d4;
+  --accent-header: #c8d8e8;
+  --chart-line: #ef4444;
+  --chart-bar: #4aa8d8;
+  --chart-bar-alt: #5060c0;
 }
 
 .bg-primary {

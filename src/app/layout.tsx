@@ -70,8 +70,9 @@ export default function RootLayout({
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
-          enableSystem
+          enableSystem={false}
           disableTransitionOnChange
+          themes={['dark', 'forest', 'crimson', 'parchment', 'midnight']}
         >
           <GameProvider>
             <CharacterProvider>
