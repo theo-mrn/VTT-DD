@@ -42,6 +42,14 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
   const playerRef = useRef<YouTubePlayer | null>(null);
   const musicStateRef = useRef<string>(`rooms/${roomId}/music`);
 
+  const initialVideoId = useRef<string | null>(null);
+  if (!initialVideoId.current && musicState.videoId) {
+    initialVideoId.current = musicState.videoId;
+  }
+  const latestMusicState = useRef(musicState);
+  latestMusicState.current = musicState;
+  const currentVideoIdRef = useRef<string | null>(null);
+
 
   // Flags pour éviter les boucles de feedback
   const isSyncingFromFirebase = useRef(false);
@@ -96,17 +104,23 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
           try {
             isSyncingFromFirebase.current = true;
 
-            // Gestion Play/Pause
-            if (data.isPlaying) playerRef.current.playVideo();
-            else playerRef.current.pauseVideo();
+            if (data.videoId !== currentVideoIdRef.current) {
+              currentVideoIdRef.current = data.videoId;
+              if (data.isPlaying) playerRef.current.loadVideoById(data.videoId, data.timestamp);
+              else playerRef.current.cueVideoById(data.videoId, data.timestamp);
+            } else {
+              // Gestion Play/Pause
+              if (data.isPlaying) playerRef.current.playVideo();
+              else playerRef.current.pauseVideo();
 
-            // Gestion Timestamp (Seek si décalage > 1.5s)
-            const currentTime = playerRef.current.getCurrentTime();
-            if (typeof currentTime === 'number') {
-              const targetTime = data.timestamp;
+              // Gestion Timestamp (Seek si décalage > 1.5s)
+              const currentTime = playerRef.current.getCurrentTime();
+              if (typeof currentTime === 'number') {
+                const targetTime = data.timestamp;
 
-              if (Math.abs(currentTime - targetTime) > 1.5) {
-                playerRef.current.seekTo(targetTime, true);
+                if (Math.abs(currentTime - targetTime) > 1.5) {
+                  playerRef.current.seekTo(targetTime, true);
+                }
               }
             }
 
@@ -115,6 +129,8 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
             console.error(error);
             isSyncingFromFirebase.current = false;
           }
+        } else if (data.videoId && !currentVideoIdRef.current) {
+          currentVideoIdRef.current = data.videoId;
         }
       }
     });
@@ -154,27 +170,33 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
     if (safeVolume > 0) playerRef.current.unMute();
     else playerRef.current.mute();
 
+    const state = latestMusicState.current;
+
     // Mettre à jour le titre si manquant
     try {
       const videoData = await event.target.getVideoData();
       if (videoData && videoData.title && user && isMJ) {
         // Si le titre stocké est vide ou différent, on le met à jour
-        if (musicState.videoTitle !== videoData.title) {
+        if (state.videoTitle !== videoData.title) {
           updateMusicState({ videoTitle: videoData.title });
         }
-
-
       }
     } catch (e) { }
 
-    // Synchronisation initiale (Seek + Play)
-    if (musicState.videoId) {
-      isSyncingFromFirebase.current = true;
-      const targetTime = musicState.timestamp;
+    currentVideoIdRef.current = state.videoId;
 
-      playerRef.current.seekTo(targetTime, true);
-      if (musicState.isPlaying) playerRef.current.playVideo();
-      else playerRef.current.pauseVideo();
+    // Synchronisation initiale (Seek + Play)
+    if (state.videoId) {
+      isSyncingFromFirebase.current = true;
+
+      if (initialVideoId.current !== state.videoId) {
+        if (state.isPlaying) playerRef.current.loadVideoById(state.videoId, state.timestamp);
+        else playerRef.current.cueVideoById(state.videoId, state.timestamp);
+      } else {
+        playerRef.current.seekTo(state.timestamp, true);
+        if (state.isPlaying) playerRef.current.playVideo();
+        else playerRef.current.pauseVideo();
+      }
 
       setTimeout(() => {
         isSyncingFromFirebase.current = false;
@@ -220,9 +242,9 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
   // Rendu minimaliste (invisible) : L'iframe est présente mais cachée
   return (
     <div className="hidden">
-      {musicState.videoId && (
+      {initialVideoId.current && (
         <YouTube
-          videoId={musicState.videoId}
+          videoId={initialVideoId.current}
           opts={opts}
           onReady={onPlayerReady}
           onStateChange={onPlayerStateChange}
