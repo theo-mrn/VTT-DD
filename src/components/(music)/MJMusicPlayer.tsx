@@ -100,11 +100,10 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
             if (data.isPlaying) playerRef.current.playVideo();
             else playerRef.current.pauseVideo();
 
-            // Gestion Timestamp (Seek si décalage > 1s)
+            // Gestion Timestamp (Seek si décalage > 1.5s)
             const currentTime = playerRef.current.getCurrentTime();
             if (typeof currentTime === 'number') {
-              const timeSinceUpdate = (Date.now() - data.lastUpdate) / 1000;
-              const targetTime = data.isPlaying ? data.timestamp + timeSinceUpdate : data.timestamp;
+              const targetTime = data.timestamp;
 
               if (Math.abs(currentTime - targetTime) > 1.5) {
                 playerRef.current.seekTo(targetTime, true);
@@ -171,8 +170,7 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
     // Synchronisation initiale (Seek + Play)
     if (musicState.videoId) {
       isSyncingFromFirebase.current = true;
-      const timeSinceUpdate = (Date.now() - musicState.lastUpdate) / 1000;
-      const targetTime = musicState.isPlaying ? musicState.timestamp + timeSinceUpdate : musicState.timestamp;
+      const targetTime = musicState.timestamp;
 
       playerRef.current.seekTo(targetTime, true);
       if (musicState.isPlaying) playerRef.current.playVideo();
