@@ -870,7 +870,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                               <button
                                 key={stat}
                                 onClick={() => addToInput(`+ ${stat}`)}
-                                className="group relative py-1.5 bg-transparent border border-white/10 rounded-lg cursor-pointer transition-all duration-300 text-zinc-500 hover:text-red-300 hover:bg-white/5 hover:border-red-500/30 text-[10px] font-mono font-bold uppercase tracking-wider"
+                                className="group relative py-1.5 bg-transparent border border-white/10 rounded-lg cursor-pointer transition-all duration-300 text-zinc-500 hover:text-[var(--accent-brown)] hover:bg-white/5 hover:border-[var(--accent-brown)]/30 text-[10px] font-mono font-bold uppercase tracking-wider"
                               >
                                 {stat.substring(0, 3)}
                               </button>
@@ -933,7 +933,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                             <button
                               id="vtt-dice-btn-roll"
                               onClick={handleRoll}
-                              className="group relative p-2.5 pl-4 pr-3 bg-gradient-to-r from-red-600 to-red-500 border-none rounded-xl cursor-pointer transition-all duration-300 text-white shadow-lg hover:from-red-500 hover:to-red-400 hover:scale-105 hover:shadow-red-500/30 active:scale-95 transform flex items-center gap-2"
+                              className="group relative p-2.5 pl-4 pr-3 bg-[var(--accent-brown)] border-none rounded-xl cursor-pointer transition-all duration-300 text-black shadow-lg hover:opacity-90 hover:scale-105 active:scale-95 transform flex items-center gap-2"
                               style={{
                                 boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 0 0 0 rgba(239, 68, 68, 0.4)',
                               }}
@@ -942,7 +942,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                               <Send className="w-4 h-4 transition-all duration-300 group-hover:translate-x-1" />
 
                               {/* Animated background glow */}
-                              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-red-600 to-red-500 opacity-0 group-hover:opacity-50 transition-opacity duration-300 blur-lg transform scale-110"></div>
+                              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] opacity-0 group-hover:opacity-50 transition-opacity duration-300 blur-lg transform scale-110"></div>
                             </button>
                           </div>
                         </div>
@@ -967,7 +967,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                   <button
                     id="vtt-dice-tab-history"
                     onClick={() => setShowStats(false)}
-                    className={`flex-1 pb-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-300 ${!showStats ? 'border-red-500 text-zinc-100' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                    className={`flex-1 pb-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-300 ${!showStats ? 'border-[var(--accent-brown)] text-zinc-100' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
                   >
                     <div className="flex items-center justify-center gap-2">
                       <History className="w-3.5 h-3.5" />
@@ -977,7 +977,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                   <button
                     id="vtt-dice-tab-stats"
                     onClick={() => setShowStats(true)}
-                    className={`flex-1 pb-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-300 ${showStats ? 'border-red-500 text-zinc-100' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                    className={`flex-1 pb-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-300 ${showStats ? 'border-[var(--accent-brown)] text-zinc-100' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
                   >
                     <div className="flex items-center justify-center gap-2">
                       <BarChart2 className="w-3.5 h-3.5" />

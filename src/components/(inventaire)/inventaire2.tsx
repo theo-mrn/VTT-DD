@@ -53,13 +53,13 @@ const predefinedItems: Record<string, string[]> = {
 
 const statAttributes = ["CON", "SAG", "DEX", "FOR", "CHA", "INT", "PV", "Defense", "INIT", "Contact", "Distance", "Magie"];
 const categoryIcons: Record<string, React.ReactNode> = {
-  'armes-contact': <Sword className="w-6 h-6 text-[#c0a080]" />,
-  'armes-distance': <Target className="w-6 h-6 text-[#c0a080]" />,
-  'armures': <Shield className="w-6 h-6 text-[#c0a080]" />,
-  'potions': <Beaker className="w-6 h-6 text-[#c0a080]" />,
-  'bourse': <Coins className="w-6 h-6 text-[#c0a080]" />,
-  'nourriture': <Apple className="w-6 h-6 text-[#c0a080]" />,
-  'autre': <ChevronRight className="w-6 h-6 text-[#c0a080]" />,
+  'armes-contact': <Sword className="w-6 h-6 text-[var(--accent-brown)]" />,
+  'armes-distance': <Target className="w-6 h-6 text-[var(--accent-brown)]" />,
+  'armures': <Shield className="w-6 h-6 text-[var(--accent-brown)]" />,
+  'potions': <Beaker className="w-6 h-6 text-[var(--accent-brown)]" />,
+  'bourse': <Coins className="w-6 h-6 text-[var(--accent-brown)]" />,
+  'nourriture': <Apple className="w-6 h-6 text-[var(--accent-brown)]" />,
+  'autre': <ChevronRight className="w-6 h-6 text-[var(--accent-brown)]" />,
 };
 
 export default function InventoryManagement({ playerName, roomId, canEdit = true, onHeightChange, style }: InventoryManagementProps) {
@@ -423,8 +423,8 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
     <div className="space-y-4">
       {statAttributes.map((stat) => (
         bonuses.some((bonus) => bonus.type === stat && bonus.value !== 0) && (
-          <div key={stat} className="flex justify-between items-center bg-[#1c1c1c] p-3 rounded border border-[#333]">
-            <span className="font-bold text-[#d4d4d4]">{stat}: <span className="text-[#c0a080]">{bonuses.find(b => b.type === stat)?.value}</span></span>
+          <div key={stat} className="flex justify-between items-center bg-[var(--bg-dark)] p-3 rounded border border-[var(--border-color)]">
+            <span className="font-bold text-[var(--text-primary)]">{stat}: <span className="text-[var(--accent-brown)]">{bonuses.find(b => b.type === stat)?.value}</span></span>
             <Button
               variant="ghost"
               size="sm"
@@ -949,21 +949,21 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
               setBonusValue('');
             }
           }}>
-            <DialogContent className="bg-[#242424] border-[#333] text-[#d4d4d4] max-w-lg">
+            <DialogContent className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] max-w-lg">
               <DialogHeader>
-                <DialogTitle className="text-[#c0a080]">Gérer les bonus de {currentItem?.message}</DialogTitle>
+                <DialogTitle className="text-[var(--accent-brown)]">Gérer les bonus de {currentItem?.message}</DialogTitle>
               </DialogHeader>
               <div className="py-4 space-y-4">
                 {renderBonuses()}
 
-                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[#333]">
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t border-[var(--border-color)]">
                   <div className="space-y-2">
-                    <Label className="text-[#a0a0a0]">Type de bonus</Label>
+                    <Label className="text-[var(--text-secondary)]">Type de bonus</Label>
                     <Select onValueChange={setBonusType} value={bonusType}>
-                      <SelectTrigger className="bg-[#1c1c1c] border-[#333] text-[#d4d4d4]">
+                      <SelectTrigger className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
                         <SelectValue placeholder="Choisir..." />
                       </SelectTrigger>
-                      <SelectContent className="bg-[#2a2a2a] border-[#333] text-[#d4d4d4]">
+                      <SelectContent className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)]">
                         {statAttributes.map(attr => (
                           <SelectItem key={attr} value={attr}>{attr}</SelectItem>
                         ))}
@@ -972,18 +972,18 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-[#a0a0a0]">Valeur</Label>
+                    <Label className="text-[var(--text-secondary)]">Valeur</Label>
                     <Input
                       type="number"
                       placeholder="Valeur"
                       value={bonusValue}
                       onChange={(e) => setBonusValue(e.target.value)}
-                      className="bg-[#1c1c1c] border-[#333] text-[#d4d4d4]"
+                      className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]"
                     />
                   </div>
                 </div>
 
-                <Button className="w-full bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f] font-bold" onClick={handleAddBonus}>
+                <Button className="w-full bg-[var(--accent-brown)] text-black hover:bg-[var(--accent-brown-hover)] font-bold" onClick={handleAddBonus}>
                   <PlusCircle className="h-4 w-4 mr-2" />
                   Ajouter le bonus
                 </Button>

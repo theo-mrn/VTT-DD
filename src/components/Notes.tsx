@@ -49,12 +49,12 @@ interface Note {
 }
 
 const NOTE_TYPES = [
-  { id: 'character', label: 'Personnage', icon: User, color: '#f59e0b' },
-  { id: 'location', label: 'Lieu', icon: MapPin, color: '#10b981' },
-  { id: 'item', label: 'Objet', icon: Book, color: '#3b82f6' },
-  { id: 'quest', label: 'Quête', icon: Scroll, color: '#8b5cf6' },
-  { id: 'journal', label: 'Journal', icon: Calendar, color: '#ec4899' },
-  { id: 'other', label: 'Autre', icon: Tag, color: '#6b7280' },
+  { id: 'character', label: 'Personnage', icon: User, color: 'var(--amber-500)' },
+  { id: 'location', label: 'Lieu', icon: MapPin, color: 'var(--emerald-500)' },
+  { id: 'item', label: 'Objet', icon: Book, color: 'var(--blue-500)' },
+  { id: 'quest', label: 'Quête', icon: Scroll, color: 'var(--violet-500)' },
+  { id: 'journal', label: 'Journal', icon: Calendar, color: 'var(--pink-500)' },
+  { id: 'other', label: 'Autre', icon: Tag, color: 'var(--slate-500)' },
 ] as const;
 
 // --- MAIN COMPONENT ---
@@ -321,21 +321,21 @@ export default function Notes() {
     return matchesSearch && matchesType && matchesTab
   }), [notes, searchQuery, activeFilter, activeTab, characterId])
 
-  if (loading) return <div className="h-full flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-[#c0a080] border-t-transparent animate-spin" /></div>
+  if (loading) return <div className="h-full flex items-center justify-center"><div className="w-8 h-8 rounded-full border-2 border-[var(--accent-brown)] border-t-transparent animate-spin" /></div>
 
   return (
-    <div className="h-full flex flex-col bg-[#09090b] text-[#e0e0e0] font-sans relative overflow-hidden">
+    <div className="h-full flex flex-col bg-[var(--bg-canvas)] text-[#e0e0e0] font-sans relative overflow-hidden">
 
       {/* TOP BAR */}
-      <div className="px-8 py-6 border-b border-[#2a2a2a] bg-[#0c0c0e] flex flex-col gap-6 z-10 shrink-0">
+      <div className="px-8 py-6 border-b border-[var(--border-color)] bg-[var(--bg-darker)] flex flex-col gap-6 z-10 shrink-0">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-serif font-bold text-[#e4e4e7] tracking-tight">Grimoire</h1>
+            <h1 className="text-3xl font-serif font-bold text-[var(--accent-header)] tracking-tight">Grimoire</h1>
             <p className="text-sm text-zinc-500 font-medium">Archives & Connaissances</p>
           </div>
           <button
             onClick={handleNew}
-            className="group relative px-6 py-2.5 bg-[#c0a080] text-black font-bold uppercase tracking-widest text-xs rounded shadow-[0_0_20px_rgba(192,160,128,0.2)] hover:shadow-[0_0_30px_rgba(192,160,128,0.4)] hover:bg-[#d4b490] transition-all overflow-hidden"
+            className="group relative px-6 py-2.5 bg-[var(--accent-brown)] text-black font-bold uppercase tracking-widest text-xs rounded shadow-[0_0_20px_rgba(192,160,128,0.2)] hover:shadow-[0_0_30px_rgba(192,160,128,0.4)] hover:bg-[var(--accent-brown-hover)] transition-all overflow-hidden"
           >
             <span className="relative z-10 flex items-center gap-2"><Plus className="w-4 h-4" /> Nouvelle entrée</span>
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
@@ -344,28 +344,28 @@ export default function Notes() {
 
         <div className="flex flex-col md:flex-row items-center gap-4">
           <div className="relative flex-1 w-full group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[#c0a080] transition-colors" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[var(--accent-brown)] transition-colors" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Rechercher dans les archives..."
-              className="w-full bg-[#18181b] border border-[#27272a] rounded-xl py-3 pl-11 pr-4 text-zinc-200 focus:outline-none focus:border-[#c0a080] focus:ring-1 focus:ring-[#c0a080]/20 transition-all font-medium placeholder:text-zinc-600"
+              className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[var(--radius-xl)] py-3 pl-11 pr-4 text-zinc-200 focus:outline-none focus:border-[var(--accent-brown)] focus:ring-1 focus:ring-[var(--accent-brown)]/20 transition-all font-medium placeholder:text-zinc-600"
             />
           </div>
 
-          <div className="flex items-center gap-2 bg-[#18181b] p-1 rounded-xl border border-[#27272a]">
-            <button onClick={() => setViewLayout('grid')} className={cn("p-2 rounded-lg transition-all", viewLayout === 'grid' ? "bg-[#c0a080]/20 text-[#c0a080]" : "text-zinc-500 hover:text-zinc-300")}><LayoutGrid className="w-4 h-4" /></button>
-            <button onClick={() => setViewLayout('list')} className={cn("p-2 rounded-lg transition-all", viewLayout === 'list' ? "bg-[#c0a080]/20 text-[#c0a080]" : "text-zinc-500 hover:text-zinc-300")}><ListIcon className="w-4 h-4" /></button>
+          <div className="flex items-center gap-2 bg-[var(--bg-card)] p-1 rounded-[var(--radius-xl)] border border-[var(--border-color)]">
+            <button onClick={() => setViewLayout('grid')} className={cn("p-2 rounded-lg transition-all", viewLayout === 'grid' ? "bg-[var(--accent-brown)]/20 text-[var(--accent-brown)]" : "text-zinc-500 hover:text-zinc-300")}><LayoutGrid className="w-4 h-4" /></button>
+            <button onClick={() => setViewLayout('list')} className={cn("p-2 rounded-lg transition-all", viewLayout === 'list' ? "bg-[var(--accent-brown)]/20 text-[var(--accent-brown)]" : "text-zinc-500 hover:text-zinc-300")}><ListIcon className="w-4 h-4" /></button>
           </div>
         </div>
 
         {/* TABS */}
-        <div className="flex gap-2 bg-[#18181b] p-1 rounded-xl border border-[#27272a] w-fit">
+        <div className="flex gap-2 bg-[var(--bg-card)] p-1 rounded-[var(--radius-xl)] border border-[var(--border-color)] w-fit">
           <button
             onClick={() => setActiveTab('all')}
             className={cn(
               "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
-              activeTab === 'all' ? "bg-[#c0a080] text-black" : "text-zinc-500 hover:text-zinc-300"
+              activeTab === 'all' ? "bg-[var(--accent-brown)] text-black" : "text-zinc-500 hover:text-zinc-300"
             )}
           >
             Toutes
@@ -374,7 +374,7 @@ export default function Notes() {
             onClick={() => setActiveTab('mine')}
             className={cn(
               "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'mine' ? "bg-[#c0a080] text-black" : "text-zinc-500 hover:text-zinc-300"
+              activeTab === 'mine' ? "bg-[var(--accent-brown)] text-black" : "text-zinc-500 hover:text-zinc-300"
             )}
           >
             <User className="w-3 h-3" /> Mes notes
@@ -383,7 +383,7 @@ export default function Notes() {
             onClick={() => setActiveTab('shared')}
             className={cn(
               "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2",
-              activeTab === 'shared' ? "bg-[#c0a080] text-black" : "text-zinc-500 hover:text-zinc-300"
+              activeTab === 'shared' ? "bg-[var(--accent-brown)] text-black" : "text-zinc-500 hover:text-zinc-300"
             )}
           >
             <Users className="w-3 h-3" /> Partagées avec moi
@@ -391,9 +391,9 @@ export default function Notes() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => setActiveFilter(null)} className={cn("px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border", activeFilter === null ? "bg-[#c0a080] text-black border-[#c0a080]" : "bg-transparent border-[#27272a] text-zinc-500 hover:border-zinc-500")}>Tout</button>
+          <button onClick={() => setActiveFilter(null)} className={cn("px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border", activeFilter === null ? "bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]" : "bg-transparent border-[var(--border-color)] text-zinc-500 hover:border-zinc-500")}>Tout</button>
           {NOTE_TYPES.map(t => (
-            <button key={t.id} onClick={() => setActiveFilter(t.id)} className={cn("px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border flex items-center gap-2", activeFilter === t.id ? "bg-[#c0a080] text-black border-[#c0a080]" : "bg-transparent border-[#27272a] text-zinc-500 hover:border-zinc-500")}>
+            <button key={t.id} onClick={() => setActiveFilter(t.id)} className={cn("px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border flex items-center gap-2", activeFilter === t.id ? "bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]" : "bg-transparent border-[var(--border-color)] text-zinc-500 hover:border-zinc-500")}>
               <t.icon className="w-3 h-3" /> {t.label}
             </button>
           ))}
@@ -440,7 +440,7 @@ export default function Notes() {
       {/* DELETE CONFIRMATION OVERLAY */}
       {deleteId && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 backdrop-blur-sm px-4">
-          <div className="bg-[#121212] border border-[#2a2a2a] p-6 rounded-2xl max-w-sm w-full shadow-2xl space-y-4">
+          <div className="bg-[var(--bg-dark)] border border-[var(--border-color)] p-6 rounded-[var(--radius-xl)] max-w-sm w-full shadow-2xl space-y-4">
             <div className="flex items-center gap-3 text-red-500"><AlertTriangle /><h3 className="font-bold">Supprimer définitivement ?</h3></div>
             <p className="text-zinc-400 text-sm">Cette action est irréversible.</p>
             <div className="flex justify-end gap-3">
@@ -464,7 +464,7 @@ function NoteCard({ note, onClick, onQuickShare, layout }: { note: Note, onClick
     <motion.div
       layoutId={`card-${note.id}`}
       className={cn(
-        "group relative bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden hover:border-[#c0a080] hover:shadow-[0_0_20px_rgba(192,160,128,0.2)] transition-all duration-300 flex",
+        "group relative bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[var(--radius-xl)] overflow-hidden hover:border-[var(--accent-brown)] hover:shadow-[0_0_20px_rgba(192,160,128,0.2)] transition-all duration-300 flex",
         layout === 'list' ? "h-24 flex-row" : (hasImage ? "flex-col aspect-[3/4]" : "flex-col h-auto")
       )}
     >
@@ -475,7 +475,7 @@ function NoteCard({ note, onClick, onQuickShare, layout }: { note: Note, onClick
             e.stopPropagation()
             onQuickShare(note)
           }}
-          className="absolute top-3 right-3 z-20 p-2 bg-blue-900/80 hover:bg-blue-800 border border-blue-700 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 text-xs font-bold text-blue-100 shadow-lg"
+          className="absolute top-3 right-3 z-20 p-2 bg-blue-900/80 hover:bg-blue-800 border border-blue-700 rounded-[var(--radius-lg)] opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-1.5 text-xs font-bold text-blue-100 shadow-lg"
           title="Partager rapidement"
         >
           <Users className="w-3 h-3" /> Partager
@@ -485,7 +485,7 @@ function NoteCard({ note, onClick, onQuickShare, layout }: { note: Note, onClick
       <div onClick={onClick} className="flex-1 flex cursor-pointer">
         {/* --- BACKGROUND LAYER --- */}
         {hasImage ? (
-          <div className="absolute inset-0 bg-[#121212]">
+          <div className="absolute inset-0 bg-[var(--bg-dark)]">
             <Image
               src={note.image!}
               alt={note.title}
@@ -496,8 +496,8 @@ function NoteCard({ note, onClick, onQuickShare, layout }: { note: Note, onClick
           </div>
         ) : (
           <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[#25252a] to-transparent opacity-50" />
-            <TypeIcon className="absolute top-4 right-4 w-24 h-24 text-[#202022] -rotate-12 opacity-50" />
+            <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-[var(--bg-card)] to-transparent opacity-50" />
+            <TypeIcon className="absolute top-4 right-4 w-24 h-24 text-[var(--bg-dark)] -rotate-12 opacity-50" />
           </div>
         )}
 
@@ -508,7 +508,7 @@ function NoteCard({ note, onClick, onQuickShare, layout }: { note: Note, onClick
           <div className="flex justify-between items-start mb-4">
             <span className={cn(
               "px-2 py-1 rounded backdrop-blur border text-[10px] font-bold uppercase tracking-wider",
-              hasImage ? "bg-black/40 border-white/5 text-[#c0a080]" : "bg-[#25252a] border-[#2a2a2a] text-zinc-400"
+              hasImage ? "bg-black/40 border-white/5 text-[var(--accent-brown)]" : "bg-[var(--bg-card)] border-[var(--border-color)] text-zinc-400"
             )}>
               {NOTE_TYPES.find(t => t.id === note.type)?.label}
             </span>
@@ -535,7 +535,7 @@ function NoteCard({ note, onClick, onQuickShare, layout }: { note: Note, onClick
           <div className="mt-auto">
             <h3 className={cn(
               "font-serif font-bold text-lg leading-tight mb-1 transition-colors line-clamp-2",
-              hasImage ? "text-white group-hover:text-[#c0a080]" : "text-zinc-200 group-hover:text-[#c0a080]"
+              hasImage ? "text-white group-hover:text-[var(--accent-brown)]" : "text-zinc-200 group-hover:text-[var(--accent-brown)]"
             )}>
               {note.title || "Sans Titre"}
             </h3>
@@ -567,7 +567,7 @@ function NoteCard({ note, onClick, onQuickShare, layout }: { note: Note, onClick
                 {note.tags.slice(0, 3).map(t => (
                   <span key={t.id} className={cn(
                     "text-[9px] px-1.5 py-0.5 rounded",
-                    hasImage ? "bg-white/10 text-zinc-300" : "bg-[#25252a] text-zinc-400"
+                    hasImage ? "bg-white/10 text-zinc-300" : "bg-[var(--bg-card)] text-zinc-400"
                   )}>#{t.label}</span>
                 ))}
               </div>
@@ -614,20 +614,20 @@ function CustomEditorModal({ data, onClose, onSave, onDelete }: { data: Partial<
         initial={{ scale: 0.95, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.95, opacity: 0, y: 20 }}
-        className="relative w-full max-w-6xl h-[90vh] bg-[#09090b] border border-[#2a2a2a] rounded-xl shadow-2xl overflow-hidden flex flex-row"
+        className="relative w-full max-w-6xl h-[90vh] bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-[var(--radius-xl)] shadow-2xl overflow-hidden flex flex-row"
       >
         {/* --- LEFT SIDEBAR: PROPERTIES --- */}
-        <div className="w-[320px] bg-[#0c0c0e] border-r border-[#2a2a2a] flex flex-col overflow-y-auto custom-scrollbar">
-          <div className="p-6 border-b border-[#2a2a2a]">
-            <h2 className="text-[#c0a080] text-xs font-bold uppercase tracking-widest mb-4">Type d'archive</h2>
+        <div className="w-[320px] bg-[var(--bg-darker)] border-r border-[var(--border-color)] flex flex-col overflow-y-auto custom-scrollbar">
+          <div className="p-6 border-b border-[var(--border-color)]">
+            <h2 className="text-[var(--accent-brown)] text-xs font-bold uppercase tracking-widest mb-4">Type d'archive</h2>
             <div className="grid grid-cols-2 gap-2">
               {NOTE_TYPES.map(t => (
                 <button
                   key={t.id}
                   onClick={() => setNote(prev => ({ ...prev, type: t.id as any }))}
                   className={cn(
-                    "flex flex-col items-center justify-center p-3 rounded-lg border transition-all gap-2",
-                    note.type === t.id ? "bg-[#c0a080]/10 border-[#c0a080] text-[#c0a080]" : "border-[#27272a] text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
+                    "flex flex-col items-center justify-center p-3 rounded-[var(--radius-lg)] border transition-all gap-2",
+                    note.type === t.id ? "bg-[var(--accent-brown)]/10 border-[var(--accent-brown)] text-[var(--accent-brown)]" : "border-[var(--border-color)] text-zinc-500 hover:border-zinc-500 hover:text-zinc-300"
                   )}
                 >
                   <t.icon className="w-5 h-5" />
@@ -642,19 +642,19 @@ function CustomEditorModal({ data, onClose, onSave, onDelete }: { data: Partial<
             <div className="space-y-4">
               {note.type === 'character' && (
                 <>
-                  <div className="space-y-1"><label className="text-[10px] uppercase font-bold text-zinc-500">Race</label><input value={note.race || ''} onChange={e => setNote(p => ({ ...p, race: e.target.value }))} className="w-full bg-[#18181b] border border-[#27272a] rounded px-3 py-2 text-sm text-white focus:border-[#c0a080] outline-none" /></div>
-                  <div className="space-y-1"><label className="text-[10px] uppercase font-bold text-zinc-500">Classe</label><input value={note.class || ''} onChange={e => setNote(p => ({ ...p, class: e.target.value }))} className="w-full bg-[#18181b] border border-[#27272a] rounded px-3 py-2 text-sm text-white focus:border-[#c0a080] outline-none" /></div>
+                  <div className="space-y-1"><label className="text-[10px] uppercase font-bold text-zinc-500">Race</label><input value={note.race || ''} onChange={e => setNote(p => ({ ...p, race: e.target.value }))} className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[var(--radius-md)] px-3 py-2 text-sm text-white focus:border-[var(--accent-brown)] outline-none" /></div>
+                  <div className="space-y-1"><label className="text-[10px] uppercase font-bold text-zinc-500">Classe</label><input value={note.class || ''} onChange={e => setNote(p => ({ ...p, class: e.target.value }))} className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[var(--radius-md)] px-3 py-2 text-sm text-white focus:border-[var(--accent-brown)] outline-none" /></div>
                 </>
               )}
               {note.type === 'location' && (
-                <div className="space-y-1"><label className="text-[10px] uppercase font-bold text-zinc-500">Région</label><input value={note.region || ''} onChange={e => setNote(p => ({ ...p, region: e.target.value }))} className="w-full bg-[#18181b] border border-[#27272a] rounded px-3 py-2 text-sm text-white focus:border-[#c0a080] outline-none" /></div>
+                <div className="space-y-1"><label className="text-[10px] uppercase font-bold text-zinc-500">Région</label><input value={note.region || ''} onChange={e => setNote(p => ({ ...p, region: e.target.value }))} className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[var(--radius-md)] px-3 py-2 text-sm text-white focus:border-[var(--accent-brown)] outline-none" /></div>
               )}
               {note.type === 'quest' && (
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase font-bold text-zinc-500">Statut de quête</label>
-                  <div className="flex bg-[#18181b] p-1 rounded border border-[#27272a]">
+                  <div className="flex bg-[var(--bg-card)] p-1 rounded-[var(--radius-md)] border border-[var(--border-color)]">
                     {['not-started', 'in-progress', 'completed'].map(s => (
-                      <button key={s} onClick={() => setNote(p => ({ ...p, questStatus: s as any }))} className={cn("flex-1 py-1 rounded text-[10px] font-bold uppercase", note.questStatus === s ? "bg-[#c0a080] text-black" : "text-zinc-500")}>
+                      <button key={s} onClick={() => setNote(p => ({ ...p, questStatus: s as any }))} className={cn("flex-1 py-1 rounded-[var(--radius-md)] text-[10px] font-bold uppercase", note.questStatus === s ? "bg-[var(--accent-brown)] text-black" : "text-zinc-500")}>
                         {s === 'not-started' ? 'À faire' : s === 'in-progress' ? 'En cours' : 'Fini'}
                       </button>
                     ))}
@@ -664,14 +664,14 @@ function CustomEditorModal({ data, onClose, onSave, onDelete }: { data: Partial<
             </div>
 
             {/* Sharing Toggle */}
-            <div className="pt-6 border-t border-[#2a2a2a]">
+            <div className="pt-6 border-t border-[var(--border-color)]">
               <div className="flex items-center justify-between mb-3">
                 <label className="text-[10px] uppercase font-bold text-zinc-500">Visibilité</label>
                 <button
                   onClick={() => setNote(p => ({ ...p, isShared: !p.isShared }))}
                   className={cn(
                     "relative w-12 h-6 rounded-full transition-colors border",
-                    note.isShared ? "bg-blue-900 border-blue-700" : "bg-[#18181b] border-[#27272a]"
+                    note.isShared ? "bg-blue-900 border-blue-700" : "bg-[var(--bg-card)] border-[var(--border-color)]"
                   )}
                 >
                   <div className={cn(
@@ -681,10 +681,10 @@ function CustomEditorModal({ data, onClose, onSave, onDelete }: { data: Partial<
                 </button>
               </div>
               <div className={cn(
-                "text-[10px] p-2 rounded border",
+                "text-[10px] p-2 rounded-[var(--radius-md)] border",
                 note.isShared
                   ? "bg-blue-900/20 border-blue-800/50 text-blue-300"
-                  : "bg-[#18181b] border-[#27272a] text-zinc-400"
+                  : "bg-[var(--bg-card)] border-[var(--border-color)] text-zinc-400"
               )}>
                 <div className="flex items-center gap-2 font-bold mb-1">
                   {note.isShared ? <Users className="w-3 h-3" /> : <User className="w-3 h-3" />}
@@ -706,17 +706,17 @@ function CustomEditorModal({ data, onClose, onSave, onDelete }: { data: Partial<
             </div>
 
             {/* Tags */}
-            <div className="pt-6 border-t border-[#2a2a2a]">
+            <div className="pt-6 border-t border-[var(--border-color)]">
               <label className="text-[10px] uppercase font-bold text-zinc-500 mb-3 block">Mots-clés</label>
               <div className="flex flex-wrap gap-2 mb-3">
                 {note.tags?.map(t => (
-                  <span key={t.id} className="text-xs bg-[#18181b] border border-[#27272a] px-2 py-1 rounded flex items-center gap-1 text-zinc-300">
+                  <span key={t.id} className="text-xs bg-[var(--bg-card)] border border-[var(--border-color)] px-2 py-1 rounded-[var(--radius-md)] flex items-center gap-1 text-zinc-300">
                     #{t.label}
                     <button onClick={() => setNote(p => ({ ...p, tags: p.tags?.filter(x => x.id !== t.id) }))} className="hover:text-red-400 ml-1"><X className="w-3 h-3" /></button>
                   </span>
                 ))}
               </div>
-              <input placeholder="+ Ajouter..." onKeyDown={handleAddTag} className="w-full bg-transparent border-b border-[#27272a] py-1 text-sm outline-none focus:border-[#c0a080] placeholder:text-zinc-700" />
+              <input placeholder="+ Ajouter..." onKeyDown={handleAddTag} className="w-full bg-transparent border-b border-[var(--border-color)] py-1 text-sm outline-none focus:border-[var(--accent-brown)] placeholder:text-zinc-700" />
             </div>
           </div>
 
@@ -734,13 +734,13 @@ function CustomEditorModal({ data, onClose, onSave, onDelete }: { data: Partial<
         <div className="flex-1 flex flex-col relative bg-[#121212]">
 
           {/* Floating Actions */}
-          <div className={cn("absolute top-0 right-0 left-0 p-6 flex justify-between items-start z-20 transition-all duration-300", scrolled ? "bg-[#121212]/90 backdrop-blur border-b border-[#2a2a2a] py-3" : "")}>
+          <div className={cn("absolute top-0 right-0 left-0 p-6 flex justify-between items-start z-20 transition-all duration-300", scrolled ? "bg-[var(--bg-dark)]/90 backdrop-blur border-b border-[var(--border-color)] py-3" : "")}>
             <div className="flex items-center gap-4">
               <button onClick={onClose} className="w-10 h-10 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
                 <X className="w-5 h-5 text-zinc-400" />
               </button>
             </div>
-            <button onClick={() => onSave(note)} className="bg-[#c0a080] hover:bg-[#b09070] text-black font-bold uppercase tracking-widest text-xs px-6 py-3 rounded shadow-lg shadow-[#c0a080]/10 transition-all flex items-center gap-2">
+            <button onClick={() => onSave(note)} className="bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)] text-black font-bold uppercase tracking-widest text-xs px-6 py-3 rounded-[var(--radius-lg)] shadow-lg shadow-[var(--accent-brown)]/10 transition-all flex items-center gap-2">
               <Save className="w-4 h-4" /> Enregistrer
             </button>
           </div>
@@ -786,16 +786,16 @@ function CustomEditorModal({ data, onClose, onSave, onDelete }: { data: Partial<
 
               {/* Quest Steps if applicable */}
               {note.type === 'quest' && (
-                <div className="mt-12 pt-8 border-t border-[#2a2a2a]">
+                <div className="mt-12 pt-8 border-t border-[var(--border-color)]">
                   <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-[#c0a080] text-sm font-bold uppercase tracking-widest">Chroniques & Étapes</h3>
-                    <button onClick={() => setNote(p => ({ ...p, subQuests: [...(p.subQuests || []), { id: Date.now().toString(), title: '', description: '', status: 'not-started' }] }))} className="text-xs text-[#c0a080] border border-[#c0a080] px-3 py-1 rounded hover:bg-[#c0a080]/10">
+                    <h3 className="text-[var(--accent-brown)] text-sm font-bold uppercase tracking-widest">Chroniques & Étapes</h3>
+                    <button onClick={() => setNote(p => ({ ...p, subQuests: [...(p.subQuests || []), { id: Date.now().toString(), title: '', description: '', status: 'not-started' }] }))} className="text-xs text-[var(--accent-brown)] border border-[var(--accent-brown)] px-3 py-1 rounded-[var(--radius-md)] hover:bg-[var(--accent-brown)]/10">
                       + Ajouter une étape
                     </button>
                   </div>
                   <div className="space-y-3">
                     {note.subQuests?.map((sq, i) => (
-                      <div key={sq.id} className="flex items-center gap-4 p-4 bg-[#1a1a1a] rounded-lg border border-[#2a2a2a] group">
+                      <div key={sq.id} className="flex items-center gap-4 p-4 bg-[var(--bg-card)] rounded-[var(--radius-lg)] border border-[var(--border-color)] group">
                         <button onClick={() => {
                           const ns = [...(note.subQuests || [])];
                           ns[i].status = sq.status === 'not-started' ? 'in-progress' : sq.status === 'in-progress' ? 'completed' : 'not-started';

@@ -365,9 +365,9 @@ export function DiceStats({ rolls, currentUserName, isMJ = false }: DiceStatsPro
                 <Line
                   type="monotone"
                   dataKey="total"
-                  stroke="#ef4444"
+                  stroke="var(--chart-line)"
                   strokeWidth={2}
-                  dot={{ fill: "#ef4444", r: 1.5, strokeWidth: 0 }}
+                  dot={{ fill: "var(--chart-line)", r: 1.5, strokeWidth: 0 }}
                   activeDot={{ r: 4, strokeWidth: 0 }}
                 />
               </LineChart>
@@ -394,7 +394,7 @@ export function DiceStats({ rolls, currentUserName, isMJ = false }: DiceStatsPro
                 <XAxis dataKey="value" stroke="rgba(255,255,255,0.2)" fontSize={9} tickLine={false} axisLine={false} />
                 <YAxis stroke="rgba(255,255,255,0.2)" fontSize={9} tickLine={false} axisLine={false} width={20} />
                 <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
-                <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Occurrences" />
+                <Bar dataKey="count" fill="var(--chart-bar)" radius={[4, 4, 0, 0]} name="Occurrences" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -420,7 +420,7 @@ export function DiceStats({ rolls, currentUserName, isMJ = false }: DiceStatsPro
                   <XAxis type="number" stroke="rgba(255,255,255,0.2)" fontSize={9} tickLine={false} axisLine={false} />
                   <YAxis type="category" dataKey="name" stroke="rgba(255,255,255,0.4)" fontSize={9} tickLine={false} axisLine={false} width={60} />
                   <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
-                  <Bar dataKey="rolls" fill="#8b5cf6" radius={[0, 4, 4, 0]} name="Dés Lancés" />
+                  <Bar dataKey="rolls" fill="var(--chart-bar-alt)" radius={[0, 4, 4, 0]} name="Dés Lancés" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
