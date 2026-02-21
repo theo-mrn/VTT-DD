@@ -3,17 +3,19 @@
 import { useState, useEffect, useRef } from "react";
 import { useGame } from "@/contexts/GameContext";
 import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, storage, ref, uploadBytes, getDownloadURL, limitToLast, deleteDoc, doc, updateDoc } from "@/lib/firebase";
-import { Image as ImageIcon, X, Plus, Loader2, MoreVertical, Trash2, Users, Check, Pencil, Upload } from "lucide-react";
+import { Image as ImageIcon, X, Plus, Loader2, MoreVertical, Trash2, Users, Check, Pencil, Upload, MessageSquare, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 
-type ImageMessage = {
+type ChatMessage = {
     id: string;
     sender: string;
     uid: string;
-    imageUrl: string;
+    text?: string;
+    imageUrl?: string;
     timestamp: any;
     recipients?: string[];
 };
@@ -28,8 +30,9 @@ export default function Chat() {
     const { user, playerData, isMJ } = useGame();
 
     // Data State
-    const [images, setImages] = useState<ImageMessage[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [players, setPlayers] = useState<Player[]>([]);
+    const [newMessage, setNewMessage] = useState("");
 
     // UI State
     const [isUploading, setIsUploading] = useState(false);
@@ -38,7 +41,10 @@ export default function Chat() {
 
     // Dialog States
     const [isUploadOpen, setIsUploadOpen] = useState(false);
-    const [editingMessage, setEditingMessage] = useState<ImageMessage | null>(null);
+    const [editingVisibility, setEditingVisibility] = useState<ChatMessage | null>(null);
+    const [editingTextMsg, setEditingTextMsg] = useState<ChatMessage | null>(null);
+    const [editText, setEditText] = useState("");
+    const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
 
     // Form States (for Dialogs)
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -84,10 +90,10 @@ export default function Chat() {
             limitToLast(50)
         );
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const msgs: ImageMessage[] = [];
+            const msgs: ChatMessage[] = [];
             snapshot.forEach((doc) => {
                 const data = doc.data();
-                if (!data.imageUrl) return;
+                if (!data.imageUrl && !data.text) return;
 
                 const isSender = data.uid === user.uid;
                 const recipients = data.recipients || [];
@@ -99,10 +105,10 @@ export default function Chat() {
                     (isMJ && recipients.includes('MJ'));
 
                 if (isSender || isPublic || isRecipient) {
-                    msgs.push({ id: doc.id, ...data } as ImageMessage);
+                    msgs.push({ id: doc.id, ...data } as ChatMessage);
                 }
             });
-            setImages(msgs);
+            setMessages(msgs);
         });
         return () => unsubscribe();
     }, [roomId, user?.uid, playerData?.Nomperso, isMJ]);
@@ -110,14 +116,33 @@ export default function Chat() {
     // Scroll to bottom
     useEffect(() => {
         if (scrollRef.current) scrollRef.current.scrollIntoView({ behavior: "smooth" });
-    }, [images]);
+    }, [messages]);
 
     // --- ACTIONS ---
 
-    const handleDelete = async (messageId: string) => {
-        if (!confirm("Supprimer cette image ?")) return;
+    const handleSendMessage = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        if (!newMessage.trim() || !roomId || !user) return;
+
         try {
-            await deleteDoc(doc(db, `rooms/${roomId}/chat`, messageId));
+            await addDoc(collection(db, `rooms/${roomId}/chat`), {
+                sender: isMJ ? "MJ" : (playerData?.Nomperso || "Joueur"),
+                uid: user.uid,
+                text: newMessage.trim(),
+                timestamp: serverTimestamp(),
+                recipients: targetRecipients
+            });
+            setNewMessage("");
+        } catch (error) {
+            console.error("Failed to send message", error);
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!messageToDelete || !roomId) return;
+        try {
+            await deleteDoc(doc(db, `rooms/${roomId}/chat`, messageToDelete));
+            setMessageToDelete(null);
         } catch (error) {
             console.error(error);
         }
@@ -163,20 +188,37 @@ export default function Chat() {
         }
     };
 
-    const handleStartEdit = (msg: ImageMessage) => {
-        setEditingMessage(msg);
+    const handleStartEditVisibility = (msg: ChatMessage) => {
+        setEditingVisibility(msg);
         setTargetRecipients(msg.recipients || []);
     };
 
-    const handleConfirmEdit = async () => {
-        if (!editingMessage || !roomId) return;
+    const handleConfirmEditVisibility = async () => {
+        if (!editingVisibility || !roomId) return;
         try {
-            await updateDoc(doc(db, `rooms/${roomId}/chat`, editingMessage.id), {
+            await updateDoc(doc(db, `rooms/${roomId}/chat`, editingVisibility.id), {
                 recipients: targetRecipients
             });
-            setEditingMessage(null);
+            setEditingVisibility(null);
         } catch (error) {
             console.error("Update failed", error);
+        }
+    };
+
+    const handleStartEditText = (msg: ChatMessage) => {
+        setEditingTextMsg(msg);
+        setEditText(msg.text || "");
+    };
+
+    const handleConfirmEditText = async () => {
+        if (!editingTextMsg || !roomId || !editText.trim()) return;
+        try {
+            await updateDoc(doc(db, `rooms/${roomId}/chat`, editingTextMsg.id), {
+                text: editText.trim()
+            });
+            setEditingTextMsg(null);
+        } catch (error) {
+            console.error("Text update failed", error);
         }
     };
 
@@ -221,8 +263,8 @@ export default function Chat() {
             {/* --- HEADER --- */}
             <div className="p-4 border-b border-[#3a3a3a] flex justify-between items-center bg-[#242424]">
                 <h2 className="text-lg font-semibold flex items-center gap-2 text-[#c0a080]">
-                    <ImageIcon className="w-5 h-5" />
-                    Galerie
+                    <MessageSquare className="w-5 h-5" />
+                    Chat
                 </h2>
 
                 <Dialog open={isUploadOpen} onOpenChange={handleUploadOpen}>
@@ -278,75 +320,127 @@ export default function Chat() {
 
             {/* --- LIST --- */}
             <ScrollArea className="flex-1 p-4">
-                {images.length === 0 ? (
+                {messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-50 mt-20">
-                        <ImageIcon className="w-12 h-12 mb-2" />
-                        <p className="text-sm">Aucune image partagée</p>
+                        <MessageSquare className="w-12 h-12 mb-2" />
+                        <p className="text-sm">Aucun message</p>
                     </div>
                 ) : (
-                    <div className="flex flex-col gap-8 pb-8 px-2">
-                        {images.map((msg) => (
-                            <div key={msg.id} className="flex flex-col gap-2 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                                {/* Header Info */}
-                                <div className="flex items-center justify-between px-1">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-[#c0a080]">{msg.sender}</span>
+                    <div className="flex flex-col gap-6 pb-8 px-2 overflow-x-hidden">
+                        {messages.map((msg) => {
+                            const isMe = msg.uid === user?.uid;
+                            return (
+                                <div key={msg.id} className={`flex flex-col gap-1 w-full max-w-[85%] animate-in fade-in slide-in-from-bottom-2 duration-500 ${isMe ? 'self-end' : 'self-start'}`}>
+                                    {/* Header Info */}
+                                    <div className={`flex items-center gap-2 px-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                        {!isMe && <span className="text-xs font-bold text-[#c0a080]">{msg.sender}</span>}
                                         {msg.recipients && msg.recipients.length > 0 && (
                                             <span className="text-[10px] bg-[#c0a080]/10 text-[#c0a080] px-1.5 py-0.5 rounded border border-[#c0a080]/20 flex items-center gap-1">
                                                 <Users className="w-3 h-3" />
                                                 Privé
                                             </span>
                                         )}
+                                        <span className="text-[10px] text-muted-foreground opacity-50">
+                                            {msg.timestamp?.toDate ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Maintenant"}
+                                        </span>
                                     </div>
-                                    <span className="text-[10px] text-muted-foreground opacity-50">
-                                        {msg.timestamp?.toDate ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Maintenant"}
-                                    </span>
-                                </div>
 
-                                {/* Image Card */}
-                                <div className="relative group rounded-xl overflow-hidden border border-[#3a3a3a] bg-[#1a1a1a] shadow-md hover:shadow-xl hover:border-[#c0a080]/50 transition-all">
-                                    <img
-                                        src={msg.imageUrl}
-                                        alt="Shared"
-                                        className="w-full h-auto max-h-[600px] object-contain bg-[#0a0a0a] cursor-pointer"
-                                        onClick={() => setFullscreenImage(msg.imageUrl)}
-                                    />
+                                    {/* Message Card */}
+                                    <div className={`relative group rounded-xl overflow-hidden border border-[#3a3a3a] bg-[#1a1a1a] shadow-md hover:border-[#c0a080]/50 transition-all ${isMe ? 'rounded-tr-sm' : 'rounded-tl-sm'}`}>
+                                        {msg.imageUrl && (
+                                            <img
+                                                src={msg.imageUrl}
+                                                alt="Shared"
+                                                className="w-full h-auto max-h-[400px] object-contain bg-[#0a0a0a] cursor-pointer"
+                                                onClick={() => setFullscreenImage(msg.imageUrl!)}
+                                            />
+                                        )}
+                                        {msg.text && (
+                                            <div className={`p-3 text-sm whitespace-pre-wrap break-words ${isMe ? 'bg-[#c0a080]/10 text-[#e0e0e0]' : 'text-[#d4d4d4]'}`}>
+                                                {msg.text}
+                                            </div>
+                                        )}
 
-                                    {/* Action Menu (Owner/MJ) */}
-                                    {(isMJ || (user && msg.uid === user.uid)) && (
-                                        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <Popover>
-                                                <PopoverTrigger asChild>
-                                                    <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/80 text-white border border-white/10 backdrop-blur-sm">
-                                                        <MoreVertical className="h-4 w-4" />
-                                                    </Button>
-                                                </PopoverTrigger>
-                                                <PopoverContent className="w-40 p-1 bg-[#242424] border-[#3a3a3a] text-[#d4d4d4]" align="end">
-                                                    <button
-                                                        onClick={() => handleStartEdit(msg)}
-                                                        className="w-full flex items-center gap-2 px-2 py-1.5 text-sm md:text-xs hover:bg-[#333] rounded cursor-pointer transition-colors"
-                                                    >
-                                                        <Pencil className="h-3.5 w-3.5" />
-                                                        Modifier
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(msg.id)}
-                                                        className="w-full flex items-center gap-2 px-2 py-1.5 text-sm md:text-xs text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded cursor-pointer transition-colors"
-                                                    >
-                                                        <Trash2 className="h-3.5 w-3.5" />
-                                                        Supprimer
-                                                    </button>
-                                                </PopoverContent>
-                                            </Popover>
-                                        </div>
-                                    )}
+                                        {/* Action Menu (Owner/MJ) */}
+                                        {(isMJ || isMe) && (
+                                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/80 text-white border border-white/10 backdrop-blur-sm">
+                                                            <MoreVertical className="h-4 w-4" />
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-40 p-1 bg-[#242424] border-[#3a3a3a] text-[#d4d4d4]" align="end">
+                                                        {msg.text && (
+                                                            <button
+                                                                onClick={() => handleStartEditText(msg)}
+                                                                className="w-full flex items-center gap-2 px-2 py-1.5 text-sm md:text-xs hover:bg-[#333] rounded cursor-pointer transition-colors"
+                                                            >
+                                                                <Pencil className="h-3.5 w-3.5" />
+                                                                Modifier message
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={() => handleStartEditVisibility(msg)}
+                                                            className="w-full flex items-center gap-2 px-2 py-1.5 text-sm md:text-xs hover:bg-[#333] rounded cursor-pointer transition-colors"
+                                                        >
+                                                            <Users className="h-3.5 w-3.5" />
+                                                            Visibilité
+                                                        </button>
+                                                        <button
+                                                            onClick={() => setMessageToDelete(msg.id)}
+                                                            className="w-full flex items-center gap-2 px-2 py-1.5 text-sm md:text-xs text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded cursor-pointer transition-colors"
+                                                        >
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                            Supprimer
+                                                        </button>
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
                 <div ref={scrollRef} />
             </ScrollArea>
+
+            {/* --- COMPOSE --- */}
+            <div className="p-3 border-t border-[#3a3a3a] bg-[#242424] flex flex-col gap-2">
+                {targetRecipients.length > 0 && (
+                    <div className="flex items-center justify-between bg-[#1c1c1c] p-2 rounded border border-[#3a3a3a]">
+                        <span className="text-xs text-[#c0a080] flex items-center gap-1">
+                            <Users className="w-3 h-3" /> Message privé
+                        </span>
+                        <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => setTargetRecipients([])}>
+                            Annuler
+                        </Button>
+                    </div>
+                )}
+                <form onSubmit={handleSendMessage} className="flex items-center gap-2">
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button type="button" variant="ghost" size="icon" className="shrink-0 text-muted-foreground hover:text-[#c0a080]">
+                                <Users className="w-5 h-5" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-64 p-0 bg-[#242424] border-[#3a3a3a]" align="start" side="top">
+                            <RecipientSelector />
+                        </PopoverContent>
+                    </Popover>
+                    <Input
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        placeholder="Écrire un message..."
+                        className="bg-[#1c1c1c] border-[#3a3a3a] text-[#d4d4d4] focus-visible:ring-[#c0a080]/50"
+                    />
+                    <Button type="submit" disabled={!newMessage.trim()} size="icon" className="shrink-0 bg-[#c0a080] hover:bg-[#b09070] text-black">
+                        <Send className="w-4 h-4" />
+                    </Button>
+                </form>
+            </div>
 
             {/* --- LIGHTBOX --- */}
             {fullscreenImage && (
@@ -368,8 +462,8 @@ export default function Chat() {
                 </div>
             )}
 
-            {/* --- EDIT DIALOG --- */}
-            <Dialog open={!!editingMessage} onOpenChange={(open) => !open && setEditingMessage(null)}>
+            {/* --- VISIBILITY DIALOG --- */}
+            <Dialog open={!!editingVisibility} onOpenChange={(open) => !open && setEditingVisibility(null)}>
                 <DialogContent className="bg-[#242424] border-[#3a3a3a] text-[#d4d4d4] sm:max-w-[425px]">
                     <DialogHeader>
                         <DialogTitle>Modifier la visibilité</DialogTitle>
@@ -378,12 +472,64 @@ export default function Chat() {
                         <RecipientSelector />
                     </div>
                     <DialogFooter>
-                        <Button variant="ghost" onClick={() => setEditingMessage(null)}>Annuler</Button>
+                        <Button variant="ghost" onClick={() => setEditingVisibility(null)}>Annuler</Button>
                         <Button
-                            onClick={handleConfirmEdit}
+                            onClick={handleConfirmEditVisibility}
                             className="bg-[#c0a080] hover:bg-[#b09070] text-black"
                         >
                             Enregistrer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* --- EDIT TEXT DIALOG --- */}
+            <Dialog open={!!editingTextMsg} onOpenChange={(open) => !open && setEditingTextMsg(null)}>
+                <DialogContent className="bg-[#242424] border-[#3a3a3a] text-[#d4d4d4] sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Modifier le message</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Input
+                            value={editText}
+                            onChange={(e) => setEditText(e.target.value)}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') handleConfirmEditText();
+                            }}
+                            autoFocus
+                            className="bg-[#1c1c1c] border-[#3a3a3a] text-[#d4d4d4] focus-visible:ring-[#c0a080]/50"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setEditingTextMsg(null)}>Annuler</Button>
+                        <Button
+                            onClick={handleConfirmEditText}
+                            className="bg-[#c0a080] hover:bg-[#b09070] text-black"
+                            disabled={!editText.trim() || editText === editingTextMsg?.text}
+                        >
+                            Enregistrer
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* --- DELETE CONFIRM DIALOG --- */}
+            <Dialog open={!!messageToDelete} onOpenChange={(open) => !open && setMessageToDelete(null)}>
+                <DialogContent className="bg-[#242424] border-[#3a3a3a] text-[#d4d4d4] sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>Supprimer le message</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-2 text-sm text-muted-foreground">
+                        Êtes-vous sûr de vouloir supprimer ce message ? Cette action est irréversible.
+                    </div>
+                    <DialogFooter className="mt-4 gap-2 sm:gap-0">
+                        <Button variant="ghost" onClick={() => setMessageToDelete(null)}>Annuler</Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDelete}
+                            className="bg-red-900/50 hover:bg-red-900/80 text-red-200 border border-red-900"
+                        >
+                            Supprimer
                         </Button>
                     </DialogFooter>
                 </DialogContent>
