@@ -192,20 +192,19 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3">
         {filteredCompetences.map((competence) => (
-          <div
-            key={competence.id}
+          <div key={competence.id}
             onClick={() => {
               setSelectedCompetence(competence);
               setIsDetailsDialogOpen(true);
             }}
             className={`
               group relative flex flex-col justify-center
-              bg-[#2a2a2a] border rounded-lg p-3 cursor-pointer 
+              bg-[var(--bg-card)] border rounded-lg p-3 cursor-pointer 
               transition-all duration-200
               min-h-[3.5rem]
               ${competence.isActive
-                ? "border-[#c0a080] shadow-[0_0_0_1px_rgba(192,160,128,0.2)]"
-                : "border-[#3a3a3a] hover:border-[#555]"
+                ? "border-[var(--accent-brown)] shadow-[0_0_0_1px_rgba(192,160,128,0.2)]"
+                : "border-[var(--border-color)] hover:border-[var(--text-secondary)]"
               }
             `}
           >
@@ -218,7 +217,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
                 {competence.name.replace(/^🔄\s*/, "")}
               </h3>
               {competence.name.startsWith("🔄") && (
-                <RefreshCw className="h-3.5 w-3.5 text-[#c0a080] shrink-0" />
+                <RefreshCw className="h-3.5 w-3.5 text-[var(--accent-brown)] shrink-0" />
               )}
             </div>
 
@@ -229,7 +228,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
                   setBonusOpenCompetenceId(competence.id);
                   setSelectedCompetence(competence);
                 }}
-                className="absolute top-1/2 -translate-y-1/2 right-3 p-1.5 rounded-full hover:bg-[#3a3a3a] text-[#666] hover:text-[#c0a080] transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 ring-0 outline-none"
+                className="absolute top-1/2 -translate-y-1/2 right-3 p-1.5 rounded-full hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--accent-brown)] transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100 ring-0 outline-none"
                 title="Gérer les bonus"
               >
                 <Settings className="h-4 w-4" />
@@ -242,7 +241,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
                   .filter(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name')
                   .slice(0, 3)
                   .map(([stat, value], idx) => (
-                    <span key={idx} className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-[#1c1c1c] text-[#c0a080] border border-[#3a3a3a] whitespace-nowrap">
+                    <span key={idx} className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-[var(--bg-dark)] text-[var(--accent-brown)] border border-[var(--border-color)] whitespace-nowrap">
                       {stat} {Number(value) > 0 ? "+" : ""}{value}
                     </span>
                   ))}
@@ -256,7 +255,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
 
   if (isLoading) {
     return (
-      <div className="w-full bg-[#242424] rounded-lg p-8 text-center text-[color:var(--text-secondary,#888)]">
+      <div className="w-full bg-[var(--bg-card)] rounded-lg p-8 text-center text-[color:var(--text-secondary,#888)]">
         Chargement...
       </div>
     );
@@ -264,21 +263,21 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
 
   return (
     <>
-      <div ref={(el) => { containerRef.current = el }} className="w-full bg-[#1c1c1c] rounded-[length:var(--block-radius,0.5rem)] border border-[#333] flex flex-col items-stretch overflow-hidden" style={style}>
+      <div ref={(el) => { containerRef.current = el }} className="w-full bg-[var(--bg-dark)] rounded-[length:var(--block-radius,0.5rem)] border border-[var(--border-color)] flex flex-col items-stretch overflow-hidden" style={style}>
         {/* Header Compact */}
-        <div className="p-3 border-b border-[#333] flex flex-col sm:flex-row gap-3 items-center justify-between">
+        <div className="p-3 border-b border-[var(--border-color)] flex flex-col sm:flex-row gap-3 items-center justify-between">
           <div className="flex items-center gap-3 w-full sm:w-auto">
-            <h2 className="text-lg font-bold text-[#c0a080] shrink-0">
+            <h2 className="text-lg font-bold text-[var(--accent-brown)] shrink-0">
               Compétences
             </h2>
             <div className="relative flex-grow sm:w-64">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#666]" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--text-secondary)]" />
               <Input
                 type="text"
                 placeholder="Rechercher..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 pl-8 bg-[#1c1c1c] border-[#333] text-[color:var(--text-primary,#d4d4d4)] text-sm focus:ring-1 focus:ring-[#c0a080]"
+                className="h-9 pl-8 bg-[var(--bg-dark)] border-[var(--border-color)] text-[color:var(--text-primary,#d4d4d4)] text-sm focus:ring-1 focus:ring-[var(--accent-brown)]"
               />
               {searchQuery && (
                 <button
@@ -293,12 +292,12 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
 
           <div className="flex gap-2 w-full sm:w-auto items-center">
             <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab} className="w-full sm:w-auto">
-              <TabsList className="h-9 bg-[#1c1c1c] border border-[#333] p-0.5 w-full sm:w-auto">
+              <TabsList className="h-9 bg-[var(--bg-dark)] border border-[var(--border-color)] p-0.5 w-full sm:w-auto">
                 {['all', 'passive', 'limitée'].map((tab) => (
                   <TabsTrigger
                     key={tab}
                     value={tab}
-                    className="text-xs px-3 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] h-full"
+                    className="text-xs px-3 data-[state=active]:bg-[var(--accent-brown)] data-[state=active]:text-black h-full"
                   >
                     {tab === 'all' ? 'Toutes' : tab}
                   </TabsTrigger>
@@ -311,7 +310,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
               onClick={onOpenFullscreen}
               variant="ghost"
               size="sm"
-              className="h-9 w-9 p-0 hover:bg-[#333] text-[#c0a080]"
+              className="h-9 w-9 p-0 hover:bg-[var(--bg-darker)] text-[var(--accent-brown)]"
               title="Plein écran"
             >
               <Settings className="h-4 w-4" />
@@ -438,7 +437,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
                     <SelectTrigger className="bg-black/20 border-white/10 text-[var(--text-primary)] focus:ring-[var(--accent-brown)]">
                       <SelectValue placeholder="Choisir..." />
                     </SelectTrigger>
-                    <SelectContent className="bg-[#2a2a2a] border-[#333] text-[var(--text-primary)]">
+                    <SelectContent className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)]">
                       {statOptions.map((stat) => (
                         <SelectItem key={stat} value={stat}>{stat}</SelectItem>
                       ))}

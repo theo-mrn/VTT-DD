@@ -82,42 +82,42 @@ interface WidgetControlsProps {
 
 const WidgetControls: React.FC<WidgetControlsProps> = ({ id, updateWidgetDim, widthMode = 'presets', onRemove }) => (
   <div className="absolute -top-9 right-0 z-50 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none pr-1">
-    <div className="flex bg-[#2a2a2a] border border-[#3a3a3a] rounded-t-lg shadow-xl text-xs overflow-hidden pointer-events-auto">
-      <div className="flex border-r border-[#3a3a3a]">
+    <div className="flex bg-[var(--bg-card)] border border-[var(--border-color)] rounded-t-lg shadow-xl text-xs overflow-hidden pointer-events-auto">
+      <div className="flex border-r border-[var(--border-color)]">
         {widthMode === 'incremental' ? (
           <>
-            <button onClick={() => updateWidgetDim(id, 'w', 'dec')} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] border-r border-[#3a3a3a] transition-colors" title="Réduire largeur">
+            <button onClick={() => updateWidgetDim(id, 'w', 'dec')} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors" title="Réduire largeur">
               <ChevronLeft size={14} />
             </button>
-            <button onClick={() => updateWidgetDim(id, 'w', 'inc')} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] transition-colors" title="Augmenter largeur">
+            <button onClick={() => updateWidgetDim(id, 'w', 'inc')} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="Augmenter largeur">
               <ChevronRight size={14} />
             </button>
           </>
         ) : (
           <>
-            <button onClick={() => updateWidgetDim(id, 'w', 4)} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] border-r border-[#3a3a3a] transition-colors" title="Largeur 1/3">1/3</button>
-            <button onClick={() => updateWidgetDim(id, 'w', 6)} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] border-r border-[#3a3a3a] transition-colors" title="Largeur 1/2">1/2</button>
-            <button onClick={() => updateWidgetDim(id, 'w', 8)} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] border-r border-[#3a3a3a] transition-colors" title="Largeur 2/3">2/3</button>
-            <button onClick={() => updateWidgetDim(id, 'w', 12)} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] transition-colors" title="Pleine largeur">Full</button>
+            <button onClick={() => updateWidgetDim(id, 'w', 4)} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors" title="Largeur 1/3">1/3</button>
+            <button onClick={() => updateWidgetDim(id, 'w', 6)} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors" title="Largeur 1/2">1/2</button>
+            <button onClick={() => updateWidgetDim(id, 'w', 8)} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors" title="Largeur 2/3">2/3</button>
+            <button onClick={() => updateWidgetDim(id, 'w', 12)} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="Pleine largeur">Full</button>
           </>
         )}
       </div>
-      <div className="flex border-l border-[#3a3a3a]">
-        <button onClick={() => updateWidgetDim(id, 'h', 'dec')} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] border-r border-[#3a3a3a] transition-colors" title="Réduire hauteur">
+      <div className="flex border-l border-[var(--border-color)]">
+        <button onClick={() => updateWidgetDim(id, 'h', 'dec')} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors" title="Réduire hauteur">
           <ChevronUp size={14} />
         </button>
-        <button onClick={() => updateWidgetDim(id, 'h', 'inc')} className="px-2 py-1.5 hover:bg-[#3a3a3a] text-[#a0a0a0] hover:text-[#d4d4d4] transition-colors" title="Augmenter hauteur">
+        <button onClick={() => updateWidgetDim(id, 'h', 'inc')} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="Augmenter hauteur">
           <ChevronDown size={14} />
         </button>
       </div>
-      <div className="flex border-l border-[#3a3a3a]">
-        <div className="drag-handle px-3 py-1.5 cursor-grab active:cursor-grabbing text-[#a0a0a0] hover:text-[#d4d4d4] hover:bg-[#3a3a3a] flex items-center transition-colors">
+      <div className="flex border-l border-[var(--border-color)]">
+        <div className="drag-handle px-3 py-1.5 cursor-grab active:cursor-grabbing text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-darker)] flex items-center transition-colors">
           <Upload size={14} className="rotate-45" />
         </div>
       </div>
       {onRemove && (
-        <div className="flex border-l border-[#3a3a3a]">
-          <button onClick={(e) => { e.stopPropagation(); onRemove(id); }} className="px-2 py-1.5 hover:bg-red-900/50 text-[#a0a0a0] hover:text-red-400 transition-colors" title="Supprimer le widget">
+        <div className="flex border-l border-[var(--border-color)]">
+          <button onClick={(e) => { e.stopPropagation(); onRemove(id); }} className="px-2 py-1.5 hover:bg-red-900/50 text-[var(--text-secondary)] hover:text-red-400 transition-colors" title="Supprimer le widget">
             <Trash2 size={14} />
           </button>
         </div>
@@ -471,16 +471,16 @@ export default function Component() {
 
   const RaceAbilitiesModal: React.FC<RaceAbilitiesModalProps> = ({ abilities, onClose }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] max-w-md w-full text-center max-h-[90vh] overflow-y-auto">
-        <h2 className="text-lg sm:text-xl font-bold text-[#c0a080] mb-4">Capacités Raciales</h2>
+      <div className="bg-[var(--bg-card)] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[var(--border-color)] max-w-md w-full text-center max-h-[90vh] overflow-y-auto">
+        <h2 className="text-lg sm:text-xl font-bold text-[var(--accent-brown)] mb-4">Capacités Raciales</h2>
         <div className="space-y-3 sm:space-y-4">
           {abilities.map((ability, index) => (
-            <p key={index} className="text-sm sm:text-base text-[#d4d4d4]">{ability}</p>
+            <p key={index} className="text-sm sm:text-base text-[var(--text-primary)]">{ability}</p>
           ))}
         </div>
         <button
           onClick={onClose}
-          className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-xs sm:text-sm font-bold mt-4"
+          className="bg-[var(--bg-darker)] text-[var(--text-primary)] border border-[var(--border-color)] px-4 py-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-300 text-xs sm:text-sm font-bold mt-4"
         >
           Fermer
         </button>
@@ -566,20 +566,20 @@ export default function Component() {
 
   const LevelUpConfirmationModal: React.FC<{ onClose: () => void; updatedCharacter: Character }> = ({ onClose, updatedCharacter }) => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] max-w-md w-full text-center">
-        <h2 className="text-xl sm:text-2xl font-bold text-[#c0a0a0] mb-4">Niveau Augmenté !</h2>
-        <p className="text-sm sm:text-base text-[#d4d4d4] mb-4">
+      <div className="bg-[var(--bg-card)] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[var(--border-color)] max-w-md w-full text-center">
+        <h2 className="text-xl sm:text-2xl font-bold text-[var(--accent-brown)] mb-4">Niveau Augmenté !</h2>
+        <p className="text-sm sm:text-base text-[var(--text-primary)] mb-4">
           Félicitations, votre personnage a monté de niveau ! Voici les nouvelles valeurs :
         </p>
-        <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm text-[#a0a0a0] mb-4">
-          <div>PV Max: <span className="text-[#d4d4d4] font-bold">{updatedCharacter.PV_Max}</span></div>
-          <div>Contact: <span className="text-[#d4d4d4] font-bold">{updatedCharacter.Contact}</span></div>
-          <div>Distance: <span className="text-[#d4d4d4] font-bold">{updatedCharacter.Distance}</span></div>
-          <div>Magie: <span className="text-[#d4d4d4] font-bold">{updatedCharacter.Magie}</span></div>
+        <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm text-[var(--text-secondary)] mb-4">
+          <div>PV Max: <span className="text-[var(--text-primary)] font-bold">{updatedCharacter.PV_Max}</span></div>
+          <div>Contact: <span className="text-[var(--text-primary)] font-bold">{updatedCharacter.Contact}</span></div>
+          <div>Distance: <span className="text-[var(--text-primary)] font-bold">{updatedCharacter.Distance}</span></div>
+          <div>Magie: <span className="text-[var(--text-primary)] font-bold">{updatedCharacter.Magie}</span></div>
         </div>
         <button
           onClick={onClose}
-          className="bg-[#5c6bc0] text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-[#7986cb] transition duration-300 text-xs sm:text-sm font-bold"
+          className="bg-[var(--accent-blue)] text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-[var(--accent-blue-hover)] transition duration-300 text-xs sm:text-sm font-bold"
         >
           Fermer
         </button>
@@ -635,13 +635,13 @@ export default function Component() {
   const [previewLayout, setPreviewLayout] = useState<any[] | null>(null);
 
   if (isLoading) {
-    return <div className="min-h-screen bg-[#1c1c1c] text-[#d4d4d4] p-4 flex items-center justify-center">
+    return <div className="min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)] p-4 flex items-center justify-center">
       Chargement...
     </div>;
   }
 
   if (error) {
-    return <div className="min-h-screen bg-[#1c1c1c] text-[#d4d4d4] p-4 flex items-center justify-center">
+    return <div className="min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)] p-4 flex items-center justify-center">
       <div className="bg-red-500/10 text-red-500 p-4 rounded-lg">
         {error}
       </div>
@@ -686,18 +686,18 @@ export default function Component() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen bg-[#1c1c1c] text-[#d4d4d4] p-2 sm:p-4">
+      <div className="min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)] p-2 sm:p-4">
         {/* Barre de personnages séparée */}
-        <div className="max-w-7xl mx-auto mb-6 bg-[#242424] p-2 rounded-lg shadow-md flex items-center justify-between gap-4">
-          <div className="flex-1 flex gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-[#3a3a3a] scrollbar-track-transparent">
+        <div className="max-w-7xl mx-auto mb-6 bg-[var(--bg-card)] p-2 rounded-lg shadow-md flex items-center justify-between gap-4">
+          <div className="flex-1 flex gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-[var(--border-color)] scrollbar-track-transparent">
             {characters.map((character) => (
               <button
                 key={character.id}
                 onClick={() => setSelectedCharacter(character)}
                 className={`px-3 py-2 sm:px-4 ${selectedCharacter?.id === character.id
-                  ? 'bg-[#d4b48f]'
-                  : 'bg-[#c0a080]'
-                  } text-[#1c1c1c] rounded-lg hover:bg-[#d4b48f] transition whitespace-nowrap text-xs sm:text-sm font-bold flex-shrink-0`}
+                    ? 'bg-[var(--accent-brown-hover)]'
+                    : 'bg-[var(--accent-brown)]'
+                  } text-black rounded-lg hover:bg-[var(--accent-brown-hover)] transition whitespace-nowrap text-xs sm:text-sm font-bold flex-shrink-0`}
               >
                 {character.Nomperso}
               </button>
@@ -711,7 +711,7 @@ export default function Component() {
                   <button
                     id="vtt-fiche-btn-modifier"
                     onClick={handleEdit}
-                    className="bg-[#3a3a3a] text-[#c0a080] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
+                    className="bg-[var(--bg-darker)] text-[var(--accent-brown)] p-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-200 flex items-center gap-1 text-xs sm:text-sm border border-[var(--border-color)]"
                     title="Modifier"
                   >
                     <Edit size={16} />
@@ -720,7 +720,7 @@ export default function Component() {
                   <button
                     id="vtt-fiche-btn-level-up"
                     onClick={openLevelUpModal}
-                    className="bg-[#3a3a3a] text-[#5c6bc0] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
+                    className="bg-[var(--bg-darker)] text-[var(--accent-blue)] p-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-200 flex items-center gap-1 text-xs sm:text-sm border border-[var(--border-color)]"
                     title="Monter de niveau"
                   >
                     <TrendingUp size={16} />
@@ -732,7 +732,7 @@ export default function Component() {
               <button
                 id="vtt-fiche-btn-stats"
                 onClick={() => setShowStatistiques(true)}
-                className="bg-[#3a3a3a] text-[#c0a080] p-2 rounded-lg hover:bg-[#4a4a4a] transition duration-200 flex items-center gap-1 text-xs sm:text-sm"
+                className="bg-[var(--bg-darker)] text-[var(--accent-brown)] p-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-200 flex items-center gap-1 text-xs sm:text-sm border border-[var(--border-color)]"
                 title="Voir les statistiques"
               >
                 <ChartColumn size={16} />
@@ -743,7 +743,10 @@ export default function Component() {
                 <button
                   id="vtt-fiche-btn-edition"
                   onClick={handleEditModeToggle}
-                  className={`p-2 rounded-lg transition duration-200 flex items-center gap-1 text-xs sm:text-sm ${isLayoutEditing ? 'bg-[#c0a080] text-[#1c1c1c]' : 'bg-[#3a3a3a] text-[#80c0a0] hover:bg-[#4a4a4a]'}`}
+                  className={`p-2 rounded-lg transition duration-200 flex items-center gap-1 text-xs sm:text-sm border ${isLayoutEditing
+                      ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]'
+                      : 'bg-[var(--bg-darker)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--bg-card)]'
+                    }`}
                   title="Mode Édition (Style & Disposition)"
                 >
                   <Palette size={16} />
@@ -894,18 +897,18 @@ export default function Component() {
                         <WidgetVitals style={boxStyle} />
                       </button>
                     </DrawerTrigger>
-                    <DrawerContent className="bg-[#1c1c1c] border-[#3a3a3a] text-[#d4d4d4]">
+                    <DrawerContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
                       <div className="mx-auto w-full max-w-sm">
                         <DrawerHeader>
-                          <DrawerTitle className="text-[#c0a080]">Gestion des Points de Vie</DrawerTitle>
-                          <DrawerDescription className="text-[#a0a0a0]">Ajustez les points de vie de votre personnage.</DrawerDescription>
+                          <DrawerTitle className="text-[var(--accent-brown)]">Gestion des Points de Vie</DrawerTitle>
+                          <DrawerDescription className="text-[var(--text-secondary)]">Ajustez les points de vie de votre personnage.</DrawerDescription>
                         </DrawerHeader>
                         <div className="p-4 pb-0">
                           <div className="flex items-center justify-center space-x-2">
                             <Button
                               variant="outline"
                               size="icon"
-                              className="h-10 w-10 shrink-0 rounded-full bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]/80 text-[#d4d4d4]"
+                              className="h-10 w-10 shrink-0 rounded-full bg-[var(--bg-card)] border-[var(--border-color)] hover:bg-[var(--bg-darker)] text-[var(--text-primary)]"
                               onClick={() => handleUpdatePV(-5)}
                               disabled={!selectedCharacter}
                             >
@@ -942,7 +945,7 @@ export default function Component() {
                             <Button
                               variant="outline"
                               size="icon"
-                              className="h-10 w-10 shrink-0 rounded-full bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]/80 text-[#d4d4d4]"
+                              className="h-10 w-10 shrink-0 rounded-full bg-[var(--bg-card)] border-[var(--border-color)] hover:bg-[var(--bg-darker)] text-[var(--text-primary)]"
                               onClick={() => handleUpdatePV(5)}
                               disabled={!selectedCharacter || (selectedCharacter?.PV || 0) >= (selectedCharacter?.PV_Max || 0)}
                             >
@@ -952,7 +955,7 @@ export default function Component() {
                           <div className="mt-8 flex justify-center">
                             <Button
                               variant="ghost"
-                              className="text-[#80c0a0] hover:text-[#80c0a0] hover:bg-[#2a2a2a]"
+                              className="text-[var(--accent-brown)] hover:text-[var(--accent-brown)] hover:bg-[var(--bg-card)]"
                               onClick={() => handleUpdatePV((selectedCharacter?.PV_Max || 0) - (selectedCharacter?.PV || 0))}
                               disabled={!selectedCharacter || (selectedCharacter?.PV || 0) >= (selectedCharacter?.PV_Max || 0)}
                             >
@@ -962,7 +965,7 @@ export default function Component() {
                         </div>
                         <DrawerFooter>
                           <DrawerClose asChild>
-                            <Button variant="outline" className="bg-[#2a2a2a] border-[#3a3a3a] text-[#d4d4d4] hover:bg-[#3a3a3a]/80">Fermer</Button>
+                            <Button variant="outline" className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-darker)]">Fermer</Button>
                           </DrawerClose>
                         </DrawerFooter>
                       </div>
@@ -1001,73 +1004,73 @@ export default function Component() {
           )}
 
           {isEditing && (
-            <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a]">
-              <h2 className="text-lg sm:text-xl font-bold text-[#c0a0a0] mb-4">
+            <div className="bg-[var(--bg-card)] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[var(--border-color)]">
+              <h2 className="text-lg sm:text-xl font-bold text-[var(--accent-brown)] mb-4">
                 Modifier {selectedCharacter?.Nomperso || "Personnage"}
               </h2>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mb-6">
                 <div className="space-y-2">
-                  <label className="text-xs sm:text-sm block">PV</label>
+                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">PV</label>
                   <input
                     type="number"
                     value={editForm.PV || ''}
                     onChange={(e) => setEditForm({ ...editForm, PV: parseInt(e.target.value) })}
-                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs sm:text-sm block">PV Maximum</label>
+                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">PV Maximum</label>
                   <input
                     type="number"
                     value={editForm.PV_Max || ''}
                     onChange={(e) => setEditForm({ ...editForm, PV_Max: parseInt(e.target.value) })}
-                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs sm:text-sm block">Défense</label>
+                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">Défense</label>
                   <input
                     type="number"
                     value={editForm.Defense || ''}
                     onChange={(e) => setEditForm({ ...editForm, Defense: parseInt(e.target.value) })}
-                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs sm:text-sm block">Contact</label>
+                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">Contact</label>
                   <input
                     type="number"
                     value={editForm.Contact || ''}
                     onChange={(e) => setEditForm({ ...editForm, Contact: parseInt(e.target.value) })}
-                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs sm:text-sm block">Magie</label>
+                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">Magie</label>
                   <input
                     type="number"
                     value={editForm.Magie || ''}
                     onChange={(e) => setEditForm({ ...editForm, Magie: parseInt(e.target.value) })}
-                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs sm:text-sm block">Distance</label>
+                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">Distance</label>
                   <input
                     type="number"
                     value={editForm.Distance || ''}
                     onChange={(e) => setEditForm({ ...editForm, Distance: parseInt(e.target.value) })}
-                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs sm:text-sm block">Initiative</label>
+                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">Initiative</label>
                   <input
                     type="number"
                     value={editForm.INIT || ''}
                     onChange={(e) => setEditForm({ ...editForm, INIT: parseInt(e.target.value) })}
-                    className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
                   />
                 </div>
               </div>
@@ -1075,12 +1078,12 @@ export default function Component() {
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
                 {['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'].map((stat) => (
                   <div key={stat} className="space-y-2">
-                    <label className="text-xs sm:text-sm block">{stat}</label>
+                    <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">{stat}</label>
                     <input
                       type="number"
                       value={(editForm[stat as keyof Character] as number) || ''}
                       onChange={(e) => setEditForm({ ...editForm, [stat]: parseInt(e.target.value) })}
-                      className="w-full bg-[#1c1c1c] rounded px-3 py-2 text-white text-sm"
+                      className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
                     />
                   </div>
                 ))}
@@ -1092,13 +1095,13 @@ export default function Component() {
               <div className="flex flex-col xs:flex-row justify-end gap-3 xs:gap-4">
                 <button
                   onClick={() => setIsEditing(false)}
-                  className="bg-gray-600 text-white px-4 sm:px-6 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-xs sm:text-sm font-bold"
+                  className="bg-[var(--bg-darker)] text-[var(--text-primary)] border border-[var(--border-color)] px-4 sm:px-6 py-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-300 text-xs sm:text-sm font-bold"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={handleSave}
-                  className="bg-[#c0a080] text-[#1c1c1c] px-4 sm:px-6 py-2 rounded-lg hover:bg-[#d4b48f] transition duration-300 text-xs sm:text-sm font-bold"
+                  className="bg-[var(--accent-brown)] text-black px-4 sm:px-6 py-2 rounded-lg hover:bg-[var(--accent-brown-hover)] transition duration-300 text-xs sm:text-sm font-bold"
                 >
                   Sauvegarder
                 </button>
@@ -1115,12 +1118,12 @@ export default function Component() {
 
           {showLevelUpModal && selectedCharacter && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-[#2a2a2a] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] max-w-md w-full text-center">
-                <h2 className="text-lg sm:text-xl font-bold text-[#c0a0a0] mb-4">Monter de Niveau</h2>
-                <p className="text-sm sm:text-base text-[#d4d4d4] mb-4">Lancez un dé pour augmenter les PV Max.</p>
+              <div className="bg-[var(--bg-card)] p-4 sm:p-6 rounded-[length:var(--block-radius,0.5rem)] border border-[var(--border-color)] max-w-md w-full text-center">
+                <h2 className="text-lg sm:text-xl font-bold text-[var(--accent-brown)] mb-4">Monter de Niveau</h2>
+                <p className="text-sm sm:text-base text-[var(--text-primary)] mb-4">Lancez un dé pour augmenter les PV Max.</p>
                 <button
                   onClick={handleRollDie}
-                  className="bg-[#c0a080] text-[#1c1c1c] px-4 py-2 rounded-lg mb-4 hover:bg-[#d4b48f] transition duration-300 text-xs sm:text-sm font-bold"
+                  className="bg-[var(--accent-brown)] text-black px-4 py-2 rounded-lg mb-4 hover:bg-[var(--accent-brown-hover)] transition duration-300 text-xs sm:text-sm font-bold"
                 >
                   Lancer le Dé
                 </button>
@@ -1132,13 +1135,13 @@ export default function Component() {
                 <div className="flex flex-col xs:flex-row justify-center gap-3 xs:gap-4">
                   <button
                     onClick={confirmLevelUp}
-                    className="bg-[#5c6bc0] text-white px-4 py-2 rounded-lg hover:bg-[#7986cb] transition duration-300 text-xs sm:text-sm font-bold"
+                    className="bg-[var(--accent-blue)] text-white px-4 py-2 rounded-lg hover:bg-[var(--accent-blue-hover)] transition duration-300 text-xs sm:text-sm font-bold"
                   >
                     Valider
                   </button>
                   <button
                     onClick={closeLevelUpModal}
-                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-xs sm:text-sm font-bold"
+                    className="bg-[var(--bg-darker)] text-[var(--text-primary)] border border-[var(--border-color)] px-4 py-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-300 text-xs sm:text-sm font-bold"
                   >
                     Annuler
                   </button>
@@ -1149,12 +1152,12 @@ export default function Component() {
 
           {showStatistiques && (
             <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <div className="bg-[#1c1c1c] rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="sticky top-0 bg-[#1c1c1c] border-b border-[#3a3a3a] p-4 flex justify-between items-center z-10">
-                  <h2 className="text-lg sm:text-xl font-bold text-[#c0a080]">Statistiques des Joueurs</h2>
+              <div className="bg-[var(--bg-dark)] rounded-[length:var(--block-radius,0.5rem)] border border-[var(--border-color)] max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="sticky top-0 bg-[var(--bg-dark)] border-b border-[var(--border-color)] p-4 flex justify-between items-center z-10">
+                  <h2 className="text-lg sm:text-xl font-bold text-[var(--accent-brown)]">Statistiques des Joueurs</h2>
                   <button
                     onClick={() => setShowStatistiques(false)}
-                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition duration-300 text-xs sm:text-sm font-bold"
+                    className="bg-[var(--bg-darker)] text-[var(--text-primary)] border border-[var(--border-color)] px-4 py-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-300 text-xs sm:text-sm font-bold"
                   >
                     Fermer
                   </button>
