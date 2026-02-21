@@ -41,6 +41,66 @@ export const startSidebarTour = (isMJ: boolean) => {
 
     const steps: DriveStep[] = [];
 
+    // Phase 2: Map Toolbar - Move to Beginning
+    steps.push(
+        {
+            element: "#vtt-toolbar-group-nav",
+            popover: {
+                title: "Navigation & Vue",
+                description: "Zoomez, dézoomez et déplacez-vous sur la carte. Le mode panoramique (main) est essentiel pour naviguer sans déplacer les objets.",
+                position: "top"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-toolbar-measure",
+            popover: {
+                title: "Mesure & Gabarits",
+                description: "Mesurez les distances ou placez des cercles, cônes et lignes pour vos sorts et capacités.",
+                position: "top"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-toolbar-grid",
+            popover: {
+                title: "Grille de Jeu",
+                description: "Activez ou désactivez la grille visuelle pour plus de précision ou d'immersion.",
+                position: "top"
+            }
+        } as DriveStep
+    );
+
+    if (isMJ) {
+        steps.push(
+            {
+                element: "#vtt-toolbar-group-map",
+                popover: {
+                    title: "Gestion de la Carte",
+                    description: "Gérez les calques (Joueur/MJ), le brouillard de guerre et l'image de fond.",
+                    position: "top"
+                }
+            } as DriveStep,
+            {
+                element: "#vtt-toolbar-group-content",
+                popover: {
+                    title: "Contenu & Audio",
+                    description: "Accédez à la recherche unifiée, créez des portails, gérez la musique et ajoutez des PNJ.",
+                    position: "top"
+                }
+            } as DriveStep
+        );
+    }
+
+    steps.push(
+        {
+            element: "#vtt-toolbar-audio_mixer",
+            popover: {
+                title: "Mixeur Audio",
+                description: "Ajustez le volume de l'ambiance et de la musique pour votre session.",
+                position: "top"
+            }
+        } as DriveStep
+    );
+
     if (isMJ) {
         addInteractiveStep("#vtt-sidebar-combat", "Tableau de Bord MJ", "Gérez vos combats et l'initiative.");
         addInteractiveStep("#vtt-sidebar-npc", "Gestionnaire de PNJ", "Accédez à vos fiches de personnages non-joueurs.");

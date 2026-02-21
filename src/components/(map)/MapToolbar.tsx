@@ -261,6 +261,7 @@ function MapToolbar({
         <Tooltip>
             <TooltipTrigger asChild>
                 <Button
+                    id={`vtt-toolbar-${id}`}
                     variant={isActive ? "secondary" : "ghost"}
                     size="icon"
                     className={cn(
@@ -329,7 +330,7 @@ function MapToolbar({
                     <div className="flex items-center p-1.5 bg-[#0a0a0a]/90 backdrop-blur-2xl border border-[#333] rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.7)] ring-1 ring-white/5">
 
                         {/* --- GROUP 1: NAVIGATION & VIEW --- */}
-                        <div className="flex items-center px-1">
+                        <div id="vtt-toolbar-group-nav" className="flex items-center px-1">
                             <ToolButton onAction={onAction}
                                 id={TOOLS.ZOOM_IN}
                                 icon={Plus}
@@ -369,7 +370,7 @@ function MapToolbar({
                         <GroupSeparator />
 
                         {/* --- GROUP 2: PRIMARY INTERACTION --- */}
-                        <div className="flex items-center px-1">
+                        <div id="vtt-toolbar-group-interaction" className="flex items-center px-1">
                             {isMJ && (
                                 <ToolButton onAction={onAction}
                                     id={TOOLS.MULTI_SELECT}
@@ -401,7 +402,7 @@ function MapToolbar({
                         <GroupSeparator />
 
                         {/* --- GROUP 3: MAP MANAGEMENT --- */}
-                        <div className="flex items-center px-1">
+                        <div id="vtt-toolbar-group-map" className="flex items-center px-1">
                             <ToolButton onAction={onAction}
                                 id={TOOLS.GRID}
                                 icon={Grid}
@@ -444,7 +445,7 @@ function MapToolbar({
                         {isMJ && (
                             <>
                                 <GroupSeparator />
-                                <div className="flex items-center px-1">
+                                <div id="vtt-toolbar-group-content" className="flex items-center px-1">
                                     <ToolButton onAction={onAction}
                                         id={TOOLS.UNIFIED_SEARCH}
                                         icon={Search}
@@ -483,7 +484,7 @@ function MapToolbar({
 
                         {/* --- GROUP 5: SYSTEM & AUDIO --- */}
                         <GroupSeparator />
-                        <div className="flex items-center px-1">
+                        <div id="vtt-toolbar-group-system" className="flex items-center px-1">
                             <ToolButton onAction={onAction}
                                 id={TOOLS.AUDIO_MIXER}
                                 icon={Sliders}
