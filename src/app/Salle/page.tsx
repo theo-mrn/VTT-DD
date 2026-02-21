@@ -24,6 +24,7 @@ interface Room {
   imageUrl?: string;
   isPublic: boolean;
   creatorId?: string;
+  allowCharacterCreation?: boolean;
 }
 
 // Composant pour la confirmation de suppression de salle
@@ -254,6 +255,7 @@ export default function Component() {
     description: '',
     maxPlayers: 4,
     isPublic: false,
+    allowCharacterCreation: true,
   })
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
@@ -356,7 +358,7 @@ export default function Component() {
     await setDoc(userRoomRef, { room_id: code }, { merge: true })
     await setDoc(doc(db, `users/${userId}/rooms`, code), { id: code })
 
-    setNewRoom({ title: '', description: '', maxPlayers: 4, isPublic: true })
+    setNewRoom({ title: '', description: '', maxPlayers: 4, isPublic: true, allowCharacterCreation: true })
     setImageFile(null)
     router.push(`/personnages`)
   }
@@ -375,6 +377,7 @@ export default function Component() {
       description: newRoom.description,
       maxPlayers: newRoom.maxPlayers,
       isPublic: newRoom.isPublic,
+      allowCharacterCreation: newRoom.allowCharacterCreation,
       creatorId: selectedRoom.creatorId,
     }
 
@@ -402,6 +405,10 @@ export default function Component() {
     setNewRoom((prev) => ({ ...prev, isPublic: !prev.isPublic }))
   }
 
+  const handleToggleCreationChange = () => {
+    setNewRoom((prev) => ({ ...prev, allowCharacterCreation: !prev.allowCharacterCreation }))
+  }
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setImageFile(e.target.files[0])
@@ -423,6 +430,15 @@ export default function Component() {
               id="isPublic"
               checked={newRoom.isPublic}
               onCheckedChange={handleToggleChange}
+              className="text-[#d4d4d4]"
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            <label htmlFor="allowCharacterCreation" className="text-[#a0a0a0]">Création de perso autorisée</label>
+            <Switch
+              id="allowCharacterCreation"
+              checked={newRoom.allowCharacterCreation}
+              onCheckedChange={handleToggleCreationChange}
               className="text-[#d4d4d4]"
             />
           </div>
@@ -631,6 +647,20 @@ export default function Component() {
                       id="isPublic"
                       checked={newRoom.isPublic}
                       onCheckedChange={handleToggleChange}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                    <div className="space-y-1">
+                      <label className="text-sm font-medium text-foreground">Création de personnages</label>
+                      <p className="text-xs text-muted-foreground">
+                        Autorise les joueurs à créer de nouveaux personnages
+                      </p>
+                    </div>
+                    <Switch
+                      id="allowCharacterCreation"
+                      checked={newRoom.allowCharacterCreation}
+                      onCheckedChange={handleToggleCreationChange}
                     />
                   </div>
 

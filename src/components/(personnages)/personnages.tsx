@@ -342,6 +342,42 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
         }
     }
 
+    const handleMakePlayable = async (npcToExport: NPC) => {
+        if (!roomId) return;
+        try {
+            const playerCharData = {
+                Nomperso: npcToExport.Nomperso,
+                imageURL: (npcToExport.imageURL2 || npcToExport.imageURL) || '',
+                imageURL2: npcToExport.imageURL2 || '',
+                niveau: npcToExport.niveau || 1,
+                PV: npcToExport.PV || 20,
+                PV_F: npcToExport.PV || 20,
+                PV_Max: npcToExport.PV_Max || npcToExport.PV || 20,
+                Defense: npcToExport.Defense || 10,
+                Defense_F: npcToExport.Defense || 10,
+                Contact: npcToExport.Contact || 0,
+                Distance: npcToExport.Distance || 0,
+                Magie: npcToExport.Magie || 0,
+                INIT: npcToExport.INIT || 10,
+                FOR: npcToExport.FOR || 10,
+                DEX: npcToExport.DEX || 10,
+                CON: npcToExport.CON || 10,
+                INT: npcToExport.INT || 10,
+                SAG: npcToExport.SAG || 10,
+                CHA: npcToExport.CHA || 10,
+                type: 'joueurs',
+                visibilityRadius: 150,
+                x: 500,
+                y: 500,
+            };
+            await addDoc(collection(db, `cartes/${roomId}/characters`), playerCharData);
+            alert(`Le personnage ${npcToExport.Nomperso} a été ajouté à la liste des personnages jouables !`);
+        } catch (error) {
+            console.error("Error making NPC playable:", error);
+            alert("Erreur lors de l'ajout en personnage jouable.");
+        }
+    }
+
     // derived
     const selectedNPC = useMemo(() => npcs.find(n => n.id === selectedNpcId), [npcs, selectedNpcId])
 
@@ -468,6 +504,7 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                             categories={categories}
                             onEditTrigger={() => selectedNPC && handleEdit(selectedNPC)}
                             onDeleteTrigger={() => selectedNPC && setDeleteConfirmId(selectedNPC.id)}
+                            onMakePlayableTrigger={() => selectedNPC && handleMakePlayable(selectedNPC)}
                             onSave={handleSubmit}
                             onCancel={() => {
                                 setViewMode('view')
@@ -566,6 +603,7 @@ interface InspectorViewProps {
     categories: Category[]
     onEditTrigger: () => void
     onDeleteTrigger: () => void
+    onMakePlayableTrigger?: () => void
     onSave: () => void
     onCancel: () => void
     onChange: (field: keyof NewCharacter, value: any) => void
@@ -575,7 +613,7 @@ interface InspectorViewProps {
 
 function InspectorView({
     mode, npc, char, category, categories,
-    onEditTrigger, onDeleteTrigger, onSave, onCancel,
+    onEditTrigger, onDeleteTrigger, onMakePlayableTrigger, onSave, onCancel,
     onChange, onImageUpload, onCategoryChange
 }: InspectorViewProps) {
 
@@ -798,11 +836,22 @@ function InspectorView({
                     <>
                         <Button
                             onClick={onEditTrigger}
-                            className="flex-1 bg-[#c0a080] text-black font-bold hover:bg-[#b09070]"
+                            className="flex-1 bg-[#c0a080] text-black font-bold hover:bg-[#b09070] px-2"
                         >
-                            <Edit className="w-4 h-4 mr-2" />
+                            <Edit className="w-4 h-4 mr-1" />
                             Modifier
                         </Button>
+                        {onMakePlayableTrigger && (
+                            <Button
+                                variant="outline"
+                                onClick={onMakePlayableTrigger}
+                                className="border-[#333] text-[#c0a080] hover:text-[#e0c0a0] hover:bg-[#c0a080]/10 px-2 flex-1"
+                                title="Ajouter aux personnages joueurs"
+                            >
+                                <UserPlus className="w-4 h-4 mr-1" />
+                                Joueur
+                            </Button>
+                        )}
                         <Button
                             variant="outline"
                             onClick={onDeleteTrigger}
