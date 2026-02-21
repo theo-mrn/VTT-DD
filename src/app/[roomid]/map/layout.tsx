@@ -49,8 +49,23 @@ export default function Layout({ children }: LayoutProps) {
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, async () => { });
+
+    // Auto-start tour logic
+    const tourStatus = localStorage.getItem('vtt-tour-completed');
+    if (tourStatus !== 'true') {
+      // Small delay to ensure everything is rendered
+      const timer = setTimeout(() => {
+        startSidebarTour(isMJ);
+        localStorage.setItem('vtt-tour-completed', 'true');
+      }, 1500);
+      return () => {
+        clearTimeout(timer);
+        unsubscribeAuth();
+      };
+    }
+
     return () => unsubscribeAuth();
-  }, []);
+  }, [isMJ]);
 
 
 
@@ -174,14 +189,6 @@ export default function Layout({ children }: LayoutProps) {
             {/* 3D Dice Overlay */}
             <DiceThrower />
 
-            {/* Tour Trigger Button */}
-            <button
-              onClick={() => startSidebarTour(isMJ)}
-              className="fixed bottom-4 right-4 z-40 p-3 bg-[#c0a080] text-black rounded-full shadow-lg hover:bg-[#d4b090] transition-colors"
-              title="Commencer le tutoriel"
-            >
-              <HelpCircle className="h-6 w-6" />
-            </button>
           </div>
         </MapControlProvider>
       </DialogVisibilityProvider>

@@ -1,8 +1,12 @@
 import { driver, DriveStep } from "driver.js";
-import "driver.js/dist/driver.css";
+import "./driver-theme.css";
 
 export const startSidebarTour = (isMJ: boolean) => {
-    let driverObj: any;
+
+    let driverObj: any
+
+
+
 
     // Helper function to create interactive steps
     const addInteractiveStep = (buttonId: string, panelTitle: string, panelDesc: string, showMJ: boolean = true) => {
@@ -308,7 +312,6 @@ export const startSidebarTour = (isMJ: boolean) => {
     driverObj = driver({
         showProgress: true,
         allowClose: true,
-        overlayColor: 'rgba(0,0,0,0.7)',
         steps: steps,
         nextBtnText: 'Suivant',
         prevBtnText: 'Précédent',
