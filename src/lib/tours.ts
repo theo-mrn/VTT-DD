@@ -155,6 +155,78 @@ export const startSidebarTour = (isMJ: boolean) => {
             }
         } as DriveStep,
         {
+            element: "#vtt-dice-btn-d20",
+            popover: {
+                title: "Sélection des Dés",
+                description: "Cliquez sur un dé pour l'ajouter à votre lancer. Cliquez plusieurs fois pour augmenter le nombre de dés.",
+                position: "right"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-dice-modifiers",
+            popover: {
+                title: "Modificateurs",
+                description: "Ajoutez rapidement vos bonus de caractéristiques (FOR, DEX, etc.) à votre jet.",
+                position: "top"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-dice-input",
+            popover: {
+                title: "Syntaxe Manuelle",
+                description: "Vous pouvez aussi taper directement votre formule, par exemple : 2d6 + 4.",
+                position: "top"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-dice-btn-3d",
+            popover: {
+                title: "Dés 3D",
+                description: "Activez ou désactivez les animations de lancer de dés en 3D.",
+                position: "top"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-dice-btn-private",
+            popover: {
+                title: "Lancer Privé",
+                description: "Envoyez votre jet uniquement au MJ et à vous-même pour plus de discrétion.",
+                position: "top"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-dice-btn-blind",
+            popover: {
+                title: "Blind Roll",
+                description: "Cachez le résultat à tout le monde sauf au MJ (même à vous !).",
+                position: "top"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-dice-btn-roll",
+            popover: {
+                title: "Lancer !",
+                description: "Cliquez sur Roll ou appuyez sur Entrée pour lancer les dés.",
+                position: "top"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-dice-tab-history",
+            popover: {
+                title: "Historique",
+                description: "Consultez la liste de tous les lancers récents dans la pièce.",
+                position: "top"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-dice-tab-stats",
+            popover: {
+                title: "Statistiques",
+                description: "Analysez vos performances et votre chance sur les derniers jets.",
+                position: "top"
+            }
+        } as DriveStep,
+        {
             element: "#vtt-sidebar-chat",
             popover: {
                 title: "Messagerie & Galerie",
