@@ -21,8 +21,9 @@ import {
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Keyboard, ChevronRight } from "lucide-react";
+import { Keyboard, ChevronRight, Palette } from "lucide-react";
 import { ShortcutsDialog } from "./ShortcutsDialog";
+import { ThemeSwitcher } from "@/components/ui/ThemeSwitcher";
 
 import { useSettings } from '@/contexts/SettingsContext';
 import { useGame } from '@/contexts/GameContext';
@@ -150,6 +151,17 @@ export default function GlobalSettingsDialog({
                                 </div>
 
                                 <div className="space-y-4">
+
+                                    {/* Theme Switcher */}
+                                    <Card className="p-4 bg-[#1a1a1a] border-white/5 space-y-3">
+                                        <div className="flex items-center gap-2">
+                                            <Palette className="w-4 h-4 text-[#c0a080]" />
+                                            <Label className="text-base text-gray-200">Thème de l&apos;Interface</Label>
+                                        </div>
+                                        <p className="text-xs text-gray-500">Choisissez l&apos;ambiance visuelle de l&apos;application</p>
+                                        <ThemeSwitcher />
+                                    </Card>
+
                                     {/* Token Scale */}
                                     <Card className="p-4 bg-[#242424] border-white/5 space-y-4">
                                         <div className="space-y-1.5">
