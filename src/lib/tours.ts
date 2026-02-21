@@ -48,6 +48,91 @@ export const startSidebarTour = (isMJ: boolean) => {
     }
 
     addInteractiveStep("#vtt-sidebar-fiche", "Feuille de Personnage", "Consultez vos statistiques et inventaire.");
+
+    // Deep dive into Fiche
+    steps.push(
+        {
+            element: "#vtt-fiche-btn-modifier",
+            popover: {
+                title: "Modifier le Personnage",
+                description: "Éditez vos statistiques de base, vos PV et vos modificateurs.",
+                position: "bottom"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-fiche-btn-level-up",
+            popover: {
+                title: "Monter de Niveau",
+                description: "Lancez les dés pour augmenter vos PV Maximum lors d'un passage de niveau.",
+                position: "bottom"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-fiche-btn-stats",
+            popover: {
+                title: "Statistiques Globales",
+                description: "Affichez une vue d'ensemble des statistiques de tous les joueurs (utile pour le MJ).",
+                position: "bottom"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-widget-stats-view",
+            popover: {
+                title: "Statistiques de Combat",
+                description: "Vos scores de FOR, DEX, CON, etc. Cliquez sur une stat pour lancer un test.",
+                position: "right"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-widget-inventory-view",
+            popover: {
+                title: "Inventaire",
+                description: "Gérez votre équipement, vos potions et vos richesses.",
+                position: "top"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-inventory-search",
+            popover: {
+                title: "Recherche d'Items",
+                description: "Trouvez rapidement un objet dans votre sac.",
+                position: "bottom"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-inventory-btn-add",
+            popover: {
+                title: "Ajouter un Objet",
+                description: "Ajoutez des objets prédéfinis ou créez les vôtres.",
+                position: "bottom"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-widget-skills-view",
+            popover: {
+                title: "Compétences",
+                description: "Consultez vos capacités spéciales et leurs descriptions.",
+                position: "top"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-skills-btn-fullscreen",
+            popover: {
+                title: "Gestion Complète",
+                description: "Cliquez sur cette roue pour ouvrir l'interface complète de gestion des compétences.",
+                position: "bottom"
+            }
+        } as DriveStep,
+        {
+            element: "#vtt-skills-btn-manage-voies",
+            popover: {
+                title: "Gestion des Voies",
+                description: "Choisissez et personnalisez vos voies de progression.",
+                position: "bottom"
+            }
+        } as DriveStep
+    );
+
     addInteractiveStep("#vtt-sidebar-notes", "Notes de Campagne", "Gardez une trace de vos découvertes.");
 
     // For Dice Roller and Chat
