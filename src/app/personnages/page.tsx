@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Crown, ChevronRight, Loader2 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { db, getDocs, collection, doc, setDoc } from '@/lib/firebase'
+import { db, getDocs, collection, doc, setDoc, getDoc } from '@/lib/firebase'
 import { useGame } from '@/contexts/GameContext'
 
 interface Character {
@@ -15,6 +15,12 @@ interface Character {
   Race?: string;
   Profile?: string;
 }
+
+interface RoomData {
+  allowCharacterCreation?: boolean;
+  creatorId?: string;
+}
+
 
 // Animation variants
 const containerVariants = {
@@ -52,6 +58,7 @@ export default function CharacterSelection() {
   const [charactersLoading, setCharactersLoading] = useState(true) // Start true for smoother load
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null)
+  const [roomData, setRoomData] = useState<RoomData | null>(null)
 
   // Load Characters
   const loadCharacters = useCallback(async (uid: string, roomId: string) => {
@@ -81,6 +88,19 @@ export default function CharacterSelection() {
   useEffect(() => {
     if (user?.uid && user?.roomId && user.roomId !== '0') {
       loadCharacters(user.uid, user.roomId)
+
+      const currentRoomId = user.roomId;
+      const fetchRoom = async () => {
+        try {
+          const roomDoc = await getDoc(doc(db, 'Salle', currentRoomId))
+          if (roomDoc.exists()) {
+            setRoomData(roomDoc.data() as RoomData)
+          }
+        } catch (e) {
+          console.error(e)
+        }
+      }
+      fetchRoom()
     } else if (user && (!user.roomId || user.roomId === '0')) {
       setCharacters([])
       setCharactersLoading(false)
@@ -243,29 +263,31 @@ export default function CharacterSelection() {
             className="flex flex-wrap justify-center gap-6 pb-12 w-full max-w-[95vw] mx-auto"
           >
             {/* New Character Card */}
-            <motion.a
-              variants={cardVariants}
-              href="/creation"
-              className="group relative h-[500px] w-24 sm:w-32 hover:w-80 md:hover:w-96 rounded-[40px] border-2 border-dashed border-[#c0a080]/30 hover:border-[#c0a080]/80 bg-white/5 hover:bg-white/10 transition-all duration-500 ease-out flex flex-col items-center justify-center cursor-pointer overflow-hidden backdrop-blur-sm"
-            >
-              <div className="absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-300 group-hover:opacity-0">
-                <Plus className="w-8 h-8 text-[#c0a080]" />
-                <span className="text-[#c0a080]/50 text-xs font-bold uppercase tracking-widest rotate-[-90deg] mt-16 whitespace-nowrap">Créer un héros</span>
-              </div>
-
-              <div className="opacity-0 group-hover:opacity-100 transition-all duration-500 delay-100 flex flex-col items-center min-w-[300px]">
-                <div className="bg-[#c0a080]/10 p-6 rounded-full mb-6 group-hover:scale-110 transition-transform duration-300">
-                  <Plus className="w-10 h-10 text-[#c0a080]" />
+            {(roomData?.allowCharacterCreation !== false || user?.uid === roomData?.creatorId) && (
+              <motion.a
+                variants={cardVariants}
+                href="/creation"
+                className="group relative h-[500px] w-24 sm:w-32 hover:w-80 md:hover:w-96 rounded-[40px] border-2 border-dashed border-[#c0a080]/30 hover:border-[#c0a080]/80 bg-white/5 hover:bg-white/10 transition-all duration-500 ease-out flex flex-col items-center justify-center cursor-pointer overflow-hidden backdrop-blur-sm"
+              >
+                <div className="absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-300 group-hover:opacity-0">
+                  <Plus className="w-8 h-8 text-[#c0a080]" />
+                  <span className="text-[#c0a080]/50 text-xs font-bold uppercase tracking-widest rotate-[-90deg] mt-16 whitespace-nowrap">Créer un héros</span>
                 </div>
-                <h3 className="text-xl font-bold text-[#c0a080] group-hover:text-white transition-colors">Créer un Héros</h3>
-                <p className="text-gray-500 mt-2 text-sm max-w-[200px] text-center group-hover:text-gray-300 transition-colors">
-                  Façonnez une nouvelle légende pour parcourir ce monde.
-                </p>
-              </div>
 
-              {/* Decorative glow effect */}
-              <div className="absolute inset-0 bg-gradient-to-t from-[#c0a080]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            </motion.a>
+                <div className="opacity-0 group-hover:opacity-100 transition-all duration-500 delay-100 flex flex-col items-center min-w-[300px]">
+                  <div className="bg-[#c0a080]/10 p-6 rounded-full mb-6 group-hover:scale-110 transition-transform duration-300">
+                    <Plus className="w-10 h-10 text-[#c0a080]" />
+                  </div>
+                  <h3 className="text-xl font-bold text-[#c0a080] group-hover:text-white transition-colors">Créer un Héros</h3>
+                  <p className="text-gray-500 mt-2 text-sm max-w-[200px] text-center group-hover:text-gray-300 transition-colors">
+                    Façonnez une nouvelle légende pour parcourir ce monde.
+                  </p>
+                </div>
+
+                {/* Decorative glow effect */}
+                <div className="absolute inset-0 bg-gradient-to-t from-[#c0a080]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              </motion.a>
+            )}
 
             {/* Existing Characters */}
             {filteredCharacters.map((character) => (
