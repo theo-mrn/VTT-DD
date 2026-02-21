@@ -29,6 +29,7 @@ interface SoundTemplate {
 
 interface MusicState {
     videoId: string | null;
+    templateId?: string;
     isPlaying: boolean;
     videoTitle?: string;
 }
@@ -304,10 +305,11 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
     }
 
     const playMusicTrack = async (sound: SoundTemplate) => {
-        if (musicState.videoId === sound.soundUrl) {
+        const isActiveThisTrack = musicState.templateId ? musicState.templateId === sound.id : musicState.videoId === sound.soundUrl;
+        if (isActiveThisTrack) {
             await update(dbRef(realtimeDb, `rooms/${roomId}/music`), { isPlaying: !musicState.isPlaying, lastUpdate: Date.now() })
         } else {
-            await update(dbRef(realtimeDb, `rooms/${roomId}/music`), { videoId: sound.soundUrl, videoTitle: sound.name, isPlaying: true, timestamp: 0, lastUpdate: Date.now() })
+            await update(dbRef(realtimeDb, `rooms/${roomId}/music`), { videoId: sound.soundUrl, templateId: sound.id, videoTitle: sound.name, isPlaying: true, timestamp: 0, lastUpdate: Date.now() })
         }
     }
 
@@ -317,9 +319,9 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
         const musicResults = searchFiltered.filter(t => t.category === 'music')
 
         if (!musicState.videoId || musicResults.length === 0) return
-        const currentIndex = musicResults.findIndex(t => t.soundUrl === musicState.videoId)
+        const currentIndex = musicResults.findIndex(t => musicState.templateId ? t.id === musicState.templateId : t.soundUrl === musicState.videoId)
         const nextIndex = (currentIndex + 1) % musicResults.length
-        playMusicTrack(musicResults[nextIndex])
+        if (nextIndex >= 0) playMusicTrack(musicResults[nextIndex])
     }
 
     const playPrevious = () => {
@@ -327,9 +329,9 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
         const musicResults = searchFiltered.filter(t => t.category === 'music')
 
         if (!musicState.videoId || musicResults.length === 0) return
-        const currentIndex = musicResults.findIndex(t => t.soundUrl === musicState.videoId)
+        const currentIndex = musicResults.findIndex(t => musicState.templateId ? t.id === musicState.templateId : t.soundUrl === musicState.videoId)
         const prevIndex = (currentIndex - 1 + musicResults.length) % musicResults.length
-        playMusicTrack(musicResults[prevIndex])
+        if (prevIndex >= 0) playMusicTrack(musicResults[prevIndex])
     }
 
     // --- Handlers --- (Adding drag start)
@@ -515,7 +517,9 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                                 ) : (
                                     <div className="space-y-1">
                                         {musicResults.map(sound => {
-                                            const isCurrentTrack = musicState.videoId === sound.soundUrl
+                                            const isCurrentTrack = musicState.templateId
+                                                ? musicState.templateId === sound.id
+                                                : musicState.videoId === sound.soundUrl
                                             const isPlaying = isCurrentTrack && musicState.isPlaying
 
                                             return (
@@ -652,7 +656,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                 {/* PREMIUM MUSIC PLAYER (Sticky Bottom) */}
                 {activeTab === 'music' && (musicResults.length > 0 || musicState.videoId) && (() => {
                     // Find the current track in the music library to display its custom name
-                    const currentTrack = musicResults.find(t => t.soundUrl === musicState.videoId)
+                    const currentTrack = musicResults.find(t => musicState.templateId ? t.id === musicState.templateId : t.soundUrl === musicState.videoId)
                     const displayName = currentTrack?.name || musicState.videoTitle || 'Aucune lecture'
 
                     return (

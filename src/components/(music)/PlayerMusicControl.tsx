@@ -45,6 +45,14 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
   const isSyncingFromFirebase = useRef(false);
   const hasPlayerSyncedOnce = useRef(false);
 
+  const initialVideoId = useRef<string | null>(null);
+  if (!initialVideoId.current && musicState.videoId) {
+    initialVideoId.current = musicState.videoId;
+  }
+  const latestMusicState = useRef(musicState);
+  latestMusicState.current = musicState;
+  const currentVideoIdRef = useRef<string | null>(null);
+
   // Appliquer le volume du mixeur quand il change
   useEffect(() => {
     if (playerRef.current && typeof playerRef.current.setVolume === 'function') {
@@ -62,34 +70,34 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
   // Configuration du lecteur YouTube
   const onPlayerReady: YouTubeProps['onReady'] = async (event) => {
     playerRef.current = event.target;
-    const volume = audioVolumes.backgroundMusic * 100;
-    playerRef.current.setVolume(volume);
-    if (volume > 0) {
-      playerRef.current.unMute();
-    } else {
-      playerRef.current.mute();
-    }
+    // Appliquer le volume master
+    const safeVolume = Math.max(0, Math.min(100, audioVolumes.backgroundMusic * 100));
+    playerRef.current.setVolume(safeVolume);
+    if (safeVolume > 0) playerRef.current.unMute();
+    else playerRef.current.mute();
+
+    const state = latestMusicState.current;
+    currentVideoIdRef.current = state.videoId;
 
     // Synchroniser immédiatement avec l'état Firebase existant
-    if (musicState.videoId) {
+    if (state.videoId) {
       isSyncingFromFirebase.current = true;
 
-      const targetTime = musicState.timestamp;
-
-      // Se positionner au bon moment
-      playerRef.current.seekTo(targetTime, true);
-
-      // Jouer ou mettre en pause selon l'état
-      if (musicState.isPlaying) {
-        playerRef.current.playVideo();
+      if (initialVideoId.current !== state.videoId) {
+        if (state.isPlaying) playerRef.current.loadVideoById(state.videoId, state.timestamp);
+        else playerRef.current.cueVideoById(state.videoId, state.timestamp);
       } else {
-        playerRef.current.pauseVideo();
+        playerRef.current.seekTo(state.timestamp, true);
+        if (state.isPlaying) playerRef.current.playVideo();
+        else playerRef.current.pauseVideo();
       }
 
       setTimeout(() => {
         isSyncingFromFirebase.current = false;
         hasPlayerSyncedOnce.current = true;
       }, 1000);
+    } else {
+      hasPlayerSyncedOnce.current = true;
     }
   };
 
@@ -122,19 +130,25 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
           try {
             isSyncingFromFirebase.current = true;
 
-            if (data.isPlaying) {
-              playerRef.current.playVideo();
+            if (data.videoId !== currentVideoIdRef.current) {
+              currentVideoIdRef.current = data.videoId;
+              if (data.isPlaying) playerRef.current.loadVideoById(data.videoId, data.timestamp);
+              else playerRef.current.cueVideoById(data.videoId, data.timestamp);
             } else {
-              playerRef.current.pauseVideo();
-            }
+              if (data.isPlaying) {
+                playerRef.current.playVideo();
+              } else {
+                playerRef.current.pauseVideo();
+              }
 
-            const currentTime = playerRef.current.getCurrentTime();
-            if (typeof currentTime === 'number') {
-              const targetTime = data.timestamp;
-              const adjustedDiff = Math.abs(currentTime - targetTime);
+              const currentTime = playerRef.current.getCurrentTime();
+              if (typeof currentTime === 'number') {
+                const targetTime = data.timestamp;
+                const adjustedDiff = Math.abs(currentTime - targetTime);
 
-              if (adjustedDiff > 1.5) {
-                playerRef.current.seekTo(targetTime, true);
+                if (adjustedDiff > 1.5) {
+                  playerRef.current.seekTo(targetTime, true);
+                }
               }
             }
 
@@ -145,6 +159,8 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
             console.error('Error syncing player:', error);
             isSyncingFromFirebase.current = false;
           }
+        } else if (data.videoId && !currentVideoIdRef.current) {
+          currentVideoIdRef.current = data.videoId;
         }
       }
     });
@@ -155,10 +171,10 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
   return (
     <div className="w-full space-y-3">
       {/* Lecteur YouTube (invisible) */}
-      {musicState.videoId && (
+      {initialVideoId.current && (
         <div className="hidden">
           <YouTube
-            videoId={musicState.videoId}
+            videoId={initialVideoId.current}
             opts={opts}
             onReady={onPlayerReady}
           />
