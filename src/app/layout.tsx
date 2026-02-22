@@ -8,6 +8,7 @@ import { CharacterProvider } from '@/contexts/CharacterContext';
 import { UndoRedoProvider } from '@/contexts/UndoRedoContext';
 import { Toaster } from "@/components/ui/sonner"
 import TimeTracker from '@/components/TimeTracker';
+import CookieBanner from '@/components/CookieBanner';
 
 
 
@@ -80,6 +81,7 @@ export default function RootLayout({
                 <UndoRedoProvider>
                   <Toaster position="top-right" />
                   <TimeTracker />
+                  <CookieBanner />
                   <div className="flex flex-col min-h-screen">
                     <main className="flex-1">
                       {children}
