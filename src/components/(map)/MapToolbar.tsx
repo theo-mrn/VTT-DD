@@ -70,7 +70,6 @@ export const TOOLS = {
     LAYERS: 'layers',
     BACKGROUND: 'background',
     VIEW_MODE: 'view_mode',
-    SETTINGS: 'settings',
     ZOOM_IN: 'zoom_in',
     ZOOM_OUT: 'zoom_out',
     WORLD_MAP: 'world_map',
@@ -499,12 +498,6 @@ function MapToolbar({
                                     isActive={activeTools.includes(TOOLS.TOGGLE_ALL_BADGES)}
                                 />
                             )}
-                            <ToolButton onAction={onAction}
-                                id={TOOLS.SETTINGS}
-                                icon={Settings}
-                                label="Paramètres"
-                                isActive={activeTools.includes(TOOLS.SETTINGS)}
-                            />
                         </div>
 
                         {/* Collapse Button */}

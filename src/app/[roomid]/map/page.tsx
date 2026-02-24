@@ -3205,7 +3205,6 @@ export default function Component() {
           setPlayerViewMode(!playerViewMode);
         }
         break;
-      case TOOLS.SETTINGS: setShowGlobalSettingsDialog(true); break;
       case TOOLS.AUDIO_MIXER: deactivateIncompatible(TOOLS.AUDIO_MIXER); setIsAudioMixerOpen(!isAudioMixerOpen); break;
       case TOOLS.ADD_CHAR: if (isMJ) { deactivateIncompatible(TOOLS.ADD_CHAR); setIsNPCDrawerOpen(!isNPCDrawerOpen); } break;
 
@@ -3242,7 +3241,7 @@ export default function Component() {
       if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_LAYERS)) { e.preventDefault(); handleToolbarAction(TOOLS.LAYERS); }
       if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_BACKGROUND)) { e.preventDefault(); handleToolbarAction(TOOLS.BACKGROUND); }
       if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_VIEW_MODE)) { e.preventDefault(); handleToolbarAction(TOOLS.VIEW_MODE); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_SETTINGS)) { e.preventDefault(); handleToolbarAction(TOOLS.SETTINGS); }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_SETTINGS)) { e.preventDefault(); setShowGlobalSettingsDialog(true); }
       if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_ZOOM_IN)) { e.preventDefault(); handleToolbarAction(TOOLS.ZOOM_IN); }
       if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_ZOOM_OUT)) { e.preventDefault(); handleToolbarAction(TOOLS.ZOOM_OUT); }
       if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_WORLD_MAP)) { e.preventDefault(); handleToolbarAction(TOOLS.WORLD_MAP); }
