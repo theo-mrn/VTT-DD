@@ -673,12 +673,20 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
 
     return (
         <>
+            {/* Backdrop + Drawer wrapped in AnimatePresence so exit animations actually fire.
+                Without this, React unmounts CitiesManager immediately and the motion.div exit
+                animation never runs → backdrop div stays visually (but no longer in DOM).
+                The real risk was AnimatePresence in page.tsx removing the whole CitiesManager
+                before internal exit animations could complete. */}
             {/* Backdrop */}
             <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={handleClose}
+                // pointer-events-none prevents this backdrop from ever blocking interactions
+                // even if it lingers briefly during animation
+                style={{ pointerEvents: 'auto' }}
                 className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity"
             />
 
