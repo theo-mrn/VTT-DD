@@ -3,9 +3,9 @@ import { createPortal } from 'react-dom';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DICE_SKINS, DiceSkin } from './dice-definitions';
 import { DiceCard } from './dice-card';
-import { Store, Backpack, Gem, X, Loader2, Sparkles, Crown } from 'lucide-react';
+import { Store, Backpack, Gem, X, Loader2, Crown } from 'lucide-react';
 import { toast } from 'sonner';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { auth, db, doc, getDoc, updateDoc } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
 import { arrayUnion } from 'firebase/firestore';
@@ -38,29 +38,23 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
     // Manual portal lifecycle — NO AnimatePresence.
     // shouldRender: controls whether the portal exists in the DOM at all.
     // isVisible: controls CSS opacity/transform transition.
-    // pointerEvents is set to 'none' IMMEDIATELY when closing,
-    // so even during the 250ms exit animation the overlay cannot block clicks.
+    // pointerEvents is set to 'none' IMMEDIATELY when closing.
     const [shouldRender, setShouldRender] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
             setShouldRender(true);
-            // tiny RAF delay to let the DOM mount before transitioning in
             const raf = requestAnimationFrame(() => setIsVisible(true));
             return () => cancelAnimationFrame(raf);
         } else {
-            // Immediately hide (pointer-events:none kicks in)
             setIsVisible(false);
-            // Remove from DOM after transition
             const timer = setTimeout(() => setShouldRender(false), 300);
             return () => clearTimeout(timer);
         }
     }, [isOpen]);
 
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+    useEffect(() => { setMounted(true); }, []);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -77,26 +71,18 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
                     const data = userSnap.data();
                     const savedInventory: string[] = data.dice_inventory || DEFAULT_INVENTORY;
                     setInventory(savedInventory);
-
                     let premiumStatus = data.premium;
                     if (premiumStatus === undefined) {
-                        try {
-                            await updateDoc(userRef, { premium: false });
-                            premiumStatus = false;
-                        } catch (e) {
-                            console.error("Error setting default premium:", e);
-                        }
+                        try { await updateDoc(userRef, { premium: false }); premiumStatus = false; }
+                        catch (e) { console.error("Error setting default premium:", e); }
                     }
                     setIsPremium(!!premiumStatus);
-
-                    if (!data.dice_inventory) {
-                        await updateDoc(userRef, { dice_inventory: DEFAULT_INVENTORY });
-                    }
+                    if (!data.dice_inventory) await updateDoc(userRef, { dice_inventory: DEFAULT_INVENTORY });
                 } else {
                     setInventory(DEFAULT_INVENTORY);
                 }
             } catch (error) {
-                console.error('Error loading dice inventory from Firestore:', error);
+                console.error('Error loading dice inventory:', error);
                 setInventory(DEFAULT_INVENTORY);
             } finally {
                 setIsLoadingInventory(false);
@@ -106,9 +92,7 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
     }, []);
 
     useEffect(() => {
-        const handleEsc = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
-        };
+        const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
         if (isOpen) window.addEventListener('keydown', handleEsc);
         if (isOpen && !activeTab) setActiveTab("inventory");
         return () => window.removeEventListener('keydown', handleEsc);
@@ -116,41 +100,21 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
 
     const handleGive = async (skinIdOrName: string) => {
         const id = skinIdOrName.toLowerCase().replace(/^give_/, '');
-        const skin = DICE_SKINS[id] || Object.values(DICE_SKINS).find(
-            s => s.name.toLowerCase() === id || s.id === id
-        );
-        if (!skin) {
-            toast.error(`Dé inconnu : "${id}". IDs disponibles : ${Object.keys(DICE_SKINS).join(', ')}`);
-            return;
-        }
-        if (inventory.includes(skin.id)) {
-            toast(`Vous possédez déjà le dé ${skin.name} !`);
-            return;
-        }
+        const skin = DICE_SKINS[id] || Object.values(DICE_SKINS).find(s => s.name.toLowerCase() === id || s.id === id);
+        if (!skin) { toast.error(`Dé inconnu : "${id}".`); return; }
+        if (inventory.includes(skin.id)) { toast(`Vous possédez déjà le dé ${skin.name} !`); return; }
         const newInventory = [...inventory, skin.id];
         setInventory(newInventory);
         if (uid) {
-            try {
-                const userRef = doc(db, 'users', uid);
-                await updateDoc(userRef, { dice_inventory: arrayUnion(skin.id) });
-            } catch (error) {
-                console.error('[DEV] Error saving given dice to Firestore:', error);
-            }
+            try { await updateDoc(doc(db, 'users', uid), { dice_inventory: arrayUnion(skin.id) }); }
+            catch (error) { console.error('[DEV] Error saving given dice:', error); }
         }
         toast.success(`Dé "${skin.name}" ajouté à l'inventaire !`);
     };
 
-    // Expose give_<id> commands on window in dev mode
     useEffect(() => {
         (window as any).give = (nameOrId: string) => handleGive(nameOrId);
-        Object.keys(DICE_SKINS).forEach(id => {
-            (window as any)[`give_${id}`] = () => handleGive(id);
-        });
-        console.info(
-            '%c[VTT-DEV] Commandes dés disponibles 🎲',
-            'color: #f59e0b; font-weight: bold; font-size: 13px;',
-            '\n' + Object.keys(DICE_SKINS).map(id => `  give_${id}()`).join('\n')
-        );
+        Object.keys(DICE_SKINS).forEach(id => { (window as any)[`give_${id}`] = () => handleGive(id); });
         return () => {
             delete (window as any).give;
             Object.keys(DICE_SKINS).forEach(id => delete (window as any)[`give_${id}`]);
@@ -160,22 +124,14 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
 
     const handleBuy = async (skin: DiceSkin) => {
         if (skin.price <= 0) {
-            const newInventory = [...inventory, skin.id];
-            setInventory(newInventory);
+            setInventory(prev => [...prev, skin.id]);
             if (uid) {
-                try {
-                    const userRef = doc(db, 'users', uid);
-                    await updateDoc(userRef, { dice_inventory: arrayUnion(skin.id) });
-                } catch (error) {
-                    console.error('Error saving inventory to Firestore:', error);
-                }
+                try { await updateDoc(doc(db, 'users', uid), { dice_inventory: arrayUnion(skin.id) }); }
+                catch (error) { console.error('Error saving inventory:', error); }
             }
-            toast.success(`Dés ${skin.name} obtenus !`, {
-                icon: <Gem className="w-4 h-4 text-amber-500" />
-            });
+            toast.success(`Dés ${skin.name} obtenus !`);
             return;
         }
-
         try {
             setIsCheckingOut(true);
             toast.loading("Redirection vers le paiement...");
@@ -187,13 +143,9 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Erreur de paiement');
             toast.dismiss();
-            if (data.url) {
-                window.location.href = data.url;
-            } else {
-                throw new Error('Url de redirection manquante');
-            }
+            if (data.url) window.location.href = data.url;
+            else throw new Error('Url de redirection manquante');
         } catch (error: any) {
-            console.error("Erreur d'achat:", error);
             toast.dismiss();
             toast.error(error.message || "Une erreur est survenue lors de l'achat");
         } finally {
@@ -204,12 +156,8 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
     const handleEquip = async (skinId: string) => {
         onSelectSkin(skinId);
         if (uid) {
-            try {
-                const userRef = doc(db, 'users', uid);
-                await updateDoc(userRef, { dice_skin: skinId });
-            } catch (error) {
-                console.error('Error saving selected skin to Firestore:', error);
-            }
+            try { await updateDoc(doc(db, 'users', uid), { dice_skin: skinId }); }
+            catch (error) { console.error('Error saving skin:', error); }
         }
         toast.success("Dés équipés");
     };
@@ -225,116 +173,121 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
             data-dice-store-portal
             className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4"
             style={{
-                // pointerEvents:none is applied IMMEDIATELY when isVisible=false
-                // so even if the DOM node lives 300ms more for the fade-out, it cannot block.
                 pointerEvents: isVisible ? 'auto' : 'none',
                 opacity: isVisible ? 1 : 0,
                 transition: 'opacity 0.25s ease',
             }}
         >
             {/* Backdrop */}
-            <div
-                className="absolute inset-0 bg-black/80 backdrop-blur-md"
-                onClick={onClose}
-            />
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-            {/* Modal Content */}
+            {/* Modal */}
             <div
-                className="relative z-10 w-full max-w-4xl h-full max-h-[80vh] bg-gradient-to-br from-[#121214] via-[#1a1b1e] to-[#0c0c0e] border border-white/10 rounded-2xl shadow-[0_0_80px_rgba(0,0,0,0.8)] flex flex-col overflow-hidden ring-1 ring-white/5"
+                className="relative z-10 w-full max-w-4xl h-full max-h-[80vh] flex flex-col overflow-hidden rounded-xl shadow-2xl"
                 style={{
-                    transform: isVisible ? 'scale(1) translateY(0)' : 'scale(0.95) translateY(16px)',
+                    background: 'var(--bg-dark)',
+                    border: '1px solid var(--border-color)',
+                    transform: isVisible ? 'scale(1) translateY(0)' : 'scale(0.97) translateY(12px)',
                     transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
+                {/* Accent line top */}
+                <div className="absolute inset-x-0 top-0 h-px z-20 pointer-events-none"
+                    style={{ background: 'linear-gradient(90deg, transparent 0%, var(--accent-brown) 50%, transparent 100%)', opacity: 0.5 }} />
 
                 {/* Header */}
-                <div className="relative p-4 px-6 border-b border-white/5 bg-white/[0.02] overflow-hidden shrink-0">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[400px] h-[200px] bg-amber-500/10 blur-[100px] pointer-events-none rounded-full" />
-                    <div className="relative flex items-center justify-between z-10">
-                        <div className="flex items-center gap-3">
-                            <div className="relative flex items-center justify-center p-2.5 bg-gradient-to-br from-amber-400/20 to-amber-600/10 rounded-xl border border-amber-500/30 shadow-[0_0_15px_rgba(251,191,36,0.15)]">
-                                <Sparkles className="absolute w-3 h-3 text-amber-200/50 -top-1 -right-1" />
-                                <Store className="w-5 h-5 text-amber-400 drop-shadow-[0_0_6px_rgba(251,191,36,0.8)]" />
-                            </div>
-                            <div>
-                                <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-white via-white/90 to-white/60 bg-clip-text text-transparent">Magasin de Dés</h2>
-                                <p className="text-xs text-white/40 mt-0.5">Personnalisez votre expérience de jeu avec des dés uniques</p>
-                            </div>
+                <div className="relative px-5 py-3.5 shrink-0 flex items-center justify-between"
+                    style={{ background: 'var(--bg-darker)', borderBottom: '1px solid var(--border-color)' }}>
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-center w-8 h-8 rounded-lg"
+                            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)' }}>
+                            <Store className="w-4 h-4" style={{ color: 'var(--accent-brown)' }} />
                         </div>
-                        <button
-                            onClick={onClose}
-                            className="p-1.5 text-white/40 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-200"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
+                        <div>
+                            <h2 className="text-sm font-bold tracking-wide" style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-title, serif)' }}>
+                                Magasin de Dés
+                            </h2>
+                            <p className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>Choisissez votre apparence</p>
+                        </div>
                     </div>
+                    <button
+                        onClick={onClose}
+                        className="flex items-center justify-center w-7 h-7 rounded-lg transition-all duration-150"
+                        style={{ color: 'var(--text-secondary)', border: '1px solid transparent' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-primary)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
+                    >
+                        <X className="w-3.5 h-3.5" />
+                    </button>
                 </div>
 
                 {/* Tabs */}
-                <div className="flex justify-center p-3 border-b border-white/5 bg-black/20 shrink-0">
-                    <div className="flex p-1 bg-black/40 rounded-xl border border-white/5 shadow-inner">
-                        {tabs.map((tab) => {
-                            const isActive = activeTab === tab.id;
-                            const Icon = tab.icon;
-                            return (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
-                                    className={cn(
-                                        "relative flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors duration-200",
-                                        isActive ? "text-amber-950" : "text-white/50 hover:text-white"
-                                    )}
-                                >
-                                    {isActive && (
-                                        <motion.div
-                                            layoutId="modal-active-tab"
-                                            className="absolute inset-0 bg-gradient-to-r from-amber-400 to-amber-500 rounded-lg shadow-[0_0_15px_rgba(251,191,36,0.25)]"
-                                            initial={false}
-                                            transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                                        />
-                                    )}
-                                    <span className="relative z-10 flex items-center gap-1.5">
-                                        <Icon className="w-3.5 h-3.5" />
-                                        {tab.label}{tab.id === 'inventory' && (
-                                            <span className={cn("px-1.5 py-0.5 rounded-full text-[10px] bg-black/20", isActive ? "text-amber-950 font-bold" : "text-white/40")}>
-                                                {inventory.length}
-                                            </span>
-                                        )}
+                <div className="flex items-end gap-0 px-5 shrink-0"
+                    style={{ background: 'var(--bg-darker)', borderBottom: '1px solid var(--border-color)' }}>
+                    {tabs.map((tab) => {
+                        const isActive = activeTab === tab.id;
+                        const Icon = tab.icon;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className="relative flex items-center gap-1.5 px-4 py-2.5 text-xs font-semibold transition-all duration-200"
+                                style={{
+                                    color: isActive ? 'var(--accent-brown)' : 'var(--text-secondary)',
+                                    borderBottom: isActive ? '2px solid var(--accent-brown)' : '2px solid transparent',
+                                    marginBottom: '-1px',
+                                }}
+                            >
+                                <Icon className="w-3.5 h-3.5" />
+                                {tab.label}
+                                {tab.id === 'inventory' && (
+                                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                                        style={{
+                                            background: isActive ? 'color-mix(in srgb, var(--accent-brown) 20%, transparent)' : 'var(--bg-card)',
+                                            color: isActive ? 'var(--accent-brown)' : 'var(--text-secondary)',
+                                            border: '1px solid var(--border-color)',
+                                        }}>
+                                        {ownedSkins.length}
                                     </span>
-                                </button>
-                            );
-                        })}
-                    </div>
+                                )}
+                            </button>
+                        );
+                    })}
                 </div>
 
-                {/* Main Content */}
-                <div className="flex-1 overflow-hidden relative">
+                {/* Content */}
+                <div className="flex-1 overflow-hidden relative" style={{ background: 'var(--bg-dark)' }}>
                     {isLoadingInventory ? (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-white/40">
-                            <Loader2 className="w-8 h-8 animate-spin text-amber-500/50" />
-                            <span className="font-medium animate-pulse text-sm">Chargement de l'inventaire...</span>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                            <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--accent-brown)' }} />
+                            <span className="text-xs animate-pulse" style={{ color: 'var(--text-secondary)' }}>Chargement...</span>
                         </div>
                     ) : (
                         <ScrollArea className="h-full w-full">
-                            <div className="p-4 sm:p-6 min-h-full">
+                            <div className="p-5 sm:p-6 min-h-full">
+
                                 {activeTab === 'inventory' && (
                                     <div className="flex flex-col pb-20">
                                         {isPremium && (
-                                            <div className="mb-6 flex items-center justify-center gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 shadow-[0_0_15px_rgba(251,191,36,0.1)]">
-                                                <Crown className="h-6 w-6 text-amber-500 shrink-0" />
-                                                <span className="font-semibold text-amber-400">
-                                                    Toutes les apparences de dés sont débloquées grâce à votre compte Premium !
+                                            <div className="mb-5 flex items-center gap-2.5 rounded-lg border p-3"
+                                                style={{
+                                                    borderColor: 'color-mix(in srgb, var(--accent-brown) 50%, transparent)',
+                                                    background: 'color-mix(in srgb, var(--accent-brown) 8%, transparent)',
+                                                }}>
+                                                <Crown className="h-4 w-4 shrink-0" style={{ color: 'var(--accent-brown)' }} />
+                                                <span className="text-xs font-medium" style={{ color: 'var(--accent-brown)' }}>
+                                                    Compte Premium — toutes les apparences débloquées.
                                                 </span>
                                             </div>
                                         )}
                                         {ownedSkins.length === 0 ? (
-                                            <div className="flex flex-col items-center justify-center text-gray-500 gap-4 py-20">
-                                                <Backpack className="w-12 h-12 opacity-20" />
-                                                <p className="text-sm">Votre inventaire est vide.</p>
+                                            <div className="flex flex-col items-center justify-center gap-3 py-20">
+                                                <Backpack className="w-10 h-10 opacity-20" style={{ color: 'var(--text-secondary)' }} />
+                                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Votre inventaire est vide.</p>
                                             </div>
                                         ) : (
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                                                 {ownedSkins.map((skin) => (
                                                     <DiceCard
                                                         key={skin.id}
@@ -350,27 +303,23 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
                                         )}
                                     </div>
                                 )}
+
                                 {activeTab === 'store' && (
                                     <div className="flex flex-col pb-20">
-                                        {isPremium && (
-                                            <div className="flex flex-col items-center justify-center text-amber-500/80 gap-6 py-20">
-                                                <div className="relative">
-                                                    <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full" />
-                                                    <Crown className="w-16 h-16 text-amber-500 drop-shadow-lg relative z-10" />
-                                                </div>
-                                                <p className="text-sm font-medium text-amber-400">Tous les dés sont déjà dans votre inventaire, membre Premium !</p>
+                                        {isPremium ? (
+                                            <div className="flex flex-col items-center justify-center gap-4 py-20">
+                                                <Crown className="w-12 h-12" style={{ color: 'var(--accent-brown)' }} />
+                                                <p className="text-sm font-medium" style={{ color: 'var(--accent-brown)' }}>
+                                                    Tous les dés sont dans votre inventaire Premium.
+                                                </p>
                                             </div>
-                                        )}
-                                        {!isPremium && unownedSkins.length === 0 ? (
-                                            <div className="flex flex-col items-center justify-center text-white/30 gap-6 py-20">
-                                                <div className="relative">
-                                                    <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full" />
-                                                    <Gem className="w-16 h-16 text-amber-500/50 drop-shadow-lg relative z-10" />
-                                                </div>
-                                                <p className="text-sm font-medium text-amber-100/50">Vous possédez déjà tous les dés de la boutique !</p>
+                                        ) : unownedSkins.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center gap-4 py-20">
+                                                <Gem className="w-12 h-12 opacity-30" style={{ color: 'var(--text-secondary)' }} />
+                                                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Vous possédez déjà tous les dés !</p>
                                             </div>
-                                        ) : !isPremium ? (
-                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                        ) : (
+                                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                                                 {unownedSkins
                                                     .sort((a, b) => a.price - b.price)
                                                     .map((skin) => (
@@ -385,9 +334,10 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
                                                         />
                                                     ))}
                                             </div>
-                                        ) : null}
+                                        )}
                                     </div>
                                 )}
+
                             </div>
                         </ScrollArea>
                     )}

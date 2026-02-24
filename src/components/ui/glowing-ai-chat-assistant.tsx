@@ -660,22 +660,27 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
             animation: 'popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
           }}
         >
-          <div className="w-full rounded-2xl relative isolate overflow-hidden bg-white/5 dark:bg-black/90 bg-gradient-to-br from-black/5 to-black/[0.02] dark:from-white/5 dark:to-white/[0.02] backdrop-blur-xl backdrop-saturate-[180%] border border-black/10 dark:border-white/10 shadow-[0_8px_16px_rgb(0_0_0_/_0.15)] dark:shadow-[0_8px_16px_rgb(0_0_0_/_0.25)]">
-            <div className="w-full rounded-xl relative bg-gradient-to-br from-black/[0.05] to-transparent dark:from-white/[0.08] dark:to-transparent backdrop-blur-md backdrop-saturate-150 border border-black/[0.05] dark:border-white/[0.08] text-black/90 dark:text-white shadow-sm">
+          <div className="w-full rounded-xl relative isolate overflow-hidden border shadow-lg backdrop-blur-xl" style={{ background: 'linear-gradient(135deg, var(--bg-card) 0%, var(--bg-darker) 100%)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}>
+            {/* Subtle white shimmer overlay — preserves the original glassmorphism feel */}
+            <div className="absolute inset-0 pointer-events-none rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)' }} />
+            <div className="w-full rounded-xl relative">
               {/* TOP ROW: dice sidebar + right controls */}
               <div className="w-full flex items-stretch">
 
                 {/* Left Sidebar - Dice (Always visible) */}
-                <div className="w-[120px] flex-shrink-0 border-r border-white/5 p-2">
+                <div className="w-[120px] flex-shrink-0 p-2" style={{ borderRight: '1px solid var(--border-color)' }}>
                   <div className="grid grid-cols-2 gap-2 h-full content-center">
                     {[4, 6, 8, 10, 12, 20].map((d) => (
                       <button
                         key={`d${d}`}
                         id={`vtt-dice-btn-d${d}`}
                         onClick={() => addToInput(`1d${d}`)}
-                        className="group relative w-full aspect-square flex items-center justify-center bg-transparent border border-white/5 rounded-lg cursor-pointer transition-all duration-200 hover:bg-white/10 hover:border-white/20 hover:scale-105 active:scale-95"
+                        className="group relative w-full aspect-square flex items-center justify-center rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95"
+                        style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'color-mix(in srgb, var(--accent-brown) 10%, transparent)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-brown)'; (e.currentTarget as HTMLElement).style.color = 'var(--accent-brown)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
                       >
-                        <span className="text-xs font-mono text-zinc-400 group-hover:text-zinc-100 font-bold">d{d}</span>
+                        <span className="text-xs font-mono font-bold">d{d}</span>
                       </button>
                     ))}
                   </div>
@@ -687,13 +692,13 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                   {/* Header */}
                   <div className="flex items-center justify-between px-6 pt-3 pb-0">
                     <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-4">
-                      <div className="w-2 h-2 rounded-full bg-zinc-500 flex-shrink-0 animate-pulse"></div>
-                      <span className="text-xs font-medium text-zinc-400">Dice Roller</span>
+                      <div className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse" style={{ background: 'var(--accent-brown)' }}></div>
+                      <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Dice Roller</span>
 
                       <TooltipProvider>
                         <Tooltip delayDuration={300}>
                           <TooltipTrigger asChild>
-                            <button className="p-1 hover:bg-white/5 rounded-full text-zinc-500 hover:text-zinc-300 transition-colors">
+                            <button className="p-1 rounded-full transition-colors" style={{ color: 'var(--text-secondary)' }}>
                               <Info className="w-3 h-3" />
                             </button>
                           </TooltipTrigger>
@@ -807,9 +812,10 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => onClose?.()}
-                        className="p-1.5 rounded-full hover:bg-white/5 transition-colors"
+                        className="p-1.5 rounded-full transition-colors"
+                        style={{ color: 'var(--text-secondary)' }}
                       >
-                        <X className="w-4 h-4 text-zinc-400" />
+                        <X className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -823,17 +829,17 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
 
                           {/* Blur effect container for Blind Rolls */}
                           <div className={`flex items-baseline gap-2 w-full overflow-hidden transition-all duration-500 ${latestResult?.isBlind ? 'blur-md opacity-40 select-none' : ''}`}>
-                            <span className="text-3xl font-bold font-mono text-zinc-100 tabular-nums tracking-tight flex-shrink-0">
+                            <span className="text-3xl font-bold font-mono tabular-nums tracking-tight flex-shrink-0" style={{ color: 'var(--text-primary)' }}>
                               {scrambledValue}
                             </span>
 
                             <div className="flex items-baseline gap-2 overflow-hidden truncate min-w-0 flex-1">
                               {!isLoading && latestResult && (
                                 <>
-                                  <span className="text-sm font-mono text-zinc-500 flex-shrink-0">
+                                  <span className="text-sm font-mono flex-shrink-0" style={{ color: 'var(--text-secondary)' }}>
                                     = {latestResult.output.split('=')[1] || ""}
                                   </span>
-                                  <span className="text-xs text-zinc-600 font-mono opacity-50 truncate flex-shrink">
+                                  <span className="text-xs font-mono opacity-50 truncate flex-shrink" style={{ color: 'var(--text-secondary)' }}>
                                     ({latestResult.notation})
                                   </span>
                                 </>
@@ -867,9 +873,9 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
                         rows={1}
-                        className="w-full px-6 py-3 bg-transparent border-none outline-none resize-none text-2xl font-light leading-relaxed min-h-[60px] text-zinc-100 placeholder-zinc-600 scrollbar-none font-mono"
+                        className="w-full px-6 py-3 bg-transparent border-none outline-none resize-none text-2xl font-light leading-relaxed min-h-[60px] scrollbar-none font-mono"
                         placeholder="1d20 + 5..."
-                        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                        style={{ color: 'var(--text-primary)', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
                       />
                       <div
                         className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"
@@ -886,7 +892,10 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                               <button
                                 key={stat}
                                 onClick={() => addToInput(`+ ${stat}`)}
-                                className="group relative py-1.5 bg-transparent border border-white/10 rounded-lg cursor-pointer transition-all duration-300 text-zinc-500 hover:text-[var(--accent-brown)] hover:bg-white/5 hover:border-[var(--accent-brown)]/30 text-[10px] font-mono font-bold uppercase tracking-wider"
+                                className="group relative py-1.5 rounded-lg cursor-pointer transition-all duration-300 text-[10px] font-mono font-bold uppercase tracking-wider"
+                                style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-brown)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-brown)'; }}
+                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; }}
                               >
                                 {stat.substring(0, 3)}
                               </button>
@@ -900,7 +909,10 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                             <button
                               id="vtt-dice-btn-store"
                               onClick={() => setIsSkinDialogOpen(true)}
-                              className="p-2 rounded-lg transition-all duration-300 border bg-transparent border-white/10 text-zinc-600 hover:text-amber-400 hover:border-amber-400/30"
+                              className="p-2 rounded-lg transition-all duration-300 border"
+                              style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-brown)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-brown)'; }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; }}
                               title="Boutique de dés"
                             >
                               <Store className="w-4 h-4" />
@@ -908,7 +920,8 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                             <button
                               id="vtt-dice-btn-3d"
                               onClick={() => setShow3DAnimations(!show3DAnimations)}
-                              className={`p-2 rounded-lg transition-all duration-300 border ${show3DAnimations ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
+                              className="p-2 rounded-lg transition-all duration-300 border"
+                              style={show3DAnimations ? { background: 'color-mix(in srgb, var(--accent-blue,#5c6bc0) 20%, transparent)', borderColor: 'var(--accent-blue,#5c6bc0)', color: 'var(--accent-blue,#5c6bc0)' } : { border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
                               title="3D Rolling"
                             >
                               <Box className="w-4 h-4" />
@@ -917,7 +930,8 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                             <button
                               id="vtt-dice-btn-private"
                               onClick={() => setIsPrivate(!isPrivate)}
-                              className={`p-2 rounded-lg transition-all duration-300 border ${isPrivate ? 'bg-amber-500/20 border-amber-500/50 text-amber-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
+                              className="p-2 rounded-lg transition-all duration-300 border"
+                              style={isPrivate ? { background: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)', borderColor: 'var(--accent-brown)', color: 'var(--accent-brown)' } : { border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
                               title="Privé"
                             >
                               <Shield className="w-4 h-4" />
@@ -926,7 +940,8 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                               <button
                                 id="vtt-dice-btn-blind"
                                 onClick={() => setIsBlind(!isBlind)}
-                                className={`p-2 rounded-lg transition-all duration-300 border ${isBlind ? 'bg-red-500/20 border-red-500/50 text-red-300' : 'bg-transparent border-white/10 text-zinc-600 hover:text-zinc-400'}`}
+                                className="p-2 rounded-lg transition-all duration-300 border"
+                                style={isBlind ? { background: 'rgba(239,68,68,0.15)', borderColor: 'rgba(239,68,68,0.5)', color: '#f87171' } : { border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
                                 title="Blind Roll (Caché)"
                               >
                                 <EyeOff className="w-4 h-4" />
@@ -940,7 +955,8 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                                 setInput('');
                                 setLatestResult(null);
                               }}
-                              className="px-3 py-2 text-[10px] font-bold text-zinc-400 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl transition-colors hover:text-zinc-200"
+                              className="px-3 py-2 text-[10px] font-bold rounded-xl transition-colors"
+                              style={{ color: 'var(--text-secondary)', background: 'var(--bg-darker, rgba(0,0,0,0.3))', border: '1px solid var(--border-color)' }}
                             >
                               CLR
                             </button>
@@ -973,13 +989,14 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
 
           {/* CARD 2: History - separate floating card */}
           <div
-            className="w-full rounded-2xl relative isolate overflow-hidden bg-white/5 dark:bg-black/90 bg-gradient-to-br from-black/5 to-black/[0.02] dark:from-white/5 dark:to-white/[0.02] backdrop-blur-xl backdrop-saturate-[180%] border border-black/10 dark:border-white/10 shadow-[0_8px_16px_rgb(0_0_0_/_0.15)] dark:shadow-[0_8px_16px_rgb(0_0_0_/_0.25)]"
-            style={{ animation: 'popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both' }}
+            className="w-full rounded-xl relative isolate overflow-hidden border shadow-lg backdrop-blur-xl"
+            style={{ background: 'linear-gradient(135deg, var(--bg-card) 0%, var(--bg-darker) 100%)', borderColor: 'var(--border-color)', color: 'var(--text-primary)', animation: 'popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both' }}
           >
-            <div className="w-full rounded-xl relative bg-gradient-to-br from-black/[0.05] to-transparent dark:from-white/[0.08] dark:to-transparent backdrop-blur-md backdrop-saturate-150 border border-black/[0.05] dark:border-white/[0.08] text-black/90 dark:text-white shadow-sm">
+            <div className="absolute inset-0 pointer-events-none rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)' }} />
+            <div className="w-full rounded-xl relative">
               <div>
                 {/* Tabs */}
-                <div className="flex border-b border-white/5 px-2 pt-2">
+                <div className="flex px-2 pt-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
                   <button
                     id="vtt-dice-tab-history"
                     onClick={() => setShowStats(false)}
