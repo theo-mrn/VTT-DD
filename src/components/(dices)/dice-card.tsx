@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { DiceSkin } from './dice-definitions';
-import { StaticDie2D, DicePreview } from './dice-preview';
+import { AutoRotatingDie } from './dice-preview';
+import { View, PerspectiveCamera, Environment } from '@react-three/drei';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check, Gem } from 'lucide-react';
@@ -17,8 +18,6 @@ interface DiceCardProps {
 }
 
 export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip }: DiceCardProps) {
-    const [isHovered, setIsHovered] = useState(false);
-
     const getRarityColor = (rarity: string | undefined) => {
         switch (rarity) {
             case 'legendary': return 'text-orange-400 border-orange-400/50 bg-orange-950/30';
@@ -33,63 +32,58 @@ export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip 
         <motion.div
             className={cn(
                 "relative flex flex-col rounded-xl overflow-hidden border transition-all duration-300 bg-[#1a1b1e]",
-                isEquipped ? "border-[var(--accent-gold)] shadow-[0_0_15px_rgba(255,215,0,0.15)]" : "border-white/10 hover:border-white/30",
+                isEquipped ? "border-[var(--accent-gold)] shadow-[0_0_15px_rgba(255,215,0,0.15)] ring-1 ring-amber-500/50" : "border-white/10 hover:border-white/30",
                 (!isOwned && !canAfford) ? "opacity-75" : ""
             )}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
         >
-            {/* Haut de carte - Preview */}
-            <div className="relative aspect-square w-full bg-black/20 p-4">
-                <div className="absolute inset-0 flex items-center justify-center p-6">
-                    {/* Static 2D version - always rendered */}
-                    <div className={cn("absolute inset-0 transition-opacity duration-300 p-6", isHovered ? 'opacity-0' : 'opacity-100')}>
-                        <StaticDie2D skinId={skin.id} type="d20" />
-                    </div>
-
-                    {/* 3D animated version - only visible on hover */}
-                    <div className={cn("absolute inset-0 transition-opacity duration-300", isHovered ? 'opacity-100' : 'opacity-0 pointer-events-none')}>
-                        {isHovered && <DicePreview skinId={skin.id} type="d20" className="w-full h-full" />}
-                    </div>
-                </div>
+            {/* Haut de carte - Preview 3D Permanente via View tracking */}
+            <div className="relative aspect-square w-full bg-gradient-to-b from-black/40 to-transparent p-2">
+                <View className="absolute inset-0 flex items-center justify-center p-4">
+                    <PerspectiveCamera makeDefault position={[0, 0, 9.5]} fov={45} />
+                    <ambientLight intensity={0.8} />
+                    <spotLight position={[10, 10, 10]} angle={0.5} penumbra={1} intensity={2} castShadow />
+                    <pointLight position={[-10, -10, -10]} intensity={0.5} />
+                    <Environment preset="studio" />
+                    <AutoRotatingDie type="d20" skinId={skin.id} />
+                </View>
 
                 {/* Badge Rareté */}
                 <div className="absolute top-2 right-2">
-                    <Badge variant="outline" className={cn("text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 border h-auto", getRarityColor(skin.rarity) || "")}>
+                    <Badge variant="outline" className={cn("text-[9px] uppercase font-bold tracking-wider px-1.5 py-0 border", getRarityColor(skin.rarity) || "")}>
                         {skin.rarity === 'common' ? 'Commun' : skin.rarity}
                     </Badge>
                 </div>
 
                 {/* Badge Equipé */}
                 {isEquipped && (
-                    <div className="absolute top-2 left-2 bg-[var(--accent-gold)] text-black text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                        <Check className="w-3 h-3" />
+                    <div className="absolute top-2 left-2 bg-gradient-to-r from-amber-400 to-amber-600 text-amber-950 shadow-[0_0_10px_rgba(251,191,36,0.3)] text-[9px] font-bold px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                        <Check className="w-2.5 h-2.5" />
                         ÉQUIPÉ
                     </div>
                 )}
             </div>
 
             {/* Bas de carte - Infos & Action */}
-            <div className="p-3 flex flex-col gap-2 flex-grow bg-[#242529]">
+            <div className="px-3 flex flex-col gap-1 flex-grow bg-white/[0.03] pt-2 pb-3 border-t border-white/5">
                 <div>
-                    <h3 className="font-semibold text-sm text-[var(--text-primary)] truncate" title={skin.name}>
+                    <h3 className="font-semibold text-sm text-white/90 truncate" title={skin.name}>
                         {skin.name}
                     </h3>
-                    <p className="text-[10px] text-[var(--text-secondary)] line-clamp-2 min-h-[2.5em] leading-tight mt-0.5">
+                    <p className="text-[10px] text-white/50 line-clamp-2 min-h-[2.5em] leading-tight mt-0.5">
                         {skin.description}
                     </p>
                 </div>
 
-                <div className="mt-auto pt-2">
+                <div className="mt-1.5 pt-1.5">
                     {isOwned ? (
                         <Button
                             variant={isEquipped ? "secondary" : "default"}
                             size="sm"
                             className={cn(
-                                "w-full text-xs font-medium h-8",
-                                isEquipped ? "bg-white/10 text-white hover:bg-white/20" : "button-primary"
+                                "w-full text-xs font-medium h-7 rounded-md transition-all",
+                                isEquipped ? "bg-white/10 text-white/50 hover:bg-white/20" : "bg-white/10 text-white hover:bg-white/20"
                             )}
                             onClick={onEquip}
                             disabled={isEquipped}
@@ -101,22 +95,22 @@ export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip 
                             variant="default"
                             size="sm"
                             className={cn(
-                                "w-full text-xs font-bold h-8 flex items-center justify-between px-3",
-                                canAfford ? "bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-500" : "bg-gray-700 text-gray-400 cursor-not-allowed"
+                                "w-full text-xs font-bold h-7 rounded-md flex items-center justify-between px-2.5 transition-all shadow-[0_2px_10px_rgba(0,0,0,0.5)]",
+                                canAfford ? "bg-emerald-600/90 hover:bg-emerald-500 text-white border border-emerald-500/50" : "bg-black/50 text-white/30 cursor-not-allowed border border-white/5"
                             )}
                             onClick={onBuy}
                             disabled={!canAfford}
                         >
                             <span className="flex items-center gap-1">
-                                {canAfford ? "Acheter" : "Pas assez d'or"}
+                                {canAfford ? "Acheter" : "Fonds insuffisants"}
                             </span>
-                            <span className="flex items-center gap-1 bg-black/20 px-1.5 py-0.5 rounded">
-                                {skin.price} <Gem className="w-3 h-3 text-[var(--accent-gold)]" />
+                            <span className="flex items-center gap-1 bg-black/40 px-1.5 py-0.5 rounded text-[10px]">
+                                {(skin.price / 100).toFixed(2).replace('.', ',')} €
                             </span>
                         </Button>
                     )}
                 </div>
             </div>
-        </motion.div>
+        </motion.div >
     );
 }

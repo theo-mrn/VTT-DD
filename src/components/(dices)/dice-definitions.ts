@@ -449,6 +449,33 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         description: "Pour ceux qui entendent l'appel du large.",
         rarity: 'rare'
     },
+    metal_lourd: {
+        id: 'metal_lourd',
+        name: 'Métal Lourd',
+        bodyColor: '#2b2b2b',
+        edgeColor: '#4f4f4f',
+        borderColor: '#1a1a1a',
+        textColor: '#494949', // Light grey text
+        shadowColor: '#000000',
+        metalness: 0.9,
+        roughness: 0.6, // Scratched/rough metal
+        envMapIntensity: 1.0,
+        effectType: 'stone',
+        emissive: '#000000',
+        emissiveIntensity: 0,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#000000',
+        innerGlowIntensity: 0,
+        rimLight: true,
+        rimLightColor: '#ffffff',
+        particleType: 'none',
+        particleColor: '#4f4f4f',
+        particleColor2: '#2b2b2b',
+        price: 125,
+        description: "Un alliage robuste, forgé pour durer.",
+        rarity: 'uncommon'
+    },
     merveille: {
         id: 'merveille',
         name: 'Merveille',
