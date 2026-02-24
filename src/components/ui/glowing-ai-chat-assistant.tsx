@@ -80,12 +80,24 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
   // Scramble effect for the result display when it's "..."
   const [scrambledValue, setScrambledValue] = useState("...");
 
-  // Load skin from localStorage
+  // Load skin from Firestore
   useEffect(() => {
-    const savedSkin = localStorage.getItem("vtt_dice_skin");
-    if (savedSkin && DICE_SKINS[savedSkin]) {
-      setSelectedSkinId(savedSkin);
-    }
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          if (data.dice_skin && DICE_SKINS[data.dice_skin]) {
+            setSelectedSkinId(data.dice_skin);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading dice skin from Firestore:', error);
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -1074,7 +1086,6 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
         currentSkinId={selectedSkinId}
         onSelectSkin={(skinId) => {
           setSelectedSkinId(skinId);
-          localStorage.setItem("vtt_dice_skin", skinId);
         }}
       />
 

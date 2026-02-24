@@ -113,7 +113,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#ff3366',
         particleColor2: '#ffffff',
         textureMap: getAssetUrl('/textures/rubis_diffuse.jpg'),
-        price: 500,
+        price: 250,
         description: "Une gemme ardente pulsant d'énergie magique.",
         rarity: 'rare'
     },
@@ -140,7 +140,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#6633ff',
         particleColor2: '#220044',
-        price: 1000,
+        price: 500,
         description: "Forgé dans les ténèbres, pour ceux qui embrassent l'ombre.",
         rarity: 'epic'
     },
@@ -168,7 +168,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#33ff99',
         particleColor2: '#00ff88',
         textureMap: getAssetUrl('/textures/jade.jpg'),
-        price: 250,
+        price: 125,
         description: "Symbole de sérénité et de chance.",
         rarity: 'uncommon'
     },
@@ -195,7 +195,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#ffffff',
         particleColor2: '#aaccff',
-        price: 500,
+        price: 250,
         description: "Transparent comme vos intentions... ou pas.",
         rarity: 'rare'
     },
@@ -223,7 +223,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#3399ff',
         particleColor2: '#ffffff',
         textureMap: getAssetUrl('/textures/saphire_diffuse.jpg'),
-        price: 500,
+        price: 250,
         description: "Aussi profond que l'océan, aussi dur que l'acier.",
         rarity: 'rare'
     },
@@ -251,7 +251,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#bb66ff',
         particleColor2: '#ffffff',
         textureMap: getAssetUrl('/textures/amethyst_diffuse.jpg'),
-        price: 500,
+        price: 250,
         description: "Mystique et royale, favorisée par les mages.",
         rarity: 'rare'
     },
@@ -278,7 +278,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none', // Removed fire
         particleColor: '#ff6600',
         particleColor2: '#ffaa00',
-        price: 1000,
+        price: 500,
         description: "Brûle d'une flamme éternelle qui ne consume que vos ennemis.",
         rarity: 'epic'
     },
@@ -305,7 +305,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none', // Removed ice
         particleColor: '#aaeeff',
         particleColor2: '#ffffff',
-        price: 500,
+        price: 250,
         description: "Froid comme la mort, tranchant comme un blizzard.",
         rarity: 'rare'
     },
@@ -333,7 +333,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#00ffcc',
         particleColor2: '#ff00aa',
-        price: 2500,
+        price: 1250,
         description: "Une technologie perdue d'une autre dimension.",
         rarity: 'legendary'
     },
@@ -361,7 +361,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#ffd700',
         particleColor2: '#ffffff',
         textureMap: getAssetUrl('/textures/marblebleu_diffuse.jpg'),
-        price: 250,
+        price: 125,
         description: "Élégance classique avec une touche royale.",
         rarity: 'legendary'
     },
@@ -389,7 +389,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#9933ff',
         particleColor2: '#ffffff',
         textureMap: getAssetUrl('/textures/cosmos_diffuse.jpeg'),
-        price: 2500,
+        price: 1250,
         description: "Contient des galaxies entières dans chaque face.",
         rarity: 'legendary'
     },
@@ -417,7 +417,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#00ffff',
         particleColor2: '#ffffff',
         textureMap: getAssetUrl('/textures/space_diifuse.avif'),
-        price: 1000,
+        price: 500,
         description: "Le vide infini entre les étoiles.",
         rarity: 'epic'
     },
@@ -445,7 +445,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#00bfff',
         particleColor2: '#ffffff',
         textureMap: getAssetUrl('/textures/ocean_diffuse.webp'),
-        price: 500,
+        price: 250,
         description: "Pour ceux qui entendent l'appel du large.",
         rarity: 'rare'
     },
@@ -473,7 +473,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#ffd700',
         particleColor2: '#ffffff',
         textureMap: getAssetUrl('/textures/merveille_diffuse.png'),
-        price: 2500,
+        price: 1250,
         description: "Une merveille d'artisanat magique.",
         rarity: 'legendary'
     },
@@ -500,7 +500,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#d4c5a9',
         particleColor2: '#e3dac9',
-        price: 250,
+        price: 125,
         description: "Sculpté dans les os d'une créature oubliée.",
         rarity: 'uncommon'
     },
@@ -527,7 +527,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#4b0082',
         particleColor2: '#000000',
-        price: 1000,
+        price: 500,
         description: "Il n'y a rien ici... absolument rien.",
         rarity: 'epic'
     },
@@ -554,7 +554,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#ffffff',
         particleColor2: '#ffdd00',
-        price: 2500,
+        price: 1250,
         description: "Guide les voyageurs perdus dans la nuit.",
         rarity: 'legendary'
     },
@@ -581,7 +581,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#8a1c1c',
         particleColor2: '#3a0404',
-        price: 1000,
+        price: 500,
         description: "Un serment qui ne peut être brisé.",
         rarity: 'epic'
     },
@@ -608,7 +608,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#d4af37',
         particleColor2: '#b87333',
-        price: 500,
+        price: 250,
         description: "Rouages et vapeur, pour l'ingénieur moderne.",
         rarity: 'rare'
     },
@@ -635,7 +635,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#d4af37',
         particleColor2: '#ffffff',
-        price: 500,
+        price: 250,
         description: "Digne d'un trône.",
         rarity: 'rare'
     },
@@ -662,7 +662,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none', // Uses texture effect mostly
         particleColor: '#00ffff',
         particleColor2: '#ff00ff',
-        price: 2500,
+        price: 1250,
         description: "Là où naissent les étoiles.",
         rarity: 'legendary'
     },
@@ -689,7 +689,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#ffd700',
         particleColor2: '#004d40',
-        price: 2500,
+        price: 1250,
         description: "Dur, brillant et extrêmement précieux.",
         rarity: 'legendary'
     },
@@ -716,7 +716,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#ffffff',
         particleColor2: '#b0c4de',
-        price: 2500,
+        price: 1250,
         description: "Baignée dans la lumière de séluné.",
         rarity: 'legendary'
     },
@@ -745,7 +745,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor2: '#5c4033',
         // Wood texture
         textureMap: getAssetUrl('/textures/wood_diffuse.png'),
-        price: 100,
+        price: 50,
         description: "Simple, robuste et fiable. Comme un bon nain.",
         rarity: 'common'
     },
@@ -773,7 +773,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#ffffff',
         particleColor2: '#e0e0e0',
         textureMap: getAssetUrl('/textures/marble_diffuse.png'),
-        price: 250,
+        price: 125,
         description: "Poli à la perfection pour les temples sacrés.",
         rarity: 'uncommon'
     },
@@ -801,7 +801,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#8b7355',
         particleColor2: '#3d2b1f',
         textureMap: getAssetUrl('/textures/leather_diffuse.png'),
-        price: 100,
+        price: 50,
         description: "Sent le vieux livre et l'aventure.",
         rarity: 'common'
     },
@@ -857,7 +857,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#cd853f',
         particleColor2: '#5a4a3a',
         textureMap: getAssetUrl('/textures/rust_diffuse.png'),
-        price: 50,
+        price: 25,
         description: "Oublié depuis longtemps, mais toujours solide.",
         rarity: 'common'
     },
@@ -885,7 +885,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#ff4500',
         particleColor2: '#ff6600',
         textureMap: getAssetUrl('/textures/lava_diffuse.png'),
-        price: 500,
+        price: 250,
         description: "Attention, c'est chaud !",
         rarity: 'rare'
     },
@@ -913,7 +913,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#e0ffff',
         particleColor2: '#ffffff',
         textureMap: getAssetUrl('/textures/ice_diffuse.png'),
-        price: 500,
+        price: 250,
         description: "Ne fond jamais, même dans un volcan.",
         rarity: 'rare'
     },
@@ -941,7 +941,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#6b8e23',
         particleColor2: '#3d3d2d',
         textureMap: getAssetUrl('/textures/bark_diffuse.png'),
-        price: 250,
+        price: 125,
         description: "La nature reprend toujours ses droits.",
         rarity: 'uncommon'
     },
@@ -969,7 +969,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor: '#d2b48c',
         particleColor2: '#f5deb3',
         textureMap: getAssetUrl('/textures/parchment_diffuse.png'),
-        price: 100,
+        price: 50,
         description: "Les mots ont un pouvoir.",
         rarity: 'common'
     }
