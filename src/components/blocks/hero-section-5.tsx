@@ -13,9 +13,7 @@ import { auth } from '../../lib/firebase'
 import { Features1 } from '@/components/blocks/features1'
 import { Features2 } from '@/components/blocks/features2'
 import { Features3 } from '@/components/blocks/features3'
-import Image from 'next/image'
-
-import InfiniteHero from "@/components/ui/infinite-hero";
+import { ShaderBackground } from '@/components/ui/hero'
 
 
 
@@ -135,20 +133,13 @@ export function HeroSection() {
                                 </div>
                             </div>
                         </div>
-                        <div className="fixed inset-0 -z-10 w-full h-full">
-                            <Image
-                                src="/images/index9.webp"
-                                alt="Hero"
-                                fill
-                                className="object-cover"
-                                priority
-                            />
-                            <div className="absolute inset-0 bg-black/50" />
+                        <div className="fixed inset-0 -z-10 w-full h-full pointer-events-none">
+                            <ShaderBackground />
                         </div>
                     </div>
                 </section>
 
-                {/* <InfiniteHero /> */}
+
 
                 <section>
                     <div className="lg:pt-64 lg:pb-16">
