@@ -235,18 +235,22 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       // Check if click is outside the content AND not on the sidebar toggle button
+      // Also exclude clicks inside the DiceStoreModal portal (data-dice-store-portal)
       if (
         containerRef.current &&
         !containerRef.current.contains(event.target as Node) &&
         isOpen &&
-        !(event.target as Element).closest('#vtt-sidebar-dice')
+        !isSkinDialogOpen && // ← don't close while dice store is open
+        !(event.target as Element).closest('#vtt-sidebar-dice') &&
+        !(event.target as Element).closest('[data-dice-store-portal]')
       ) {
         onClose?.();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, isSkinDialogOpen]);
+
 
 
   const replaceCharacteristics = (notation: string): string => {

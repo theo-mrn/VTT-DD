@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Check, User, LogOut, X, Clipboard, Share2, SquareUserRound, Settings, Palette } from "lucide-react";
+import { Check, User, LogOut, X, Clipboard, Share2, SquareUserRound, Settings, Palette, BookOpen, ImageIcon, Store, Zap, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { auth, db, doc, onAuthStateChanged, updateDoc, signOut, onSnapshot } from "@/lib/firebase";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
@@ -20,6 +20,12 @@ import { useTheme } from "next-themes";
 import { ThemeName } from "@/lib/saveSettings";
 import { cn } from "@/lib/utils";
 
+import Marketplace from "@/components/(infos)/Information";
+import Capacites from "@/components/(infos)/capacites";
+import Images from "@/components/(infos)/images";
+import Wiki from "@/components/(infos)/wiki";
+import Boutique from "@/components/(infos)/boutique";
+
 type SidebarProps = {
   onClose: () => void;
 };
@@ -35,6 +41,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const [showPopover, setShowPopover] = useState<boolean>(false);
   const [showProfileOverlay, setShowProfileOverlay] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [openDialog, setOpenDialog] = useState<string | null>(null);
   const { isMJ } = useGame();
 
   // Theme state for custom switcher in sidebar
@@ -206,6 +213,51 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Changer de personnage</span>
         </button>
 
+        {/* Separator to differentiate settings from info buttons */}
+        <div className="my-2 border-t border-white/10 mx-2" />
+
+        <button
+          className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+          onClick={() => setOpenDialog("capacites")}
+        >
+          <Zap className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Capacités</span>
+        </button>
+
+        <button
+          className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+          onClick={() => setOpenDialog("images")}
+        >
+          <ImageIcon className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Images</span>
+        </button>
+
+        <button
+          className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+          onClick={() => setOpenDialog("information")}
+        >
+          <Store className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Marché</span>
+        </button>
+
+        <button
+          className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+          onClick={() => setOpenDialog("wiki")}
+        >
+          <BookOpen className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Wiki</span>
+        </button>
+
+        <button
+          className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+          onClick={() => setOpenDialog("boutique")}
+        >
+          <ShoppingCart className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Boutique</span>
+        </button>
+
+        <div className="my-2 border-t border-white/10 mx-2" />
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="w-full flex items-center justify-between p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors group">
@@ -348,6 +400,52 @@ export default function Sidebar({ onClose }: SidebarProps) {
         onOpenChange={setShowSettings}
         isMJ={isMJ}
       />
+
+      {/* Info Full Screen Overlays */}
+      {openDialog === 'capacites' && (
+        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] overflow-y-auto w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          </button>
+          <Capacites />
+        </div>
+      )}
+
+      {openDialog === 'images' && (
+        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] overflow-y-auto w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          </button>
+          <Images />
+        </div>
+      )}
+
+      {openDialog === 'information' && (
+        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] overflow-y-auto w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          </button>
+          <Marketplace />
+        </div>
+      )}
+
+      {openDialog === 'wiki' && (
+        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] overflow-y-auto w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          </button>
+          <Wiki />
+        </div>
+      )}
+
+      {openDialog === 'boutique' && (
+        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] overflow-y-auto w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          </button>
+          <Boutique />
+        </div>
+      )}
     </div>
   );
 }
