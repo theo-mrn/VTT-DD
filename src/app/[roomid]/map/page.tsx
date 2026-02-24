@@ -11220,11 +11220,15 @@ export default function Component() {
             roomId={roomId}
             onClose={() => {
               console.log('🚪 [CitiesManager] onClose called, selectedCityId:', selectedCityId, 'viewMode:', viewMode);
-              // Si on est déjà dans une ville, retourner en mode ville ET synchroniser Firebase
+              // ⚠️ IMPORTANT: delay setViewMode to let CitiesManager's exit animations complete.
+              // Without this delay, React immediately unmounts CitiesManager → its internal
+              // motion.div backdrops never reach exit opacity:0 → backdrop stays and blocks page.
               if (selectedCityId) {
-                console.log('✅ [CitiesManager] Returning to city mode and syncing Firebase');
-                navigateToCity(selectedCityId); // ← IMPORTANT: Synchroniser Firebase !
-                setViewMode('city');
+                console.log('✅ [CitiesManager] Returning to city mode (delayed to allow exit animation)');
+                setTimeout(() => {
+                  navigateToCity(selectedCityId);
+                  setViewMode('city');
+                }, 400); // matches CitiesManager's spring exit duration (~350ms)
               } else {
                 console.log('⚠️ [CitiesManager] No selectedCityId, staying in world mode');
               }
@@ -11233,6 +11237,7 @@ export default function Component() {
           />
         )}
       </AnimatePresence>
+
 
       {/* 🎯 OVERLAPPING ELEMENTS SELECTION MENU */}
       {showElementSelectionMenu && (

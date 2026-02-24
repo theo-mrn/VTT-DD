@@ -239,7 +239,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
         containerRef.current &&
         !containerRef.current.contains(event.target as Node) &&
         isOpen &&
-        !(event.target as Element).closest('#sidebar-dice-button')
+        !(event.target as Element).closest('#vtt-sidebar-dice')
       ) {
         onClose?.();
       }
