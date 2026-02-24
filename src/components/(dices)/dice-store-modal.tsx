@@ -4,13 +4,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DICE_SKINS, DiceSkin } from './dice-definitions';
 import { DiceCard } from './dice-card';
-import { Store, Backpack, Gem, X } from 'lucide-react';
+import { Store, Backpack, Gem, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { auth, db, doc, getDoc, updateDoc } from '@/lib/firebase';
+import { onAuthStateChanged } from 'firebase/auth';
+import { arrayUnion } from 'firebase/firestore';
 
-// Mock initial state
-const INITIAL_BALANCE = 9999999999;
-const INITIAL_INVENTORY = ['gold', 'silver', 'steampunk_copper']; // Some starters
+// Default skins given to every user
+const DEFAULT_INVENTORY = ['gold', 'silver', 'steampunk_copper'];
 
 interface DiceStoreModalProps {
     isOpen: boolean;
@@ -20,29 +22,50 @@ interface DiceStoreModalProps {
 }
 
 export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }: DiceStoreModalProps) {
-    const [balance, setBalance] = useState(INITIAL_BALANCE);
-    const [inventory, setInventory] = useState<string[]>(INITIAL_INVENTORY);
+    const [inventory, setInventory] = useState<string[]>([]);
     const [activeTab, setActiveTab] = useState("inventory");
     const [mounted, setMounted] = useState(false);
+    const [isLoadingInventory, setIsLoadingInventory] = useState(true);
+    const [isCheckingOut, setIsCheckingOut] = useState(false);
+    const [uid, setUid] = useState<string | null>(null);
 
     useEffect(() => {
         setMounted(true);
     }, []);
 
-    // Load state from localStorage on mount
+    // Listen for Firebase auth and load inventory from Firestore
     useEffect(() => {
-        const savedBalance = localStorage.getItem('vtt_gold_balance');
-        const savedInventory = localStorage.getItem('vtt_dice_inventory');
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                // Not logged in: show default skins only
+                setInventory(DEFAULT_INVENTORY);
+                setIsLoadingInventory(false);
+                return;
+            }
+            setUid(user.uid);
+            try {
+                const userRef = doc(db, 'users', user.uid);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                    const data = userSnap.data();
+                    const savedInventory: string[] = data.dice_inventory || DEFAULT_INVENTORY;
+                    setInventory(savedInventory);
 
-        if (savedBalance) setBalance(parseInt(savedBalance));
-        else {
-            localStorage.setItem('vtt_gold_balance', INITIAL_BALANCE.toString());
-        }
-
-        if (savedInventory) setInventory(JSON.parse(savedInventory));
-        else {
-            localStorage.setItem('vtt_dice_inventory', JSON.stringify(INITIAL_INVENTORY));
-        }
+                    // If user has no dice_inventory yet, initialize it in Firestore
+                    if (!data.dice_inventory) {
+                        await updateDoc(userRef, { dice_inventory: DEFAULT_INVENTORY });
+                    }
+                } else {
+                    setInventory(DEFAULT_INVENTORY);
+                }
+            } catch (error) {
+                console.error('Error loading dice inventory from Firestore:', error);
+                setInventory(DEFAULT_INVENTORY);
+            } finally {
+                setIsLoadingInventory(false);
+            }
+        });
+        return () => unsubscribe();
     }, []);
 
     useEffect(() => {
@@ -53,29 +76,71 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
         return () => window.removeEventListener('keydown', handleEsc);
     }, [isOpen, onClose]);
 
-    const handleBuy = (skin: DiceSkin) => {
-        if (balance < skin.price) {
-            toast.error("Pas assez d'or !");
+    const handleBuy = async (skin: DiceSkin) => {
+        if (skin.price <= 0) {
+            // Free skin
+            const newInventory = [...inventory, skin.id];
+            setInventory(newInventory);
+            if (uid) {
+                try {
+                    const userRef = doc(db, 'users', uid);
+                    await updateDoc(userRef, { dice_inventory: arrayUnion(skin.id) });
+                } catch (error) {
+                    console.error('Error saving inventory to Firestore:', error);
+                }
+            }
+            toast.success(`Dés ${skin.name} obtenus !`, {
+                icon: <Gem className="w-4 h-4 text-[var(--accent-gold)]" />
+            });
             return;
         }
 
-        const newBalance = balance - skin.price;
-        const newInventory = [...inventory, skin.id];
+        try {
+            setIsCheckingOut(true);
+            toast.loading("Redirection vers le paiement...");
 
-        setBalance(newBalance);
-        setInventory(newInventory);
+            const response = await fetch('/api/checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    skinId: skin.id,
+                    returnUrl: window.location.pathname
+                }),
+            });
 
-        // Save to storage
-        localStorage.setItem('vtt_gold_balance', newBalance.toString());
-        localStorage.setItem('vtt_dice_inventory', JSON.stringify(newInventory));
+            const data = await response.json();
 
-        toast.success(`Dés ${skin.name} achetés !`, {
-            icon: <Gem className="w-4 h-4 text-[var(--accent-gold)]" />
-        });
+            if (!response.ok) {
+                throw new Error(data.error || 'Erreur de paiement');
+            }
+
+            toast.dismiss();
+
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                throw new Error('Url de redirection manquante');
+            }
+        } catch (error: any) {
+            console.error("Erreur d'achat:", error);
+            toast.dismiss();
+            toast.error(error.message || "Une erreur est survenue lors de l'achat");
+        } finally {
+            setIsCheckingOut(false);
+        }
     };
 
-    const handleEquip = (skinId: string) => {
+    const handleEquip = async (skinId: string) => {
         onSelectSkin(skinId);
+        // Also persist the selected skin to Firestore
+        if (uid) {
+            try {
+                const userRef = doc(db, 'users', uid);
+                await updateDoc(userRef, { dice_skin: skinId });
+            } catch (error) {
+                console.error('Error saving selected skin to Firestore:', error);
+            }
+        }
         toast.success("Dés équipés");
     };
 
@@ -118,11 +183,6 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
                             </div>
 
                             <div className="flex items-center gap-4">
-                                <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-full border border-yellow-500/20 shadow-inner">
-                                    <span className="text-yellow-500 font-bold font-mono text-lg">{balance}</span>
-                                    <Gem className="w-4 h-4 text-yellow-500 fill-yellow-500/20" />
-                                </div>
-
                                 <button
                                     onClick={onClose}
                                     className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
@@ -148,49 +208,55 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
                             </div>
 
                             <div className="flex-1 overflow-hidden bg-[#141517]">
-                                <ScrollArea className="h-full">
-                                    <TabsContent value="inventory" className="p-6 m-0 h-full">
-                                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-20">
-                                            {ownedSkins.map((skin) => (
-                                                <DiceCard
-                                                    key={skin.id}
-                                                    skin={skin}
-                                                    isOwned={true}
-                                                    isEquipped={currentSkinId === skin.id}
-                                                    canAfford={true}
-                                                    onBuy={() => { }}
-                                                    onEquip={() => handleEquip(skin.id)}
-                                                />
-                                            ))}
-                                        </div>
-                                    </TabsContent>
-
-                                    <TabsContent value="store" className="p-6 m-0 h-full">
-                                        {unownedSkins.length === 0 ? (
-                                            <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4 py-20">
-                                                <Gem className="w-16 h-16 opacity-20" />
-                                                <p>Vous possédez déjà tous les dés de la boutique !</p>
-                                            </div>
-                                        ) : (
+                                {isLoadingInventory ? (
+                                    <div className="flex items-center justify-center h-full gap-3 text-gray-500">
+                                        <Loader2 className="w-6 h-6 animate-spin" />
+                                        <span>Chargement de l'inventaire...</span>
+                                    </div>
+                                ) : (
+                                    <ScrollArea className="h-full">
+                                        <TabsContent value="inventory" className="p-6 m-0 h-full">
                                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-20">
-                                                {unownedSkins
-                                                    // Sort by price ascending
-                                                    .sort((a, b) => a.price - b.price)
-                                                    .map((skin) => (
-                                                        <DiceCard
-                                                            key={skin.id}
-                                                            skin={skin}
-                                                            isOwned={false}
-                                                            isEquipped={false}
-                                                            canAfford={balance >= skin.price}
-                                                            onBuy={() => handleBuy(skin)}
-                                                            onEquip={() => { }}
-                                                        />
-                                                    ))}
+                                                {ownedSkins.map((skin) => (
+                                                    <DiceCard
+                                                        key={skin.id}
+                                                        skin={skin}
+                                                        isOwned={true}
+                                                        isEquipped={currentSkinId === skin.id}
+                                                        canAfford={true}
+                                                        onBuy={() => { }}
+                                                        onEquip={() => handleEquip(skin.id)}
+                                                    />
+                                                ))}
                                             </div>
-                                        )}
-                                    </TabsContent>
-                                </ScrollArea>
+                                        </TabsContent>
+
+                                        <TabsContent value="store" className="p-6 m-0 h-full">
+                                            {unownedSkins.length === 0 ? (
+                                                <div className="flex flex-col items-center justify-center h-full text-gray-500 gap-4 py-20">
+                                                    <Gem className="w-16 h-16 opacity-20" />
+                                                    <p>Vous possédez déjà tous les dés de la boutique !</p>
+                                                </div>
+                                            ) : (
+                                                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 pb-20">
+                                                    {unownedSkins
+                                                        .sort((a, b) => a.price - b.price)
+                                                        .map((skin) => (
+                                                            <DiceCard
+                                                                key={skin.id}
+                                                                skin={skin}
+                                                                isOwned={false}
+                                                                isEquipped={false}
+                                                                canAfford={!isCheckingOut}
+                                                                onBuy={() => handleBuy(skin)}
+                                                                onEquip={() => { }}
+                                                            />
+                                                        ))}
+                                                </div>
+                                            )}
+                                        </TabsContent>
+                                    </ScrollArea>
+                                )}
                             </div>
                         </Tabs>
                     </motion.div>

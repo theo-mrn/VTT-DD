@@ -87,17 +87,30 @@ export function DiceRoller() {
   const [selectedSkinId, setSelectedSkinId] = useState("gold");
   const [isSkinDialogOpen, setIsSkinDialogOpen] = useState(false);
 
-  // Charger le skin et les préférences depuis le localStorage au chargement
+  // Charger le skin depuis Firestore et les préférences 3D depuis localStorage
   useEffect(() => {
-    const savedSkin = localStorage.getItem("vtt_dice_skin");
     const saved3D = localStorage.getItem("vtt_3d_enabled");
-
-    if (savedSkin && DICE_SKINS[savedSkin]) {
-      setSelectedSkinId(savedSkin);
-    }
     if (saved3D !== null) {
       setShow3DAnimations(saved3D === "true");
     }
+
+    // Load selected skin from Firestore once auth is ready
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) return;
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        const userSnap = await getDoc(userRef);
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          if (data.dice_skin && DICE_SKINS[data.dice_skin]) {
+            setSelectedSkinId(data.dice_skin);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading dice skin from Firestore:', error);
+      }
+    });
+    return () => unsubscribe();
   }, []);
 
 
@@ -1025,7 +1038,6 @@ export function DiceRoller() {
               currentSkinId={selectedSkinId}
               onSelectSkin={(skinId) => {
                 setSelectedSkinId(skinId);
-                localStorage.setItem("vtt_dice_skin", skinId);
               }}
             />
           </div>
