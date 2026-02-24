@@ -20,9 +20,8 @@ interface DiceCardProps {
 
 export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip }: DiceCardProps) {
     const cardRef = useRef<HTMLDivElement>(null);
-    // Only mount the 3D Canvas when this card is visible in the scroll area.
-    // This keeps the number of simultaneous WebGL contexts within browser limits (~16).
-    // We never exceed ~12–15 visible cards at once in the modal viewport.
+    // Lazy-mount the 3D Canvas only when card is visible in viewport.
+    // Keeps simultaneous WebGL contexts well within browser limits (~16).
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
@@ -59,7 +58,7 @@ export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip 
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
         >
-            {/* 3D Preview — Canvas only mounted when this card intersects the viewport */}
+            {/* 3D Preview — Canvas lazy-mounted when card enters viewport */}
             <div className="relative aspect-square w-full bg-gradient-to-b from-black/50 to-black/20">
                 {isVisible && (
                     <DicePreviewCard

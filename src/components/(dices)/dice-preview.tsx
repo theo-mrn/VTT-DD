@@ -58,16 +58,13 @@ export function DicePreview({ skinId, type = "d20", className = "" }: { skinId: 
     );
 }
 
+
 /**
  * DicePreviewCard — version safe pour les modaux/listes.
- *
- * Différences vs DicePreview :
- * - Pas d'OrbitControls → aucun event listener attaché au canvas DOM
- * - pointer-events: none sur le wrapper → le canvas ne capture aucun événement souris
- * - Ces deux points éliminent l'erreur "Cannot read properties of null (reading 'addEventListener')"
- *   qui corrompait le cycle React et laissait des overlays bloquants dans le DOM.
+ * - Pas d'OrbitControls (pas d'event listeners problématiques)
+ * - pointer-events: none sur le wrapper
  */
-export function DicePreviewCard({ skinId, type = "d20" }: { skinId: string, type?: string }) {
+export function DicePreviewCard({ skinId, type = "d20" }: { skinId: string; type?: string }) {
     return (
         <div
             className="absolute inset-0 w-full h-full"
@@ -87,6 +84,8 @@ export function DicePreviewCard({ skinId, type = "d20" }: { skinId: string, type
         </div>
     );
 }
+
+
 
 
 // Static 2D representation of a die
