@@ -35,7 +35,7 @@ const THEMES: {
         },
         {
             key: 'crimson',
-            label: 'Sang & Feu',
+            label: 'Feu',
             accent: '#c0504a',
             bg: '#201212',
             border: '#331818',
