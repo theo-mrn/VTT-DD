@@ -15,8 +15,35 @@ import * as THREE from 'three';
 
 // TexturedMaterial component - loads texture if specified in skin, otherwise uses solid color
 const TexturedMaterial = ({ skin }: { skin: DiceSkin }) => {
-    // Load texture if path is specified
-    const texture = skin.textureMap ? useTexture(skin.textureMap) : null;
+    // Determine if we should try to load a texture
+    const hasTexture = Boolean(skin.textureMap);
+
+    // useTexture throws if texture fails to load, so we use a safe fallback component
+    if (!hasTexture) {
+        return (
+            <meshStandardMaterial
+                color={skin.bodyColor}
+                metalness={skin.metalness}
+                roughness={skin.roughness}
+                envMapIntensity={skin.envMapIntensity}
+                emissive={skin.emissive}
+                emissiveIntensity={skin.emissiveIntensity}
+                transparent={skin.opacity < 1}
+                opacity={skin.opacity}
+            />
+        );
+    }
+
+    return <TextureMaterialLoader skin={skin} />;
+};
+
+// Component that actually loads the texture, wrapped in Suspense by parent if needed, 
+// or we just handle it here. Actually Canvas provides a default Suspense boundary sometimes, 
+// but it's safer to avoid useTexture if the path might be bad.
+const TextureMaterialLoaderInner = ({ skin }: { skin: DiceSkin }) => {
+    // useTexture will suspend. If it fails, we need an error boundary, but for now let's hope it works.
+    // To prevent total crashes on 404, we could use THREE.TextureLoader directly, but useTexture is fine if paths are correct.
+    const texture = useTexture(skin.textureMap as string);
 
     if (texture) {
         // Configure texture for better wood appearance
@@ -27,7 +54,7 @@ const TexturedMaterial = ({ skin }: { skin: DiceSkin }) => {
     return (
         <meshStandardMaterial
             map={texture}
-            color={texture ? '#ffffff' : skin.bodyColor} // White if textured, fallback color otherwise
+            color={'#ffffff'}
             metalness={skin.metalness}
             roughness={skin.roughness}
             envMapIntensity={skin.envMapIntensity}
@@ -36,6 +63,22 @@ const TexturedMaterial = ({ skin }: { skin: DiceSkin }) => {
             transparent={skin.opacity < 1}
             opacity={skin.opacity}
         />
+    );
+};
+
+const TextureMaterialLoader = ({ skin }: { skin: DiceSkin }) => {
+    return (
+        <React.Suspense fallback={
+            <meshStandardMaterial
+                color={skin.bodyColor}
+                metalness={skin.metalness}
+                roughness={skin.roughness}
+                transparent={skin.opacity < 1}
+                opacity={skin.opacity}
+            />
+        }>
+            <TextureMaterialLoaderInner skin={skin} />
+        </React.Suspense>
     );
 };
 

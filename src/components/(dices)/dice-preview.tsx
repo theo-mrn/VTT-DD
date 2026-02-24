@@ -7,7 +7,7 @@ import { VisualDie } from './throw';
 import { getSkinById, DICE_SKINS } from './dice-definitions';
 import * as THREE from 'three';
 
-const AutoRotatingDie = ({ type, skinId }: { type: string, skinId: string }) => {
+export const AutoRotatingDie = ({ type, skinId }: { type: string, skinId: string }) => {
     const groupRef = useRef<THREE.Group>(null);
     const skin = getSkinById(skinId);
 
