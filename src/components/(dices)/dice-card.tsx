@@ -2,7 +2,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { DiceSkin } from './dice-definitions';
-import { DicePreview } from './dice-preview';
+import { DicePreviewCard } from './dice-preview';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Check } from 'lucide-react';
@@ -62,10 +62,9 @@ export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip 
             {/* 3D Preview — Canvas only mounted when this card intersects the viewport */}
             <div className="relative aspect-square w-full bg-gradient-to-b from-black/50 to-black/20">
                 {isVisible && (
-                    <DicePreview
+                    <DicePreviewCard
                         skinId={skin.id}
                         type="d20"
-                        className="absolute inset-0 w-full h-full"
                     />
                 )}
 

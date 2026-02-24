@@ -78,6 +78,50 @@ export function DiceStoreModal({ isOpen, onClose, currentSkinId, onSelectSkin }:
         return () => window.removeEventListener('keydown', handleEsc);
     }, [isOpen, onClose, activeTab]);
 
+    const handleGive = async (skinIdOrName: string) => {
+        const id = skinIdOrName.toLowerCase().replace(/^give_/, '');
+        const skin = DICE_SKINS[id] || Object.values(DICE_SKINS).find(
+            s => s.name.toLowerCase() === id || s.id === id
+        );
+        if (!skin) {
+            toast.error(`Dé inconnu : "${id}". IDs disponibles : ${Object.keys(DICE_SKINS).join(', ')}`);
+            return;
+        }
+        if (inventory.includes(skin.id)) {
+            toast(`Vous possédez déjà le dé ${skin.name} !`);
+            return;
+        }
+        const newInventory = [...inventory, skin.id];
+        setInventory(newInventory);
+        if (uid) {
+            try {
+                const userRef = doc(db, 'users', uid);
+                await updateDoc(userRef, { dice_inventory: arrayUnion(skin.id) });
+            } catch (error) {
+                console.error('[DEV] Error saving given dice to Firestore:', error);
+            }
+        }
+        toast.success(`Dé "${skin.name}" ajouté à l'inventaire !`);
+    };
+
+    // Expose give_<id> commands on window in dev mode
+    useEffect(() => {
+        (window as any).give = (nameOrId: string) => handleGive(nameOrId);
+        Object.keys(DICE_SKINS).forEach(id => {
+            (window as any)[`give_${id}`] = () => handleGive(id);
+        });
+        console.info(
+            '%c[VTT-DEV] Commandes dés disponibles 🎲',
+            'color: #f59e0b; font-weight: bold; font-size: 13px;',
+            '\n' + Object.keys(DICE_SKINS).map(id => `  give_${id}()`).join('\n')
+        );
+        return () => {
+            delete (window as any).give;
+            Object.keys(DICE_SKINS).forEach(id => delete (window as any)[`give_${id}`]);
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [uid, inventory]);
+
     const handleBuy = async (skin: DiceSkin) => {
         if (skin.price <= 0) {
             const newInventory = [...inventory, skin.id];
