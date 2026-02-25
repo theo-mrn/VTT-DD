@@ -36,6 +36,7 @@ export interface UserData {
 interface GameContextType {
   // États du jeu
   isMJ: boolean;
+  isOwner: boolean;
   persoId: string | null;
   playerData: PlayerData | null;
 
@@ -106,6 +107,7 @@ const clearLocalStorage = () => {
 export function GameProvider({ children }: { children: ReactNode }) {
   // États du jeu - initialisation sans localStorage pour éviter les problèmes d'hydratation
   const [isMJ, setIsMJState] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [persoId, setPersoIdState] = useState<string | null>(null);
   const [playerData, setPlayerDataState] = useState<PlayerData | null>(null);
 
@@ -204,6 +206,20 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
       if (userDoc.exists()) {
         const userData = userDoc.data();
+
+        // Check if user is owner of the room
+        if (userData.room_id) {
+          const roomRef = doc(db, 'Salle', userData.room_id);
+          const roomDoc = await getDoc(roomRef);
+          if (roomDoc.exists()) {
+            const roomData = roomDoc.data();
+            setIsOwner(roomData.creatorId === uid);
+          } else {
+            setIsOwner(false);
+          }
+        } else {
+          setIsOwner(false);
+        }
 
         // Logique corrigée : Prioriser le champ 'role' pour déterminer si l'utilisateur est MJ
         if (userData.role === 'MJ') {
@@ -394,6 +410,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     <GameContext.Provider value={{
       // États du jeu
       isMJ,
+      isOwner,
       persoId,
       playerData,
 
@@ -413,8 +430,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       refreshUserData,
 
       // GM Simulated View
-      viewAsPersoId, // [NEW]
-      setViewAsPersoId // [NEW]
+      viewAsPersoId,
+      setViewAsPersoId
     }}>
       {children}
     </GameContext.Provider>
