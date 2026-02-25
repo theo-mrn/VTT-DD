@@ -102,6 +102,11 @@ const config: Config = {
 					'100%': {
 						'offset-distance': '100%'
 					}
+				},
+				'shine': {
+					'0%': { 'background-position': '0% 0%' },
+					'50%': { 'background-position': '100% 100%' },
+					'100%': { 'background-position': '0% 0%' }
 				}
 			},
 			animation: {
@@ -109,7 +114,8 @@ const config: Config = {
 				'accordion-up': 'accordion-up 0.2s ease-out',
 				'slideInFromLeft': 'slideInFromLeft 0.3s ease-out',
 				'slideInFromRight': 'slideInFromRight 0.3s ease-out',
-				'border-beam': 'border-beam var(--duration) infinite linear'
+				'border-beam': 'border-beam var(--duration) infinite linear',
+				'shine': 'shine var(--duration) infinite linear'
 			}
 		}
 	},

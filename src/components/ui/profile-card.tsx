@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react"
 import { Users, Sword, Scroll, Shield, MessageSquare, UserPlus, UserCheck } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { BorderBeam } from "@/components/ui/border-beam"
+import { ShineBorder } from "@/components/ui/shine-border"
 
 interface ProfileCardProps {
   name?: string
@@ -16,7 +17,7 @@ interface ProfileCardProps {
   timeSpent?: number // in minutes
   achievements?: number
   isInitialFriend?: boolean
-  borderType?: "none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double"
+  borderType?: "none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double" | "magic_shine" | "magic_shine_aurora" | "magic_shine_solar" | "magic_shine_twilight"
   onAction?: (action: string) => void
 }
 
@@ -261,7 +262,7 @@ export function ProfileCard({
             </div>
 
             {/* BorderBeam on top of everything, following the base card radius */}
-            {borderType !== "none" && borderType !== "magic_double" && (
+            {borderType !== "none" && borderType !== "magic_double" && !borderType?.startsWith("magic_shine") && (
               <div className="absolute inset-0 z-30 rounded-[1.8rem] pointer-events-none overflow-hidden">
                 <BorderBeam
                   duration={borderType?.startsWith("magic") ? 6 : 12}
@@ -305,6 +306,21 @@ export function ProfileCard({
                   colorTo="#ec4899" // Pink
                   borderWidth={2}
                   className="z-50"
+                />
+              </div>
+            )}
+
+            {borderType?.startsWith("magic_shine") && (
+              <div className="absolute inset-0 z-30 rounded-[1.8rem] pointer-events-none overflow-hidden">
+                <ShineBorder
+                  className="z-50 pointer-events-none"
+                  borderWidth={2}
+                  shineColor={
+                    borderType === "magic_shine_aurora" ? ["#10b981", "#3b82f6", "#8b5cf6"] :
+                      borderType === "magic_shine_solar" ? ["#fef08a", "#f97316", "#ef4444"] :
+                        borderType === "magic_shine_twilight" ? ["#1e3a8a", "#7e22ce", "#db2777"] :
+                          ["#A07CFE", "#FE8FB5", "#FFBE7B"]
+                  }
                 />
               </div>
             )}
