@@ -1,20 +1,14 @@
 import { NextResponse, NextRequest } from "next/server";
 import Stripe from "stripe";
 import { db, doc, updateDoc, getDocs, query, collection, where } from "@/lib/firebase";
+import { Resend } from 'resend';
+import { PremiumActivatedEmail } from '@/components/emails/premium-activated-email';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2025-01-27.acacia" as any,
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
-
-// IMPORTANT : désactiver le body parser de Next.js pour les webhooks Stripe
-// afin de recevoir le body brut (nécessaire pour la vérification de signature)
-export const config = {
-    api: {
-        bodyParser: false,
-    },
-};
 
 export async function POST(req: NextRequest) {
     const body = await req.text();
@@ -44,6 +38,24 @@ export async function POST(req: NextRequest) {
                         premiumSince: new Date().toISOString(),
                     });
                     console.log(`✅ User ${userId} premium activated`);
+
+                    // Envoi de l'email de bienvenue
+                    if (session.customer_details?.email) {
+                        try {
+                            const resend = new Resend(process.env.RESEND_API_KEY!);
+                            await resend.emails.send({
+                                from: 'contact@yner.fr',
+                                to: [session.customer_details.email],
+                                subject: "👑 Bienvenue dans le cercle Premium de VTT-DD !",
+                                react: PremiumActivatedEmail({
+                                    username: session.customer_details.name || "Aventurier",
+                                }),
+                            });
+                            console.log(`📧 Email Premium envoyé avec succès à ${session.customer_details.email}`);
+                        } catch (emailError) {
+                            console.error("Erreur lors de l'envoi de l'email Premium:", emailError);
+                        }
+                    }
                 } catch (error) {
                     console.error("Error updating user premium status:", error);
                 }

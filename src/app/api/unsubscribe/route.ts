@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { db, doc, updateDoc, collection, query, where, getDocs } from "@/lib/firebase";
+import { Resend } from 'resend';
+import { PremiumCancelledEmail } from '@/components/emails/premium-cancelled-email';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: "2025-01-27.acacia" as any,
@@ -42,9 +44,42 @@ export async function POST(req: Request) {
         }
 
         if (canceled && userId) {
-            // L'update Firebase sera gérée côté client pour éviter le PERMISSION_DENIED
-            // avec le SDK client non authentifié côté serveur, ou via le Webhook Stripe
             console.log(`Abonnement annulé côté Stripe pour l'utilisateur ${userId}, fin effective: ${cancelAt}`);
+
+            // Récupération de l'email pour lui envoyer une notification
+            try {
+                let customerEmail: string | undefined;
+                let customerName: string | undefined;
+
+                if (stripeCustomerId) {
+                    const customer = await stripe.customers.retrieve(stripeCustomerId);
+                    if (!customer.deleted && customer.email) {
+                        customerEmail = customer.email;
+                        customerName = customer.name || undefined;
+                    }
+                }
+
+                if (customerEmail) {
+                    const resend = new Resend(process.env.RESEND_API_KEY!);
+
+                    const cancelDateFormatted = cancelAt ? new Date(cancelAt * 1000).toLocaleDateString("fr-FR", {
+                        day: "numeric", month: "long", year: "numeric",
+                    }) : undefined;
+
+                    await resend.emails.send({
+                        from: 'contact@yner.fr',
+                        to: [customerEmail],
+                        subject: "📉 VTT-DD - Résiliation de votre abonnement Premium",
+                        react: PremiumCancelledEmail({
+                            username: customerName,
+                            cancelAtDate: cancelDateFormatted,
+                        }),
+                    });
+                    console.log(`📧 Email d'annulation envoyé à ${customerEmail}`);
+                }
+            } catch (emailError) {
+                console.error("Erreur lors de l'envoi de l'email d'annulation:", emailError);
+            }
         }
 
         return NextResponse.json({ success: true, message: "Abonnement résilié avec succès", cancelAt });
