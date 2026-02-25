@@ -28,6 +28,7 @@ interface Room {
   creatorId?: string;
   allowCharacterCreation?: boolean;
   bannedUsers?: string[];
+  occupantsCount?: number;
 }
 
 // Composant pour la confirmation de suppression de salle
@@ -70,7 +71,10 @@ const fetchRoomByCode = async (code: string): Promise<Room | null> => {
   if (!code || code.trim() === '') return null
   const roomDoc = await getDoc(doc(db, 'Salle', code))
   if (roomDoc.exists()) {
-    return { id: roomDoc.id, ...roomDoc.data() } as Room
+    const data = roomDoc.data()
+    const nomsSnapshot = await getDocs(collection(db, `salles/${code}/Noms`))
+    const playersOnly = nomsSnapshot.docs.filter(doc => doc.data().nom !== 'MJ').length
+    return { id: roomDoc.id, ...data, occupantsCount: playersOnly } as Room
   }
   return null
 }
@@ -78,9 +82,19 @@ const fetchRoomByCode = async (code: string): Promise<Room | null> => {
 // Composant pour afficher les informations de la salle et les actions disponibles
 function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => void; onEdit: () => void }) {
   const [creatorInfo, setCreatorInfo] = useState<{ name: string; pp: string } | null>(null)
+  const [alreadyInRoom, setAlreadyInRoom] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
+    const checkRole = async () => {
+      const user = auth.currentUser
+      if (user) {
+        const userRoomListRef = doc(db, `users/${user.uid}/rooms`, room.id)
+        const userRoomDoc = await getDoc(userRoomListRef)
+        setAlreadyInRoom(userRoomDoc.exists())
+      }
+    }
+
     const getCreatorInfo = async () => {
       if (room.creatorId) {
         const info = await fetchCreatorInfo(room.creatorId)
@@ -89,8 +103,9 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
         }
       }
     }
+    checkRole()
     getCreatorInfo()
-  }, [room.creatorId])
+  }, [room.id, room.creatorId])
 
   const handleDeleteRoom = async () => {
     try {
@@ -109,14 +124,33 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
     }
 
     try {
-      // Check if user is banned
+      // Check if user is banned and room capacity
       const roomRef = doc(db, 'Salle', room.id)
       const roomDoc = await getDoc(roomRef)
+
       if (roomDoc.exists()) {
         const roomData = roomDoc.data() as Room
+
+        // 1. Check if user is banned
         if (roomData.bannedUsers?.includes(user.uid)) {
           toast.error("Vous avez été banni de cette salle.")
           return
+        }
+
+        // 2. Check capacity IF user is NOT the owner and NOT already in the room
+        const isOwner = roomData.creatorId === user.uid
+        const userRoomListRef = doc(db, `users/${user.uid}/rooms`, room.id)
+        const userRoomDoc = await getDoc(userRoomListRef)
+        const alreadyInRoom = userRoomDoc.exists()
+
+        if (!isOwner && !alreadyInRoom) {
+          const nomsSnapshot = await getDocs(collection(db, `salles/${room.id}/Noms`))
+          const playersOnly = nomsSnapshot.docs.filter(doc => doc.data().nom !== 'MJ').length
+
+          if (playersOnly >= roomData.maxPlayers) {
+            toast.error("Désolé, cette salle a atteint sa limite de joueurs.")
+            return
+          }
         }
       }
 
@@ -187,10 +221,12 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Joueurs max</span>
+                  <span className="text-muted-foreground">Joueurs</span>
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-primary" />
-                    <span className="font-medium">{room.maxPlayers}</span>
+                    <span className={cn("font-medium", (room.occupantsCount || 0) >= room.maxPlayers ? "text-destructive" : "text-foreground")}>
+                      {room.occupantsCount || 0} / {room.maxPlayers}
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
@@ -210,10 +246,23 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
                 <CardTitle>Actions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button onClick={handleJoin} className="w-full gap-2" size="lg">
-                  <Play className="h-4 w-4" />
-                  Rejoindre la partie
-                </Button>
+                {(() => {
+                  const isFull = (room.occupantsCount || 0) >= room.maxPlayers
+                  const canJoin = alreadyInRoom || room.creatorId === auth.currentUser?.uid || !isFull
+
+                  return (
+                    <Button
+                      onClick={handleJoin}
+                      className="w-full gap-2"
+                      size="lg"
+                      disabled={!canJoin}
+                      variant={!canJoin ? "secondary" : "default"}
+                    >
+                      <Play className="h-4 w-4" />
+                      {!canJoin ? "Salle Pleine" : "Rejoindre la partie"}
+                    </Button>
+                  )
+                })()}
                 {room.creatorId === auth.currentUser?.uid && (
                   <div className="space-y-2">
                     <Button variant="outline" onClick={onEdit} className="w-full gap-2">
@@ -294,9 +343,16 @@ export default function Component() {
     const fetchPublicRooms = async () => {
       const roomCollection = collection(db, 'Salle')
       const roomSnapshot = await getDocs(roomCollection)
-      const publicRoomList = roomSnapshot.docs
-        .filter((doc) => doc.data().isPublic)
-        .map((doc) => ({ id: doc.id, ...doc.data() } as Room))
+      const publicRoomList: Room[] = []
+
+      for (const roomDoc of roomSnapshot.docs) {
+        const data = roomDoc.data()
+        if (data.isPublic) {
+          const nomsSnapshot = await getDocs(collection(db, `salles/${roomDoc.id}/Noms`))
+          const playersOnly = nomsSnapshot.docs.filter(doc => doc.data().nom !== 'MJ').length
+          publicRoomList.push({ id: roomDoc.id, ...data, occupantsCount: playersOnly } as Room)
+        }
+      }
       setPublicRooms(publicRoomList)
     }
 
@@ -316,7 +372,10 @@ export default function Component() {
       for (const roomId of userRoomIds) {
         const roomDoc = await getDoc(doc(db, 'Salle', roomId))
         if (roomDoc.exists()) {
-          userRoomData.push({ id: roomId, ...roomDoc.data() } as Room)
+          const data = roomDoc.data()
+          const nomsSnapshot = await getDocs(collection(db, `salles/${roomId}/Noms`))
+          const playersOnly = nomsSnapshot.docs.filter(doc => doc.data().nom !== 'MJ').length
+          userRoomData.push({ id: roomId, ...data, occupantsCount: playersOnly } as Room)
         }
       }
       setUserRooms(userRoomData)
@@ -565,7 +624,13 @@ export default function Component() {
                           <div className="relative flex items-center justify-between p-3 bg-card border border-border rounded-lg hover:shadow-md transition-all duration-200">
                             <div className="flex items-center gap-3">
                               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                              <span className="font-medium">{room.title}</span>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{room.title}</span>
+                                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                  <Users className="h-2 w-2" />
+                                  {room.occupantsCount || 0}/{room.maxPlayers}
+                                </span>
+                              </div>
                             </div>
                             <Button
                               onClick={() => handleJoinRoom(room.id)}
@@ -716,7 +781,7 @@ export default function Component() {
                                   <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
                                     <span className="flex items-center gap-1">
                                       <Users className="h-3 w-3" />
-                                      {room.maxPlayers} joueurs
+                                      {room.occupantsCount || 0}/{room.maxPlayers} joueurs
                                     </span>
                                     <span className={cn("px-2 py-0.5 rounded-full text-xs",
                                       room.isPublic ? "bg-green-500/10 text-green-500" : "bg-orange-500/10 text-orange-500"

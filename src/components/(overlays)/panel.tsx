@@ -17,6 +17,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogOverlay } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Settings2 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { ThemeName } from "@/lib/saveSettings";
 import { cn } from "@/lib/utils";
@@ -27,6 +29,7 @@ import Images from "@/components/(infos)/images";
 import Wiki from "@/components/(infos)/wiki";
 import Boutique from "@/components/(infos)/boutique";
 import { RoomUsersManager } from "@/app/Salle/components/RoomUsersManager";
+import { RoomSettingsManager } from "@/app/Salle/components/RoomSettingsManager";
 
 type SidebarProps = {
   onClose: () => void;
@@ -44,7 +47,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const [showProfileOverlay, setShowProfileOverlay] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [openDialog, setOpenDialog] = useState<string | null>(null);
-  const { isMJ } = useGame();
+  const { isMJ, isOwner } = useGame();
 
   // Theme state for custom switcher in sidebar
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -408,7 +411,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
       <GlobalSettingsDialog
         isOpen={showSettings}
         onOpenChange={setShowSettings}
-        isMJ={isMJ}
+        isMJ={isOwner}
       />
 
       {/* Info Full Screen Overlays */}
@@ -462,13 +465,42 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <DialogHeader className="px-6 py-4 border-b border-[var(--border-color)] bg-[var(--bg-dark)]/50">
             <DialogTitle className="text-xl font-serif text-[var(--accent-brown)] flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Joueurs de la salle
+              Gestion de la salle
             </DialogTitle>
-            <DialogDescription className="hidden">Gérer les joueurs présents dans la partie</DialogDescription>
+            <DialogDescription className="hidden">Gérer les joueurs et les paramètres de la salle</DialogDescription>
           </DialogHeader>
-          <div className="p-0 max-h-[70vh] overflow-y-auto">
+          <div className="p-0 max-h-[80vh] overflow-y-auto">
             {roomId ? (
-              <RoomUsersManager roomId={roomId} compact />
+              <Tabs defaultValue="players" className="w-full">
+                {isOwner && (
+                  <TabsList className="w-full justify-start rounded-none border-b border-[var(--border-color)] bg-transparent p-0 h-12">
+                    <TabsTrigger
+                      value="players"
+                      className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-[var(--accent-brown)] data-[state=active]:bg-white/5 opacity-70 data-[state=active]:opacity-100 transition-all h-full"
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      Joueurs
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="settings"
+                      className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-[var(--accent-brown)] data-[state=active]:bg-white/5 opacity-70 data-[state=active]:opacity-100 transition-all h-full"
+                    >
+                      <Settings2 className="h-4 w-4 mr-2" />
+                      Paramètres
+                    </TabsTrigger>
+                  </TabsList>
+                )}
+
+                <TabsContent value="players" className="m-0 focus-visible:outline-none">
+                  <RoomUsersManager roomId={roomId} compact />
+                </TabsContent>
+
+                {isOwner && (
+                  <TabsContent value="settings" className="m-0 focus-visible:outline-none">
+                    <RoomSettingsManager roomId={roomId} />
+                  </TabsContent>
+                )}
+              </Tabs>
             ) : (
               <p className="text-muted-foreground italic p-6 text-center">Aucune salle en cours...</p>
             )}
