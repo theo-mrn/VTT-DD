@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Check, User, LogOut, X, Clipboard, Share2, SquareUserRound, Settings, Palette, BookOpen, ImageIcon, Store, Zap, ShoppingCart } from "lucide-react";
+import { Check, User, Users, LogOut, X, Clipboard, Share2, SquareUserRound, Settings, Palette, BookOpen, ImageIcon, Store, Zap, ShoppingCart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { auth, db, doc, onAuthStateChanged, updateDoc, signOut, onSnapshot } from "@/lib/firebase";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogOverlay } from "@/components/ui/dialog";
 import { useTheme } from "next-themes";
 import { ThemeName } from "@/lib/saveSettings";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ import Capacites from "@/components/(infos)/capacites";
 import Images from "@/components/(infos)/images";
 import Wiki from "@/components/(infos)/wiki";
 import Boutique from "@/components/(infos)/boutique";
+import { RoomUsersManager } from "@/app/Salle/components/RoomUsersManager";
 
 type SidebarProps = {
   onClose: () => void;
@@ -256,6 +258,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Boutique</span>
         </button>
 
+        <button
+          className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+          onClick={() => setOpenDialog("joueurs")}
+        >
+          <Users className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Joueurs</span>
+        </button>
+
         <div className="my-2 border-t border-white/10 mx-2" />
 
         <DropdownMenu>
@@ -446,6 +456,25 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <Boutique />
         </div>
       )}
+
+      <Dialog open={openDialog === 'joueurs'} onOpenChange={(open) => !open && setOpenDialog(null)}>
+        <DialogContent className="sm:max-w-md bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] shadow-2xl p-0 overflow-hidden">
+          <DialogHeader className="px-6 py-4 border-b border-[var(--border-color)] bg-[var(--bg-dark)]/50">
+            <DialogTitle className="text-xl font-serif text-[var(--accent-brown)] flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Joueurs de la salle
+            </DialogTitle>
+            <DialogDescription className="hidden">Gérer les joueurs présents dans la partie</DialogDescription>
+          </DialogHeader>
+          <div className="p-0 max-h-[70vh] overflow-y-auto">
+            {roomId ? (
+              <RoomUsersManager roomId={roomId} compact />
+            ) : (
+              <p className="text-muted-foreground italic p-6 text-center">Aucune salle en cours...</p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

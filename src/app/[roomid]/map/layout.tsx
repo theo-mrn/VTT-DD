@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, useState, useEffect, useRef, useLayoutEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useGame } from "@/contexts/GameContext";
 import Sidebar from "@/components/(overlays)/Sidebar";
 import GMDashboard from "@/components/(combat)/MJcombat";
@@ -14,9 +14,10 @@ import { DiceThrower } from "@/components/(dices)/throw";
 import { NPCManager } from '@/components/(personnages)/personnages'
 import Chat from "@/components/(chat)/Chat";
 import EncounterGenerator from "@/components/(encounter)/EncounterGenerator";
-import { auth, onAuthStateChanged } from "@/lib/firebase";
+import { auth, onAuthStateChanged, db, doc, onSnapshot } from "@/lib/firebase";
 import { X } from "lucide-react";
 import { FloatingAiAssistant } from "@/components/ui/glowing-ai-chat-assistant";
+import { toast } from "sonner";
 
 
 
@@ -39,6 +40,7 @@ type LayoutProps = {
 export default function Layout({ children }: LayoutProps) {
   const params = useParams();
   const roomId = params.roomid as string;
+  const router = useRouter();
   const { isMJ } = useGame();
   const [activeTab, setActiveTab] = useState<string>("");
   const [isPanelOpen, setIsPanelOpen] = useState(false);
@@ -48,7 +50,28 @@ export default function Layout({ children }: LayoutProps) {
 
 
   useEffect(() => {
-    const unsubscribeAuth = onAuthStateChanged(auth, async () => { });
+    let unsubscribeSnapshot: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
+      if (unsubscribeSnapshot) {
+        unsubscribeSnapshot();
+        unsubscribeSnapshot = null;
+      }
+
+      if (user) {
+        const userRef = doc(db, 'users', user.uid);
+        unsubscribeSnapshot = onSnapshot(userRef, (docSnap) => {
+          if (docSnap.exists()) {
+            const userData = docSnap.data();
+            // If the user's room_id no longer matches the current room, they've been kicked/left
+            if (userData.room_id !== roomId && userData.room_id !== undefined) {
+              toast.error("Vous avez été expulsé de la salle.");
+              router.push("/Salle");
+            }
+          }
+        });
+      }
+    });
 
     // Auto-start tour logic
     const tourStatus = localStorage.getItem('vtt-tour-completed');
@@ -60,12 +83,16 @@ export default function Layout({ children }: LayoutProps) {
       }, 1500);
       return () => {
         clearTimeout(timer);
+        if (unsubscribeSnapshot) unsubscribeSnapshot();
         unsubscribeAuth();
       };
     }
 
-    return () => unsubscribeAuth();
-  }, [isMJ]);
+    return () => {
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
+      unsubscribeAuth();
+    };
+  }, [isMJ, roomId, router]);
 
 
 
