@@ -3,12 +3,14 @@
 import * as React from 'react'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Crown, Loader2, LogIn } from 'lucide-react'
+import { Plus, Crown, Loader2, LogIn, CircleCheck, User } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { db, getDocs, collection, doc, setDoc, getDoc, onSnapshot } from '@/lib/firebase'
 import { useGame } from '@/contexts/GameContext'
 import { cn } from '@/lib/utils'
 import { AppBackground } from '@/components/ui/background-components'
+import { ProfileCard } from '@/components/ui/profile-card'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 
 interface Character {
   id: string;
@@ -36,11 +38,22 @@ export default function CharacterSelection() {
   } = useGame();
 
   const [characters, setCharacters] = useState<Character[]>([])
-  const [takenCharacterNames, setTakenCharacterNames] = useState<string[]>([])
+  const [takenCharacters, setTakenCharacters] = useState<Record<string, { name: string, uid: string, pp?: string, titre?: string, imageURL?: string, bio?: string, timeSpent?: number, borderType?: "none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double" }>>({})
   const [charactersLoading, setCharactersLoading] = useState(true)
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null)
   const [roomData, setRoomData] = useState<RoomData | null>(null)
   const [mjLoading, setMjLoading] = useState(false)
+  const [currentUserName, setCurrentUserName] = useState<string>('')
+  const [viewingOccupant, setViewingOccupant] = useState<{
+    name: string;
+    uid: string;
+    pp?: string;
+    titre?: string;
+    imageURL?: string;
+    bio?: string;
+    timeSpent?: number;
+    borderType?: "none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double";
+  } | null>(null)
 
 
 
@@ -48,6 +61,13 @@ export default function CharacterSelection() {
     if (user?.uid && user?.roomId && user.roomId !== '0') {
       const roomId = user.roomId;
       setCharactersLoading(true);
+
+      // Fetch current user name
+      getDoc(doc(db, 'users', user.uid)).then(snap => {
+        if (snap.exists()) {
+          setCurrentUserName(snap.data().name || '');
+        }
+      });
 
       // Listener for characters
       const charactersCollection = collection(db, `cartes/${roomId}/characters`);
@@ -80,13 +100,36 @@ export default function CharacterSelection() {
       }
       fetchRoom();
 
-      // Listener for taken character names in this room
+      // Listener for taken characters in this room
       const roomNomsCollection = collection(db, `salles/${roomId}/Noms`);
-      const unsubscribeNoms = onSnapshot(roomNomsCollection, (snapshot) => {
-        const taken = snapshot.docs
-          .map(doc => doc.data().nom)
-          .filter(name => name && name !== 'MJ');
-        setTakenCharacterNames(taken);
+      const unsubscribeNoms = onSnapshot(roomNomsCollection, async (snapshot) => {
+        const takenMap: Record<string, { name: string, uid: string, pp?: string, titre?: string, imageURL?: string, bio?: string, timeSpent?: number, borderType?: "none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double" }> = {};
+
+        const fetchTasks = snapshot.docs.map(async (d) => {
+          const data = d.data();
+          if (data.nom && data.nom !== 'MJ') {
+            try {
+              const userDoc = await getDoc(doc(db, 'users', d.id));
+              const userData = userDoc.exists() ? userDoc.data() : null;
+
+              takenMap[data.nom] = {
+                name: userData?.name || data.userName || "Joueur",
+                uid: d.id,
+                pp: userData?.pp || "",
+                titre: userData?.titre || "",
+                imageURL: userData?.imageURL || "",
+                bio: userData?.bio || "",
+                timeSpent: userData?.timeSpent || 0,
+                borderType: userData?.borderType || "none"
+              };
+            } catch (e) {
+              takenMap[data.nom] = { name: data.userName || "Joueur", uid: d.id };
+            }
+          }
+        });
+
+        await Promise.all(fetchTasks);
+        setTakenCharacters({ ...takenMap });
       });
 
       return () => {
@@ -116,7 +159,10 @@ export default function CharacterSelection() {
 
       if (user.roomId) {
         const roomRef = doc(db, `salles/${user.roomId}/Noms/${user.uid}`)
-        await setDoc(roomRef, { nom: character.Nomperso }, { merge: true })
+        await setDoc(roomRef, {
+          nom: character.Nomperso,
+          userName: currentUserName || "Joueur"
+        }, { merge: true })
       }
 
       router.push(`/${user.roomId}/map`);
@@ -213,16 +259,44 @@ export default function CharacterSelection() {
           >
             {/* Existing character profiles */}
             {characters.map((character, i) => {
-              const isTaken = takenCharacterNames.includes(character.Nomperso);
+              const occupant = takenCharacters[character.Nomperso];
+              const isTakenByOther = occupant && occupant.uid !== user?.uid;
+              const isTakenByMe = occupant && occupant.uid === user?.uid;
+
               return (
-                <ProfileCard
-                  key={character.id}
-                  character={character}
-                  isSelected={selectedCharId === character.id}
-                  isTaken={isTaken}
-                  index={i}
-                  onClick={() => !selectedCharId && !isTaken && saveSelectedCharacter(character)}
-                />
+                <div key={character.id} className="flex flex-col items-center gap-6">
+                  <CharacterCard
+                    character={character}
+                    isSelected={selectedCharId === character.id}
+                    isActive={isTakenByMe}
+                    isTaken={isTakenByOther}
+                    occupantName={occupant?.name}
+                    index={i}
+                    onClick={() => !selectedCharId && !isTakenByOther && saveSelectedCharacter(character)}
+                  />
+
+                  {isTakenByOther && occupant && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4 }}
+                    >
+                      <button
+                        onClick={() => setViewingOccupant(occupant)}
+                        className={cn(
+                          "group flex items-center gap-2 px-4 py-2 rounded-full",
+                          "bg-[#c0a080]/10 border border-[#c0a080]/20 hover:border-[#c0a080]/50",
+                          "transition-all duration-300 backdrop-blur-sm"
+                        )}
+                      >
+                        <User className="w-4 h-4 text-[#c0a080]" />
+                        <span className="text-xs font-semibold text-[#e8d5b7] tracking-wide">
+                          Voir le profil
+                        </span>
+                      </button>
+                    </motion.div>
+                  )}
+                </div>
               );
             })}
 
@@ -290,22 +364,44 @@ export default function CharacterSelection() {
 
           </motion.div>
         )}
+
+        {/* Profile Dialog */}
+        <Dialog open={!!viewingOccupant} onOpenChange={(open) => !open && setViewingOccupant(null)}>
+          <DialogContent unstyled className="sm:max-w-md p-0 bg-transparent border-none">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Profil de {viewingOccupant?.name}</DialogTitle>
+              <DialogDescription>Détails du profil du joueur</DialogDescription>
+            </DialogHeader>
+            {viewingOccupant && (
+              <ProfileCard
+                name={viewingOccupant.name}
+                avatarUrl={viewingOccupant.pp}
+                backgroundUrl={viewingOccupant.imageURL}
+                bio={viewingOccupant.bio}
+                timeSpent={viewingOccupant.timeSpent}
+                borderType={viewingOccupant.borderType}
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </AppBackground>
   )
 }
 
-// ── Profile Card Sub-component ─────────────────────────────────────────────
+// ── Character Card Sub-component ─────────────────────────────────────────────
 
-interface ProfileCardProps {
+interface CharacterCardProps {
   character: Character;
-  isSelected: boolean;
+  isSelected: boolean; // Loading state
+  isActive?: boolean;   // Already my character
   isTaken?: boolean;
+  occupantName?: string;
   index: number;
   onClick: () => void;
 }
 
-function ProfileCard({ character, isSelected, isTaken, index, onClick }: ProfileCardProps) {
+function CharacterCard({ character, isSelected, isActive, isTaken, occupantName, index, onClick }: CharacterCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -364,14 +460,30 @@ function ProfileCard({ character, isSelected, isTaken, index, onClick }: Profile
               <Loader2 className="w-8 h-8 text-[#c0a080] animate-spin" />
             </motion.div>
           )}
+          {isActive && !isSelected && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="absolute inset-0 rounded-full border-4 border-[#c0a080] bg-[#c0a080]/10 flex flex-col items-center justify-center z-10 p-2 text-center"
+            >
+              <CircleCheck className="w-8 h-8 text-[#c0a080] mb-1" />
+              <span className="text-[10px] text-[#e8d5b7] font-bold uppercase leading-tight tracking-wider">
+                Votre héros
+              </span>
+            </motion.div>
+          )}
           {isTaken && !isSelected && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="absolute inset-0 rounded-full bg-black/40 flex flex-col items-center justify-center z-10"
+              className="absolute inset-0 rounded-full bg-black/60 flex flex-col items-center justify-center z-10 p-2 text-center"
             >
-              <LogIn className="w-8 h-8 text-zinc-400 opacity-50" />
-              <span className="text-[10px] text-zinc-400 font-bold uppercase mt-1">Occupé</span>
+              <LogIn className="w-6 h-6 text-zinc-400 opacity-50 mb-1" />
+              <span className="text-[9px] text-zinc-300 font-bold uppercase leading-tight">
+                Occupé par
+                <br />
+                <span className="text-zinc-100">{occupantName || "un joueur"}</span>
+              </span>
             </motion.div>
           )}
         </AnimatePresence>

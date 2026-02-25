@@ -9,7 +9,16 @@ import { X as XIcon, Camera, Loader2, Upload, Lock, User } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { fetchTitles, initializeUserTitles, seedTitles, Title, INITIAL_TITLES, generateSlug } from "@/lib/titles";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { Eye } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import { ProfileCard } from "@/components/ui/profile-card";
 
 interface ProfileTabProps {
     uid: string;
@@ -24,6 +33,8 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
     const [ppFile, setPpFile] = useState<File | null>(null);
     const [bannerFile, setBannerFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
+    const [borderType, setBorderType] = useState<"none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double">(userData.borderType || "none");
+    const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
     const [allTitles, setAllTitles] = useState<Title[]>([]);
     const [userTitlesStatus, setUserTitlesStatus] = useState<Record<string, "locked" | "unlocked">>({});
@@ -126,6 +137,7 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                 titre: titre || userData.titre,
                 pp: newPp,
                 imageURL: newBanner,
+                borderType: borderType,
             }, { merge: true });
 
             toast.success("Profil mis à jour !");
@@ -141,11 +153,22 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
 
     return (
         <div className="space-y-6 max-w-2xl mx-auto">
-            <div className="flex items-center gap-2 mb-2">
-                <User className="w-5 h-5 text-[var(--text-secondary)]" />
-                <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
-                    Modifier votre profil
-                </h3>
+            <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                    <User className="w-5 h-5 text-[var(--text-secondary)]" />
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                        Modifier votre profil
+                    </h3>
+                </div>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setIsPreviewOpen(true)}
+                    className="text-xs flex items-center gap-2 text-[var(--accent-brown)] hover:text-[var(--accent-brown-dark)] hover:bg-[var(--accent-brown)]/10"
+                >
+                    <Eye className="w-4 h-4" />
+                    Aperçu du profil
+                </Button>
             </div>
 
             <motion.div
@@ -234,10 +257,10 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                                             type="button"
                                             onClick={() => isUnlocked && setTitre(t.label)}
                                             className={`p-2 rounded-xl text-xs font-medium text-left transition-all border flex flex-col gap-1 ${isSelected
-                                                    ? "bg-[var(--accent-brown)] text-white border-transparent"
-                                                    : isUnlocked
-                                                        ? "bg-[var(--bg-card)] text-[var(--text-primary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]"
-                                                        : "bg-[var(--bg-card)] text-[var(--text-secondary)] border-transparent opacity-60 cursor-not-allowed"
+                                                ? "bg-[var(--accent-brown)] text-white border-transparent"
+                                                : isUnlocked
+                                                    ? "bg-[var(--bg-card)] text-[var(--text-primary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]"
+                                                    : "bg-[var(--bg-card)] text-[var(--text-secondary)] border-transparent opacity-60 cursor-not-allowed"
                                                 }`}
                                         >
                                             <div className="flex items-center justify-between gap-1">
@@ -255,6 +278,35 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                             </div>
                         )}
                     </div>
+
+                    <div className="space-y-3">
+                        <Label className="text-[var(--text-primary)] font-semibold">Style de bordure (Magic Beam)</Label>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3">
+                            {[
+                                { id: 'none', label: 'Sans', color: 'transparent' },
+                                { id: 'blue', label: 'Bleu', color: '#3b82f6' },
+                                { id: 'orange', label: 'Bronze', color: '#c0a080' },
+                                { id: 'magic', label: 'Magie d\'Or', color: 'linear-gradient(to right, #ffaa40, #9c40ff)' },
+                                { id: 'magic_purple', label: 'Nébuleuse', color: 'linear-gradient(to right, #9333ea, #ec4899)' },
+                                { id: 'magic_green', label: 'Forêt', color: 'linear-gradient(to right, #10b981, #a3e635)' },
+                                { id: 'magic_red', label: 'Enfer', color: 'linear-gradient(to right, #ef4444, #f97316)' },
+                                { id: 'magic_double', label: 'Cosmique', color: 'linear-gradient(to right, #06b6d4, #a855f7)' },
+                            ].map((option) => (
+                                <button
+                                    key={option.id}
+                                    type="button"
+                                    onClick={() => setBorderType(option.id as any)}
+                                    className={`p-3 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center gap-2 ${borderType === option.id
+                                        ? "bg-[var(--accent-brown)] text-white border-transparent shadow-md"
+                                        : "bg-[var(--bg-card)] text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]"
+                                        }`}
+                                >
+                                    <div className="w-full h-1 rounded-full" style={{ background: option.color === 'transparent' ? '#3f3f46' : option.color }} />
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
                 </div>
 
                 <Button
@@ -265,6 +317,24 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Enregistrer les modifications"}
                 </Button>
             </motion.div>
+
+            <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
+                <DialogContent unstyled className="sm:max-w-md p-0 bg-transparent border-none">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Aperçu de votre profil</DialogTitle>
+                        <DialogDescription>Voici comment les autres joueurs verront votre profil</DialogDescription>
+                    </DialogHeader>
+                    <ProfileCard
+                        name={name}
+                        characterName={titre || userData.titre}
+                        avatarUrl={ppPreview}
+                        backgroundUrl={bannerPreview}
+                        borderType={borderType}
+                        timeSpent={userData.timeSpent || 0}
+                        achievements={userData.achievements || 0}
+                    />
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
