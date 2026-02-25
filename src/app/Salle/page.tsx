@@ -14,6 +14,8 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
 import { AlertTitle } from "@/components/ui/alert"
 import { cn } from '@/lib/utils'
+import { RoomUsersManager } from './components/RoomUsersManager'
+import { toast } from 'sonner'
 
 
 interface Room {
@@ -25,6 +27,7 @@ interface Room {
   isPublic: boolean;
   creatorId?: string;
   allowCharacterCreation?: boolean;
+  bannedUsers?: string[];
 }
 
 // Composant pour la confirmation de suppression de salle
@@ -106,6 +109,17 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
     }
 
     try {
+      // Check if user is banned
+      const roomRef = doc(db, 'Salle', room.id)
+      const roomDoc = await getDoc(roomRef)
+      if (roomDoc.exists()) {
+        const roomData = roomDoc.data() as Room
+        if (roomData.bannedUsers?.includes(user.uid)) {
+          toast.error("Vous avez été banni de cette salle.")
+          return
+        }
+      }
+
       const userRoomListRef = doc(db, `users/${user.uid}/rooms`, room.id)
       const userRef = doc(db, 'users', user.uid)
 
@@ -235,6 +249,12 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
                 </CardContent>
               </Card>
             )}
+
+            {/* Gestionnaire de Joueurs */}
+            <RoomUsersManager
+              roomId={room.id}
+              isOwner={room.creatorId === auth.currentUser?.uid}
+            />
           </div>
         </div>
       </div>
