@@ -38,7 +38,7 @@ export default function CharacterSelection() {
   } = useGame();
 
   const [characters, setCharacters] = useState<Character[]>([])
-  const [takenCharacters, setTakenCharacters] = useState<Record<string, { name: string, uid: string, pp?: string, titre?: string, imageURL?: string, bio?: string, timeSpent?: number, borderType?: "none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double" }>>({})
+  const [takenCharacters, setTakenCharacters] = useState<Record<string, { name: string, uid: string, pp?: string, titre?: string, imageURL?: string, bio?: string, timeSpent?: number, borderType?: "none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double" | "magic_shine" | "magic_shine_aurora" | "magic_shine_solar" | "magic_shine_twilight" }>>({})
   const [charactersLoading, setCharactersLoading] = useState(true)
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null)
   const [roomData, setRoomData] = useState<RoomData | null>(null)
@@ -52,7 +52,7 @@ export default function CharacterSelection() {
     imageURL?: string;
     bio?: string;
     timeSpent?: number;
-    borderType?: "none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double";
+    borderType?: "none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double" | "magic_shine" | "magic_shine_aurora" | "magic_shine_solar" | "magic_shine_twilight";
   } | null>(null)
 
 
@@ -103,7 +103,7 @@ export default function CharacterSelection() {
       // Listener for taken characters in this room
       const roomNomsCollection = collection(db, `salles/${roomId}/Noms`);
       const unsubscribeNoms = onSnapshot(roomNomsCollection, async (snapshot) => {
-        const takenMap: Record<string, { name: string, uid: string, pp?: string, titre?: string, imageURL?: string, bio?: string, timeSpent?: number, borderType?: "none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double" }> = {};
+        const takenMap: Record<string, { name: string, uid: string, pp?: string, titre?: string, imageURL?: string, bio?: string, timeSpent?: number, borderType?: "none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double" | "magic_shine" | "magic_shine_aurora" | "magic_shine_solar" | "magic_shine_twilight" }> = {};
 
         const fetchTasks = snapshot.docs.map(async (d) => {
           const data = d.data();

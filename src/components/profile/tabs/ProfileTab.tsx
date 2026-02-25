@@ -33,7 +33,7 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
     const [ppFile, setPpFile] = useState<File | null>(null);
     const [bannerFile, setBannerFile] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
-    const [borderType, setBorderType] = useState<"none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double">(userData.borderType || "none");
+    const [borderType, setBorderType] = useState<"none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double" | "magic_shine" | "magic_shine_aurora" | "magic_shine_solar" | "magic_shine_twilight">(userData.borderType || "none");
     const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
     const [allTitles, setAllTitles] = useState<Title[]>([]);
@@ -281,7 +281,7 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
 
                     <div className="space-y-3">
                         <Label className="text-[var(--text-primary)] font-semibold">Style de bordure (Magic Beam)</Label>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-8 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                             {[
                                 { id: 'none', label: 'Sans', color: 'transparent' },
                                 { id: 'blue', label: 'Bleu', color: '#3b82f6' },
@@ -291,6 +291,10 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                                 { id: 'magic_green', label: 'Forêt', color: 'linear-gradient(to right, #10b981, #a3e635)' },
                                 { id: 'magic_red', label: 'Enfer', color: 'linear-gradient(to right, #ef4444, #f97316)' },
                                 { id: 'magic_double', label: 'Cosmique', color: 'linear-gradient(to right, #06b6d4, #a855f7)' },
+                                { id: 'magic_shine', label: 'Lueur Base', color: 'linear-gradient(to right, #A07CFE, #FE8FB5, #FFBE7B)' },
+                                { id: 'magic_shine_aurora', label: 'Lueur Aurore', color: 'linear-gradient(to right, #10b981, #3b82f6, #8b5cf6)' },
+                                { id: 'magic_shine_solar', label: 'Lueur Solaire', color: 'linear-gradient(to right, #fef08a, #f97316, #ef4444)' },
+                                { id: 'magic_shine_twilight', label: 'Lueur Crépuscule', color: 'linear-gradient(to right, #1e3a8a, #7e22ce, #db2777)' },
                             ].map((option) => (
                                 <button
                                     key={option.id}
