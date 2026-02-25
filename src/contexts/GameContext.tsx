@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { auth, onAuthStateChanged, doc, getDoc, db } from '@/lib/firebase';
+import { auth, onAuthStateChanged, doc, getDoc, db, onSnapshot } from '@/lib/firebase';
 
 export interface PlayerData {
   id: string;
@@ -359,24 +359,43 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Gestion de l'authentification avec restauration automatique
   useEffect(() => {
     let mounted = true;
+    let userDocUnsubscribe: (() => void) | null = null;
 
-    const unsubscribe = onAuthStateChanged(auth, async (authUser) => {
+    const authUnsubscribe = onAuthStateChanged(auth, async (authUser) => {
       if (!mounted) return;
 
+      // Nettoyer l'ancien listener si présent
+      if (userDocUnsubscribe) {
+        userDocUnsubscribe();
+        userDocUnsubscribe = null;
+      }
 
       if (authUser) {
         try {
-          const roomId = await getRoomId(authUser);
-          if (mounted) {
-            setUser({ uid: authUser.uid, roomId });
-            setIsAuthenticated(true);
+          // Créer un listener en temps réel sur le document de l'utilisateur
+          const userRef = doc(db, 'users', authUser.uid);
+          userDocUnsubscribe = onSnapshot(userRef, async (snapshot) => {
+            if (!mounted) return;
 
-            // Restaurer automatiquement les données du joueur depuis Firebase
-            // Cela va mettre à jour localStorage aussi
-            await restorePlayerDataFromFirebase(authUser.uid);
-          }
+            if (snapshot.exists()) {
+              const userData = snapshot.data();
+              const roomId = userData.room_id || null;
+
+              setUser({ uid: authUser.uid, roomId });
+              setIsAuthenticated(true);
+
+              // Restaurer les données (MJ, Owner, etc.) en fonction du roomId actuel
+              await restorePlayerDataFromFirebase(authUser.uid);
+            } else {
+              // Gérer le cas où le document user n'existe pas encore
+              setUser({ uid: authUser.uid, roomId: null });
+              setIsAuthenticated(true);
+            }
+          }, (error) => {
+            console.error("Error listening to user document:", error);
+          });
         } catch (error) {
-          console.error("Error during authentication:", error);
+          console.error("Error during authentication setup:", error);
           if (mounted) {
             setUser(null);
             setIsAuthenticated(false);
@@ -402,9 +421,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     return () => {
       mounted = false;
-      unsubscribe();
+      authUnsubscribe();
+      if (userDocUnsubscribe) userDocUnsubscribe();
     };
-  }, [getRoomId, restorePlayerDataFromFirebase, setIsMJ, setPersoId, setPlayerData]);
+  }, [restorePlayerDataFromFirebase, setIsMJ, setPersoId, setPlayerData]);
 
   return (
     <GameContext.Provider value={{
