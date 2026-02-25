@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Crown, Loader2, LogIn } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { db, getDocs, collection, doc, setDoc, getDoc } from '@/lib/firebase'
+import { db, getDocs, collection, doc, setDoc, getDoc, onSnapshot } from '@/lib/firebase'
 import { useGame } from '@/contexts/GameContext'
 import { cn } from '@/lib/utils'
 import { AppBackground } from '@/components/ui/background-components'
@@ -36,43 +36,41 @@ export default function CharacterSelection() {
   } = useGame();
 
   const [characters, setCharacters] = useState<Character[]>([])
+  const [takenCharacterNames, setTakenCharacterNames] = useState<string[]>([])
   const [charactersLoading, setCharactersLoading] = useState(true)
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null)
   const [roomData, setRoomData] = useState<RoomData | null>(null)
   const [mjLoading, setMjLoading] = useState(false)
 
-  // Load Characters
-  const loadCharacters = useCallback(async (uid: string, roomId: string) => {
-    setCharactersLoading(true)
-    try {
-      const charactersCollection = collection(db, `cartes/${roomId}/characters`)
-      const charactersSnapshot = await getDocs(charactersCollection)
 
-      const charactersData: Character[] = charactersSnapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          Nomperso: doc.data().Nomperso || 'Nom non défini',
-          ...doc.data()
-        } as Character))
-        .filter(character => character.type === "joueurs")
-
-      setCharacters(charactersData)
-    } catch (error) {
-      console.error("Error loading characters:", error)
-      setCharacters([])
-    } finally {
-      setTimeout(() => setCharactersLoading(false), 400)
-    }
-  }, [])
 
   useEffect(() => {
     if (user?.uid && user?.roomId && user.roomId !== '0') {
-      loadCharacters(user.uid, user.roomId)
+      const roomId = user.roomId;
+      setCharactersLoading(true);
 
-      const currentRoomId = user.roomId;
+      // Listener for characters
+      const charactersCollection = collection(db, `cartes/${roomId}/characters`);
+      const unsubscribeChars = onSnapshot(charactersCollection, (snapshot) => {
+        const charactersData: Character[] = snapshot.docs
+          .map(doc => ({
+            id: doc.id,
+            Nomperso: doc.data().Nomperso || 'Nom non défini',
+            ...doc.data()
+          } as Character))
+          .filter(character => character.type === "joueurs");
+
+        setCharacters(charactersData);
+        setCharactersLoading(false);
+      }, (error) => {
+        console.error("Error listening to characters:", error);
+        setCharactersLoading(false);
+      });
+
+      // Fetch room data
       const fetchRoom = async () => {
         try {
-          const roomDoc = await getDoc(doc(db, 'Salle', currentRoomId))
+          const roomDoc = await getDoc(doc(db, 'Salle', roomId))
           if (roomDoc.exists()) {
             setRoomData(roomDoc.data() as RoomData)
           }
@@ -80,12 +78,26 @@ export default function CharacterSelection() {
           console.error(e)
         }
       }
-      fetchRoom()
+      fetchRoom();
+
+      // Listener for taken character names in this room
+      const roomNomsCollection = collection(db, `salles/${roomId}/Noms`);
+      const unsubscribeNoms = onSnapshot(roomNomsCollection, (snapshot) => {
+        const taken = snapshot.docs
+          .map(doc => doc.data().nom)
+          .filter(name => name && name !== 'MJ');
+        setTakenCharacterNames(taken);
+      });
+
+      return () => {
+        unsubscribeChars();
+        unsubscribeNoms();
+      };
     } else if (user && (!user.roomId || user.roomId === '0')) {
-      setCharacters([])
-      setCharactersLoading(false)
+      setCharacters([]);
+      setCharactersLoading(false);
     }
-  }, [user, loadCharacters])
+  }, [user?.uid, user?.roomId]);
 
   // Select character
   const saveSelectedCharacter = useCallback(async (character: Character) => {
@@ -200,15 +212,19 @@ export default function CharacterSelection() {
             className="flex flex-wrap justify-center gap-8 md:gap-10"
           >
             {/* Existing character profiles */}
-            {characters.map((character, i) => (
-              <ProfileCard
-                key={character.id}
-                character={character}
-                isSelected={selectedCharId === character.id}
-                index={i}
-                onClick={() => !selectedCharId && saveSelectedCharacter(character)}
-              />
-            ))}
+            {characters.map((character, i) => {
+              const isTaken = takenCharacterNames.includes(character.Nomperso);
+              return (
+                <ProfileCard
+                  key={character.id}
+                  character={character}
+                  isSelected={selectedCharId === character.id}
+                  isTaken={isTaken}
+                  index={i}
+                  onClick={() => !selectedCharId && !isTaken && saveSelectedCharacter(character)}
+                />
+              );
+            })}
 
             {/* Add character card */}
             {(roomData?.allowCharacterCreation !== false || user?.uid === roomData?.creatorId) && (
@@ -284,27 +300,29 @@ export default function CharacterSelection() {
 interface ProfileCardProps {
   character: Character;
   isSelected: boolean;
+  isTaken?: boolean;
   index: number;
   onClick: () => void;
 }
 
-function ProfileCard({ character, isSelected, index, onClick }: ProfileCardProps) {
+function ProfileCard({ character, isSelected, isTaken, index, onClick }: ProfileCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.06 }}
-      className="flex flex-col items-center gap-3 group"
+      className={cn("flex flex-col items-center gap-3 group", isTaken && "opacity-40 grayscale-[0.8]")}
     >
       <button
         onClick={onClick}
         aria-label={`Jouer en tant que ${character.Nomperso}`}
-        disabled={isSelected}
+        disabled={isSelected || isTaken}
         className={cn(
           "relative h-28 w-28 md:h-36 md:w-36 rounded-full overflow-hidden",
           "transition-all duration-300 ease-out hover:-translate-y-2",
           "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#c0a080] focus-visible:ring-offset-2 focus-visible:ring-offset-black",
-          isSelected && "scale-95 opacity-70"
+          (isSelected || isTaken) && "scale-95",
+          isTaken && "cursor-not-allowed hover:translate-y-0"
         )}
       >
         {/* Avatar background */}
@@ -344,6 +362,16 @@ function ProfileCard({ character, isSelected, index, onClick }: ProfileCardProps
               className="absolute inset-0 rounded-full bg-black/70 backdrop-blur-sm flex items-center justify-center z-20"
             >
               <Loader2 className="w-8 h-8 text-[#c0a080] animate-spin" />
+            </motion.div>
+          )}
+          {isTaken && !isSelected && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute inset-0 rounded-full bg-black/40 flex flex-col items-center justify-center z-10"
+            >
+              <LogIn className="w-8 h-8 text-zinc-400 opacity-50" />
+              <span className="text-[10px] text-zinc-400 font-bold uppercase mt-1">Occupé</span>
             </motion.div>
           )}
         </AnimatePresence>
