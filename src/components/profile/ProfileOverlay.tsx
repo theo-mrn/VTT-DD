@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { db, auth, doc, onSnapshot } from "@/lib/firebase";
-import { X as XIcon, Edit, Loader2, Users, Search as SearchIcon, Inbox, Crown, Bell } from "lucide-react";
+import { X as XIcon, Edit, Loader2, Users, Search as SearchIcon, Inbox, Crown, Bell, Shield, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import EditProfileModal from "@/components/profile/EditProfileModal";
 import { useFriends } from "@/hooks/useFriends";
 import { useUserSearch } from "@/hooks/useUserSearch";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,6 +13,8 @@ import CustomTabs from "@/components/profile/CustomTabs";
 import MergedFriendsTab from "@/components/profile/tabs/MergedFriendsTab";
 import SubscriptionTab from "@/components/profile/tabs/SubscriptionTab";
 import NotificationsTab from "@/components/profile/tabs/NotificationsTab";
+import SecurityTab from "@/components/profile/tabs/SecurityTab";
+import ProfileTab from "@/components/profile/tabs/ProfileTab";
 
 interface UserData {
     name: string;
@@ -35,8 +36,8 @@ export default function ProfileOverlay({ onClose }: ProfileOverlayProps) {
     const [userEmail, setUserEmail] = useState<string | null>(null);
     const [userData, setUserData] = useState<UserData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [showEditModal, setShowEditModal] = useState(false);
     const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const [isGoogleOnly, setIsGoogleOnly] = useState(false);
 
     // Use custom hooks
     const {
@@ -57,6 +58,10 @@ export default function ProfileOverlay({ onClose }: ProfileOverlayProps) {
         if (user) {
             setUid(user.uid);
             setUserEmail(user.email);
+            // Vérifier si l'utilisateur est uniquement Google
+            const isGoogle = user.providerData.some(p => p.providerId === 'google.com') &&
+                !user.providerData.some(p => p.providerId === 'password');
+            setIsGoogleOnly(isGoogle);
         } else {
             setLoading(false);
         }
@@ -179,15 +184,6 @@ export default function ProfileOverlay({ onClose }: ProfileOverlayProps) {
                                     <XIcon className="w-5 h-5" />
                                 </button>
 
-                                <Button
-                                    onClick={() => setShowEditModal(true)}
-                                    size="sm"
-                                    className="absolute top-4 left-4 bg-black/40 hover:bg-black/60 text-white border-none backdrop-blur-sm z-10"
-                                >
-                                    <Edit className="w-4 h-4 mr-2" />
-                                    Modifier
-                                </Button>
-
                                 <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[var(--bg-card)] via-[var(--bg-card)]/80 to-transparent flex items-end gap-5 translate-y-px z-0">
                                     <Avatar className="h-24 w-24 sm:h-28 sm:w-28 border-4 border-[var(--bg-card)] shadow-lg bg-[var(--bg-card)] translate-y-4">
                                         <AvatarImage src={userData.pp} alt={userData.name} className="object-cover" />
@@ -221,8 +217,10 @@ export default function ProfileOverlay({ onClose }: ProfileOverlayProps) {
                                     defaultTab="friends"
                                     tabs={[
                                         { id: "friends", label: "Amis & Demandes", icon: <Users className="w-4 h-4" />, badge: friendRequests.length },
+                                        { id: "profile_edit", label: "Profil", icon: <User className="w-4 h-4" /> },
                                         { id: "subscription", label: "Abonnement", icon: <Crown className="w-4 h-4" /> },
-                                        { id: "notifications", label: "Préférences", icon: <Bell className="w-4 h-4" /> }
+                                        { id: "notifications", label: "Préférences", icon: <Bell className="w-4 h-4" /> },
+                                        ...(!isGoogleOnly ? [{ id: "security", label: "Sécurité", icon: <Shield className="w-4 h-4" /> }] : [])
                                     ]}
                                 >
                                     {(activeTab) => (
@@ -256,6 +254,12 @@ export default function ProfileOverlay({ onClose }: ProfileOverlayProps) {
                                                     userData={userData}
                                                 />
                                             )}
+                                            {activeTab === "security" && (
+                                                <SecurityTab />
+                                            )}
+                                            {activeTab === "profile_edit" && uid && (
+                                                <ProfileTab uid={uid} userData={userData} />
+                                            )}
                                         </div>
                                     )}
                                 </CustomTabs>
@@ -265,20 +269,7 @@ export default function ProfileOverlay({ onClose }: ProfileOverlayProps) {
                 </div>
             </div>
 
-            {showEditModal && uid && userData && (
-                <EditProfileModal
-                    uid={uid}
-                    currentName={userData.name}
-                    currentTitre={userData.titre}
-                    currentPp={userData.pp}
-                    currentImageURL={userData.imageURL}
-                    onClose={() => setShowEditModal(false)}
-                    onSave={(newData) => {
-                        setUserData(newData);
-                        setShowEditModal(false);
-                    }}
-                />
-            )}
+            {/* Modal removed as it's now a tab */}
         </>
     );
 }
