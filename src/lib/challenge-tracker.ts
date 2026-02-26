@@ -173,7 +173,7 @@ async function updateChallengeForEvent(
   await updateDoc(progressRef, updateData);
 
   // Si complété, attribue la récompense et notifie
-  if (isCompleted && currentProgress.status !== "completed") {
+  if (isCompleted) {
     await awardChallengeReward(uid, challenge);
     notifyChallengeLive(challenge);
   }
@@ -360,7 +360,7 @@ async function checkTimeBasedChallenges(uid: string, totalMinutes: number): Prom
     const target = challenge.condition.target;
     const isCompleted = totalMinutes >= target;
 
-    if (isCompleted && progress.status !== "completed") {
+    if (isCompleted) {
       await updateDoc(progressRef, {
         progress: totalMinutes,
         status: "completed",
@@ -468,7 +468,7 @@ async function checkAverageChallenge(uid: string, diceType: number, result: numb
     ...(isCompleted && { completedAt: Timestamp.now() })
   });
 
-  if (isCompleted && progress.status !== "completed") {
+  if (isCompleted) {
     await awardChallengeReward(uid, challenge);
     notifyChallengeLive(challenge);
   }

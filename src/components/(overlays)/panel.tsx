@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Check, User, Users, LogOut, X, Clipboard, Share2, SquareUserRound, Settings, Palette, BookOpen, ImageIcon, Store, Zap, ShoppingCart } from "lucide-react";
+import { Check, User, Users, LogOut, X, Clipboard, Share2, SquareUserRound, Settings, Palette, BookOpen, ImageIcon, Store, Zap, ShoppingCart, Library } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { auth, db, doc, onAuthStateChanged, updateDoc, signOut, onSnapshot } from "@/lib/firebase";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
@@ -32,6 +32,7 @@ import Boutique from "@/components/(infos)/boutique";
 import { RoomUsersManager } from "@/app/Salle/components/RoomUsersManager";
 import { RoomSettingsManager } from "@/app/Salle/components/RoomSettingsManager";
 import { ChallengesButton } from '@/components/(challenges)/challenges-button';
+import FileLibrary from '@/components/(infos)/FileLibrary';
 
 type SidebarProps = {
   onClose: () => void;
@@ -275,6 +276,16 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Images</span>
         </button>
 
+        {isMJ && (
+          <button
+            className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+            onClick={() => setOpenDialog("bibliotheque")}
+          >
+            <Library className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+            <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Bibliothèque</span>
+          </button>
+        )}
+
         <button
           className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
           onClick={() => setOpenDialog("information")}
@@ -495,6 +506,15 @@ export default function Sidebar({ onClose }: SidebarProps) {
             <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
           </button>
           <Boutique />
+        </div>
+      )}
+
+      {openDialog === 'bibliotheque' && (
+        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] overflow-hidden w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
+          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
+            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          </button>
+          <FileLibrary />
         </div>
       )}
 
