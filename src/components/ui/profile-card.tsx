@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { Users, Sword, Scroll, Shield, MessageSquare, UserPlus, UserCheck } from "lucide-react"
+import { Users, Sword, Scroll, Shield, MessageSquare, UserPlus, UserCheck, Crown } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { BorderBeam } from "@/components/ui/border-beam"
 import { ShineBorder } from "@/components/ui/shine-border"
@@ -18,6 +18,7 @@ interface ProfileCardProps {
   achievements?: number
   isInitialFriend?: boolean
   borderType?: "none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double" | "magic_shine" | "magic_shine_aurora" | "magic_shine_solar" | "magic_shine_twilight"
+  isPremium?: boolean
   onAction?: (action: string) => void
 }
 
@@ -33,6 +34,7 @@ export function ProfileCard({
   achievements = 0,
   isInitialFriend = false,
   borderType = "none",
+  isPremium = false,
   onAction,
 }: ProfileCardProps) {
   const [isFollowing, setIsFollowing] = useState(isInitialFriend)
@@ -234,13 +236,24 @@ export function ProfileCard({
 
                 {/* Name and title */}
                 <div className="mb-6">
-                  <h2 className="text-2xl font-bold text-foreground mb-0.5 tracking-tight group-hover:text-primary transition-colors">
-                    {name}
-                  </h2>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <h2 className="text-2xl font-bold text-foreground tracking-tight group-hover:text-primary transition-colors">
+                      {name}
+                    </h2>
+                    {isPremium && (
+                      <div
+                        className="relative flex items-center justify-center bg-gradient-to-r from-amber-200 via-yellow-400 to-amber-500 rounded-lg px-2 py-0.5 shadow-sm overflow-hidden group/premium"
+                      >
+                        {/* Shimmer effect */}
+                        <div className="absolute inset-0 w-full animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent skew-x-12" />
+                        <Crown className="w-3.5 h-3.5 text-amber-900 drop-shadow-sm mr-1 z-10" />
+                      </div>
+                    )}
+                  </div>
                   <p className="text-primary/70 text-xs font-medium uppercase tracking-wider mb-2">
                     {characterName}
                   </p>
-                  <p className="text-muted-foreground text-sm leading-relaxed font-light line-clamp-2">
+                  <p className="text-muted-foreground text-sm leading-relaxed font-light whitespace-pre-wrap line-clamp-4">
                     {bio}
                   </p>
                 </div>

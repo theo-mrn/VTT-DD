@@ -107,6 +107,10 @@ const config: Config = {
 					'0%': { 'background-position': '0% 0%' },
 					'50%': { 'background-position': '100% 100%' },
 					'100%': { 'background-position': '0% 0%' }
+				},
+				'shimmer': {
+					'0%': { transform: 'translateX(-100%)' },
+					'100%': { transform: 'translateX(100%)' }
 				}
 			},
 			animation: {
@@ -115,7 +119,8 @@ const config: Config = {
 				'slideInFromLeft': 'slideInFromLeft 0.3s ease-out',
 				'slideInFromRight': 'slideInFromRight 0.3s ease-out',
 				'border-beam': 'border-beam var(--duration) infinite linear',
-				'shine': 'shine var(--duration) infinite linear'
+				'shine': 'shine var(--duration) infinite linear',
+				'shimmer': 'shimmer 2s infinite linear'
 			}
 		}
 	},
