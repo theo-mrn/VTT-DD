@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Users, Trash2, Shield, User } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { UserProfileDialog } from "@/components/profile/UserProfileDialog";
 
 interface RoomUsersManagerProps {
     roomId: string;
@@ -34,6 +35,7 @@ export function RoomUsersManager({ roomId, isOwner: propIsOwner, compact }: Room
     const [userToKick, setUserToKick] = useState<RoomUser | null>(null);
     const [bannedUsers, setBannedUsers] = useState<BannedUser[]>([]);
     const [isOwner, setIsOwner] = useState(propIsOwner ?? false);
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
     const fetchUsers = async () => {
         setLoading(true);
@@ -192,7 +194,7 @@ export function RoomUsersManager({ roomId, isOwner: propIsOwner, compact }: Room
                     <div className="space-y-1 max-h-[60vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                         {users.map(u => (
                             <div key={u.uid} className="group flex items-center justify-between p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200">
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center gap-4 cursor-pointer" onClick={() => setSelectedUserId(u.uid)}>
                                     {/* Avatar User */}
                                     <Avatar className="h-10 w-10 border border-[var(--border-color)] group-hover:border-[var(--accent-brown)]/50 transition-colors">
                                         <AvatarImage src={u.pp} alt={u.name} />
@@ -243,7 +245,7 @@ export function RoomUsersManager({ roomId, isOwner: propIsOwner, compact }: Room
                         <div className="space-y-1 max-h-[30vh] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                             {bannedUsers.map(u => (
                                 <div key={u.uid} className="group flex items-center justify-between p-3 rounded-xl hover:bg-white/5 border border-transparent hover:border-white/10 transition-all duration-200 opacity-60 hover:opacity-100">
-                                    <div className="flex items-center gap-4">
+                                    <div className="flex items-center gap-4 cursor-pointer" onClick={() => setSelectedUserId(u.uid)}>
                                         <Avatar className="h-8 w-8 border border-[var(--border-color)] grayscale transition-colors">
                                             <AvatarImage src={u.pp} alt={u.name} />
                                             <AvatarFallback className="bg-[var(--bg-darker)] text-[var(--accent-brown)]"><User className="h-3 w-3" /></AvatarFallback>
@@ -288,6 +290,12 @@ export function RoomUsersManager({ roomId, isOwner: propIsOwner, compact }: Room
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            <UserProfileDialog
+                userId={selectedUserId}
+                isOpen={!!selectedUserId}
+                onClose={() => setSelectedUserId(null)}
+            />
         </Card>
     );
 }

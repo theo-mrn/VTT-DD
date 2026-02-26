@@ -225,10 +225,10 @@ export function ProfileCard({
                 </div>
 
                 {/* Experience bar */}
-                <div className="mb-6">
+                <div className="mb-6 cursor-help" title={`Encore ${120 - Math.floor((finalExp / 100) * 120)} minutes de jeu pour atteindre le niveau ${finalLevel + 1}`}>
                   <div className="flex items-center justify-between mb-1.5 px-1">
                     <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Niveau {finalLevel}</span>
-                    <span className="text-[10px] text-muted-foreground font-bold">{finalExp}%</span>
+                    <span className="text-[10px] text-muted-foreground font-bold">{Math.floor((finalExp / 100) * 120)} / 120 min</span>
                   </div>
                   <div className="h-1.5 bg-zinc-800/80 rounded-full overflow-hidden border border-white/5">
                     <div
