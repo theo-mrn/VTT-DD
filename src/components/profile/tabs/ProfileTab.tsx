@@ -5,7 +5,7 @@ import { db, storage, doc, setDoc, ref, uploadBytes, getDownloadURL, onSnapshot 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { X as XIcon, Camera, Loader2, Upload, Lock, User, Check, Crown } from "lucide-react";
+import { X as XIcon, Camera, Loader2, Upload, Lock, User, Check, Crown, Search } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,6 +52,7 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
     const [userTitlesStatus, setUserTitlesStatus] = useState<Record<string, "locked" | "unlocked">>({});
     const [userTimeSpent, setUserTimeSpent] = useState(0);
     const [loadingTitles, setLoadingTitles] = useState(true);
+    const [searchTerm, setSearchTerm] = useState("");
 
     const ppInputRef = useRef<HTMLInputElement>(null);
     const bannerInputRef = useRef<HTMLInputElement>(null);
@@ -265,56 +266,86 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                                 <Loader2 className="w-5 h-5 animate-spin text-[var(--accent-brown)]" />
                             </div>
                         ) : (
-                            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
-                                {allTitles.map((t) => {
-                                    const isTimeBased = t.condition?.type === 'time';
-                                    const isPremiumTitle = t.condition?.type === 'premium';
+                            <>
+                                {/* Barre de recherche */}
+                                <div className="relative">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+                                    <Input
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        placeholder="Rechercher un titre..."
+                                        className="pl-10 bg-[var(--bg-card)] border-[var(--border-color)] text-sm"
+                                    />
+                                </div>
 
-                                    let isUnlocked = userTitlesStatus[t.id] === "unlocked";
-                                    if (isPremiumTitle) {
-                                        isUnlocked = isPremium;
-                                    }
+                                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                                    {allTitles
+                                        .filter((t) =>
+                                            searchTerm === "" ||
+                                            t.label.toLowerCase().includes(searchTerm.toLowerCase())
+                                        )
+                                        .sort((a, b) => {
+                                            const aIsPremium = a.condition?.type === 'premium';
+                                            const bIsPremium = b.condition?.type === 'premium';
 
-                                    const isSelected = titre === t.label || (!titre && userData.titre === t.label);
+                                            const aUnlocked = userTitlesStatus[a.id] === "unlocked" || userTitlesStatus[a.label] === "unlocked" || (aIsPremium && isPremium);
+                                            const bUnlocked = userTitlesStatus[b.id] === "unlocked" || userTitlesStatus[b.label] === "unlocked" || (bIsPremium && isPremium);
 
-                                    let progress = 0;
-                                    let timeRequired = 0;
-                                    if (isTimeBased && t.condition && 'minutes' in t.condition) {
-                                        timeRequired = t.condition.minutes;
-                                        progress = Math.min(100, (userTimeSpent / timeRequired) * 100);
-                                    }
+                                            if (aUnlocked && !bUnlocked) return -1;
+                                            if (!aUnlocked && bUnlocked) return 1;
+                                            return a.label.localeCompare(b.label);
+                                        })
+                                        .map((t) => {
+                                            const isTimeBased = t.condition?.type === 'time';
+                                            const isPremiumTitle = t.condition?.type === 'premium';
 
-                                    return (
-                                        <button
-                                            key={t.id}
-                                            type="button"
-                                            onClick={() => isUnlocked && setTitre(t.label)}
-                                            className={`p-2 rounded-xl text-xs font-medium text-left transition-all border flex flex-col gap-1 ${isSelected
-                                                ? "bg-[var(--accent-brown)] text-white border-transparent"
-                                                : isUnlocked
-                                                    ? "bg-[var(--bg-card)] text-[var(--text-primary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]"
-                                                    : "bg-[var(--bg-card)] text-[var(--text-secondary)] border-transparent opacity-60 cursor-not-allowed"
-                                                }`}
-                                        >
-                                            <div className="flex items-center justify-between gap-1">
-                                                <span className="truncate">{t.label}</span>
-                                                {!isUnlocked && (
-                                                    isPremiumTitle ? (
-                                                        <Crown className="w-3 h-3 flex-shrink-0 text-[var(--accent-brown)]" />
-                                                    ) : (
-                                                        <Lock className="w-3 h-3 flex-shrink-0" />
-                                                    )
-                                                )}
-                                            </div>
-                                            {!isUnlocked && isTimeBased && (
-                                                <div className="w-full h-1 bg-black/10 rounded-full overflow-hidden mt-0.5">
-                                                    <div className="h-full bg-[var(--accent-brown)]" style={{ width: `${progress}%` }} />
-                                                </div>
-                                            )}
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                                            // Vérifier à la fois le nouveau format (slug) et l'ancien format (label)
+                                            let isUnlocked = userTitlesStatus[t.id] === "unlocked" || userTitlesStatus[t.label] === "unlocked";
+                                            if (isPremiumTitle) {
+                                                isUnlocked = isPremium;
+                                            }
+
+                                            const isSelected = titre === t.label || (!titre && userData.titre === t.label);
+
+                                            let progress = 0;
+                                            let timeRequired = 0;
+                                            if (isTimeBased && t.condition && 'minutes' in t.condition) {
+                                                timeRequired = t.condition.minutes;
+                                                progress = Math.min(100, (userTimeSpent / timeRequired) * 100);
+                                            }
+
+                                            return (
+                                                <button
+                                                    key={t.id}
+                                                    type="button"
+                                                    onClick={() => isUnlocked && setTitre(t.label)}
+                                                    className={`p-2 rounded-xl text-xs font-medium text-left transition-all border flex flex-col gap-1 ${isSelected
+                                                        ? "bg-[var(--accent-brown)] text-white border-transparent"
+                                                        : isUnlocked
+                                                            ? "bg-[var(--bg-card)] text-[var(--text-primary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]"
+                                                            : "bg-[var(--bg-card)] text-[var(--text-secondary)] border-transparent opacity-60 cursor-not-allowed"
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center justify-between gap-1">
+                                                        <span className="truncate">{t.label}</span>
+                                                        {!isUnlocked && (
+                                                            isPremiumTitle ? (
+                                                                <Crown className="w-3 h-3 flex-shrink-0 text-[var(--accent-brown)]" />
+                                                            ) : (
+                                                                <Lock className="w-3 h-3 flex-shrink-0" />
+                                                            )
+                                                        )}
+                                                    </div>
+                                                    {!isUnlocked && isTimeBased && (
+                                                        <div className="w-full h-1 bg-black/10 rounded-full overflow-hidden mt-0.5">
+                                                            <div className="h-full bg-[var(--accent-brown)]" style={{ width: `${progress}%` }} />
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                </div>
+                            </>
                         )}
                     </div>
 

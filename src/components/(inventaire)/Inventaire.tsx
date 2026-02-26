@@ -10,7 +10,8 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Search, Plus, Sword, Target, Shield, Beaker, ChevronRight, Coins, Apple, MoreHorizontal, X } from 'lucide-react';
-import { db, doc, collection, onSnapshot, getDoc, updateDoc, setDoc, deleteDoc, addDoc } from '@/lib/firebase';
+import { db, doc, collection, onSnapshot, getDoc, updateDoc, setDoc, deleteDoc, addDoc, auth } from '@/lib/firebase';
+import { trackItemAcquired } from '@/lib/challenge-tracker';
 
 interface InventoryItem {
   id: string;
@@ -177,6 +178,14 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
           weight: 1
         });
       }
+
+      // === CHALLENGE TRACKING: Item Acquired ===
+      if (auth.currentUser) {
+        trackItemAcquired(auth.currentUser.uid, currentCategory).catch(error =>
+          console.error('Challenge tracking error:', error)
+        );
+      }
+
       // Fermer le modal après l'ajout réussi
       setIsAddItemDialogOpen(false);
     } catch (error) {
@@ -201,6 +210,14 @@ export default function InventoryManagement({ playerName, roomId }: InventoryMan
           weight: 1
         });
       }
+
+      // === CHALLENGE TRACKING: Item Acquired ===
+      if (auth.currentUser) {
+        trackItemAcquired(auth.currentUser.uid, category).catch(error =>
+          console.error('Challenge tracking error:', error)
+        );
+      }
+
       // Fermer le modal après l'ajout réussi
       setIsAddItemDialogOpen(false);
     } catch (error) {

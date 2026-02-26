@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useGame } from "@/contexts/GameContext";
 import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, storage, ref, uploadBytes, getDownloadURL, limitToLast, deleteDoc, doc, updateDoc } from "@/lib/firebase";
 import { Image as ImageIcon, X, Plus, Loader2, MoreVertical, Trash2, Users, Check, Pencil, Upload, MessageSquare, Send } from "lucide-react";
+import { trackChatMessage } from '@/lib/challenge-tracker';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -135,6 +136,14 @@ export default function Chat() {
                 timestamp: serverTimestamp(),
                 recipients: targetRecipients
             });
+
+            // === CHALLENGE TRACKING: Chat Message ===
+            if (user?.uid) {
+                trackChatMessage(user.uid).catch(error =>
+                    console.error('Challenge tracking error:', error)
+                );
+            }
+
             setNewMessage("");
         } catch (error) {
             console.error("Failed to send message", error);

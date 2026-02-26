@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { auth, onAuthStateChanged, doc, getDoc, db, onSnapshot } from '@/lib/firebase';
+import { initializeUserChallenges } from '@/lib/challenges';
 
 export interface PlayerData {
   id: string;
@@ -386,6 +387,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
               // Restaurer les données (MJ, Owner, etc.) en fonction du roomId actuel
               await restorePlayerDataFromFirebase(authUser.uid);
+
+              // Initialiser les défis de l'utilisateur (si première connexion)
+              try {
+                await initializeUserChallenges(authUser.uid);
+              } catch (error) {
+                console.error('Error initializing challenges:', error);
+              }
+
+              // Migrer les anciens titres vers le nouveau format (slug)
+              try {
+                const { migrateTitlesForUser } = await import('@/lib/migrate-titles');
+                await migrateTitlesForUser(authUser.uid);
+              } catch (error) {
+                console.error('Error migrating titles:', error);
+              }
             } else {
               // Gérer le cas où le document user n'existe pas encore
               setUser({ uid: authUser.uid, roomId: null });
