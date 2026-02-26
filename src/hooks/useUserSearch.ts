@@ -6,6 +6,13 @@ interface UserResult {
     name: string;
     titre: string;
     pp: string;
+    imageURL?: string;
+    bio?: string;
+    timeSpent?: number;
+    achievements?: number;
+    borderType?: string;
+    premium?: boolean;
+    showPremiumBadge?: boolean;
 }
 
 interface UseUserSearchReturn {
@@ -38,6 +45,13 @@ export function useUserSearch(): UseUserSearchReturn {
                         name: data.name || "Utilisateur",
                         titre: data.titre || "Aucun titre",
                         pp: data.pp || "",
+                        imageURL: data.imageURL || "",
+                        bio: data.bio || "",
+                        timeSpent: data.timeSpent || 0,
+                        achievements: data.achievements || 0,
+                        borderType: data.borderType || "none",
+                        premium: data.premium || false,
+                        showPremiumBadge: data.showPremiumBadge ?? true,
                     } as UserResult;
                 })
                 .filter((user) =>

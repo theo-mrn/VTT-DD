@@ -3,7 +3,15 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search as SearchIcon, UserPlus, Check, Loader2 } from "lucide-react";
+import { Search as SearchIcon, UserPlus, Check, Loader2, User } from "lucide-react";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogDescription,
+} from "@/components/ui/dialog";
+import { ProfileCard } from "@/components/ui/profile-card";
 import FriendCard from "../FriendCard";
 import EmptyState from "../EmptyState";
 import { useUserSearch } from "@/hooks/useUserSearch";
@@ -13,6 +21,13 @@ interface FriendData {
     name: string;
     titre: string;
     pp: string;
+    imageURL?: string;
+    bio?: string;
+    timeSpent?: number;
+    achievements?: number;
+    borderType?: any;
+    premium?: boolean;
+    showPremiumBadge?: boolean;
 }
 
 interface SearchTabProps {
@@ -32,6 +47,7 @@ export default function SearchTab({
 }: SearchTabProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedQuery, setDebouncedQuery] = useState("");
+    const [selectedProfile, setSelectedProfile] = useState<FriendData | null>(null);
     const { results, loading, search } = useUserSearch();
 
     // Debounce search query
@@ -125,6 +141,7 @@ export default function SearchTab({
                                 titre={result.titre}
                                 pp={result.pp}
                                 loading={actionLoading === result.id}
+                                onClick={() => setSelectedProfile(result)}
                                 badge={
                                     isAlreadyFriend ? (
                                         <div className="w-2 h-2 bg-green-500 rounded-full" />
@@ -149,12 +166,11 @@ export default function SearchTab({
                                     ) : (
                                         <Button
                                             size="sm"
-                                            onClick={() => onSendRequest(result.id, result)}
-                                            disabled={actionLoading === result.id}
+                                            onClick={() => setSelectedProfile(result)}
                                             className="bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)] text-white"
                                         >
-                                            <UserPlus className="mr-2 h-4 w-4" />
-                                            Ajouter
+                                            <User className="mr-2 h-4 w-4" />
+                                            Voir profil
                                         </Button>
                                     )
                                 }
@@ -172,6 +188,33 @@ export default function SearchTab({
                     description={`Aucun utilisateur ne correspond à "${searchQuery}"`}
                 />
             )}
+
+            {/* Profile Dialog */}
+            <Dialog open={!!selectedProfile} onOpenChange={(open) => !open && setSelectedProfile(null)}>
+                <DialogContent unstyled className="sm:max-w-md p-0 bg-transparent border-none">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Profil de {selectedProfile?.name}</DialogTitle>
+                        <DialogDescription>Détails du profil du joueur</DialogDescription>
+                    </DialogHeader>
+                    {selectedProfile && (
+                        <ProfileCard
+                            name={selectedProfile.name}
+                            avatarUrl={selectedProfile.pp}
+                            backgroundUrl={selectedProfile.imageURL}
+                            bio={selectedProfile.bio}
+                            timeSpent={selectedProfile.timeSpent}
+                            borderType={selectedProfile.borderType}
+                            isPremium={selectedProfile.premium && selectedProfile.showPremiumBadge !== false}
+                            isInitialFriend={isFriend(selectedProfile.id) || hasSentRequest(selectedProfile.id)}
+                            onAction={async (action) => {
+                                if (action === "add_friend" && !hasSentRequest(selectedProfile.id)) {
+                                    await onSendRequest(selectedProfile.id, selectedProfile);
+                                }
+                            }}
+                        />
+                    )}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
