@@ -8,12 +8,24 @@ import { useScroll, motion } from 'framer-motion'
 import { Aclonica } from "next/font/google"
 import Login06 from '@/components/ui/login-3'
 import { useRouter } from 'next/navigation'
-import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from '../../lib/firebase'
+import { onAuthStateChanged, signOut } from 'firebase/auth'
+import { auth, db } from '../../lib/firebase'
+import { doc, onSnapshot } from 'firebase/firestore'
 import { Features1 } from '@/components/blocks/features1'
 import { Features2 } from '@/components/blocks/features2'
 import { Features3 } from '@/components/blocks/features3'
 import { ShaderBackground } from '@/components/ui/hero'
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu"
+import { UserProfileDialog } from '@/components/profile/UserProfileDialog'
+import { LogOut, User, Gamepad2 } from 'lucide-react'
 
 
 
@@ -22,7 +34,13 @@ const aclonica = Aclonica({
     subsets: ['latin'],
 })
 
-const HeroHeader = ({ onOpenAuth }: { onOpenAuth: () => void }) => {
+const HeroHeader = ({ onOpenAuth, isUserLoggedIn, userData, onOpenProfile, router }: {
+    onOpenAuth: () => void,
+    isUserLoggedIn: boolean | null,
+    userData: any,
+    onOpenProfile: () => void,
+    router: any
+}) => {
     const [menuState, setMenuState] = React.useState(false)
     const [scrolled, setScrolled] = React.useState(false)
     const { scrollYProgress } = useScroll()
@@ -62,12 +80,38 @@ const HeroHeader = ({ onOpenAuth }: { onOpenAuth: () => void }) => {
 
                         <div className="bg-background group-data-[state=active]:block lg:group-data-[state=active]:flex mb-6 hidden w-full flex-wrap items-center justify-end space-y-8 rounded-3xl border p-6 shadow-2xl shadow-zinc-300/20 md:flex-nowrap lg:m-0 lg:flex lg:w-fit lg:gap-6 lg:space-y-0 lg:border-transparent lg:bg-transparent lg:p-0 lg:shadow-none dark:shadow-none dark:lg:bg-transparent">
                             <div className="flex w-full flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0 md:w-fit">
-                                <Button
-                                    onClick={onOpenAuth}
-                                    size="sm"
-                                    className={aclonica.className}>
-                                    <span>S&apos;identifier</span>
-                                </Button>
+                                {isUserLoggedIn === null ? (
+                                    <div className="w-10 h-10 rounded-full bg-zinc-200/20 animate-pulse" />
+                                ) : isUserLoggedIn ? (
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <Avatar className="h-10 w-10 border-2 border-white/50 hover:border-white transition-all cursor-pointer shadow-md bg-white/5">
+                                                <AvatarImage src={userData?.pp || ""} className="object-cover" />
+                                                <AvatarFallback className="bg-[var(--accent-brown)] text-white font-bold">
+                                                    {userData?.name ? userData.name.charAt(0).toUpperCase() : "?"}
+                                                </AvatarFallback>
+                                            </Avatar>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-56 bg-zinc-900 border-white/10 text-white">
+                                            <DropdownMenuItem onClick={onOpenProfile} className="focus:bg-white/10 focus:text-white cursor-pointer gap-2">
+                                                <User className="w-4 h-4" />
+                                                <span>Voir mon profil</span>
+                                            </DropdownMenuItem>
+                                            <DropdownMenuSeparator className="bg-white/10" />
+                                            <DropdownMenuItem onClick={() => signOut(auth)} className="focus:bg-red-500/20 focus:text-red-400 text-red-400 cursor-pointer gap-2">
+                                                <LogOut className="w-4 h-4" />
+                                                <span>Se déconnecter</span>
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                ) : (
+                                    <Button
+                                        onClick={onOpenAuth}
+                                        size="sm"
+                                        className={aclonica.className}>
+                                        <span>S&apos;identifier</span>
+                                    </Button>
+                                )}
                             </div>
                         </div>
                     </motion.div>
@@ -87,15 +131,31 @@ const Logo = () => {
 
 export function HeroSection() {
     const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false)
+    const [isProfileOpen, setIsProfileOpen] = React.useState(false)
     const [isUserLoggedIn, setIsUserLoggedIn] = React.useState<boolean | null>(null)
+    const [userData, setUserData] = React.useState<any>(null)
 
     const router = useRouter()
 
     React.useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
+        let unsubscribeDoc: () => void;
+        const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
             setIsUserLoggedIn(!!user)
+            if (user) {
+                unsubscribeDoc = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
+                    if (docSnap.exists()) {
+                        setUserData(docSnap.data())
+                    }
+                })
+            } else {
+                setUserData(null)
+                if (unsubscribeDoc) unsubscribeDoc()
+            }
         })
-        return () => unsubscribe()
+        return () => {
+            unsubscribeAuth()
+            if (unsubscribeDoc) unsubscribeDoc()
+        }
     }, [])
 
 
@@ -110,7 +170,13 @@ export function HeroSection() {
 
     return (
         <>
-            <HeroHeader onOpenAuth={() => setIsAuthModalOpen(true)} />
+            <HeroHeader
+                onOpenAuth={() => setIsAuthModalOpen(true)}
+                isUserLoggedIn={isUserLoggedIn}
+                userData={userData}
+                onOpenProfile={() => setIsProfileOpen(true)}
+                router={router}
+            />
             <main className="overflow-x-hidden">
                 <section>
                     <div className="py-24 md:pb-32 lg:pb-36 lg:pt-72">
@@ -192,6 +258,14 @@ export function HeroSection() {
                         </div>
                     </div>
                 </div>
+            )}
+            {/* Modal de profil */}
+            {isUserLoggedIn && (
+                <UserProfileDialog
+                    userId={auth.currentUser?.uid}
+                    isOpen={isProfileOpen}
+                    onClose={() => setIsProfileOpen(false)}
+                />
             )}
         </>
     )

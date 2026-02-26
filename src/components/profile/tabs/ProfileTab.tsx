@@ -267,10 +267,16 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                         ) : (
                             <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
                                 {allTitles.map((t) => {
-                                    const isUnlocked = userTitlesStatus[t.id] === "unlocked";
+                                    const isTimeBased = t.condition?.type === 'time';
+                                    const isPremiumTitle = t.condition?.type === 'premium';
+
+                                    let isUnlocked = userTitlesStatus[t.id] === "unlocked";
+                                    if (isPremiumTitle) {
+                                        isUnlocked = isPremium;
+                                    }
+
                                     const isSelected = titre === t.label || (!titre && userData.titre === t.label);
 
-                                    const isTimeBased = t.condition?.type === 'time';
                                     let progress = 0;
                                     let timeRequired = 0;
                                     if (isTimeBased && t.condition && 'minutes' in t.condition) {
@@ -292,7 +298,13 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                                         >
                                             <div className="flex items-center justify-between gap-1">
                                                 <span className="truncate">{t.label}</span>
-                                                {!isUnlocked && <Lock className="w-3 h-3 flex-shrink-0" />}
+                                                {!isUnlocked && (
+                                                    isPremiumTitle ? (
+                                                        <Crown className="w-3 h-3 flex-shrink-0 text-[var(--accent-brown)]" />
+                                                    ) : (
+                                                        <Lock className="w-3 h-3 flex-shrink-0" />
+                                                    )
+                                                )}
                                             </div>
                                             {!isUnlocked && isTimeBased && (
                                                 <div className="w-full h-1 bg-black/10 rounded-full overflow-hidden mt-0.5">
@@ -607,7 +619,7 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                 >
                     {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : "Enregistrer les modifications"}
                 </Button>
-            </motion.div>
+            </motion.div >
 
             <Dialog open={isPreviewOpen} onOpenChange={setIsPreviewOpen}>
                 <DialogContent unstyled className="sm:max-w-md p-0 bg-transparent border-none">
@@ -628,6 +640,6 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                     />
                 </DialogContent>
             </Dialog>
-        </div>
+        </div >
     );
 }
