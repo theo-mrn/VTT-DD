@@ -9,6 +9,7 @@ import { useGame } from "@/contexts/GameContext";
 import ProfileOverlay from "@/components/profile/ProfileOverlay";
 import GlobalSettingsDialog from "@/components/(map)/GlobalSettingsDialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ProfileCard } from "@/components/ui/profile-card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -42,6 +43,12 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const [userTitle, setUserTitle] = useState<string | null>(null);
   const [userProfilePicture, setUserProfilePicture] = useState<string | null>(null);
   const [userBanner, setUserBanner] = useState<string | null>(null);
+  const [userTimeSpent, setUserTimeSpent] = useState<number>(0);
+  const [userBio, setUserBio] = useState<string | null>(null);
+  const [isPremium, setIsPremium] = useState<boolean>(false);
+  const [showPremiumBadge, setShowPremiumBadge] = useState<boolean>(true);
+  const [userBorderType, setUserBorderType] = useState<string>("none");
+  const [showMyProfileCard, setShowMyProfileCard] = useState<boolean>(false);
   const [roomId, setRoomId] = useState<string | null>("");
   const [showPopover, setShowPopover] = useState<boolean>(false);
   const [showProfileOverlay, setShowProfileOverlay] = useState<boolean>(false);
@@ -103,6 +110,11 @@ export default function Sidebar({ onClose }: SidebarProps) {
             setUserTitle(data.titre || "Aucun titre");
             setUserProfilePicture(data.pp || null);
             setUserBanner(data.imageURL || null);
+            setUserTimeSpent(data.timeSpent || 0);
+            setUserBio(data.bio || null);
+            setIsPremium(data.premium || false);
+            setShowPremiumBadge(data.showPremiumBadge ?? true);
+            setUserBorderType(data.borderType || "none");
             setRoomId(data.room_id || "");
           } else {
             console.error("Utilisateur non trouvé dans Firestore");
@@ -174,7 +186,10 @@ export default function Sidebar({ onClose }: SidebarProps) {
         <X className="w-5 h-5" />
       </button>
 
-      <div className="relative p-4 border-b border-[var(--border-color)] w-full text-left overflow-hidden group">
+      <div
+        className="relative p-4 border-b border-[var(--border-color)] w-full text-left overflow-hidden group cursor-pointer hover:bg-white/5 transition-colors duration-300"
+        onClick={() => setShowMyProfileCard(true)}
+      >
         {/* Banner Background */}
         {userBanner && (
           <>
@@ -187,15 +202,33 @@ export default function Sidebar({ onClose }: SidebarProps) {
         )}
 
         <div className="relative flex items-center gap-3 z-10">
-          <Avatar className="w-10 h-10 border-2 border-[var(--accent-brown)]/50 shadow-sm">
-            <AvatarImage src={userProfilePicture || ""} alt="Profil" className="object-cover" />
-            <AvatarFallback className="bg-[var(--accent-brown)] text-[var(--bg-dark)] font-bold">
-              {(userName || "U").charAt(0).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
+          <div className="relative">
+            <Avatar className="w-11 h-11 border-2 border-[var(--accent-brown)]/50 shadow-sm">
+              <AvatarImage src={userProfilePicture || ""} alt="Profil" className="object-cover" />
+              <AvatarFallback className="bg-[var(--accent-brown)] text-[var(--bg-dark)] font-bold">
+                {(userName || "U").charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="absolute -bottom-1 -right-1 bg-primary text-primary-foreground text-[10px] font-bold h-6 w-6 rounded-full flex items-center justify-center border-2 border-card shadow-xs">
+              {Math.floor(userTimeSpent / 120) + 1}
+            </div>
+          </div>
+          <div className="min-w-0 flex-1">
             <h2 className="font-semibold text-[var(--accent-brown)] truncate max-w-[180px] drop-shadow-sm">{userName || "Utilisateur"}</h2>
             <p className="text-sm text-[var(--text-primary)] truncate max-w-[180px] drop-shadow-sm">{userTitle || "Aucun titre"}</p>
+            {/* Experience bar */}
+            <div className="mt-1.5 cursor-help" title={`Encore ${120 - (userTimeSpent % 120)} minutes de jeu pour atteindre le niveau ${Math.floor(userTimeSpent / 120) + 2}`}>
+              <div className="flex items-center justify-between mb-1 px-0.5">
+                <span className="text-[9px] text-[var(--text-secondary)] uppercase tracking-widest font-bold">Niv. {Math.floor(userTimeSpent / 120) + 1}</span>
+                <span className="text-[9px] text-[var(--text-secondary)] font-bold">{userTimeSpent % 120} / 120 min</span>
+              </div>
+              <div className="h-1.5 bg-zinc-800/80 rounded-full overflow-hidden border border-[var(--border-color)]">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-600 via-orange-500 to-amber-400 shadow-[0_0_10px_rgba(245,158,11,0.3)] transition-all duration-300 ease-out"
+                  style={{ width: `${Math.floor(((userTimeSpent % 120) / 120) * 100)}%` }}
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -505,6 +538,27 @@ export default function Sidebar({ onClose }: SidebarProps) {
               <p className="text-muted-foreground italic p-6 text-center">Aucune salle en cours...</p>
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Profile Card Preview Dialog */}
+      <Dialog open={showMyProfileCard} onOpenChange={setShowMyProfileCard}>
+        <DialogContent unstyled className="sm:max-w-md p-0 bg-transparent border-none">
+          <DialogHeader className="sr-only">
+            <DialogTitle>Mon profil</DialogTitle>
+            <DialogDescription>Aperçu de mon profil</DialogDescription>
+          </DialogHeader>
+          <ProfileCard
+            name={userName || undefined}
+            avatarUrl={userProfilePicture || undefined}
+            backgroundUrl={userBanner || undefined}
+            characterName={userTitle || undefined}
+            bio={userBio || undefined}
+            timeSpent={userTimeSpent}
+            borderType={userBorderType as any}
+            isPremium={isPremium && showPremiumBadge}
+            isInitialFriend={true}
+          />
         </DialogContent>
       </Dialog>
     </div>

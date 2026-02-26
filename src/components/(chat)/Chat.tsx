@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import { UserProfileDialog } from "@/components/profile/UserProfileDialog";
 
 type ChatMessage = {
     id: string;
@@ -45,6 +46,8 @@ export default function Chat() {
     const [editingTextMsg, setEditingTextMsg] = useState<ChatMessage | null>(null);
     const [editText, setEditText] = useState("");
     const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
+    const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+    const [selectedCharacterName, setSelectedCharacterName] = useState<string | null>(null);
 
     // Form States (for Dialogs)
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -329,75 +332,107 @@ export default function Chat() {
                     <div className="flex flex-col gap-6 pb-8 px-2 overflow-x-hidden">
                         {messages.map((msg) => {
                             const isMe = msg.uid === user?.uid;
+                            const msgPlayer = players.find(p => p.name === msg.sender);
+                            const avatarUrl = msgPlayer?.imageUrl || (isMe ? playerData?.imageURL : null);
+
                             return (
-                                <div key={msg.id} className={`flex flex-col gap-1 w-full max-w-[85%] animate-in fade-in slide-in-from-bottom-2 duration-500 ${isMe ? 'self-end' : 'self-start'}`}>
-                                    {/* Header Info */}
-                                    <div className={`flex items-center gap-2 px-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                                        {!isMe && <span className="text-xs font-bold text-[#c0a080]">{msg.sender}</span>}
-                                        {msg.recipients && msg.recipients.length > 0 && (
-                                            <span className="text-[10px] bg-[#c0a080]/10 text-[#c0a080] px-1.5 py-0.5 rounded border border-[#c0a080]/20 flex items-center gap-1">
-                                                <Users className="w-3 h-3" />
-                                                Privé
-                                            </span>
+                                <div key={msg.id} className={`flex items-start gap-3 w-full max-w-[90%] animate-in fade-in slide-in-from-bottom-2 duration-500 ${isMe ? 'self-end flex-row-reverse' : 'self-start'}`}>
+
+                                    {/* Avatar Circle */}
+                                    <div
+                                        className="flex-shrink-0 mt-0.5 cursor-pointer hover:ring-2 hover:ring-[#c0a080]/50 rounded-full transition-all"
+                                        onClick={() => {
+                                            setSelectedUserId(msg.uid || null);
+                                            setSelectedCharacterName(msg.sender || null);
+                                        }}
+                                    >
+                                        {avatarUrl ? (
+                                            <img src={avatarUrl} alt="" className="w-8 h-8 rounded-full object-cover border border-[#3a3a3a]" />
+                                        ) : (
+                                            <div className="w-8 h-8 rounded-full bg-[#1a1a1a] flex items-center justify-center border border-[#3a3a3a]">
+                                                <span className="text-xs font-bold text-[#c0a080]">{msg.sender && msg.sender !== "MJ" ? msg.sender.substring(0, 2).toUpperCase() : "MJ"}</span>
+                                            </div>
                                         )}
-                                        <span className="text-[10px] text-muted-foreground opacity-50">
-                                            {msg.timestamp?.toDate ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Maintenant"}
-                                        </span>
                                     </div>
 
-                                    {/* Message Card */}
-                                    <div className={`relative group rounded-xl overflow-hidden border border-[#3a3a3a] bg-[#1a1a1a] shadow-md hover:border-[#c0a080]/50 transition-all ${isMe ? 'rounded-tr-sm' : 'rounded-tl-sm'}`}>
-                                        {msg.imageUrl && (
-                                            <img
-                                                src={msg.imageUrl}
-                                                alt="Shared"
-                                                className="w-full h-auto max-h-[400px] object-contain bg-[#0a0a0a] cursor-pointer"
-                                                onClick={() => setFullscreenImage(msg.imageUrl!)}
-                                            />
-                                        )}
-                                        {msg.text && (
-                                            <div className={`p-3 text-sm whitespace-pre-wrap break-words ${isMe ? 'bg-[#c0a080]/10 text-[#e0e0e0]' : 'text-[#d4d4d4]'}`}>
-                                                {msg.text}
-                                            </div>
-                                        )}
+                                    {/* Message Column */}
+                                    <div className="flex flex-col gap-1 min-w-0 flex-1">
+                                        {/* Header Info */}
+                                        <div className={`flex items-center gap-2 px-1 ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                            <span
+                                                className={`text-xs font-bold ${isMe ? 'text-[#c0a080]' : 'text-[#c0a080]'} cursor-pointer hover:underline`}
+                                                onClick={() => {
+                                                    setSelectedUserId(msg.uid || null);
+                                                    setSelectedCharacterName(msg.sender || null);
+                                                }}
+                                            >
+                                                {isMe ? 'Vous' : msg.sender}
+                                            </span>
+                                            {msg.recipients && msg.recipients.length > 0 && (
+                                                <span className="text-[10px] bg-[#c0a080]/10 text-[#c0a080] px-1.5 py-0.5 rounded border border-[#c0a080]/20 flex items-center gap-1">
+                                                    <Users className="w-3 h-3" />
+                                                    Privé
+                                                </span>
+                                            )}
+                                            <span className="text-[10px] text-muted-foreground opacity-50 whitespace-nowrap">
+                                                {msg.timestamp?.toDate ? new Date(msg.timestamp.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Maintenant"}
+                                            </span>
+                                        </div>
 
-                                        {/* Action Menu (Owner/MJ) */}
-                                        {(isMJ || isMe) && (
-                                            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Popover>
-                                                    <PopoverTrigger asChild>
-                                                        <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/80 text-white border border-white/10 backdrop-blur-sm">
-                                                            <MoreVertical className="h-4 w-4" />
-                                                        </Button>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="w-40 p-1 bg-[#242424] border-[#3a3a3a] text-[#d4d4d4]" align="end">
-                                                        {msg.text && (
+                                        {/* Message Card */}
+                                        <div className={`relative group rounded-xl overflow-hidden border border-[#3a3a3a] bg-[#1a1a1a] shadow-md hover:border-[#c0a080]/50 transition-all ${isMe ? 'rounded-tr-sm' : 'rounded-tl-sm'}`}>
+                                            {msg.imageUrl && (
+                                                <img
+                                                    src={msg.imageUrl}
+                                                    alt="Shared"
+                                                    className="w-full h-auto max-h-[400px] object-contain bg-[#0a0a0a] cursor-pointer"
+                                                    onClick={() => setFullscreenImage(msg.imageUrl!)}
+                                                />
+                                            )}
+                                            {msg.text && (
+                                                <div className={`p-3 text-sm whitespace-pre-wrap break-words ${isMe ? 'bg-[#c0a080]/10 text-[#e0e0e0]' : 'text-[#d4d4d4]'}`}>
+                                                    {msg.text}
+                                                </div>
+                                            )}
+
+                                            {/* Action Menu (Owner/MJ) */}
+                                            {(isMJ || isMe) && (
+                                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full bg-black/50 hover:bg-black/80 text-white border border-white/10 backdrop-blur-sm">
+                                                                <MoreVertical className="h-4 w-4" />
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-40 p-1 bg-[#242424] border-[#3a3a3a] text-[#d4d4d4]" align="end">
+                                                            {msg.text && (
+                                                                <button
+                                                                    onClick={() => handleStartEditText(msg)}
+                                                                    className="w-full flex items-center gap-2 px-2 py-1.5 text-sm md:text-xs hover:bg-[#333] rounded cursor-pointer transition-colors"
+                                                                >
+                                                                    <Pencil className="h-3.5 w-3.5" />
+                                                                    Modifier message
+                                                                </button>
+                                                            )}
                                                             <button
-                                                                onClick={() => handleStartEditText(msg)}
+                                                                onClick={() => handleStartEditVisibility(msg)}
                                                                 className="w-full flex items-center gap-2 px-2 py-1.5 text-sm md:text-xs hover:bg-[#333] rounded cursor-pointer transition-colors"
                                                             >
-                                                                <Pencil className="h-3.5 w-3.5" />
-                                                                Modifier message
+                                                                <Users className="h-3.5 w-3.5" />
+                                                                Visibilité
                                                             </button>
-                                                        )}
-                                                        <button
-                                                            onClick={() => handleStartEditVisibility(msg)}
-                                                            className="w-full flex items-center gap-2 px-2 py-1.5 text-sm md:text-xs hover:bg-[#333] rounded cursor-pointer transition-colors"
-                                                        >
-                                                            <Users className="h-3.5 w-3.5" />
-                                                            Visibilité
-                                                        </button>
-                                                        <button
-                                                            onClick={() => setMessageToDelete(msg.id)}
-                                                            className="w-full flex items-center gap-2 px-2 py-1.5 text-sm md:text-xs text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded cursor-pointer transition-colors"
-                                                        >
-                                                            <Trash2 className="h-3.5 w-3.5" />
-                                                            Supprimer
-                                                        </button>
-                                                    </PopoverContent>
-                                                </Popover>
-                                            </div>
-                                        )}
+                                                            <button
+                                                                onClick={() => setMessageToDelete(msg.id)}
+                                                                className="w-full flex items-center gap-2 px-2 py-1.5 text-sm md:text-xs text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded cursor-pointer transition-colors"
+                                                            >
+                                                                <Trash2 className="h-3.5 w-3.5" />
+                                                                Supprimer
+                                                            </button>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             );
@@ -534,6 +569,15 @@ export default function Chat() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* --- USER PROFILE DIALOG --- */}
+            <UserProfileDialog
+                userId={selectedUserId}
+                characterName={selectedCharacterName}
+                roomId={roomId}
+                isOpen={!!selectedUserId || !!selectedCharacterName}
+                onClose={() => { setSelectedUserId(null); setSelectedCharacterName(null); }}
+            />
 
         </div>
     );

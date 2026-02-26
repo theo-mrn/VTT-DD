@@ -9,6 +9,7 @@ import { getAssetUrl } from "@/lib/asset-loader";
 import { DiceStats } from "@/components/(dices)/dice-stats";
 import { DiceStoreModal } from "../(dices)/dice-store-modal";
 import { DICE_SKINS } from "../(dices)/dice-definitions";
+import { UserProfileDialog } from "@/components/profile/UserProfileDialog";
 
 // --- Types ---
 interface CharacterModifiers {
@@ -31,6 +32,7 @@ interface FirebaseRoll {
   notation?: string;
   output?: string;
   persoId?: string;
+  uid?: string;
 }
 
 interface FloatingAiAssistantProps {
@@ -69,6 +71,8 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
   const [isSkinDialogOpen, setIsSkinDialogOpen] = useState(false);
 
   // New state for displaying the latest result in the header
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedCharacterName, setSelectedCharacterName] = useState<string | null>(null);
   const [latestResult, setLatestResult] = useState<{
     result: string;
     total: number;
@@ -241,6 +245,8 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
         !containerRef.current.contains(event.target as Node) &&
         isOpen &&
         !isSkinDialogOpen && // ← don't close while dice store is open
+        !selectedUserId && // ← don't close while user profile dialog is open
+        !selectedCharacterName && // ← don't close while user profile dialog is open
         !(event.target as Element).closest('#vtt-sidebar-dice') &&
         !(event.target as Element).closest('[data-dice-store-portal]')
       ) {
@@ -249,7 +255,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isOpen, onClose, isSkinDialogOpen]);
+  }, [isOpen, onClose, isSkinDialogOpen, selectedUserId, selectedCharacterName]);
 
 
 
@@ -499,7 +505,8 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
           timestamp: Date.now(),
           notation: input,
           output: output,
-          ...(persoId ? { persoId } : {})
+          ...(persoId ? { persoId } : {}),
+          ...(auth.currentUser ? { uid: auth.currentUser.uid } : {})
         };
 
         await addDoc(collection(db, `rolls/${roomId}/rolls`), firebaseRoll);
@@ -1050,7 +1057,13 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                         firebaseRolls.filter(canDisplayRoll).filter(r => !selectedPlayerFilter || r.userName === selectedPlayerFilter).map((roll) => (
                           <div key={roll.id} className="group relative p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all">
                             <div className="flex items-start gap-3">
-                              <div className="flex-shrink-0 mt-0.5">
+                              <div
+                                className={`flex-shrink-0 mt-0.5 cursor-pointer hover:ring-2 hover:ring-white/20 rounded-full transition-all`}
+                                onClick={() => {
+                                  setSelectedUserId(roll.uid || null);
+                                  setSelectedCharacterName(roll.userName || null);
+                                }}
+                              >
                                 {roll.userAvatar ? (
                                   <img src={roll.userAvatar} alt="" className="w-8 h-8 rounded-full object-cover border border-white/10" />
                                 ) : (
@@ -1108,6 +1121,14 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
         onSelectSkin={(skinId) => {
           setSelectedSkinId(skinId);
         }}
+      />
+
+      <UserProfileDialog
+        userId={selectedUserId}
+        characterName={selectedCharacterName}
+        roomId={roomId}
+        isOpen={!!selectedUserId || !!selectedCharacterName}
+        onClose={() => { setSelectedUserId(null); setSelectedCharacterName(null); }}
       />
 
       <style jsx>{`
