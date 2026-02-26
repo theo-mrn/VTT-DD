@@ -9,6 +9,8 @@ export interface Title {
     } | {
         type: 'event';
         description: string;
+    } | {
+        type: 'premium';
     };
 }
 
@@ -28,7 +30,7 @@ export const INITIAL_TITLES: TitleDef[] = [
     { label: "Demi-Dieu", defaultUnlocked: false, condition: { type: 'time', minutes: 600 } },
     { label: "Divinité", defaultUnlocked: false, condition: { type: 'time', minutes: 1000 } },
 
-    // Speciaux
+    // Spéciaux
     { label: "Maître du Jeu", defaultUnlocked: false },
     { label: "Gardien du Savoir", defaultUnlocked: false },
     { label: "Architecte de Mondes", defaultUnlocked: false },
@@ -42,7 +44,10 @@ export const INITIAL_TITLES: TitleDef[] = [
     { label: "Béni des Dieux", defaultUnlocked: false, condition: { type: 'event', description: "Faire une réussite critique (20 naturel)" } },
     { label: "Toujours en Retard", defaultUnlocked: false },
     { label: "Le Barbare", defaultUnlocked: false },
-    { label: "L'Érudit", defaultUnlocked: false }
+    { label: "L'Érudit", defaultUnlocked: false },
+
+    // Premium
+    { label: "Mécène", defaultUnlocked: false, condition: { type: 'premium' } }
 ];
 
 import { db } from "@/lib/firebase";

@@ -131,14 +131,39 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const rolls: FirebaseRoll[] = [];
+      const now = Date.now();
+
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          const rollData = { id: change.doc.id, ...change.doc.data() } as FirebaseRoll;
+
+          // Check if it's a NEW roll (within last 5 seconds) and NOT from the current user
+          // userName check might be tricky if two people have same name, but UID is safer
+          const isMe = (auth.currentUser && rollData.uid === auth.currentUser.uid) || rollData.userName === userName;
+
+          if (!isMe && (now - rollData.timestamp < 5000)) {
+            // Trigger Sonner Toast for other players
+            const totalDisplay = rollData.isBlind ? "???" : rollData.total;
+            const details = rollData.output?.split('=')[1]?.trim() || "";
+
+            toast.info(`${rollData.userName} : ${totalDisplay}`, {
+              description: `${rollData.notation} : ${details}=${rollData.total}`,
+              duration: 5000
+            });
+          }
+        }
+      });
+
       snapshot.forEach((doc) => {
         rolls.push({ id: doc.id, ...doc.data() } as FirebaseRoll);
       });
       setFirebaseRolls(rolls);
     });
 
-    return () => unsubscribe();
-  }, [roomId]);
+    return () => {
+      unsubscribe();
+    };
+  }, [roomId, userName]);
 
   const canDisplayRoll = (roll: FirebaseRoll) => {
     // As a floating widget, we might not know if WE are MJ easily without prop drilling.
@@ -478,7 +503,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
       if (isBlind) {
         toast.info("Résultat caché (envoyé au MJ)");
       } else {
-        toast.success(output, { duration: 5000, icon: '🎲' });
+        toast(output, { duration: 5000 });
       }
 
       // Save to Firebase
@@ -1082,6 +1107,9 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                                   </div>
                                 </div>
                                 <div className="text-[11px] font-mono text-zinc-500 truncate mb-1">{roll.notation}</div>
+                                <div className={`text-[10px] font-mono text-zinc-400/70 mb-1 transition-all duration-300 ${roll.isBlind && userName !== "MJ" ? 'blur-sm opacity-30 select-none' : ''}`}>
+                                  {roll.output}
+                                </div>
                                 <div className="flex items-center justify-between">
                                   <div className={`text-sm font-bold text-zinc-200 transition-all duration-300 ${roll.isBlind && userName !== "MJ" ? 'blur-sm opacity-50 select-none' : ''}`}>
                                     Total: {roll.total}
