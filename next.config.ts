@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
         remotePatterns: [
             {
                 protocol: 'https',
-                hostname: 'pub-6b6ff93daa684afe8aca1537c143add0.r2.dev',
+                hostname: 'assets.yner.fr',
                 port: '',
                 pathname: '/**',
             },

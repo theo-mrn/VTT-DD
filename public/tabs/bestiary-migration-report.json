@@ -3,581 +3,581 @@
     "creatureId": "aboleth",
     "creatureName": "Aboleth",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/aboleth.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/aboleth.png",
+    "newUrl": "https://assets.yner.fr/bestaire/aboleth.png",
     "status": "uploaded"
   },
   {
     "creatureId": "acolyte",
     "creatureName": "Acolyte",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/acolyte.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/acolyte.png",
+    "newUrl": "https://assets.yner.fr/bestaire/acolyte.png",
     "status": "uploaded"
   },
   {
     "creatureId": "adult-black-dragon",
     "creatureName": "Dragon noir adulte",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/adult-black-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-black-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/adult-black-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "adult-blue-dragon",
     "creatureName": "Dragon bleu adulte",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/adult-blue-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-blue-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/adult-blue-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "adult-brass-dragon",
     "creatureName": "Dragon adulte en laiton",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/adult-brass-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-brass-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/adult-brass-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "adult-bronze-dragon",
     "creatureName": "Dragon de bronze adulte",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/adult-bronze-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-bronze-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/adult-bronze-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "adult-copper-dragon",
     "creatureName": "Dragon cuivré adulte",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/adult-copper-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-copper-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/adult-copper-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "adult-gold-dragon",
     "creatureName": "Dragon d'or adulte",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/adult-gold-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-gold-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/adult-gold-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "adult-green-dragon",
     "creatureName": "Dragon vert adulte",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/adult-green-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-green-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/adult-green-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "adult-red-dragon",
     "creatureName": "Dragon rouge adulte",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/adult-red-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-red-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/adult-red-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "adult-silver-dragon",
     "creatureName": "Dragon d'argent adulte",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/adult-silver-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-silver-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/adult-silver-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "adult-white-dragon",
     "creatureName": "Dragon blanc adulte",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/adult-white-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/adult-white-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/adult-white-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "air-elemental",
     "creatureName": "Élémentaire de l'air",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/air-elemental.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/air-elemental.png",
+    "newUrl": "https://assets.yner.fr/bestaire/air-elemental.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ancient-black-dragon",
     "creatureName": "Ancien dragon noir",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ancient-black-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-black-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ancient-black-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ancient-blue-dragon",
     "creatureName": "Ancien dragon bleu",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ancient-blue-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-blue-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ancient-blue-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ancient-brass-dragon",
     "creatureName": "Dragon antique en laiton",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ancient-brass-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-brass-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ancient-brass-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ancient-bronze-dragon",
     "creatureName": "Dragon de bronze ancien",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ancient-bronze-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-bronze-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ancient-bronze-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ancient-copper-dragon",
     "creatureName": "Ancien dragon de cuivre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ancient-copper-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-copper-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ancient-copper-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ancient-gold-dragon",
     "creatureName": "Dragon d'or ancien",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ancient-gold-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-gold-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ancient-gold-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ancient-green-dragon",
     "creatureName": "Ancien dragon vert",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ancient-green-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-green-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ancient-green-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ancient-red-dragon",
     "creatureName": "Ancien dragon rouge",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ancient-red-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-red-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ancient-red-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ancient-silver-dragon",
     "creatureName": "Ancien dragon d'argent",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ancient-silver-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-silver-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ancient-silver-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ancient-white-dragon",
     "creatureName": "Ancien dragon blanc",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ancient-white-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ancient-white-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ancient-white-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "androsphinx",
     "creatureName": "Androsphinx",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/androsphinx.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/androsphinx.png",
+    "newUrl": "https://assets.yner.fr/bestaire/androsphinx.png",
     "status": "uploaded"
   },
   {
     "creatureId": "animated-armor",
     "creatureName": "Armure animée",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/animated-armor.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/animated-armor.png",
+    "newUrl": "https://assets.yner.fr/bestaire/animated-armor.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ankheg",
     "creatureName": "Ankheg",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ankheg.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ankheg.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ankheg.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ape",
     "creatureName": "Singe",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ape.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ape.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ape.png",
     "status": "uploaded"
   },
   {
     "creatureId": "archmage",
     "creatureName": "Archimage",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/archmage.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/archmage.png",
+    "newUrl": "https://assets.yner.fr/bestaire/archmage.png",
     "status": "uploaded"
   },
   {
     "creatureId": "assassin",
     "creatureName": "Assassin",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/assassin.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/assassin.png",
+    "newUrl": "https://assets.yner.fr/bestaire/assassin.png",
     "status": "uploaded"
   },
   {
     "creatureId": "awakened-shrub",
     "creatureName": "Arbuste éveillé",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/awakened-shrub.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/awakened-shrub.png",
+    "newUrl": "https://assets.yner.fr/bestaire/awakened-shrub.png",
     "status": "uploaded"
   },
   {
     "creatureId": "awakened-tree",
     "creatureName": "Arbre éveillé",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/awakened-tree.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/awakened-tree.png",
+    "newUrl": "https://assets.yner.fr/bestaire/awakened-tree.png",
     "status": "uploaded"
   },
   {
     "creatureId": "axe-beak",
     "creatureName": "Bec de hache",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/axe-beak.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/axe-beak.png",
+    "newUrl": "https://assets.yner.fr/bestaire/axe-beak.png",
     "status": "uploaded"
   },
   {
     "creatureId": "azer",
     "creatureName": "Azer",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/azer.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/azer.png",
+    "newUrl": "https://assets.yner.fr/bestaire/azer.png",
     "status": "uploaded"
   },
   {
     "creatureId": "baboon",
     "creatureName": "Babouin",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/baboon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/baboon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/baboon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "badger",
     "creatureName": "Blaireau",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/badger.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/badger.png",
+    "newUrl": "https://assets.yner.fr/bestaire/badger.png",
     "status": "uploaded"
   },
   {
     "creatureId": "balor",
     "creatureName": "Balor",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/balor.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/balor.png",
+    "newUrl": "https://assets.yner.fr/bestaire/balor.png",
     "status": "uploaded"
   },
   {
     "creatureId": "bandit",
     "creatureName": "Bandit",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/bandit.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bandit.png",
+    "newUrl": "https://assets.yner.fr/bestaire/bandit.png",
     "status": "uploaded"
   },
   {
     "creatureId": "bandit-captain",
     "creatureName": "Capitaine des bandits",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/bandit-captain.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bandit-captain.png",
+    "newUrl": "https://assets.yner.fr/bestaire/bandit-captain.png",
     "status": "uploaded"
   },
   {
     "creatureId": "barbed-devil",
     "creatureName": "Diable barbelé",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/barbed-devil.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/barbed-devil.png",
+    "newUrl": "https://assets.yner.fr/bestaire/barbed-devil.png",
     "status": "uploaded"
   },
   {
     "creatureId": "basilisk",
     "creatureName": "Basilic",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/basilisk.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/basilisk.png",
+    "newUrl": "https://assets.yner.fr/bestaire/basilisk.png",
     "status": "uploaded"
   },
   {
     "creatureId": "bat",
     "creatureName": "Chauve-souris",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/bat.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bat.png",
+    "newUrl": "https://assets.yner.fr/bestaire/bat.png",
     "status": "uploaded"
   },
   {
     "creatureId": "bearded-devil",
     "creatureName": "Diable barbu",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/bearded-devil.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bearded-devil.png",
+    "newUrl": "https://assets.yner.fr/bestaire/bearded-devil.png",
     "status": "uploaded"
   },
   {
     "creatureId": "behir",
     "creatureName": "Behir",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/behir.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/behir.png",
+    "newUrl": "https://assets.yner.fr/bestaire/behir.png",
     "status": "uploaded"
   },
   {
     "creatureId": "berserker",
     "creatureName": "Berserker",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/berserker.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/berserker.png",
+    "newUrl": "https://assets.yner.fr/bestaire/berserker.png",
     "status": "uploaded"
   },
   {
     "creatureId": "black-bear",
     "creatureName": "Ours noir",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/black-bear.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/black-bear.png",
+    "newUrl": "https://assets.yner.fr/bestaire/black-bear.png",
     "status": "uploaded"
   },
   {
     "creatureId": "black-dragon-wyrmling",
     "creatureName": "Dragon noir Wyrmling",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/black-dragon-wyrmling.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/black-dragon-wyrmling.png",
+    "newUrl": "https://assets.yner.fr/bestaire/black-dragon-wyrmling.png",
     "status": "uploaded"
   },
   {
     "creatureId": "black-pudding",
     "creatureName": "Boudin noir",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/black-pudding.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/black-pudding.png",
+    "newUrl": "https://assets.yner.fr/bestaire/black-pudding.png",
     "status": "uploaded"
   },
   {
     "creatureId": "blink-dog",
     "creatureName": "Chien clignotant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/blink-dog.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/blink-dog.png",
+    "newUrl": "https://assets.yner.fr/bestaire/blink-dog.png",
     "status": "uploaded"
   },
   {
     "creatureId": "blood-hawk",
     "creatureName": "Faucon de sang",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/blood-hawk.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/blood-hawk.png",
+    "newUrl": "https://assets.yner.fr/bestaire/blood-hawk.png",
     "status": "uploaded"
   },
   {
     "creatureId": "blue-dragon-wyrmling",
     "creatureName": "Dragon bleu Wyrmling",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/blue-dragon-wyrmling.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/blue-dragon-wyrmling.png",
+    "newUrl": "https://assets.yner.fr/bestaire/blue-dragon-wyrmling.png",
     "status": "uploaded"
   },
   {
     "creatureId": "boar",
     "creatureName": "Sanglier",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/boar.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/boar.png",
+    "newUrl": "https://assets.yner.fr/bestaire/boar.png",
     "status": "uploaded"
   },
   {
     "creatureId": "bone-devil",
     "creatureName": "Diable osseux",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/bone-devil.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bone-devil.png",
+    "newUrl": "https://assets.yner.fr/bestaire/bone-devil.png",
     "status": "uploaded"
   },
   {
     "creatureId": "brass-dragon-wyrmling",
     "creatureName": "Wyrmling dragon en laiton",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/brass-dragon-wyrmling.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/brass-dragon-wyrmling.png",
+    "newUrl": "https://assets.yner.fr/bestaire/brass-dragon-wyrmling.png",
     "status": "uploaded"
   },
   {
     "creatureId": "bronze-dragon-wyrmling",
     "creatureName": "Dragon de bronze Wyrmling",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/bronze-dragon-wyrmling.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bronze-dragon-wyrmling.png",
+    "newUrl": "https://assets.yner.fr/bestaire/bronze-dragon-wyrmling.png",
     "status": "uploaded"
   },
   {
     "creatureId": "brown-bear",
     "creatureName": "Ours brun",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/brown-bear.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/brown-bear.png",
+    "newUrl": "https://assets.yner.fr/bestaire/brown-bear.png",
     "status": "uploaded"
   },
   {
     "creatureId": "bugbear",
     "creatureName": "Bugbear",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/bugbear.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bugbear.png",
+    "newUrl": "https://assets.yner.fr/bestaire/bugbear.png",
     "status": "uploaded"
   },
   {
     "creatureId": "bulette",
     "creatureName": "Bulette",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/bulette.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/bulette.png",
+    "newUrl": "https://assets.yner.fr/bestaire/bulette.png",
     "status": "uploaded"
   },
   {
     "creatureId": "camel",
     "creatureName": "Chameau",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/camel.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/camel.png",
+    "newUrl": "https://assets.yner.fr/bestaire/camel.png",
     "status": "uploaded"
   },
   {
     "creatureId": "cat",
     "creatureName": "Chat",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/cat.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/cat.png",
+    "newUrl": "https://assets.yner.fr/bestaire/cat.png",
     "status": "uploaded"
   },
   {
     "creatureId": "centaur",
     "creatureName": "Centaure",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/centaur.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/centaur.png",
+    "newUrl": "https://assets.yner.fr/bestaire/centaur.png",
     "status": "uploaded"
   },
   {
     "creatureId": "chain-devil",
     "creatureName": "Diable en chaîne",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/chain-devil.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/chain-devil.png",
+    "newUrl": "https://assets.yner.fr/bestaire/chain-devil.png",
     "status": "uploaded"
   },
   {
     "creatureId": "chimera",
     "creatureName": "Chimère",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/chimera.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/chimera.png",
+    "newUrl": "https://assets.yner.fr/bestaire/chimera.png",
     "status": "uploaded"
   },
   {
     "creatureId": "chuul",
     "creatureName": "Chuul",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/chuul.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/chuul.png",
+    "newUrl": "https://assets.yner.fr/bestaire/chuul.png",
     "status": "uploaded"
   },
   {
     "creatureId": "clay-golem",
     "creatureName": "Golem d'argile",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/clay-golem.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/clay-golem.png",
+    "newUrl": "https://assets.yner.fr/bestaire/clay-golem.png",
     "status": "uploaded"
   },
   {
     "creatureId": "cloaker",
     "creatureName": "Cloaker",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/cloaker.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/cloaker.png",
+    "newUrl": "https://assets.yner.fr/bestaire/cloaker.png",
     "status": "uploaded"
   },
   {
     "creatureId": "cloud-giant",
     "creatureName": "Géant des nuages",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/cloud-giant.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/cloud-giant.png",
+    "newUrl": "https://assets.yner.fr/bestaire/cloud-giant.png",
     "status": "uploaded"
   },
   {
     "creatureId": "cockatrice",
     "creatureName": "Cockatrice",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/cockatrice.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/cockatrice.png",
+    "newUrl": "https://assets.yner.fr/bestaire/cockatrice.png",
     "status": "uploaded"
   },
   {
     "creatureId": "commoner",
     "creatureName": "Commoner",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/commoner.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/commoner.png",
+    "newUrl": "https://assets.yner.fr/bestaire/commoner.png",
     "status": "uploaded"
   },
   {
     "creatureId": "constrictor-snake",
     "creatureName": "Serpent constricteur",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/constrictor-snake.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/constrictor-snake.png",
+    "newUrl": "https://assets.yner.fr/bestaire/constrictor-snake.png",
     "status": "uploaded"
   },
   {
     "creatureId": "copper-dragon-wyrmling",
     "creatureName": "Dragon de cuivre Wyrmling",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/copper-dragon-wyrmling.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/copper-dragon-wyrmling.png",
+    "newUrl": "https://assets.yner.fr/bestaire/copper-dragon-wyrmling.png",
     "status": "uploaded"
   },
   {
     "creatureId": "couatl",
     "creatureName": "Couatl",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/couatl.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/couatl.png",
+    "newUrl": "https://assets.yner.fr/bestaire/couatl.png",
     "status": "uploaded"
   },
   {
     "creatureId": "crab",
     "creatureName": "Crabe",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/crab.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/crab.png",
+    "newUrl": "https://assets.yner.fr/bestaire/crab.png",
     "status": "uploaded"
   },
   {
     "creatureId": "crocodile",
     "creatureName": "Crocodile",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/crocodile.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/crocodile.png",
+    "newUrl": "https://assets.yner.fr/bestaire/crocodile.png",
     "status": "uploaded"
   },
   {
     "creatureId": "cult-fanatic",
     "creatureName": "Fanatique de la secte",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/cult-fanatic.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/cult-fanatic.png",
+    "newUrl": "https://assets.yner.fr/bestaire/cult-fanatic.png",
     "status": "uploaded"
   },
   {
     "creatureId": "cultist",
     "creatureName": "Cultiste",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/cultist.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/cultist.png",
+    "newUrl": "https://assets.yner.fr/bestaire/cultist.png",
     "status": "uploaded"
   },
   {
     "creatureId": "darkmantle",
     "creatureName": "Darkmantle",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/darkmantle.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/darkmantle.png",
+    "newUrl": "https://assets.yner.fr/bestaire/darkmantle.png",
     "status": "uploaded"
   },
   {
     "creatureId": "death-dog",
     "creatureName": "Chien de la mort",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/death-dog.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/death-dog.png",
+    "newUrl": "https://assets.yner.fr/bestaire/death-dog.png",
     "status": "uploaded"
   },
   {
     "creatureId": "deep-gnome-svirfneblin",
     "creatureName": "Gnome profond (Svirfneblin)",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/deep-gnome-svirfneblin.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/deep-gnome-svirfneblin.png",
+    "newUrl": "https://assets.yner.fr/bestaire/deep-gnome-svirfneblin.png",
     "status": "uploaded"
   },
   {
     "creatureId": "deer",
     "creatureName": "Chevreuil",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/deer.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/deer.png",
+    "newUrl": "https://assets.yner.fr/bestaire/deer.png",
     "status": "uploaded"
   },
   {
     "creatureId": "deva",
     "creatureName": "Deva",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/deva.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/deva.png",
+    "newUrl": "https://assets.yner.fr/bestaire/deva.png",
     "status": "uploaded"
   },
   {
     "creatureId": "dire-wolf",
     "creatureName": "Loup sinistre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/dire-wolf.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/dire-wolf.png",
+    "newUrl": "https://assets.yner.fr/bestaire/dire-wolf.png",
     "status": "uploaded"
   },
   {
     "creatureId": "djinni",
     "creatureName": "Djinni",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/djinni.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/djinni.png",
+    "newUrl": "https://assets.yner.fr/bestaire/djinni.png",
     "status": "uploaded"
   },
   {
     "creatureId": "doppelganger",
     "creatureName": "Sosie",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/doppelganger.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/doppelganger.png",
+    "newUrl": "https://assets.yner.fr/bestaire/doppelganger.png",
     "status": "uploaded"
   },
   {
@@ -592,42 +592,42 @@
     "creatureId": "dragon-turtle",
     "creatureName": "Tortue Dragon",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/dragon-turtle.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/dragon-turtle.png",
+    "newUrl": "https://assets.yner.fr/bestaire/dragon-turtle.png",
     "status": "uploaded"
   },
   {
     "creatureId": "dretch",
     "creatureName": "Dretch",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/dretch.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/dretch.png",
+    "newUrl": "https://assets.yner.fr/bestaire/dretch.png",
     "status": "uploaded"
   },
   {
     "creatureId": "drider",
     "creatureName": "Drider",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/drider.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/drider.png",
+    "newUrl": "https://assets.yner.fr/bestaire/drider.png",
     "status": "uploaded"
   },
   {
     "creatureId": "drow",
     "creatureName": "Drow",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/drow.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/drow.png",
+    "newUrl": "https://assets.yner.fr/bestaire/drow.png",
     "status": "uploaded"
   },
   {
     "creatureId": "druid",
     "creatureName": "Druide",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/druid.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/druid.png",
+    "newUrl": "https://assets.yner.fr/bestaire/druid.png",
     "status": "uploaded"
   },
   {
     "creatureId": "dryad",
     "creatureName": "Dryade",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/dryad.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/dryad.png",
+    "newUrl": "https://assets.yner.fr/bestaire/dryad.png",
     "status": "uploaded"
   },
   {
@@ -642,7 +642,7 @@
     "creatureId": "dust-mephit",
     "creatureName": "Poussière Méphite",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/dust-mephit.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/dust-mephit.png",
+    "newUrl": "https://assets.yner.fr/bestaire/dust-mephit.png",
     "status": "uploaded"
   },
   {
@@ -657,7 +657,7 @@
     "creatureId": "earth-elemental",
     "creatureName": "Élémentaire de terre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/earth-elemental.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/earth-elemental.png",
+    "newUrl": "https://assets.yner.fr/bestaire/earth-elemental.png",
     "status": "uploaded"
   },
   {
@@ -672,7 +672,7 @@
     "creatureId": "elephant",
     "creatureName": "Éléphant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/elephant.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/elephant.png",
+    "newUrl": "https://assets.yner.fr/bestaire/elephant.png",
     "status": "uploaded"
   },
   {
@@ -687,77 +687,77 @@
     "creatureId": "erinyes",
     "creatureName": "Erinyes",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/erinyes.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/erinyes.png",
+    "newUrl": "https://assets.yner.fr/bestaire/erinyes.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ettercap",
     "creatureName": "Ettercap",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ettercap.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ettercap.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ettercap.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ettin",
     "creatureName": "Ettin",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ettin.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ettin.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ettin.png",
     "status": "uploaded"
   },
   {
     "creatureId": "fire-elemental",
     "creatureName": "Élémentaire de feu",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/fire-elemental.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/fire-elemental.png",
+    "newUrl": "https://assets.yner.fr/bestaire/fire-elemental.png",
     "status": "uploaded"
   },
   {
     "creatureId": "fire-giant",
     "creatureName": "Géant de feu",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/fire-giant.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/fire-giant.png",
+    "newUrl": "https://assets.yner.fr/bestaire/fire-giant.png",
     "status": "uploaded"
   },
   {
     "creatureId": "flesh-golem",
     "creatureName": "Golem de chair",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/flesh-golem.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/flesh-golem.png",
+    "newUrl": "https://assets.yner.fr/bestaire/flesh-golem.png",
     "status": "uploaded"
   },
   {
     "creatureId": "flying-snake",
     "creatureName": "Serpent volant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/flying-snake.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/flying-snake.png",
+    "newUrl": "https://assets.yner.fr/bestaire/flying-snake.png",
     "status": "uploaded"
   },
   {
     "creatureId": "flying-sword",
     "creatureName": "L'épée volante",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/flying-sword.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/flying-sword.png",
+    "newUrl": "https://assets.yner.fr/bestaire/flying-sword.png",
     "status": "uploaded"
   },
   {
     "creatureId": "frog",
     "creatureName": "Grenouille",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/frog.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/frog.png",
+    "newUrl": "https://assets.yner.fr/bestaire/frog.png",
     "status": "uploaded"
   },
   {
     "creatureId": "frost-giant",
     "creatureName": "Géant de givre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/frost-giant.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/frost-giant.png",
+    "newUrl": "https://assets.yner.fr/bestaire/frost-giant.png",
     "status": "uploaded"
   },
   {
     "creatureId": "gargoyle",
     "creatureName": "Argon",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/gargoyle.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/gargoyle.png",
+    "newUrl": "https://assets.yner.fr/bestaire/gargoyle.png",
     "status": "uploaded"
   },
   {
@@ -772,1575 +772,1575 @@
     "creatureId": "ghast",
     "creatureName": "Ghast",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ghast.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ghast.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ghast.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ghost",
     "creatureName": "Fantôme",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ghost.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ghost.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ghost.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ghoul",
     "creatureName": "La goule",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ghoul.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ghoul.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ghoul.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-ape",
     "creatureName": "Singe géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-ape.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-ape.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-ape.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-badger",
     "creatureName": "Blaireau géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-badger.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-badger.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-badger.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-bat",
     "creatureName": "Chauve-souris géante",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-bat.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-bat.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-bat.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-boar",
     "creatureName": "Sanglier géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-boar.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-boar.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-boar.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-centipede",
     "creatureName": "Mille-pattes géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-centipede.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-centipede.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-centipede.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-constrictor-snake",
     "creatureName": "Serpent constricteur géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-constrictor-snake.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-constrictor-snake.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-constrictor-snake.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-crab",
     "creatureName": "Crabe géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-crab.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-crab.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-crab.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-crocodile",
     "creatureName": "Crocodile géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-crocodile.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-crocodile.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-crocodile.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-eagle",
     "creatureName": "Giant Eagle",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-eagle.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-eagle.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-eagle.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-elk",
     "creatureName": "Élan géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-elk.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-elk.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-elk.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-fire-beetle",
     "creatureName": "Coléoptère géant du feu",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-fire-beetle.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-fire-beetle.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-fire-beetle.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-frog",
     "creatureName": "Grenouille géante",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-frog.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-frog.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-frog.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-goat",
     "creatureName": "Chèvre géante",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-goat.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-goat.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-goat.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-hyena",
     "creatureName": "Hyène géante",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-hyena.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-hyena.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-hyena.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-lizard",
     "creatureName": "Lézard géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-lizard.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-lizard.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-lizard.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-octopus",
     "creatureName": "Pieuvre géante",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-octopus.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-octopus.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-octopus.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-owl",
     "creatureName": "Hibou géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-owl.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-owl.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-owl.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-poisonous-snake",
     "creatureName": "Serpent venimeux géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-poisonous-snake.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-poisonous-snake.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-poisonous-snake.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-rat",
     "creatureName": "Rat géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-rat.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-rat.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-rat.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-rat-diseased",
     "creatureName": "Rat géant (malade)",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-rat-diseased.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-rat-diseased.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-rat-diseased.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-scorpion",
     "creatureName": "Scorpion géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-scorpion.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-scorpion.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-scorpion.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-sea-horse",
     "creatureName": "Hippocampe géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-sea-horse.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-sea-horse.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-sea-horse.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-shark",
     "creatureName": "Requin géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-shark.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-shark.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-shark.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-spider",
     "creatureName": "Araignée géante",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-spider.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-spider.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-spider.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-toad",
     "creatureName": "Crapaud géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-toad.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-toad.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-toad.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-vulture",
     "creatureName": "Vautour géant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-vulture.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-vulture.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-vulture.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-wasp",
     "creatureName": "Guêpe géante",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-wasp.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-wasp.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-wasp.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-weasel",
     "creatureName": "Fouine géante",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-weasel.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-weasel.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-weasel.png",
     "status": "uploaded"
   },
   {
     "creatureId": "giant-wolf-spider",
     "creatureName": "Araignée-loup géante",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/giant-wolf-spider.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/giant-wolf-spider.png",
+    "newUrl": "https://assets.yner.fr/bestaire/giant-wolf-spider.png",
     "status": "uploaded"
   },
   {
     "creatureId": "gibbering-mouther",
     "creatureName": "Bouche à oreille",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/gibbering-mouther.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/gibbering-mouther.png",
+    "newUrl": "https://assets.yner.fr/bestaire/gibbering-mouther.png",
     "status": "uploaded"
   },
   {
     "creatureId": "glabrezu",
     "creatureName": "Glabrezu",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/glabrezu.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/glabrezu.png",
+    "newUrl": "https://assets.yner.fr/bestaire/glabrezu.png",
     "status": "uploaded"
   },
   {
     "creatureId": "gladiator",
     "creatureName": "Gladiateur",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/gladiator.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/gladiator.png",
+    "newUrl": "https://assets.yner.fr/bestaire/gladiator.png",
     "status": "uploaded"
   },
   {
     "creatureId": "gnoll",
     "creatureName": "Gnoll",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/gnoll.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/gnoll.png",
+    "newUrl": "https://assets.yner.fr/bestaire/gnoll.png",
     "status": "uploaded"
   },
   {
     "creatureId": "goat",
     "creatureName": "Chèvre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/goat.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/goat.png",
+    "newUrl": "https://assets.yner.fr/bestaire/goat.png",
     "status": "uploaded"
   },
   {
     "creatureId": "goblin",
     "creatureName": "Gobelin",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/goblin.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/goblin.png",
+    "newUrl": "https://assets.yner.fr/bestaire/goblin.png",
     "status": "uploaded"
   },
   {
     "creatureId": "gold-dragon-wyrmling",
     "creatureName": "Dragon d'or Wyrmling",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/gold-dragon-wyrmling.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/gold-dragon-wyrmling.png",
+    "newUrl": "https://assets.yner.fr/bestaire/gold-dragon-wyrmling.png",
     "status": "uploaded"
   },
   {
     "creatureId": "gorgon",
     "creatureName": "Gorgone",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/gorgon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/gorgon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/gorgon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "gray-ooze",
     "creatureName": "Gris de suie",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/gray-ooze.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/gray-ooze.png",
+    "newUrl": "https://assets.yner.fr/bestaire/gray-ooze.png",
     "status": "uploaded"
   },
   {
     "creatureId": "green-dragon-wyrmling",
     "creatureName": "Dragon vert Wyrmling",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/green-dragon-wyrmling.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/green-dragon-wyrmling.png",
+    "newUrl": "https://assets.yner.fr/bestaire/green-dragon-wyrmling.png",
     "status": "uploaded"
   },
   {
     "creatureId": "green-hag",
     "creatureName": "Hag vert",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/green-hag.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/green-hag.png",
+    "newUrl": "https://assets.yner.fr/bestaire/green-hag.png",
     "status": "uploaded"
   },
   {
     "creatureId": "grick",
     "creatureName": "Grick",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/grick.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/grick.png",
+    "newUrl": "https://assets.yner.fr/bestaire/grick.png",
     "status": "uploaded"
   },
   {
     "creatureId": "griffon",
     "creatureName": "Griffon",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/griffon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/griffon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/griffon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "grimlock",
     "creatureName": "Grimlock",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/grimlock.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/grimlock.png",
+    "newUrl": "https://assets.yner.fr/bestaire/grimlock.png",
     "status": "uploaded"
   },
   {
     "creatureId": "guard",
     "creatureName": "Garde",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/guard.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/guard.png",
+    "newUrl": "https://assets.yner.fr/bestaire/guard.png",
     "status": "uploaded"
   },
   {
     "creatureId": "guardian-naga",
     "creatureName": "Gardien Naga",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/guardian-naga.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/guardian-naga.png",
+    "newUrl": "https://assets.yner.fr/bestaire/guardian-naga.png",
     "status": "uploaded"
   },
   {
     "creatureId": "gynosphinx",
     "creatureName": "Gynosphinx",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/gynosphinx.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/gynosphinx.png",
+    "newUrl": "https://assets.yner.fr/bestaire/gynosphinx.png",
     "status": "uploaded"
   },
   {
     "creatureId": "half-red-dragon-veteran",
     "creatureName": "Dragon demi-rouge vétéran",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/half-red-dragon-veteran.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/half-red-dragon-veteran.png",
+    "newUrl": "https://assets.yner.fr/bestaire/half-red-dragon-veteran.png",
     "status": "uploaded"
   },
   {
     "creatureId": "harpy",
     "creatureName": "Harpie",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/harpy.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/harpy.png",
+    "newUrl": "https://assets.yner.fr/bestaire/harpy.png",
     "status": "uploaded"
   },
   {
     "creatureId": "hawk",
     "creatureName": "Faucon",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/hawk.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/hawk.png",
+    "newUrl": "https://assets.yner.fr/bestaire/hawk.png",
     "status": "uploaded"
   },
   {
     "creatureId": "hell-hound",
     "creatureName": "Chien de l'enfer",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/hell-hound.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/hell-hound.png",
+    "newUrl": "https://assets.yner.fr/bestaire/hell-hound.png",
     "status": "uploaded"
   },
   {
     "creatureId": "hezrou",
     "creatureName": "Hezrou",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/hezrou.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/hezrou.png",
+    "newUrl": "https://assets.yner.fr/bestaire/hezrou.png",
     "status": "uploaded"
   },
   {
     "creatureId": "hill-giant",
     "creatureName": "Géant des collines",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/hill-giant.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/hill-giant.png",
+    "newUrl": "https://assets.yner.fr/bestaire/hill-giant.png",
     "status": "uploaded"
   },
   {
     "creatureId": "hippogriff",
     "creatureName": "Hippogriffe",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/hippogriff.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/hippogriff.png",
+    "newUrl": "https://assets.yner.fr/bestaire/hippogriff.png",
     "status": "uploaded"
   },
   {
     "creatureId": "hobgoblin",
     "creatureName": "Hobgobelin",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/hobgoblin.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/hobgoblin.png",
+    "newUrl": "https://assets.yner.fr/bestaire/hobgoblin.png",
     "status": "uploaded"
   },
   {
     "creatureId": "homunculus",
     "creatureName": "Homunculus",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/homunculus.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/homunculus.png",
+    "newUrl": "https://assets.yner.fr/bestaire/homunculus.png",
     "status": "uploaded"
   },
   {
     "creatureId": "horned-devil",
     "creatureName": "Diable cornu",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/horned-devil.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/horned-devil.png",
+    "newUrl": "https://assets.yner.fr/bestaire/horned-devil.png",
     "status": "uploaded"
   },
   {
     "creatureId": "hunter-shark",
     "creatureName": "Requin chasseur",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/hunter-shark.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/hunter-shark.png",
+    "newUrl": "https://assets.yner.fr/bestaire/hunter-shark.png",
     "status": "uploaded"
   },
   {
     "creatureId": "hydra",
     "creatureName": "Hydra",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/hydra.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/hydra.png",
+    "newUrl": "https://assets.yner.fr/bestaire/hydra.png",
     "status": "uploaded"
   },
   {
     "creatureId": "hyena",
     "creatureName": "Hyène",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/hyena.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/hyena.png",
+    "newUrl": "https://assets.yner.fr/bestaire/hyena.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ice-devil",
     "creatureName": "Diable de glace",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ice-devil.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ice-devil.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ice-devil.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ice-mephit",
     "creatureName": "Méphite de glace",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ice-mephit.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ice-mephit.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ice-mephit.png",
     "status": "uploaded"
   },
   {
     "creatureId": "imp",
     "creatureName": "Lutte contre l'alcoolisme",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/imp.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/imp.png",
+    "newUrl": "https://assets.yner.fr/bestaire/imp.png",
     "status": "uploaded"
   },
   {
     "creatureId": "invisible-stalker",
     "creatureName": "Harceleur invisible",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/invisible-stalker.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/invisible-stalker.png",
+    "newUrl": "https://assets.yner.fr/bestaire/invisible-stalker.png",
     "status": "uploaded"
   },
   {
     "creatureId": "iron-golem",
     "creatureName": "Golem de fer",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/iron-golem.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/iron-golem.png",
+    "newUrl": "https://assets.yner.fr/bestaire/iron-golem.png",
     "status": "uploaded"
   },
   {
     "creatureId": "jackal",
     "creatureName": "Chacal",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/jackal.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/jackal.png",
+    "newUrl": "https://assets.yner.fr/bestaire/jackal.png",
     "status": "uploaded"
   },
   {
     "creatureId": "killer-whale",
     "creatureName": "L'orque",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/killer-whale.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/killer-whale.png",
+    "newUrl": "https://assets.yner.fr/bestaire/killer-whale.png",
     "status": "uploaded"
   },
   {
     "creatureId": "knight",
     "creatureName": "Chevalier",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/knight.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/knight.png",
+    "newUrl": "https://assets.yner.fr/bestaire/knight.png",
     "status": "uploaded"
   },
   {
     "creatureId": "kobold",
     "creatureName": "Kobold",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/kobold.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/kobold.png",
+    "newUrl": "https://assets.yner.fr/bestaire/kobold.png",
     "status": "uploaded"
   },
   {
     "creatureId": "kraken",
     "creatureName": "Kraken",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/kraken.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/kraken.png",
+    "newUrl": "https://assets.yner.fr/bestaire/kraken.png",
     "status": "uploaded"
   },
   {
     "creatureId": "lamia",
     "creatureName": "Lamia",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/lamia.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/lamia.png",
+    "newUrl": "https://assets.yner.fr/bestaire/lamia.png",
     "status": "uploaded"
   },
   {
     "creatureId": "lemure",
     "creatureName": "Lemure",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/lemure.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/lemure.png",
+    "newUrl": "https://assets.yner.fr/bestaire/lemure.png",
     "status": "uploaded"
   },
   {
     "creatureId": "lich",
     "creatureName": "Lich",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/lich.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/lich.png",
+    "newUrl": "https://assets.yner.fr/bestaire/lich.png",
     "status": "uploaded"
   },
   {
     "creatureId": "lion",
     "creatureName": "Lion",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/lion.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/lion.png",
+    "newUrl": "https://assets.yner.fr/bestaire/lion.png",
     "status": "uploaded"
   },
   {
     "creatureId": "lizard",
     "creatureName": "Lézard",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/lizard.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/lizard.png",
+    "newUrl": "https://assets.yner.fr/bestaire/lizard.png",
     "status": "uploaded"
   },
   {
     "creatureId": "lizardfolk",
     "creatureName": "Le peuple des lézards",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/lizardfolk.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/lizardfolk.png",
+    "newUrl": "https://assets.yner.fr/bestaire/lizardfolk.png",
     "status": "uploaded"
   },
   {
     "creatureId": "mage",
     "creatureName": "Mage",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/mage.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/mage.png",
+    "newUrl": "https://assets.yner.fr/bestaire/mage.png",
     "status": "uploaded"
   },
   {
     "creatureId": "magma-mephit",
     "creatureName": "Méphite de Magma",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/magma-mephit.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/magma-mephit.png",
+    "newUrl": "https://assets.yner.fr/bestaire/magma-mephit.png",
     "status": "uploaded"
   },
   {
     "creatureId": "magmin",
     "creatureName": "Magmin",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/magmin.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/magmin.png",
+    "newUrl": "https://assets.yner.fr/bestaire/magmin.png",
     "status": "uploaded"
   },
   {
     "creatureId": "mammoth",
     "creatureName": "Mammouth",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/mammoth.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/mammoth.png",
+    "newUrl": "https://assets.yner.fr/bestaire/mammoth.png",
     "status": "uploaded"
   },
   {
     "creatureId": "manticore",
     "creatureName": "Manticore",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/manticore.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/manticore.png",
+    "newUrl": "https://assets.yner.fr/bestaire/manticore.png",
     "status": "uploaded"
   },
   {
     "creatureId": "marilith",
     "creatureName": "Marilith",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/marilith.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/marilith.png",
+    "newUrl": "https://assets.yner.fr/bestaire/marilith.png",
     "status": "uploaded"
   },
   {
     "creatureId": "mastiff",
     "creatureName": "Mastiff",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/mastiff.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/mastiff.png",
+    "newUrl": "https://assets.yner.fr/bestaire/mastiff.png",
     "status": "uploaded"
   },
   {
     "creatureId": "medusa",
     "creatureName": "Méduse",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/medusa.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/medusa.png",
+    "newUrl": "https://assets.yner.fr/bestaire/medusa.png",
     "status": "uploaded"
   },
   {
     "creatureId": "merfolk",
     "creatureName": "Merfolk",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/merfolk.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/merfolk.png",
+    "newUrl": "https://assets.yner.fr/bestaire/merfolk.png",
     "status": "uploaded"
   },
   {
     "creatureId": "merrow",
     "creatureName": "Merrow",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/merrow.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/merrow.png",
+    "newUrl": "https://assets.yner.fr/bestaire/merrow.png",
     "status": "uploaded"
   },
   {
     "creatureId": "mimic",
     "creatureName": "Mimique",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/mimic.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/mimic.png",
+    "newUrl": "https://assets.yner.fr/bestaire/mimic.png",
     "status": "uploaded"
   },
   {
     "creatureId": "minotaur",
     "creatureName": "Minotaure",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/minotaur.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/minotaur.png",
+    "newUrl": "https://assets.yner.fr/bestaire/minotaur.png",
     "status": "uploaded"
   },
   {
     "creatureId": "minotaur-skeleton",
     "creatureName": "Squelette de minotaure",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/minotaur-skeleton.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/minotaur-skeleton.png",
+    "newUrl": "https://assets.yner.fr/bestaire/minotaur-skeleton.png",
     "status": "uploaded"
   },
   {
     "creatureId": "mule",
     "creatureName": "Mule",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/mule.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/mule.png",
+    "newUrl": "https://assets.yner.fr/bestaire/mule.png",
     "status": "uploaded"
   },
   {
     "creatureId": "mummy",
     "creatureName": "Maman",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/mummy.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/mummy.png",
+    "newUrl": "https://assets.yner.fr/bestaire/mummy.png",
     "status": "uploaded"
   },
   {
     "creatureId": "mummy-lord",
     "creatureName": "Le seigneur des momies",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/mummy-lord.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/mummy-lord.png",
+    "newUrl": "https://assets.yner.fr/bestaire/mummy-lord.png",
     "status": "uploaded"
   },
   {
     "creatureId": "nalfeshnee",
     "creatureName": "Nalfeshnee",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/nalfeshnee.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/nalfeshnee.png",
+    "newUrl": "https://assets.yner.fr/bestaire/nalfeshnee.png",
     "status": "uploaded"
   },
   {
     "creatureId": "night-hag",
     "creatureName": "Hagre de nuit",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/night-hag.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/night-hag.png",
+    "newUrl": "https://assets.yner.fr/bestaire/night-hag.png",
     "status": "uploaded"
   },
   {
     "creatureId": "nightmare",
     "creatureName": "Cauchemar",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/nightmare.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/nightmare.png",
+    "newUrl": "https://assets.yner.fr/bestaire/nightmare.png",
     "status": "uploaded"
   },
   {
     "creatureId": "noble",
     "creatureName": "Noble",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/noble.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/noble.png",
+    "newUrl": "https://assets.yner.fr/bestaire/noble.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ochre-jelly",
     "creatureName": "Gelée d'ocre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ochre-jelly.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ochre-jelly.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ochre-jelly.png",
     "status": "uploaded"
   },
   {
     "creatureId": "octopus",
     "creatureName": "Pieuvre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/octopus.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/octopus.png",
+    "newUrl": "https://assets.yner.fr/bestaire/octopus.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ogre",
     "creatureName": "Ogre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ogre.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ogre.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ogre.png",
     "status": "uploaded"
   },
   {
     "creatureId": "ogre-zombie",
     "creatureName": "Ogre Zombie",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/ogre-zombie.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/ogre-zombie.png",
+    "newUrl": "https://assets.yner.fr/bestaire/ogre-zombie.png",
     "status": "uploaded"
   },
   {
     "creatureId": "oni",
     "creatureName": "Oni",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/oni.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/oni.png",
+    "newUrl": "https://assets.yner.fr/bestaire/oni.png",
     "status": "uploaded"
   },
   {
     "creatureId": "orc",
     "creatureName": "Orque",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/orc.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/orc.png",
+    "newUrl": "https://assets.yner.fr/bestaire/orc.png",
     "status": "uploaded"
   },
   {
     "creatureId": "otyugh",
     "creatureName": "Otyugh",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/otyugh.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/otyugh.png",
+    "newUrl": "https://assets.yner.fr/bestaire/otyugh.png",
     "status": "uploaded"
   },
   {
     "creatureId": "owl",
     "creatureName": "Hibou",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/owl.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/owl.png",
+    "newUrl": "https://assets.yner.fr/bestaire/owl.png",
     "status": "uploaded"
   },
   {
     "creatureId": "owlbear",
     "creatureName": "Ourson",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/owlbear.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/owlbear.png",
+    "newUrl": "https://assets.yner.fr/bestaire/owlbear.png",
     "status": "uploaded"
   },
   {
     "creatureId": "panther",
     "creatureName": "Panthère",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/panther.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/panther.png",
+    "newUrl": "https://assets.yner.fr/bestaire/panther.png",
     "status": "uploaded"
   },
   {
     "creatureId": "pegasus",
     "creatureName": "Pegasus",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/pegasus.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/pegasus.png",
+    "newUrl": "https://assets.yner.fr/bestaire/pegasus.png",
     "status": "uploaded"
   },
   {
     "creatureId": "phase-spider",
     "creatureName": "Phase Spider",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/phase-spider.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/phase-spider.png",
+    "newUrl": "https://assets.yner.fr/bestaire/phase-spider.png",
     "status": "uploaded"
   },
   {
     "creatureId": "pit-fiend",
     "creatureName": "Fléau de la fosse",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/pit-fiend.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/pit-fiend.png",
+    "newUrl": "https://assets.yner.fr/bestaire/pit-fiend.png",
     "status": "uploaded"
   },
   {
     "creatureId": "planetar",
     "creatureName": "Planetar",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/planetar.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/planetar.png",
+    "newUrl": "https://assets.yner.fr/bestaire/planetar.png",
     "status": "uploaded"
   },
   {
     "creatureId": "plesiosaurus",
     "creatureName": "Plesiosaurus",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/plesiosaurus.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/plesiosaurus.png",
+    "newUrl": "https://assets.yner.fr/bestaire/plesiosaurus.png",
     "status": "uploaded"
   },
   {
     "creatureId": "poisonous-snake",
     "creatureName": "Serpent venimeux",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/poisonous-snake.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/poisonous-snake.png",
+    "newUrl": "https://assets.yner.fr/bestaire/poisonous-snake.png",
     "status": "uploaded"
   },
   {
     "creatureId": "polar-bear",
     "creatureName": "Ours polaire",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/polar-bear.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/polar-bear.png",
+    "newUrl": "https://assets.yner.fr/bestaire/polar-bear.png",
     "status": "uploaded"
   },
   {
     "creatureId": "pony",
     "creatureName": "Poney",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/pony.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/pony.png",
+    "newUrl": "https://assets.yner.fr/bestaire/pony.png",
     "status": "uploaded"
   },
   {
     "creatureId": "priest",
     "creatureName": "Prêtre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/priest.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/priest.png",
+    "newUrl": "https://assets.yner.fr/bestaire/priest.png",
     "status": "uploaded"
   },
   {
     "creatureId": "pseudodragon",
     "creatureName": "Pseudodragon",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/pseudodragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/pseudodragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/pseudodragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "purple-worm",
     "creatureName": "Ver violet",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/purple-worm.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/purple-worm.png",
+    "newUrl": "https://assets.yner.fr/bestaire/purple-worm.png",
     "status": "uploaded"
   },
   {
     "creatureId": "quasit",
     "creatureName": "Quasit",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/quasit.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/quasit.png",
+    "newUrl": "https://assets.yner.fr/bestaire/quasit.png",
     "status": "uploaded"
   },
   {
     "creatureId": "quipper",
     "creatureName": "Quipper",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/quipper.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/quipper.png",
+    "newUrl": "https://assets.yner.fr/bestaire/quipper.png",
     "status": "uploaded"
   },
   {
     "creatureId": "rakshasa",
     "creatureName": "Rakshasa",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/rakshasa.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/rakshasa.png",
+    "newUrl": "https://assets.yner.fr/bestaire/rakshasa.png",
     "status": "uploaded"
   },
   {
     "creatureId": "rat",
     "creatureName": "Rat",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/rat.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/rat.png",
+    "newUrl": "https://assets.yner.fr/bestaire/rat.png",
     "status": "uploaded"
   },
   {
     "creatureId": "raven",
     "creatureName": "Corbeau",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/raven.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/raven.png",
+    "newUrl": "https://assets.yner.fr/bestaire/raven.png",
     "status": "uploaded"
   },
   {
     "creatureId": "red-dragon-wyrmling",
     "creatureName": "Dragon rouge Wyrmling",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/red-dragon-wyrmling.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/red-dragon-wyrmling.png",
+    "newUrl": "https://assets.yner.fr/bestaire/red-dragon-wyrmling.png",
     "status": "uploaded"
   },
   {
     "creatureId": "reef-shark",
     "creatureName": "Requin de récif",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/reef-shark.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/reef-shark.png",
+    "newUrl": "https://assets.yner.fr/bestaire/reef-shark.png",
     "status": "uploaded"
   },
   {
     "creatureId": "remorhaz",
     "creatureName": "Remorhaz",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/remorhaz.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/remorhaz.png",
+    "newUrl": "https://assets.yner.fr/bestaire/remorhaz.png",
     "status": "uploaded"
   },
   {
     "creatureId": "rhinoceros",
     "creatureName": "Rhinocéros",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/rhinoceros.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/rhinoceros.png",
+    "newUrl": "https://assets.yner.fr/bestaire/rhinoceros.png",
     "status": "uploaded"
   },
   {
     "creatureId": "riding-horse",
     "creatureName": "Cheval d'équitation",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/riding-horse.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/riding-horse.png",
+    "newUrl": "https://assets.yner.fr/bestaire/riding-horse.png",
     "status": "uploaded"
   },
   {
     "creatureId": "roc",
     "creatureName": "Roc",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/roc.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/roc.png",
+    "newUrl": "https://assets.yner.fr/bestaire/roc.png",
     "status": "uploaded"
   },
   {
     "creatureId": "roper",
     "creatureName": "Roper",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/roper.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/roper.png",
+    "newUrl": "https://assets.yner.fr/bestaire/roper.png",
     "status": "uploaded"
   },
   {
     "creatureId": "rug-of-smothering",
     "creatureName": "Tapis d'étouffement",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/rug-of-smothering.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/rug-of-smothering.png",
+    "newUrl": "https://assets.yner.fr/bestaire/rug-of-smothering.png",
     "status": "uploaded"
   },
   {
     "creatureId": "rust-monster",
     "creatureName": "Monstre de rouille",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/rust-monster.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/rust-monster.png",
+    "newUrl": "https://assets.yner.fr/bestaire/rust-monster.png",
     "status": "uploaded"
   },
   {
     "creatureId": "saber-toothed-tiger",
     "creatureName": "Tigre à dents de sabre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/saber-toothed-tiger.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/saber-toothed-tiger.png",
+    "newUrl": "https://assets.yner.fr/bestaire/saber-toothed-tiger.png",
     "status": "uploaded"
   },
   {
     "creatureId": "sahuagin",
     "creatureName": "Sahuagin",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/sahuagin.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/sahuagin.png",
+    "newUrl": "https://assets.yner.fr/bestaire/sahuagin.png",
     "status": "uploaded"
   },
   {
     "creatureId": "salamander",
     "creatureName": "Salamandre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/salamander.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/salamander.png",
+    "newUrl": "https://assets.yner.fr/bestaire/salamander.png",
     "status": "uploaded"
   },
   {
     "creatureId": "satyr",
     "creatureName": "Satyre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/satyr.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/satyr.png",
+    "newUrl": "https://assets.yner.fr/bestaire/satyr.png",
     "status": "uploaded"
   },
   {
     "creatureId": "scorpion",
     "creatureName": "Scorpion",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/scorpion.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/scorpion.png",
+    "newUrl": "https://assets.yner.fr/bestaire/scorpion.png",
     "status": "uploaded"
   },
   {
     "creatureId": "scout",
     "creatureName": "Éclaireur",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/scout.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/scout.png",
+    "newUrl": "https://assets.yner.fr/bestaire/scout.png",
     "status": "uploaded"
   },
   {
     "creatureId": "sea-hag",
     "creatureName": "Le chien de mer",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/sea-hag.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/sea-hag.png",
+    "newUrl": "https://assets.yner.fr/bestaire/sea-hag.png",
     "status": "uploaded"
   },
   {
     "creatureId": "sea-horse",
     "creatureName": "Cheval de mer",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/sea-horse.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/sea-horse.png",
+    "newUrl": "https://assets.yner.fr/bestaire/sea-horse.png",
     "status": "uploaded"
   },
   {
     "creatureId": "shadow",
     "creatureName": "Ombre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/shadow.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/shadow.png",
+    "newUrl": "https://assets.yner.fr/bestaire/shadow.png",
     "status": "uploaded"
   },
   {
     "creatureId": "shambling-mound",
     "creatureName": "Le tumulus",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/shambling-mound.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/shambling-mound.png",
+    "newUrl": "https://assets.yner.fr/bestaire/shambling-mound.png",
     "status": "uploaded"
   },
   {
     "creatureId": "shield-guardian",
     "creatureName": "Gardien du bouclier",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/shield-guardian.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/shield-guardian.png",
+    "newUrl": "https://assets.yner.fr/bestaire/shield-guardian.png",
     "status": "uploaded"
   },
   {
     "creatureId": "shrieker",
     "creatureName": "Shrieker",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/shrieker.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/shrieker.png",
+    "newUrl": "https://assets.yner.fr/bestaire/shrieker.png",
     "status": "uploaded"
   },
   {
     "creatureId": "silver-dragon-wyrmling",
     "creatureName": "Dragon d'argent Wyrmling",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/silver-dragon-wyrmling.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/silver-dragon-wyrmling.png",
+    "newUrl": "https://assets.yner.fr/bestaire/silver-dragon-wyrmling.png",
     "status": "uploaded"
   },
   {
     "creatureId": "skeleton",
     "creatureName": "Squelette",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/skeleton.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/skeleton.png",
+    "newUrl": "https://assets.yner.fr/bestaire/skeleton.png",
     "status": "uploaded"
   },
   {
     "creatureId": "solar",
     "creatureName": "Solaire",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/solar.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/solar.png",
+    "newUrl": "https://assets.yner.fr/bestaire/solar.png",
     "status": "uploaded"
   },
   {
     "creatureId": "specter",
     "creatureName": "Spectre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/specter.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/specter.png",
+    "newUrl": "https://assets.yner.fr/bestaire/specter.png",
     "status": "uploaded"
   },
   {
     "creatureId": "spider",
     "creatureName": "Araignée",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/spider.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/spider.png",
+    "newUrl": "https://assets.yner.fr/bestaire/spider.png",
     "status": "uploaded"
   },
   {
     "creatureId": "spirit-naga",
     "creatureName": "Esprit Naga",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/spirit-naga.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/spirit-naga.png",
+    "newUrl": "https://assets.yner.fr/bestaire/spirit-naga.png",
     "status": "uploaded"
   },
   {
     "creatureId": "sprite",
     "creatureName": "Sprite",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/sprite.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/sprite.png",
+    "newUrl": "https://assets.yner.fr/bestaire/sprite.png",
     "status": "uploaded"
   },
   {
     "creatureId": "spy",
     "creatureName": "Espion",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/spy.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/spy.png",
+    "newUrl": "https://assets.yner.fr/bestaire/spy.png",
     "status": "uploaded"
   },
   {
     "creatureId": "steam-mephit",
     "creatureName": "Méphite à vapeur",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/steam-mephit.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/steam-mephit.png",
+    "newUrl": "https://assets.yner.fr/bestaire/steam-mephit.png",
     "status": "uploaded"
   },
   {
     "creatureId": "stirge",
     "creatureName": "Stirge",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/stirge.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/stirge.png",
+    "newUrl": "https://assets.yner.fr/bestaire/stirge.png",
     "status": "uploaded"
   },
   {
     "creatureId": "stone-giant",
     "creatureName": "Géant de pierre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/stone-giant.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/stone-giant.png",
+    "newUrl": "https://assets.yner.fr/bestaire/stone-giant.png",
     "status": "uploaded"
   },
   {
     "creatureId": "stone-golem",
     "creatureName": "Golem de pierre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/stone-golem.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/stone-golem.png",
+    "newUrl": "https://assets.yner.fr/bestaire/stone-golem.png",
     "status": "uploaded"
   },
   {
     "creatureId": "storm-giant",
     "creatureName": "Géant des tempêtes",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/storm-giant.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/storm-giant.png",
+    "newUrl": "https://assets.yner.fr/bestaire/storm-giant.png",
     "status": "uploaded"
   },
   {
     "creatureId": "succubus-incubus",
     "creatureName": "Succube/Incube",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/succubus-incubus.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/succubus-incubus.png",
+    "newUrl": "https://assets.yner.fr/bestaire/succubus-incubus.png",
     "status": "uploaded"
   },
   {
     "creatureId": "swarm-of-bats",
     "creatureName": "Essaim de chauves-souris",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/swarm-of-bats.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/swarm-of-bats.png",
+    "newUrl": "https://assets.yner.fr/bestaire/swarm-of-bats.png",
     "status": "uploaded"
   },
   {
     "creatureId": "swarm-of-beetles",
     "creatureName": "Essaim de coléoptères",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/swarm-of-beetles.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/swarm-of-beetles.png",
+    "newUrl": "https://assets.yner.fr/bestaire/swarm-of-beetles.png",
     "status": "uploaded"
   },
   {
     "creatureId": "swarm-of-centipedes",
     "creatureName": "Essaim de mille-pattes",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/swarm-of-centipedes.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/swarm-of-centipedes.png",
+    "newUrl": "https://assets.yner.fr/bestaire/swarm-of-centipedes.png",
     "status": "uploaded"
   },
   {
     "creatureId": "swarm-of-insects",
     "creatureName": "Essaim d'insectes",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/swarm-of-insects.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/swarm-of-insects.png",
+    "newUrl": "https://assets.yner.fr/bestaire/swarm-of-insects.png",
     "status": "uploaded"
   },
   {
     "creatureId": "swarm-of-poisonous-snakes",
     "creatureName": "Essaim de serpents venimeux",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/swarm-of-poisonous-snakes.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/swarm-of-poisonous-snakes.png",
+    "newUrl": "https://assets.yner.fr/bestaire/swarm-of-poisonous-snakes.png",
     "status": "uploaded"
   },
   {
     "creatureId": "swarm-of-quippers",
     "creatureName": "Essaim de Quippers",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/swarm-of-quippers.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/swarm-of-quippers.png",
+    "newUrl": "https://assets.yner.fr/bestaire/swarm-of-quippers.png",
     "status": "uploaded"
   },
   {
     "creatureId": "swarm-of-rats",
     "creatureName": "Essaim de rats",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/swarm-of-rats.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/swarm-of-rats.png",
+    "newUrl": "https://assets.yner.fr/bestaire/swarm-of-rats.png",
     "status": "uploaded"
   },
   {
     "creatureId": "swarm-of-ravens",
     "creatureName": "Essaim de corbeaux",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/swarm-of-ravens.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/swarm-of-ravens.png",
+    "newUrl": "https://assets.yner.fr/bestaire/swarm-of-ravens.png",
     "status": "uploaded"
   },
   {
     "creatureId": "swarm-of-spiders",
     "creatureName": "Essaim d'araignées",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/swarm-of-spiders.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/swarm-of-spiders.png",
+    "newUrl": "https://assets.yner.fr/bestaire/swarm-of-spiders.png",
     "status": "uploaded"
   },
   {
     "creatureId": "swarm-of-wasps",
     "creatureName": "Essaim de guêpes",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/swarm-of-wasps.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/swarm-of-wasps.png",
+    "newUrl": "https://assets.yner.fr/bestaire/swarm-of-wasps.png",
     "status": "uploaded"
   },
   {
     "creatureId": "tarrasque",
     "creatureName": "Tarrasque",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/tarrasque.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/tarrasque.png",
+    "newUrl": "https://assets.yner.fr/bestaire/tarrasque.png",
     "status": "uploaded"
   },
   {
     "creatureId": "thug",
     "creatureName": "Voyou",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/thug.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/thug.png",
+    "newUrl": "https://assets.yner.fr/bestaire/thug.png",
     "status": "uploaded"
   },
   {
     "creatureId": "tiger",
     "creatureName": "Tigre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/tiger.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/tiger.png",
+    "newUrl": "https://assets.yner.fr/bestaire/tiger.png",
     "status": "uploaded"
   },
   {
     "creatureId": "treant",
     "creatureName": "Tréant",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/treant.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/treant.png",
+    "newUrl": "https://assets.yner.fr/bestaire/treant.png",
     "status": "uploaded"
   },
   {
     "creatureId": "tribal-warrior",
     "creatureName": "Guerrier tribal",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/tribal-warrior.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/tribal-warrior.png",
+    "newUrl": "https://assets.yner.fr/bestaire/tribal-warrior.png",
     "status": "uploaded"
   },
   {
     "creatureId": "triceratops",
     "creatureName": "Triceratops",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/triceratops.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/triceratops.png",
+    "newUrl": "https://assets.yner.fr/bestaire/triceratops.png",
     "status": "uploaded"
   },
   {
     "creatureId": "troll",
     "creatureName": "Troll",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/troll.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/troll.png",
+    "newUrl": "https://assets.yner.fr/bestaire/troll.png",
     "status": "uploaded"
   },
   {
     "creatureId": "tyrannosaurus-rex",
     "creatureName": "Tyrannosaurus Rex",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/tyrannosaurus-rex.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/tyrannosaurus-rex.png",
+    "newUrl": "https://assets.yner.fr/bestaire/tyrannosaurus-rex.png",
     "status": "uploaded"
   },
   {
     "creatureId": "unicorn",
     "creatureName": "Licorne",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/unicorn.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/unicorn.png",
+    "newUrl": "https://assets.yner.fr/bestaire/unicorn.png",
     "status": "uploaded"
   },
   {
     "creatureId": "vampire-bat",
     "creatureName": "Vampire, forme de chauve-souris",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/vampire-bat.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/vampire-bat.png",
+    "newUrl": "https://assets.yner.fr/bestaire/vampire-bat.png",
     "status": "uploaded"
   },
   {
     "creatureId": "vampire-mist",
     "creatureName": "Vampire, forme brumeuse",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/vampire-mist.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/vampire-mist.png",
+    "newUrl": "https://assets.yner.fr/bestaire/vampire-mist.png",
     "status": "uploaded"
   },
   {
     "creatureId": "vampire-spawn",
     "creatureName": "Vampire Spawn",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/vampire-spawn.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/vampire-spawn.png",
+    "newUrl": "https://assets.yner.fr/bestaire/vampire-spawn.png",
     "status": "uploaded"
   },
   {
     "creatureId": "vampire-vampire",
     "creatureName": "Vampire, forme vampirique",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/vampire-vampire.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/vampire-vampire.png",
+    "newUrl": "https://assets.yner.fr/bestaire/vampire-vampire.png",
     "status": "uploaded"
   },
   {
     "creatureId": "veteran",
     "creatureName": "Vétéran",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/veteran.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/veteran.png",
+    "newUrl": "https://assets.yner.fr/bestaire/veteran.png",
     "status": "uploaded"
   },
   {
     "creatureId": "violet-fungus",
     "creatureName": "Champignon violet",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/violet-fungus.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/violet-fungus.png",
+    "newUrl": "https://assets.yner.fr/bestaire/violet-fungus.png",
     "status": "uploaded"
   },
   {
     "creatureId": "vrock",
     "creatureName": "Vrock",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/vrock.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/vrock.png",
+    "newUrl": "https://assets.yner.fr/bestaire/vrock.png",
     "status": "uploaded"
   },
   {
     "creatureId": "vulture",
     "creatureName": "Vulture",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/vulture.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/vulture.png",
+    "newUrl": "https://assets.yner.fr/bestaire/vulture.png",
     "status": "uploaded"
   },
   {
     "creatureId": "warhorse",
     "creatureName": "Cheval de guerre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/warhorse.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/warhorse.png",
+    "newUrl": "https://assets.yner.fr/bestaire/warhorse.png",
     "status": "uploaded"
   },
   {
     "creatureId": "warhorse-skeleton",
     "creatureName": "Squelette de cheval de guerre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/warhorse-skeleton.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/warhorse-skeleton.png",
+    "newUrl": "https://assets.yner.fr/bestaire/warhorse-skeleton.png",
     "status": "uploaded"
   },
   {
     "creatureId": "water-elemental",
     "creatureName": "Élémentaire de l'eau",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/water-elemental.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/water-elemental.png",
+    "newUrl": "https://assets.yner.fr/bestaire/water-elemental.png",
     "status": "uploaded"
   },
   {
     "creatureId": "weasel",
     "creatureName": "Fouine",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/weasel.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/weasel.png",
+    "newUrl": "https://assets.yner.fr/bestaire/weasel.png",
     "status": "uploaded"
   },
   {
     "creatureId": "werebear-bear",
     "creatureName": "Ours-garou, forme d'ours",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/werebear-bear.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/werebear-bear.png",
+    "newUrl": "https://assets.yner.fr/bestaire/werebear-bear.png",
     "status": "uploaded"
   },
   {
     "creatureId": "werebear-human",
     "creatureName": "Ours-garou, forme humaine",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/werebear-human.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/werebear-human.png",
+    "newUrl": "https://assets.yner.fr/bestaire/werebear-human.png",
     "status": "uploaded"
   },
   {
     "creatureId": "werebear-hybrid",
     "creatureName": "Ours-garou, forme hybride",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/werebear-hybrid.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/werebear-hybrid.png",
+    "newUrl": "https://assets.yner.fr/bestaire/werebear-hybrid.png",
     "status": "uploaded"
   },
   {
     "creatureId": "wereboar-boar",
     "creatureName": "Sanglier-garou, forme de sanglier",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/wereboar-boar.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/wereboar-boar.png",
+    "newUrl": "https://assets.yner.fr/bestaire/wereboar-boar.png",
     "status": "uploaded"
   },
   {
     "creatureId": "wereboar-human",
     "creatureName": "Garou garou, forme humaine",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/wereboar-human.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/wereboar-human.png",
+    "newUrl": "https://assets.yner.fr/bestaire/wereboar-human.png",
     "status": "uploaded"
   },
   {
     "creatureId": "wereboar-hybrid",
     "creatureName": "Garou-garou, forme hybride",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/wereboar-hybrid.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/wereboar-hybrid.png",
+    "newUrl": "https://assets.yner.fr/bestaire/wereboar-hybrid.png",
     "status": "uploaded"
   },
   {
     "creatureId": "wererat-human",
     "creatureName": "Wererat, Forme humaine",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/wererat-human.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/wererat-human.png",
+    "newUrl": "https://assets.yner.fr/bestaire/wererat-human.png",
     "status": "uploaded"
   },
   {
     "creatureId": "wererat-hybrid",
     "creatureName": "Wererat, forme hybride",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/wererat-hybrid.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/wererat-hybrid.png",
+    "newUrl": "https://assets.yner.fr/bestaire/wererat-hybrid.png",
     "status": "uploaded"
   },
   {
     "creatureId": "wererat-rat",
     "creatureName": "Wererat, forme de rat",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/wererat-rat.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/wererat-rat.png",
+    "newUrl": "https://assets.yner.fr/bestaire/wererat-rat.png",
     "status": "uploaded"
   },
   {
     "creatureId": "weretiger-human",
     "creatureName": "Weretiger, forme humaine",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/weretiger-human.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/weretiger-human.png",
+    "newUrl": "https://assets.yner.fr/bestaire/weretiger-human.png",
     "status": "uploaded"
   },
   {
     "creatureId": "weretiger-hybrid",
     "creatureName": "Weretiger, forme hybride",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/weretiger-hybrid.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/weretiger-hybrid.png",
+    "newUrl": "https://assets.yner.fr/bestaire/weretiger-hybrid.png",
     "status": "uploaded"
   },
   {
     "creatureId": "weretiger-tiger",
     "creatureName": "Weretiger, forme tigre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/weretiger-tiger.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/weretiger-tiger.png",
+    "newUrl": "https://assets.yner.fr/bestaire/weretiger-tiger.png",
     "status": "uploaded"
   },
   {
     "creatureId": "werewolf-human",
     "creatureName": "Loup-garou, forme humaine",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/werewolf-human.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/werewolf-human.png",
+    "newUrl": "https://assets.yner.fr/bestaire/werewolf-human.png",
     "status": "uploaded"
   },
   {
     "creatureId": "werewolf-hybrid",
     "creatureName": "Loup-garou, forme hybride",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/werewolf-hybrid.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/werewolf-hybrid.png",
+    "newUrl": "https://assets.yner.fr/bestaire/werewolf-hybrid.png",
     "status": "uploaded"
   },
   {
     "creatureId": "werewolf-wolf",
     "creatureName": "Loup-garou, forme de loup",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/werewolf-wolf.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/werewolf-wolf.png",
+    "newUrl": "https://assets.yner.fr/bestaire/werewolf-wolf.png",
     "status": "uploaded"
   },
   {
     "creatureId": "white-dragon-wyrmling",
     "creatureName": "Dragon blanc Wyrmling",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/white-dragon-wyrmling.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/white-dragon-wyrmling.png",
+    "newUrl": "https://assets.yner.fr/bestaire/white-dragon-wyrmling.png",
     "status": "uploaded"
   },
   {
     "creatureId": "wight",
     "creatureName": "Wight",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/wight.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/wight.png",
+    "newUrl": "https://assets.yner.fr/bestaire/wight.png",
     "status": "uploaded"
   },
   {
     "creatureId": "will-o-wisp",
     "creatureName": "Will-o'-Wisp",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/will-o-wisp.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/will-o-wisp.png",
+    "newUrl": "https://assets.yner.fr/bestaire/will-o-wisp.png",
     "status": "uploaded"
   },
   {
     "creatureId": "winter-wolf",
     "creatureName": "Loup d'hiver",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/winter-wolf.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/winter-wolf.png",
+    "newUrl": "https://assets.yner.fr/bestaire/winter-wolf.png",
     "status": "uploaded"
   },
   {
     "creatureId": "wolf",
     "creatureName": "Loup",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/wolf.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/wolf.png",
+    "newUrl": "https://assets.yner.fr/bestaire/wolf.png",
     "status": "uploaded"
   },
   {
     "creatureId": "worg",
     "creatureName": "Worg",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/worg.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/worg.png",
+    "newUrl": "https://assets.yner.fr/bestaire/worg.png",
     "status": "uploaded"
   },
   {
     "creatureId": "wraith",
     "creatureName": "Wraith",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/wraith.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/wraith.png",
+    "newUrl": "https://assets.yner.fr/bestaire/wraith.png",
     "status": "uploaded"
   },
   {
     "creatureId": "wyvern",
     "creatureName": "Wyvern",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/wyvern.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/wyvern.png",
+    "newUrl": "https://assets.yner.fr/bestaire/wyvern.png",
     "status": "uploaded"
   },
   {
     "creatureId": "xorn",
     "creatureName": "Xorn",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/xorn.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/xorn.png",
+    "newUrl": "https://assets.yner.fr/bestaire/xorn.png",
     "status": "uploaded"
   },
   {
     "creatureId": "young-black-dragon",
     "creatureName": "Jeune dragon noir",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/young-black-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/young-black-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/young-black-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "young-blue-dragon",
     "creatureName": "Jeune dragon bleu",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/young-blue-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/young-blue-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/young-blue-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "young-brass-dragon",
     "creatureName": "Jeune dragon en laiton",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/young-brass-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/young-brass-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/young-brass-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "young-bronze-dragon",
     "creatureName": "Jeune dragon de bronze",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/young-bronze-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/young-bronze-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/young-bronze-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "young-copper-dragon",
     "creatureName": "Jeune dragon de cuivre",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/young-copper-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/young-copper-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/young-copper-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "young-gold-dragon",
     "creatureName": "Jeune dragon d'or",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/young-gold-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/young-gold-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/young-gold-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "young-green-dragon",
     "creatureName": "Jeune dragon vert",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/young-green-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/young-green-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/young-green-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "young-red-dragon",
     "creatureName": "Jeune dragon rouge",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/young-red-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/young-red-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/young-red-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "young-silver-dragon",
     "creatureName": "Jeune dragon d'argent",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/young-silver-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/young-silver-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/young-silver-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "young-white-dragon",
     "creatureName": "Jeune dragon blanc",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/young-white-dragon.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/young-white-dragon.png",
+    "newUrl": "https://assets.yner.fr/bestaire/young-white-dragon.png",
     "status": "uploaded"
   },
   {
     "creatureId": "zombie",
     "creatureName": "Zombie",
     "oldUrl": "https://www.dnd5eapi.co/api/images/monsters/zombie.png",
-    "newUrl": "https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/bestaire/zombie.png",
+    "newUrl": "https://assets.yner.fr/bestaire/zombie.png",
     "status": "uploaded"
   }
 ]
