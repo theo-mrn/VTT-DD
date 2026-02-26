@@ -214,10 +214,10 @@ export default function ProfileOverlay({ onClose }: ProfileOverlayProps) {
                             {/* Tabs Area */}
                             <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-10 pb-6 scrollbar-thin bg-[var(--bg-card)] shadow-inner">
                                 <CustomTabs
-                                    defaultTab="friends"
+                                    defaultTab="profile_edit"
                                     tabs={[
-                                        { id: "friends", label: "Amis & Demandes", icon: <Users className="w-4 h-4" />, badge: friendRequests.length },
                                         { id: "profile_edit", label: "Profil", icon: <User className="w-4 h-4" /> },
+                                        { id: "friends", label: "Amis & Demandes", icon: <Users className="w-4 h-4" />, badge: friendRequests.length },
                                         { id: "subscription", label: "Abonnement", icon: <Crown className="w-4 h-4" /> },
                                         { id: "notifications", label: "Préférences", icon: <Bell className="w-4 h-4" /> },
                                         ...(!isGoogleOnly ? [{ id: "security", label: "Sécurité", icon: <Shield className="w-4 h-4" /> }] : [])
@@ -225,6 +225,9 @@ export default function ProfileOverlay({ onClose }: ProfileOverlayProps) {
                                 >
                                     {(activeTab) => (
                                         <div className="pt-2">
+                                            {activeTab === "profile_edit" && uid && (
+                                                <ProfileTab uid={uid} userData={userData} />
+                                            )}
                                             {activeTab === "friends" && (
                                                 <MergedFriendsTab
                                                     currentUserId={uid}
@@ -256,9 +259,6 @@ export default function ProfileOverlay({ onClose }: ProfileOverlayProps) {
                                             )}
                                             {activeTab === "security" && (
                                                 <SecurityTab />
-                                            )}
-                                            {activeTab === "profile_edit" && uid && (
-                                                <ProfileTab uid={uid} userData={userData} />
                                             )}
                                         </div>
                                     )}

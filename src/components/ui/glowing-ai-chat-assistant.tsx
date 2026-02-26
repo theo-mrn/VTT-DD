@@ -6,6 +6,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { toast } from 'sonner';
 import { generateSlug } from "@/lib/titles";
 import { getAssetUrl } from "@/lib/asset-loader";
+import { trackDiceRoll } from '@/lib/challenge-tracker';
 import { DiceStats } from "@/components/(dices)/dice-stats";
 import { DiceStoreModal } from "../(dices)/dice-store-modal";
 import { DICE_SKINS } from "../(dices)/dice-definitions";
@@ -535,6 +536,19 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
         };
 
         await addDoc(collection(db, `rolls/${roomId}/rolls`), firebaseRoll);
+
+        // === CHALLENGE TRACKING: Dice Roll ===
+        if (auth.currentUser) {
+          const isCritical = mainDieFaces === 20; // Critique uniquement pour d20
+          const mainResult = physicalResults.length > 0 ? physicalResults[0].value : 0;
+
+          trackDiceRoll(
+            auth.currentUser.uid,
+            mainDieFaces,
+            mainResult,
+            isCritical
+          ).catch(error => console.error('Challenge tracking error:', error));
+        }
 
         // Critical Checks Logic (Titles & Emails)
         const hasD20 = requests.some(r => r.type === 'd20');

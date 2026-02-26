@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Dice1, RotateCcw, History, Trash2, Shield, BarChart3, Store, Check, EyeOff, Box } from "lucide-react";
 import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy, serverTimestamp, limit, updateDoc } from "@/lib/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { trackDiceRoll } from '@/lib/challenge-tracker';
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -692,6 +693,19 @@ export function DiceRoller() {
 
         // Update local state so we see it immediately
         setFirebaseRolls((prevRolls) => [firebaseRoll, ...prevRolls]);
+
+        // === CHALLENGE TRACKING: Dice Roll ===
+        if (auth.currentUser) {
+          const isCritical = mainDieFaces === 20; // Critique uniquement pour d20
+          const mainResult = physicalResults.length > 0 ? physicalResults[0].value : 0;
+
+          trackDiceRoll(
+            auth.currentUser.uid,
+            mainDieFaces,
+            mainResult,
+            isCritical
+          ).catch(error => console.error('Challenge tracking error:', error));
+        }
 
         // === Détection échec critique (nat 1 sur d20) ===
         const hasD20 = requests.some(r => r.type === 'd20');

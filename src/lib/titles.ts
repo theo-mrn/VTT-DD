@@ -46,6 +46,38 @@ export const INITIAL_TITLES: TitleDef[] = [
     { label: "Le Barbare", defaultUnlocked: false },
     { label: "L'Érudit", defaultUnlocked: false },
 
+    // Titres de Défis - Dés
+    { label: "Apprenti Lanceur", defaultUnlocked: false, condition: { type: 'event', description: "Lancer votre premier dé" } },
+    { label: "Lanceur Enthousiaste", defaultUnlocked: false, condition: { type: 'event', description: "Lancer 50 dés" } },
+    { label: "Chanceux", defaultUnlocked: false, condition: { type: 'event', description: "Obtenir un 20 naturel" } },
+    { label: "Éternel Malchanceux", defaultUnlocked: false, condition: { type: 'event', description: "Obtenir 10 échecs critiques" } },
+
+    // Titres de Défis - Social
+    { label: "Orateur Novice", defaultUnlocked: false, condition: { type: 'event', description: "Envoyer votre premier message" } },
+    { label: "Conteur Bavard", defaultUnlocked: false, condition: { type: 'event', description: "Envoyer 100 messages" } },
+    { label: "Barde Légendaire", defaultUnlocked: false, condition: { type: 'event', description: "Envoyer 500 messages" } },
+
+    // Titres de Défis - Progression
+    { label: "Aventurier Confirmé", defaultUnlocked: false, condition: { type: 'event', description: "Atteindre le niveau 5" } },
+    { label: "Héros Accompli", defaultUnlocked: false, condition: { type: 'event', description: "Atteindre le niveau 10" } },
+    { label: "Légende Vivante", defaultUnlocked: false, condition: { type: 'event', description: "Atteindre le niveau 20" } },
+
+    // Titres de Défis - Collection
+    { label: "Collectionneur Débutant", defaultUnlocked: false, condition: { type: 'event', description: "Obtenir votre premier objet" } },
+    { label: "Accumulateur Compulsif", defaultUnlocked: false, condition: { type: 'event', description: "Posséder 50 objets" } },
+    { label: "Maître d'Armes", defaultUnlocked: false, condition: { type: 'event', description: "Posséder 10 armes différentes" } },
+
+    // Titres de Défis - Exploration
+    { label: "Novice Aventurier", defaultUnlocked: false, condition: { type: 'event', description: "Jouer 5 minutes" } },
+
+    // Titres de Défis - Maîtrise
+    { label: "Étudiant", defaultUnlocked: false, condition: { type: 'event', description: "Apprendre 5 compétences" } },
+
+    // Titres de Défis - Combat
+    { label: "Combattant Novice", defaultUnlocked: false, condition: { type: 'event', description: "Remporter votre premier combat" } },
+    { label: "Vétéran de Guerre", defaultUnlocked: false, condition: { type: 'event', description: "Remporter 25 combats" } },
+    { label: "Fléau des Dragons", defaultUnlocked: false, condition: { type: 'event', description: "Terrasser un dragon" } },
+
     // Premium
     { label: "Mécène", defaultUnlocked: false, condition: { type: 'premium' } }
 ];

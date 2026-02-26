@@ -31,6 +31,7 @@ import Wiki from "@/components/(infos)/wiki";
 import Boutique from "@/components/(infos)/boutique";
 import { RoomUsersManager } from "@/app/Salle/components/RoomUsersManager";
 import { RoomSettingsManager } from "@/app/Salle/components/RoomSettingsManager";
+import { ChallengesButton } from '@/components/(challenges)/challenges-button';
 
 type SidebarProps = {
   onClose: () => void;
@@ -253,6 +254,10 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
         {/* Separator to differentiate settings from info buttons */}
         <div className="my-2 border-t border-white/10 mx-2" />
+
+        <div className="w-full">
+          <ChallengesButton variant="icon" className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors" />
+        </div>
 
         <button
           className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
