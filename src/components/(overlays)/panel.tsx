@@ -256,7 +256,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
         <div className="my-2 border-t border-white/10 mx-2" />
 
         <div className="w-full">
-          <ChallengesButton variant="icon" className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors" />
+          <ChallengesButton variant="sidebar" />
         </div>
 
         <button

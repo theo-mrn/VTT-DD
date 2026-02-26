@@ -9,7 +9,7 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { cn } from '@/lib/utils';
 
 interface ChallengesButtonProps {
-  variant?: "default" | "icon" | "floating";
+  variant?: "default" | "icon" | "floating" | "sidebar";
   className?: string;
 }
 
@@ -137,6 +137,45 @@ export function ChallengesButton({ variant = "default", className }: ChallengesB
               {completedCount}
             </div>
           )}
+        </button>
+
+        <ChallengesModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
+      </>
+    );
+  }
+
+  if (variant === "sidebar") {
+    return (
+      <>
+        <button
+          onClick={handleOpen}
+          className={cn(
+            "w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors group",
+            className
+          )}
+        >
+          <Trophy className="w-5 h-5 text-[var(--text-primary)] group-hover:text-[var(--accent-brown)] transition-colors" />
+          <span className="text-[var(--text-primary)] group-hover:text-[var(--accent-brown)] transition-colors">Défi</span>
+
+          <div className="ml-auto flex items-center gap-2">
+            {/* Badge de notification */}
+            {hasNewCompletions && (
+              <Sparkles className="w-4 h-4 text-[var(--accent-brown)] animate-pulse" />
+            )}
+
+            {/* Count badge */}
+            {completedCount > 0 && (
+              <div
+                className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-bold"
+                style={{
+                  background: 'var(--accent-brown)',
+                  color: 'var(--bg-dark)',
+                }}
+              >
+                {completedCount}
+              </div>
+            )}
+          </div>
         </button>
 
         <ChallengesModal isOpen={isOpen} onClose={() => setIsOpen(false)} />
