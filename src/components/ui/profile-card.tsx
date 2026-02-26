@@ -27,7 +27,7 @@ export function ProfileCard({
   characterName = "Héros sans nom",
   bio = "Un voyageur mystérieux explorant les terres de VTT-DD.",
   avatarUrl,
-  backgroundUrl = "https://images.unsplash.com/photo-1538370621607-4919ce7889b3?q=80&w=1000&auto=format&fit=crop",
+  backgroundUrl = "",
   level = 1,
   exp = 65,
   timeSpent = 0,
@@ -171,11 +171,15 @@ export function ProfileCard({
             <div className="relative z-10 rounded-[1.8rem] overflow-hidden">
               {/* Header with background */}
               <div className="relative h-40 bg-zinc-900 overflow-hidden">
-                <img
-                  src={backgroundUrl || "/placeholder.svg"}
-                  alt="Background"
-                  className="w-full h-full object-cover opacity-40 transition-transform duration-700 group-hover:scale-110"
-                />
+                {backgroundUrl ? (
+                  <img
+                    src={backgroundUrl}
+                    alt="Background"
+                    className="w-full h-full object-cover opacity-40 transition-transform duration-700 group-hover:scale-110"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-zinc-800 opacity-40" />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent opacity-80" />
 
                 {/* Friend button */}
