@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Heart, User } from 'lucide-react';
+import { Download, Heart, User, Edit2, Trash2 } from 'lucide-react';
 import { ThemeConfig, CommunityTheme } from './types';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -13,9 +13,11 @@ interface ThemeCardProps {
     onTogglePreviewLock?: () => void;
     currentUserId?: string;
     onToggleLike?: (themeId: string, isLiked: boolean) => void;
+    onEdit?: (theme: CommunityTheme) => void;
+    onDelete?: (themeId: string) => void;
 }
 
-export function ThemeCard({ theme, onApply, onHover, onLeave, isPreviewLocked, onTogglePreviewLock, currentUserId, onToggleLike }: ThemeCardProps) {
+export function ThemeCard({ theme, onApply, onHover, onLeave, isPreviewLocked, onTogglePreviewLock, currentUserId, onToggleLike, onEdit, onDelete }: ThemeCardProps) {
     const { config } = theme;
     const themeColors = config.theme;
 
@@ -115,13 +117,33 @@ export function ThemeCard({ theme, onApply, onHover, onLeave, isPreviewLocked, o
                 {isPreviewLocked && (
                     <span className="text-[10px] text-[#80c0a0] font-bold bg-[#80c0a0]/10 px-2 py-0.5 rounded border border-[#80c0a0]/30 absolute top-2 right-2">Fixé</span>
                 )}
-                <button
-                    onClick={(e) => { e.stopPropagation(); onApply(config); }}
-                    className="bg-blue-900/40 text-blue-300 hover:bg-blue-800/60 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1 transition-all mt-auto"
-                >
-                    <Download size={14} />
-                    Appliquer
-                </button>
+                <div className="flex gap-2 mt-auto">
+                    {onEdit && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onEdit(theme); }}
+                            className="bg-yellow-900/40 text-yellow-300 hover:bg-yellow-800/60 px-2 py-1.5 rounded text-xs font-semibold flex items-center transition-all"
+                            title="Modifier"
+                        >
+                            <Edit2 size={14} />
+                        </button>
+                    )}
+                    {onDelete && (
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onDelete(theme.id); }}
+                            className="bg-red-900/40 text-red-300 hover:bg-red-800/60 px-2 py-1.5 rounded text-xs font-semibold flex items-center transition-all"
+                            title="Supprimer"
+                        >
+                            <Trash2 size={14} />
+                        </button>
+                    )}
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onApply(config); }}
+                        className="bg-blue-900/40 text-blue-300 hover:bg-blue-800/60 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1 transition-all"
+                    >
+                        <Download size={14} />
+                        Appliquer
+                    </button>
+                </div>
             </div>
         </div>
     );

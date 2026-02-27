@@ -24,10 +24,12 @@ import {
     Layout,
     Compass,
     Send,
-    Search
+    Search,
+    User
 } from 'lucide-react';
 import { ThemeExplorerTab } from './theme-portal/ThemeExplorerTab';
 import { ThemePublishTab } from './theme-portal/ThemePublishTab';
+import { MyThemesTab } from './theme-portal/MyThemesTab';
 import { ThemeConfig } from './theme-portal/types';
 
 interface FloatingEditTabsProps {
@@ -67,7 +69,7 @@ export function FloatingEditTabs({
     onStopPreview,
     onClose
 }: FloatingEditTabsProps) {
-    const [activeTab, setActiveTab] = useState<'apparence' | 'disposition' | 'explorer'>('apparence');
+    const [activeTab, setActiveTab] = useState<'apparence' | 'disposition' | 'explorer' | 'mes_themes'>('apparence');
     const [themeConfigInput, setThemeConfigInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -76,7 +78,7 @@ export function FloatingEditTabs({
     return (
         <div className="fixed bottom-0 left-0 right-0 z-[200] bg-[#0e0e0e]/95 backdrop-blur-md border-t border-[#3a3a3a] shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.5)] transition-all duration-300 ease-in-out">
             <div className="max-w-7xl mx-auto w-full relative">
-                <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'apparence' | 'disposition' | 'explorer')} className="w-full">
+                <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'apparence' | 'disposition' | 'explorer' | 'mes_themes')} className="w-full">
                     {/* Tabs List & Actions Header */}
                     <div className="border-b border-[#2a2a2a] px-3 pt-3 bg-[#141414]/50 flex items-end justify-between">
                         <TabsList className="bg-transparent gap-2 h-auto p-0 flex-wrap sm:flex-nowrap">
@@ -98,21 +100,29 @@ export function FloatingEditTabs({
                             >
                                 <Compass size={14} /> Communauté
                             </TabsTrigger>
+                            <TabsTrigger
+                                value="mes_themes"
+                                className="data-[state=active]:bg-[#2a2a2a] data-[state=active]:text-[#c0a080] text-[#a0a0a0] rounded-t-lg rounded-b-none px-4 py-1.5 text-xs font-bold flex items-center gap-2 border border-transparent data-[state=active]:border-[#3a3a3a] data-[state=active]:border-b-transparent transition-all"
+                            >
+                                <User size={14} /> Mes thèmes
+                            </TabsTrigger>
                         </TabsList>
 
                         <div className="flex items-center gap-2 pb-1.5 pr-1 flex-1 justify-end">
-                            {activeTab === 'explorer' && (
+                            {(activeTab === 'explorer' || activeTab === 'mes_themes') && (
                                 <>
-                                    <div className="hidden sm:flex relative items-center mx-4">
-                                        <Search size={14} className="absolute left-2.5 text-[#555]" />
-                                        <input
-                                            type="text"
-                                            placeholder="Rechercher un thème..."
-                                            value={searchQuery}
-                                            onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="bg-[#1c1c1c] border border-[#3a3a3a] rounded-full py-1 pl-8 pr-3 text-xs text-[#d4d4d4] placeholder-[#555] focus:outline-none focus:border-[#80c0a0] w-[250px] sm:w-[300px] lg:w-[400px] transition-all"
-                                        />
-                                    </div>
+                                    {activeTab === 'explorer' && (
+                                        <div className="hidden sm:flex relative items-center mx-4">
+                                            <Search size={14} className="absolute left-2.5 text-[#555]" />
+                                            <input
+                                                type="text"
+                                                placeholder="Rechercher un thème..."
+                                                value={searchQuery}
+                                                onChange={(e) => setSearchQuery(e.target.value)}
+                                                className="bg-[#1c1c1c] border border-[#3a3a3a] rounded-full py-1 pl-8 pr-3 text-xs text-[#d4d4d4] placeholder-[#555] focus:outline-none focus:border-[#80c0a0] w-[250px] sm:w-[300px] lg:w-[400px] transition-all"
+                                            />
+                                        </div>
+                                    )}
 
                                     <Dialog>
                                         <DialogTrigger asChild>
@@ -357,6 +367,18 @@ export function FloatingEditTabs({
                                 }}
                                 onPreviewTheme={onPreviewTheme}
                                 onStopPreview={onStopPreview}
+                            />
+                        </TabsContent>
+
+                        {/* MES THEMES TAB */}
+                        <TabsContent value="mes_themes" className="m-0 focus-visible:outline-none flex flex-col gap-2 relative">
+                            <MyThemesTab
+                                onApplyTheme={(config) => {
+                                    onApplyTheme(config);
+                                }}
+                                onPreviewTheme={onPreviewTheme}
+                                onStopPreview={onStopPreview}
+                                currentConfig={{ theme: customizationForm as any, layout }}
                             />
                         </TabsContent>
                     </div>
