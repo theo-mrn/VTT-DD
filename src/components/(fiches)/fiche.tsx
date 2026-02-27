@@ -12,19 +12,20 @@ import {
   uploadBytes,
   getDownloadURL
 } from '@/lib/firebase';
-import { Heart, Shield, Edit, Settings, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Trash2, PlusCircle, Expand, FileEdit, LayoutDashboard, Search, FileDown, UploadCloud, RotateCcw, Droplet, Minus, Plus } from 'lucide-react';
+import { Heart, Shield, Edit, Settings, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Trash2, PlusCircle, Expand, FileEdit, LayoutDashboard, Search, FileDown, UploadCloud, RotateCcw, Droplet, Minus, Plus, Sliders } from 'lucide-react';
 import InventoryManagement2 from '@/components/(inventaire)/inventaire2';
 import CompetencesDisplay from "@/components/(competences)/competencesD";
 import Competences from "@/components/(competences)/competences";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCharacter, Character } from '@/contexts/CharacterContext';
 import { Statistiques } from '@/components/Statistiques';
-import { WidgetAvatar, WidgetDetails, WidgetStats, WidgetVitals, WidgetCombatStats } from './FicheWidgets';
+import { WidgetAvatar, WidgetDetails, WidgetStats, WidgetVitals, WidgetCombatStats, WidgetCustomFields } from './FicheWidgets';
+import { CustomField } from '@/contexts/CharacterContext';
 import { WidgetBourse, WidgetEffects } from './FicheWidgetsExtra';
 import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { FloatingEditTabs } from './FloatingEditTabs';
+import { FloatingEditTabs, AttributsDialog } from './FloatingEditTabs';
 
 import {
   Drawer,
@@ -62,6 +63,7 @@ const DEFAULT_LAYOUT: Layout[] = [
 export const WIDGET_REGISTRY = [
   { id: 'bourse', label: 'Bourse', default: { w: 6, h: 4, minW: 4, minH: 3 } },
   { id: 'effects', label: 'Effets Actifs', default: { w: 6, h: 4, minW: 4, minH: 3 } },
+  { id: 'custom_fields', label: 'Attributs Personnalisés', default: { w: 6, h: 4, minW: 3, minH: 2 } },
   // Core widgets available to re-add if removed
   // { id: 'stats', label: 'Caractéristiques', default: { w: 6, h: 5, minW: 4, minH: 3 } },
   // { id: 'inventory', label: 'Inventaire', default: { w: 6, h: 5, minW: 4, minH: 4 } },
@@ -162,6 +164,7 @@ export default function Component() {
   // Layout State
   const [layout, setLayout] = useState<Layout[]>(DEFAULT_LAYOUT);
   const [isLayoutEditing, setIsLayoutEditing] = useState(false);
+  const [isAttributsOpen, setIsAttributsOpen] = useState(false);
   const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
 
   useEffect(() => {
@@ -695,8 +698,8 @@ export default function Component() {
                 key={character.id}
                 onClick={() => setSelectedCharacter(character)}
                 className={`px-3 py-2 sm:px-4 ${selectedCharacter?.id === character.id
-                    ? 'bg-[var(--accent-brown-hover)]'
-                    : 'bg-[var(--accent-brown)]'
+                  ? 'bg-[var(--accent-brown-hover)]'
+                  : 'bg-[var(--accent-brown)]'
                   } text-black rounded-lg hover:bg-[var(--accent-brown-hover)] transition whitespace-nowrap text-xs sm:text-sm font-bold flex-shrink-0`}
               >
                 {character.Nomperso}
@@ -726,6 +729,15 @@ export default function Component() {
                     <TrendingUp size={16} />
                     <span className="hidden sm:inline">Niveau +</span>
                   </button>
+                  <button
+                    id="vtt-fiche-btn-champs"
+                    onClick={() => setIsAttributsOpen(true)}
+                    className="bg-[var(--bg-darker)] text-[var(--text-secondary)] p-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-200 flex items-center gap-1 text-xs sm:text-sm border border-[var(--border-color)]"
+                    title="Champs & Attributs"
+                  >
+                    <Sliders size={16} />
+                    <span className="hidden sm:inline">Champs</span>
+                  </button>
                 </>
               )}
 
@@ -744,8 +756,8 @@ export default function Component() {
                   id="vtt-fiche-btn-edition"
                   onClick={handleEditModeToggle}
                   className={`p-2 rounded-lg transition duration-200 flex items-center gap-1 text-xs sm:text-sm border ${isLayoutEditing
-                      ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]'
-                      : 'bg-[var(--bg-darker)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--bg-card)]'
+                    ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]'
+                    : 'bg-[var(--bg-darker)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--bg-card)]'
                     }`}
                   title="Mode Édition (Style & Disposition)"
                 >
@@ -785,6 +797,8 @@ export default function Component() {
             onClose={() => setIsLayoutEditing(false)}
           />
         )}
+
+        <AttributsDialog open={isAttributsOpen} onOpenChange={setIsAttributsOpen} />
 
         <div className={`max-w-7xl mx-auto bg-[#242424] rounded-[length:var(--block-radius,0.5rem)] shadow-2xl p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 ${isLayoutEditing ? 'mb-[40vh]' : ''}`} style={mainStyle}>
           {selectedCharacter && !isEditing && (
@@ -872,6 +886,14 @@ export default function Component() {
                     </div>
                   </div>
                 )}
+                {layout.find(l => l.i === 'custom_fields') && (
+                  <div key="custom_fields" className="relative group hover:z-[100]">
+                    <WidgetControls id="custom_fields" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} />
+                    <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
+                      <WidgetCustomFields style={boxStyle} />
+                    </div>
+                  </div>
+                )}
               </ResponsiveGridLayout>
             ) : (
               <ResponsiveGridLayout
@@ -890,6 +912,7 @@ export default function Component() {
                 <div id="vtt-widget-stats-view" key="stats" className="overflow-hidden h-full"><WidgetStats style={boxStyle} /></div>
                 {layout.find(l => l.i === 'bourse') && <div key="bourse" className="overflow-hidden h-full"><WidgetBourse style={boxStyle} /></div>}
                 {layout.find(l => l.i === 'effects') && <div key="effects" className="overflow-hidden h-full"><WidgetEffects style={boxStyle} /></div>}
+                {layout.find(l => l.i === 'custom_fields') && <div key="custom_fields" className="overflow-hidden h-full"><WidgetCustomFields style={boxStyle} /></div>}
                 <div id="vtt-widget-vitals-view" key="vitals" className="overflow-hidden h-full">
                   <Drawer>
                     <DrawerTrigger asChild>
@@ -1089,8 +1112,61 @@ export default function Component() {
                 ))}
               </div>
 
-
-
+              {/* Custom Fields */}
+              {(editForm.customFields ?? selectedCharacter?.customFields ?? []).length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-bold text-[var(--text-secondary)] mb-3">Attributs Personnalisés</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {(editForm.customFields ?? selectedCharacter?.customFields ?? []).map((field: CustomField, index: number) => {
+                      const updateField = (newVal: string | number | boolean) => {
+                        const updatedFields = [...(editForm.customFields ?? selectedCharacter?.customFields ?? [])] as CustomField[];
+                        updatedFields[index] = { ...updatedFields[index], value: newVal };
+                        setEditForm({ ...editForm, customFields: updatedFields });
+                      };
+                      return (
+                        <div key={field.id} className="space-y-1.5">
+                          <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">
+                            {field.label}
+                            <span className="ml-1.5 text-[10px] font-mono text-[var(--text-secondary)] opacity-60">
+                              {field.type === 'number' ? '123' : field.type === 'percent' ? '%' : field.type === 'boolean' ? '✓' : 'Aa'}
+                            </span>
+                          </label>
+                          {field.type === 'boolean' ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={!!field.value}
+                                onChange={(e) => updateField(e.target.checked)}
+                                className="w-4 h-4 accent-[var(--accent-brown)] cursor-pointer"
+                              />
+                              <span className="text-sm text-[var(--text-primary)]">{field.value ? 'Oui' : 'Non'}</span>
+                            </div>
+                          ) : field.type === 'percent' ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="number"
+                                min={0} max={100}
+                                value={field.value as number}
+                                onChange={(e) => updateField(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
+                                className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
+                              />
+                              <span className="text-[var(--text-secondary)] text-sm shrink-0">%</span>
+                            </div>
+                          ) : (
+                            <input
+                              type={field.type === 'number' ? 'number' : 'text'}
+                              value={field.value as string | number}
+                              onChange={(e) => updateField(field.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value)}
+                              placeholder=""
+                              className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="flex flex-col xs:flex-row justify-end gap-3 xs:gap-4">
                 <button
