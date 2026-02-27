@@ -206,28 +206,28 @@ export function MyThemesTab({ onApplyTheme, onPreviewTheme, onStopPreview, curre
 
             {/* Delete Confirmation Dialog */}
             <Dialog open={!!deletingThemeId} onOpenChange={(open) => !open && setDeletingThemeId(null)}>
-                <DialogContent className="bg-[#1c1c1c] border border-[#3a3a3a] text-[#d4d4d4] max-w-sm p-5 shadow-2xl">
+                <DialogContent className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)] max-w-sm p-5 shadow-2xl">
                     <DialogHeader>
-                        <DialogTitle className="text-[#d4d4d4] text-lg font-bold flex items-center gap-2">
+                        <DialogTitle className="text-[var(--text-primary)] text-lg font-bold flex items-center gap-2">
                             <AlertTriangle size={18} className="text-red-400" />
                             Supprimer ce thème ?
                         </DialogTitle>
                     </DialogHeader>
-                    <p className="text-sm text-[#a0a0a0] my-2">
+                    <p className="text-sm text-[var(--text-secondary)] my-2">
                         Cette action est irréversible. Le thème sera définitivement supprimé de la communauté.
                     </p>
                     <DialogFooter className="mt-4 flex gap-2 sm:justify-end">
                         <button
                             onClick={() => setDeletingThemeId(null)}
                             disabled={isDeleting}
-                            className="bg-transparent hover:bg-[#2a2a2a] px-3 py-1.5 rounded text-sm font-semibold text-[#a0a0a0] hover:text-white transition-colors"
+                            className="button-cancel !text-xs !px-3 !py-1.5"
                         >
                             Annuler
                         </button>
                         <button
                             onClick={handleDelete}
                             disabled={isDeleting}
-                            className="bg-red-900/40 text-red-300 hover:bg-red-800/60 px-4 py-1.5 rounded text-sm font-semibold transition-all disabled:opacity-50"
+                            className="bg-[var(--destructive)] text-[var(--destructive-foreground)] hover:opacity-90 px-4 py-1.5 rounded-lg text-sm font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                         >
                             {isDeleting ? <Loader2 size={16} className="animate-spin" /> : 'Supprimer'}
                         </button>
@@ -237,27 +237,27 @@ export function MyThemesTab({ onApplyTheme, onPreviewTheme, onStopPreview, curre
 
             {/* Edit Theme Dialog */}
             <Dialog open={!!editingTheme} onOpenChange={(open) => !open && setEditingTheme(null)}>
-                <DialogContent className="bg-[#1c1c1c] border border-[#3a3a3a] text-[#d4d4d4] max-w-sm p-5 shadow-2xl">
+                <DialogContent className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)] max-w-sm p-5 shadow-2xl">
                     <DialogHeader>
-                        <DialogTitle className="text-[#d4d4d4] text-lg font-bold flex items-center gap-2">
-                            <Edit2 size={18} className="text-yellow-400" />
+                        <DialogTitle className="text-[var(--text-primary)] text-lg font-bold flex items-center gap-2">
+                            <Edit2 size={18} className="text-[var(--accent-brown)]" />
                             Modifier le thème
                         </DialogTitle>
                     </DialogHeader>
 
                     <div className="flex flex-col gap-3 mt-2">
-                        <p className="text-xs text-[#a0a0a0] leading-relaxed">
+                        <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                             Mettez à jour le nom de votre thème ou remplacez sa configuration par votre <strong>configuration actuelle</strong> (couleurs, fond, blocs).
                         </p>
 
                         <div className="flex flex-col gap-1.5 mt-2">
-                            <label htmlFor="editThemeName" className="text-xs font-semibold text-[#d4d4d4] ml-1">Nom du thème</label>
+                            <label htmlFor="editThemeName" className="text-xs font-semibold text-[var(--text-primary)] ml-1">Nom du thème</label>
                             <input
                                 id="editThemeName"
                                 type="text"
                                 value={editName}
                                 onChange={(e) => setEditName(e.target.value)}
-                                className="bg-[#111] border border-[#3a3a3a] rounded-lg px-3 py-2 text-sm text-[#d4d4d4] focus:outline-none focus:border-[#80c0a0] transition-colors"
+                                className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-brown)] transition-colors"
                                 required
                                 disabled={isSaving}
                                 maxLength={40}
@@ -269,14 +269,14 @@ export function MyThemesTab({ onApplyTheme, onPreviewTheme, onStopPreview, curre
                         <button
                             onClick={() => setEditingTheme(null)}
                             disabled={isSaving}
-                            className="bg-transparent hover:bg-[#2a2a2a] px-3 py-1.5 rounded text-sm font-semibold text-[#a0a0a0] hover:text-white transition-colors"
+                            className="button-cancel !text-xs !px-3 !py-1.5"
                         >
                             Annuler
                         </button>
                         <button
                             onClick={handleSaveEdit}
                             disabled={isSaving || !editName.trim()}
-                            className="bg-yellow-900/40 text-yellow-300 hover:bg-yellow-800/60 px-4 py-1.5 rounded text-sm font-semibold flex items-center justify-center gap-2 transition-all disabled:opacity-50"
+                            className="button-primary flex items-center justify-center gap-2 disabled:opacity-50"
                         >
                             {isSaving ? <Loader2 size={16} className="animate-spin" /> : <><Send size={16} /> Mettre à jour</>}
                         </button>

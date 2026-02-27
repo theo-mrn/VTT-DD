@@ -95,20 +95,20 @@ export function ThemePublishTab({ currentConfig, onSuccess }: ThemePublishTabPro
 
     return (
         <form onSubmit={handlePublish} className="flex flex-col gap-3 mt-2">
-            <p className="text-xs text-[#a0a0a0] leading-relaxed">
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
                 Publiez votre configuration actuelle (couleurs, fond, bordures, et disposition des blocs)
                 pour que d'autres joueurs puissent l'utiliser.
             </p>
 
             <div className="flex flex-col gap-1.5 mt-2">
-                <label htmlFor="themeName" className="text-xs font-semibold text-[#d4d4d4] ml-1">Nom du Thème *</label>
+                <label htmlFor="themeName" className="text-xs font-semibold text-[var(--text-primary)] ml-1">Nom du Thème *</label>
                 <input
                     id="themeName"
                     type="text"
                     value={themeName}
                     onChange={(e) => setThemeName(e.target.value)}
                     placeholder="Ex: Nuit Sombre, Thème Forêt..."
-                    className="bg-[#111] border border-[#3a3a3a] rounded-lg px-3 py-2 text-sm text-[#d4d4d4] focus:outline-none focus:border-[#80c0a0] transition-colors"
+                    className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-brown)] transition-colors"
                     required
                     disabled={isPublishing}
                     maxLength={40}
@@ -118,7 +118,7 @@ export function ThemePublishTab({ currentConfig, onSuccess }: ThemePublishTabPro
             <button
                 type="submit"
                 disabled={isPublishing || !themeName.trim()}
-                className="mt-2 bg-[#80c0a0]/20 text-[#80c0a0] border border-[#80c0a0]/30 hover:bg-[#80c0a0]/30 hover:border-[#80c0a0]/50 px-4 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="mt-2 button-primary w-full flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {isPublishing ? (
                     <>
