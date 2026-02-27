@@ -19,7 +19,7 @@ import Competences from "@/components/(competences)/competences";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCharacter, Character } from '@/contexts/CharacterContext';
 import { Statistiques } from '@/components/Statistiques';
-import { WidgetAvatar, WidgetDetails, WidgetStats, WidgetVitals, WidgetCombatStats, WidgetCustomFields, WidgetCustomGroup } from './FicheWidgets';
+import { WidgetAvatar, WidgetDetails, WidgetStats, WidgetVitals, WidgetCombatStats, WidgetCustomGroup, GroupCreationSection } from './FicheWidgets';
 import { CustomField } from '@/contexts/CharacterContext';
 import { WidgetBourse, WidgetEffects } from './FicheWidgetsExtra';
 import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
@@ -63,7 +63,6 @@ const DEFAULT_LAYOUT: Layout[] = [
 export const WIDGET_REGISTRY = [
   { id: 'bourse', label: 'Bourse', default: { w: 6, h: 4, minW: 4, minH: 3 } },
   { id: 'effects', label: 'Effets Actifs', default: { w: 6, h: 4, minW: 4, minH: 3 } },
-  { id: 'custom_fields', label: 'Attributs Personnalisés', default: { w: 6, h: 4, minW: 3, minH: 2 } },
   // Core widgets available to re-add if removed
   // { id: 'stats', label: 'Caractéristiques', default: { w: 6, h: 5, minW: 4, minH: 3 } },
   // { id: 'inventory', label: 'Inventaire', default: { w: 6, h: 5, minW: 4, minH: 4 } },
@@ -80,11 +79,19 @@ interface WidgetControlsProps {
   updateWidgetDim: (id: string, type: 'w' | 'h', value: number | 'inc' | 'dec') => void;
   widthMode?: 'presets' | 'incremental';
   onRemove?: (id: string) => void;
+  onEdit?: (id: string) => void;
 }
 
-const WidgetControls: React.FC<WidgetControlsProps> = ({ id, updateWidgetDim, widthMode = 'presets', onRemove }) => (
+const WidgetControls: React.FC<WidgetControlsProps> = ({ id, updateWidgetDim, widthMode = 'presets', onRemove, onEdit }) => (
   <div className="absolute -top-9 right-0 z-50 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none pr-1">
     <div className="flex bg-[var(--bg-card)] border border-[var(--border-color)] rounded-t-lg shadow-xl text-xs overflow-hidden pointer-events-auto">
+      {onEdit && (
+        <div className="flex border-r border-[var(--border-color)]">
+          <button onClick={() => onEdit(id)} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--accent-brown)] transition-colors" title="Modifier le groupe">
+            <Edit size={14} />
+          </button>
+        </div>
+      )}
       <div className="flex border-r border-[var(--border-color)]">
         {widthMode === 'incremental' ? (
           <>
@@ -166,6 +173,7 @@ export default function Component() {
   const [isLayoutEditing, setIsLayoutEditing] = useState(false);
   const [isAttributsOpen, setIsAttributsOpen] = useState(false);
   const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<{ id: string, label: string, fieldIds: string[] } | null>(null);
 
   useEffect(() => {
     if (selectedCharacter?.layout && selectedCharacter.layout.length > 0) {
@@ -386,6 +394,19 @@ export default function Component() {
 
   const handleRemoveWidget = (widgetId: string) => {
     setLayout(prev => prev.filter(l => l.i !== widgetId));
+  };
+
+  const handleEditGroup = (id: string) => {
+    const parts = id.split(':');
+    const label = parts[1] || '';
+    const fieldIds = parts[2] ? parts[2].split(',') : [];
+    setEditingGroup({ id, label, fieldIds });
+  };
+
+  const handleUpdateGroup = (newWidgetId: string) => {
+    if (!editingGroup) return;
+    setLayout(prev => prev.map(item => item.i === editingGroup.id ? { ...item, i: newWidgetId } : item));
+    setEditingGroup(null);
   };
 
 
@@ -896,21 +917,13 @@ export default function Component() {
                     </div>
                   </div>
                 )}
-                {layout.find(l => l.i === 'custom_fields') && (
-                  <div key="custom_fields" className="relative group hover:z-[100]">
-                    <WidgetControls id="custom_fields" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} />
-                    <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
-                      <WidgetCustomFields style={boxStyle} />
-                    </div>
-                  </div>
-                )}
                 {layout.filter(l => l.i.startsWith('custom_group:')).map(l => {
                   const parts = l.i.split(':');
                   const label = parts[1] || '';
                   const fieldIds = parts[2] ? parts[2].split(',') : [];
                   return (
                     <div key={l.i} className="relative group hover:z-[100]">
-                      <WidgetControls id={l.i} updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} />
+                      <WidgetControls id={l.i} updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} onEdit={handleEditGroup} />
                       <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                         <WidgetCustomGroup style={boxStyle} label={label} fieldIds={fieldIds} />
                       </div>
@@ -935,7 +948,6 @@ export default function Component() {
                 <div id="vtt-widget-stats-view" key="stats" className="overflow-hidden h-full"><WidgetStats style={boxStyle} /></div>
                 {layout.find(l => l.i === 'bourse') && <div key="bourse" className="overflow-hidden h-full"><WidgetBourse style={boxStyle} /></div>}
                 {layout.find(l => l.i === 'effects') && <div key="effects" className="overflow-hidden h-full"><WidgetEffects style={boxStyle} /></div>}
-                {layout.find(l => l.i === 'custom_fields') && <div key="custom_fields" className="overflow-hidden h-full"><WidgetCustomFields style={boxStyle} /></div>}
                 {layout.filter(l => l.i.startsWith('custom_group:')).map(l => {
                   const parts = l.i.split(':');
                   const label = parts[1] || '';
@@ -1279,6 +1291,24 @@ export default function Component() {
           )}
         </div>
       </div>
+      {editingGroup && (
+        <Dialog open={!!editingGroup} onOpenChange={(v) => !v && setEditingGroup(null)}>
+          <DialogContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-[var(--accent-brown)]">Modifier le Groupement</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <GroupCreationSection
+                mode="edit"
+                initialLabel={editingGroup.label}
+                initialFieldIds={editingGroup.fieldIds}
+                customFields={selectedCharacter?.customFields ?? []}
+                handleAddWidget={handleUpdateGroup}
+              />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </TooltipProvider >
   );
 }

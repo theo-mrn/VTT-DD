@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useCharacter, Character, CustomField } from '@/contexts/CharacterContext';
 import CharacterImage from '@/components/(fiches)/CharacterImage';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -173,66 +173,6 @@ export const WidgetCombatStats: React.FC<WidgetProps> = ({ style }) => {
     );
 };
 
-export const WidgetCustomFields: React.FC<WidgetProps> = ({ style }) => {
-    const { selectedCharacter } = useCharacter();
-
-    const fields: CustomField[] = selectedCharacter?.customFields ?? [];
-
-    const getModifier = (val: number) => Math.floor((val - 10) / 2);
-    const fmtMod = (m: number) => (m >= 0 ? `+${m}` : `${m}`);
-
-    return (
-        <div className="h-full p-2 overflow-hidden">
-            <div
-                className="bg-[#2a2a2a] p-3 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] h-full flex flex-col"
-                style={style}
-            >
-                <h3 className="text-xs font-bold text-[color:var(--text-secondary,#c0a0a0)] mb-2 uppercase tracking-wider shrink-0">
-                    Attributs Personnalisés
-                </h3>
-                {fields.length === 0 ? (
-                    <div className="flex-1 flex items-center justify-center text-xs text-[color:var(--text-secondary,#888)] italic">
-                        Aucun attribut personnalisé
-                    </div>
-                ) : (
-                    <div className="flex-1 overflow-y-auto space-y-1.5">
-                        {fields.map((field) => {
-                            const numVal = typeof field.value === 'number' ? field.value : parseFloat(field.value as string) || 0;
-                            const mod = field.hasModifier && field.type === 'number' ? getModifier(numVal) : null;
-
-                            let displayValue: string;
-                            if (field.type === 'boolean') displayValue = field.value ? '✓' : '✗';
-                            else if (field.type === 'percent') displayValue = `${field.value}%`;
-                            else displayValue = field.value !== '' && field.value !== undefined ? String(field.value) : '—';
-
-                            return (
-                                <div
-                                    key={field.id}
-                                    className="flex items-center justify-between gap-2 bg-[#1e1e1e] rounded px-2 py-1.5 border border-[#3a3a3a]"
-                                >
-                                    <span className="text-xs text-[color:var(--text-secondary,#a0a0a0)] truncate flex items-center gap-1">
-                                        {field.label}
-                                        {field.isRollable && <span className="text-[10px] font-bold text-[color:var(--accent-brown,#c0a080)]">Dés</span>}
-                                    </span>
-                                    <div className="flex items-center gap-1.5 shrink-0">
-                                        {mod !== null && (
-                                            <span className="text-xs font-bold text-[color:var(--accent-brown,#c0a080)] bg-[#1a1a1a] border border-[#3a3a3a] rounded px-1">
-                                                {fmtMod(mod)}
-                                            </span>
-                                        )}
-                                        <span className="text-sm font-bold text-[color:var(--text-primary,#d4d4d4)]">
-                                            {displayValue}
-                                        </span>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
 
 export const WidgetCustomGroup: React.FC<WidgetProps & { label?: string; fieldIds?: string[] }> = ({ style, label, fieldIds = [] }) => {
     const { selectedCharacter } = useCharacter();
@@ -288,3 +228,70 @@ export const WidgetCustomGroup: React.FC<WidgetProps & { label?: string; fieldId
         </div>
     );
 };
+
+export function GroupCreationSection({ handleAddWidget, customFields, initialLabel = '', initialFieldIds = [], mode = 'create' }: {
+    handleAddWidget: (id: string) => void,
+    customFields: CustomField[],
+    initialLabel?: string,
+    initialFieldIds?: string[],
+    mode?: 'create' | 'edit'
+}) {
+    const [label, setLabel] = useState(initialLabel);
+    const [selectedIds, setSelectedIds] = useState<string[]>(initialFieldIds);
+
+    const toggleId = (id: string) => {
+        setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    };
+
+    const handleAction = () => {
+        if (selectedIds.length === 0) {
+            alert("Veuillez sélectionner au moins un attribut.");
+            return;
+        }
+        const finalLabel = label.trim() || 'Attributs';
+        handleAddWidget(`custom_group:${finalLabel}:${selectedIds.join(',')}`);
+        if (mode === 'create') {
+            setLabel('');
+            setSelectedIds([]);
+        }
+    };
+
+    return (
+        <div className="flex flex-col gap-2 p-3 bg-[#1c1c1c] border border-[var(--border-color)] rounded-lg mb-2">
+            <span className="text-[10px] font-bold text-[var(--accent-brown)] uppercase">
+                {mode === 'edit' ? 'Modifier le Groupement' : 'Créer un Groupement'}
+            </span>
+            <input
+                type="text"
+                placeholder="Libellé du bloc (ex: Social)"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                className="w-full bg-[#0e0e0e] border border-[#3a3a3a] rounded px-2 py-1 text-xs text-[#d4d4d4]"
+            />
+            <div className="max-h-[150px] overflow-y-auto space-y-1 mt-1 scrollbar-thin scrollbar-thumb-[#3a3a3a] scrollbar-track-transparent">
+                {customFields.length > 0 ? (
+                    customFields.map(f => (
+                        <label key={f.id} className="flex items-center gap-2 px-2 py-1 hover:bg-[#2a2a2a] rounded cursor-pointer group">
+                            <input
+                                type="checkbox"
+                                checked={selectedIds.includes(f.id)}
+                                onChange={() => toggleId(f.id)}
+                                className="accent-[var(--accent-brown)]"
+                            />
+                            <span className="text-[11px] text-[#a0a0a0] group-hover:text-white truncate">{f.label}</span>
+                        </label>
+                    ))
+                ) : (
+                    <div className="text-[10px] text-[#555] italic px-2">Aucun attribut disponible</div>
+                )}
+            </div>
+            <button
+                onClick={handleAction}
+                disabled={selectedIds.length === 0}
+                className="w-full py-1.5 bg-[var(--accent-brown)] text-black rounded text-[10px] font-bold uppercase mt-1 hover:bg-[var(--accent-brown-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+                {mode === 'edit' ? 'Enregistrer' : 'Créer le bloc'}
+            </button>
+        </div>
+    );
+}

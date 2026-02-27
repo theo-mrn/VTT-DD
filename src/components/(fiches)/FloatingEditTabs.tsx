@@ -35,6 +35,7 @@ import { ThemePublishTab } from './theme-portal/ThemePublishTab';
 import { MyThemesTab } from './theme-portal/MyThemesTab';
 import { ThemeConfig } from './theme-portal/types';
 import { useCharacter, CustomField } from '@/contexts/CharacterContext';
+import { WidgetCustomGroup, GroupCreationSection } from './FicheWidgets';
 
 interface FloatingEditTabsProps {
     customizationForm: Partial<any>; // Replace 'any' with Character when moved to correct context or imported
@@ -444,63 +445,7 @@ export function FloatingEditTabs({
     );
 }
 
-function GroupCreationSection({ handleAddWidget, customFields }: { handleAddWidget: (id: string) => void, customFields: CustomField[] }) {
-    const [label, setLabel] = useState('');
-    const [selectedIds, setSelectedIds] = useState<string[]>([]);
-
-    const toggleId = (id: string) => {
-        setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
-    };
-
-    const handleCreate = () => {
-        if (selectedIds.length === 0) {
-            alert("Veuillez sélectionner au moins un attribut.");
-            return;
-        }
-        const finalLabel = label.trim() || 'Attributs';
-        handleAddWidget(`custom_group:${finalLabel}:${selectedIds.join(',')}`);
-        // Reset local form
-        setLabel('');
-        setSelectedIds([]);
-    };
-
-    return (
-        <div className="flex flex-col gap-2 p-3 bg-[#1c1c1c] border border-[var(--border-color)] rounded-lg mb-2">
-            <span className="text-[10px] font-bold text-[var(--accent-brown)] uppercase">Créer un Groupement</span>
-            <input
-                type="text"
-                placeholder="Libellé du bloc (ex: Social)"
-                value={label}
-                onChange={(e) => setLabel(e.target.value)}
-                className="w-full bg-[#0e0e0e] border border-[#3a3a3a] rounded px-2 py-1 text-xs text-[#d4d4d4]"
-            />
-            <div className="max-h-[150px] overflow-y-auto space-y-1 mt-1 scrollbar-thin scrollbar-thumb-[#3a3a3a] scrollbar-track-transparent">
-                {customFields.length > 0 ? (
-                    customFields.map(f => (
-                        <label key={f.id} className="flex items-center gap-2 px-2 py-1 hover:bg-[#2a2a2a] rounded cursor-pointer group">
-                            <input
-                                type="checkbox"
-                                checked={selectedIds.includes(f.id)}
-                                onChange={() => toggleId(f.id)}
-                                className="accent-[var(--accent-brown)]"
-                            />
-                            <span className="text-[11px] text-[#a0a0a0] group-hover:text-white truncate">{f.label}</span>
-                        </label>
-                    ))
-                ) : (
-                    <div className="text-[10px] text-[#555] italic px-2">Aucun attribut disponible</div>
-                )}
-            </div>
-            <button
-                onClick={handleCreate}
-                disabled={selectedIds.length === 0}
-                className="w-full py-1.5 bg-[var(--accent-brown)] text-black rounded text-[10px] font-bold uppercase mt-1 hover:bg-[var(--accent-brown-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-            >
-                Créer le bloc
-            </button>
-        </div>
-    );
-}
+// Use GroupCreationSection from FicheWidgets.tsx
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Standalone Attributs Dialog — usable outside FloatingEditTabs
