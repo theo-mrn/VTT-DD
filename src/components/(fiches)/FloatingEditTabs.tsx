@@ -127,14 +127,14 @@ export function FloatingEditTabs({
 
                                     <Dialog open={isPublishDialogOpen} onOpenChange={setIsPublishDialogOpen}>
                                         <DialogTrigger asChild>
-                                            <button className="text-[#80c0a0] hover:text-white hover:bg-[#2a2a2a] px-2 py-1.5 rounded flex items-center gap-1.5 text-xs font-bold transition-all">
+                                            <button className="text-[var(--accent-brown)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-darker)] px-2 py-1.5 rounded flex items-center gap-1.5 text-xs font-bold transition-all">
                                                 <UploadCloud size={14} /> Partager mon thème
                                             </button>
                                         </DialogTrigger>
-                                        <DialogContent className="bg-[#1c1c1c] border border-[#3a3a3a] text-[#d4d4d4] max-w-sm p-5 shadow-2xl">
+                                        <DialogContent className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)] max-w-sm p-5 shadow-2xl">
                                             <DialogHeader>
-                                                <DialogTitle className="text-[#d4d4d4] text-lg font-bold flex items-center gap-2">
-                                                    <UploadCloud size={18} className="text-[#80c0a0]" />
+                                                <DialogTitle className="text-[var(--text-primary)] text-lg font-bold flex items-center gap-2">
+                                                    <UploadCloud size={18} className="text-[var(--accent-brown)]" />
                                                     Partager mon thème
                                                 </DialogTitle>
                                             </DialogHeader>
@@ -149,13 +149,13 @@ export function FloatingEditTabs({
                             )}
                             <button
                                 onClick={handleSaveLayout}
-                                className="bg-[#c0a080] text-[#1c1c1c] hover:bg-[#d4b48f] rounded px-3 py-1 text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                                className="button-primary !px-3 !py-1 !text-xs shadow-sm flex items-center gap-1.5"
                             >
                                 <Send size={12} /> Sauvegarder
                             </button>
                             <button
                                 onClick={onClose}
-                                className="bg-transparent text-[#a0a0a0] hover:text-white hover:bg-[#2a2a2a] rounded px-2 py-1 text-xs transition-all flex items-center gap-1"
+                                className="bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-darker)] rounded px-2 py-1 text-xs transition-all flex items-center gap-1"
                             >
                                 <X size={12} /> Fermer
                             </button>
@@ -292,13 +292,13 @@ export function FloatingEditTabs({
                                     {/* Add Widget Dialog */}
                                     <Dialog open={isAddWidgetOpen} onOpenChange={setIsAddWidgetOpen}>
                                         <DialogTrigger asChild>
-                                            <button className="bg-[#3a3a3a] hover:bg-[#4a4a4a] text-[#d4d4d4] px-3 py-1.5 rounded flex items-center justify-center gap-2 text-xs font-bold border border-[#4a4a4a] transition-all">
+                                            <button className="button-cancel !px-3 !py-1.5 !text-xs !flex !items-center !justify-center gap-2 transition-all">
                                                 <PlusCircle size={14} /> Ajouter
                                             </button>
                                         </DialogTrigger>
-                                        <DialogContent className="bg-[#242424] border-[#3a3a3a] text-[#d4d4d4] max-w-sm p-4">
+                                        <DialogContent className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] max-w-sm p-4">
                                             <DialogHeader>
-                                                <DialogTitle className="text-[#c0a080]">Ajouter un widget</DialogTitle>
+                                                <DialogTitle className="text-[var(--accent-brown)]">Ajouter un widget</DialogTitle>
                                             </DialogHeader>
                                             <div className="grid gap-2 mt-2">
                                                 {WIDGET_REGISTRY.filter(w => !layout.find(l => l.i === w.id)).length > 0 ? (
@@ -333,14 +333,14 @@ export function FloatingEditTabs({
                                 <div className="h-6 w-px bg-[#3a3a3a] hidden sm:block mx-1"></div>
 
                                 <div className="flex gap-2 p-2 bg-[#1c1c1c] border border-[#3a3a3a] rounded-lg">
-                                    <label className="cursor-pointer bg-blue-900/40 text-blue-200 border border-blue-900/60 hover:bg-blue-900/60 px-3 py-1.5 rounded transition text-xs font-bold flex items-center justify-center gap-2">
+                                    <label className="cursor-pointer button-secondary !px-3 !py-1.5 !text-xs !flex !items-center !justify-center gap-2">
                                         <input type="file" className="hidden" accept=".json" onChange={handleImportConfig} />
                                         <UploadCloud size={14} /> Importer
                                     </label>
 
                                     <button
                                         onClick={handleExportConfig}
-                                        className="bg-green-900/40 text-green-200 border border-green-900/60 hover:bg-green-900/60 px-3 py-1.5 rounded transition text-xs font-bold flex items-center justify-center gap-2"
+                                        className="button-primary !px-3 !py-1.5 !text-xs !flex !items-center !justify-center gap-2"
                                         title="Exporter le thème"
                                     >
                                         <FileDown size={14} /> Exporter
