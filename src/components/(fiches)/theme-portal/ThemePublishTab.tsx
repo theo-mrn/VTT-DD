@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { ThemeConfig } from './types';
 import { Loader2, Send } from 'lucide-react';
@@ -30,6 +30,19 @@ export function ThemePublishTab({ currentConfig, onSuccess }: ThemePublishTabPro
 
         setIsPublishing(true);
         try {
+            // Check current theme count for the user
+            const q = query(
+                collection(db, 'community_themes'),
+                where('authorId', '==', user.uid)
+            );
+            const querySnapshot = await getDocs(q);
+
+            if (querySnapshot.size >= 5) {
+                toast.error("Vous ne pouvez pas publier plus de 5 thèmes.");
+                setIsPublishing(false);
+                return;
+            }
+
             // JSON round-trip removes all `undefined` values, which Firestore does not accept
             const sanitizedConfig = JSON.parse(JSON.stringify(currentConfig));
             await addDoc(collection(db, 'community_themes'), {
