@@ -14,7 +14,7 @@ import { doc, addDoc, collection, getDoc, setDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
-import { RaceImageSelector } from '@/components/(personnages)/RaceImageSelector'
+import InventoryManagement from '@/components/(inventaire)/inventaire2'
 import CompetenceCreator, { Voie, CustomCompetence } from '@/components/(competences)/CompetenceCreator'
 import { toast } from 'sonner'
 
@@ -44,7 +44,7 @@ async function fetchJson(path: string) {
 
 export default function CharacterCreationPage() {
   const router = useRouter()
-  const [step, setStep] = useState(0)
+  const [currentTab, setCurrentTab] = useState<'info' | 'race' | 'profile' | 'competences' | 'stats' | 'inventory' | 'image'>('info')
   const [raceData, setRaceData] = useState<Record<string, RaceData>>({})
   const [profileData, setProfileData] = useState<Record<string, ProfileData>>({})
   const [userId, setUserId] = useState<string | null>(null)
@@ -60,7 +60,8 @@ export default function CharacterCreationPage() {
 
   const [character, setCharacter] = useState({
     Nomperso: '',
-    Nomjoueur: '',
+    Description: '',
+    Background: '',
     Race: '',
     Profile: '',
     deVie: 'd12',
@@ -85,9 +86,7 @@ export default function CharacterCreationPage() {
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [customImage, setCustomImage] = useState<string>('')
-  const [isRaceImageSelectorOpen, setIsRaceImageSelectorOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState<'race' | 'profile'>('race')
-  const [activeImageSource, setActiveImageSource] = useState<'race' | 'profile' | 'custom'>('race')
+  const [activeImageSource, setActiveImageSource] = useState<'race' | 'profile' | 'custom'>('custom')
 
   // Competencies State
   const [characterVoies, setCharacterVoies] = useState<Voie[]>([])
@@ -296,23 +295,55 @@ export default function CharacterCreationPage() {
   }
 
 
-  const nextStep = useCallback(() => setStep(prev => Math.min(prev + 1, 3)), [])
-  const prevStep = useCallback(() => setStep(prev => Math.max(prev - 1, 0)), [])
+  const tabsOrder = ['info', 'race', 'profile', 'competences', 'stats', 'inventory', 'image'] as const;
+  const nextStep = useCallback(() => {
+    setCurrentTab(prev => {
+      const idx = tabsOrder.indexOf(prev);
+      if (idx < tabsOrder.length - 1) return tabsOrder[idx + 1];
+      return prev;
+    })
+  }, [])
+  const prevStep = useCallback(() => {
+    setCurrentTab(prev => {
+      const idx = tabsOrder.indexOf(prev);
+      if (idx > 0) return tabsOrder[idx - 1];
+      return prev;
+    })
+  }, [])
 
   const renderBasicInfo = useCallback(() => (
-    <div className="space-y-4">
-      <Input
-        placeholder="Nom du personnage"
-        value={character.Nomperso}
-        onChange={(e) => setCharacter(prev => ({ ...prev, Nomperso: e.target.value }))}
-      />
-      <Input
-        placeholder="Nom du joueur"
-        value={character.Nomjoueur}
-        onChange={(e) => setCharacter(prev => ({ ...prev, Nomjoueur: e.target.value }))}
-      />
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <Label className="text-zinc-400 text-xs uppercase tracking-wider">Nom du personnage</Label>
+        <Input
+          placeholder="Ex: Alagarth de Viveflamme"
+          value={character.Nomperso}
+          onChange={(e) => setCharacter(prev => ({ ...prev, Nomperso: e.target.value }))}
+          className="bg-[#121212] border-[#333] text-white focus:border-[#c0a080]"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-zinc-400 text-xs uppercase tracking-wider">Description physique</Label>
+        <textarea
+          placeholder="Apparence, signes distinctifs, particularités..."
+          value={(character as any).Description || ''}
+          onChange={(e) => setCharacter(prev => ({ ...prev, Description: e.target.value }))}
+          className="w-full min-h-[100px] p-3 rounded-md bg-[#121212] border border-[#333] text-white focus:border-[#c0a080] focus:ring-1 focus:ring-[#c0a080] outline-none transition-all custom-scrollbar resize-y text-sm"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-zinc-400 text-xs uppercase tracking-wider">Histoire (Background)</Label>
+        <textarea
+          placeholder="Origine, motivations, événements marquants..."
+          value={(character as any).Background || ''}
+          onChange={(e) => setCharacter(prev => ({ ...prev, Background: e.target.value }))}
+          className="w-full min-h-[180px] p-3 rounded-md bg-[#121212] border border-[#333] text-white focus:border-[#c0a080] focus:ring-1 focus:ring-[#c0a080] outline-none transition-all custom-scrollbar resize-y text-sm"
+        />
+      </div>
     </div>
-  ), [character.Nomperso, character.Nomjoueur])
+  ), [character.Nomperso, (character as any).Description, (character as any).Background])
 
   // Helper to get preview image based on active source
   const getPreviewImage = useCallback(() => {
@@ -374,7 +405,6 @@ export default function CharacterCreationPage() {
         Poids: avgWeight,
       }))
       setActiveImageSource('race')
-      setIsRaceImageSelectorOpen(true)
     }
 
     const selectProfile = (profileName: string) => {
@@ -390,40 +420,9 @@ export default function CharacterCreationPage() {
     }
 
     return (
-      <div className="flex w-full h-[85vh] bg-[#09090b] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden">
+      <div className="flex w-full h-[85vh] bg-[#09090b] border border-[#2a2a2a] rounded-2xl shadow-2xl overflow-hidden mt-2">
         {/* LEFT PANEL - Browser */}
         <div className="flex-1 flex flex-col min-w-0 bg-[#0c0c0e]">
-          {/* Header */}
-          <div className="p-6 border-b border-[#2a2a2a] bg-[#121214] flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-[#c0a080]/10 rounded-lg border border-[#c0a080]/20 flex items-center justify-center">
-                <BookOpen className="w-5 h-5 text-[#c0a080]" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-serif font-bold text-[#e4e4e7] tracking-tight">Création de Personnage</h1>
-                <p className="text-xs text-zinc-500 uppercase tracking-widest font-medium">Étape 1: Race et Classe</p>
-              </div>
-            </div>
-
-            {/* Tabs */}
-            <div className="flex bg-[#18181b] p-1 rounded-lg border border-[#27272a]">
-              <button
-                onClick={() => setActiveTab('race')}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'race' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'
-                  }`}
-              >
-                Races
-              </button>
-              <button
-                onClick={() => setActiveTab('profile')}
-                className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'profile' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'
-                  }`}
-              >
-                Classes
-              </button>
-            </div>
-          </div>
-
           {/* Selection Summary Bar */}
           <div className="px-6 py-2 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-4 text-xs text-zinc-500 h-10">
             {character.Race ? (
@@ -446,7 +445,7 @@ export default function CharacterCreationPage() {
           {/* Content Grid */}
           <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5">
-              {activeTab === 'race'
+              {currentTab === 'race'
                 ? Object.entries(raceData).map(([raceName, race]) => {
                   const isSelected = character.Race === raceName
                   return (
@@ -563,50 +562,6 @@ export default function CharacterCreationPage() {
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/60 to-transparent pointer-events-none z-20" />
 
-              {/* Image Source Buttons */}
-              {((character.Race || character.Profile) || customImage) && (
-                <div className="absolute top-4 left-4 z-20 flex gap-2 bg-black/60 backdrop-blur-md p-1.5 rounded-full border border-white/10">
-                  {character.Race && (
-                    <button
-                      onClick={() => setActiveImageSource('race')}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${activeImageSource === 'race' ? 'bg-[#c0a080] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'
-                        }`}
-                      title="Image de Race"
-                    >
-                      <Dna className="w-4 h-4" />
-                    </button>
-                  )}
-                  {character.Profile && (
-                    <button
-                      onClick={() => setActiveImageSource('profile')}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${activeImageSource === 'profile' ? 'bg-[#c0a080] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'
-                        }`}
-                      title="Image de Classe"
-                    >
-                      <Swords className="w-4 h-4" />
-                    </button>
-                  )}
-                  {customImage && activeImageSource === 'custom' && (
-                    <button
-                      onClick={() => setActiveImageSource('custom')}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${activeImageSource === 'custom' ? 'bg-[#c0a080] text-black shadow-lg' : 'text-zinc-400 hover:text-white hover:bg-white/10'
-                        }`}
-                      title="Image Personnalisée"
-                    >
-                      <User className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Interactive Controls */}
-            <div className="px-6 py-4 space-y-4">
-              <label className="bg-[#1a1a1a] border border-[#2a2a2a] p-3 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[#c0a080]/50 transition-colors group">
-                <Upload className="w-4 h-4 text-zinc-500 group-hover:text-[#c0a080] mb-1" />
-                <span className="text-[10px] uppercase text-zinc-500 font-bold tracking-wider group-hover:text-zinc-300">Image Personnalisée</span>
-                <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-              </label>
             </div>
 
             {/* Stats & Info */}
@@ -641,24 +596,21 @@ export default function CharacterCreationPage() {
 
           {/* Footer Actions */}
           <div className="p-6 border-t border-[#2a2a2a] bg-[#121212] flex gap-3 z-20">
-            <button onClick={prevStep} className="px-6 py-3 rounded-xl border border-[#333] text-zinc-400 hover:text-white hover:bg-[#222] font-medium text-sm transition-colors">
-              Précédent
-            </button>
-            <button
+            <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white">
+              <ChevronLeft className="mr-2 w-4 h-4" /> Précédent
+            </Button>
+            <Button
               onClick={nextStep}
               disabled={!character.Race || !character.Profile}
-              className={`flex-1 flex items-center justify-center gap-2 rounded-xl text-sm font-bold tracking-wide transition-all ${character.Race && character.Profile
-                ? 'bg-[#c0a080] hover:bg-[#e0c0a0] text-black shadow-lg shadow-[#c0a080]/10'
-                : 'bg-[#1a1a1a] text-zinc-600 cursor-not-allowed border border-[#2a2a2a]'
-                }`}
+              className={`flex-1 font-bold transition-all ${character.Race && character.Profile ? 'bg-[#c0a080] hover:bg-[#e0c0a0] text-black shadow-lg' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
             >
-              <span>Suivant</span>
-            </button>
+              Suivant <ChevronRight className="ml-2 w-4 h-4" />
+            </Button>
           </div>
         </div>
       </div>
     )
-  }, [activeTab, character.Race, character.Profile, raceData, profileData, getPreviewImage, activeImageSource, customImage, baseStats])
+  }, [currentTab, character.Race, character.Profile, raceData, profileData, getPreviewImage, activeImageSource, customImage, baseStats])
 
 
   const renderStatsSelection = useCallback(() => {
@@ -787,7 +739,7 @@ export default function CharacterCreationPage() {
                   </div>
                   <div>
                     <div className="text-xs text-zinc-500 uppercase">Contact</div>
-                    <div className="text-xl font-bold text-white">+{character.Contact}</div>
+                    <div className="text-xl font-bold text-white">{character.Contact >= 0 ? '+' : ''}{character.Contact}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 p-3 rounded-xl bg-[#18181b] border border-[#27272a]">
@@ -796,7 +748,7 @@ export default function CharacterCreationPage() {
                   </div>
                   <div>
                     <div className="text-xs text-zinc-500 uppercase">Distance</div>
-                    <div className="text-xl font-bold text-white">+{character.Distance}</div>
+                    <div className="text-xl font-bold text-white">{character.Distance >= 0 ? '+' : ''}{character.Distance}</div>
                   </div>
                 </div>
                 <div className="flex items-center gap-4 p-3 rounded-xl bg-[#18181b] border border-[#27272a]">
@@ -805,7 +757,7 @@ export default function CharacterCreationPage() {
                   </div>
                   <div>
                     <div className="text-xs text-zinc-500 uppercase">Magie</div>
-                    <div className="text-xl font-bold text-white">+{character.Magie}</div>
+                    <div className="text-xl font-bold text-white">{character.Magie >= 0 ? '+' : ''}{character.Magie}</div>
                   </div>
                 </div>
               </div>
@@ -846,10 +798,11 @@ export default function CharacterCreationPage() {
             Précédent
           </Button>
           <Button
-            onClick={handleCreateCharacter}
-            className="bg-[#c0a080] hover:bg-[#e0c0a0] text-black font-bold px-8 py-6 rounded-xl shadow-lg shadow-[#c0a080]/20"
+            onClick={nextStep}
+            disabled={!character.Race || !character.Profile}
+            className={`font-bold px-8 py-6 rounded-xl shadow-lg transition-all ${character.Race && character.Profile ? 'bg-[#c0a080] hover:bg-[#e0c0a0] text-black shadow-[#c0a080]/20' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
           >
-            Créer le personnage
+            Suivant
             <ChevronRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
@@ -860,31 +813,78 @@ export default function CharacterCreationPage() {
 
   if (!userId) return <p>Loading...</p>
 
+  const tabsList = [
+    { id: 'info', label: 'INFORMATIONS', icon: User },
+    { id: 'race', label: 'ESPÈCE', icon: Dna },
+    { id: 'profile', label: 'PROFIL', icon: Swords },
+    { id: 'competences', label: 'COMPÉTENCES', icon: Zap },
+    { id: 'stats', label: 'CARACTÉRISTIQUES', icon: Dice6 },
+    { id: 'inventory', label: 'INVENTAIRE', icon: BookOpen },
+    { id: 'image', label: 'PORTRAIT', icon: Images }
+  ] as const;
+
   return (
-    <div className="flex items-center justify-center min-h-screen py-8 bg-background">
-      <Card className={`w-full mx-auto transition-all duration-300 ${step >= 1 ? 'max-w-[95vw]' : 'max-w-4xl'}`}>
-        <CardHeader>
-          <CardTitle>Création de personnage</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={step}
-              initial={{ opacity: 0, y: 50 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -50 }}
-              transition={{ duration: 0.3 }}
-            >
-              {step === 0 && (
-                <div>
+    <div className="flex flex-col items-center min-h-screen py-8 bg-background">
+      {/* Top Navigation Tabs */}
+      <div className="w-full max-w-[95vw] px-6 mb-8 mt-4">
+        <div className="flex items-center justify-evenly relative pb-2 mx-auto max-w-4xl">
+          <div className="absolute left-0 right-0 h-px bg-[#2a2a2a] bottom-0 z-0" />
+          {tabsList.map((tab) => {
+            const isActive = currentTab === tab.id;
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setCurrentTab(tab.id as any)}
+                className={`relative z-10 flex flex-col items-center gap-2 pb-3 px-8 transition-colors ${isActive ? 'text-[#c0a080]' : 'text-zinc-500 hover:text-zinc-300'
+                  }`}
+              >
+                <Icon className={`w-6 h-6 ${isActive ? 'text-white' : ''}`} />
+                <span className={`text-xs font-bold tracking-widest ${isActive ? 'text-white' : ''}`}>{tab.label}</span>
+                {isActive && (
+                  <motion.div
+                    layoutId="activeTab"
+                    className="absolute bottom-0 left-0 right-0 h-[3px] bg-[#c0a080] rounded-t-sm"
+                  />
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className={`w-full mx-auto transition-all duration-300 ${currentTab === 'info' ? 'max-w-4xl' : 'max-w-[95vw]'}`}>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentTab}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+          >
+            {currentTab === 'info' && (
+              <Card className="bg-[#09090b] border-[#2a2a2a] rounded-2xl max-w-4xl mx-auto">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-serif text-[#e4e4e7]">Informations de base</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
                   {renderBasicInfo()}
-                  <div className="flex justify-end mt-6">
-                    <Button onClick={nextStep}>Suivant</Button>
+                  <div className="flex justify-between mt-6">
+                    <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                    <Button
+                      onClick={nextStep}
+                      disabled={!character.Race || !character.Profile}
+                      className={`font-bold transition-all ${character.Race && character.Profile ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                    >
+                      Suivant <ChevronRight className="ml-2 w-4 h-4" />
+                    </Button>
                   </div>
-                </div>
-              )}
-              {step === 1 && renderSelectionPanel()}
-              {step === 2 && (
+                </CardContent>
+              </Card>
+            )}
+            {(currentTab === 'race' || currentTab === 'profile') && renderSelectionPanel()}
+            {currentTab === 'competences' && (
+              <div className="bg-[#09090b] border border-[#2a2a2a] rounded-2xl p-6 shadow-2xl mt-2">
                 <CompetenceCreator
                   initialProfile={character.Profile}
                   initialRace={character.Race}
@@ -893,35 +893,82 @@ export default function CharacterCreationPage() {
                     setCharacterCustomCompetences(customComps);
                   }}
                 />
-              )}
-              {step === 3 && renderStatsSelection()}
-
-              {/* Navigation buttons for Step 2 */}
-              {step === 2 && (
-                <div className="flex justify-between pt-6 max-w-5xl mx-auto w-full">
-                  <Button onClick={prevStep} variant="outline">Précédent</Button>
-                  <Button onClick={nextStep}>Suivant</Button>
+                <div className="flex justify-between pt-6 max-w-5xl mx-auto w-full mt-4 border-t border-[#2a2a2a]">
+                  <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                  <Button
+                    onClick={nextStep}
+                    disabled={!character.Race || !character.Profile}
+                    className={`font-bold transition-all ${character.Race && character.Profile ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                  >
+                    Suivant <ChevronRight className="ml-2 w-4 h-4" />
+                  </Button>
                 </div>
-              )}
-            </motion.div>
-          </AnimatePresence>
-        </CardContent>
-      </Card>
+              </div>
+            )}
+            {currentTab === 'stats' && renderStatsSelection()}
+            {currentTab === 'inventory' && (
+              <div className="bg-[#09090b] border border-[#2a2a2a] rounded-2xl p-6 shadow-2xl mt-2 h-[85vh] flex flex-col">
+                <div className="flex-1 overflow-hidden">
+                  {character.Nomperso ? (
+                    <InventoryManagement
+                      playerName={character.Nomperso}
+                      roomId={roomId || 'creation'}
+                      canEdit={true}
+                    />
+                  ) : (
+                    <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-[#121212] rounded-xl border border-[#2a2a2a]">
+                      <BookOpen className="w-16 h-16 text-zinc-600 mb-4" />
+                      <h3 className="text-xl font-serif text-[#e4e4e7] mb-2">Nom du personnage manquant</h3>
+                      <p className="text-zinc-500 max-w-md">L'inventaire est lié à votre nom de personnage. Veuillez retourner à l'onglet "INFORMATIONS" pour définir un nom avant de gérer votre équipement.</p>
+                      <Button onClick={() => setCurrentTab('info')} className="mt-6 bg-[#c0a080] text-black hover:bg-[#d0b090] font-bold">Retour aux informations</Button>
+                    </div>
+                  )}
+                </div>
+                <div className="flex justify-between pt-6 max-w-5xl mx-auto w-full mt-4 border-t border-[#2a2a2a] shrink-0">
+                  <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                  <Button
+                    onClick={nextStep}
+                    disabled={!character.Race || !character.Profile}
+                    className={`font-bold transition-all ${character.Race && character.Profile ? 'bg-[#c0a080] text-black hover:bg-[#d0b090]' : 'bg-zinc-800 text-zinc-500 cursor-not-allowed'}`}
+                  >
+                    Suivant <ChevronRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+            {currentTab === 'image' && (
+              <Card className="bg-[#09090b] border-[#2a2a2a] rounded-2xl max-w-lg mx-auto">
+                <CardHeader>
+                  <CardTitle className="text-2xl font-serif text-[#e4e4e7] text-center">Portrait du personnage</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-8 flex flex-col items-center">
+                  <div className="relative w-64 h-80 rounded-2xl overflow-hidden border border-[#2a2a2a] bg-[#121212] flex items-center justify-center shadow-lg">
+                    {getPreviewImage() ? (
+                      <img src={getPreviewImage()} className="w-full h-full object-cover object-top" alt="Preview" />
+                    ) : (
+                      <User className="w-20 h-20 text-[#333]" strokeWidth={1} />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/20 to-transparent pointer-events-none" />
+                  </div>
 
-      {/* Race Image Selector Modal */}
-      {character.Race && (
-        <RaceImageSelector
-          isOpen={isRaceImageSelectorOpen}
-          onClose={() => setIsRaceImageSelectorOpen(false)}
-          onSelectImage={(imageUrl) => {
-            setCharacter(prev => ({ ...prev, imageURL: imageUrl }))
-            setImagePreview(imageUrl)
-          }}
-          raceName={character.Race}
-          currentImage={character.imageURL}
-          raceDefaultImage={raceData[character.Race]?.image}
-        />
-      )}
+                  <div className="w-full max-w-xs">
+                    <label className="bg-[#1a1a1a] border border-[#2a2a2a] p-4 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-[#c0a080]/50 hover:bg-[#c0a080]/5 transition-all group w-full shadow-md">
+                      <Upload className="w-6 h-6 text-zinc-500 group-hover:text-[#c0a080] mb-3" />
+                      <span className="text-xs uppercase text-zinc-400 font-bold tracking-wider group-hover:text-zinc-200">Choisir une image</span>
+                      <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                    </label>
+                  </div>
+
+                  <div className="flex w-full justify-between mt-4 pt-6 border-t border-[#2a2a2a]">
+                    <Button onClick={prevStep} variant="outline" className="border-[#333] text-zinc-400 hover:text-white"><ChevronLeft className="mr-2 w-4 h-4" /> Précédent</Button>
+                    <Button onClick={handleCreateCharacter} className="bg-[#c0a080] hover:bg-[#e0c0a0] text-black font-bold flex-1 ml-4 shadow-lg shadow-[#c0a080]/20">Créer le personnage<ChevronRight className="ml-2 w-4 h-4" /></Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </div>
     </div>
   )
 }
