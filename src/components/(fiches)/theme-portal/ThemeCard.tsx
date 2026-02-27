@@ -121,7 +121,7 @@ export function ThemeCard({ theme, onApply, onHover, onLeave, isPreviewLocked, o
                     {onEdit && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onEdit(theme); }}
-                            className="bg-yellow-900/40 text-yellow-300 hover:bg-yellow-800/60 px-2 py-1.5 rounded text-xs font-semibold flex items-center transition-all"
+                            className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-darker)] px-2 py-1.5 rounded text-xs font-semibold flex items-center transition-all"
                             title="Modifier"
                         >
                             <Edit2 size={14} />
@@ -130,7 +130,7 @@ export function ThemeCard({ theme, onApply, onHover, onLeave, isPreviewLocked, o
                     {onDelete && (
                         <button
                             onClick={(e) => { e.stopPropagation(); onDelete(theme.id); }}
-                            className="bg-red-900/40 text-red-300 hover:bg-red-800/60 px-2 py-1.5 rounded text-xs font-semibold flex items-center transition-all"
+                            className="bg-[var(--bg-card)] border border-[var(--border-color)] text-red-500 hover:text-red-600 hover:bg-[var(--bg-darker)] px-2 py-1.5 rounded text-xs font-semibold flex items-center transition-all"
                             title="Supprimer"
                         >
                             <Trash2 size={14} />
@@ -138,7 +138,7 @@ export function ThemeCard({ theme, onApply, onHover, onLeave, isPreviewLocked, o
                     )}
                     <button
                         onClick={(e) => { e.stopPropagation(); onApply(config); }}
-                        className="bg-blue-900/40 text-blue-300 hover:bg-blue-800/60 px-3 py-1.5 rounded text-xs font-semibold flex items-center gap-1 transition-all"
+                        className="button-primary !px-3 !py-1.5 !text-xs flex items-center gap-1 shadow-sm"
                     >
                         <Download size={14} />
                         Appliquer
