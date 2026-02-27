@@ -11,6 +11,22 @@ interface ThemePublishTabProps {
     onSuccess: () => void;
 }
 
+// Helper for robust deep equality, since JSON.stringify is sensitive to key order
+const deepEqual = (obj1: any, obj2: any): boolean => {
+    if (obj1 === obj2) return true;
+    if (typeof obj1 !== 'object' || obj1 === null || typeof obj2 !== 'object' || obj2 === null) {
+        return false;
+    }
+    const keys1 = Object.keys(obj1);
+    const keys2 = Object.keys(obj2);
+    if (keys1.length !== keys2.length) return false;
+    for (const key of keys1) {
+        if (!keys2.includes(key) || !deepEqual(obj1[key], obj2[key])) return false;
+    }
+    return true;
+};
+
+
 export function ThemePublishTab({ currentConfig, onSuccess }: ThemePublishTabProps) {
     const [themeName, setThemeName] = useState('');
     const [isPublishing, setIsPublishing] = useState(false);
@@ -43,8 +59,19 @@ export function ThemePublishTab({ currentConfig, onSuccess }: ThemePublishTabPro
                 return;
             }
 
-            // JSON round-trip removes all `undefined` values, which Firestore does not accept
+            // Check if a theme with exactly the same config already exists for this user
             const sanitizedConfig = JSON.parse(JSON.stringify(currentConfig));
+            const isDuplicate = querySnapshot.docs.some(doc => {
+                const data = doc.data();
+                return deepEqual(data.config, sanitizedConfig);
+            });
+
+            if (isDuplicate) {
+                toast.error("Vous avez déjà publié un thème avec cette exact configuration.");
+                setIsPublishing(false);
+                return;
+            }
+
             await addDoc(collection(db, 'community_themes'), {
                 name: themeName.trim(),
                 authorId: user.uid,
