@@ -233,3 +233,58 @@ export const WidgetCustomFields: React.FC<WidgetProps> = ({ style }) => {
         </div>
     );
 };
+
+export const WidgetCustomGroup: React.FC<WidgetProps & { label?: string; fieldIds?: string[] }> = ({ style, label, fieldIds = [] }) => {
+    const { selectedCharacter } = useCharacter();
+    const fields = selectedCharacter?.customFields ?? [];
+
+    // Filter fields that are in this group
+    const groupFields = fields.filter(f => fieldIds.includes(f.id));
+
+    if (groupFields.length === 0) return null;
+
+    const getFieldModifier = (val: number) => Math.floor((val - 10) / 2);
+    const fmtMod = (m: number) => (m >= 0 ? `+${m}` : `${m}`);
+
+    return (
+        <div className="flex flex-col h-full p-1 justify-center">
+            <div className="flex-1 flex flex-col h-full overflow-hidden">
+                <div className="grid gap-1 flex-1 h-full" style={{ gridTemplateColumns: `repeat(${groupFields.length}, minmax(0, 1fr))` }}>
+                    {groupFields.map((field) => {
+                        const numVal = typeof field.value === 'number' ? field.value : parseFloat(field.value as string) || 0;
+                        const mod = field.hasModifier && field.type === 'number' ? getFieldModifier(numVal) : null;
+
+                        let displayValue: string;
+                        if (field.type === 'boolean') displayValue = field.value ? '✓' : '✗';
+                        else if (field.type === 'percent') displayValue = `${field.value}%`;
+                        else displayValue = field.value !== '' && field.value !== undefined ? String(field.value) : '—';
+
+                        return (
+                            <div
+                                key={field.id}
+                                className="bg-[#2a2a2a] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] text-center h-full flex flex-col justify-center items-center overflow-hidden"
+                                style={style}
+                            >
+                                <span className="text-[9px] sm:text-[10px] uppercase font-bold text-[color:var(--text-secondary,#c0a0a0)] tracking-wider truncate mb-0.5" title={field.label}>
+                                    {field.label}
+                                </span>
+                                {mod !== null ? (
+                                    <>
+                                        <div className={`text-lg sm:text-xl md:text-2xl font-bold leading-none ${mod >= 0 ? 'text-[color:var(--text-primary,#22c55e)]' : 'text-red-500'}`}>
+                                            {fmtMod(mod)}
+                                        </div>
+                                        <div className="text-[10px] sm:text-xs text-[color:var(--text-secondary,#a0a0a0)]">{displayValue}</div>
+                                    </>
+                                ) : (
+                                    <div className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] leading-none mt-1">
+                                        {displayValue}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+};
