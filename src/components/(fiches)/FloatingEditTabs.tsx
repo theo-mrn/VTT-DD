@@ -74,6 +74,7 @@ export function FloatingEditTabs({
     const [searchQuery, setSearchQuery] = useState('');
 
     const [isSavingLayout, setIsSavingLayout] = useState(false);
+    const [isPublishDialogOpen, setIsPublishDialogOpen] = useState(false);
 
     return (
         <div className="fixed bottom-0 left-0 right-0 z-[200] bg-[#0e0e0e]/95 backdrop-blur-md border-t border-[#3a3a3a] shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.5)] transition-all duration-300 ease-in-out">
@@ -124,7 +125,7 @@ export function FloatingEditTabs({
                                         </div>
                                     )}
 
-                                    <Dialog>
+                                    <Dialog open={isPublishDialogOpen} onOpenChange={setIsPublishDialogOpen}>
                                         <DialogTrigger asChild>
                                             <button className="text-[#80c0a0] hover:text-white hover:bg-[#2a2a2a] px-2 py-1.5 rounded flex items-center gap-1.5 text-xs font-bold transition-all">
                                                 <UploadCloud size={14} /> Partager mon thème
@@ -139,7 +140,7 @@ export function FloatingEditTabs({
                                             </DialogHeader>
                                             <ThemePublishTab
                                                 currentConfig={{ theme: customizationForm as any, layout }}
-                                                onSuccess={() => { /* Modal stays open or closes depending on preference, we let the Toast handle feedback */ }}
+                                                onSuccess={() => { setIsPublishDialogOpen(false); }}
                                             />
                                         </DialogContent>
                                     </Dialog>
