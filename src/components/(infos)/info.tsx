@@ -4,14 +4,14 @@ import { useState, useEffect } from "react";
 import { X, Sparkles, BookOpen, Info, Image as ImageIcon } from "lucide-react";
 import Capacites from "@/components/(infos)/capacites";
 import Information from "@/components/(infos)/Information";
-import Component from "@/components/(infos)/wiki";
+import Glossary from "@/components/(infos)/Glossary";
 import Images from "@/components/(infos)/images";
 
-export type InfoSection = "Compétences" | "Information" | "Images" | "wiki" | null;
+export type InfoSection = "Compétences" | "Information" | "Images" | "Glossary" | null;
 
 const infoButtons = [
   { id: "Compétences" as InfoSection, icon: Sparkles, label: "Compétences" },
-  { id: "wiki" as InfoSection, icon: BookOpen, label: "Wiki" },
+  { id: "Glossary" as InfoSection, icon: BookOpen, label: "Bestiaire/Classes/Races" },
   { id: "Information" as InfoSection, icon: Info, label: "Information" },
   { id: "Images" as InfoSection, icon: ImageIcon, label: "Images" },
 ];
@@ -22,13 +22,13 @@ interface InfoComponentProps {
   renderButtons?: boolean;
 }
 
-export default function InfoComponent({ 
+export default function InfoComponent({
   activeSection: externalActiveSection,
   setActiveSection: externalSetActiveSection,
   renderButtons = false
 }: InfoComponentProps = {}) {
   const [internalActiveSection, setInternalActiveSection] = useState<InfoSection>(null);
-  
+
   const activeSection = externalActiveSection !== undefined ? externalActiveSection : internalActiveSection;
   const setActiveSection = externalSetActiveSection || setInternalActiveSection;
 
@@ -40,8 +40,8 @@ export default function InfoComponent({
         return <Capacites />;
       case "Information":
         return <Information />;
-      case "wiki":
-        return <Component />;
+      case "Glossary":
+        return <Glossary />;
       case "Images":
         return <Images />;
       default:

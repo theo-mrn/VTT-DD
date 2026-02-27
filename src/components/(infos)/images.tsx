@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Film } from "lucide-react"
 
 // Define types for categories and image data
 type CategoryCounts = { [key: string]: number }
@@ -12,6 +13,8 @@ type ImageData = {
   id: string
   src: string
   alt: string
+  category?: string
+  type?: string
 }
 
 // Define the count of images per category
@@ -23,13 +26,7 @@ const assetCategories: CategoryCounts = {
   Minotaure: 4,
 }
 
-const mapCategories: CategoryCounts = {
-  Autre: 10,
-  Camps: 10,
-  Farm: 9,
-  Foret: 29,
-  Village: 14,
-}
+
 
 const photoCategories: CategoryCounts = {
   Drakonide: 303,
@@ -50,7 +47,7 @@ function generateImageData(
 ): ImageData[] {
   return Array.from({ length: count }, (_, index) => ({
     id: `${category}-${index + 1}`,
-    src: isMapOrPhoto 
+    src: isMapOrPhoto
       ? `${basePath}/${category}/image${index + 1}.${extension}` // For maps and photos in subfolders
       : `${basePath}/${category}${index + 1}.${extension}`,       // For assets directly in the folder
     alt: `${category} ${index + 1}`,
@@ -71,8 +68,10 @@ function ImageGrid({ images }: ImageGridProps) {
               src={image.src}
               alt={image.alt}
               width={400}
-              height={800}  // Adjusted height for larger display
+              height={400}  // Adjusted height for performance
               className="w-full h-full object-cover" // Ensures the image covers the entire card
+              quality={30}
+              loading="lazy"
             />
             {/* Download button on hover */}
             <a
@@ -97,6 +96,9 @@ export default function ImageGalleryTabs() {
   const [mapImages, setMapImages] = useState<ImageData[]>([])
   const [photoImages, setPhotoImages] = useState<ImageData[]>([])
 
+  const [apiMaps, setApiMaps] = useState<ImageData[]>([])
+  const [apiMapCategories, setApiMapCategories] = useState<string[]>([])
+
   useEffect(() => {
     const images = assetCategory === 'all'
       ? Object.entries(assetCategories).flatMap(([cat, count]) => generateImageData('/Assets', cat, count, 'png'))
@@ -104,30 +106,72 @@ export default function ImageGalleryTabs() {
     setAssetImages(images)
   }, [assetCategory])
 
+  const getMapCategory = (categoryStr: string): string => {
+    const parts = categoryStr.split('/');
+    if (parts[0] === 'Cartes') {
+      return 'Autres';
+    } else if (parts[0] === 'Map' && parts[1]) {
+      return parts[1];
+    } else {
+      return parts[parts.length - 1] || parts[0];
+    }
+  };
+
   useEffect(() => {
-    const images = mapCategory === 'all'
-      ? Object.entries(mapCategories).flatMap(([cat, count]) => generateImageData('/Cartes', cat, count, 'webp', true))
-      : generateImageData('/Cartes', mapCategory, mapCategories[mapCategory], 'webp', true)
-    setMapImages(images)
-  }, [mapCategory])
+    const fetchMaps = async () => {
+      try {
+        const response = await fetch('/api/maps');
+        const data = await response.json();
+        const maps = data.maps || [];
+
+        // Filter out videos, keep only static images
+        const imageMaps = maps.filter((m: any) => m.type === 'image');
+
+        const formattedMaps: ImageData[] = imageMaps.map((m: any, idx: number) => ({
+          id: `api-map-${idx}`,
+          src: m.path,
+          alt: m.name,
+          category: getMapCategory(m.category),
+          type: m.type
+        }));
+
+        const uniqueCategories = Array.from(new Set(formattedMaps.map(m => m.category || '')));
+
+        setApiMaps(formattedMaps);
+        setApiMapCategories(uniqueCategories.sort());
+      } catch (error) {
+        console.error('Error fetching API maps:', error);
+      }
+    };
+
+    fetchMaps();
+  }, []);
+
+  useEffect(() => {
+    if (mapCategory === 'all') {
+      setMapImages(apiMaps);
+    } else {
+      setMapImages(apiMaps.filter(m => m.category === mapCategory));
+    }
+  }, [mapCategory, apiMaps])
 
   useEffect(() => {
     const images = photoCategory === 'all'
-      ? Object.entries(photoCategories).flatMap(([cat, count]) => 
-          Array.from({ length: count }, (_, index) => ({
-            id: `${cat}-${index + 1}`,
-            src: `/Photos/${cat}/${cat}${index + 1}.webp`,
-            alt: `${cat} ${index + 1}`,
-          }))
-        )
-      : Array.from({ length: photoCategories[photoCategory] }, (_, index) => ({
-          id: `${photoCategory}-${index + 1}`,
-          src: `/Photos/${photoCategory}/${photoCategory}${index + 1}.webp`,
-          alt: `${photoCategory} ${index + 1}`,
+      ? Object.entries(photoCategories).flatMap(([cat, count]) =>
+        Array.from({ length: count }, (_, index) => ({
+          id: `${cat}-${index + 1}`,
+          src: `/Photos/${cat}/${cat}${index + 1}.webp`,
+          alt: `${cat} ${index + 1}`,
         }))
+      )
+      : Array.from({ length: photoCategories[photoCategory] }, (_, index) => ({
+        id: `${photoCategory}-${index + 1}`,
+        src: `/Photos/${photoCategory}/${photoCategory}${index + 1}.webp`,
+        alt: `${photoCategory} ${index + 1}`,
+      }))
     setPhotoImages(images)
   }, [photoCategory])
-  
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold text-center mb-8">Galerie d'Images</h1>
@@ -137,7 +181,7 @@ export default function ImageGalleryTabs() {
           <TabsTrigger value="maps">Cartes</TabsTrigger>
           <TabsTrigger value="photos">Photos</TabsTrigger>
         </TabsList>
-        
+
         {/* Assets Tab */}
         <TabsContent value="assets">
           <div className="flex justify-end mb-4">
@@ -155,7 +199,7 @@ export default function ImageGalleryTabs() {
           </div>
           <ImageGrid images={assetImages} />
         </TabsContent>
-        
+
         {/* Maps Tab */}
         <TabsContent value="maps">
           <div className="flex justify-end mb-4">
@@ -165,7 +209,7 @@ export default function ImageGalleryTabs() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Toutes les cartes</SelectItem>
-                {Object.keys(mapCategories).map(cat => (
+                {apiMapCategories.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
               </SelectContent>
@@ -173,7 +217,7 @@ export default function ImageGalleryTabs() {
           </div>
           <ImageGrid images={mapImages} />
         </TabsContent>
-        
+
         {/* Photos Tab */}
         <TabsContent value="photos">
           <div className="flex justify-end mb-4 text-blue">

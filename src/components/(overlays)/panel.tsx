@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Check, User, Users, LogOut, X, Clipboard, Share2, SquareUserRound, Settings, Palette, BookOpen, ImageIcon, Store, Zap, ShoppingCart, Library } from "lucide-react";
+import { Check, User, Users, LogOut, X, Clipboard, Share2, SquareUserRound, Settings, Palette, BookOpen, ImageIcon, Store, Zap, ShoppingCart, Library, Skull } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { auth, db, doc, onAuthStateChanged, updateDoc, signOut, onSnapshot } from "@/lib/firebase";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 import Marketplace from "@/components/(infos)/Information";
 import Capacites from "@/components/(infos)/capacites";
 import Images from "@/components/(infos)/images";
-import Wiki from "@/components/(infos)/wiki";
+import Glossary from "@/components/(infos)/Glossary";
 import Boutique from "@/components/(infos)/boutique";
 import { RoomUsersManager } from "@/app/Salle/components/RoomUsersManager";
 import { RoomSettingsManager } from "@/app/Salle/components/RoomSettingsManager";
@@ -296,10 +296,10 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
         <button
           className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
-          onClick={() => setOpenDialog("wiki")}
+          onClick={() => setOpenDialog("bestiaire")}
         >
-          <BookOpen className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
-          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Wiki</span>
+          <Skull className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Bestiaire</span>
         </button>
 
         <button
@@ -491,12 +491,12 @@ export default function Sidebar({ onClose }: SidebarProps) {
         </div>
       )}
 
-      {openDialog === 'wiki' && (
+      {openDialog === 'bestiaire' && (
         <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] overflow-y-auto w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
           <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
             <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
           </button>
-          <Wiki />
+          <Glossary />
         </div>
       )}
 
