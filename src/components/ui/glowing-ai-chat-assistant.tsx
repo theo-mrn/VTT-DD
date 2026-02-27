@@ -12,7 +12,14 @@ import { DiceStoreModal } from "../(dices)/dice-store-modal";
 import { DICE_SKINS } from "../(dices)/dice-definitions";
 import { UserProfileDialog } from "@/components/profile/UserProfileDialog";
 
-// --- Types ---
+// Represents one stat that can be inserted as a dice bonus
+interface RollableStat {
+  key: string;       // identifier used in notation (e.g. "FOR", "Durabilité")
+  label: string;     // display label
+  rawValue: number;  // raw stat value
+  hasModifier: boolean; // if true, insert floor((value-10)/2); otherwise insert value directly
+}
+
 interface CharacterModifiers {
   [key: string]: number;
 }
@@ -47,6 +54,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
   const [roomId, setRoomId] = useState<string | null>(null);
   const [persoId, setPersoId] = useState<string | null>(null);
   const [characterModifiers, setCharacterModifiers] = useState<CharacterModifiers>({});
+  const [rollableStats, setRollableStats] = useState<RollableStat[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [show3DAnimations, setShow3DAnimations] = useState(true);
   const [isPrivate, setIsPrivate] = useState(false);
@@ -203,18 +211,59 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
         setUserName(charData.Nomperso || "Utilisateur");
         setUserAvatar(charData.imageURLFinal || charData.imageURL || undefined);
 
-        setCharacterModifiers({
-          CON: charData.CON_F || charData.CON || 0,
-          DEX: charData.DEX_F || charData.DEX || 0,
-          FOR: charData.FOR_F || charData.FOR || 0,
-          SAG: charData.SAG_F || charData.SAG || 0,
-          INT: charData.INT_F || charData.INT || 0,
-          CHA: charData.CHA_F || charData.CHA || 0,
-          Contact: charData.Contact_F || charData.Contact || 0,
-          Distance: charData.Distance_F || charData.Distance || 0,
-          Magie: charData.Magie_F || charData.Magie || 0,
-          Defense: charData.Defense_F || charData.Defense || 0,
+        // ── Built-in stats defaults ──
+        const defaultRollable: Record<string, boolean> = {
+          FOR: true, DEX: true, CON: true, SAG: true, INT: true, CHA: true,
+          Defense: false, Contact: false, Magie: false, Distance: false, INIT: false,
+        };
+        const statRollableOverrides: Record<string, boolean> = charData.statRollable ?? {};
+
+        const builtinDefs = [
+          { key: 'FOR', label: 'FOR', hasModifier: true },
+          { key: 'DEX', label: 'DEX', hasModifier: true },
+          { key: 'CON', label: 'CON', hasModifier: true },
+          { key: 'SAG', label: 'SAG', hasModifier: true },
+          { key: 'INT', label: 'INT', hasModifier: true },
+          { key: 'CHA', label: 'CHA', hasModifier: true },
+          { key: 'Defense', label: 'Déf', hasModifier: false },
+          { key: 'Contact', label: 'Ctt', hasModifier: false },
+          { key: 'Magie', label: 'Mag', hasModifier: false },
+          { key: 'Distance', label: 'Dst', hasModifier: false },
+          { key: 'INIT', label: 'INIT', hasModifier: false },
+        ];
+
+        // Build rollable list from built-ins
+        const rollables: RollableStat[] = builtinDefs
+          .filter(s => (s.key in statRollableOverrides ? statRollableOverrides[s.key] : defaultRollable[s.key] ?? false))
+          .map(s => ({
+            key: s.key,
+            label: s.label,
+            rawValue: Number(charData[`${s.key}_F`] ?? charData[s.key] ?? (s.hasModifier ? 10 : 0)),
+            hasModifier: s.hasModifier,
+          }));
+
+        // Append rollable custom fields
+        const customFields: Array<{ id: string; label: string; type: string; value: unknown; isRollable?: boolean; hasModifier?: boolean }> =
+          charData.customFields ?? [];
+        customFields
+          .filter(f => f.isRollable && (f.type === 'number' || f.type === 'percent'))
+          .forEach(f => {
+            rollables.push({
+              key: f.label,     // use label as notation key for custom fields
+              label: f.label.length > 5 ? f.label.substring(0, 5) : f.label,
+              rawValue: Number(f.value) || 0,
+              hasModifier: !!(f.hasModifier && f.type === 'number'),
+            });
+          });
+
+        setRollableStats(rollables);
+
+        // Keep characterModifiers for backward compat with replaceCharacteristics
+        const modifiersMap: CharacterModifiers = {};
+        rollables.forEach(s => {
+          modifiersMap[s.key] = s.rawValue;
         });
+        setCharacterModifiers(modifiersMap);
       }
     } catch (error) {
       console.error("Error fetching character info:", error);
@@ -286,31 +335,35 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
 
 
   const replaceCharacteristics = (notation: string): string => {
-    if (!characterModifiers || Object.keys(characterModifiers).length === 0) {
+    if (!rollableStats.length && !characterModifiers || Object.keys(characterModifiers).length === 0) {
       return notation;
     }
 
     let processedNotation = notation;
-    const characteristicsRegex = /(CON|FOR|DEX|CHA|INT|SAG|Contact|Distance|Magie|Defense)/gi;
 
-    processedNotation = processedNotation.replace(characteristicsRegex, (match) => {
-      const key = match.toUpperCase();
-      let value = 0;
+    // Build a sorted list of keys (longest first to avoid partial matches)
+    const allKeys = rollableStats.length > 0
+      ? rollableStats.map(s => s.key)
+      : Object.keys(characterModifiers);
 
-      if (["CON", "FOR", "DEX", "CHA", "INT", "SAG"].includes(key)) {
-        const rawValue = characterModifiers[key] || 0;
-        value = calculateModifier(rawValue);
-      } else if (key === "CONTACT") {
-        value = characterModifiers.Contact || 0;
-      } else if (key === "DISTANCE") {
-        value = characterModifiers.Distance || 0;
-      } else if (key === "MAGIE") {
-        value = characterModifiers.Magie || 0;
-      } else if (key === "DEFENSE") {
-        value = characterModifiers.Defense || 0;
+    const sortedKeys = [...allKeys].sort((a, b) => b.length - a.length);
+    const escapedKeys = sortedKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const regex = new RegExp(`\\b(${escapedKeys.join('|')})\\b`, 'gi');
+
+    processedNotation = processedNotation.replace(regex, (match) => {
+      // Find matching stat (case-insensitive)
+      const stat = rollableStats.find(s => s.key.toLowerCase() === match.toLowerCase());
+      if (stat) {
+        const val = stat.hasModifier
+          ? Math.floor((stat.rawValue - 10) / 2)
+          : stat.rawValue;
+        return val.toString();
       }
-      return value.toString();
+      // Fallback to old map
+      const raw = characterModifiers[match] ?? characterModifiers[match.toUpperCase()] ?? 0;
+      return raw.toString();
     });
+
     return processedNotation;
   };
 
@@ -932,20 +985,28 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                     <div className="px-4 pb-4 space-y-3">
                       <div className="space-y-3">
                         {/* Modifiers Grid - Hidden for MJ */}
-                        {userName !== "MJ" && (
-                          <div id="vtt-dice-modifiers" className="grid grid-cols-6 gap-2">
-                            {["FOR", "DEX", "CON", "INT", "SAG", "CHA"].map(stat => (
-                              <button
-                                key={stat}
-                                onClick={() => addToInput(`+ ${stat}`)}
-                                className="group relative py-1.5 rounded-lg cursor-pointer transition-all duration-300 text-[10px] font-mono font-bold uppercase tracking-wider"
-                                style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
-                                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-brown)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-brown)'; }}
-                                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; }}
-                              >
-                                {stat.substring(0, 3)}
-                              </button>
-                            ))}
+                        {!isMJ && rollableStats.length > 0 && (
+                          <div id="vtt-dice-modifiers" className="flex flex-wrap gap-1.5">
+                            {rollableStats.map(stat => {
+                              const effectiveValue = stat.hasModifier
+                                ? Math.floor((stat.rawValue - 10) / 2)
+                                : stat.rawValue;
+                              const sign = effectiveValue >= 0 ? '+' : '';
+                              return (
+                                <button
+                                  key={stat.key}
+                                  onClick={() => addToInput(`+ ${stat.key}`)}
+                                  className="group relative py-1 px-2 rounded-lg cursor-pointer transition-all duration-300 text-[10px] font-mono font-bold flex items-center gap-1"
+                                  style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+                                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-brown)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-brown)'; }}
+                                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; }}
+                                  title={`${stat.label}: ${sign}${effectiveValue}${stat.hasModifier ? ` (base ${stat.rawValue})` : ''}`}
+                                >
+                                  <span className="uppercase tracking-wider">{stat.label}</span>
+                                  <span className="opacity-60 text-[9px]">{sign}{effectiveValue}</span>
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
 

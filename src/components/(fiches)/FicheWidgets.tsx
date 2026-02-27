@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { useCharacter, Character } from '@/contexts/CharacterContext';
+import { useCharacter, Character, CustomField } from '@/contexts/CharacterContext';
 import CharacterImage from '@/components/(fiches)/CharacterImage';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Heart, Shield } from 'lucide-react';
@@ -169,6 +169,67 @@ export const WidgetCombatStats: React.FC<WidgetProps> = ({ style }) => {
                     </TooltipContent>
                 </Tooltip>
             ))}
+        </div>
+    );
+};
+
+export const WidgetCustomFields: React.FC<WidgetProps> = ({ style }) => {
+    const { selectedCharacter } = useCharacter();
+
+    const fields: CustomField[] = selectedCharacter?.customFields ?? [];
+
+    const getModifier = (val: number) => Math.floor((val - 10) / 2);
+    const fmtMod = (m: number) => (m >= 0 ? `+${m}` : `${m}`);
+
+    return (
+        <div className="h-full p-2 overflow-hidden">
+            <div
+                className="bg-[#2a2a2a] p-3 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] h-full flex flex-col"
+                style={style}
+            >
+                <h3 className="text-xs font-bold text-[color:var(--text-secondary,#c0a0a0)] mb-2 uppercase tracking-wider shrink-0">
+                    Attributs Personnalisés
+                </h3>
+                {fields.length === 0 ? (
+                    <div className="flex-1 flex items-center justify-center text-xs text-[color:var(--text-secondary,#888)] italic">
+                        Aucun attribut personnalisé
+                    </div>
+                ) : (
+                    <div className="flex-1 overflow-y-auto space-y-1.5">
+                        {fields.map((field) => {
+                            const numVal = typeof field.value === 'number' ? field.value : parseFloat(field.value as string) || 0;
+                            const mod = field.hasModifier && field.type === 'number' ? getModifier(numVal) : null;
+
+                            let displayValue: string;
+                            if (field.type === 'boolean') displayValue = field.value ? '✓' : '✗';
+                            else if (field.type === 'percent') displayValue = `${field.value}%`;
+                            else displayValue = field.value !== '' && field.value !== undefined ? String(field.value) : '—';
+
+                            return (
+                                <div
+                                    key={field.id}
+                                    className="flex items-center justify-between gap-2 bg-[#1e1e1e] rounded px-2 py-1.5 border border-[#3a3a3a]"
+                                >
+                                    <span className="text-xs text-[color:var(--text-secondary,#a0a0a0)] truncate flex items-center gap-1">
+                                        {field.label}
+                                        {field.isRollable && <span className="text-[10px] font-bold text-[color:var(--accent-brown,#c0a080)]">Dés</span>}
+                                    </span>
+                                    <div className="flex items-center gap-1.5 shrink-0">
+                                        {mod !== null && (
+                                            <span className="text-xs font-bold text-[color:var(--accent-brown,#c0a080)] bg-[#1a1a1a] border border-[#3a3a3a] rounded px-1">
+                                                {fmtMod(mod)}
+                                            </span>
+                                        )}
+                                        <span className="text-sm font-bold text-[color:var(--text-primary,#d4d4d4)]">
+                                            {displayValue}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };

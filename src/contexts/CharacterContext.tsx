@@ -16,6 +16,15 @@ import { Layout } from 'react-grid-layout';
 
 // ==================== TYPES ====================
 
+export interface CustomField {
+  id: string;
+  label: string;
+  type: 'number' | 'text' | 'percent' | 'boolean';
+  value: string | number | boolean;
+  isRollable?: boolean;   // peut être utilisé comme bonus pour les jets de dé
+  hasModifier?: boolean;  // affiche le modificateur : floor((value-10)/2)
+}
+
 export interface Character {
   id: string;
   Nomperso: string;
@@ -46,6 +55,8 @@ export interface Character {
   theme_text_secondary_color?: string;
   theme_border_radius?: number;
   layout?: Layout[];
+  customFields?: CustomField[];
+  statRollable?: Record<string, boolean>; // overrides for built-in stat rollability
   [key: string]: any;
 }
 
