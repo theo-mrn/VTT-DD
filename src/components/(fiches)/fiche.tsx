@@ -19,7 +19,7 @@ import Competences from "@/components/(competences)/competences";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCharacter, Character } from '@/contexts/CharacterContext';
 import { Statistiques } from '@/components/Statistiques';
-import { WidgetAvatar, WidgetDetails, WidgetStats, WidgetVitals, WidgetCombatStats, WidgetCustomFields } from './FicheWidgets';
+import { WidgetAvatar, WidgetDetails, WidgetStats, WidgetVitals, WidgetCombatStats, WidgetCustomFields, WidgetCustomGroup } from './FicheWidgets';
 import { CustomField } from '@/contexts/CharacterContext';
 import { WidgetBourse, WidgetEffects } from './FicheWidgetsExtra';
 import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
@@ -351,7 +351,17 @@ export default function Component() {
   };
 
   const handleAddWidget = (widgetId: string) => {
-    const widgetDef = WIDGET_REGISTRY.find(w => w.id === widgetId);
+    let widgetDef = WIDGET_REGISTRY.find(w => w.id === widgetId);
+
+    // Support for dynamic custom groups
+    if (!widgetDef && widgetId.startsWith('custom_group:')) {
+      widgetDef = {
+        id: widgetId,
+        label: widgetId.split(':')[1] || 'Groupe',
+        default: { w: 6, h: 2, minW: 3, minH: 2 }
+      };
+    }
+
     if (!widgetDef) return;
 
     setLayout(prev => {
@@ -894,6 +904,19 @@ export default function Component() {
                     </div>
                   </div>
                 )}
+                {layout.filter(l => l.i.startsWith('custom_group:')).map(l => {
+                  const parts = l.i.split(':');
+                  const label = parts[1] || '';
+                  const fieldIds = parts[2] ? parts[2].split(',') : [];
+                  return (
+                    <div key={l.i} className="relative group hover:z-[100]">
+                      <WidgetControls id={l.i} updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} />
+                      <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
+                        <WidgetCustomGroup style={boxStyle} label={label} fieldIds={fieldIds} />
+                      </div>
+                    </div>
+                  );
+                })}
               </ResponsiveGridLayout>
             ) : (
               <ResponsiveGridLayout
@@ -913,6 +936,16 @@ export default function Component() {
                 {layout.find(l => l.i === 'bourse') && <div key="bourse" className="overflow-hidden h-full"><WidgetBourse style={boxStyle} /></div>}
                 {layout.find(l => l.i === 'effects') && <div key="effects" className="overflow-hidden h-full"><WidgetEffects style={boxStyle} /></div>}
                 {layout.find(l => l.i === 'custom_fields') && <div key="custom_fields" className="overflow-hidden h-full"><WidgetCustomFields style={boxStyle} /></div>}
+                {layout.filter(l => l.i.startsWith('custom_group:')).map(l => {
+                  const parts = l.i.split(':');
+                  const label = parts[1] || '';
+                  const fieldIds = parts[2] ? parts[2].split(',') : [];
+                  return (
+                    <div key={l.i} className="overflow-hidden h-full">
+                      <WidgetCustomGroup style={boxStyle} label={label} fieldIds={fieldIds} />
+                    </div>
+                  );
+                })}
                 <div id="vtt-widget-vitals-view" key="vitals" className="overflow-hidden h-full">
                   <Drawer>
                     <DrawerTrigger asChild>
