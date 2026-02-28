@@ -10,7 +10,8 @@ import {
 import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
 
-import { db, auth, addDoc, collection, doc, updateDoc, deleteDoc, onSnapshot, getDoc, onAuthStateChanged } from "@/lib/firebase"
+import { db, auth, storage, addDoc, collection, doc, updateDoc, deleteDoc, onSnapshot, getDoc, onAuthStateChanged } from "@/lib/firebase"
+import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { cn } from "@/lib/utils"
 import { toast } from 'sonner'
 
@@ -254,6 +255,16 @@ export default function Notes() {
         await deleteDoc(doc(db, 'Notes', roomId, characterId, deleteId))
       }
 
+      // Supprimer l'image du Storage si elle existe
+      if (noteToDelete.image && noteToDelete.image.includes('firebasestorage')) {
+        try {
+          const imageRef = ref(storage, noteToDelete.image)
+          await deleteObject(imageRef)
+        } catch (imgErr) {
+          console.warn('Impossible de supprimer l\'image du storage:', imgErr)
+        }
+      }
+
       toast.success('Note supprimée', {
         description: noteToDelete.title,
         duration: 2000,
@@ -430,6 +441,7 @@ export default function Notes() {
         {editorOpen && editingNote && (
           <CustomEditorModal
             data={editingNote}
+            roomId={roomId}
             onClose={() => setEditorOpen(false)}
             onSave={handleSave}
             onDelete={(id) => setDeleteId(id)}
@@ -579,8 +591,9 @@ function NoteCard({ note, onClick, onQuickShare, layout }: { note: Note, onClick
   )
 }
 
-function CustomEditorModal({ data, onClose, onSave, onDelete }: { data: Partial<Note>, onClose: () => void, onSave: (d: Partial<Note>) => void, onDelete: (id: string) => void }) {
+function CustomEditorModal({ data, roomId, onClose, onSave, onDelete }: { data: Partial<Note>, roomId: string | null, onClose: () => void, onSave: (d: Partial<Note>) => void, onDelete: (id: string) => void }) {
   const [note, setNote] = useState(data)
+  const [uploadingImage, setUploadingImage] = useState(false)
   const [scrolled, setScrolled] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
 
@@ -759,11 +772,27 @@ function CustomEditorModal({ data, onClose, onSave, onDelete }: { data: Partial<
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/40 to-transparent" />
 
-              <label className="absolute bottom-6 right-6 bg-black/60 backdrop-blur px-4 py-2 rounded-full border border-white/10 text-xs font-bold uppercase tracking-wider text-white cursor-pointer hover:bg-black/80 flex items-center gap-2 transition-all">
-                <ImageIcon className="w-4 h-4" /> Modifier l'image
-                <input type="file" accept="image/*" className="hidden" onChange={e => {
+              <label className={cn("absolute bottom-6 right-6 bg-black/60 backdrop-blur px-4 py-2 rounded-full border border-white/10 text-xs font-bold uppercase tracking-wider text-white flex items-center gap-2 transition-all", uploadingImage ? "opacity-70 cursor-wait" : "cursor-pointer hover:bg-black/80")}>
+                {uploadingImage ? (
+                  <><div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" /> Envoi...</>
+                ) : (
+                  <><ImageIcon className="w-4 h-4" /> Modifier l'image</>
+                )}
+                <input type="file" accept="image/*" className="hidden" disabled={uploadingImage} onChange={async e => {
                   const f = e.target.files?.[0];
-                  if (f) { const r = new FileReader(); r.onloadend = () => setNote(p => ({ ...p, image: r.result as string })); r.readAsDataURL(f); }
+                  if (!f || !roomId) return;
+                  setUploadingImage(true);
+                  try {
+                    const noteId = note.id || `tmp_${Date.now()}`;
+                    const storageRef = ref(storage, `notes/${roomId}/${noteId}/${f.name}`);
+                    await uploadBytes(storageRef, f);
+                    const url = await getDownloadURL(storageRef);
+                    setNote(p => ({ ...p, image: url }));
+                  } catch (err) {
+                    console.error('Erreur upload image:', err);
+                  } finally {
+                    setUploadingImage(false);
+                  }
                 }} />
               </label>
             </div>

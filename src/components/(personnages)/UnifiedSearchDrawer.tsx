@@ -17,6 +17,7 @@ import { SUGGESTED_OBJECTS, ITEM_CATEGORIES, SuggestedItem } from '@/lib/suggest
 import { advancedSearch, type SearchResult } from '@/lib/advanced-search'
 import { CreatureLibraryModal } from './CreatureLibraryModal'
 import { type NewCharacter } from '@/app/[roomid]/map/types'
+import { uploadWithQuota } from '@/lib/storageHelper'
 
 interface SoundTemplate {
     id: string
@@ -424,8 +425,7 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
             let soundUrl = ''
             if (soundCreationType === 'file' && newSoundFile) {
                 const storageRef = ref(getStorage(), `sounds/${roomId}/${Date.now()}_${newSoundFile.name}`)
-                const snapshot = await uploadBytes(storageRef, newSoundFile.file)
-                soundUrl = await getDownloadURL(snapshot.ref)
+                soundUrl = await uploadWithQuota(storageRef, newSoundFile.file, roomId)
             } else {
                 soundUrl = extractVideoId(youtubeInput)!
             }
@@ -458,11 +458,14 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
         try {
             let imageUrl = ''
             if (newObjectImage) {
-                const storageRef = ref(getStorage(), `objects/${roomId}/${Date.now()}_${newObjectName}`)
-                const response = await fetch(newObjectImage)
-                const blob = await response.blob()
-                await uploadBytes(storageRef, blob)
-                imageUrl = await getDownloadURL(storageRef)
+                if (newObjectImage.startsWith('https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/')) {
+                    imageUrl = newObjectImage;
+                } else {
+                    const storageRef = ref(getStorage(), `objects/${roomId}/${Date.now()}_${newObjectName}`)
+                    const response = await fetch(newObjectImage)
+                    const blob = await response.blob()
+                    imageUrl = await uploadWithQuota(storageRef, blob, roomId)
+                }
             }
 
             await addDoc(collection(db, `object_templates/${roomId}/templates`), {
@@ -500,13 +503,14 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
         try {
             // Image handling (upload if Base64/DataURL)
             let imageURL = (typeof importedChar.image === 'object' ? importedChar.image?.src : importedChar.image) || ''
-            if (imageURL.startsWith('data:')) {
+            if (imageURL.startsWith('https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/')) {
+                // Keep as is
+            } else if (imageURL.startsWith('data:')) {
                 const storage = getStorage()
                 const imageRef = ref(storage, `characters/${importedChar.name}-${Date.now()}`)
                 const response = await fetch(imageURL)
                 const blob = await response.blob()
-                await uploadBytes(imageRef, blob)
-                imageURL = await getDownloadURL(imageRef)
+                imageURL = await uploadWithQuota(imageRef, blob, roomId)
             }
 
             const npcData = {

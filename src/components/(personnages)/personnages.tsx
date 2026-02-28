@@ -23,6 +23,7 @@ import { NPCGrid } from './NPCListView'
 import { CreatureLibraryModal } from './CreatureLibraryModal'
 import { CategoryManager } from './CategoryManager'
 import { cn } from '@/lib/utils'
+import { uploadWithQuota } from '@/lib/storageHelper'
 
 interface NPCManagerProps {
     isOpen?: boolean
@@ -225,12 +226,14 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
 
             const currentImg = typeof char.image === 'object' ? char.image?.src : char.image;
             if (currentImg) {
-                if (currentImg.startsWith('data:')) {
+                // Free assets on R2 don't need upload or quota check
+                if (currentImg.startsWith('https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/')) {
+                    imageURL = currentImg;
+                } else if (currentImg.startsWith('data:')) {
                     const imageRef = ref(storage, `characters/${char.name}-${Date.now()}`)
                     const response = await fetch(currentImg)
                     const blob = await response.blob()
-                    await uploadBytes(imageRef, blob)
-                    imageURL = await getDownloadURL(imageRef)
+                    imageURL = await uploadWithQuota(imageRef, blob, roomId)
                 } else {
                     imageURL = currentImg
                 }
@@ -282,18 +285,18 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                 const imageRef = ref(storage, `characters/token_${importedChar.name}-${Date.now()}`)
                 const response = await fetch(tokenURL)
                 const blob = await response.blob()
-                await uploadBytes(imageRef, blob)
-                tokenURL = await getDownloadURL(imageRef)
+                tokenURL = await uploadWithQuota(imageRef, blob, roomId)
             }
 
             // 2. Handle Base Image -> imageURL
             let baseURL = importedChar.imageURL || ''
-            if (baseURL.startsWith('data:')) {
+            if (baseURL.startsWith('https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/')) {
+                // Keep as is, it's a free asset
+            } else if (baseURL.startsWith('data:')) {
                 const imageRef = ref(storage, `characters/base_${importedChar.name}-${Date.now()}`)
                 const response = await fetch(baseURL)
                 const blob = await response.blob()
-                await uploadBytes(imageRef, blob)
-                baseURL = await getDownloadURL(imageRef)
+                baseURL = await uploadWithQuota(imageRef, blob, roomId)
             }
 
             const npcData = {
@@ -331,6 +334,26 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
     const confirmDelete = async () => {
         if (!deleteConfirmId || !roomId) return
         try {
+            // Delete associated Storage images first (silently ignore if missing)
+            const npcToDelete = npcs.find(n => n.id === deleteConfirmId)
+            if (npcToDelete) {
+                const { getStorage, ref: storageRef, deleteObject } = await import('firebase/storage')
+                const storage = getStorage()
+                const urlsToDelete = [npcToDelete.imageURL, npcToDelete.imageURL2].filter(Boolean) as string[]
+                await Promise.allSettled(
+                    urlsToDelete.map(url => {
+                        try {
+                            // Extract Storage path from the download URL
+                            const decodedPath = decodeURIComponent(new URL(url).pathname.split('/o/')[1]?.split('?')[0] ?? '')
+                            if (!decodedPath) return Promise.resolve()
+                            return deleteObject(storageRef(storage, decodedPath))
+                        } catch {
+                            return Promise.resolve()
+                        }
+                    })
+                )
+            }
+
             await deleteDoc(doc(db, 'npc_templates', roomId, 'templates', deleteConfirmId))
             setDeleteConfirmId(null)
             if (selectedNpcId === deleteConfirmId) {
