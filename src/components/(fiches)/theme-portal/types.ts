@@ -10,6 +10,8 @@ export interface ThemeValues {
 export interface ThemeConfig {
     theme: ThemeValues;
     layout: any[];
+    customFields?: any[];
+    statRollable?: Record<string, boolean>;
 }
 
 export interface CommunityTheme {

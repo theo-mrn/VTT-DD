@@ -26,6 +26,7 @@ import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { FloatingEditTabs, AttributsDialog } from './FloatingEditTabs';
+import { ThemeConfig } from './theme-portal/types';
 
 import {
   Drawer,
@@ -245,7 +246,7 @@ export default function Component() {
     setLayout(DEFAULT_LAYOUT);
   };
 
-  const handleApplyTheme = (config: { theme: typeof customizationForm; layout: typeof layout }) => {
+  const handleApplyTheme = (config: ThemeConfig) => {
     if (config.theme) {
       setCustomizationForm({ ...customizationForm, ...config.theme });
 
@@ -260,12 +261,20 @@ export default function Component() {
     if (config.layout && Array.isArray(config.layout)) {
       setLayout(config.layout);
     }
+    if ((config.customFields || config.statRollable) && selectedCharacter) {
+      updateCharacter(selectedCharacter.id, {
+        ...(config.customFields ? { customFields: config.customFields } : {}),
+        ...(config.statRollable ? { statRollable: config.statRollable } : {})
+      }).catch(err => console.error("Error updating custom fields/stats config from community theme:", err));
+    }
   };
 
   const handleExportConfig = () => {
     const exportData = {
       theme: customizationForm,
       layout,
+      customFields: selectedCharacter?.customFields || [],
+      statRollable: selectedCharacter?.statRollable || {}
     };
     const configData = JSON.stringify(exportData, null, 2);
     const blob = new Blob([configData], { type: 'application/json' });
@@ -291,6 +300,8 @@ export default function Component() {
 
         // Backward compatibility: If no 'theme' root is found, assume the old format
         const themeData = json.theme ? json.theme : json;
+        const customFieldsToImport = json.customFields;
+        const statRollableToImport = json.statRollable;
 
         setCustomizationForm({
           ...customizationForm,
@@ -316,7 +327,15 @@ export default function Component() {
           setLayout(json.layout);
         }
 
-        toast.success("Thème et disposition importés avec succès !");
+        // Apply custom fields if available and we have a selected character
+        if ((customFieldsToImport || statRollableToImport) && selectedCharacter) {
+          updateCharacter(selectedCharacter.id, {
+            ...(customFieldsToImport ? { customFields: customFieldsToImport } : {}),
+            ...(statRollableToImport ? { statRollable: statRollableToImport } : {})
+          }).catch(err => console.error("Error updating custom fields/stats config:", err));
+        }
+
+        toast.success("Configuration importée avec succès ! N'oubliez pas de sauvegarder.");
       } catch (error) {
         toast.error("Format de fichier invalide.");
         console.error("Error parsing theme config:", error);
@@ -426,7 +445,7 @@ export default function Component() {
 
     if (baseType === 'stats') { defaultLabel = 'Caractéristiques'; defaultFields = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA']; defaultLayout = 'grid'; }
     else if (baseType === 'vitals') { defaultLabel = 'Vitalité'; defaultFields = ['PV', 'Defense']; defaultLayout = 'horizontal'; }
-    else if (baseType === 'combat_stats') { defaultLabel = 'Combat'; defaultFields = ['Contact', 'Distance', 'Magie', 'INIT']; defaultLayout = 'grid'; }
+    else if (baseType === 'combat_stats') { defaultLabel = 'Combat'; defaultFields = ['Contact', 'Distance', 'Magie']; defaultLayout = 'grid'; }
     else if (baseType === 'custom_group') { defaultLabel = ''; defaultFields = []; }
 
     const label = parts[1] !== undefined ? parts[1] : defaultLabel;
@@ -456,7 +475,7 @@ export default function Component() {
 
     if (baseType === 'stats') { defaultLabel = 'Caractéristiques'; defaultFields = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA']; defaultLayout = 'grid'; }
     else if (baseType === 'vitals') { defaultLabel = 'Vitalité'; defaultFields = ['PV', 'Defense']; defaultLayout = 'horizontal'; }
-    else if (baseType === 'combat_stats') { defaultLabel = 'Combat'; defaultFields = ['Contact', 'Distance', 'Magie', 'INIT']; defaultLayout = 'grid'; }
+    else if (baseType === 'combat_stats') { defaultLabel = 'Combat'; defaultFields = ['Contact', 'Distance', 'Magie']; defaultLayout = 'grid'; }
 
     const targetLabel = parts[1] !== undefined ? parts[1] : defaultLabel;
     const currentFields = parts[2] ? parts[2].split(',') : defaultFields;
@@ -1016,7 +1035,7 @@ export default function Component() {
                 })}
                 {layout.filter(l => l.i === 'combat_stats' || l.i.startsWith('combat_stats:')).map(l => {
                   const parts = l.i.split(':');
-                  const fieldIds = parts[2] ? parts[2].split(',') : ['Contact', 'Distance', 'Magie', 'INIT'];
+                  const fieldIds = parts[2] ? parts[2].split(',') : ['Contact', 'Distance', 'Magie'];
                   const layoutMode = (parts[3] as any) || 'grid';
                   const styleOpt = (parts[4] as any) || 'separated';
                   const justifyOpt = (parts[5] as any) || 'stretch';
@@ -1218,7 +1237,7 @@ export default function Component() {
                 })}
                 {layout.filter(l => l.i === 'combat_stats' || l.i.startsWith('combat_stats:')).map(l => {
                   const parts = l.i.split(':');
-                  const fieldIds = parts[2] ? parts[2].split(',') : ['Contact', 'Distance', 'Magie', 'INIT'];
+                  const fieldIds = parts[2] ? parts[2].split(',') : ['Contact', 'Distance', 'Magie'];
                   const layoutMode = (parts[3] as any) || 'grid';
                   const styleOpt = (parts[4] as any) || 'separated';
                   const justifyOpt = (parts[5] as any) || 'stretch';
