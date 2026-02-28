@@ -3,17 +3,18 @@ import React from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
-import { Menu, X, ChevronRight } from 'lucide-react'
+import { Menu, X, ChevronRight, Mail, Github, MessageSquare } from 'lucide-react'
 import { useScroll, motion } from 'framer-motion'
 import { Aclonica } from "next/font/google"
 import Login06 from '@/components/ui/login-3'
 import { useRouter } from 'next/navigation'
 import { onAuthStateChanged, signOut } from 'firebase/auth'
 import { auth, db } from '../../lib/firebase'
-import { doc, onSnapshot } from 'firebase/firestore'
+import { doc, onSnapshot, addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { Features1 } from '@/components/blocks/features1'
 import { Features2 } from '@/components/blocks/features2'
 import { Features3 } from '@/components/blocks/features3'
+import { TestimonialsSection } from '@/components/ui/testimonial-v2'
 import { ShaderBackground } from '@/components/ui/hero'
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -25,7 +26,19 @@ import {
     DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu"
 import { UserProfileDialog } from '@/components/profile/UserProfileDialog'
-import { LogOut, User, Gamepad2 } from 'lucide-react'
+import { LogOut, User, Gamepad2, Send } from 'lucide-react'
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+    DialogFooter,
+} from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { Textarea } from "@/components/ui/textarea"
+import { Label } from "@/components/ui/label"
 
 
 
@@ -237,6 +250,7 @@ export function HeroSection() {
                         </div>
                     </div>
                 </section>
+                <TestimonialsSection />
             </main>
 
             {/* Modal d'authentification */}
@@ -267,6 +281,110 @@ export function HeroSection() {
                     onClose={() => setIsProfileOpen(false)}
                 />
             )}
+            <Footer userData={userData} />
         </>
+    )
+}
+
+const Footer = ({ userData }: { userData: any }) => {
+    return (
+        <footer className="relative z-10 py-16 px-6 lg:px-12 bg-black/40 backdrop-blur-xl border-t border-white/10 mt-20">
+            <div className="mx-auto max-w-7xl">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+                    <div className="space-y-6">
+                        <h2 className={cn("text-3xl md:text-4xl font-bold tracking-tight", aclonica.className)}>Un retour ?</h2>
+                        <p className={cn("text-zinc-400 text-lg max-w-md", aclonica.className)}>
+                            Votre avis nous aide à améliorer l'aventure ! Dites-nous tout.
+                        </p>
+                        <div className="flex flex-wrap gap-4">
+                            <FeedbackDialog userData={userData} />
+                        </div>
+                    </div>
+                    <div className="flex flex-col md:items-end gap-6">
+                        <Logo />
+                        <div className="flex gap-6 text-zinc-500 text-sm">
+                            <Link href="/mentions-legales" className="hover:text-white transition-colors">Mentions Légales</Link>
+                        </div>
+                        <p className="text-zinc-600 text-xs">
+                            © {new Date().getFullYear()} YNER. Fait avec passion pour les rôlistes.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </footer>
+    )
+}
+
+const FeedbackDialog = ({ userData }: { userData: any }) => {
+    const [open, setOpen] = React.useState(false)
+    const [message, setMessage] = React.useState('')
+    const [isSending, setIsSending] = React.useState(false)
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setIsSending(true)
+        try {
+            await addDoc(collection(db, "feedback"), {
+                message,
+                userEmail: auth.currentUser?.email || userData?.email || "Anonyme",
+                userName: userData?.name || "Aventurier anonyme",
+                userId: auth.currentUser?.uid || null,
+                createdAt: serverTimestamp(),
+            })
+            setOpen(false)
+            setMessage('')
+        } catch (error) {
+            console.error("Erreur lors de l'envoi du feedback vers Firestore:", error)
+        } finally {
+            setIsSending(false)
+        }
+    }
+
+    return (
+        <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+                <Button className={cn("rounded-full h-12 px-8 shadow-lg shadow-primary/20", aclonica.className)}>
+                    <Mail className="mr-2 h-5 w-5" />
+                    Nous écrire
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[500px] bg-zinc-950 border-white/10 text-white shadow-2xl">
+                <DialogHeader>
+                    <DialogTitle className={cn("text-2xl", aclonica.className)}>Envoyer un feedback</DialogTitle>
+                    <DialogDescription className="text-zinc-400">
+                        Une idée, un bug ou juste un mot doux ? Nous sommes à l'écoute.
+                    </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-6 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="message" className={cn("text-sm font-medium", aclonica.className)}>Message</Label>
+                        <Textarea
+                            id="message"
+                            placeholder="Votre message ici..."
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            required
+                            disabled={isSending}
+                            className="min-h-[150px] bg-white/5 border-white/10 focus:border-white/20 focus:ring-0 text-white resize-none"
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit" disabled={isSending} className={cn("w-full h-12 rounded-xl group", aclonica.className)}>
+                            {isSending ? (
+                                <span className="flex items-center">
+                                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white" />
+                                    Envoi en cours...
+                                </span>
+                            ) : (
+                                <>
+                                    <Send className="mr-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
+                                    Envoyer directement
+                                </>
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </DialogContent>
+        </Dialog>
     )
 }
