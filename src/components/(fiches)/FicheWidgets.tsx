@@ -100,8 +100,38 @@ export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?:
     return (
         <div className={`${containerClassName} ${unifiedContainerClasses}`} style={containerStyle}>
             {fieldIds.map((name) => {
-                const modifier = getDisplayModifier(name as any);
-                const value = isNaN(modifier) ? 0 : modifier;
+                const customField = selectedCharacter?.customFields?.find(f => f.id === name);
+                const isCustom = !!customField;
+                const label = isCustom ? customField.label : name;
+
+                let modifierVal: number;
+                let baseVal: number;
+                let isCustomMod = false;
+                let displayValueStr: string | null = null;
+
+                if (isCustom) {
+                    if (customField.type === 'number') {
+                        const numVal = typeof customField.value === 'number' ? customField.value : parseFloat(customField.value as string) || 0;
+                        if (customField.hasModifier) {
+                            modifierVal = Math.floor((numVal - 10) / 2);
+                            baseVal = numVal;
+                            isCustomMod = true;
+                        } else {
+                            modifierVal = numVal;
+                            baseVal = 0;
+                        }
+                    } else {
+                        modifierVal = 0;
+                        baseVal = 0;
+                        if (customField.type === 'boolean') displayValueStr = customField.value ? '✓' : '✗';
+                        else if (customField.type === 'percent') displayValueStr = `${customField.value}%`;
+                        else displayValueStr = customField.value !== '' && customField.value !== undefined ? String(customField.value) : '—';
+                    }
+                } else {
+                    const modifier = getDisplayModifier(name as any);
+                    modifierVal = isNaN(modifier) ? 0 : modifier;
+                    baseVal = selectedCharacter ? (selectedCharacter[name as keyof Character] as number) : 0;
+                }
 
                 const childClasses = isUnified
                     ? "p-1 text-center h-full flex flex-col justify-center min-h-[50px] overflow-hidden"
@@ -111,17 +141,34 @@ export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?:
                     <Tooltip key={name}>
                         <TooltipTrigger asChild>
                             <div className={childClasses} style={isUnified ? {} : style}>
-                                <div className="text-[color:var(--text-secondary,#c0a0a0)] font-semibold text-xs sm:text-sm">{name}</div>
-                                <div className={`text-lg sm:text-xl md:text-2xl font-bold leading-none ${value >= 0 ? 'text-[color:var(--text-primary,#22c55e)]' : 'text-red-500'}`}>
-                                    {value >= 0 ? '+' : ''}{value}
-                                </div>
-                                <div className="text-[10px] sm:text-xs text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter ? (selectedCharacter[name as keyof Character] as number) : 0}</div>
+                                <div className="text-[color:var(--text-secondary,#c0a0a0)] font-semibold text-xs sm:text-sm truncate" title={label}>{label}</div>
+
+                                {displayValueStr !== null ? (
+                                    <div className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] leading-none mt-1">
+                                        {displayValueStr}
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className={`text-lg sm:text-xl md:text-2xl font-bold leading-none ${modifierVal >= 0 ? 'text-[color:var(--text-primary,#22c55e)]' : 'text-red-500'}`}>
+                                            {(modifierVal >= 0 && (!isCustom || isCustomMod)) ? '+' : ''}{modifierVal}
+                                        </div>
+                                        {(!isCustom || isCustomMod) && (
+                                            <div className="text-[10px] sm:text-xs text-[color:var(--text-secondary,#a0a0a0)]">{baseVal}</div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                            <p>Mod de base: {getModifier(selectedCharacter ? (selectedCharacter[name as keyof Character] as number) : 0)}</p>
-                            <p>Inventaire: {categorizedBonuses ? categorizedBonuses[name as any]?.Inventaire || 0 : 0}</p>
-                            <p>Compétence: {categorizedBonuses ? categorizedBonuses[name as any]?.Competence || 0 : 0}</p>
+                            {isCustom ? (
+                                <p>Valeur personnalisée: {String(customField.value)}</p>
+                            ) : (
+                                <>
+                                    <p>Mod de base: {getModifier(selectedCharacter ? (selectedCharacter[name as keyof Character] as number) : 0)}</p>
+                                    <p>Inventaire: {categorizedBonuses ? categorizedBonuses[name as any]?.Inventaire || 0 : 0}</p>
+                                    <p>Compétence: {categorizedBonuses ? categorizedBonuses[name as any]?.Competence || 0 : 0}</p>
+                                </>
+                            )}
                         </TooltipContent>
                     </Tooltip>
                 )
@@ -157,6 +204,10 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
     return (
         <div className={`${containerClassName} ${unifiedContainerClasses}`} style={containerStyle}>
             {fieldIds.map(name => {
+                const customField = selectedCharacter?.customFields?.find(f => f.id === name);
+                const isCustom = !!customField;
+                const label = isCustom ? customField.label : name;
+
                 const isPV = name === 'PV';
 
                 const widthClass = (layout === 'horizontal' && justify !== 'stretch') ? '' : 'w-full';
@@ -165,21 +216,36 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
                     ? `px-4 py-1 flex flex-row justify-between items-center gap-2 h-full min-h-[50px] ${widthClass}`
                     : `bg-[#2a2a2a] px-4 py-1 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] flex flex-row justify-between items-center gap-2 h-full min-h-[50px] ${widthClass}`;
 
+                let displayVal: string | number;
+                if (isCustom) {
+                    if (customField.type === 'boolean') displayVal = customField.value ? '✓' : '✗';
+                    else if (customField.type === 'percent') displayVal = `${customField.value}%`;
+                    else displayVal = customField.value !== '' && customField.value !== undefined ? String(customField.value) : '—';
+                } else {
+                    displayVal = isPV ? `${getDisplayValue("PV")} / ${getDisplayValue("PV_Max")}` : getDisplayValue(name as any);
+                }
+
                 return (
                     <div key={name} className={childClasses} style={isUnified ? {} : style}>
                         <Tooltip>
                             <TooltipTrigger asChild>
                                 <div className="flex items-center space-x-1 cursor-help">
-                                    {isPV ? <Heart className="text-red-500" size={16} /> : <Shield className="text-blue-500" size={16} />}
-                                    <span className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)]">
-                                        {isPV ? `${getDisplayValue("PV")} / ${getDisplayValue("PV_Max")}` : getDisplayValue(name as any)}
+                                    {isPV ? <Heart className="text-red-500" size={16} /> : <Shield className={isCustom ? "text-[color:var(--accent-brown)]" : "text-blue-500"} size={16} />}
+                                    <span className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] truncate max-w-[120px] sm:max-w-[200px]" title={isCustom ? label : undefined}>
+                                        {isCustom ? `${label}: ${displayVal}` : displayVal}
                                     </span>
                                 </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                                <p>Base: {selectedCharacter ? selectedCharacter[name as keyof Character] as number : 0}</p>
-                                <p>Inventaire: {categorizedBonuses ? categorizedBonuses[name as any]?.Inventaire || 0 : 0}</p>
-                                <p>Compétence: {categorizedBonuses ? categorizedBonuses[name as any]?.Competence || 0 : 0}</p>
+                                {isCustom ? (
+                                    <p>Valeur personnalisée: {String(customField.value)}</p>
+                                ) : (
+                                    <>
+                                        <p>Base: {selectedCharacter ? selectedCharacter[name as keyof Character] as number : 0}</p>
+                                        <p>Inventaire: {categorizedBonuses ? categorizedBonuses[name as any]?.Inventaire || 0 : 0}</p>
+                                        <p>Compétence: {categorizedBonuses ? categorizedBonuses[name as any]?.Competence || 0 : 0}</p>
+                                    </>
+                                )}
                             </TooltipContent>
                         </Tooltip>
                     </div>
@@ -216,7 +282,18 @@ export const WidgetCombatStats: React.FC<WidgetProps & { fieldIds?: string[], la
     return (
         <div className={`${containerClassName} ${unifiedContainerClasses}`} style={containerStyle}>
             {fieldIds.map((name) => {
-                const value = getDisplayValue(name as any);
+                const customField = selectedCharacter?.customFields?.find(f => f.id === name);
+                const isCustom = !!customField;
+                const label = isCustom ? customField.label : name;
+
+                let valueStr: string | number;
+                if (isCustom) {
+                    if (customField.type === 'boolean') valueStr = customField.value ? '✓' : '✗';
+                    else if (customField.type === 'percent') valueStr = `${customField.value}%`;
+                    else valueStr = customField.value !== '' && customField.value !== undefined ? String(customField.value) : '—';
+                } else {
+                    valueStr = getDisplayValue(name as any);
+                }
 
                 const childClasses = isUnified
                     ? "p-1 text-center h-full flex flex-col justify-center overflow-hidden min-h-[50px]"
@@ -226,14 +303,20 @@ export const WidgetCombatStats: React.FC<WidgetProps & { fieldIds?: string[], la
                     <Tooltip key={name}>
                         <TooltipTrigger asChild>
                             <div className={childClasses} style={isUnified ? {} : style}>
-                                <h3 className="text-[10px] sm:text-xs md:text-sm font-semibold text-[color:var(--text-secondary,#c0a0a0)] mb-0.5 whitespace-nowrap">{name}</h3>
-                                <span className="text-base sm:text-lg md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] leading-none">{value}</span>
+                                <h3 className="text-[10px] sm:text-xs md:text-sm font-semibold text-[color:var(--text-secondary,#c0a0a0)] mb-0.5 truncate" title={label}>{label}</h3>
+                                <span className="text-base sm:text-lg md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] leading-none">{valueStr}</span>
                             </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                            <p>Base: {selectedCharacter ? (selectedCharacter[name as keyof Character] as number) : 0}</p>
-                            <p>Inventaire: {categorizedBonuses ? categorizedBonuses[name as any]?.Inventaire || 0 : 0}</p>
-                            <p>Compétence: {categorizedBonuses ? categorizedBonuses[name as any]?.Competence || 0 : 0}</p>
+                            {isCustom ? (
+                                <p>Valeur personnalisée: {String(customField.value)}</p>
+                            ) : (
+                                <>
+                                    <p>Base: {selectedCharacter ? (selectedCharacter[name as keyof Character] as number) : 0}</p>
+                                    <p>Inventaire: {categorizedBonuses ? categorizedBonuses[name as any]?.Inventaire || 0 : 0}</p>
+                                    <p>Compétence: {categorizedBonuses ? categorizedBonuses[name as any]?.Competence || 0 : 0}</p>
+                                </>
+                            )}
                         </TooltipContent>
                     </Tooltip>
                 )
