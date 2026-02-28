@@ -28,7 +28,8 @@ import {
     User,
     Sliders,
     Trash2,
-    Plus
+    Plus,
+    Box
 } from 'lucide-react';
 import { ThemeExplorerTab } from './theme-portal/ThemeExplorerTab';
 import { ThemePublishTab } from './theme-portal/ThemePublishTab';
@@ -74,7 +75,7 @@ export function FloatingEditTabs({
     onStopPreview,
     onClose
 }: FloatingEditTabsProps) {
-    const [activeTab, setActiveTab] = useState<'apparence' | 'disposition' | 'explorer' | 'mes_themes'>('apparence');
+    const [activeTab, setActiveTab] = useState<'apparence' | 'bloques' | 'explorer' | 'mes_themes'>('apparence');
     const [themeConfigInput, setThemeConfigInput] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
 
@@ -85,363 +86,317 @@ export function FloatingEditTabs({
     const { selectedCharacter, updateCharacter } = useCharacter();
 
     return (
-        <>
-            <div className="fixed bottom-0 left-0 right-0 z-[200] bg-[#0e0e0e]/95 backdrop-blur-md border-t border-[#3a3a3a] shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.5)] transition-all duration-300 ease-in-out">
-                <div className="max-w-7xl mx-auto w-full relative">
-                    <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as 'apparence' | 'disposition' | 'explorer' | 'mes_themes')} className="w-full">
-                        {/* Tabs List & Actions Header */}
-                        <div className="border-b border-[#2a2a2a] px-3 pt-3 bg-[#141414]/50 flex items-end justify-between">
-                            <TabsList className="bg-transparent gap-2 h-auto p-0 flex-wrap sm:flex-nowrap">
-                                <TabsTrigger
-                                    value="apparence"
-                                    className="data-[state=active]:bg-[#2a2a2a] data-[state=active]:text-[#d4b48f] text-[#a0a0a0] rounded-t-lg rounded-b-none px-4 py-1.5 text-xs font-bold flex items-center gap-2 border border-transparent data-[state=active]:border-[#3a3a3a] data-[state=active]:border-b-transparent transition-all"
-                                >
-                                    <Palette size={14} /> Apparence
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="disposition"
-                                    className="data-[state=active]:bg-[#2a2a2a] data-[state=active]:text-[#d4b48f] text-[#a0a0a0] rounded-t-lg rounded-b-none px-4 py-1.5 text-xs font-bold flex items-center gap-2 border border-transparent data-[state=active]:border-[#3a3a3a] data-[state=active]:border-b-transparent transition-all"
-                                >
-                                    <Layout size={14} /> Disposition
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="explorer"
-                                    className="data-[state=active]:bg-[#2a2a2a] data-[state=active]:text-[#80c0a0] text-[#a0a0a0] rounded-t-lg rounded-b-none px-4 py-1.5 text-xs font-bold flex items-center gap-2 border border-transparent data-[state=active]:border-[#3a3a3a] data-[state=active]:border-b-transparent transition-all"
-                                >
-                                    <Compass size={14} /> Communauté
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="mes_themes"
-                                    className="data-[state=active]:bg-[#2a2a2a] data-[state=active]:text-[#c0a080] text-[#a0a0a0] rounded-t-lg rounded-b-none px-4 py-1.5 text-xs font-bold flex items-center gap-2 border border-transparent data-[state=active]:border-[#3a3a3a] data-[state=active]:border-b-transparent transition-all"
-                                >
-                                    <User size={14} /> Mes thèmes
-                                </TabsTrigger>
-                            </TabsList>
-
-                            <div className="flex items-center gap-2 pb-1.5 pr-1 flex-1 justify-end">
-                                {(activeTab === 'explorer' || activeTab === 'mes_themes') && (
-                                    <>
-                                        {activeTab === 'explorer' && (
-                                            <div className="hidden sm:flex relative items-center mx-4">
-                                                <Search size={14} className="absolute left-2.5 text-[#555]" />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Rechercher un thème..."
-                                                    value={searchQuery}
-                                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                                    className="bg-[#1c1c1c] border border-[#3a3a3a] rounded-full py-1 pl-8 pr-3 text-xs text-[#d4d4d4] placeholder-[#555] focus:outline-none focus:border-[#80c0a0] w-[250px] sm:w-[300px] lg:w-[400px] transition-all"
-                                                />
-                                            </div>
-                                        )}
-
-                                        <Dialog open={isPublishDialogOpen} onOpenChange={setIsPublishDialogOpen}>
-                                            <DialogTrigger asChild>
-                                                <button className="text-[var(--accent-brown)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-darker)] px-2 py-1.5 rounded flex items-center gap-1.5 text-xs font-bold transition-all">
-                                                    <UploadCloud size={14} /> Partager mon thème
-                                                </button>
-                                            </DialogTrigger>
-                                            <DialogContent className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)] max-w-sm p-5 shadow-2xl">
-                                                <DialogHeader>
-                                                    <DialogTitle className="text-[var(--text-primary)] text-lg font-bold flex items-center gap-2">
-                                                        <UploadCloud size={18} className="text-[var(--accent-brown)]" />
-                                                        Partager mon thème
-                                                    </DialogTitle>
-                                                </DialogHeader>
-                                                <ThemePublishTab
-                                                    currentConfig={{ theme: customizationForm as any, layout }}
-                                                    onSuccess={() => { setIsPublishDialogOpen(false); }}
-                                                />
-                                            </DialogContent>
-                                        </Dialog>
-                                        <div className="w-px h-4 bg-[#3a3a3a] mx-1"></div>
-                                    </>
-                                )}
-                                <div className="w-px h-4 bg-[#3a3a3a] mx-0.5" />
-                                <button
-                                    onClick={handleSaveLayout}
-                                    className="button-primary !px-3 !py-1 !text-xs shadow-sm flex items-center gap-1.5"
-                                >
-                                    <Send size={12} /> Sauvegarder
-                                </button>
-                                <button
-                                    onClick={onClose}
-                                    className="bg-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-darker)] rounded px-2 py-1 text-xs transition-all flex items-center gap-1"
-                                >
-                                    <X size={12} /> Fermer
-                                </button>
+        <div className="fixed right-0 top-0 bottom-0 z-[200] bg-[#0e0e0e]/95 backdrop-blur-md border-l border-[#3a3a3a] shadow-[-20px_0_50px_-10px_rgba(0,0,0,0.6)] transition-all duration-300 ease-in-out w-full sm:w-[260px]">
+            <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as any)} className="flex flex-col h-full w-full">
+                {/* Header & Horizontal Tabs Wrapper */}
+                <div className="shrink-0 bg-[#141414] border-b border-[#2a2a2a]">
+                    {/* Header with Actions */}
+                    <div className="p-4 pb-2 flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                            <div className="flex flex-col min-w-0">
+                                <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#666]">Éditeur</h2>
+                                <span className="text-[10px] font-bold text-[#d4b48f] truncate block">
+                                    {activeTab === 'apparence' && 'Personnalisation'}
+                                    {activeTab === 'bloques' && 'Blocs de données'}
+                                    {activeTab === 'explorer' && 'Commu'}
+                                    {activeTab === 'mes_themes' && 'Library'}
+                                </span>
                             </div>
+                            <button
+                                onClick={onClose}
+                                className="bg-[#2a2a2a] text-[#a0a0a0] hover:text-white rounded-lg p-1.5 transition-all hover:bg-[#333]"
+                            >
+                                <X size={16} />
+                            </button>
                         </div>
+                        <button
+                            onClick={handleSaveLayout}
+                            className="button-primary !w-full !py-2 !text-[10px] shadow-sm flex items-center justify-center gap-1.5 uppercase font-black tracking-wide"
+                        >
+                            <Send size={12} /> Sauver
+                        </button>
+                    </div>
 
-                        {/* Tab Contents */}
-                        <div className="p-3 sm:p-4 overflow-y-auto" style={{ maxHeight: '35vh' }}>
-                            {/* APPARENCE TAB */}
-                            <TabsContent value="apparence" className="m-0 focus-visible:outline-none">
-                                <div className="flex flex-wrap gap-3 sm:gap-4 items-start">
-                                    {/* Fond */}
-                                    <div className="space-y-1.5 flex-grow sm:flex-grow-0 min-w-[140px]">
-                                        <span className="text-xs font-bold text-[#d4d4d4] flex items-center gap-1.5"><Palette size={12} className="text-[#a0a0a0]" /> Fond</span>
-                                        <div className="flex items-center gap-1 bg-[#1c1c1c] p-1.5 rounded-lg border border-[#3a3a3a]">
-                                            <input
-                                                type="color"
-                                                value={customizationForm.theme_background && !customizationForm.theme_background.startsWith('http') ? customizationForm.theme_background : '#000000'}
-                                                onChange={(e) => setCustomizationForm({ ...customizationForm, theme_background: e.target.value })}
-                                                className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0 flex-shrink-0"
-                                                title="Couleur de fond"
-                                            />
-                                            <label className="cursor-pointer hover:text-white text-[#a0a0a0] p-1 hover:bg-[#2a2a2a] rounded transition-colors flex-1 flex justify-center items-center gap-1.5 border border-dashed border-[#444]">
-                                                <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'background')} />
-                                                <Upload size={12} /> <span className="text-[10px] uppercase font-bold">Image</span>
-                                            </label>
-                                            <button
-                                                onClick={() => setCustomizationForm({ ...customizationForm, theme_background: '#1c1c1c' })}
-                                                className="p-1 hover:bg-red-900/40 rounded text-[#888] hover:text-red-400 transition-colors"
-                                                title="Réinitialiser"
-                                            >
-                                                <RotateCcw size={12} />
-                                            </button>
-                                        </div>
-                                    </div>
+                    {/* Horizontal Tabs List */}
+                    <TabsList className="bg-transparent h-auto p-0 px-4 flex justify-between gap-0 overflow-x-auto custom-scrollbar-hide rounded-none">
+                        <TabsTrigger
+                            value="apparence"
+                            className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-[#d4b48f] text-[#666] p-0 pb-3 h-auto rounded-none border-b-2 border-transparent data-[state=active]:border-[#d4b48f] transition-all flex items-center justify-center flex-1"
+                        >
+                            <Palette size={16} />
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="bloques"
+                            className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-[#d4b48f] text-[#666] p-0 pb-3 h-auto rounded-none border-b-2 border-transparent data-[state=active]:border-[#d4b48f] transition-all flex items-center justify-center flex-1"
+                        >
+                            <Box size={16} />
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="explorer"
+                            className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-[#80c0a0] text-[#666] p-0 pb-3 h-auto rounded-none border-b-2 border-transparent data-[state=active]:border-[#80c0a0] transition-all flex items-center justify-center flex-1"
+                        >
+                            <Compass size={16} />
+                        </TabsTrigger>
+                        <TabsTrigger
+                            value="mes_themes"
+                            className="bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-[#c0a080] text-[#666] p-0 pb-3 h-auto rounded-none border-b-2 border-transparent data-[state=active]:border-[#c0a080] transition-all flex items-center justify-center flex-1"
+                        >
+                            <User size={16} />
+                        </TabsTrigger>
+                    </TabsList>
+                </div>
 
-                                    {/* Blocs */}
-                                    <div className="space-y-1.5 flex-grow sm:flex-grow-0 min-w-[140px]">
-                                        <span className="text-xs font-bold text-[#d4d4d4] flex items-center gap-1.5"><Layout size={12} className="text-[#a0a0a0]" /> Blocs</span>
-                                        <div className="flex items-center gap-1 bg-[#1c1c1c] p-1.5 rounded-lg border border-[#3a3a3a]">
-                                            <input
-                                                type="color"
-                                                value={customizationForm.theme_secondary_color && !customizationForm.theme_secondary_color.startsWith('http') ? customizationForm.theme_secondary_color : '#242424'}
-                                                onChange={(e) => setCustomizationForm({ ...customizationForm, theme_secondary_color: e.target.value })}
-                                                className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0 flex-shrink-0"
-                                                title="Couleur des blocs"
-                                            />
-                                            <label className="cursor-pointer hover:text-white text-[#a0a0a0] p-1 hover:bg-[#2a2a2a] rounded transition-colors flex-1 flex justify-center items-center gap-1.5 border border-dashed border-[#444]">
-                                                <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'block')} />
-                                                <Upload size={12} /> <span className="text-[10px] uppercase font-bold">Image</span>
-                                            </label>
-                                            <button
-                                                onClick={() => setCustomizationForm({ ...customizationForm, theme_secondary_color: '#242424' })}
-                                                className="p-1 hover:bg-red-900/40 rounded text-[#888] hover:text-red-400 transition-colors"
-                                                title="Réinitialiser"
-                                            >
-                                                <RotateCcw size={12} />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Texte Primaire */}
-                                    <div className="space-y-1.5 flex-grow sm:flex-grow-0 min-w-[120px]">
-                                        <span className="text-xs font-bold text-[#d4d4d4]">Texte</span>
-                                        <div className="flex items-center gap-1 bg-[#1c1c1c] p-1.5 rounded-lg border border-[#3a3a3a]">
-                                            <input
-                                                type="color"
-                                                value={customizationForm.theme_text_color || '#d4d4d4'}
-                                                onChange={(e) => setCustomizationForm({ ...customizationForm, theme_text_color: e.target.value })}
-                                                className="w-full h-6 rounded cursor-pointer bg-transparent border-none p-0 flex-1"
-                                                title="Couleur du texte"
-                                            />
-                                            <button
-                                                onClick={() => setCustomizationForm({ ...customizationForm, theme_text_color: '#d4d4d4' })}
-                                                className="p-1 hover:bg-[#2a2a2a] rounded text-[#888] hover:text-[#a0a0a0] transition-colors flex-shrink-0"
-                                                title="Réinitialiser"
-                                            >
-                                                <RotateCcw size={12} />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Texte Secondaire */}
-                                    <div className="space-y-1.5 flex-grow sm:flex-grow-0 min-w-[120px]">
-                                        <span className="text-xs font-bold text-[#d4d4d4]">Texte Sec.</span>
-                                        <div className="flex items-center gap-1 bg-[#1c1c1c] p-1.5 rounded-lg border border-[#3a3a3a]">
-                                            <input
-                                                type="color"
-                                                value={customizationForm.theme_text_secondary_color || '#a0a0a0'}
-                                                onChange={(e) => setCustomizationForm({ ...customizationForm, theme_text_secondary_color: e.target.value })}
-                                                className="w-full h-6 rounded cursor-pointer bg-transparent border-none p-0 flex-1"
-                                                title="Couleur du texte secondaire"
-                                            />
-                                            <button
-                                                onClick={() => setCustomizationForm({ ...customizationForm, theme_text_secondary_color: '#a0a0a0' })}
-                                                className="p-1 hover:bg-[#2a2a2a] rounded text-[#888] hover:text-[#a0a0a0] transition-colors flex-shrink-0"
-                                                title="Réinitialiser"
-                                            >
-                                                <RotateCcw size={12} />
-                                            </button>
-                                        </div>
-                                    </div>
-
-                                    {/* Border Radius */}
-                                    <div className="space-y-1.5 flex-grow sm:flex-grow-0 min-w-[150px]">
-                                        <span className="text-xs font-bold text-[#d4d4d4]">Arrondi (px)</span>
-                                        <div className="flex items-center gap-2 bg-[#1c1c1c] p-1.5 rounded-lg border border-[#3a3a3a]">
-                                            <input
-                                                type="range"
-                                                min="0"
-                                                max="32"
-                                                step="2"
-                                                value={customizationForm.theme_border_radius ?? 8}
-                                                onChange={(e) => setCustomizationForm({ ...customizationForm, theme_border_radius: parseInt(e.target.value, 10) })}
-                                                className="w-full cursor-pointer accent-[#d4b48f] h-2"
-                                            />
-                                            <span className="text-xs font-mono text-[#d4b48f] font-bold w-6 text-right">{customizationForm.theme_border_radius ?? 8}</span>
-                                            <button
-                                                onClick={() => setCustomizationForm({ ...customizationForm, theme_border_radius: 8 })}
-                                                className="p-1 hover:bg-[#2a2a2a] rounded text-[#888] hover:text-[#a0a0a0] transition-colors"
-                                                title="Réinitialiser"
-                                            >
-                                                <RotateCcw size={12} />
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </TabsContent>
-
-                            {/* DISPOSITION TAB */}
-                            <TabsContent value="disposition" className="m-0 focus-visible:outline-none">
-                                <div className="flex flex-col sm:flex-row items-center gap-3 flex-wrap">
-                                    <div className="flex gap-2 p-2 bg-[#1c1c1c] border border-[#3a3a3a] rounded-lg">
-                                        {/* Add Widget Dialog */}
-                                        <Dialog open={isAddWidgetOpen} onOpenChange={setIsAddWidgetOpen}>
-                                            <DialogTrigger asChild>
-                                                <button className="button-cancel !px-3 !py-1.5 !text-xs !flex !items-center !justify-center gap-2 transition-all">
-                                                    <PlusCircle size={14} /> Ajouter
-                                                </button>
-                                            </DialogTrigger>
-                                            <DialogContent className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] max-w-sm p-4">
-                                                <DialogHeader>
-                                                    <DialogTitle className="text-[var(--accent-brown)]">Ajouter un widget</DialogTitle>
-                                                </DialogHeader>
-                                                <div className="grid gap-2 mt-2">
-                                                    <div className="flex flex-col gap-2 p-3 bg-[#1c1c1c] border border-[var(--border-color)] rounded-lg mb-2">
-                                                        <span className="text-[10px] font-bold text-[var(--accent-brown)] uppercase">Créer un Groupement</span>
-                                                        <input
-                                                            id="new-group-label"
-                                                            type="text"
-                                                            placeholder="Libellé du bloc (ex: Social)"
-                                                            className="w-full bg-[#0e0e0e] border border-[#3a3a3a] rounded px-2 py-1 text-xs text-[#d4d4d4]"
-                                                        />
-                                                        <div className="max-h-[150px] overflow-y-auto space-y-1 mt-1">
-                                                            {(selectedCharacter?.customFields ?? []).map(f => (
-                                                                <label key={f.id} className="flex items-center gap-2 px-2 py-1 hover:bg-[#2a2a2a] rounded cursor-pointer group">
-                                                                    <input type="checkbox" data-field-id={f.id} className="accent-[var(--accent-brown)]" />
-                                                                    <span className="text-[11px] text-[#a0a0a0] group-hover:text-white truncate">{f.label}</span>
-                                                                </label>
-                                                            ))}
-                                                        </div>
-                                                        <button
-                                                            onClick={() => {
-                                                                const labelInput = document.getElementById('new-group-label') as HTMLInputElement;
-                                                                const checkboxes = document.querySelectorAll('input[data-field-id]:checked') as NodeListOf<HTMLInputElement>;
-                                                                const selectedIds = Array.from(checkboxes).map(cb => cb.getAttribute('data-field-id')!);
-
-                                                                if (selectedIds.length === 0) {
-                                                                    alert("Veuillez sélectionner au moins un attribut.");
-                                                                    return;
-                                                                }
-
-                                                                const label = labelInput.value.trim() || 'Attributs';
-                                                                const widgetId = `custom_group:${label}:${selectedIds.join(',')}`;
-
-                                                                handleAddWidget(widgetId);
-                                                            }}
-                                                            className="w-full py-1.5 bg-[var(--accent-brown)] text-black rounded text-[10px] font-bold uppercase mt-1 hover:bg-[var(--accent-brown-hover)]"
-                                                        >
-                                                            Créer le bloc
-                                                        </button>
-                                                    </div>
-
-                                                    <div className="h-px bg-[#3a3a3a] my-1" />
-                                                    <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase px-1">Widgets Standards</span>
-
-                                                    {WIDGET_REGISTRY.filter(w => !layout.find(l => l.i === w.id)).length > 0 ? (
-                                                        WIDGET_REGISTRY.filter(w => !layout.find(l => l.i === w.id)).map(widget => (
-                                                            <button
-                                                                key={widget.id}
-                                                                onClick={() => handleAddWidget(widget.id)}
-                                                                className="w-full text-left px-3 py-2 bg-[#3a3a3a] hover:bg-[#4a4a4a] rounded-lg text-sm font-bold text-[#d4d4d4] hover:text-[#fff] transition-colors border border-[#444] flex items-center justify-between"
-                                                            >
-                                                                {widget.label}
-                                                                <PlusCircle size={14} className="opacity-50" />
-                                                            </button>
-                                                        ))
-                                                    ) : (
-                                                        <div className="p-3 text-center text-[#888] text-sm italic bg-[#1c1c1c] rounded-lg">
-                                                            Tous les widgets sont déjà présents sur la fiche.
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </DialogContent>
-                                        </Dialog>
-
-                                        <button
-                                            onClick={handleResetPositions}
-                                            className="bg-red-900/40 text-red-200 border border-red-900/60 hover:bg-red-900/60 px-3 py-1.5 rounded transition text-xs font-bold flex items-center justify-center gap-2"
-                                            title="Réinitialiser la disposition"
-                                        >
-                                            <LayoutDashboard size={14} /> Réinitialiser
-                                        </button>
-                                    </div>
-
-                                    <div className="h-6 w-px bg-[#3a3a3a] hidden sm:block mx-1"></div>
-
-                                    <div className="flex gap-2 p-2 bg-[#1c1c1c] border border-[#3a3a3a] rounded-lg">
-                                        <label className="cursor-pointer button-secondary !px-3 !py-1.5 !text-xs !flex !items-center !justify-center gap-2">
-                                            <input type="file" className="hidden" accept=".json" onChange={handleImportConfig} />
-                                            <UploadCloud size={14} /> Importer
-                                        </label>
-
-                                        <button
-                                            onClick={handleExportConfig}
-                                            className="button-primary !px-3 !py-1.5 !text-xs !flex !items-center !justify-center gap-2"
-                                            title="Exporter le thème"
-                                        >
-                                            <FileDown size={14} /> Exporter
-                                        </button>
-                                    </div>
-                                </div>
-                            </TabsContent>
-
-                            {/* EXPLORER TAB */}
-                            <TabsContent value="explorer" className="m-0 focus-visible:outline-none flex flex-col gap-2 relative">
-                                <div className="sm:hidden mb-2 relative flex items-center">
-                                    <Search size={14} className="absolute left-2.5 text-[#555]" />
+                {/* Main Content Area */}
+                <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-black/20">
+                    {/* APPARENCE TAB */}
+                    <TabsContent value="apparence" className="m-0 focus-visible:outline-none space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
+                        {/* Fond */}
+                        <section className="space-y-3">
+                            <span className="text-[10px] font-bold text-[#666] uppercase tracking-widest">Arrière-plan</span>
+                            <div className="bg-[#1c1c1c] p-3 rounded-xl border border-[#2a2a2a] space-y-3">
+                                <div className="flex items-center gap-3">
                                     <input
-                                        type="text"
-                                        placeholder="Rechercher un thème..."
-                                        value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="bg-[#1c1c1c] border border-[#3a3a3a] rounded-full py-1 pl-8 pr-3 text-xs text-[#d4d4d4] placeholder-[#555] focus:outline-none focus:border-[#80c0a0] w-full transition-all"
+                                        type="color"
+                                        value={customizationForm.theme_background && !customizationForm.theme_background.startsWith('http') ? customizationForm.theme_background : '#000000'}
+                                        onChange={(e) => setCustomizationForm({ ...customizationForm, theme_background: e.target.value })}
+                                        className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border-none p-0 flex-shrink-0"
+                                        title="Couleur de fond"
+                                    />
+                                    <div className="flex-1 text-[10px] text-[#888] font-medium leading-tight">Couleur principale du fond de la fiche.</div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <label className="cursor-pointer hover:bg-[#2a2a2a] text-[#d4d4d4] p-2 rounded-lg transition-colors flex-1 flex justify-center items-center gap-2 border border-dashed border-[#444] group">
+                                        <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'background')} />
+                                        <UploadCloud size={14} className="group-hover:text-[#d4b48f]" /> <span className="text-[10px] uppercase font-bold">Importer Image</span>
+                                    </label>
+                                    <button
+                                        onClick={() => setCustomizationForm({ ...customizationForm, theme_background: '#1c1c1c' })}
+                                        className="p-2 bg-[#2a2a2a] hover:bg-red-900/40 rounded-lg text-[#888] hover:text-red-400 transition-colors"
+                                        title="Réinitialiser"
+                                    >
+                                        <RotateCcw size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Blocs */}
+                        <section className="space-y-3">
+                            <span className="text-[10px] font-bold text-[#666] uppercase tracking-widest">Conteneurs & Blocs</span>
+                            <div className="bg-[#1c1c1c] p-3 rounded-xl border border-[#2a2a2a] space-y-3">
+                                <div className="flex items-center gap-3">
+                                    <input
+                                        type="color"
+                                        value={customizationForm.theme_secondary_color && !customizationForm.theme_secondary_color.startsWith('http') ? customizationForm.theme_secondary_color : '#242424'}
+                                        onChange={(e) => setCustomizationForm({ ...customizationForm, theme_secondary_color: e.target.value })}
+                                        className="w-10 h-10 rounded-lg cursor-pointer bg-transparent border-none p-0 flex-shrink-0"
+                                        title="Couleur des blocs"
+                                    />
+                                    <div className="flex-1 text-[10px] text-[#888] font-medium leading-tight">Style des widgets et sections de la fiche.</div>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <label className="cursor-pointer hover:bg-[#2a2a2a] text-[#d4d4d4] p-2 rounded-lg transition-colors flex-1 flex justify-center items-center gap-2 border border-dashed border-[#444] group">
+                                        <input type="file" className="hidden" accept="image/*" onChange={(e) => handleImageUpload(e, 'block')} />
+                                        <UploadCloud size={14} className="group-hover:text-[#d4b48f]" /> <span className="text-[10px] uppercase font-bold">Importer Image</span>
+                                    </label>
+                                    <button
+                                        onClick={() => setCustomizationForm({ ...customizationForm, theme_secondary_color: '#242424' })}
+                                        className="p-2 bg-[#2a2a2a] hover:bg-red-900/40 rounded-lg text-[#888] hover:text-red-400 transition-colors"
+                                        title="Réinitialiser"
+                                    >
+                                        <RotateCcw size={14} />
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* Typographie & Bordures */}
+                        <section className="space-y-3">
+                            <span className="text-[10px] font-bold text-[#666] uppercase tracking-widest">Détails Visuels</span>
+                            <div className="bg-[#1c1c1c] p-4 rounded-xl border border-[#2a2a2a] space-y-5">
+                                {/* Texte */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-bold text-[#d4d4d4]">Texte Principal</span>
+                                        <button onClick={() => setCustomizationForm({ ...customizationForm, theme_text_color: '#d4d4d4' })} className="text-[#666] hover:text-[#d4b48f] transition-colors"><RotateCcw size={12} /></button>
+                                    </div>
+                                    <input
+                                        type="color"
+                                        value={customizationForm.theme_text_color || '#d4d4d4'}
+                                        onChange={(e) => setCustomizationForm({ ...customizationForm, theme_text_color: e.target.value })}
+                                        className="w-full h-8 rounded-lg cursor-pointer bg-transparent border-none p-0"
                                     />
                                 </div>
-                                <ThemeExplorerTab
-                                    searchQuery={searchQuery}
-                                    onApplyTheme={(config) => {
-                                        onApplyTheme(config);
-                                    }}
-                                    onPreviewTheme={onPreviewTheme}
-                                    onStopPreview={onStopPreview}
-                                />
-                            </TabsContent>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-bold text-[#d4d4d4]">Texte Secondaire</span>
+                                        <button onClick={() => setCustomizationForm({ ...customizationForm, theme_text_secondary_color: '#a0a0a0' })} className="text-[#666] hover:text-[#d4b48f] transition-colors"><RotateCcw size={12} /></button>
+                                    </div>
+                                    <input
+                                        type="color"
+                                        value={customizationForm.theme_text_secondary_color || '#a0a0a0'}
+                                        onChange={(e) => setCustomizationForm({ ...customizationForm, theme_text_secondary_color: e.target.value })}
+                                        className="w-full h-8 rounded-lg cursor-pointer bg-transparent border-none p-0"
+                                    />
+                                </div>
+                                {/* Border Radius */}
+                                <div className="space-y-3 pt-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-bold text-[#d4d4d4]">Arrondi des angles</span>
+                                        <span className="text-[11px] font-mono text-[#d4b48f] font-bold">{customizationForm.theme_border_radius ?? 8}px</span>
+                                    </div>
+                                    <input
+                                        type="range"
+                                        min="0"
+                                        max="32"
+                                        step="2"
+                                        value={customizationForm.theme_border_radius ?? 8}
+                                        onChange={(e) => setCustomizationForm({ ...customizationForm, theme_border_radius: parseInt(e.target.value, 10) })}
+                                        className="w-full cursor-pointer accent-[#d4b48f] h-1.5 bg-[#2a2a2a] rounded-lg appearance-none"
+                                    />
+                                </div>
+                            </div>
+                        </section>
 
-                            {/* MES THEMES TAB */}
-                            <TabsContent value="mes_themes" className="m-0 focus-visible:outline-none flex flex-col gap-2 relative">
-                                <MyThemesTab
-                                    onApplyTheme={(config) => {
-                                        onApplyTheme(config);
-                                    }}
-                                    onPreviewTheme={onPreviewTheme}
-                                    onStopPreview={onStopPreview}
-                                    currentConfig={{ theme: customizationForm as any, layout }}
-                                />
-                            </TabsContent>
+                        {/* Fiche & Config */}
+                        <section className="space-y-3 pt-2">
+                            <span className="text-[10px] font-bold text-[#666] uppercase tracking-widest">Configuration</span>
+                            <div className="bg-[#1c1c1c] p-3 rounded-xl border border-[#2a2a2a] space-y-2">
+                                <button
+                                    onClick={handleResetPositions}
+                                    className="w-full flex items-center gap-3 p-2.5 bg-[#2a2a2a] hover:bg-red-900/10 border border-transparent hover:border-red-900/30 rounded-lg transition-all text-[#a0a0a0] hover:text-red-200"
+                                >
+                                    <RotateCcw size={14} />
+                                    <span className="text-[10px] font-bold uppercase tracking-wider">Reset Disposition</span>
+                                </button>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <label className="flex items-center justify-center gap-2 p-2.5 bg-[#2a2a2a] hover:bg-[#333] border border-transparent hover:border-[#80c0a0]/30 rounded-lg transition-all cursor-pointer group text-[#a0a0a0] hover:text-white">
+                                        <input type="file" className="hidden" accept=".json" onChange={handleImportConfig} />
+                                        <Upload size={14} className="text-[#80c0a0]" />
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">Import</span>
+                                    </label>
+                                    <button
+                                        onClick={handleExportConfig}
+                                        className="flex items-center justify-center gap-2 p-2.5 bg-[#2a2a2a] hover:bg-[#333] border border-transparent hover:border-[#c0a080]/30 rounded-lg transition-all text-[#a0a0a0] hover:text-white"
+                                    >
+                                        <FileDown size={14} className="text-[#c0a080]" />
+                                        <span className="text-[10px] font-bold uppercase tracking-wider">Export</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </section>
+                    </TabsContent>
 
+                    {/* BLOQUES TAB */}
+                    <TabsContent value="bloques" className="m-0 focus-visible:outline-none space-y-6 animate-in fade-in slide-in-from-right-2 duration-300">
+                        <section className="space-y-3">
+                            <span className="text-[10px] font-bold text-[#666] uppercase tracking-widest">Attributs de base</span>
+                            <div className="grid grid-cols-1 gap-2">
+                                {['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA', 'Defense', 'Contact', 'Magie', 'Distance', 'INIT', 'PV', 'PV_Max'].map(stat => (
+                                    <div
+                                        key={stat}
+                                        draggable
+                                        onDragStart={(e) => {
+                                            const data = { i: `custom_group:${stat}:${stat}`, w: 3, h: 2 };
+                                            e.dataTransfer.setData("text/plain", JSON.stringify(data));
+                                        }}
+                                        className="flex items-center gap-3 p-3 bg-[#1c1c1c] border border-[#2a2a2a] rounded-xl cursor-grab active:cursor-grabbing hover:border-[#d4b48f]/40 hover:bg-[#2a2a2a] transition-all group"
+                                    >
+                                        <div className="w-8 h-8 rounded-lg bg-[#0e0e0e] flex items-center justify-center text-[#d4b48f] group-hover:scale-110 transition-transform">
+                                            <Box size={14} />
+                                        </div>
+                                        <div className="flex flex-col">
+                                            <span className="text-xs font-bold text-[#d4d4d4] group-hover:text-white">{stat}</span>
+                                            <span className="text-[9px] text-[#666] uppercase font-bold tracking-tighter">Glisser sur la fiche</span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
 
+                        {(selectedCharacter?.customFields ?? []).length > 0 && (
+                            <section className="space-y-3">
+                                <span className="text-[10px] font-bold text-[#666] uppercase tracking-widest">Champs Personnalisés</span>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {selectedCharacter?.customFields?.map(field => (
+                                        <div
+                                            key={field.id}
+                                            draggable
+                                            onDragStart={(e) => {
+                                                const data = { i: `custom_group:${field.label}:${field.id}`, w: 3, h: 2 };
+                                                e.dataTransfer.setData("text/plain", JSON.stringify(data));
+                                            }}
+                                            className="flex items-center gap-3 p-3 bg-[#1c1c1c] border border-[#2a2a2a] rounded-xl cursor-grab active:cursor-grabbing hover:border-[#d4b48f]/40 hover:bg-[#2a2a2a] transition-all group"
+                                        >
+                                            <div className="w-8 h-8 rounded-lg bg-[#0e0e0e] flex items-center justify-center text-[#d4b48f] group-hover:scale-110 transition-transform">
+                                                <Box size={14} />
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-xs font-bold text-[#d4d4d4] group-hover:text-white">{field.label}</span>
+                                                <span className="text-[9px] text-[#666] uppercase font-bold tracking-tighter">Glisser sur la fiche</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </section>
+                        )}
+                    </TabsContent>
+
+                    {/* EXPLORER TAB */}
+                    <TabsContent value="explorer" className="m-0 focus-visible:outline-none flex flex-col gap-4">
+                        <div className="relative flex items-center shrink-0">
+                            <Search size={14} className="absolute left-3 text-[#555]" />
+                            <input
+                                type="text"
+                                placeholder="Rechercher..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="bg-[#1c1c1c] border border-[#2a2a2a] rounded-lg py-2 pl-9 pr-3 text-xs text-[#d4d4d4] placeholder-[#555] focus:outline-none focus:border-[#d4b48f] w-full transition-all"
+                            />
                         </div>
+                        <div className="flex-1 min-h-0">
+                            <ThemeExplorerTab
+                                searchQuery={searchQuery}
+                                onApplyTheme={onApplyTheme}
+                                onPreviewTheme={onPreviewTheme}
+                                onStopPreview={onStopPreview}
+                            />
+                        </div>
+                        <div className="pt-2 border-t border-[#2a2a2a]">
+                            <Dialog open={isPublishDialogOpen} onOpenChange={setIsPublishDialogOpen}>
+                                <DialogTrigger asChild>
+                                    <button className="w-full button-primary !py-2.5 !text-[11px] flex items-center justify-center gap-2 font-bold uppercase tracking-wider">
+                                        <UploadCloud size={16} /> Partager mon thème
+                                    </button>
+                                </DialogTrigger>
+                                <DialogContent className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)] max-w-sm p-5 shadow-2xl">
+                                    <DialogHeader>
+                                        <DialogTitle className="text-[var(--text-primary)] text-lg font-bold flex items-center gap-2">
+                                            <UploadCloud size={18} className="text-[var(--accent-brown)]" />
+                                            Partager mon thème
+                                        </DialogTitle>
+                                    </DialogHeader>
+                                    <ThemePublishTab
+                                        currentConfig={{ theme: customizationForm as any, layout }}
+                                        onSuccess={() => { setIsPublishDialogOpen(false); }}
+                                    />
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+                    </TabsContent>
 
-                    </Tabs>
-                </div >
-            </div >
-
-        </>
+                    {/* MES THEMES TAB */}
+                    <TabsContent value="mes_themes" className="m-0 focus-visible:outline-none">
+                        <MyThemesTab
+                            onApplyTheme={onApplyTheme}
+                            onPreviewTheme={onPreviewTheme}
+                            onStopPreview={onStopPreview}
+                            currentConfig={{ theme: customizationForm as any, layout }}
+                        />
+                    </TabsContent>
+                </div>
+            </Tabs>
+        </div>
     );
 }
 

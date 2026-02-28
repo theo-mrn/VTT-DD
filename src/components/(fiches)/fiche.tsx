@@ -51,18 +51,19 @@ import { toast } from 'sonner';
 const ResponsiveGridLayout = WidthProvider(Responsive);
 
 const DEFAULT_LAYOUT: Layout[] = [
-  { i: 'avatar', x: 0, y: 0, w: 2, h: 4, minW: 2, minH: 3 },
-  { i: 'details', x: 2, y: 0, w: 4, h: 4, minW: 3, minH: 3 },
-  { i: 'vitals', x: 6, y: 0, w: 6, h: 2, minW: 4, minH: 2 },
-  { i: 'combat_stats', x: 6, y: 6, w: 6, h: 2, minW: 4, minH: 2 },
-  { i: 'stats', x: 0, y: 12, w: 6, h: 5, minW: 4, minH: 3 },
-  { i: 'inventory', x: 6, y: 12, w: 6, h: 5, minW: 4, minH: 4 },
-  { i: 'skills', x: 0, y: 17, w: 12, h: 8, minW: 6, minH: 6 }
+  { i: 'avatar', x: 0, y: 0, w: 20, h: 4, minW: 20, minH: 3 },
+  { i: 'details', x: 20, y: 0, w: 20, h: 4, minW: 20, minH: 3 },
+  { i: 'stats', x: 0, y: 4, w: 30, h: 4, minW: 20, minH: 3 },
+  { i: 'vitals', x: 30, y: 4, w: 30, h: 2, minW: 20, minH: 2 },
+  { i: 'combat_stats', x: 30, y: 6, w: 30, h: 2, minW: 20, minH: 2 },
+  { i: 'inventory', x: 0, y: 8, w: 60, h: 6, minW: 20, minH: 4 },
+  { i: 'skills', x: 0, y: 14, w: 60, h: 6, minW: 20, minH: 6 },
+  { i: 'effects', x: 40, y: 0, w: 20, h: 4, minW: 20, minH: 3 }
 ];
 
 export const WIDGET_REGISTRY = [
-  { id: 'bourse', label: 'Bourse', default: { w: 6, h: 4, minW: 4, minH: 3 } },
-  { id: 'effects', label: 'Effets Actifs', default: { w: 6, h: 4, minW: 4, minH: 3 } },
+  { id: 'bourse', label: 'Bourse', default: { w: 60, h: 4, minW: 20, minH: 3 } },
+  { id: 'effects', label: 'Effets Actifs', default: { w: 60, h: 4, minW: 20, minH: 3 } },
   // Core widgets available to re-add if removed
   // { id: 'stats', label: 'Caractéristiques', default: { w: 6, h: 5, minW: 4, minH: 3 } },
   // { id: 'inventory', label: 'Inventaire', default: { w: 6, h: 5, minW: 4, minH: 4 } },
@@ -82,58 +83,57 @@ interface WidgetControlsProps {
   onEdit?: (id: string) => void;
 }
 
-const WidgetControls: React.FC<WidgetControlsProps> = ({ id, updateWidgetDim, widthMode = 'presets', onRemove, onEdit }) => (
-  <div className="absolute -top-9 right-0 z-50 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none pr-1">
-    <div className="flex bg-[var(--bg-card)] border border-[var(--border-color)] rounded-t-lg shadow-xl text-xs overflow-hidden pointer-events-auto">
-      {onEdit && (
+const WidgetControls: React.FC<WidgetControlsProps & { currentCols?: number }> = ({ id, updateWidgetDim, widthMode = 'presets', onRemove, onEdit, currentCols = 120 }) => {
+  const getWidth = (fraction: number) => Math.max(1, Math.round(currentCols * fraction));
+
+  return (
+    <div className="absolute -top-9 right-0 z-50 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none pr-1">
+      <div className="flex bg-[var(--bg-card)] border border-[var(--border-color)] rounded-t-lg shadow-xl text-xs overflow-hidden pointer-events-auto">
+        {onEdit && (
+          <div className="flex border-r border-[var(--border-color)]">
+            <button onClick={() => onEdit(id)} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--accent-brown)] transition-colors" title="Modifier le groupe">
+              <Edit size={14} />
+            </button>
+          </div>
+        )}
         <div className="flex border-r border-[var(--border-color)]">
-          <button onClick={() => onEdit(id)} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--accent-brown)] transition-colors" title="Modifier le groupe">
-            <Edit size={14} />
-          </button>
-        </div>
-      )}
-      <div className="flex border-r border-[var(--border-color)]">
-        {widthMode === 'incremental' ? (
-          <>
-            <button onClick={() => updateWidgetDim(id, 'w', 'dec')} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors" title="Réduire largeur">
+          <div className="flex border-r border-[var(--border-color)]">
+            <button onClick={() => updateWidgetDim(id, 'w', 'dec')} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors flex items-center" title="Réduire largeur">
               <ChevronLeft size={14} />
             </button>
-            <button onClick={() => updateWidgetDim(id, 'w', 'inc')} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="Augmenter largeur">
+            <button onClick={() => updateWidgetDim(id, 'w', 'inc')} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors flex items-center" title="Augmenter largeur">
               <ChevronRight size={14} />
             </button>
-          </>
-        ) : (
-          <>
-            <button onClick={() => updateWidgetDim(id, 'w', 4)} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors" title="Largeur 1/3">1/3</button>
-            <button onClick={() => updateWidgetDim(id, 'w', 6)} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors" title="Largeur 1/2">1/2</button>
-            <button onClick={() => updateWidgetDim(id, 'w', 8)} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors" title="Largeur 2/3">2/3</button>
-            <button onClick={() => updateWidgetDim(id, 'w', 12)} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="Pleine largeur">Full</button>
-          </>
-        )}
-      </div>
-      <div className="flex border-l border-[var(--border-color)]">
-        <button onClick={() => updateWidgetDim(id, 'h', 'dec')} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors" title="Réduire hauteur">
-          <ChevronUp size={14} />
-        </button>
-        <button onClick={() => updateWidgetDim(id, 'h', 'inc')} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="Augmenter hauteur">
-          <ChevronDown size={14} />
-        </button>
-      </div>
-      <div className="flex border-l border-[var(--border-color)]">
-        <div className="drag-handle px-3 py-1.5 cursor-grab active:cursor-grabbing text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-darker)] flex items-center transition-colors">
-          <Upload size={14} className="rotate-45" />
+          </div>
+          <button onClick={() => updateWidgetDim(id, 'w', getWidth(1 / 3))} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors" title="Largeur 1/3">1/3</button>
+          <button onClick={() => updateWidgetDim(id, 'w', getWidth(1 / 2))} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors" title="Largeur 1/2">1/2</button>
+          <button onClick={() => updateWidgetDim(id, 'w', getWidth(2 / 3))} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors" title="Largeur 2/3">2/3</button>
+          <button onClick={() => updateWidgetDim(id, 'w', currentCols)} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors" title="Pleine largeur">Full</button>
         </div>
-      </div>
-      {onRemove && (
         <div className="flex border-l border-[var(--border-color)]">
-          <button onClick={(e) => { e.stopPropagation(); onRemove(id); }} className="px-2 py-1.5 hover:bg-red-900/50 text-[var(--text-secondary)] hover:text-red-400 transition-colors" title="Supprimer le widget">
-            <Trash2 size={14} />
+          <button onClick={() => updateWidgetDim(id, 'h', 'dec')} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] border-r border-[var(--border-color)] transition-colors" title="Réduire hauteur">
+            <ChevronUp size={14} />
+          </button>
+          <button onClick={() => updateWidgetDim(id, 'h', 'inc')} className="px-2 py-1.5 hover:bg-[var(--bg-darker)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" title="Augmenter hauteur">
+            <ChevronDown size={14} />
           </button>
         </div>
-      )}
+        <div className="flex border-l border-[var(--border-color)]">
+          <div className="drag-handle px-3 py-1.5 cursor-grab active:cursor-grabbing text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-darker)] flex items-center transition-colors">
+            <Upload size={14} className="rotate-45" />
+          </div>
+        </div>
+        {onRemove && (
+          <div className="flex border-l border-[var(--border-color)]">
+            <button onClick={(e) => { e.stopPropagation(); onRemove(id); }} className="px-2 py-1.5 hover:bg-red-900/50 text-[var(--text-secondary)] hover:text-red-400 transition-colors" title="Supprimer le widget">
+              <Trash2 size={14} />
+            </button>
+          </div>
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default function Component() {
   const {
@@ -173,13 +173,33 @@ export default function Component() {
   const [isLayoutEditing, setIsLayoutEditing] = useState(false);
   const [isAttributsOpen, setIsAttributsOpen] = useState(false);
   const [isAddWidgetOpen, setIsAddWidgetOpen] = useState(false);
-  const [editingGroup, setEditingGroup] = useState<{ id: string, label: string, fieldIds: string[] } | null>(null);
+  const [editingGroup, setEditingGroup] = useState<{ id: string, baseType: string, label: string, fieldIds: string[], layout: 'horizontal' | 'vertical' | 'grid', styleOption: 'separated' | 'unified', justify: 'start' | 'center' | 'end' | 'between' | 'around' } | null>(null);
+  const [dragOverWidgetId, setDragOverWidgetId] = useState<string | null>(null);
+  const [currentCols, setCurrentCols] = useState(120);
 
   useEffect(() => {
+    const sanitizeLayout = (layoutArray: Layout[]) => {
+      // Check if this layout comes from the 12-column scale era
+      const isLegacyScale = layoutArray.every(l => (l.w ?? 0) <= 12 && (l.x ?? 0) <= 12);
+
+      return layoutArray.map(l => {
+        let newX = l.x ?? 0;
+        let newW = l.w ?? 6;
+        let newMinW = Math.min(l.minW ?? 20, 20);
+
+        if (isLegacyScale) {
+          // Explicitly multiply by 10 to move it to the new 120 column paradigm without loss
+          newX *= 10;
+          newW *= 10;
+        }
+
+        return { ...l, x: newX, w: newW, minW: newMinW };
+      });
+    };
     if (selectedCharacter?.layout && selectedCharacter.layout.length > 0) {
-      setLayout(selectedCharacter.layout);
+      setLayout(sanitizeLayout(selectedCharacter.layout));
     } else {
-      setLayout(DEFAULT_LAYOUT);
+      setLayout(sanitizeLayout(DEFAULT_LAYOUT));
     }
   }, [selectedCharacter]);
 
@@ -342,7 +362,7 @@ export default function Component() {
           const minH = newItem.minH || 2;
 
           if (value === 'inc') {
-            if (type === 'w') newItem.w = Math.min((newItem.w || 1) + 1, 12);
+            if (type === 'w') newItem.w = Math.min((newItem.w || 1) + 1, currentCols);
             if (type === 'h') newItem.h = (newItem.h || 1) + 1;
           } else if (value === 'dec') {
             if (type === 'w') newItem.w = Math.max((newItem.w || 1) - 1, minW);
@@ -366,7 +386,7 @@ export default function Component() {
       widgetDef = {
         id: widgetId,
         label: widgetId.split(':')[1] || 'Groupe',
-        default: { w: 6, h: 2, minW: 3, minH: 2 }
+        default: { w: 60, h: 2, minW: 20, minH: 2 }
       };
     }
 
@@ -398,15 +418,84 @@ export default function Component() {
 
   const handleEditGroup = (id: string) => {
     const parts = id.split(':');
-    const label = parts[1] || '';
-    const fieldIds = parts[2] ? parts[2].split(',') : [];
-    setEditingGroup({ id, label, fieldIds });
+    const baseType = parts[0] === 'custom_group' || parts[0] === 'stats' || parts[0] === 'vitals' || parts[0] === 'combat_stats' ? parts[0] : 'custom_group';
+
+    let defaultLabel = '';
+    let defaultFields: string[] = [];
+    let defaultLayout: 'horizontal' | 'vertical' | 'grid' = 'horizontal';
+
+    if (baseType === 'stats') { defaultLabel = 'Caractéristiques'; defaultFields = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA']; defaultLayout = 'grid'; }
+    else if (baseType === 'vitals') { defaultLabel = 'Vitalité'; defaultFields = ['PV', 'Defense']; defaultLayout = 'horizontal'; }
+    else if (baseType === 'combat_stats') { defaultLabel = 'Combat'; defaultFields = ['Contact', 'Distance', 'Magie', 'INIT']; defaultLayout = 'grid'; }
+    else if (baseType === 'custom_group') { defaultLabel = ''; defaultFields = []; }
+
+    const label = parts[1] !== undefined ? parts[1] : defaultLabel;
+    const fieldIds = parts[2] ? parts[2].split(',') : defaultFields;
+    const layout = (parts[3] as any) || defaultLayout;
+    const styleOption = (parts[4] as any) || 'separated';
+    const justify = (parts[5] as any) || 'stretch';
+
+    setEditingGroup({ id, baseType, label, fieldIds, layout, styleOption, justify });
   };
 
   const handleUpdateGroup = (newWidgetId: string) => {
     if (!editingGroup) return;
     setLayout(prev => prev.map(item => item.i === editingGroup.id ? { ...item, i: newWidgetId } : item));
     setEditingGroup(null);
+  };
+
+  const handleMergeField = (targetWidgetId: string, sourceData: { i: string, w: number, h: number }) => {
+    const parts = targetWidgetId.split(':');
+    const baseType = parts[0] === 'custom_group' || parts[0] === 'stats' || parts[0] === 'vitals' || parts[0] === 'combat_stats' ? parts[0] : null;
+
+    if (!baseType) return;
+
+    let defaultLabel = '';
+    let defaultFields: string[] = [];
+    let defaultLayout: 'horizontal' | 'vertical' | 'grid' = 'horizontal';
+
+    if (baseType === 'stats') { defaultLabel = 'Caractéristiques'; defaultFields = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA']; defaultLayout = 'grid'; }
+    else if (baseType === 'vitals') { defaultLabel = 'Vitalité'; defaultFields = ['PV', 'Defense']; defaultLayout = 'horizontal'; }
+    else if (baseType === 'combat_stats') { defaultLabel = 'Combat'; defaultFields = ['Contact', 'Distance', 'Magie', 'INIT']; defaultLayout = 'grid'; }
+
+    const targetLabel = parts[1] !== undefined ? parts[1] : defaultLabel;
+    const currentFields = parts[2] ? parts[2].split(',') : defaultFields;
+    // Determine default layout based on baseType if not present in ID
+    let currentLayout = parts[3];
+    if (!currentLayout) {
+      if (baseType === 'stats' || baseType === 'combat_stats') currentLayout = 'grid';
+      else currentLayout = 'horizontal';
+    }
+
+    const currentStyleOption = parts[4] || 'separated';
+    const currentJustify = parts[5] || 'stretch';
+
+    const sourceParts = sourceData.i.split(':');
+    const sourceFieldId = sourceParts[2] || sourceParts[1]; // For custom_group:Label:ID, get ID; for others, get Label
+
+    if (currentFields.includes(sourceFieldId)) {
+      toast.error("Cet attribut est déjà présent dans ce bloc.");
+      return;
+    }
+
+    const newFields = Array.from(new Set([...currentFields, sourceFieldId])).filter(Boolean);
+
+    if (newFields.length > 0) {
+      const newWidgetId = `${baseType}:${targetLabel}:${newFields.join(',')}:${currentLayout}:${currentStyleOption}:${currentJustify}`;
+
+      // Use setTimeout to allow react-grid-layout to finish its current event cycle
+      // before we change the ID of one of its items.
+      setTimeout(() => {
+        setLayout(prev => prev.map(item =>
+          item.i === targetWidgetId
+            ? { ...item, i: newWidgetId }
+            : item
+        ));
+        toast.success(`Attribut ${sourceFieldId} ajouté au bloc ${targetLabel}`);
+      }, 50);
+    } else {
+      toast.error("Impossible d'ajouter un attribut vide.");
+    }
   };
 
 
@@ -473,8 +562,6 @@ export default function Component() {
     setIsLayoutEditing(!isLayoutEditing);
   };
 
-
-
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, target: 'background' | 'block') => {
     if (!e.target.files || e.target.files.length === 0 || !selectedCharacter) return;
     const file = e.target.files[0];
@@ -495,8 +582,6 @@ export default function Component() {
       setUploading(false);
     }
   };
-
-
 
   interface RaceAbilitiesModalProps {
     abilities: string[];
@@ -722,7 +807,7 @@ export default function Component() {
     <TooltipProvider>
       <div className="min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)] p-2 sm:p-4">
         {/* Barre de personnages séparée */}
-        <div className="max-w-7xl mx-auto mb-6 bg-[var(--bg-card)] p-2 rounded-lg shadow-md flex items-center justify-between gap-4">
+        <div className="max-w-5xl mx-auto mb-6 bg-[var(--bg-card)] p-2 rounded-lg shadow-md flex items-center justify-between gap-4">
           <div className="flex-1 flex gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-[var(--border-color)] scrollbar-track-transparent">
             {characters.map((character) => (
               <button
@@ -831,54 +916,127 @@ export default function Component() {
 
         <AttributsDialog open={isAttributsOpen} onOpenChange={setIsAttributsOpen} />
 
-        <div className={`max-w-7xl mx-auto bg-[#242424] rounded-[length:var(--block-radius,0.5rem)] shadow-2xl p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 ${isLayoutEditing ? 'mb-[40vh]' : ''}`} style={mainStyle}>
+        <div className={`max-w-5xl mx-auto bg-[#242424] rounded-[length:var(--block-radius,0.5rem)] shadow-2xl p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6`} style={mainStyle}>
           {selectedCharacter && !isEditing && (
             isLayoutEditing ? (
               <ResponsiveGridLayout
                 className="layout"
                 layouts={{ lg: previewLayout ?? layout, md: previewLayout ?? layout, sm: previewLayout ?? layout, xs: previewLayout ?? layout, xxs: previewLayout ?? layout }}
                 breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-                cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                cols={{ lg: 120, md: 100, sm: 60, xs: 40, xxs: 20 }}
                 rowHeight={40}
                 margin={[20, 20]}
                 containerPadding={[0, 0]}
                 onLayoutChange={onLayoutChange}
+                onBreakpointChange={(bp, cols) => setCurrentCols(cols)}
                 isDraggable={true}
                 isResizable={false}
                 draggableHandle=".drag-handle"
+                isDroppable={true}
+                droppingItem={{ i: "__dropping__", w: 3, h: 2 }}
+                onDrop={(layout, item, e: any) => {
+                  try {
+                    const dataString = e.dataTransfer?.getData("text/plain");
+                    if (!dataString) {
+                      setDragOverWidgetId(null);
+                      return;
+                    }
+                    const data = JSON.parse(dataString);
+                    if (!data || !data.i) {
+                      setDragOverWidgetId(null);
+                      return;
+                    }
+
+                    // Use the state-based target which is more reliable than coordinate math
+                    if (dragOverWidgetId) {
+                      handleMergeField(dragOverWidgetId, data);
+                    } else {
+                      handleAddWidget(data.i);
+                    }
+                  } catch (err) {
+                    console.error("Error parsing drop data:", err);
+                  } finally {
+                    setDragOverWidgetId(null);
+                  }
+                }}
               >
                 <div id="vtt-widget-avatar" key="avatar" className="relative group hover:z-[100]">
-                  <WidgetControls id="avatar" updateWidgetDim={updateWidgetDim} widthMode="incremental" />
+                  <WidgetControls id="avatar" updateWidgetDim={updateWidgetDim} widthMode="incremental" currentCols={currentCols} />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <WidgetAvatar style={boxStyle} />
                   </div>
                 </div>
                 <div id="vtt-widget-details" key="details" className="relative group hover:z-[100]">
-                  <WidgetControls id="details" updateWidgetDim={updateWidgetDim} widthMode="incremental" />
+                  <WidgetControls id="details" updateWidgetDim={updateWidgetDim} widthMode="incremental" currentCols={currentCols} />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} />
                   </div>
                 </div>
-                <div id="vtt-widget-stats" key="stats" className="relative group hover:z-[100]">
-                  <WidgetControls id="stats" updateWidgetDim={updateWidgetDim} widthMode="presets" />
-                  <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
-                    <WidgetStats style={boxStyle} />
-                  </div>
-                </div>
-                <div id="vtt-widget-vitals" key="vitals" className="relative group hover:z-[100]">
-                  <WidgetControls id="vitals" updateWidgetDim={updateWidgetDim} widthMode="presets" />
-                  <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
-                    <WidgetVitals style={boxStyle} />
-                  </div>
-                </div>
-                <div id="vtt-widget-combat-stats" key="combat_stats" className="relative group hover:z-[100]">
-                  <WidgetControls id="combat_stats" updateWidgetDim={updateWidgetDim} widthMode="presets" />
-                  <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
-                    <WidgetCombatStats style={boxStyle} />
-                  </div>
-                </div>
+                {layout.filter(l => l.i === 'stats' || l.i.startsWith('stats:')).map(l => {
+                  const parts = l.i.split(':');
+                  const fieldIds = parts[2] ? parts[2].split(',') : ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'];
+                  const layoutMode = (parts[3] as any) || 'grid';
+                  const styleOpt = (parts[4] as any) || 'separated';
+                  const justifyOpt = (parts[5] as any) || 'stretch';
+                  const isDragOver = dragOverWidgetId === l.i;
+                  return (
+                    <div
+                      key={l.i}
+                      className="relative group hover:z-[100]"
+                      onDragOver={(e) => { e.preventDefault(); setDragOverWidgetId(l.i); }}
+                      onDragLeave={() => setDragOverWidgetId(null)}
+                    >
+                      <WidgetControls id={l.i} updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} onEdit={handleEditGroup} currentCols={currentCols} />
+                      <div className={`h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border ${isDragOver ? 'border-[#d4b48f] shadow-[0_0_15px_rgba(212,180,143,0.3)]' : 'border-dashed border-gray-600'} transition-all duration-200`}>
+                        <WidgetStats style={boxStyle} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} />
+                      </div>
+                    </div>
+                  );
+                })}
+                {layout.filter(l => l.i === 'vitals' || l.i.startsWith('vitals:')).map(l => {
+                  const parts = l.i.split(':');
+                  const fieldIds = parts[2] ? parts[2].split(',') : ['PV', 'Defense'];
+                  const layoutMode = (parts[3] as any) || 'horizontal';
+                  const styleOpt = (parts[4] as any) || 'separated';
+                  const justifyOpt = (parts[5] as any) || 'stretch';
+                  const isDragOver = dragOverWidgetId === l.i;
+                  return (
+                    <div
+                      key={l.i}
+                      className="relative group hover:z-[100]"
+                      onDragOver={(e) => { e.preventDefault(); setDragOverWidgetId(l.i); }}
+                      onDragLeave={() => setDragOverWidgetId(null)}
+                    >
+                      <WidgetControls id={l.i} updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} onEdit={handleEditGroup} currentCols={currentCols} />
+                      <div className={`h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border ${isDragOver ? 'border-[#d4b48f] shadow-[0_0_15px_rgba(212,180,143,0.3)]' : 'border-dashed border-gray-600'} transition-all duration-200`}>
+                        <WidgetVitals style={boxStyle} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} />
+                      </div>
+                    </div>
+                  );
+                })}
+                {layout.filter(l => l.i === 'combat_stats' || l.i.startsWith('combat_stats:')).map(l => {
+                  const parts = l.i.split(':');
+                  const fieldIds = parts[2] ? parts[2].split(',') : ['Contact', 'Distance', 'Magie', 'INIT'];
+                  const layoutMode = (parts[3] as any) || 'grid';
+                  const styleOpt = (parts[4] as any) || 'separated';
+                  const justifyOpt = (parts[5] as any) || 'stretch';
+                  const isDragOver = dragOverWidgetId === l.i;
+                  return (
+                    <div
+                      key={l.i}
+                      className="relative group hover:z-[100]"
+                      onDragOver={(e) => { e.preventDefault(); setDragOverWidgetId(l.i); }}
+                      onDragLeave={() => setDragOverWidgetId(null)}
+                    >
+                      <WidgetControls id={l.i} updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} onEdit={handleEditGroup} currentCols={currentCols} />
+                      <div className={`h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border ${isDragOver ? 'border-[#d4b48f] shadow-[0_0_15px_rgba(212,180,143,0.3)]' : 'border-dashed border-gray-600'} transition-all duration-200`}>
+                        <WidgetCombatStats style={boxStyle} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} />
+                      </div>
+                    </div>
+                  );
+                })}
                 <div id="vtt-widget-inventory" key="inventory" className="relative group hover:z-[100]">
-                  <WidgetControls id="inventory" updateWidgetDim={updateWidgetDim} widthMode="presets" />
+                  <WidgetControls id="inventory" updateWidgetDim={updateWidgetDim} widthMode="presets" currentCols={currentCols} />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <InventoryManagement2
                       playerName={selectedCharacter.Nomperso}
@@ -889,7 +1047,7 @@ export default function Component() {
                   </div>
                 </div>
                 <div id="vtt-widget-skills" key="skills" className="relative group hover:z-[100]">
-                  <WidgetControls id="skills" updateWidgetDim={updateWidgetDim} widthMode="presets" />
+                  <WidgetControls id="skills" updateWidgetDim={updateWidgetDim} widthMode="presets" currentCols={currentCols} />
                   <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                     <CompetencesDisplay
                       roomId={roomId!}
@@ -903,7 +1061,7 @@ export default function Component() {
                 </div>
                 {layout.find(l => l.i === 'bourse') && (
                   <div key="bourse" className="relative group hover:z-[100]">
-                    <WidgetControls id="bourse" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} />
+                    <WidgetControls id="bourse" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} currentCols={currentCols} />
                     <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                       <WidgetBourse style={boxStyle} />
                     </div>
@@ -911,7 +1069,7 @@ export default function Component() {
                 )}
                 {layout.find(l => l.i === 'effects') && (
                   <div key="effects" className="relative group hover:z-[100]">
-                    <WidgetControls id="effects" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} />
+                    <WidgetControls id="effects" updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} currentCols={currentCols} />
                     <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
                       <WidgetEffects style={boxStyle} />
                     </div>
@@ -921,11 +1079,25 @@ export default function Component() {
                   const parts = l.i.split(':');
                   const label = parts[1] || '';
                   const fieldIds = parts[2] ? parts[2].split(',') : [];
+                  const layoutMode = (parts[3] as any) || 'horizontal';
+                  const styleOpt = (parts[4] as any) || 'separated';
+                  const justifyOpt = (parts[5] as any) || 'stretch';
+                  const isDragOver = dragOverWidgetId === l.i;
+
                   return (
-                    <div key={l.i} className="relative group hover:z-[100]">
-                      <WidgetControls id={l.i} updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} onEdit={handleEditGroup} />
-                      <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
-                        <WidgetCustomGroup style={boxStyle} label={label} fieldIds={fieldIds} />
+                    <div
+                      key={l.i}
+                      className="relative group hover:z-[100]"
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        // No stopPropagation to allow RGL to track coordinates
+                        setDragOverWidgetId(l.i);
+                      }}
+                      onDragLeave={() => setDragOverWidgetId(null)}
+                    >
+                      <WidgetControls id={l.i} updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} onEdit={handleEditGroup} currentCols={currentCols} />
+                      <div className={`h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border ${isDragOver ? 'border-[#d4b48f] shadow-[0_0_15px_rgba(212,180,143,0.3)]' : 'border-dashed border-gray-600'} transition-all duration-200`}>
+                        <WidgetCustomGroup style={boxStyle} label={label} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} />
                       </div>
                     </div>
                   );
@@ -936,111 +1108,138 @@ export default function Component() {
                 className="layout"
                 layouts={{ lg: layout }}
                 breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-                cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
+                cols={{ lg: 120, md: 100, sm: 60, xs: 40, xxs: 20 }}
                 rowHeight={40}
                 margin={[20, 20]}
                 containerPadding={[0, 0]}
                 isDraggable={false}
-                isResizable={false}
+                onBreakpointChange={(bp, cols) => setCurrentCols(cols)}
               >
                 <div id="vtt-widget-avatar-view" key="avatar" className="overflow-hidden h-full"><WidgetAvatar style={boxStyle} /></div>
                 <div id="vtt-widget-details-view" key="details" className="overflow-hidden h-full"><WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} /></div>
-                <div id="vtt-widget-stats-view" key="stats" className="overflow-hidden h-full"><WidgetStats style={boxStyle} /></div>
+                {layout.filter(l => l.i === 'stats' || l.i.startsWith('stats:')).map(l => {
+                  const parts = l.i.split(':');
+                  const fieldIds = parts[2] ? parts[2].split(',') : ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'];
+                  const layoutMode = (parts[3] as any) || 'grid';
+                  const styleOpt = (parts[4] as any) || 'separated';
+                  const justifyOpt = (parts[5] as any) || 'stretch';
+                  return <div id={`vtt-widget-stats-view-${l.i}`} key={l.i} className="overflow-hidden h-full"><WidgetStats style={boxStyle} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} /></div>;
+                })}
+                {layout.filter(l => l.i === 'vitals' || l.i.startsWith('vitals:')).map(l => {
+                  const parts = l.i.split(':');
+                  const fieldIds = parts[2] ? parts[2].split(',') : ['PV', 'Defense'];
+                  const layoutMode = (parts[3] as any) || 'horizontal';
+                  const styleOpt = (parts[4] as any) || 'separated';
+                  const justifyOpt = (parts[5] as any) || 'stretch';
+                  return (
+                    <div id={`vtt-widget-vitals-view-${l.i}`} key={l.i} className="overflow-hidden h-full">
+                      <Drawer>
+                        <DrawerTrigger asChild>
+                          <button className="w-full h-full text-left p-0 bg-transparent border-0 cursor-pointer block hover:brightness-110 transition-all">
+                            <WidgetVitals style={boxStyle} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} />
+                          </button>
+                        </DrawerTrigger>
+                        <DrawerContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                          <div className="mx-auto w-full max-w-sm">
+                            <DrawerHeader>
+                              <DrawerTitle className="text-[var(--accent-brown)]">Gestion des Points de Vie</DrawerTitle>
+                              <DrawerDescription className="text-[var(--text-secondary)]">Ajustez les points de vie de votre personnage.</DrawerDescription>
+                            </DrawerHeader>
+                            <div className="p-4 pb-0">
+                              <div className="flex items-center justify-center space-x-2">
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-10 w-10 shrink-0 rounded-full bg-[var(--bg-card)] border-[var(--border-color)] hover:bg-[var(--bg-darker)] text-[var(--text-primary)]"
+                                  onClick={() => handleUpdatePV(-5)}
+                                  disabled={!selectedCharacter}
+                                >
+                                  <span className="font-bold">-5</span>
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8 shrink-0 rounded-full bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]/80 text-[#d4d4d4]"
+                                  onClick={() => handleUpdatePV(-1)}
+                                  disabled={!selectedCharacter}
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </Button>
+
+                                <div className="flex-1 text-center">
+                                  <div className="text-5xl font-bold tracking-tighter text-[#d4d4d4]">
+                                    {selectedCharacter?.PV}
+                                  </div>
+                                  <div className="text-[0.70rem] uppercase text-muted-foreground text-[#a0a0a0]">
+                                    PV ACTUELS / {selectedCharacter?.PV_Max} MAX
+                                  </div>
+                                </div>
+
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-8 w-8 shrink-0 rounded-full bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]/80 text-[#d4d4d4]"
+                                  onClick={() => handleUpdatePV(1)}
+                                  disabled={!selectedCharacter || (selectedCharacter?.PV || 0) >= (selectedCharacter?.PV_Max || 0)}
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="icon"
+                                  className="h-10 w-10 shrink-0 rounded-full bg-[var(--bg-card)] border-[var(--border-color)] hover:bg-[var(--bg-darker)] text-[var(--text-primary)]"
+                                  onClick={() => handleUpdatePV(5)}
+                                  disabled={!selectedCharacter || (selectedCharacter?.PV || 0) >= (selectedCharacter?.PV_Max || 0)}
+                                >
+                                  <span className="font-bold">+5</span>
+                                </Button>
+                              </div>
+                              <div className="mt-8 flex justify-center">
+                                <Button
+                                  variant="ghost"
+                                  className="text-[var(--accent-brown)] hover:text-[var(--accent-brown)] hover:bg-[var(--bg-card)]"
+                                  onClick={() => handleUpdatePV((selectedCharacter?.PV_Max || 0) - (selectedCharacter?.PV || 0))}
+                                  disabled={!selectedCharacter || (selectedCharacter?.PV || 0) >= (selectedCharacter?.PV_Max || 0)}
+                                >
+                                  Repos complet (Full PV)
+                                </Button>
+                              </div>
+                            </div>
+                            <DrawerFooter>
+                              <DrawerClose asChild>
+                                <Button variant="outline" className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-darker)]">Fermer</Button>
+                              </DrawerClose>
+                            </DrawerFooter>
+                          </div>
+                        </DrawerContent>
+                      </Drawer>
+                    </div>
+                  );
+                })}
+                {layout.filter(l => l.i === 'combat_stats' || l.i.startsWith('combat_stats:')).map(l => {
+                  const parts = l.i.split(':');
+                  const fieldIds = parts[2] ? parts[2].split(',') : ['Contact', 'Distance', 'Magie', 'INIT'];
+                  const layoutMode = (parts[3] as any) || 'grid';
+                  const styleOpt = (parts[4] as any) || 'separated';
+                  const justifyOpt = (parts[5] as any) || 'stretch';
+                  return <div id={`vtt-widget-combat-stats-view-${l.i}`} key={l.i} className="overflow-hidden h-full"><WidgetCombatStats style={boxStyle} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} /></div>;
+                })}
                 {layout.find(l => l.i === 'bourse') && <div key="bourse" className="overflow-hidden h-full"><WidgetBourse style={boxStyle} /></div>}
                 {layout.find(l => l.i === 'effects') && <div key="effects" className="overflow-hidden h-full"><WidgetEffects style={boxStyle} /></div>}
                 {layout.filter(l => l.i.startsWith('custom_group:')).map(l => {
                   const parts = l.i.split(':');
                   const label = parts[1] || '';
                   const fieldIds = parts[2] ? parts[2].split(',') : [];
+                  const layoutMode = (parts[3] as any) || 'horizontal';
+                  const styleOpt = (parts[4] as any) || 'separated';
+                  const justifyOpt = (parts[5] as any) || 'stretch';
                   return (
                     <div key={l.i} className="overflow-hidden h-full">
-                      <WidgetCustomGroup style={boxStyle} label={label} fieldIds={fieldIds} />
+                      <WidgetCustomGroup style={boxStyle} label={label} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} />
                     </div>
                   );
                 })}
-                <div id="vtt-widget-vitals-view" key="vitals" className="overflow-hidden h-full">
-                  <Drawer>
-                    <DrawerTrigger asChild>
-                      <button className="w-full h-full text-left p-0 bg-transparent border-0 cursor-pointer block hover:brightness-110 transition-all">
-                        <WidgetVitals style={boxStyle} />
-                      </button>
-                    </DrawerTrigger>
-                    <DrawerContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
-                      <div className="mx-auto w-full max-w-sm">
-                        <DrawerHeader>
-                          <DrawerTitle className="text-[var(--accent-brown)]">Gestion des Points de Vie</DrawerTitle>
-                          <DrawerDescription className="text-[var(--text-secondary)]">Ajustez les points de vie de votre personnage.</DrawerDescription>
-                        </DrawerHeader>
-                        <div className="p-4 pb-0">
-                          <div className="flex items-center justify-center space-x-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-10 w-10 shrink-0 rounded-full bg-[var(--bg-card)] border-[var(--border-color)] hover:bg-[var(--bg-darker)] text-[var(--text-primary)]"
-                              onClick={() => handleUpdatePV(-5)}
-                              disabled={!selectedCharacter}
-                            >
-                              <span className="font-bold">-5</span>
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8 shrink-0 rounded-full bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]/80 text-[#d4d4d4]"
-                              onClick={() => handleUpdatePV(-1)}
-                              disabled={!selectedCharacter}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
 
-                            <div className="flex-1 text-center">
-                              <div className="text-5xl font-bold tracking-tighter text-[#d4d4d4]">
-                                {selectedCharacter?.PV}
-                              </div>
-                              <div className="text-[0.70rem] uppercase text-muted-foreground text-[#a0a0a0]">
-                                PV ACTUELS / {selectedCharacter?.PV_Max} MAX
-                              </div>
-                            </div>
-
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-8 w-8 shrink-0 rounded-full bg-[#2a2a2a] border-[#3a3a3a] hover:bg-[#3a3a3a]/80 text-[#d4d4d4]"
-                              onClick={() => handleUpdatePV(1)}
-                              disabled={!selectedCharacter || (selectedCharacter?.PV || 0) >= (selectedCharacter?.PV_Max || 0)}
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-10 w-10 shrink-0 rounded-full bg-[var(--bg-card)] border-[var(--border-color)] hover:bg-[var(--bg-darker)] text-[var(--text-primary)]"
-                              onClick={() => handleUpdatePV(5)}
-                              disabled={!selectedCharacter || (selectedCharacter?.PV || 0) >= (selectedCharacter?.PV_Max || 0)}
-                            >
-                              <span className="font-bold">+5</span>
-                            </Button>
-                          </div>
-                          <div className="mt-8 flex justify-center">
-                            <Button
-                              variant="ghost"
-                              className="text-[var(--accent-brown)] hover:text-[var(--accent-brown)] hover:bg-[var(--bg-card)]"
-                              onClick={() => handleUpdatePV((selectedCharacter?.PV_Max || 0) - (selectedCharacter?.PV || 0))}
-                              disabled={!selectedCharacter || (selectedCharacter?.PV || 0) >= (selectedCharacter?.PV_Max || 0)}
-                            >
-                              Repos complet (Full PV)
-                            </Button>
-                          </div>
-                        </div>
-                        <DrawerFooter>
-                          <DrawerClose asChild>
-                            <Button variant="outline" className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-darker)]">Fermer</Button>
-                          </DrawerClose>
-                        </DrawerFooter>
-                      </div>
-                    </DrawerContent>
-                  </Drawer>
-                </div>
-                <div id="vtt-widget-combat-stats-view" key="combat_stats" className="overflow-hidden h-full"><WidgetCombatStats style={boxStyle} /></div>
                 <div id="vtt-widget-inventory-view" key="inventory" className="overflow-hidden h-full">
                   <InventoryManagement2
                     playerName={selectedCharacter.Nomperso}
@@ -1300,8 +1499,12 @@ export default function Component() {
             <div className="py-4">
               <GroupCreationSection
                 mode="edit"
+                baseType={editingGroup.baseType}
                 initialLabel={editingGroup.label}
                 initialFieldIds={editingGroup.fieldIds}
+                layout={editingGroup.layout}
+                styleOption={editingGroup.styleOption}
+                justify={editingGroup.justify}
                 customFields={selectedCharacter?.customFields ?? []}
                 handleAddWidget={handleUpdateGroup}
               />

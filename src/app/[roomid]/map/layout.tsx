@@ -125,7 +125,7 @@ export default function Layout({ children }: LayoutProps) {
   const getPanelWidth = () => {
     switch (activeTab) {
       case "Component":
-        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1400px]";
+        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1100px]";
       case "Competences":
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[1200px]";
       case "GMDashboard":
@@ -134,7 +134,7 @@ export default function Layout({ children }: LayoutProps) {
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[1200px]";
       // Case DiceRoller handled separately
       case "NewComponent":
-        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1400px]";
+        return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1100px]";
       case "Chat":
         return "w-full sm:w-[500px] md:w-[600px] lg:w-[400px]";
       case "EncounterGenerator":
