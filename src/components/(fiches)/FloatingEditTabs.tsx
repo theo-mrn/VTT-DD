@@ -377,7 +377,7 @@ export function FloatingEditTabs({
                                         </DialogTitle>
                                     </DialogHeader>
                                     <ThemePublishTab
-                                        currentConfig={{ theme: customizationForm as any, layout }}
+                                        currentConfig={{ theme: customizationForm as any, layout, customFields: selectedCharacter?.customFields || [], statRollable: selectedCharacter?.statRollable || {} }}
                                         onSuccess={() => { setIsPublishDialogOpen(false); }}
                                     />
                                 </DialogContent>
@@ -391,7 +391,7 @@ export function FloatingEditTabs({
                             onApplyTheme={onApplyTheme}
                             onPreviewTheme={onPreviewTheme}
                             onStopPreview={onStopPreview}
-                            currentConfig={{ theme: customizationForm as any, layout }}
+                            currentConfig={{ theme: customizationForm as any, layout, customFields: selectedCharacter?.customFields || [], statRollable: selectedCharacter?.statRollable || {} }}
                         />
                     </TabsContent>
                 </div>
