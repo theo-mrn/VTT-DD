@@ -4,7 +4,14 @@ import React, { useState } from 'react';
 import { useCharacter, Character, CustomField } from '@/contexts/CharacterContext';
 import CharacterImage from '@/components/(fiches)/CharacterImage';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Heart, Shield } from 'lucide-react';
+import { Heart, Shield, Info } from 'lucide-react';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
 import useMeasure from 'react-use-measure';
 
 interface WidgetProps {
@@ -65,7 +72,37 @@ export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => 
                         </span>
                     </div>
                     <div>Poids: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter.Poids} Kg</span></div>
-                    <div className="xs:col-span-2">Dé de Vie: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter.deVie}</span></div>
+                    <div>Dé de Vie: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter.deVie}</span></div>
+
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <div className="flex items-center gap-1 text-[color:var(--accent-brown)] cursor-pointer hover:underline">
+                                <Info size={14} />
+                                <span>Infos</span>
+                            </div>
+                        </DialogTrigger>
+                        <DialogContent className="bg-[var(--bg-card)] border border-[var(--border-color)] text-[var(--text-primary)] max-w-lg p-6 shadow-2xl">
+                            <DialogHeader>
+                                <DialogTitle className="text-[var(--accent-brown)] font-bold text-xl flex items-center gap-2">
+                                    <Info size={20} /> Informations Personnelles
+                                </DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                                <div className="space-y-1">
+                                    <h3 className="text-sm font-bold text-[color:var(--text-secondary,#c0a0a0)] uppercase tracking-wider">Background</h3>
+                                    <div className="bg-[var(--bg-dark)] p-3 rounded-lg border border-[var(--border-color)] text-sm whitespace-pre-wrap">
+                                        {selectedCharacter.Background || "Aucun background défini."}
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <h3 className="text-sm font-bold text-[color:var(--text-secondary,#c0a0a0)] uppercase tracking-wider">Description</h3>
+                                    <div className="bg-[var(--bg-dark)] p-3 rounded-lg border border-[var(--border-color)] text-sm whitespace-pre-wrap">
+                                        {selectedCharacter.Description || "Aucune description définie."}
+                                    </div>
+                                </div>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
                 </div>
             </div>
         </div>

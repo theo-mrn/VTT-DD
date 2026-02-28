@@ -559,6 +559,8 @@ export default function Component() {
       SAG: selectedCharacter.SAG || 0,
       INT: selectedCharacter.INT || 0,
       CHA: selectedCharacter.CHA || 0,
+      Background: selectedCharacter.Background || '',
+      Description: selectedCharacter.Description || '',
     });
     setIsEditing(true);
   };
@@ -1430,6 +1432,28 @@ export default function Component() {
                   </div>
                 </div>
               )}
+
+              {/* Background & Description */}
+              <div className="space-y-4 mb-6">
+                <div className="space-y-2">
+                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)] font-bold uppercase tracking-wider">Background</label>
+                  <textarea
+                    value={editForm.Background || ''}
+                    onChange={(e) => setEditForm({ ...editForm, Background: e.target.value })}
+                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none min-h-[80px] resize-y"
+                    placeholder="L'histoire de votre personnage..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs sm:text-sm block text-[var(--text-secondary)] font-bold uppercase tracking-wider">Description physique</label>
+                  <textarea
+                    value={editForm.Description || ''}
+                    onChange={(e) => setEditForm({ ...editForm, Description: e.target.value })}
+                    className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none min-h-[80px] resize-y"
+                    placeholder="L'apparence de votre personnage..."
+                  />
+                </div>
+              </div>
 
               <div className="flex flex-col xs:flex-row justify-end gap-3 xs:gap-4">
                 <button
