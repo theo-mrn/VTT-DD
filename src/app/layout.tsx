@@ -9,6 +9,7 @@ import { UndoRedoProvider } from '@/contexts/UndoRedoContext';
 import { Toaster } from "@/components/ui/sonner"
 import TimeTracker from '@/components/TimeTracker';
 import CookieBanner from '@/components/CookieBanner';
+import QuotaGuard from '@/components/QuotaGuard';
 
 
 
@@ -79,6 +80,7 @@ export default function RootLayout({
             <CharacterProvider>
               <CompetencesProvider>
                 <UndoRedoProvider>
+                  <QuotaGuard />
                   <Toaster position="top-right" />
                   <TimeTracker />
                   <CookieBanner />

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { getDocs, collection, query } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useGame } from "@/contexts/GameContext";
+import { useStorageQuota } from "@/hooks/useStorageQuota";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
     Image as ImageIcon,
@@ -98,13 +99,21 @@ async function fetchItems(
             const data = doc.data();
             const date = extractDate(data);
             fields.forEach((f) => {
-                const url = data[f];
+                let url = data[f];
+                // Support nested objects like { src: '...' }
+                if (url && typeof url === "object" && url.src) {
+                    url = url.src;
+                }
+
                 if (url && typeof url === "string" && (url.startsWith("http") || url.startsWith("data:"))) {
+                    // Smart label fallback logic
+                    const label = (labelField && data[labelField]) || data["Nomperso"] || data["name"] || data["Nom"] || undefined;
+
                     result.push({
                         id: `${doc.id}_${f}`,
                         url,
-                        label: labelField ? (data[labelField] as string) : undefined,
-                        meta: metaField ? (data[metaField] as string) : undefined,
+                        label: label as string,
+                        meta: (metaField && data[metaField]) || (data["type"] as string) || undefined,
                         date,
                     });
                 }
@@ -157,6 +166,93 @@ function SortBar({ order, onChange, total }: { order: SortOrder; onChange: (o: S
     );
 }
 
+// ─── File size helpers ────────────────────────────────────────────────────────
+
+const FREE_HOSTS = ["assets.yner.fr", "localhost", "127.0.0.1", "pub-6b6ff93daa684afe8aca1537c143add0.r2.dev"];
+
+function isFreeUrl(url: string): boolean {
+    try {
+        const { hostname } = new URL(url);
+        return FREE_HOSTS.includes(hostname) ||
+            hostname.endsWith(".workers.dev") ||
+            hostname.endsWith(".pages.dev") ||
+            hostname.endsWith(".r2.dev");
+    } catch {
+        return false;
+    }
+}
+
+function formatBytes(bytes: number): string {
+    if (bytes < 1024) return `${bytes} o`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
+    return `${(bytes / (1024 * 1024)).toFixed(2)} Mo`;
+}
+
+async function resolveSize(url: string): Promise<number | null> {
+    // Strategy 1: PerformanceResourceTiming (no CORS needed)
+    const entries = performance.getEntriesByName(url) as PerformanceResourceTiming[];
+    const entry = entries[entries.length - 1];
+    if (entry?.encodedBodySize > 0) return entry.encodedBodySize;
+    if (entry?.transferSize > 0) return entry.transferSize;
+
+    // Strategy 2: HEAD + Content-Length
+    try {
+        const res = await fetch(url, { method: "HEAD" });
+        const cl = res.headers.get("content-length");
+        if (cl) return parseInt(cl, 10);
+    } catch { /* noop */ }
+
+    // Strategy 3: GET → blob.size (uses browser cache)
+    try {
+        const res = await fetch(url, { cache: "force-cache" });
+        const blob = await res.blob();
+        if (blob.size > 0) return blob.size;
+    } catch { /* noop */ }
+
+    // Strategy 4: Server-side proxy — no CORS restriction, always works
+    try {
+        const res = await fetch(`/api/file-size?url=${encodeURIComponent(url)}`);
+        const json = await res.json();
+        if (json.size > 0) return json.size;
+    } catch { /* noop */ }
+
+    return null;
+}
+
+function FileSizeBadge({ url, onResolved }: { url: string; onResolved?: (bytes: number) => void }) {
+    const [size, setSize] = useState<number | null>(null);
+    const isFree = isFreeUrl(url);
+
+    useEffect(() => {
+        if (isFree) return;
+        // Small delay so the <img> in the card has a chance to register in PerformanceResourceTiming
+        const t = setTimeout(() => {
+            resolveSize(url).then((bytes) => {
+                if (bytes !== null) {
+                    setSize(bytes);
+                    onResolved?.(bytes);
+                }
+            });
+        }, 200);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [url]);
+
+    if (isFree) {
+        return (
+            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-emerald-900/70 text-emerald-300 border border-emerald-700/50">
+                Free
+            </span>
+        );
+    }
+    if (size === null) return null;
+    return (
+        <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider bg-black/60 text-zinc-400 border border-white/10">
+            {formatBytes(size)}
+        </span>
+    );
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function ImageGrid({
@@ -164,11 +260,13 @@ function ImageGrid({
     loading,
     emptyLabel,
     onPreview,
+    onSizeResolved,
 }: {
     items: LibraryItem[];
     loading: boolean;
     emptyLabel: string;
     onPreview: (item: LibraryItem) => void;
+    onSizeResolved?: (url: string, bytes: number) => void;
 }) {
     const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -238,6 +336,10 @@ function ImageGrid({
                                         loading="lazy"
                                     />
                                 )}
+                                {/* Size badge — always visible top-left */}
+                                <div className="absolute top-1.5 left-1.5 z-10">
+                                    <FileSizeBadge url={item.url} onResolved={(b) => onSizeResolved?.(item.url, b)} />
+                                </div>
                                 {/* Gradient + actions */}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex flex-col justify-end p-2 gap-1.5">
                                     {item.label && (
@@ -370,6 +472,26 @@ export default function FileLibrary() {
     const [pnjFilter, setPnjFilter] = useState<PnjFilter>("all");
     const [sortOrder, setSortOrder] = useState<SortOrder>("newest");
 
+    const { usage: storedUsage, limit: LIMIT, syncUsage } = useStorageQuota(roomId);
+
+    // Accumulated file sizes (url → bytes) for non-free assets
+    const [urlSizes, setUrlSizes] = useState<Record<string, number>>({});
+    const handleSizeResolved = useCallback((url: string, bytes: number) => {
+        setUrlSizes((prev) => prev[url] === bytes ? prev : { ...prev, [url]: bytes });
+    }, []);
+
+    // Filter out internal R2 bucket from quota calculation
+    const totalBytes = Object.entries(urlSizes)
+        .filter(([url]) => !url.startsWith("https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/"))
+        .reduce((s, [_, b]) => s + b, 0);
+
+    // Sync calculated size with global usage periodicially (or when totals change significantly)
+    useEffect(() => {
+        if (totalBytes > 0 && Math.abs(totalBytes - storedUsage) > 1024) { // Only sync if diff > 1KB
+            syncUsage(totalBytes);
+        }
+    }, [totalBytes, storedUsage, syncUsage]);
+
     // Per-category data state
     const [data, setData] = useState<Record<Category, LibraryItem[]>>({
         backgrounds: [],
@@ -399,32 +521,40 @@ export default function FileLibrary() {
         // Reset loading
         setLoading({ backgrounds: true, characters: true, objects: true, chat: true, sounds: true, notes: true });
 
-        // 1. Backgrounds: cartes/{roomId}/cities → backgroundUrl
-        fetchItems(`cartes/${roomId}/cities`, ["backgroundUrl"], "name").then((items) =>
+        // 1. Character discovery from Library + Active Session (as requested)
+        const charFields = ["imageURL", "imageURL2", "imageURLFinal", "backgroundImage", "secondaryImage", "imageUrl", "image"];
+        Promise.all([
+            fetchItems(`npc_templates/${roomId}/templates`, charFields, "Nomperso"),
+            fetchItems(`cartes/${roomId}/characters`, charFields, "Nomperso", "type"),
+        ]).then(([tplItems, charItems]) => {
+            // Deduplicate by URL to ensure each unique character image appears only once
+            setLoaded("characters", deduplicate([...tplItems, ...charItems]));
+        });
+
+        // 2. Backgrounds: cartes/{roomId}/cities
+        fetchItems(`cartes/${roomId}/cities`, ["backgroundUrl", "backgroundUrl2", "mapUrl", "url", "bgUrl", "imageUrl"], "name").then((items) =>
             setLoaded("backgrounds", items.filter((i) => i.url))
         );
 
-        // 2. Characters: cartes/{roomId}/characters → imageURL, imageURL2
-        //    + templates: npc_templates/{roomId}/templates → imageURL2
-        //    Each item gets meta = type (joueurs | pnj | ...)
+        // 3. Objects & Object Templates
+        // Collections: cartes/${roomId}/objects (on map) & object_templates/${roomId}/templates (library)
+        // Fields: imageUrl, image, url, absolutePath, path
         Promise.all([
-            fetchItems(`cartes/${roomId}/characters`, ["imageURL", "imageURL2"], "Nomperso", "type"),
-            fetchItems(`npc_templates/${roomId}/templates`, ["imageURL2"], "name"),
-        ]).then(([charItems, tplItems]) =>
-            setLoaded("characters", deduplicate([...charItems, ...tplItems]))
+            fetchItems(`cartes/${roomId}/objects`, ["imageUrl", "image", "url", "absolutePath"], "name"),
+            fetchItems(`object_templates/${roomId}/templates`, ["imageUrl", "image", "url"], "name"),
+        ]).then(([objItems, tplItems]) =>
+            setLoaded("objects", deduplicate([...objItems, ...tplItems]))
         );
 
-        // 3. Objects: cartes/{roomId}/objects → imageUrl
-        fetchItems(`cartes/${roomId}/objects`, ["imageUrl"], "name").then((items) =>
-            setLoaded("objects", items)
-        );
-
-        // 4. Chat: rooms/{roomId}/chat → imageUrl
-        fetchItems(`rooms/${roomId}/chat`, ["imageUrl"], "sender").then((items) =>
+        // 4. Chat & Interactions
+        // Collection: rooms/{roomId}/chat
+        // Fields: imageUrl, url, image, photo
+        fetchItems(`rooms/${roomId}/chat`, ["imageUrl", "url", "image", "photo"], "sender").then((items) =>
             setLoaded("chat", items)
         );
 
-        // 5. Sounds: sound_templates/{roomId}/templates → soundUrl (keep mp3 only)
+        // 5. Sounds: sound_templates/{roomId}/templates
+        // Fields: soundUrl (as URL), maybe imageUrl for artwork?
         fetchItems(`sound_templates/${roomId}/templates`, ["soundUrl"], "name").then((items) =>
             setLoaded(
                 "sounds",
@@ -432,12 +562,14 @@ export default function FileLibrary() {
             )
         );
 
-        // 6. Notes: SharedNotes/{roomId}/notes & Notes/{roomId}/{persoId} → image
+        // 6. Notes: SharedNotes & Private Notes
+        // Fields: image, imageUrl, url, src, backgroundImage
+        const noteFields = ["image", "imageUrl", "url", "src", "backgroundImage"];
         const notesPromises = [
-            fetchItems(`SharedNotes/${roomId}/notes`, ["image"], "title", "type"),
+            fetchItems(`SharedNotes/${roomId}/notes`, noteFields, "title", "type"),
         ];
         if (persoId) {
-            notesPromises.push(fetchItems(`Notes/${roomId}/${persoId}`, ["image"], "title", "type"));
+            notesPromises.push(fetchItems(`Notes/${roomId}/${persoId}`, noteFields, "title", "type"));
         }
         Promise.all(notesPromises).then((results) =>
             setLoaded("notes", deduplicate(results.flat()))
@@ -476,16 +608,45 @@ export default function FileLibrary() {
         <div className="w-full h-full flex flex-col bg-[var(--bg-dark)] text-[var(--text-primary)]">
             {/* Header */}
             <div className="px-8 pt-10 pb-6 border-b border-[var(--border-color)]">
-                <div className="flex items-center justify-between">
+                <div className="flex items-start gap-12">
                     <div>
-                        <h1 className="text-3xl font-serif text-[var(--accent-brown)] mb-1">
+                        <h1 className="text-3xl font-serif text-[var(--accent-brown)] mb-1 whitespace-nowrap">
                             Bibliothèque de Fichiers
                         </h1>
                         <p className="text-sm text-[var(--text-secondary)]">
-                            Tous les fichiers de cette partie — {totalItems} fichier
-                            {totalItems !== 1 ? "s" : ""}
+                            {totalItems} fichier{totalItems !== 1 ? "s" : ""}
                         </p>
                     </div>
+
+                    {/* Storage quota gauge */}
+                    {(() => {
+                        const pct = Math.min((totalBytes / LIMIT) * 100, 100);
+                        const barColor =
+                            pct < 60 ? "#22c55e"
+                                : pct < 85 ? "#f59e0b"
+                                    : "#ef4444";
+                        return (
+                            <div className="flex flex-col gap-1.5 min-w-[260px] pt-1">
+                                <div className="flex items-baseline justify-between text-xs">
+                                    <span className="text-[var(--text-secondary)] font-medium">Stockage utilisé</span>
+                                    <span className="font-bold tabular-nums" style={{ color: barColor }}>
+                                        {formatBytes(totalBytes)}
+                                        <span className="text-[var(--text-secondary)] font-normal"> / {LIMIT / (1024 * 1024)} Mo</span>
+                                    </span>
+                                </div>
+                                <div className="h-2 w-full rounded-full bg-white/5 border border-white/10 overflow-hidden shadow-inner">
+                                    <div
+                                        className="h-full rounded-full transition-all duration-1000 ease-out"
+                                        style={{ width: `${pct}%`, background: barColor, boxShadow: `0 0 8px ${barColor}80` }}
+                                    />
+                                </div>
+                                <div className="flex justify-between items-center text-[10px] text-[var(--text-secondary)]">
+                                    <span>{pct.toFixed(1)} %</span>
+                                    <span>{formatBytes(LIMIT - totalBytes)} restants</span>
+                                </div>
+                            </div>
+                        );
+                    })()}
                 </div>
             </div>
 
@@ -526,6 +687,7 @@ export default function FileLibrary() {
                             loading={loading.backgrounds}
                             emptyLabel={CATEGORY_CONFIG.backgrounds.emptyLabel}
                             onPreview={setPreview}
+                            onSizeResolved={handleSizeResolved}
                         />
                     </div>
                 </TabsContent>
@@ -567,6 +729,7 @@ export default function FileLibrary() {
                             loading={loading.characters}
                             emptyLabel={CATEGORY_CONFIG.characters.emptyLabel}
                             onPreview={setPreview}
+                            onSizeResolved={handleSizeResolved}
                         />
                     </div>
                 </TabsContent>
@@ -580,6 +743,7 @@ export default function FileLibrary() {
                             loading={loading.objects}
                             emptyLabel={CATEGORY_CONFIG.objects.emptyLabel}
                             onPreview={setPreview}
+                            onSizeResolved={handleSizeResolved}
                         />
                     </div>
                 </TabsContent>
@@ -593,6 +757,7 @@ export default function FileLibrary() {
                             loading={loading.chat}
                             emptyLabel={CATEGORY_CONFIG.chat.emptyLabel}
                             onPreview={setPreview}
+                            onSizeResolved={handleSizeResolved}
                         />
                     </div>
                 </TabsContent>
@@ -618,6 +783,7 @@ export default function FileLibrary() {
                             loading={loading.notes}
                             emptyLabel={CATEGORY_CONFIG.notes.emptyLabel}
                             onPreview={setPreview}
+                            onSizeResolved={handleSizeResolved}
                         />
                     </div>
                 </TabsContent>
