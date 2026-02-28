@@ -46,7 +46,7 @@ const getRandomColor = () => {
     return colors[Math.floor(Math.random() * colors.length)];
 };
 
-export const CursorManager: React.FC<CursorManagerProps> = ({
+export const CursorManager = React.memo<CursorManagerProps>(({
     roomId,
     userId,
     userName,
@@ -99,6 +99,22 @@ export const CursorManager: React.FC<CursorManagerProps> = ({
     }, [userColor, userTextColor, userName]);
 
     // 2. Track and broadcast our cursor position
+    const lastSentPosRef = useRef<{ x: number, y: number } | null>(null);
+    const lastSentTimeRef = useRef<number>(0);
+    const isVisibleRef = useRef(true);
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            isVisibleRef.current = document.visibilityState === 'visible';
+            if (!isVisibleRef.current && roomId && userId) {
+                const cursorRef = ref(realtimeDb, `rooms/${roomId}/cursors/${userId}`);
+                remove(cursorRef).catch(console.error);
+            }
+        };
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [roomId, userId]);
+
     useEffect(() => {
         if (!roomId || !userId || !containerRef.current || !bgImageObject) return;
 
@@ -112,22 +128,42 @@ export const CursorManager: React.FC<CursorManagerProps> = ({
         const container = containerRef.current;
 
         const updateCursorPosition = throttle((worldX: number, worldY: number) => {
+            if (!isVisibleRef.current) return;
+
+            const now = Date.now();
+            const lastPos = lastSentPosRef.current;
+            const lastTime = lastSentTimeRef.current;
+
+            // distance threshold check (2 units)
+            const dx = lastPos ? worldX - lastPos.x : Infinity;
+            const dy = lastPos ? worldY - lastPos.y : Infinity;
+            const distSq = dx * dx + dy * dy;
+
+            // Heartbeat: update every 10s even if stationary
+            const isHeartbeat = now - lastTime > 10000;
+            const movedEnough = distSq > 4; // 2^2
+
+            if (!movedEnough && !isHeartbeat) return;
+
             set(cursorRef, {
                 x: worldX,
                 y: worldY,
-                lastUpdate: Date.now(),
+                lastUpdate: now,
                 cityId: cityId || null,
                 user: {
                     name: userName || 'Anonymous',
-                    color: userColor, // 🆕 Use calculated color
+                    color: userColor,
                     textColor: userTextColor,
                     id: userId
                 }
+            }).then(() => {
+                lastSentPosRef.current = { x: worldX, y: worldY };
+                lastSentTimeRef.current = now;
             }).catch(console.error);
-        }, 50);
+        }, 1500);
 
         const handleMouseMove = (e: MouseEvent) => {
-            if (!bgImageObject) return;
+            if (!bgImageObject || !isVisibleRef.current) return;
 
             const { width: imgWidth, height: imgHeight } = getMediaDimensions(bgImageObject);
             const rect = container.getBoundingClientRect();
@@ -200,7 +236,7 @@ export const CursorManager: React.FC<CursorManagerProps> = ({
                             left: 0,
                             top: 0,
                             transform: `translate(${screenX}px, ${screenY}px)`,
-                            transition: 'transform 0.1s linear' // Smooth interpolation
+                            transition: 'transform 1.5s linear' // Smooth interpolation matching 1.5s throttle
                         }}
                     >
                         {/* SVG Cursor */}
@@ -245,4 +281,4 @@ export const CursorManager: React.FC<CursorManagerProps> = ({
             })}
         </div>
     );
-};
+});
