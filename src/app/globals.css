@@ -437,3 +437,14 @@
     }
   }
 }
+
+
+
+/* Resize handles: remove default SVG diagonal, keep native positioning */
+.react-resizable-handle {
+  background-image: none !important;
+  background-color: transparent;
+}
+.react-resizable-handle:hover {
+  background-color: rgba(255, 255, 255, 0.08);
+}

@@ -72,138 +72,278 @@ export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => 
     );
 };
 
-export const WidgetStats: React.FC<WidgetProps> = ({ style }) => {
+export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?: 'horizontal' | 'vertical' | 'grid', styleOption?: 'separated' | 'unified', justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch' }> = ({ style, fieldIds = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'], layout = 'grid', styleOption = 'separated', justify = 'center' }) => {
     const { selectedCharacter, getDisplayModifier, getModifier, categorizedBonuses } = useCharacter();
 
+    const isUnified = styleOption === 'unified';
+    const gapClass = isUnified ? '' : 'gap-1 md:gap-2';
+    const gapClassVert = isUnified ? '' : 'gap-1';
+
+    let containerClassName = '';
+    if (layout === 'grid') {
+        containerClassName = `grid grid-cols-2 sm:grid-cols-3 ${gapClass} h-full p-1`;
+    } else if (layout === 'vertical') {
+        if (justify === 'stretch') containerClassName = `flex flex-col items-stretch ${gapClassVert} flex-1 h-full overflow-y-auto p-1`;
+        else if (justify === 'between' || justify === 'around') containerClassName = `flex flex-col justify-${justify} items-stretch ${gapClassVert} flex-1 h-full overflow-y-auto p-1`;
+        else containerClassName = `flex flex-col justify-start items-${justify} ${gapClassVert} flex-1 h-full overflow-y-auto p-1`;
+    } else {
+        if (justify === 'stretch') containerClassName = `grid ${gapClassVert} flex-1 h-full p-1`;
+        else containerClassName = `flex flex-row flex-wrap justify-${justify} items-stretch ${gapClassVert} flex-1 h-full overflow-y-auto p-1`;
+    }
+
+    const containerStyle = (layout === 'horizontal' && justify === 'stretch')
+        ? { gridTemplateColumns: `repeat(${fieldIds.length}, minmax(0, 1fr))` }
+        : undefined;
+
+    const unifiedContainerClasses = isUnified ? 'bg-[#2a2a2a] rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] overflow-hidden' : '';
+
     return (
-        <div className="grid grid-cols-3 gap-1 md:gap-2 h-full p-1">
-            {[
-                { name: 'FOR', value: getDisplayModifier("FOR") },
-                { name: 'DEX', value: getDisplayModifier("DEX") },
-                { name: 'CON', value: getDisplayModifier("CON") },
-                { name: 'INT', value: getDisplayModifier("INT") },
-                { name: 'SAG', value: getDisplayModifier("SAG") },
-                { name: 'CHA', value: getDisplayModifier("CHA") },
-            ].map((ability) => (
-                <Tooltip key={ability.name}>
-                    <TooltipTrigger asChild>
-                        <div className="bg-[#2a2a2a] rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] h-full flex flex-col justify-center items-center overflow-hidden min-h-0 py-1" style={style}>
-                            <div className="text-[color:var(--text-secondary,#c0a0a0)] font-semibold text-xs sm:text-sm">{ability.name}</div>
-                            <div className={`text-lg sm:text-xl md:text-2xl font-bold leading-none ${ability.value >= 0 ? 'text-[color:var(--text-primary,#22c55e)]' : 'text-red-500'}`}>
-                                {ability.value >= 0 ? '+' : ''}{ability.value}
+        <div className={`${containerClassName} ${unifiedContainerClasses}`} style={containerStyle}>
+            {fieldIds.map((name) => {
+                const modifier = getDisplayModifier(name as any);
+                const value = isNaN(modifier) ? 0 : modifier;
+
+                const childClasses = isUnified
+                    ? "p-1 text-center h-full flex flex-col justify-center min-h-[50px] overflow-hidden"
+                    : "bg-[#2a2a2a] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] text-center h-full flex flex-col justify-center min-h-[50px] overflow-hidden";
+
+                return (
+                    <Tooltip key={name}>
+                        <TooltipTrigger asChild>
+                            <div className={childClasses} style={isUnified ? {} : style}>
+                                <div className="text-[color:var(--text-secondary,#c0a0a0)] font-semibold text-xs sm:text-sm">{name}</div>
+                                <div className={`text-lg sm:text-xl md:text-2xl font-bold leading-none ${value >= 0 ? 'text-[color:var(--text-primary,#22c55e)]' : 'text-red-500'}`}>
+                                    {value >= 0 ? '+' : ''}{value}
+                                </div>
+                                <div className="text-[10px] sm:text-xs text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter ? (selectedCharacter[name as keyof Character] as number) : 0}</div>
                             </div>
-                            <div className="text-[10px] sm:text-xs text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter ? (selectedCharacter[ability.name as keyof Character] as number) : 0}</div>
-                        </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Mod de base: {getModifier(selectedCharacter ? (selectedCharacter[ability.name as keyof Character] as number) : 0)}</p>
-                        <p>Inventaire: {categorizedBonuses ? categorizedBonuses[ability.name].Inventaire : 0}</p>
-                        <p>Compétence: {categorizedBonuses ? categorizedBonuses[ability.name].Competence : 0}</p>
-                    </TooltipContent>
-                </Tooltip>
-            ))}
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Mod de base: {getModifier(selectedCharacter ? (selectedCharacter[name as keyof Character] as number) : 0)}</p>
+                            <p>Inventaire: {categorizedBonuses ? categorizedBonuses[name as any]?.Inventaire || 0 : 0}</p>
+                            <p>Compétence: {categorizedBonuses ? categorizedBonuses[name as any]?.Competence || 0 : 0}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                )
+            })}
         </div>
     );
 };
 
-export const WidgetVitals: React.FC<WidgetProps> = ({ style }) => {
+export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?: 'horizontal' | 'vertical' | 'grid', styleOption?: 'separated' | 'unified', justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch' }> = ({ style, fieldIds = ['PV', 'Defense'], layout = 'horizontal', styleOption = 'separated', justify = 'center' }) => {
     const { selectedCharacter, getDisplayValue, categorizedBonuses } = useCharacter();
 
+    const isUnified = styleOption === 'unified';
+    const gapClass = isUnified ? '' : 'gap-1';
+
+    let containerClassName = '';
+    if (layout === 'grid') {
+        containerClassName = `grid grid-cols-2 ${gapClass} h-full p-1`;
+    } else if (layout === 'vertical') {
+        if (justify === 'stretch') containerClassName = `flex flex-col items-stretch ${gapClass} flex-1 h-full overflow-y-auto p-1`;
+        else if (justify === 'between' || justify === 'around') containerClassName = `flex flex-col justify-${justify} items-stretch ${gapClass} flex-1 h-full overflow-y-auto p-1`;
+        else containerClassName = `flex flex-col justify-start items-${justify} ${gapClass} flex-1 h-full overflow-y-auto p-1`;
+    } else {
+        if (justify === 'stretch') containerClassName = `grid ${gapClass} flex-1 h-full p-1`;
+        else containerClassName = `flex flex-row flex-wrap justify-${justify} items-stretch ${gapClass} flex-1 h-full overflow-y-auto p-1`;
+    }
+
+    const containerStyle = (layout === 'horizontal' && justify === 'stretch')
+        ? { gridTemplateColumns: `repeat(${fieldIds.length}, minmax(0, 1fr))` }
+        : undefined;
+
+    const unifiedContainerClasses = isUnified ? 'bg-[#2a2a2a] rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] overflow-hidden' : '';
+
     return (
-        <div className="flex flex-col h-full p-1 justify-center">
-            <div className="bg-[#2a2a2a] px-12 py-1 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] flex flex-row justify-between items-center gap-2 h-full" style={style}>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <div className="flex items-center space-x-1 cursor-help">
-                            <Heart className="text-red-500" size={16} />
-                            <span className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)]">
-                                {getDisplayValue("PV")} / {getDisplayValue("PV_Max")}
-                            </span>
-                        </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Base: {selectedCharacter ? selectedCharacter.PV : 0}</p>
-                        <p>Inventaire: {categorizedBonuses ? categorizedBonuses.PV.Inventaire : 0}</p>
-                        <p>Compétence: {categorizedBonuses ? categorizedBonuses.PV.Competence : 0}</p>
-                    </TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <div className="flex items-center space-x-1 cursor-help">
-                            <Shield className="text-blue-500" size={16} />
-                            <span className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)]">{getDisplayValue("Defense")}</span>
-                        </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Base: {selectedCharacter ? selectedCharacter.Defense : 0}</p>
-                        <p>Inventaire: {categorizedBonuses ? categorizedBonuses.Defense.Inventaire : 0}</p>
-                        <p>Compétence: {categorizedBonuses ? categorizedBonuses.Defense.Competence : 0}</p>
-                    </TooltipContent>
-                </Tooltip>
-            </div>
+        <div className={`${containerClassName} ${unifiedContainerClasses}`} style={containerStyle}>
+            {fieldIds.map(name => {
+                const isPV = name === 'PV';
+
+                const widthClass = (layout === 'horizontal' && justify !== 'stretch') ? '' : 'w-full';
+
+                const childClasses = isUnified
+                    ? `px-4 py-1 flex flex-row justify-between items-center gap-2 h-full min-h-[50px] ${widthClass}`
+                    : `bg-[#2a2a2a] px-4 py-1 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] flex flex-row justify-between items-center gap-2 h-full min-h-[50px] ${widthClass}`;
+
+                return (
+                    <div key={name} className={childClasses} style={isUnified ? {} : style}>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <div className="flex items-center space-x-1 cursor-help">
+                                    {isPV ? <Heart className="text-red-500" size={16} /> : <Shield className="text-blue-500" size={16} />}
+                                    <span className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)]">
+                                        {isPV ? `${getDisplayValue("PV")} / ${getDisplayValue("PV_Max")}` : getDisplayValue(name as any)}
+                                    </span>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                <p>Base: {selectedCharacter ? selectedCharacter[name as keyof Character] as number : 0}</p>
+                                <p>Inventaire: {categorizedBonuses ? categorizedBonuses[name as any]?.Inventaire || 0 : 0}</p>
+                                <p>Compétence: {categorizedBonuses ? categorizedBonuses[name as any]?.Competence || 0 : 0}</p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </div>
+                )
+            })}
         </div>
     );
 };
 
-export const WidgetCombatStats: React.FC<WidgetProps> = ({ style }) => {
+export const WidgetCombatStats: React.FC<WidgetProps & { fieldIds?: string[], layout?: 'horizontal' | 'vertical' | 'grid', styleOption?: 'separated' | 'unified', justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch' }> = ({ style, fieldIds = ['Contact', 'Distance', 'Magie'], layout = 'grid', styleOption = 'separated', justify = 'center' }) => {
     const { selectedCharacter, getDisplayValue, categorizedBonuses } = useCharacter();
 
+    const isUnified = styleOption === 'unified';
+    const gapClass = isUnified ? '' : 'gap-1';
+
+    let containerClassName = '';
+    if (layout === 'grid') {
+        containerClassName = `grid grid-cols-3 ${gapClass} h-full p-1`;
+    } else if (layout === 'vertical') {
+        if (justify === 'stretch') containerClassName = `flex flex-col items-stretch ${gapClass} flex-1 h-full overflow-y-auto p-1`;
+        else if (justify === 'between' || justify === 'around') containerClassName = `flex flex-col justify-${justify} items-stretch ${gapClass} flex-1 h-full overflow-y-auto p-1`;
+        else containerClassName = `flex flex-col justify-start items-${justify} ${gapClass} flex-1 h-full overflow-y-auto p-1`;
+    } else {
+        if (justify === 'stretch') containerClassName = `grid ${gapClass} flex-1 h-full p-1`;
+        else containerClassName = `flex flex-row flex-wrap justify-${justify} items-stretch ${gapClass} flex-1 h-full overflow-y-auto p-1`;
+    }
+
+    const containerStyle = (layout === 'horizontal' && justify === 'stretch')
+        ? { gridTemplateColumns: `repeat(${fieldIds.length}, minmax(0, 1fr))` }
+        : undefined;
+
+    const unifiedContainerClasses = isUnified ? 'bg-[#2a2a2a] rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] overflow-hidden' : '';
+
     return (
-        <div className="grid grid-cols-3 gap-1 h-full p-1">
-            {[
-                { name: 'Contact', value: getDisplayValue("Contact") },
-                { name: 'Distance', value: getDisplayValue("Distance") },
-                { name: 'Magie', value: getDisplayValue("Magie") }
-            ].map((stat) => (
-                <Tooltip key={stat.name}>
-                    <TooltipTrigger asChild>
-                        <div className="bg-[#2a2a2a] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] text-center h-full flex flex-col justify-center overflow-hidden" style={style}>
-                            <h3 className="text-[10px] sm:text-xs md:text-sm font-semibold text-[color:var(--text-secondary,#c0a0a0)] mb-0.5 whitespace-nowrap">{stat.name}</h3>
-                            <span className="text-base sm:text-lg md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] leading-none">{stat.value}</span>
-                        </div>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                        <p>Base: {selectedCharacter ? (selectedCharacter[stat.name as keyof Character] as number) : 0}</p>
-                        <p>Inventaire: {categorizedBonuses ? categorizedBonuses[stat.name].Inventaire : 0}</p>
-                        <p>Compétence: {categorizedBonuses ? categorizedBonuses[stat.name].Competence : 0}</p>
-                    </TooltipContent>
-                </Tooltip>
-            ))}
+        <div className={`${containerClassName} ${unifiedContainerClasses}`} style={containerStyle}>
+            {fieldIds.map((name) => {
+                const value = getDisplayValue(name as any);
+
+                const childClasses = isUnified
+                    ? "p-1 text-center h-full flex flex-col justify-center overflow-hidden min-h-[50px]"
+                    : "bg-[#2a2a2a] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] text-center h-full flex flex-col justify-center overflow-hidden min-h-[50px]";
+
+                return (
+                    <Tooltip key={name}>
+                        <TooltipTrigger asChild>
+                            <div className={childClasses} style={isUnified ? {} : style}>
+                                <h3 className="text-[10px] sm:text-xs md:text-sm font-semibold text-[color:var(--text-secondary,#c0a0a0)] mb-0.5 whitespace-nowrap">{name}</h3>
+                                <span className="text-base sm:text-lg md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] leading-none">{value}</span>
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                            <p>Base: {selectedCharacter ? (selectedCharacter[name as keyof Character] as number) : 0}</p>
+                            <p>Inventaire: {categorizedBonuses ? categorizedBonuses[name as any]?.Inventaire || 0 : 0}</p>
+                            <p>Compétence: {categorizedBonuses ? categorizedBonuses[name as any]?.Competence || 0 : 0}</p>
+                        </TooltipContent>
+                    </Tooltip>
+                )
+            })}
         </div>
     );
 };
 
 
-export const WidgetCustomGroup: React.FC<WidgetProps & { label?: string; fieldIds?: string[] }> = ({ style, label, fieldIds = [] }) => {
-    const { selectedCharacter } = useCharacter();
-    const fields = selectedCharacter?.customFields ?? [];
+interface WidgetCustomGroupProps extends WidgetProps {
+    label?: string;
+    fieldIds?: string[];
+    layout?: 'horizontal' | 'vertical' | 'grid';
+    styleOption?: 'separated' | 'unified';
+    justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch';
+}
 
-    // Filter fields that are in this group
-    const groupFields = fields.filter(f => fieldIds.includes(f.id));
+export const WidgetCustomGroup: React.FC<WidgetCustomGroupProps> = ({ style, label, fieldIds = [], layout = 'horizontal', styleOption = 'separated', justify = 'center' }) => {
+    const { selectedCharacter, getDisplayValue, getDisplayModifier } = useCharacter();
 
-    if (groupFields.length === 0) return null;
+    if (!selectedCharacter) return null;
+
+    const baseStatsKeys = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA', 'Defense', 'Contact', 'Magie', 'Distance', 'INIT', 'PV', 'PV_Max'];
+
+    const resolvedFields = fieldIds.map((id: string) => {
+        // Check if it's a base stat
+        if (baseStatsKeys.includes(id)) {
+            const isAbility = ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].includes(id);
+            return {
+                id,
+                label: id,
+                value: isAbility ? getDisplayModifier(id as any) : getDisplayValue(id as any),
+                secondaryValue: (selectedCharacter as any)[id],
+                type: 'number' as const,
+                hasModifier: isAbility
+            };
+        }
+        // Otherwise look in custom fields
+        const customField = selectedCharacter.customFields?.find(f => f.id === id);
+        if (customField) {
+            return {
+                ...customField,
+                secondaryValue: null
+            };
+        }
+        return null;
+    }).filter((f): f is Exclude<typeof f, null> => f !== null);
+
+    if (resolvedFields.length === 0) return null;
 
     const getFieldModifier = (val: number) => Math.floor((val - 10) / 2);
     const fmtMod = (m: number) => (m >= 0 ? `+${m}` : `${m}`);
 
+    const isUnified = styleOption === 'unified';
+    const gapClass = isUnified ? '' : 'gap-1';
+
+    let containerClassName = '';
+    if (layout === 'grid') {
+        containerClassName = `grid grid-cols-2 sm:grid-cols-3 ${gapClass} flex-1 h-full overflow-y-auto`;
+    } else if (layout === 'vertical') {
+        if (justify === 'stretch') containerClassName = `flex flex-col items-stretch ${gapClass} flex-1 h-full overflow-y-auto`;
+        else if (justify === 'between' || justify === 'around') containerClassName = `flex flex-col justify-${justify} items-stretch ${gapClass} flex-1 h-full overflow-y-auto`;
+        else containerClassName = `flex flex-col justify-start items-${justify} ${gapClass} flex-1 h-full overflow-y-auto`;
+    } else {
+        if (justify === 'stretch') containerClassName = `grid ${gapClass} flex-1 h-full`;
+        else containerClassName = `flex flex-row flex-wrap justify-${justify} items-stretch ${gapClass} flex-1 h-full overflow-y-auto`;
+    }
+
+    const containerStyle = (layout === 'horizontal' && justify === 'stretch')
+        ? { gridTemplateColumns: `repeat(${resolvedFields.length}, minmax(0, 1fr))` }
+        : undefined;
+
+    const unifiedContainerClasses = isUnified ? 'bg-[#2a2a2a] rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] overflow-hidden' : '';
+
     return (
         <div className="flex flex-col h-full p-1 justify-center">
-            <div className="flex-1 flex flex-col h-full overflow-hidden">
-                <div className="grid gap-1 flex-1 h-full" style={{ gridTemplateColumns: `repeat(${groupFields.length}, minmax(0, 1fr))` }}>
-                    {groupFields.map((field) => {
-                        const numVal = typeof field.value === 'number' ? field.value : parseFloat(field.value as string) || 0;
-                        const mod = field.hasModifier && field.type === 'number' ? getFieldModifier(numVal) : null;
+            {label && (
+                <div className="text-[9px] font-bold text-[#d4b48f] uppercase tracking-widest text-center mb-1 opacity-70">
+                    {label}
+                </div>
+            )}
+            <div className={`flex-1 flex flex-col h-full overflow-hidden ${unifiedContainerClasses}`}>
+                <div className={containerClassName} style={containerStyle}>
+                    {resolvedFields.map((field) => {
+                        const isBaseAbility = ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].includes(field.id);
 
                         let displayValue: string;
-                        if (field.type === 'boolean') displayValue = field.value ? '✓' : '✗';
-                        else if (field.type === 'percent') displayValue = `${field.value}%`;
-                        else displayValue = field.value !== '' && field.value !== undefined ? String(field.value) : '—';
+                        let mod: number | null = null;
+
+                        if (isBaseAbility) {
+                            mod = field.value as number;
+                            displayValue = String(field.secondaryValue || 0);
+                        } else {
+                            const numVal = typeof field.value === 'number' ? field.value : parseFloat(field.value as string) || 0;
+                            mod = field.hasModifier && field.type === 'number' ? getFieldModifier(numVal) : null;
+
+                            if (field.type === 'boolean') displayValue = field.value ? '✓' : '✗';
+                            else if (field.type === 'percent') displayValue = `${field.value}%`;
+                            else displayValue = field.value !== '' && field.value !== undefined ? String(field.value) : '—';
+                        }
+
+                        const childClasses = isUnified
+                            ? "p-1 text-center h-full flex flex-col justify-center items-center overflow-hidden min-h-[50px]"
+                            : "bg-[#2a2a2a] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] text-center h-full flex flex-col justify-center items-center overflow-hidden min-h-[50px]";
 
                         return (
                             <div
                                 key={field.id}
-                                className="bg-[#2a2a2a] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] text-center h-full flex flex-col justify-center items-center overflow-hidden"
-                                style={style}
+                                className={childClasses}
+                                style={isUnified ? {} : style}
                             >
                                 <span className="text-[9px] sm:text-[10px] uppercase font-bold text-[color:var(--text-secondary,#c0a0a0)] tracking-wider truncate mb-0.5" title={field.label}>
                                     {field.label}
@@ -229,15 +369,32 @@ export const WidgetCustomGroup: React.FC<WidgetProps & { label?: string; fieldId
     );
 };
 
-export function GroupCreationSection({ handleAddWidget, customFields, initialLabel = '', initialFieldIds = [], mode = 'create' }: {
+export function GroupCreationSection({
+    handleAddWidget,
+    customFields,
+    baseType = "custom_group",
+    initialLabel = '',
+    initialFieldIds = [],
+    layout: initialLayout = 'horizontal',
+    styleOption: initialStyleOption = 'separated',
+    justify: initialJustify = 'center',
+    mode = 'create'
+}: {
     handleAddWidget: (id: string) => void,
     customFields: CustomField[],
+    baseType?: string,
     initialLabel?: string,
     initialFieldIds?: string[],
+    layout?: 'horizontal' | 'vertical' | 'grid',
+    styleOption?: 'separated' | 'unified',
+    justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch',
     mode?: 'create' | 'edit'
 }) {
     const [label, setLabel] = useState(initialLabel);
     const [selectedIds, setSelectedIds] = useState<string[]>(initialFieldIds);
+    const [layout, setLayout] = useState<'horizontal' | 'vertical' | 'grid'>(initialLayout || 'horizontal');
+    const [styleOption, setStyleOption] = useState<'separated' | 'unified'>(initialStyleOption || 'separated');
+    const [justify, setJustify] = useState<'start' | 'center' | 'end' | 'between' | 'around' | 'stretch'>(initialJustify || 'center');
 
     const toggleId = (id: string) => {
         setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -249,10 +406,22 @@ export function GroupCreationSection({ handleAddWidget, customFields, initialLab
             return;
         }
         const finalLabel = label.trim() || 'Attributs';
-        handleAddWidget(`custom_group:${finalLabel}:${selectedIds.join(',')}`);
+
+        let idToSave = `${baseType}:${finalLabel}:${selectedIds.join(',')}:${layout}:${styleOption}:${justify}`;
+
+        // Use default behavior for baseType if no label or specific conditions are met
+        if (baseType !== 'custom_group' && finalLabel === '') {
+            idToSave = `${baseType}::${selectedIds.join(',')}:${layout}:${styleOption}:${justify}`;
+        }
+
+        handleAddWidget(idToSave);
+
         if (mode === 'create') {
             setLabel('');
             setSelectedIds([]);
+            setLayout('horizontal');
+            setStyleOption('separated');
+            setJustify('center');
         }
     };
 
@@ -268,7 +437,80 @@ export function GroupCreationSection({ handleAddWidget, customFields, initialLab
                 onChange={(e) => setLabel(e.target.value)}
                 className="w-full bg-[#0e0e0e] border border-[#3a3a3a] rounded px-2 py-1 text-xs text-[#d4d4d4]"
             />
+
+            <div className="flex gap-1 mt-1">
+                {(['horizontal', 'vertical', 'grid'] as const).map(l => (
+                    <button
+                        key={l}
+                        type="button"
+                        onClick={() => setLayout(l)}
+                        className={`flex-1 py-1 text-[9px] uppercase font-bold border rounded transition-all ${layout === l
+                            ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]'
+                            : 'bg-[#141414] text-gray-500 border-[#3a3a3a] hover:border-gray-500'
+                            }`}
+                    >
+                        {l}
+                    </button>
+                ))}
+            </div>
+
+            <div className="flex gap-1 mt-1">
+                <button
+                    type="button"
+                    onClick={() => setStyleOption('separated')}
+                    className={`flex-1 py-1 text-[9px] uppercase font-bold border rounded transition-all ${styleOption === 'separated'
+                        ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]'
+                        : 'bg-[#141414] text-gray-500 border-[#3a3a3a] hover:border-gray-500'
+                        }`}
+                >
+                    Séparé
+                </button>
+                <button
+                    type="button"
+                    onClick={() => setStyleOption('unified')}
+                    className={`flex-1 py-1 text-[9px] uppercase font-bold border rounded transition-all ${styleOption === 'unified'
+                        ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]'
+                        : 'bg-[#141414] text-gray-500 border-[#3a3a3a] hover:border-gray-500'
+                        }`}
+                >
+                    Lié (Sans bordure)
+                </button>
+            </div>
+
+            {layout !== 'grid' && (
+                <div className="flex gap-1 mt-1 flex-wrap">
+                    {(['start', 'center', 'end', 'between', 'around', 'stretch'] as const).map(j => (
+                        <button
+                            key={j}
+                            type="button"
+                            onClick={() => setJustify(j)}
+                            className={`flex flex-1 items-center justify-center py-1 text-[8px] uppercase font-bold border rounded transition-all ${justify === j
+                                ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]'
+                                : 'bg-[#141414] text-gray-500 border-[#3a3a3a] hover:border-gray-500'
+                                }`}
+                            title={j === 'stretch' ? 'Remplir' : j === 'start' ? 'Gauche/Haut' : j === 'end' ? 'Droite/Bas' : j === 'center' ? 'Centre' : j === 'between' ? 'Espace entre' : 'Espace autour'}
+                        >
+                            {j === 'stretch' ? 'Fill' : j}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             <div className="max-h-[150px] overflow-y-auto space-y-1 mt-1 scrollbar-thin scrollbar-thumb-[#3a3a3a] scrollbar-track-transparent">
+                <div className="text-[9px] font-bold text-gray-500 uppercase px-2 mb-1">Attributs de base</div>
+                {['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA', 'Defense', 'Contact', 'Magie', 'Distance', 'INIT', 'PV', 'PV_Max'].map(id => (
+                    <label key={id} className="flex items-center gap-2 px-2 py-1 hover:bg-[#2a2a2a] rounded cursor-pointer group">
+                        <input
+                            type="checkbox"
+                            checked={selectedIds.includes(id)}
+                            onChange={() => toggleId(id)}
+                            className="accent-[var(--accent-brown)]"
+                        />
+                        <span className="text-[11px] text-[#a0a0a0] group-hover:text-white truncate">{id}</span>
+                    </label>
+                ))}
+
+                <div className="text-[9px] font-bold text-gray-500 uppercase px-2 mt-2 mb-1 border-t border-[#2a2a2a] pt-2">Champs Personnalisés</div>
                 {customFields.length > 0 ? (
                     customFields.map(f => (
                         <label key={f.id} className="flex items-center gap-2 px-2 py-1 hover:bg-[#2a2a2a] rounded cursor-pointer group">
@@ -282,10 +524,11 @@ export function GroupCreationSection({ handleAddWidget, customFields, initialLab
                         </label>
                     ))
                 ) : (
-                    <div className="text-[10px] text-[#555] italic px-2">Aucun attribut disponible</div>
+                    <div className="text-[10px] text-[#555] italic px-2">Aucun attribut personnalisé</div>
                 )}
             </div>
             <button
+                type="button"
                 onClick={handleAction}
                 disabled={selectedIds.length === 0}
                 className="w-full py-1.5 bg-[var(--accent-brown)] text-black rounded text-[10px] font-bold uppercase mt-1 hover:bg-[var(--accent-brown-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-all"
