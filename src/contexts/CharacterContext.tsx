@@ -57,6 +57,8 @@ export interface Character {
   layout?: Layout[];
   customFields?: CustomField[];
   statRollable?: Record<string, boolean>; // overrides for built-in stat rollability
+  Background?: string;
+  Description?: string;
   [key: string]: any;
 }
 
