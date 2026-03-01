@@ -1,11 +1,12 @@
 "use client";
 import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Physics, usePlane, useConvexPolyhedron, useBox } from '@react-three/cannon';
 import { Text, Environment, Line, useTexture } from '@react-three/drei';
 import { DICE_SKINS, DiceSkin, DEFAULT_SKIN, getSkinById, CriticalType } from './dice-definitions';
 import * as THREE from 'three';
+import { getAssetUrl } from '@/lib/asset-loader';
 
 // ============================================================================
 // DICE SKIN SYSTEM - WITH VISUAL EFFECTS & PARTICLES
@@ -922,6 +923,60 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
     const [canCheck, setCanCheck] = useState(false);
     const [critType, setCritType] = useState<CriticalType>(null);
     const [isShattered, setIsShattered] = useState(false);
+    const lastImpactTime = useRef(0);
+
+    // Procedural WebAudio heavy dice impact generator
+    const playClick = useCallback((velocity: number) => {
+        try {
+            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+
+            // 1. Low frequency "thud" (the weight of the die)
+            const osc = ctx.createOscillator();
+            const oscGain = ctx.createGain();
+            osc.type = 'sine';
+
+            // Start low, drop lower quickly (percussion envelope)
+            const baseFreq = 120 + Math.random() * 40;
+            osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.08);
+
+            // Lowered overall volume for the thud
+            oscGain.gain.setValueAtTime(Math.min(0.1, velocity / 15), ctx.currentTime);
+            oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
+
+            osc.connect(oscGain);
+            oscGain.connect(ctx.destination);
+
+            // 2. Short noise burst for the "clack/scrape" on the mat
+            const bufferSize = ctx.sampleRate * 0.05; // 50ms of noise
+            const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+            for (let i = 0; i < bufferSize; i++) {
+                data[i] = Math.random() * 2 - 1;
+            }
+            const noise = ctx.createBufferSource();
+            noise.buffer = buffer;
+
+            // Filter noise to make it sound like a soft mat, not harsh glass
+            const noiseFilter = ctx.createBiquadFilter();
+            noiseFilter.type = 'lowpass';
+            noiseFilter.frequency.value = 800 + velocity * 100; // Opens up slightly on harder hits
+
+            // Lowered overall volume for the scratch/clack
+            const noiseGain = ctx.createGain();
+            noiseGain.gain.setValueAtTime(Math.min(0.1, velocity / 30), ctx.currentTime);
+            noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03); // Very short snap
+
+            noise.connect(noiseFilter);
+            noiseFilter.connect(noiseGain);
+            noiseGain.connect(ctx.destination);
+
+            osc.start();
+            noise.start();
+            osc.stop(ctx.currentTime + 0.1);
+        } catch (e) { }
+    }, []);
+
 
     const [ref, api] = useConvexPolyhedron(() => ({
         mass: 5,
@@ -930,7 +985,24 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
         material: { friction: 0.15, restitution: 0.5 }, // Balanced friction/restitution
         linearDamping: 0.08, // Moderate damping
         angularDamping: 0.08,
-        allowSleep: false
+        allowSleep: false,
+        onCollide: (e) => {
+            const impactVelocity = e.contact.impactVelocity;
+            const now = performance.now();
+
+            // Console log to see if it even triggers when rolling
+            // console.log(`Impact Velocity: ${impactVelocity}`);
+
+            // Only play sound if the impact is strong enough, 
+            // and don't play more than once every 40ms per die to avoid buzzing
+            // Lowered threshold to 0.1 to catch even sliding bumps
+            if (impactVelocity > 0.1 && !stopped && (now - lastImpactTime.current > 40)) {
+                lastImpactTime.current = now;
+
+                // Let's test with the direct WebAudio click to see if use-sound is the bottleneck
+                playClick(impactVelocity);
+            }
+        }
     }));
 
     React.useImperativeHandle(fRef, () => ({

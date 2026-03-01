@@ -410,17 +410,6 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
       });
       return Promise.resolve([...simulatedResults, ...instantResults]);
     }
-
-    // Play Sound
-    try {
-      const audioUrl = getAssetUrl("/dice.mp3");
-      const audio = new Audio(audioUrl);
-      audio.volume = 0.5;
-      setTimeout(() => {
-        audio.play().catch(e => console.warn("Could not play dice sound:", e));
-      }, 500);
-    } catch (e) { console.error("Audio error:", e); }
-
     const rollId = crypto.randomUUID();
     return new Promise((resolve) => {
       const timeoutId = setTimeout(() => {

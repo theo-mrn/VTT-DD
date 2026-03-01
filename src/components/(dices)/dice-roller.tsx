@@ -341,7 +341,6 @@ export function DiceRoller() {
       }
     });
 
-    // Si aucun dé 3D n'est requis
     if (requests3D.length === 0 || !show3DAnimations || isBlind) {
       if ((!show3DAnimations || isBlind) && requests3D.length > 0) {
         // Return targets directly if available, else random
@@ -363,18 +362,6 @@ export function DiceRoller() {
         return Promise.resolve([...simulatedResults, ...instantResults]);
       }
       return Promise.resolve([...instantResults]);
-    }
-
-    // Play dice sound
-    try {
-      const audioUrl = getAssetUrl("/dice.mp3");
-      const audio = new Audio(audioUrl);
-      audio.volume = 0.5; // Reasonable volume
-      setTimeout(() => {
-        audio.play().catch(e => console.warn("Could not play dice sound:", e));
-      }, 500);
-    } catch (e) {
-      console.error("Audio error:", e);
     }
 
     const rollId = crypto.randomUUID();
