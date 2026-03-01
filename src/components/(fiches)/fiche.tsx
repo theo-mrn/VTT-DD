@@ -827,8 +827,23 @@ export default function Component() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)] p-2 sm:p-4">
-        {/* Barre d'outils du personnage */}
-        <div className="max-w-5xl mx-auto mb-6 bg-[var(--bg-card)] p-2 rounded-lg shadow-md flex items-center justify-end gap-4">
+        {/* Barre de personnages séparée */}
+        <div className="max-w-5xl mx-auto mb-6 bg-[var(--bg-card)] p-2 rounded-lg shadow-md flex items-center justify-between gap-4">
+          <div className="flex-1 flex gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-[var(--border-color)] scrollbar-track-transparent">
+            {characters.map((character) => (
+              <button
+                key={character.id}
+                onClick={() => setSelectedCharacter(character)}
+                className={`px-3 py-2 sm:px-4 ${selectedCharacter?.id === character.id
+                  ? 'bg-[var(--accent-brown-hover)]'
+                  : 'bg-[var(--accent-brown)]'
+                  } text-black rounded-lg hover:bg-[var(--accent-brown-hover)] transition whitespace-nowrap text-xs sm:text-sm font-bold flex-shrink-0`}
+              >
+                {character.Nomperso}
+              </button>
+            ))}
+          </div>
+
           {selectedCharacter && (
             <div className="flex flex-wrap gap-2 shrink-0">
               {(selectedCharacter.id === userPersoId || userRole === "MJ") && (
