@@ -157,7 +157,7 @@ export default function Layout({ children }: LayoutProps) {
               )}
             </div>
 
-            <div className="absolute left-5 z-0">
+            <div className="absolute left-0 z-0">
               <OverlayComponent onPanelToggle={setIsPanelOpen} />
             </div>
 
