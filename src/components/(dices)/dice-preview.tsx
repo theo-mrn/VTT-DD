@@ -47,8 +47,7 @@ export function DicePreview({ skinId, type = "d20", className = "" }: { skinId: 
                     castShadow
                 />
                 <pointLight position={[-10, -10, -10]} intensity={0.5} />
-
-                <Environment preset="studio" />
+                <Environment preset="city" />
 
                 <AutoRotatingDie type={type} skinId={skinId} />
 
@@ -77,8 +76,7 @@ export function DicePreviewCard({ skinId, type = "d20" }: { skinId: string; type
             >
                 <ambientLight intensity={0.8} />
                 <spotLight position={[10, 10, 10]} angle={0.5} penumbra={1} intensity={2} />
-                <pointLight position={[-10, -10, -10]} intensity={0.5} />
-                <Environment preset="studio" />
+                <pointLight position={[-10, -10, -10]} intensity={0.5} />                <Environment preset="city" />
                 <AutoRotatingDie type={type} skinId={skinId} />
             </Canvas>
         </div>

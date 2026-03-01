@@ -342,7 +342,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         name: 'Marbre Bleu',
         bodyColor: '#004488',
         edgeColor: '#ffd700',
-        borderColor: '#ffffff',
+        borderColor: '#ffd700',
         textColor: '#ffffff',
         shadowColor: '#000033',
         metalness: 0.1,
