@@ -21,7 +21,7 @@ const TexturedMaterial = ({ skin }: { skin: DiceSkin }) => {
     // useTexture throws if texture fails to load, so we use a safe fallback component
     if (!hasTexture) {
         return (
-            <meshStandardMaterial
+            <meshPhysicalMaterial
                 color={skin.bodyColor}
                 metalness={skin.metalness}
                 roughness={skin.roughness}
@@ -30,6 +30,11 @@ const TexturedMaterial = ({ skin }: { skin: DiceSkin }) => {
                 emissiveIntensity={skin.emissiveIntensity}
                 transparent={skin.opacity < 1}
                 opacity={skin.opacity}
+                clearcoat={1.0}
+                clearcoatRoughness={0.05}
+                ior={1.5}
+                transmission={skin.effectType === 'glass' || skin.effectType === 'gem' ? 0.9 : 0}
+                thickness={2.5}
             />
         );
     }
@@ -52,7 +57,7 @@ const TextureMaterialLoaderInner = ({ skin }: { skin: DiceSkin }) => {
     }
 
     return (
-        <meshStandardMaterial
+        <meshPhysicalMaterial
             map={texture}
             color={'#ffffff'}
             metalness={skin.metalness}
@@ -62,6 +67,11 @@ const TextureMaterialLoaderInner = ({ skin }: { skin: DiceSkin }) => {
             emissiveIntensity={skin.emissiveIntensity}
             transparent={skin.opacity < 1}
             opacity={skin.opacity}
+            clearcoat={1.0}
+            clearcoatRoughness={0.05}
+            ior={1.5}
+            transmission={skin.effectType === 'glass' || skin.effectType === 'gem' ? 0.9 : 0}
+            thickness={2.5}
         />
     );
 };
@@ -69,12 +79,14 @@ const TextureMaterialLoaderInner = ({ skin }: { skin: DiceSkin }) => {
 const TextureMaterialLoader = ({ skin }: { skin: DiceSkin }) => {
     return (
         <React.Suspense fallback={
-            <meshStandardMaterial
+            <meshPhysicalMaterial
                 color={skin.bodyColor}
                 metalness={skin.metalness}
                 roughness={skin.roughness}
                 transparent={skin.opacity < 1}
                 opacity={skin.opacity}
+                clearcoat={1.0}
+                clearcoatRoughness={0.05}
             />
         }>
             <TextureMaterialLoaderInner skin={skin} />
@@ -841,24 +853,22 @@ export const VisualDie = React.forwardRef(({ type, skin, isShattered, critType }
 
             {/* Edge highlight mesh */}
             {!isShattered && (
-                <mesh geometry={geometry} scale={[1.01, 1.01, 1.01]}>
-                    <meshStandardMaterial
+                <mesh geometry={geometry} scale={[1.04, 1.04, 1.04]}>
+                    <meshPhysicalMaterial
                         color={skin.edgeColor}
                         emissive={skin.emissive}
-                        emissiveIntensity={skin.emissiveIntensity * 0.5}
-                        metalness={0.8}
-                        roughness={0.2}
-                        transparent
-                        opacity={0.35}
+                        emissiveIntensity={skin.emissiveIntensity * 0.2}
+                        metalness={1.0}
+                        roughness={0.15}
                         side={THREE.BackSide}
+                        clearcoat={1.0}
+                        clearcoatRoughness={0.1}
                     />
                 </mesh>
             )}
 
-            {/* Decorative borders on each face */}
-            {!isShattered && trueFaces.map((face, index) => (
-                <FaceDecorations key={`deco-${index}`} face={face} borderColor={skin.borderColor} />
-            ))}
+            {/* Decorative borders on each face (removed per user request) */}
+
 
             {/* Face numbers with stylized look */}
             {!isShattered && trueFaces.map((face, index) => {
@@ -1215,8 +1225,8 @@ export const DiceThrower = () => {
                 />
                 <pointLight position={[0, 20, 0]} intensity={0.8} color="#fff8e7" />
 
-                {/* Studio environment for better reflections */}
-                <Environment preset="studio" />
+                {/* City environment for high-contrast premium reflections */}
+                <Environment preset="city" />
 
                 <Physics gravity={[0, -60, 0]} defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }} allowSleep={false} iterations={20}>
                     <Table />

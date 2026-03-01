@@ -166,13 +166,13 @@ export default function Component({ onPanelToggle }: OverlayProps) {
         />
       )}
 
-      <div className="fixed top-4 flex gap-3 p-3 bg-black/70 backdrop-blur-sm rounded-lg border border-white/10 items-center max-w-[90vw] overflow-x-auto z-[90]">
+      <div className="fixed top-4 flex gap-2 p-2 bg-black/70 backdrop-blur-sm rounded-lg border border-white/10 items-center max-w-[90vw] overflow-x-auto z-[90]">
         {/* Bouton pour ouvrir la sidebar */}
         <button
           onClick={() => setIsSidebarOpen(true)}
-          className="flex items-center justify-center h-10 w-10 flex-shrink-0 bg-gray-900 text-white rounded-full hover:bg-gray-700 transition-transform transform hover:scale-105 shadow-lg focus:outline-none"
+          className="flex items-center justify-center h-8 w-8 flex-shrink-0 bg-gray-900 text-white rounded-full hover:bg-gray-700 transition-transform transform hover:scale-105 shadow-lg focus:outline-none"
         >
-          <span className="text-xl">☰</span>
+          <span className="text-lg">☰</span>
         </button>
 
         {/* Toggle Mode Button (Only for MJ) */}
@@ -181,10 +181,10 @@ export default function Component({ onPanelToggle }: OverlayProps) {
             <TooltipTrigger asChild>
               <button
                 onClick={() => setMode(prev => prev === 'joueurs' ? 'pnj' : 'joueurs')}
-                className={`flex items-center justify-center h-10 w-10 flex-shrink-0 rounded-full transition-colors shadow-lg focus:outline-none ${mode === 'joueurs' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-red-600 hover:bg-red-500'
+                className={`flex items-center justify-center h-8 w-8 flex-shrink-0 rounded-full transition-colors shadow-lg focus:outline-none ${mode === 'joueurs' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-red-600 hover:bg-red-500'
                   }`}
               >
-                {mode === 'joueurs' ? <User className="h-5 w-5 text-white" /> : <Users className="h-5 w-5 text-white" />}
+                {mode === 'joueurs' ? <User className="h-4 w-4 text-white" /> : <Users className="h-4 w-4 text-white" />}
               </button>
             </TooltipTrigger>
             <TooltipContent>
@@ -207,7 +207,7 @@ export default function Component({ onPanelToggle }: OverlayProps) {
                 onDoubleClick={() => handleDoubleClick(char.id)}
               >
                 <div className="relative">
-                  <Avatar className={`h-16 w-16 border-2 transition-colors ${mode === 'pnj' ? 'border-red-500/50 group-hover:border-red-500' : 'border-blue-500/50 group-hover:border-blue-500'}`}>
+                  <Avatar className={`h-10 w-10 border-2 transition-colors ${mode === 'pnj' ? 'border-red-500/50 group-hover:border-red-500' : 'border-blue-500/50 group-hover:border-blue-500'}`}>
                     <AvatarImage src={char.image} alt={char.name} className="object-cover" />
                     <AvatarFallback className="bg-primary-foreground text-xs">
                       {char.name[0]}
@@ -216,7 +216,7 @@ export default function Component({ onPanelToggle }: OverlayProps) {
                 </div>
 
                 {/* Barre de santé */}
-                <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+                <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden">
                   <div
                     className="h-full transition-all duration-300 ease-in-out rounded-full"
                     style={{
