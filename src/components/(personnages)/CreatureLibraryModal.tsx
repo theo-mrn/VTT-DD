@@ -1,11 +1,11 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Search, Info, User, Upload, BookOpen, X, Check, Dna, Shield, Heart, Swords, Filter, Pencil, Crop as CropIcon, ZoomIn, Crop, Loader2, Ghost, Images, Wand2 } from 'lucide-react'
+import { Search, Info, User, Upload, BookOpen, X, Check, Dna, Shield, Heart, Swords, Filter, Pencil, Crop as CropIcon, ZoomIn, Crop, Loader2, Ghost, Images, Wand2, Plus } from 'lucide-react'
 import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { mapImagePath } from '@/utils/imagePathMapper'
 import Cropper from 'react-easy-crop'
-import { getCroppedImg, createCompositeImage } from '@/lib/cropImageHelper'
+import { getCroppedImg } from '@/lib/cropImageHelper'
 import { Slider } from '@/components/ui/slider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RaceImageSelector } from './RaceImageSelector'
@@ -54,13 +54,6 @@ interface BestiaryData {
     }>;
 }
 
-interface TokenData {
-    name: string;
-    path: string;
-    localPath: string;
-    category: string;
-}
-
 interface CreatureLibraryModalProps {
     isOpen: boolean
     onClose: () => void
@@ -71,7 +64,6 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     const [races, setRaces] = useState<Record<string, RaceData>>({})
     const [profiles, setProfiles] = useState<Record<string, ProfileData>>({})
     const [bestiary, setBestiary] = useState<Record<string, BestiaryData>>({})
-    const [tokens, setTokens] = useState<TokenData[]>([])
     const [loading, setLoading] = useState(true)
 
     // Cropping State
@@ -99,11 +91,10 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     })
 
     // Selection State
-    const [activeTab, setActiveTab] = useState<'bestiary' | 'race' | 'profile' | 'token' | 'generate'>('bestiary')
+    const [activeTab, setActiveTab] = useState<'bestiary' | 'race' | 'profile'>('bestiary')
 
     const [selectedRace, setSelectedRace] = useState<string | null>(null)
     const [selectedProfile, setSelectedProfile] = useState<string | null>(null)
-    const [selectedToken, setSelectedToken] = useState<TokenData | null>(null)
     const [selectedCreature, setSelectedCreature] = useState<string | null>(null)
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
 
@@ -112,13 +103,6 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     const [customName, setCustomName] = useState<string>('')
     const [activeImageSource, setActiveImageSource] = useState<'race' | 'profile' | 'creature' | 'custom'>('creature')
     const [searchQuery, setSearchQuery] = useState('')
-
-    // Generation State
-    const [generationName, setGenerationName] = useState('')
-    const [generationLevel, setGenerationLevel] = useState<number>(1)
-    const [generationPrompt, setGenerationPrompt] = useState('')
-    const [isGenerating, setIsGenerating] = useState(false)
-    const [generationError, setGenerationError] = useState<string | null>(null)
 
     // Image Selector Dialog State
     const [isImageSelectorOpen, setIsImageSelectorOpen] = useState(false)
@@ -135,11 +119,6 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                 const racesData: Record<string, RaceData> = await racesRes.json()
                 const profilesData: Record<string, ProfileData> = await profilesRes.json()
                 const bestiaryData: Record<string, BestiaryData> = await bestiaryRes.json()
-                const assetsRes = await fetch('/asset-mappings.json')
-                const assetsData = await assetsRes.json()
-
-                // Filter for Token category
-                const tokenList = assetsData.filter((asset: any) => asset.category === 'Token')
 
                 // Map local image paths to R2 URLs for races and profiles
                 const racesWithMappedImages: Record<string, RaceData> = {}
@@ -161,7 +140,6 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                 setRaces(racesWithMappedImages)
                 setProfiles(profilesWithMappedImages)
                 setBestiary(bestiaryData)
-                setTokens(tokenList)
             } catch (error) {
                 console.error("Error loading library data:", error)
             } finally {
@@ -261,43 +239,13 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
 
     // Reset crop when selection changes
     useEffect(() => {
-        // Don't reset if we're in token tab (crop mode should stay active)
-        if (activeTab !== 'token') {
-            setIsEditing(false)
-            setCrop({ x: 0, y: 0 })
-            setZoom(1)
-            setEditingImageSrc(null)
-        }
-    }, [selectedRace, selectedProfile, selectedCreature, selectedToken, activeImageSource, activeTab])
+        setIsEditing(false)
+        setCrop({ x: 0, y: 0 })
+        setZoom(1)
+        setEditingImageSrc(null)
+    }, [selectedRace, selectedProfile, selectedCreature, activeImageSource, activeTab])
 
-    // Auto-enable crop mode when Token tab is opened or when token is selected
-    useEffect(() => {
-        if (activeTab === 'token') {
-            // Calculate current preview image inline (same logic as getPreviewImage)
-            let currentPreview = ''
 
-            if (activeImageSource === 'custom' && customImage) currentPreview = customImage
-            else if (activeImageSource === 'creature' && selectedCreature && bestiary[selectedCreature]?.image) currentPreview = bestiary[selectedCreature].image
-            else if (activeImageSource === 'profile' && selectedProfile && profiles[selectedProfile]?.image) currentPreview = profiles[selectedProfile].image
-            else if (activeImageSource === 'race') {
-                if (customImage) currentPreview = customImage
-                else if (selectedRace && races[selectedRace]?.image) currentPreview = races[selectedRace].image
-            }
-            else if (customImage) currentPreview = customImage
-            else if (selectedCreature && bestiary[selectedCreature]?.image) currentPreview = bestiary[selectedCreature].image
-            else if (selectedProfile && profiles[selectedProfile]?.image) currentPreview = profiles[selectedProfile].image
-            else if (selectedRace && races[selectedRace]?.image) currentPreview = races[selectedRace].image
-
-            if (currentPreview) {
-                setEditingImageSrc(currentPreview)
-                setZoom(0.5) // Start with smaller zoom for better token framing
-                setIsEditing(true)
-            }
-        } else {
-            // Exit crop mode when not in Token tab
-            setIsEditing(false)
-        }
-    }, [activeTab, selectedToken, customImage, activeImageSource, selectedCreature, selectedProfile, selectedRace, bestiary, profiles, races])
 
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -327,26 +275,14 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
             const baseImage = getPreviewImage() || '';
             let finalImage = baseImage;
 
-            // If token selected, we need to composite
-            // --- COMPOSITING / CROPPING LOGIC ---
+            // --- CROPPING LOGIC ---
             try {
-                if (selectedToken) {
-                    let sourceForComposite = finalImage;
-
-                    // If the user used the cropper, use that result
-                    if (croppedAreaPixels && (isEditing || editingImageSrc)) {
-                        sourceForComposite = await getCroppedImg(editingImageSrc || finalImage, croppedAreaPixels);
-                    }
-
-                    finalImage = await createCompositeImage(sourceForComposite, selectedToken.path);
-                }
-                else if (croppedAreaPixels && (isEditing || editingImageSrc)) {
+                if (croppedAreaPixels && (isEditing || editingImageSrc)) {
                     finalImage = await getCroppedImg(editingImageSrc || finalImage, croppedAreaPixels);
                 }
-
             } catch (e: any) {
                 console.error("Error processing image:", e);
-                alert(`Erreur lors de la création du token : ${e.message || e}`);
+                alert(`Erreur lors du traitement de l'image : ${e.message || e}`);
                 setIsCreating(false)
                 return
             }
@@ -355,7 +291,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                 name: charName,
                 niveau: targetLevel,
                 image: { src: finalImage },
-                imageURL: selectedToken ? baseImage : '',
+                imageURL: '',
                 visibility: 'visible',
                 PV: stats.PV_Max,
                 PV_Max: stats.PV_Max,
@@ -384,81 +320,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
         }
     }
 
-    const handleGenerate = async () => {
-        // Allow either prompt OR name/level to trigger (though UI enforces name usually)
-        if (!generationPrompt.trim() && !generationName.trim()) return;
 
-        setIsGenerating(true);
-        setGenerationError(null);
-
-        try {
-            const response = await fetch('/api/generate-creature', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: generationName,
-                    level: generationLevel,
-                    description: generationPrompt
-                })
-            });
-
-            if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || 'Failed to generate');
-            }
-
-            const data: BestiaryData = await response.json();
-
-            // Populate everything with generated data
-            setCustomName(data.Nom);
-            setTargetLevel(data.niveau);
-
-            // Set Stats
-            setStats({
-                PV_Max: data.PV_Max,
-                Defense: data.Defense,
-                INIT: data.INIT,
-                Contact: data.Contact,
-                Distance: data.Distance,
-                Magie: data.Magie,
-                FOR: data.FOR,
-                DEX: data.DEX,
-                CON: data.CON,
-                INT: data.INT,
-                SAG: data.SAG,
-                CHA: data.CHA
-            });
-
-            if (data.image) {
-                setCustomImage(data.image);
-                setActiveImageSource('custom');
-                // Open crop/edit view automatically? 
-                // Maybe just show it.
-            }
-
-            // If actions are returned, we might want to store them temporarily or 
-            // since this modifies "Creation" state which relies on `bestiary[selectedCreature]` for actions usually,
-            // we might need a way to pass custom actions. 
-            // The current `handleImport` uses `bestiary[selectedCreature]?.Actions` if in bestiary tab.
-            // But here we are in 'generate' tab. 
-            // We should ensure `handleImport` logic handles 'generate' tab or just uses current state.
-            // For now, let's assume we proceed to import directly? 
-            // Or better: The user sees the result in the inspector?
-
-            // To make `handleImport` work with custom actions from generation, we need a way to store them.
-            // Let's add a state for customActions if strictly needed, OR, 
-            // easier: We treat this as a "Custom" creature but we fill the stats.
-
-            // Switch view to 'Token' or stay here? 
-            // Staying here allows further refinement.
-
-        } catch (error: any) {
-            console.error("Generation failed:", error);
-            setGenerationError(error.message);
-        } finally {
-            setIsGenerating(false);
-        }
-    }
 
     // Filtering
     const filteredRaces = Object.entries(races).filter(([key, val]) =>
@@ -509,221 +371,118 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
         return categoryTranslations[cat.toLowerCase()] || cat.charAt(0).toUpperCase() + cat.slice(1)
     }
 
-    const filteredTokens = tokens.filter(t =>
-        t.name.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-
     if (!isOpen) return null
 
     // Determine current grid items based on active tabs
     // Determine current grid items based on active tabs
     const renderGridItems = () => {
-        if (activeTab === 'bestiary') {
-            return filteredBestiary.map(([key, data]) => (
-                <Card
-                    key={key}
-                    title={data.Nom}
-                    subtitle={data.Type}
-                    image={data.image}
-                    isSelected={selectedCreature === key}
-                    onClick={() => {
-                        setSelectedCreature(key)
-                        // MIX & MATCH ALLOWED: Do not clear selectedProfile
-                        setSelectedRace(null) // Clear Race as it conflicts with "Creature Base"
-                        setTargetLevel(data.niveau)
-                        setActiveImageSource('creature')
-                    }}
-                    footer={<span className="text-xs bg-black/60 px-2 py-0.5 rounded text-[#c0a080] border border-[#c0a080]/30">Ne: {Math.max(1, data.niveau)}</span>}
-                />
-            ))
+        if (activeTab === 'profile') {
+            return filteredProfiles.map(([key, data]) => {
+                const isSelected = selectedProfile === key
+                const hasBase = !!(selectedRace || selectedCreature)
+                return (
+                    <Card
+                        key={key}
+                        title={key}
+                        subtitle="Classe"
+                        image={data.image}
+                        isSelected={isSelected}
+                        onClick={() => {
+                            const isSelected = selectedProfile === key
+                            setSelectedProfile(isSelected ? null : key)
+                            setActiveImageSource('profile')
+                        }}
+                        footer={
+                            <div className="flex items-center justify-between w-full">
+                                <span className="text-xs text-red-300">DV: {data.hitDie}</span>
+                                {hasBase && !isSelected && (
+                                    <div className="bg-[#c0a080] text-black rounded-full p-1 shadow-lg animate-in zoom-in-50 duration-300">
+                                        <Plus className="w-3 h-3" strokeWidth={4} />
+                                    </div>
+                                )}
+                            </div>
+                        }
+                    />
+                )
+            })
         }
 
         if (activeTab === 'race') {
-            return filteredRaces.map(([key, data]) => (
-                <Card
-                    key={key}
-                    title={key.replace('_', ' ')}
-                    subtitle="Race"
-                    image={data.image}
-                    isSelected={selectedRace === key}
-                    onClick={() => {
-                        const isSelected = selectedRace === key
-                        if (!isSelected) {
-                            setSelectedRace(key)
-                            setSelectedCreature(null) // Custom Mode -> Clear Creature
-                            setActiveImageSource('race')
-                            // Open image selector automatically
-                            setIsImageSelectorOpen(true)
-                        } else {
-                            setSelectedRace(null)
-                        }
-                    }}
-                    footer={
-                        <div className="flex gap-1">
-                            {Object.entries(data.modificateurs || {}).slice(0, 2).map(([k, v]) => (
-                                <span key={k} className="text-[10px] bg-white/10 px-1 rounded">{k} {v > 0 ? '+' : ''}{v}</span>
-                            ))}
-                        </div>
-                    }
-                />
-            ))
-        }
-
-        if (activeTab === 'profile') {
-            return filteredProfiles.map(([key, data]) => (
-                <Card
-                    key={key}
-                    title={key}
-                    subtitle="Classe"
-                    image={data.image}
-                    isSelected={selectedProfile === key}
-                    onClick={() => {
-                        const isSelected = selectedProfile === key
-                        setSelectedProfile(isSelected ? null : key)
-                        // MIX & MATCH ALLOWED: Do not clear creature
-                        setActiveImageSource('profile')
-                    }}
-                    footer={<span className="text-xs text-red-300">DV: {data.hitDie}</span>}
-                />
-            ))
-        }
-
-        if (activeTab === 'token') {
-            return filteredTokens.map((token) => (
-                <Card
-                    key={token.name}
-                    title={token.name.replace('.png', '').replace('Token', 'Token ')}
-                    subtitle="Token"
-                    image={token.path}
-                    isSelected={selectedToken?.name === token.name}
-                    onClick={() => {
-                        const isSelected = selectedToken?.name === token.name
-                        setSelectedToken(isSelected ? null : token)
-                    }}
-                />
-            ))
-        }
-    }
-
-    const renderGenerateTab = () => {
-        return (
-            <div className="flex flex-col h-full">
-                {/* Header Section */}
-                <div className="px-6 py-6 border-b border-[#2a2a2a] bg-[#121214] flex items-center justify-between">
-                    <div>
-                        <div className="flex items-center gap-3 mb-2">
-                            <h2 className="text-xl font-serif text-[#e4e4e7] tracking-tight">Création Rapide</h2>
-                        </div>
-                        <p className="text-sm text-zinc-500 font-medium ml-8">
-                            En manque d'inspiration, laissez yner s'en occuper
-                        </p>
-                    </div>
-                    <button
-                        onClick={handleGenerate}
-                        disabled={isGenerating || (!generationPrompt.trim() && !generationName.trim())}
-                        className="bg-[#c0a080] hover:bg-[#b09070] text-[#09090b] font-bold px-6 py-2.5 rounded-lg shadow-lg shadow-[#c0a080]/10 hover:shadow-[#c0a080]/20 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        {isGenerating ? (
-                            <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                <span>Création...</span>
-                            </>
-                        ) : (
-                            <>
-                                <span>Générer</span>
-                            </>
-                        )}
-                    </button>
-                </div>
-
-                {/* Scrollable Content */}
-                <div className="flex-1 overflow-y-auto px-6 py-8 space-y-8">
-
-                    {/* Identity Section */}
-                    <div className="space-y-4">
-                        <div className="flex items-end justify-between border-b border-[#2a2a2a] pb-2">
-                            <label className="text-sm font-bold text-[#c0a080] uppercase tracking-wider">Identité</label>
-                        </div>
-
-                        <div className="grid grid-cols-12 gap-6">
-                            {/* Name Input */}
-                            <div className="col-span-9 space-y-2">
-                                <label className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Nom</label>
-                                <input
-                                    type="text"
-                                    className="w-full bg-[#0c0c0e] border border-[#2a2a2a] rounded-lg px-4 py-3 text-lg text-white placeholder-zinc-700 focus:outline-none focus:border-[#c0a080] transition-colors font-serif"
-                                    placeholder="Ex: Le Roi des Tombes..."
-                                    autoFocus
-                                    value={generationName}
-                                    onChange={(e) => setGenerationName(e.target.value)}
-                                />
-                            </div>
-
-                            {/* Level Input */}
-                            <div className="col-span-3 space-y-2">
-                                <label className="text-xs text-zinc-500 font-medium uppercase tracking-wide">Niveau</label>
-                                <div className="relative h-[52px]">
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        max={30}
-                                        className="w-full h-full bg-[#0c0c0e] border border-[#2a2a2a] rounded-lg text-center text-lg text-white font-mono focus:outline-none focus:border-[#c0a080] transition-colors appearance-none"
-                                        value={generationLevel}
-                                        onChange={(e) => setGenerationLevel(Number(e.target.value))}
-                                    />
-                                    {/* Custom Arrows */}
-                                    <div className="absolute right-1 top-1 bottom-1 flex flex-col w-6 border-l border-[#2a2a2a]">
-                                        <button
-                                            onClick={() => setGenerationLevel(l => Math.min(30, l + 1))}
-                                            className="flex-1 hover:bg-[#2a2a2a] text-zinc-500 hover:text-[#c0a080] flex items-center justify-center rounded-tr-md"
-                                        >
-                                            <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-b-[4px] border-b-current" />
-                                        </button>
-                                        <button
-                                            onClick={() => setGenerationLevel(l => Math.max(1, l - 1))}
-                                            className="flex-1 hover:bg-[#2a2a2a] text-zinc-500 hover:text-[#c0a080] flex items-center justify-center rounded-br-md"
-                                        >
-                                            <div className="w-0 h-0 border-l-[3px] border-l-transparent border-r-[3px] border-r-transparent border-t-[4px] border-t-current" />
-                                        </button>
-                                    </div>
+            return filteredRaces.map(([key, data]) => {
+                const isSelected = selectedRace === key
+                const hasProfile = !!selectedProfile
+                return (
+                    <Card
+                        key={key}
+                        title={key.replace('_', ' ')}
+                        subtitle="Race"
+                        image={data.image}
+                        isSelected={isSelected}
+                        onClick={() => {
+                            const isSelected = selectedRace === key
+                            if (!isSelected) {
+                                setSelectedRace(key)
+                                setSelectedCreature(null)
+                                setActiveImageSource('race')
+                                setIsImageSelectorOpen(true)
+                            } else {
+                                setSelectedRace(null)
+                            }
+                        }}
+                        footer={
+                            <div className="flex items-center justify-between w-full">
+                                <div className="flex gap-1">
+                                    {Object.entries(data.modificateurs || {}).slice(0, 2).map(([k, v]) => (
+                                        <span key={k} className="text-[10px] bg-white/10 px-1 rounded">{k} {v > 0 ? '+' : ''}{v}</span>
+                                    ))}
                                 </div>
+                                {hasProfile && !isSelected && (
+                                    <div className="bg-[#c0a080] text-black rounded-full p-1 shadow-lg animate-in zoom-in-50 duration-300">
+                                        <Plus className="w-3 h-3" strokeWidth={4} />
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    </div>
+                        }
+                    />
+                )
+            })
+        }
 
-                    {/* Inspiration Section */}
-                    <div className="space-y-4 flex-1 flex flex-col min-h-[200px]">
-                        <div className="flex items-end justify-between border-b border-[#2a2a2a] pb-2">
-                            <label className="text-sm font-bold text-[#c0a080] uppercase tracking-wider">Inspiration</label>
-                            <span className="text-xs text-zinc-600 font-medium italic">Visuel, Capacités, Lore...</span>
-                        </div>
-
-                        <div className="relative flex-1">
-                            <textarea
-                                className="w-full h-full min-h-[160px] bg-[#0c0c0e] border border-[#2a2a2a] rounded-lg p-4 text-base text-zinc-300 placeholder-zinc-700 focus:outline-none focus:border-[#c0a080] resize-none leading-relaxed custom-scrollbar shadow-inner"
-                                placeholder="Décrivez votre créature ici. Plus vous serez précis sur l'ambiance et l'équipement, plus l'image sera fidèle."
-                                value={generationPrompt}
-                                onChange={(e) => setGenerationPrompt(e.target.value)}
-                            />
-                            <div className="absolute bottom-3 right-3 pointer-events-none">
-                                <Pencil className="w-4 h-4 text-[#c0a080]/20" />
+        if (activeTab === 'bestiary') {
+            return filteredBestiary.map(([key, data]) => {
+                const isSelected = selectedCreature === key
+                const hasProfile = !!selectedProfile
+                return (
+                    <Card
+                        key={key}
+                        title={data.Nom}
+                        subtitle={data.Type}
+                        image={data.image}
+                        isSelected={isSelected}
+                        onClick={() => {
+                            const isSelected = selectedCreature === key
+                            if (!isSelected) {
+                                setSelectedCreature(key)
+                                setSelectedRace(null)
+                                setActiveImageSource('creature')
+                            } else {
+                                setSelectedCreature(null)
+                            }
+                        }}
+                        footer={
+                            <div className="flex items-center justify-between w-full">
+                                <span className="text-[10px] text-zinc-500 font-mono">Niv. {data.niveau}</span>
+                                {hasProfile && !isSelected && (
+                                    <div className="bg-[#c0a080] text-black rounded-full p-1 shadow-lg animate-in zoom-in-50 duration-300">
+                                        <Plus className="w-3 h-3" strokeWidth={4} />
+                                    </div>
+                                )}
                             </div>
-                        </div>
-                    </div>
-
-                    {/* Error / Status Area */}
-                    {generationError && (
-                        <div className="bg-red-950/20 border border-red-900/50 rounded-lg p-4 flex items-start gap-3 animate-in fade-in slide-in-from-bottom-2">
-                            <Info className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-                            <div className="space-y-1">
-                                <p className="text-sm font-medium text-red-400">Erreur lors de la génération</p>
-                                <p className="text-xs text-red-300/80">{generationError}</p>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        )
+                        }
+                    />
+                )
+            })
+        }
     }
 
     // --- RENDER HELPERS ---
@@ -798,74 +557,128 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                             />
                         </div>
                     </div>
-                    {/* Top Navigation Bar - Split into Origins and Modifiers */}
-                    <div className="flex items-center justify-between mb-6 px-6 gap-4">
-
-                        {/* Group 1: Origins (Base) */}
-                        <div className="flex flex-col gap-1.5 flex-1">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider ml-1">Origine</label>
-                            <div className="flex items-center p-1 bg-[#18181b] rounded-lg border border-[#27272a] w-fit">
+                    {/* Top Navigation Bar - Contextual styling for composition */}
+                    <div className="flex items-center justify-start mb-6 px-6">
+                        <div className="flex flex-col gap-2 w-full">
+                            <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] ml-1">Composition du PNJ</label>
+                            <div className="flex items-center p-1.5 bg-[#18181b] rounded-2xl border border-[#27272a] shadow-2xl w-fit">
+                                {/* BESTIARY TAB */}
                                 <button
                                     onClick={() => setActiveTab('bestiary')}
-                                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'bestiary' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
+                                    className={`relative px-6 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center gap-2 group
+                                        ${activeTab === 'bestiary'
+                                            ? 'bg-[#c0a080] text-[#09090b] shadow-[0_0_20px_rgba(192,160,128,0.3)]'
+                                            : 'text-zinc-500 hover:text-zinc-200'
+                                        }
+                                        ${selectedProfile && !selectedCreature && !selectedRace ? 'ring-2 ring-[#c0a080]/50 bg-[#c0a080]/5' : ''}
+                                    `}
                                 >
-                                    Bestiaire
+                                    <div className="relative">
+                                        <Ghost className={`w-4 h-4 transition-transform group-hover:scale-110 ${activeTab === 'bestiary' ? 'text-black' : 'text-[#c0a080]'}`} />
+                                        {selectedProfile && !selectedCreature && !selectedRace && (
+                                            <span className="absolute -top-3 -right-3 flex h-4 w-4">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#c0a080] opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-4 w-4 bg-[#c0a080] items-center justify-center">
+                                                    <Plus className="w-3 h-3 text-black" strokeWidth={4} />
+                                                </span>
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span className="flex flex-col items-start leading-none gap-0.5">
+                                        <div className="flex items-center gap-1.5">
+                                            <span>Bestiaire</span>
+                                            {selectedCreature && (
+                                                <Check className={`w-3.5 h-3.5 ${activeTab === 'bestiary' ? 'text-black' : 'text-green-500'}`} strokeWidth={4} />
+                                            )}
+                                        </div>
+                                        {selectedProfile && !selectedCreature && !selectedRace && <span className="text-[8px] uppercase opacity-70">Choisir base</span>}
+                                    </span>
                                 </button>
+
+                                <div className="w-px h-6 bg-[#2a2a2a] mx-2" />
+
+                                {/* RACES TAB */}
                                 <button
                                     onClick={() => setActiveTab('race')}
-                                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${activeTab === 'race' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
+                                    className={`relative px-6 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center gap-2 group
+                                        ${activeTab === 'race'
+                                            ? 'bg-[#c0a080] text-[#09090b] shadow-[0_0_20px_rgba(192,160,128,0.3)]'
+                                            : 'text-zinc-500 hover:text-zinc-200'
+                                        }
+                                        ${selectedProfile && !selectedRace && !selectedCreature ? 'ring-2 ring-[#c0a080]/50 bg-[#c0a080]/5' : ''}
+                                    `}
                                 >
-                                    Races
+                                    <div className="relative">
+                                        <Dna className={`w-4 h-4 transition-transform group-hover:scale-110 ${activeTab === 'race' ? 'text-black' : 'text-[#c0a080]'}`} />
+                                        {selectedProfile && !selectedRace && !selectedCreature && (
+                                            <span className="absolute -top-3 -right-3 flex h-4 w-4">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#c0a080] opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-4 w-4 bg-[#c0a080] items-center justify-center">
+                                                    <Plus className="w-3 h-3 text-black" strokeWidth={4} />
+                                                </span>
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span className="flex flex-col items-start leading-none gap-0.5">
+                                        <div className="flex items-center gap-1.5">
+                                            <span>Races</span>
+                                            {selectedRace && (
+                                                <Check className={`w-3.5 h-3.5 ${activeTab === 'race' ? 'text-black' : 'text-green-500'}`} strokeWidth={4} />
+                                            )}
+                                        </div>
+                                        {selectedProfile && !selectedRace && !selectedCreature && <span className="text-[8px] uppercase opacity-70">Choisir base</span>}
+                                    </span>
                                 </button>
-                                <button
-                                    onClick={() => setActiveTab('generate')}
-                                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${activeTab === 'generate' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
-                                >
-                                    Générer
-                                </button>
-                            </div>
-                        </div>
 
-                        {/* Visual Separator */}
-                        <div className="h-10 w-px bg-[#2a2a2a] rotate-12 mx-2" />
+                                <div className="w-px h-6 bg-[#2a2a2a] mx-2" />
 
-                        {/* Group 2: Modifiers */}
-                        <div className="flex flex-col gap-1.5 flex-1 items-end">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider mr-1 text-right w-full">Ajouter / Personnaliser</label>
-                            <div className="flex items-center p-1 bg-[#18181b] rounded-lg border border-[#27272a] w-fit">
+                                {/* CLASSES TAB */}
                                 <button
                                     onClick={() => setActiveTab('profile')}
-                                    disabled={activeTab === 'generate'}
-                                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 
-                                        ${activeTab === 'profile' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}
-                                        ${activeTab === 'generate' ? 'opacity-30 cursor-not-allowed hover:text-zinc-500' : ''}
+                                    className={`relative px-6 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center gap-2 group
+                                        ${activeTab === 'profile'
+                                            ? 'bg-[#c0a080] text-[#09090b] shadow-[0_0_20px_rgba(192,160,128,0.3)]'
+                                            : 'text-zinc-500 hover:text-zinc-200'
+                                        }
+                                        {(selectedRace || selectedCreature) && !selectedProfile ? 'ring-2 ring-[#c0a080]/50 bg-[#c0a080]/5' : ''}
                                     `}
-                                    title={activeTab === 'generate' ? "Impossible d'ajouter une classe à une créature générée" : "Ajouter une classe"}
                                 >
-                                    <span className="text-lg leading-none pb-1">+</span> Classes
-                                </button>
-                                <button
-                                    onClick={() => setActiveTab('token')}
-                                    className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-2 ${activeTab === 'token' ? 'bg-[#c0a080] text-[#09090b] shadow-md' : 'text-zinc-500 hover:text-zinc-200'}`}
-                                >
-                                    <span className="text-lg leading-none pb-1">+</span> Tokens
+                                    <div className="relative">
+                                        <Swords className={`w-4 h-4 transition-transform group-hover:scale-110 ${activeTab === 'profile' ? 'text-black' : 'text-[#c0a080]'}`} />
+                                        {(selectedRace || selectedCreature) && !selectedProfile && (
+                                            <span className="absolute -top-3 -right-3 flex h-4 w-4">
+                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#c0a080] opacity-75"></span>
+                                                <span className="relative inline-flex rounded-full h-4 w-4 bg-[#c0a080] items-center justify-center">
+                                                    <Plus className="w-3 h-3 text-black" strokeWidth={4} />
+                                                </span>
+                                            </span>
+                                        )}
+                                    </div>
+                                    <span className="flex flex-col items-start leading-none gap-0.5">
+                                        <div className="flex items-center gap-1.5">
+                                            <span>Classes</span>
+                                            {selectedProfile && (
+                                                <Check className={`w-3.5 h-3.5 ${activeTab === 'profile' ? 'text-black' : 'text-green-500'}`} strokeWidth={4} />
+                                            )}
+                                        </div>
+                                    </span>
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    {/* Selection Summary Bar */}
-                    <div className="px-6 py-2 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-4 text-xs text-zinc-500 h-10">
-                        {activeTab === 'bestiary' && (
-                            <div className="flex items-center gap-2">
+                    {/* Filter Bar (Bestiary Only) */}
+                    {activeTab === 'bestiary' && (
+                        <div className="px-6 py-3 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-4 text-xs h-12">
+                            <div className="flex items-center gap-2 pr-4 border-r border-[#2a2a2a]">
                                 <Select
                                     value={selectedCategory || "all"}
                                     onValueChange={(value) => setSelectedCategory(value === "all" ? null : value)}
                                 >
-                                    <SelectTrigger className="h-8 min-w-[200px] bg-[#0c0c0e] border-[#2a2a2a] text-xs font-medium text-zinc-300 focus:ring-1 focus:ring-[#c0a080] focus:border-[#c0a080] px-3 shadow-sm hover:border-[#c0a080]/30 transition-all">
+                                    <SelectTrigger className="h-8 min-w-[180px] bg-[#0c0c0e] border-[#2a2a2a] text-[10px] font-bold text-zinc-400 focus:ring-1 focus:ring-[#c0a080] focus:border-[#c0a080] px-3 shadow-sm hover:border-[#c0a080]/30 transition-all uppercase tracking-wider">
                                         <div className="flex items-center gap-2.5">
-                                            <Filter className="w-3.5 h-3.5 text-[#c0a080]" />
-                                            <SelectValue placeholder="Toutes les catégories" />
+                                            <Filter className="w-3 h-3 text-[#c0a080]" />
+                                            <SelectValue placeholder="Catégories" />
                                         </div>
                                     </SelectTrigger>
                                     <SelectContent className="bg-[#0c0c0e] border-[#2a2a2a] text-zinc-300 max-h-[300px]">
@@ -879,63 +692,18 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                         ))}
                                     </SelectContent>
                                 </Select>
-                                {selectedCategory && (
-                                    <button
-                                        onClick={() => setSelectedCategory(null)}
-                                        className="w-6 h-6 flex items-center justify-center rounded-full bg-[#1a1a1a] border border-[#2a2a2a] text-zinc-500 hover:text-white hover:border-red-500/50 hover:bg-red-500/10 transition-all"
-                                        title="Réinitialiser le filtre"
-                                    >
-                                        <X className="w-3 h-3" />
-                                    </button>
-                                )}
                             </div>
-                        )}
-
-                        <div className="h-4 w-px bg-[#2a2a2a]" />
-
-                        {selectedCreature ? (
-                            <span className="flex items-center gap-1 text-[#c0a080] font-bold bg-[#c0a080]/10 px-2 py-0.5 rounded border border-[#c0a080]/30">
-                                {bestiary[selectedCreature]?.Nom}
-                                <button onClick={(e) => { e.stopPropagation(); setSelectedCreature(null); }} className="hover:text-white"><X className="w-3 h-3" /></button>
-                            </span>
-                        ) : null}
-
-                        {selectedRace ? (
-                            <span className="flex items-center gap-1 text-zinc-300 bg-white/5 px-2 py-0.5 rounded border border-white/10">
-                                Race: {selectedRace.replace('_', ' ')}
-                                <button onClick={(e) => { e.stopPropagation(); setSelectedRace(null); }} className="hover:text-white"><X className="w-3 h-3" /></button>
-                            </span>
-                        ) : null}
-
-                        {selectedProfile ? (
-                            <span className="flex items-center gap-1 text-zinc-300 bg-white/5 px-2 py-0.5 rounded border border-white/10">
-                                Classe: {selectedProfile}
-                                <button onClick={(e) => { e.stopPropagation(); setSelectedProfile(null); }} className="hover:text-white"><X className="w-3 h-3" /></button>
-                            </span>
-                        ) : null}
-
-                        {selectedToken ? (
-                            <span className="flex items-center gap-1 text-zinc-300 bg-white/5 px-2 py-0.5 rounded border border-white/10">
-                                Token: {selectedToken.name.replace('.png', '')}
-                                <button onClick={(e) => { e.stopPropagation(); setSelectedToken(null); }} className="hover:text-white"><X className="w-3 h-3" /></button>
-                            </span>
-                        ) : null}
-
-                        {!selectedCreature && !selectedRace && !selectedProfile && !selectedToken && activeTab !== 'bestiary' ? (
-                            <span className="italic text-zinc-600">Aucune sélection</span>
-                        ) : null}
-
-                        {/* <div className="flex-1" /> */}
-                    </div>
+                        </div>
+                    )}
                     {/* Content Grid */}
-                    <div className={`flex-1 overflow-y-auto custom-scrollbar bg-[url('/grid-pattern.svg')] bg-repeat opacity-90 ${activeTab === 'generate' ? 'p-0' : 'p-6'}`}>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar bg-[url('/grid-pattern.svg')] bg-repeat opacity-90 p-6">
                         {loading ? (
                             <div className="w-full h-40 flex items-center justify-center">
                                 <div className="w-8 h-8 border-4 border-[#c0a080] border-t-transparent rounded-full animate-spin" />
                             </div>
                         ) : (
-                            <div className={activeTab === 'generate' ? "min-h-full" : "grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5"}>
-                                {activeTab === 'generate' ? renderGenerateTab() : renderGridItems()}
+                            <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5">
+                                {renderGridItems()}
                             </div>
                         )}
                     </div>
@@ -978,36 +746,11 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                             mediaClassName: ""
                                         }}
                                     />
-                                    {/* Token Overlay for WYSIWYG preview */}
-                                    {selectedToken && (
-                                        <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center">
-                                            <img
-                                                src={selectedToken.path}
-                                                alt="Token Frame"
-                                                className="w-full h-full object-contain opacity-80"
-                                            />
-                                        </div>
-                                    )}
                                 </div>
                             ) : (
                                 getPreviewImage() ? (
                                     <div className="relative w-full h-full">
                                         <img src={getPreviewImage() || ''} className="w-full h-full object-cover object-top" />
-                                        {/* Show token overlay in preview too if token is selected */}
-                                        {activeTab === 'token' && selectedToken && (
-                                            <div className="absolute inset-0 pointer-events-none z-20 flex items-center justify-center">
-                                                <img
-                                                    src={selectedToken.path}
-                                                    alt="Token Frame"
-                                                    // Use same scaling visual as the crop view logic implies (though preview is full cover)
-                                                    // Actually preview here is just valid image. 
-                                                    // If we are in token tab, we show the composition result usually?
-                                                    // But getPreviewImage returns the raw image.
-                                                    // For now just showing raw image is fine as they enter crop mode auto.
-                                                    className="w-full h-full object-contain opacity-80 hidden" // Hidden for now to avoid confusion if not composited
-                                                />
-                                            </div>
-                                        )}
                                     </div>
                                 ) : (
                                     <div className="w-full h-full flex items-center justify-center bg-[#151515]">
@@ -1016,14 +759,6 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                 )
                             )}
                             <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-[#121212]/60 to-transparent pointer-events-none z-20" />
-
-                            {/* Token Overlay Preview */}
-                            {selectedToken && (
-                                <div
-                                    className="absolute inset-0 z-20 pointer-events-none bg-contain bg-center bg-no-repeat transition-transform"
-                                    style={{ backgroundImage: `url(${selectedToken.path})` }}
-                                />
-                            )}
 
                             {/* Edit / Controls Overlay */}
                             {!isEditing && getPreviewImage() && (
@@ -1145,7 +880,32 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                             </div>
                         </div>
 
-                        {/* 3. Stats & Info */}
+                        {/* 3. Composition Flow Helpers */}
+                        <div className="px-6">
+                            {selectedProfile && !selectedRace && !selectedCreature && (
+                                <div className="space-y-3">
+                                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest text-center mb-1">Choisissez une base pour cette classe</p>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <button
+                                            onClick={() => setActiveTab('bestiary')}
+                                            className="py-4 bg-[#c0a080]/10 border border-[#c0a080]/30 rounded-2xl text-[#c0a080] text-[10px] font-black uppercase tracking-widest hover:bg-[#c0a080]/20 transition-all flex flex-col items-center justify-center gap-2"
+                                        >
+                                            <Ghost className="w-5 h-5" />
+                                            Bestiaire
+                                        </button>
+                                        <button
+                                            onClick={() => setActiveTab('race')}
+                                            className="py-4 bg-blue-500/10 border border-blue-500/30 rounded-2xl text-blue-300 text-[10px] font-black uppercase tracking-widest hover:bg-blue-500/20 transition-all flex flex-col items-center justify-center gap-2"
+                                        >
+                                            <Dna className="w-5 h-5" />
+                                            Race
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* 4. Stats & Info */}
                         <div className="px-6 pb-24 space-y-8">
 
                             {/* Description Text */}
