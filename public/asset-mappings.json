@@ -22131,267 +22131,6 @@
     "uploadedAt": "2026-01-12T12:47:53.092Z"
   },
   {
-    "name": "amethyst.png",
-    "path": "https://assets.yner.fr/dice-previews/amethyst.png",
-    "localPath": "/dice-previews/amethyst.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 134261,
-    "uploadedAt": "2026-01-12T12:47:53.197Z"
-  },
-  {
-    "name": "ancient_bone.png",
-    "path": "https://assets.yner.fr/dice-previews/ancient_bone.png",
-    "localPath": "/dice-previews/ancient_bone.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 78896,
-    "uploadedAt": "2026-01-12T12:47:53.297Z"
-  },
-  {
-    "name": "blood_pact.png",
-    "path": "https://assets.yner.fr/dice-previews/blood_pact.png",
-    "localPath": "/dice-previews/blood_pact.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 126080,
-    "uploadedAt": "2026-01-12T12:47:53.395Z"
-  },
-  {
-    "name": "bois_noble.png",
-    "path": "https://assets.yner.fr/dice-previews/bois_noble.png",
-    "localPath": "/dice-previews/bois_noble.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 189485,
-    "uploadedAt": "2026-01-12T12:47:53.506Z"
-  },
-  {
-    "name": "celestial_starlight.png",
-    "path": "https://assets.yner.fr/dice-previews/celestial_starlight.png",
-    "localPath": "/dice-previews/celestial_starlight.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 133219,
-    "uploadedAt": "2026-01-12T12:47:53.620Z"
-  },
-  {
-    "name": "crystal.png",
-    "path": "https://assets.yner.fr/dice-previews/crystal.png",
-    "localPath": "/dice-previews/crystal.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 120781,
-    "uploadedAt": "2026-01-12T12:47:53.715Z"
-  },
-  {
-    "name": "cuir_ancien.png",
-    "path": "https://assets.yner.fr/dice-previews/cuir_ancien.png",
-    "localPath": "/dice-previews/cuir_ancien.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 191669,
-    "uploadedAt": "2026-01-12T12:47:53.821Z"
-  },
-  {
-    "name": "cyber_neon.png",
-    "path": "https://assets.yner.fr/dice-previews/cyber_neon.png",
-    "localPath": "/dice-previews/cyber_neon.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 124371,
-    "uploadedAt": "2026-01-12T12:47:53.915Z"
-  },
-  {
-    "name": "dragon_scale.png",
-    "path": "https://assets.yner.fr/dice-previews/dragon_scale.png",
-    "localPath": "/dice-previews/dragon_scale.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 107208,
-    "uploadedAt": "2026-01-12T12:47:54.010Z"
-  },
-  {
-    "name": "ecorce_ancienne.png",
-    "path": "https://assets.yner.fr/dice-previews/ecorce_ancienne.png",
-    "localPath": "/dice-previews/ecorce_ancienne.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 231595,
-    "uploadedAt": "2026-01-12T12:47:54.113Z"
-  },
-  {
-    "name": "fer_rouille.png",
-    "path": "https://assets.yner.fr/dice-previews/fer_rouille.png",
-    "localPath": "/dice-previews/fer_rouille.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 243839,
-    "uploadedAt": "2026-01-12T12:47:54.217Z"
-  },
-  {
-    "name": "frost.png",
-    "path": "https://assets.yner.fr/dice-previews/frost.png",
-    "localPath": "/dice-previews/frost.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 118652,
-    "uploadedAt": "2026-01-12T12:47:54.304Z"
-  },
-  {
-    "name": "galactic_nebula.png",
-    "path": "https://assets.yner.fr/dice-previews/galactic_nebula.png",
-    "localPath": "/dice-previews/galactic_nebula.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 130819,
-    "uploadedAt": "2026-01-12T12:47:54.397Z"
-  },
-  {
-    "name": "glace_eternelle.png",
-    "path": "https://assets.yner.fr/dice-previews/glace_eternelle.png",
-    "localPath": "/dice-previews/glace_eternelle.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 180699,
-    "uploadedAt": "2026-01-12T12:47:54.486Z"
-  },
-  {
-    "name": "gold.png",
-    "path": "https://assets.yner.fr/dice-previews/gold.png",
-    "localPath": "/dice-previews/gold.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 124283,
-    "uploadedAt": "2026-01-12T12:47:54.591Z"
-  },
-  {
-    "name": "inferno.png",
-    "path": "https://assets.yner.fr/dice-previews/inferno.png",
-    "localPath": "/dice-previews/inferno.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 102656,
-    "uploadedAt": "2026-01-12T12:47:54.724Z"
-  },
-  {
-    "name": "jade.png",
-    "path": "https://assets.yner.fr/dice-previews/jade.png",
-    "localPath": "/dice-previews/jade.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 119215,
-    "uploadedAt": "2026-01-12T12:47:54.816Z"
-  },
-  {
-    "name": "marbre_blanc.png",
-    "path": "https://assets.yner.fr/dice-previews/marbre_blanc.png",
-    "localPath": "/dice-previews/marbre_blanc.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 124739,
-    "uploadedAt": "2026-01-12T12:47:54.919Z"
-  },
-  {
-    "name": "moonstone.png",
-    "path": "https://assets.yner.fr/dice-previews/moonstone.png",
-    "localPath": "/dice-previews/moonstone.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 107849,
-    "uploadedAt": "2026-01-12T12:47:55.024Z"
-  },
-  {
-    "name": "obsidian.png",
-    "path": "https://assets.yner.fr/dice-previews/obsidian.png",
-    "localPath": "/dice-previews/obsidian.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 101187,
-    "uploadedAt": "2026-01-12T12:47:55.114Z"
-  },
-  {
-    "name": "parchemin_ancien.png",
-    "path": "https://assets.yner.fr/dice-previews/parchemin_ancien.png",
-    "localPath": "/dice-previews/parchemin_ancien.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 173420,
-    "uploadedAt": "2026-01-12T12:47:55.205Z"
-  },
-  {
-    "name": "pierre_donjon.png",
-    "path": "https://assets.yner.fr/dice-previews/pierre_donjon.png",
-    "localPath": "/dice-previews/pierre_donjon.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 213436,
-    "uploadedAt": "2026-01-12T12:47:55.293Z"
-  },
-  {
-    "name": "roche_volcanique.png",
-    "path": "https://assets.yner.fr/dice-previews/roche_volcanique.png",
-    "localPath": "/dice-previews/roche_volcanique.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 204355,
-    "uploadedAt": "2026-01-12T12:47:55.402Z"
-  },
-  {
-    "name": "royal_marble.png",
-    "path": "https://assets.yner.fr/dice-previews/royal_marble.png",
-    "localPath": "/dice-previews/royal_marble.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 79818,
-    "uploadedAt": "2026-01-12T12:47:55.487Z"
-  },
-  {
-    "name": "ruby.png",
-    "path": "https://assets.yner.fr/dice-previews/ruby.png",
-    "localPath": "/dice-previews/ruby.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 130197,
-    "uploadedAt": "2026-01-12T12:47:55.597Z"
-  },
-  {
-    "name": "sapphire.png",
-    "path": "https://assets.yner.fr/dice-previews/sapphire.png",
-    "localPath": "/dice-previews/sapphire.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 131702,
-    "uploadedAt": "2026-01-12T12:47:55.693Z"
-  },
-  {
-    "name": "silver.png",
-    "path": "https://assets.yner.fr/dice-previews/silver.png",
-    "localPath": "/dice-previews/silver.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 126537,
-    "uploadedAt": "2026-01-12T12:47:55.790Z"
-  },
-  {
-    "name": "steampunk_copper.png",
-    "path": "https://assets.yner.fr/dice-previews/steampunk_copper.png",
-    "localPath": "/dice-previews/steampunk_copper.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 130205,
-    "uploadedAt": "2026-01-12T12:47:55.919Z"
-  },
-  {
-    "name": "void_walker.png",
-    "path": "https://assets.yner.fr/dice-previews/void_walker.png",
-    "localPath": "/dice-previews/void_walker.png",
-    "category": "dice-previews",
-    "type": "image",
-    "size": 117558,
-    "uploadedAt": "2026-01-12T12:47:56.006Z"
-  },
-  {
     "name": "baignoire.png",
     "path": "https://assets.yner.fr/items/furniture/baignoire.png",
     "localPath": "/items/furniture/baignoire.png",
@@ -32848,5 +32587,320 @@
     "type": "image",
     "size": 3067788,
     "uploadedAt": "2026-01-24T14:54:10.188Z"
+  },
+  {
+    "name": "gold.png",
+    "path": "https://assets.yner.fr/dice-previews/gold.png",
+    "localPath": "/dice-previews/gold.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 172341,
+    "uploadedAt": "2026-03-02T17:50:13.778Z"
+  },
+  {
+    "name": "silver.png",
+    "path": "https://assets.yner.fr/dice-previews/silver.png",
+    "localPath": "/dice-previews/silver.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 116099,
+    "uploadedAt": "2026-03-02T17:50:17.117Z"
+  },
+  {
+    "name": "ruby.png",
+    "path": "https://assets.yner.fr/dice-previews/ruby.png",
+    "localPath": "/dice-previews/ruby.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 458746,
+    "uploadedAt": "2026-03-02T17:50:20.584Z"
+  },
+  {
+    "name": "obsidian.png",
+    "path": "https://assets.yner.fr/dice-previews/obsidian.png",
+    "localPath": "/dice-previews/obsidian.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 129872,
+    "uploadedAt": "2026-03-02T17:50:23.896Z"
+  },
+  {
+    "name": "jade.png",
+    "path": "https://assets.yner.fr/dice-previews/jade.png",
+    "localPath": "/dice-previews/jade.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 596418,
+    "uploadedAt": "2026-03-02T17:50:27.265Z"
+  },
+  {
+    "name": "crystal.png",
+    "path": "https://assets.yner.fr/dice-previews/crystal.png",
+    "localPath": "/dice-previews/crystal.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 198460,
+    "uploadedAt": "2026-03-02T17:50:30.723Z"
+  },
+  {
+    "name": "sapphire.png",
+    "path": "https://assets.yner.fr/dice-previews/sapphire.png",
+    "localPath": "/dice-previews/sapphire.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 422221,
+    "uploadedAt": "2026-03-02T17:50:34.196Z"
+  },
+  {
+    "name": "amethyst.png",
+    "path": "https://assets.yner.fr/dice-previews/amethyst.png",
+    "localPath": "/dice-previews/amethyst.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 475983,
+    "uploadedAt": "2026-03-02T17:50:37.848Z"
+  },
+  {
+    "name": "inferno.png",
+    "path": "https://assets.yner.fr/dice-previews/inferno.png",
+    "localPath": "/dice-previews/inferno.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 166433,
+    "uploadedAt": "2026-03-02T17:50:41.242Z"
+  },
+  {
+    "name": "frost.png",
+    "path": "https://assets.yner.fr/dice-previews/frost.png",
+    "localPath": "/dice-previews/frost.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 193377,
+    "uploadedAt": "2026-03-02T17:50:44.621Z"
+  },
+  {
+    "name": "cyber_neon.png",
+    "path": "https://assets.yner.fr/dice-previews/cyber_neon.png",
+    "localPath": "/dice-previews/cyber_neon.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 161417,
+    "uploadedAt": "2026-03-02T17:50:47.939Z"
+  },
+  {
+    "name": "bleu_marble.png",
+    "path": "https://assets.yner.fr/dice-previews/bleu_marble.png",
+    "localPath": "/dice-previews/bleu_marble.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 572839,
+    "uploadedAt": "2026-03-02T17:50:51.434Z"
+  },
+  {
+    "name": "cosmos.png",
+    "path": "https://assets.yner.fr/dice-previews/cosmos.png",
+    "localPath": "/dice-previews/cosmos.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 519575,
+    "uploadedAt": "2026-03-02T17:50:54.862Z"
+  },
+  {
+    "name": "space.png",
+    "path": "https://assets.yner.fr/dice-previews/space.png",
+    "localPath": "/dice-previews/space.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 366994,
+    "uploadedAt": "2026-03-02T17:50:58.318Z"
+  },
+  {
+    "name": "ocean.png",
+    "path": "https://assets.yner.fr/dice-previews/ocean.png",
+    "localPath": "/dice-previews/ocean.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 385981,
+    "uploadedAt": "2026-03-02T17:51:01.707Z"
+  },
+  {
+    "name": "metal_lourd.png",
+    "path": "https://assets.yner.fr/dice-previews/metal_lourd.png",
+    "localPath": "/dice-previews/metal_lourd.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 85098,
+    "uploadedAt": "2026-03-02T17:51:05.098Z"
+  },
+  {
+    "name": "merveille.png",
+    "path": "https://assets.yner.fr/dice-previews/merveille.png",
+    "localPath": "/dice-previews/merveille.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 166511,
+    "uploadedAt": "2026-03-02T17:51:08.528Z"
+  },
+  {
+    "name": "ancient_bone.png",
+    "path": "https://assets.yner.fr/dice-previews/ancient_bone.png",
+    "localPath": "/dice-previews/ancient_bone.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 109601,
+    "uploadedAt": "2026-03-02T17:51:11.966Z"
+  },
+  {
+    "name": "void_walker.png",
+    "path": "https://assets.yner.fr/dice-previews/void_walker.png",
+    "localPath": "/dice-previews/void_walker.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 165047,
+    "uploadedAt": "2026-03-02T17:51:15.453Z"
+  },
+  {
+    "name": "celestial_starlight.png",
+    "path": "https://assets.yner.fr/dice-previews/celestial_starlight.png",
+    "localPath": "/dice-previews/celestial_starlight.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 184504,
+    "uploadedAt": "2026-03-02T17:51:19.004Z"
+  },
+  {
+    "name": "blood_pact.png",
+    "path": "https://assets.yner.fr/dice-previews/blood_pact.png",
+    "localPath": "/dice-previews/blood_pact.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 164075,
+    "uploadedAt": "2026-03-02T17:51:22.532Z"
+  },
+  {
+    "name": "steampunk_copper.png",
+    "path": "https://assets.yner.fr/dice-previews/steampunk_copper.png",
+    "localPath": "/dice-previews/steampunk_copper.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 146727,
+    "uploadedAt": "2026-03-02T17:51:25.935Z"
+  },
+  {
+    "name": "royal_marble.png",
+    "path": "https://assets.yner.fr/dice-previews/royal_marble.png",
+    "localPath": "/dice-previews/royal_marble.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 102452,
+    "uploadedAt": "2026-03-02T17:51:29.272Z"
+  },
+  {
+    "name": "galactic_nebula.png",
+    "path": "https://assets.yner.fr/dice-previews/galactic_nebula.png",
+    "localPath": "/dice-previews/galactic_nebula.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 183612,
+    "uploadedAt": "2026-03-02T17:51:32.679Z"
+  },
+  {
+    "name": "dragon_scale.png",
+    "path": "https://assets.yner.fr/dice-previews/dragon_scale.png",
+    "localPath": "/dice-previews/dragon_scale.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 162365,
+    "uploadedAt": "2026-03-02T17:51:36.387Z"
+  },
+  {
+    "name": "moonstone.png",
+    "path": "https://assets.yner.fr/dice-previews/moonstone.png",
+    "localPath": "/dice-previews/moonstone.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 112830,
+    "uploadedAt": "2026-03-02T17:51:39.805Z"
+  },
+  {
+    "name": "bois_noble.png",
+    "path": "https://assets.yner.fr/dice-previews/bois_noble.png",
+    "localPath": "/dice-previews/bois_noble.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 616859,
+    "uploadedAt": "2026-03-02T17:51:43.227Z"
+  },
+  {
+    "name": "marbre_blanc.png",
+    "path": "https://assets.yner.fr/dice-previews/marbre_blanc.png",
+    "localPath": "/dice-previews/marbre_blanc.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 259888,
+    "uploadedAt": "2026-03-02T17:51:46.600Z"
+  },
+  {
+    "name": "cuir_ancien.png",
+    "path": "https://assets.yner.fr/dice-previews/cuir_ancien.png",
+    "localPath": "/dice-previews/cuir_ancien.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 655429,
+    "uploadedAt": "2026-03-02T17:51:50.100Z"
+  },
+  {
+    "name": "pierre_donjon.png",
+    "path": "https://assets.yner.fr/dice-previews/pierre_donjon.png",
+    "localPath": "/dice-previews/pierre_donjon.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 733317,
+    "uploadedAt": "2026-03-02T17:51:53.518Z"
+  },
+  {
+    "name": "fer_rouille.png",
+    "path": "https://assets.yner.fr/dice-previews/fer_rouille.png",
+    "localPath": "/dice-previews/fer_rouille.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 697334,
+    "uploadedAt": "2026-03-02T17:51:57.138Z"
+  },
+  {
+    "name": "roche_volcanique.png",
+    "path": "https://assets.yner.fr/dice-previews/roche_volcanique.png",
+    "localPath": "/dice-previews/roche_volcanique.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 569483,
+    "uploadedAt": "2026-03-02T17:52:00.619Z"
+  },
+  {
+    "name": "glace_eternelle.png",
+    "path": "https://assets.yner.fr/dice-previews/glace_eternelle.png",
+    "localPath": "/dice-previews/glace_eternelle.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 630005,
+    "uploadedAt": "2026-03-02T17:52:04.309Z"
+  },
+  {
+    "name": "ecorce_ancienne.png",
+    "path": "https://assets.yner.fr/dice-previews/ecorce_ancienne.png",
+    "localPath": "/dice-previews/ecorce_ancienne.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 760511,
+    "uploadedAt": "2026-03-02T17:52:07.913Z"
+  },
+  {
+    "name": "parchemin_ancien.png",
+    "path": "https://assets.yner.fr/dice-previews/parchemin_ancien.png",
+    "localPath": "/dice-previews/parchemin_ancien.png",
+    "category": "dice-previews",
+    "type": "image",
+    "size": 508485,
+    "uploadedAt": "2026-03-02T17:52:11.565Z"
   }
 ]
