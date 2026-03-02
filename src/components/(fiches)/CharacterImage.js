@@ -4,6 +4,7 @@ import Cropper from 'react-easy-crop';
 import { doc, updateDoc, getDoc, db, auth, onAuthStateChanged, storage, ref, uploadBytes, getDownloadURL } from '@/lib/firebase';
 import { getCroppedImg, createCompositeImage, getCroppedGif, createCompositeGif } from '@/lib/cropImageHelper';
 import { Slider } from '@/components/ui/slider';
+import useMeasure from 'react-use-measure';
 import {
   Image as ImageIcon,
   Check,
@@ -26,9 +27,9 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
   const [showForge, setShowForge] = useState(false); // "Forge" = The new Editor
+  const [containerRef, bounds] = useMeasure();
 
   // Image Data
-  const [croppedImageUrl, setCroppedImageUrl] = useState(imageUrl || "/api/placeholder/192/192");
   const [finalImageUrl, setFinalImageUrl] = useState(null);
 
   // Decoration / Tokens
@@ -44,8 +45,7 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
 
   // Processing Status
   const [uploading, setUploading] = useState(false);
-  const [isGif, setIsGif] = useState(false);
-  const [processingProgress, setProcessingProgress] = useState(0);
+  const [sourceImageUrl, setSourceImageUrl] = useState(imageUrl || "/api/placeholder/192/192");
   const [isProcessing, setIsProcessing] = useState(false);
 
   // --- Effects ---
@@ -69,10 +69,10 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
   // 2. Character Data
   useEffect(() => {
     if (!characterId) return;
-    setCroppedImageUrl(imageURL2 || imageUrl || "/api/placeholder/192/192");
+    // Always prioritize the original background image as the source for the cropper
+    setSourceImageUrl(imageUrl || imageURL2 || "/api/placeholder/192/192");
     setFinalImageUrl(imageURLFinal || null);
-    setIsGif(isGifProp || false);
-  }, [characterId, imageUrl, imageURL2, imageURLFinal, isGifProp]);
+  }, [characterId, imageUrl, imageURL2, imageURLFinal]);
 
   // 3. Load Tokens (The Armory)
   useEffect(() => {
@@ -102,16 +102,19 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
   const onCropComplete = useCallback(async (_, croppedAreaPixels) => {
     setCroppedAreaPixels(croppedAreaPixels);
     try {
-      const preview = await getCroppedImg(croppedImageUrl, croppedAreaPixels);
+      const preview = await getCroppedImg(sourceImageUrl, croppedAreaPixels);
       setPreviewImage(preview);
     } catch (e) { console.error(e); }
-  }, [croppedImageUrl]);
+  }, [sourceImageUrl]);
 
   const handleResetImage = async () => {
     if (!currentUser || !roomId) return;
     try {
-      await updateDoc(doc(db, `cartes/${roomId}/characters`, characterId), { imageURL2: imageUrl });
-      setCroppedImageUrl(imageUrl);
+      await updateDoc(doc(db, `cartes/${roomId}/characters`, characterId), {
+        imageURL2: imageUrl,
+        imageURLFinal: imageUrl
+      });
+      setSourceImageUrl(imageUrl);
       setShowForge(false);
     } catch (e) {
       console.error(e);
@@ -121,42 +124,38 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
   const handleSave = async () => {
     if (!currentUser || !roomId) return;
     setIsProcessing(true);
-    setProcessingProgress(0);
 
     try {
-      // 1. Process Image/GIF
-      let cropped, composite;
-      if (isGif) {
-        cropped = await getCroppedGif(croppedImageUrl, croppedAreaPixels, p => setProcessingProgress(p * 50));
-        composite = await createCompositeGif(cropped, previewTokenUrl, p => setProcessingProgress(50 + p * 50));
+      // 1. Process Image
+      const cropped = await getCroppedImg(sourceImageUrl, croppedAreaPixels);
+      const composite = await createCompositeImage(cropped, previewTokenUrl);
 
-        // Upload GIFs
-        const [cBlob, fBlob] = await Promise.all([fetch(cropped).then(r => r.blob()), fetch(composite).then(r => r.blob())]);
-        const cRef = ref(storage, `characters/${characterId}_cropped_${Date.now()}.gif`);
-        const fRef = ref(storage, `characters/${characterId}_final_${Date.now()}.gif`);
+      // 2. Upload to Storage
+      const [cBlob, fBlob] = await Promise.all([
+        fetch(cropped).then(r => r.blob()),
+        fetch(composite).then(r => r.blob())
+      ]);
 
-        await Promise.all([uploadBytes(cRef, cBlob), uploadBytes(fRef, fBlob)]);
-        [cropped, composite] = await Promise.all([getDownloadURL(cRef), getDownloadURL(fRef)]);
-      } else {
-        cropped = await getCroppedImg(croppedImageUrl, croppedAreaPixels);
-        composite = await createCompositeImage(cropped, previewTokenUrl, false);
-      }
+      const timestamp = Date.now();
+      const cRef = ref(storage, `characters/${characterId}_cropped_${timestamp}.png`);
+      const fRef = ref(storage, `characters/${characterId}_final_${timestamp}.png`);
 
-      // 2. Identify Token
+      await Promise.all([uploadBytes(cRef, cBlob), uploadBytes(fRef, fBlob)]);
+      const [croppedUrl, finalUrl] = await Promise.all([getDownloadURL(cRef), getDownloadURL(fRef)]);
+
+      // 3. Identify Token
       const tokenName = tokenList.find(t => t.src === previewTokenUrl)?.name || 'Token1';
 
-      // 3. Update DB
+      // 4. Update DB
       await updateDoc(doc(db, `cartes/${roomId}/characters`, characterId), {
-        imageURL: croppedImageUrl, // Save base image
-        imageURL2: cropped,
-        imageURLFinal: composite,
-        Token: tokenName,
-        isGif
+        imageURL: sourceImageUrl, // Keep the source image (the big one)
+        imageURL2: croppedUrl,      // The cropped result
+        imageURLFinal: finalUrl, // The tokenized result
+        Token: tokenName
       });
 
-      // 4. Update Local State
-      setCroppedImageUrl(cropped);
-      setFinalImageUrl(composite);
+      // 5. Update Local State
+      setFinalImageUrl(finalUrl);
       setOverlayUrl(previewTokenUrl);
       setShowForge(false);
 
@@ -173,14 +172,13 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
     if (!file) return;
 
     setUploading(true);
-    setIsGif(file.type === 'image/gif');
 
     try {
       const sRef = ref(storage, `characters/${characterId}_${Date.now()}_${file.name}`);
       await uploadBytes(sRef, file);
       const url = await getDownloadURL(sRef);
 
-      setCroppedImageUrl(url);
+      setSourceImageUrl(url);
       setCrop({ x: 0, y: 0 });
       setZoom(1);
       setPreviewImage(null);
@@ -261,15 +259,18 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
             <div className="flex-1 relative flex flex-col items-center justify-center p-6 bg-[#0c0c0e]">
 
               {/* Cropper Frame */}
-              <div className="relative w-full max-w-xl aspect-square bg-[#050505] rounded-xl overflow-hidden shadow-2xl border border-white/10 group">
+              <div ref={containerRef} className="relative w-full max-w-xl aspect-square bg-[#050505] rounded-xl overflow-hidden shadow-2xl border border-white/10 group">
                 <Cropper
-                  image={croppedImageUrl}
+                  image={sourceImageUrl}
                   crop={crop}
                   zoom={zoom}
                   aspect={1}
+                  cropSize={bounds.width > 0 ? { width: bounds.width, height: bounds.height } : undefined}
                   onCropChange={setCrop}
                   onZoomChange={setZoom}
                   onCropComplete={onCropComplete}
+                  minZoom={0.2}
+                  restrictPosition={false}
                   classes={{
                     containerClassName: "bg-[#050505]",
                     mediaClassName: "opacity-80 transition-opacity duration-300 group-hover:opacity-100"
@@ -296,7 +297,7 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
                     <ZoomIn size={14} className="text-neutral-500" />
                     <Slider
                       value={[zoom]}
-                      min={1}
+                      min={0.2}
                       max={3}
                       step={0.1}
                       onValueChange={(v) => setZoom(v[0])}
