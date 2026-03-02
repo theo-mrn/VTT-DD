@@ -5,6 +5,8 @@ import { doc, updateDoc, getDoc, db, auth, onAuthStateChanged, storage, ref, upl
 import { getCroppedImg, createCompositeImage, getCroppedGif, createCompositeGif } from '@/lib/cropImageHelper';
 import { Slider } from '@/components/ui/slider';
 import useMeasure from 'react-use-measure';
+import { StoreModal } from '../store/store-modal';
+import { TOKEN_DEFINITIONS, DEFAULT_TOKEN_INVENTORY } from './token-definitions';
 import {
   Image as ImageIcon,
   Check,
@@ -17,7 +19,9 @@ import {
   Maximize2,
   Minimize2,
   Wand2,
-  Palette
+  Palette,
+  ShoppingCart,
+  Store
 } from 'lucide-react';
 
 export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isGifProp, altText, characterId }) {
@@ -40,8 +44,12 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
   // Previews
   const [previewImage, setPreviewImage] = useState(null);
 
-  // Context
+  // Context & Store
   const [roomId, setRoomId] = useState(null);
+  const [showTokenStore, setShowTokenStore] = useState(false);
+  const [userTokenInventory, setUserTokenInventory] = useState(DEFAULT_TOKEN_INVENTORY);
+  const [isPremium, setIsPremium] = useState(false);
+  const [rawApiTokens, setRawApiTokens] = useState([]);
 
   // Processing Status
   const [uploading, setUploading] = useState(false);
@@ -62,7 +70,12 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
   const fetchRoomId = async (uid) => {
     try {
       const userDoc = await getDoc(doc(db, `users/${uid}`));
-      if (userDoc.exists()) setRoomId(userDoc.data().room_id);
+      if (userDoc.exists()) {
+        const data = userDoc.data();
+        setRoomId(data.room_id);
+        setUserTokenInventory(data.token_inventory || DEFAULT_TOKEN_INVENTORY);
+        setIsPremium(!!data.premium);
+      }
     } catch (e) { console.error(e); }
   };
 
@@ -74,28 +87,44 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
     setFinalImageUrl(imageURLFinal || null);
   }, [characterId, imageUrl, imageURL2, imageURLFinal]);
 
-  // 3. Load Tokens (The Armory)
+  // 3. Load Tokens (From API & Local Inventory)
   useEffect(() => {
     const loadTokens = async () => {
       try {
         const res = await fetch('/api/assets?category=Token&type=image');
         const data = await res.json();
         if (data.assets) {
-          const tokens = data.assets.map(a => {
+          const apiTokens = data.assets.map(a => {
             const m = a.name.match(/Token(\d+)\.png/);
             return m ? { id: parseInt(m[1]), name: a.name.replace('.png', ''), src: a.localPath || a.path } : null;
           }).filter(Boolean).sort((a, b) => a.id - b.id);
 
-          setTokenList(tokens);
-          if (tokens.length > 0 && !overlayUrl) {
-            setOverlayUrl(tokens[0].src);
-            setPreviewTokenUrl(tokens[0].src);
-          }
+          setRawApiTokens(apiTokens);
         }
       } catch (e) { console.error(e); }
     };
     loadTokens();
   }, []);
+
+  // Filter Tokens based on inventory
+  useEffect(() => {
+    if (!rawApiTokens.length) return;
+
+    const availableTokens = rawApiTokens.filter(t => {
+      if (isPremium) return true;
+      const def = TOKEN_DEFINITIONS[t.name];
+      if (!def) return userTokenInventory.includes(t.name); // Default to inventory check if not defined
+      return def.unlockCondition === 'free' || userTokenInventory.includes(def.id);
+    });
+
+    setTokenList(availableTokens);
+
+    // Only set initial overlay if we don't have one and we found tokens
+    if (availableTokens.length > 0 && !overlayUrl) {
+      setOverlayUrl(availableTokens[0].src);
+      setPreviewTokenUrl(availableTokens[0].src);
+    }
+  }, [rawApiTokens, userTokenInventory, isPremium]);
 
   // --- Logic ---
 
@@ -329,10 +358,17 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
 
             {/* RIGHT: Token List */}
             <div className="w-full lg:w-80 bg-[#09090b] border-l border-white/5 flex flex-col h-[30vh] lg:h-auto z-10">
-              <div className="p-4 border-b border-white/5 bg-[#09090b]">
+              <div className="p-4 border-b border-white/5 bg-[#09090b] flex items-center justify-between">
                 <h2 className="text-xs font-bold text-neutral-500 uppercase tracking-widest">
-                  Frames
+                  Cadres
                 </h2>
+                <button
+                  onClick={() => setShowTokenStore(true)}
+                  className="px-3 py-1.5 rounded-md bg-white/5 hover:bg-white/10 text-xs font-medium text-neutral-300 transition-colors flex items-center gap-1.5"
+                >
+                  <Store className="w-3.5 h-3.5" />
+                  Boutique
+                </button>
               </div>
 
               <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
@@ -370,6 +406,21 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
             <div className="absolute inset-0 z-[10000] bg-black/50 backdrop-blur-sm flex items-center justify-center">
               <Loader2 className="text-white w-8 h-8 animate-spin" />
             </div>
+          )}
+
+          {/* Unified Store Modal */}
+          {showTokenStore && (
+            <StoreModal
+              isOpen={showTokenStore}
+              onClose={() => {
+                setShowTokenStore(false);
+                if (currentUser) fetchRoomId(currentUser.uid); // Refresh inventory on close
+              }}
+              initialCategory="token"
+              currentTokenSrc={previewTokenUrl}
+              onSelectTokenSkin={(src) => setPreviewTokenUrl(src)}
+              tokenList={rawApiTokens}
+            />
           )}
         </div>,
         document.body
