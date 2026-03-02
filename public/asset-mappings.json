@@ -1,5 +1,23 @@
 [
   {
+    "name": "amber_marble.png",
+    "path": "/textures/amber_marble.png",
+    "localPath": "/textures/amber_marble.png",
+    "category": "textures",
+    "type": "image",
+    "size": 0,
+    "uploadedAt": "2026-03-02T21:16:00.000Z"
+  },
+  {
+    "name": "emerald_marble.png",
+    "path": "/textures/emerald_marble.png",
+    "localPath": "/textures/emerald_marble.png",
+    "category": "textures",
+    "type": "image",
+    "size": 0,
+    "uploadedAt": "2026-03-02T21:11:00.000Z"
+  },
+  {
     "name": "azure_marble.png",
     "path": "/textures/azure_marble.png",
     "localPath": "/textures/azure_marble.png",
