@@ -106,9 +106,15 @@ const getDieValue = (type: string, index: number) => {
         return val === 0 ? "10" : val.toString();
     }
     if (type === 'd20') {
-        // Standard D20 balanced layout (approximate) to avoid geometric bias
-        const map = [20, 8, 14, 2, 12, 10, 6, 4, 16, 18, 1, 13, 7, 19, 9, 11, 15, 17, 3, 5];
-        return (map[index % 20] || index + 1).toString();
+        // Standard D20 balanced layout matched to Three.js IcosahedronGeometry face order
+        // Verified neighbors of 20 (index 1) are 2 (index 0), 14 (index 2), and 8 (index 5)
+        const verifiedD20Map = [
+            2, 20, 14, 6, 12,
+            8, 18, 17, 15, 10,
+            5, 19, 1, 7, 9,
+            16, 11, 13, 3, 4
+        ];
+        return (verifiedD20Map[index % 20] || index + 1).toString();
     }
     if (type === 'd6') {
         return (index + 1).toString();

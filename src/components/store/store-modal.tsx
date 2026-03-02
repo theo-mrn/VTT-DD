@@ -38,6 +38,8 @@ export function StoreModal({
 }: StoreModalProps) {
     const [activeTab, setActiveTab] = useState<'home' | 'store' | 'inventory' | 'premium'>('home');
     const [filter, setFilter] = useState<'all' | 'dice' | 'token'>('all');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 10;
 
     // User State
     const [uid, setUid] = useState<string | null>(null);
@@ -46,6 +48,7 @@ export function StoreModal({
     const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
     const [diceInventory, setDiceInventory] = useState<string[]>([]);
     const [tokenInventory, setTokenInventory] = useState<string[]>([]);
+    const [apiTokens, setApiTokens] = useState<{ id: number, name: string, src: string }[]>([]);
 
     // UI State
     const [mounted, setMounted] = useState(false);
@@ -77,8 +80,23 @@ export function StoreModal({
 
     useEffect(() => { setMounted(true); }, []);
 
-    // Load User Inventory
+    // Load Inventory & Tokens
     useEffect(() => {
+        const loadTokens = async () => {
+            try {
+                const res = await fetch('/api/assets?category=Token&type=image');
+                const data = await res.json();
+                if (data.assets) {
+                    const tokens = data.assets.map((a: any) => {
+                        const m = a.name.match(/Token(\d+)\.png/);
+                        return m ? { id: parseInt(m[1]), name: a.name.replace('.png', ''), src: a.localPath || a.path } : null;
+                    }).filter(Boolean).sort((a: any, b: any) => a.id - b.id);
+                    setApiTokens(tokens);
+                }
+            } catch (e) { console.error('Error fetching tokens:', e); }
+        };
+        loadTokens();
+
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (!user) {
                 setDiceInventory(DEFAULT_DICE_INVENTORY);
@@ -240,7 +258,8 @@ export function StoreModal({
     // --- DATA PREPARATION ---
 
     const allDiceSkins = Object.values(DICE_SKINS);
-    const enrichedTokens = tokenList.map(apiToken => {
+    const tokensToUse = (tokenList && tokenList.length > 0) ? tokenList : apiTokens;
+    const enrichedTokens = tokensToUse.map(apiToken => {
         const def = getTokenDefinition(apiToken.name);
         return { ...def, src: apiToken.src };
     });
@@ -268,7 +287,25 @@ export function StoreModal({
         return items;
     };
 
-    const displayItems = activeTab === 'inventory' ? getInventoryItems() : getStoreItems();
+    const displayItems = activeTab === 'home' ? [] : (activeTab === 'store' ? getStoreItems() : getInventoryItems());
+
+    // --- PAGINATION LOGIC ---
+    const totalPages = Math.ceil(displayItems.length / itemsPerPage);
+    const paginatedItems = displayItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+    useEffect(() => {
+        setCurrentPage(1);
+        const scrollArea = document.getElementById('store-modal-scroll-area');
+        const viewport = scrollArea?.querySelector('[data-radix-scroll-area-viewport]');
+        if (viewport) viewport.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [activeTab, filter]);
+
+    const handlePageChange = (newPage: number) => {
+        setCurrentPage(newPage);
+        const scrollArea = document.getElementById('store-modal-scroll-area');
+        const viewport = scrollArea?.querySelector('[data-radix-scroll-area-viewport]');
+        if (viewport) viewport.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     if (!mounted || !shouldRender) return null;
 
@@ -387,7 +424,7 @@ export function StoreModal({
                             <span className="text-xs font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">Chargement...</span>
                         </div>
                     ) : (
-                        <ScrollArea className="h-full">
+                        <ScrollArea className="h-full" id="store-modal-scroll-area">
                             <div className="p-8">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                                     {/* Homepage Content */}
@@ -468,19 +505,19 @@ export function StoreModal({
                                                     </button>
                                                 </div>
                                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                                    {Object.values(TOKEN_DEFINITIONS)
-                                                        .filter((t: TokenSkin) => t.unlockCondition === 'purchase' || t.price > 0)
+                                                    {enrichedTokens
+                                                        .filter(t => t.unlockCondition === 'purchase' || t.price > 0)
                                                         .slice(0, 4)
-                                                        .map((token: TokenSkin) => (
+                                                        .map(token => (
                                                             <div key={token.id} className="animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
                                                                 <TokenCard
                                                                     skin={token}
-                                                                    src={token.id} // Based on getTokenDefinition helper in token-definitions.ts
+                                                                    src={token.src}
                                                                     isOwned={tokenInventory.includes(token.id)}
-                                                                    isEquipped={currentTokenSrc === token.id}
+                                                                    isEquipped={currentTokenSrc === token.src}
                                                                     canAfford={!isCheckingOut}
                                                                     onBuy={() => handleBuyItem(token.id, 'token', token.price, token.name)}
-                                                                    onEquip={() => handleEquipToken(token.id)}
+                                                                    onEquip={() => handleEquipToken(token.src)}
                                                                 />
                                                             </div>
                                                         ))
@@ -560,36 +597,76 @@ export function StoreModal({
 
                                     {/* Item Grid */}
                                     {activeTab !== 'premium' && (
-                                        displayItems.length === 0 ? (
+                                        paginatedItems.length === 0 ? (
                                             <div className="col-span-full py-40 flex flex-col items-center gap-4 opacity-30">
                                                 <Package className="w-16 h-16 text-[var(--text-secondary)]" />
                                                 <p className="text-xs font-bold uppercase tracking-widest leading-none">Aucun butin ici...</p>
                                             </div>
                                         ) : (
-                                            displayItems.map((item) => (
-                                                <div key={`${item.type}-${item.data.id}`} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                                    {item.type === 'dice' ? (
-                                                        <DiceCard
-                                                            skin={item.data}
-                                                            isOwned={activeTab === 'inventory' || diceInventory.includes(item.data.id)}
-                                                            isEquipped={currentDiceSkinId === item.data.id}
-                                                            canAfford={!isCheckingOut}
-                                                            onBuy={() => handleBuyItem(item.data.id, 'dice', item.data.price, item.data.name)}
-                                                            onEquip={() => handleEquipDice(item.data.id)}
-                                                        />
-                                                    ) : (
-                                                        <TokenCard
-                                                            skin={item.data}
-                                                            src={item.data.src}
-                                                            isOwned={activeTab === 'inventory' || tokenInventory.includes(item.data.id) || item.data.unlockCondition === 'free'}
-                                                            isEquipped={currentTokenSrc === item.data.src}
-                                                            canAfford={!isCheckingOut}
-                                                            onBuy={() => handleBuyItem(item.data.id, 'token', item.data.price, item.data.name)}
-                                                            onEquip={() => handleEquipToken(item.data.src)}
-                                                        />
-                                                    )}
-                                                </div>
-                                            ))
+                                            <>
+                                                {paginatedItems.map((item) => (
+                                                    <div key={`${item.type}-${item.data.id}`} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                                        {item.type === 'dice' ? (
+                                                            <DiceCard
+                                                                skin={item.data}
+                                                                isOwned={activeTab === 'inventory' || diceInventory.includes(item.data.id)}
+                                                                isEquipped={currentDiceSkinId === item.data.id}
+                                                                canAfford={!isCheckingOut}
+                                                                onBuy={() => handleBuyItem(item.data.id, 'dice', item.data.price, item.data.name)}
+                                                                onEquip={() => handleEquipDice(item.data.id)}
+                                                            />
+                                                        ) : (
+                                                            <TokenCard
+                                                                skin={item.data}
+                                                                src={item.data.src}
+                                                                isOwned={activeTab === 'inventory' || tokenInventory.includes(item.data.id) || item.data.unlockCondition === 'free'}
+                                                                isEquipped={currentTokenSrc === item.data.src}
+                                                                canAfford={!isCheckingOut}
+                                                                onBuy={() => handleBuyItem(item.data.id, 'token', item.data.price, item.data.name)}
+                                                                onEquip={() => handleEquipToken(item.data.src)}
+                                                            />
+                                                        )}
+                                                    </div>
+                                                ))}
+
+                                                {/* Pagination Controls */}
+                                                {totalPages > 1 && (
+                                                    <div className="col-span-full flex items-center justify-center gap-4 py-8 border-t border-[var(--border-color)]/30 mt-8">
+                                                        <button
+                                                            onClick={() => handlePageChange(currentPage - 1)}
+                                                            disabled={currentPage === 1}
+                                                            className="px-4 py-2 text-xs font-bold uppercase tracking-widest bg-[var(--bg-canvas)] rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors border border-[var(--border-color)]/50"
+                                                        >
+                                                            Précédent
+                                                        </button>
+
+                                                        <div className="flex items-center gap-2">
+                                                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                                                <button
+                                                                    key={page}
+                                                                    onClick={() => handlePageChange(page)}
+                                                                    className={cn(
+                                                                        "w-8 h-8 text-xs font-bold rounded-lg transition-all border",
+                                                                        currentPage === page
+                                                                            ? "bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)] shadow-[0_0_10px_var(--accent-brown)]"
+                                                                            : "bg-[var(--bg-canvas)] text-[var(--text-secondary)] border-[var(--border-color)]/50 hover:bg-white/5"
+                                                                    )}
+                                                                >
+                                                                    {page}
+                                                                </button>
+                                                            ))}
+                                                        </div>
+
+                                                        <button
+                                                            onClick={() => handlePageChange(currentPage + 1)}
+                                                            disabled={currentPage === totalPages}
+                                                            className="px-4 py-2 text-xs font-bold uppercase tracking-widest bg-[var(--bg-canvas)] rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors border border-[var(--border-color)]/50"
+                                                        >
+                                                            Suivant
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </>
                                         )
                                     )}
                                 </div>
