@@ -1,5 +1,50 @@
 [
   {
+    "name": "azure_marble.png",
+    "path": "/textures/azure_marble.png",
+    "localPath": "/textures/azure_marble.png",
+    "category": "textures",
+    "type": "image",
+    "size": 0,
+    "uploadedAt": "2026-03-02T19:26:00.000Z"
+  },
+  {
+    "name": "prism_diffuse.png",
+    "path": "/textures/prism_diffuse.png",
+    "localPath": "/textures/prism_diffuse.png",
+    "category": "textures",
+    "type": "image",
+    "size": 0,
+    "uploadedAt": "2026-03-02T19:20:00.000Z"
+  },
+  {
+    "name": "shroom_diffuse.png",
+    "path": "/textures/shroom_diffuse.png",
+    "localPath": "/textures/shroom_diffuse.png",
+    "category": "textures",
+    "type": "image",
+    "size": 0,
+    "uploadedAt": "2026-03-02T19:20:00.000Z"
+  },
+  {
+    "name": "void_diffuse.png",
+    "path": "/textures/void_diffuse.png",
+    "localPath": "/textures/void_diffuse.png",
+    "category": "textures",
+    "type": "image",
+    "size": 0,
+    "uploadedAt": "2026-03-02T19:20:00.000Z"
+  },
+  {
+    "name": "dawn_diffuse.png",
+    "path": "/textures/dawn_diffuse.png",
+    "localPath": "/textures/dawn_diffuse.png",
+    "category": "textures",
+    "type": "image",
+    "size": 0,
+    "uploadedAt": "2026-03-02T19:20:00.000Z"
+  },
+  {
     "name": "Low_Lantern_Deck01.webm",
     "path": "https://assets.yner.fr/Map/Bateau/Animated/Low_Lantern_Deck01.webm",
     "localPath": "/Map/Bateau/Animated/Low_Lantern_Deck01.webm",
