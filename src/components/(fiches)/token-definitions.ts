@@ -32,7 +32,7 @@ export const TOKEN_DEFINITIONS: Record<string, TokenSkin> = {
         id: 'Token3',
         name: 'Cadre Doré',
         description: 'Ornez votre portrait des richesses d\'antan.',
-        price: 150,
+        price: 399,
         rarity: 'uncommon',
         unlockCondition: 'purchase'
     },
@@ -40,7 +40,7 @@ export const TOKEN_DEFINITIONS: Record<string, TokenSkin> = {
         id: 'Token4',
         name: 'Cadre Sanguin',
         description: 'Forgé dans le sang de vos ennemis.',
-        price: 300,
+        price: 399,
         rarity: 'rare',
         unlockCondition: 'purchase'
     },
@@ -48,7 +48,7 @@ export const TOKEN_DEFINITIONS: Record<string, TokenSkin> = {
         id: 'Token5',
         name: 'Cadre Sylvestre',
         description: 'Protégé par les esprits de la forêt.',
-        price: 300,
+        price: 399,
         rarity: 'rare',
         unlockCondition: 'purchase'
     },
@@ -56,7 +56,7 @@ export const TOKEN_DEFINITIONS: Record<string, TokenSkin> = {
         id: 'Token6',
         name: 'Cadre Abyssal',
         description: 'Sondant les profondeurs inconnues.',
-        price: 500,
+        price: 399,
         rarity: 'epic',
         unlockCondition: 'purchase'
     },
@@ -64,7 +64,7 @@ export const TOKEN_DEFINITIONS: Record<string, TokenSkin> = {
         id: 'Token7',
         name: 'Cadre Céleste',
         description: 'Brille de la lumière des étoiles.',
-        price: 800,
+        price: 399,
         rarity: 'legendary',
         unlockCondition: 'purchase'
     },
@@ -83,7 +83,7 @@ export const getTokenDefinition = (tokenId: string): TokenSkin => {
         id: tokenId,
         name: `Cadre Mystère (${tokenId})`,
         description: 'Un cadre d\'origine inconnue.',
-        price: 100,
+        price: 399,
         rarity: 'common',
         unlockCondition: 'purchase'
     };

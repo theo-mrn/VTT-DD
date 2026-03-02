@@ -14,6 +14,7 @@ function CheckoutSuccessContent() {
     const router = useRouter();
     const sessionId = searchParams.get('session_id');
     const skinId = searchParams.get('skin_id');
+    const type = searchParams.get('type') || 'dice';
     const returnUrl = searchParams.get('returnUrl') || '/';
     const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
 
@@ -31,8 +32,10 @@ function CheckoutSuccessContent() {
 
             try {
                 const userRef = doc(db, 'users', user.uid);
+                const fieldName = type === 'token' ? 'token_inventory' : 'dice_inventory';
+
                 await updateDoc(userRef, {
-                    dice_inventory: arrayUnion(skinId),
+                    [fieldName]: arrayUnion(skinId),
                 });
                 setStatus('success');
             } catch (error) {
@@ -42,7 +45,7 @@ function CheckoutSuccessContent() {
         });
 
         return () => unsubscribe();
-    }, [sessionId, skinId]);
+    }, [sessionId, skinId, type]);
 
     if (status === 'loading') {
         return (
@@ -61,7 +64,7 @@ function CheckoutSuccessContent() {
                 </div>
                 <h2 className="text-2xl font-bold text-white">Achat Réussi !</h2>
                 <p className="text-gray-400">
-                    Merci pour votre achat. Les nouveaux dés ont été ajoutés à votre inventaire.
+                    Merci pour votre achat. Les nouveaux {type === 'token' ? 'cadres' : 'dés'} ont été ajoutés à votre inventaire.
                 </p>
                 <Button
                     onClick={() => router.push(returnUrl)}

@@ -28,7 +28,7 @@ import Marketplace from "@/components/(infos)/Information";
 import Capacites from "@/components/(infos)/capacites";
 import Images from "@/components/(infos)/images";
 import Glossary from "@/components/(infos)/Glossary";
-import Boutique from "@/components/(infos)/boutique";
+import { StoreModal } from "@/components/store/store-modal";
 import { RoomUsersManager } from "@/app/Salle/components/RoomUsersManager";
 import { RoomSettingsManager } from "@/app/Salle/components/RoomSettingsManager";
 import { ChallengesButton } from '@/components/(challenges)/challenges-button';
@@ -56,6 +56,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const [showProfileOverlay, setShowProfileOverlay] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [openDialog, setOpenDialog] = useState<string | null>(null);
+  const [currentDiceSkinId, setCurrentDiceSkinId] = useState<string>("gold");
+  const [currentTokenSrc, setCurrentTokenSrc] = useState<string>("Token1");
   const { isMJ, isOwner } = useGame();
 
   // Theme state for custom switcher in sidebar
@@ -118,6 +120,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
             setShowPremiumBadge(data.showPremiumBadge ?? true);
             setUserBorderType(data.borderType || "none");
             setRoomId(data.room_id || "");
+            if (data.dice_skin) setCurrentDiceSkinId(data.dice_skin);
+            if (data.token_skin) setCurrentTokenSrc(data.token_skin);
           } else {
             console.error("Utilisateur non trouvé dans Firestore");
           }
@@ -500,14 +504,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
         </div>
       )}
 
-      {openDialog === 'boutique' && (
-        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] overflow-y-auto w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
-          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
-            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
-          </button>
-          <Boutique />
-        </div>
-      )}
+      <StoreModal
+        isOpen={openDialog === 'boutique'}
+        onClose={() => setOpenDialog(null)}
+        currentDiceSkinId={currentDiceSkinId}
+        onSelectDiceSkin={(skinId) => setCurrentDiceSkinId(skinId)}
+        currentTokenSrc={currentTokenSrc}
+        onSelectTokenSkin={(src) => setCurrentTokenSrc(src)}
+      />
 
       {openDialog === 'bibliotheque' && (
         <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] overflow-hidden w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
