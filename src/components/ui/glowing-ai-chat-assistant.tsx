@@ -8,7 +8,7 @@ import { generateSlug } from "@/lib/titles";
 import { getAssetUrl } from "@/lib/asset-loader";
 import { trackDiceRoll } from '@/lib/challenge-tracker';
 import { DiceStats } from "@/components/(dices)/dice-stats";
-import { DiceStoreModal } from "../(dices)/dice-store-modal";
+import { StoreModal } from "../store/store-modal";
 import { DICE_SKINS } from "../(dices)/dice-definitions";
 import { UserProfileDialog } from "@/components/profile/UserProfileDialog";
 
@@ -1206,15 +1206,17 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
         </div>
       )}
 
-      <DiceStoreModal
+      {/* Dice Store Modal */}
+      <StoreModal
         isOpen={isSkinDialogOpen}
         onClose={() => setIsSkinDialogOpen(false)}
-        currentSkinId={selectedSkinId}
-        onSelectSkin={(skinId) => {
+        initialCategory="dice"
+        currentDiceSkinId={selectedSkinId}
+        onSelectDiceSkin={(skinId) => {
           setSelectedSkinId(skinId);
+          setIsSkinDialogOpen(false);
         }}
       />
-
       <UserProfileDialog
         userId={selectedUserId}
         characterName={selectedCharacterName}
