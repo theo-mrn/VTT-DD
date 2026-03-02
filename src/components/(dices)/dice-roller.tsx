@@ -21,7 +21,7 @@ import {
 import { DiceStats } from "./dice-stats";
 import { DICE_SKINS, DiceSkin } from "./dice-definitions";
 import { DicePreview } from "./dice-preview";
-import { DiceStoreModal } from "./dice-store-modal"; // Import new modal
+import { StoreModal } from "../store/store-modal";
 import { getAssetUrl } from "@/lib/asset-loader";
 import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
 import { generateSlug } from "@/lib/titles";
@@ -1033,11 +1033,12 @@ export function DiceRoller() {
               Boutique
             </Button>
 
-            <DiceStoreModal
+            <StoreModal
               isOpen={isSkinDialogOpen}
               onClose={() => setIsSkinDialogOpen(false)}
-              currentSkinId={selectedSkinId}
-              onSelectSkin={(skinId) => {
+              initialCategory="dice"
+              currentDiceSkinId={selectedSkinId}
+              onSelectDiceSkin={(skinId) => {
                 setSelectedSkinId(skinId);
               }}
             />

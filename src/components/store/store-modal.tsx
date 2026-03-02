@@ -3,9 +3,10 @@ import { createPortal } from 'react-dom';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DICE_SKINS, DiceSkin } from '../(dices)/dice-definitions';
 import { DiceCard } from '../(dices)/dice-card';
-import { TOKEN_DEFINITIONS, DEFAULT_TOKEN_INVENTORY, TokenSkin } from '../(fiches)/token-definitions';
+import { TOKEN_DEFINITIONS, DEFAULT_TOKEN_INVENTORY, TokenSkin, getTokenDefinition } from '../(fiches)/token-definitions';
 import { TokenCard } from '../(fiches)/token-card';
-import { Store, Backpack, Gem, X, Loader2, Crown, LayoutGrid, Dice5, Package } from 'lucide-react';
+import { Store, Backpack, Gem, X, Loader2, Crown, LayoutGrid, Dice5, Package, Settings, Sparkles } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { auth, db, doc, getDoc, updateDoc } from '@/lib/firebase';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -18,19 +19,12 @@ interface StoreModalProps {
     isOpen: boolean;
     onClose: () => void;
     initialCategory?: 'dice' | 'token';
-    // Callbacks for local preview/state updates
     currentDiceSkinId?: string;
     onSelectDiceSkin?: (skinId: string) => void;
     currentTokenSrc?: string;
     onSelectTokenSkin?: (src: string) => void;
-    // We need the raw token list from the API for tokens
     tokenList?: { id: number, name: string, src: string }[];
 }
-
-const subTabs = [
-    { id: 'inventory', label: 'Mon Inventaire', icon: Backpack },
-    { id: 'store', label: 'Boutique', icon: Store }
-];
 
 export function StoreModal({
     isOpen,
@@ -42,12 +36,14 @@ export function StoreModal({
     onSelectTokenSkin,
     tokenList = []
 }: StoreModalProps) {
-    const [activeCategory, setActiveCategory] = useState<'dice' | 'token'>(initialCategory);
-    const [activeTab, setActiveTab] = useState<'inventory' | 'store'>("inventory");
+    const [activeTab, setActiveTab] = useState<'home' | 'store' | 'inventory' | 'premium'>('home');
+    const [filter, setFilter] = useState<'all' | 'dice' | 'token'>('all');
 
     // User State
     const [uid, setUid] = useState<string | null>(null);
+    const [email, setEmail] = useState<string | null>(null);
     const [isPremium, setIsPremium] = useState<boolean>(false);
+    const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
     const [diceInventory, setDiceInventory] = useState<string[]>([]);
     const [tokenInventory, setTokenInventory] = useState<string[]>([]);
 
@@ -55,18 +51,18 @@ export function StoreModal({
     const [mounted, setMounted] = useState(false);
     const [isLoadingInventory, setIsLoadingInventory] = useState(true);
     const [isCheckingOut, setIsCheckingOut] = useState(false);
+    const [isManagingPortal, setIsManagingPortal] = useState(false);
     const [shouldRender, setShouldRender] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
 
-    // Sync initialCategory prop if it changes
+    // Sync filter prop on open
     useEffect(() => {
         if (isOpen) {
-            setActiveCategory(initialCategory);
-            setActiveTab("inventory");
+            setFilter(initialCategory === 'dice' ? 'dice' : 'token');
         }
     }, [isOpen, initialCategory]);
 
-    // Mount logic
+    // Mount and Animation logic
     useEffect(() => {
         if (isOpen) {
             setShouldRender(true);
@@ -91,6 +87,7 @@ export function StoreModal({
                 return;
             }
             setUid(user.uid);
+            setEmail(user.email);
             try {
                 const userRef = doc(db, 'users', user.uid);
                 const userSnap = await getDoc(userRef);
@@ -99,6 +96,7 @@ export function StoreModal({
 
                     setDiceInventory(data.dice_inventory || DEFAULT_DICE_INVENTORY);
                     setTokenInventory(data.token_inventory || DEFAULT_TOKEN_INVENTORY);
+                    setStripeCustomerId(data.stripeCustomerId || null);
 
                     let premiumStatus = data.premium;
                     if (premiumStatus === undefined) {
@@ -106,11 +104,6 @@ export function StoreModal({
                         catch (e) { console.error("Error setting default premium:", e); }
                     }
                     setIsPremium(!!premiumStatus);
-
-                    // Auto-fix missing arrays
-                    if (!data.dice_inventory) await updateDoc(userRef, { dice_inventory: DEFAULT_DICE_INVENTORY });
-                    if (!data.token_inventory) await updateDoc(userRef, { token_inventory: DEFAULT_TOKEN_INVENTORY });
-
                 } else {
                     setDiceInventory(DEFAULT_DICE_INVENTORY);
                     setTokenInventory(DEFAULT_TOKEN_INVENTORY);
@@ -126,28 +119,22 @@ export function StoreModal({
         return () => unsubscribe();
     }, []);
 
-    // Dev Commands for testing
+    // Dev Commands
     useEffect(() => {
-        const handleGiveDice = async (skinIdOrName: string) => {
-            const id = skinIdOrName.toLowerCase().replace(/^give_/, '');
-            const skin = DICE_SKINS[id] || Object.values(DICE_SKINS).find(s => s.name.toLowerCase() === id || s.id === id);
-            if (!skin) { toast.error(`Dé inconnu : "${id}".`); return; }
-            if (diceInventory.includes(skin.id)) { toast(`Vous possédez déjà le dé ${skin.name} !`); return; }
-            setDiceInventory(prev => [...prev, skin.id]);
-            if (uid) {
-                try { await updateDoc(doc(db, 'users', uid), { dice_inventory: arrayUnion(skin.id) }); }
-                catch (error) { console.error('[DEV] Error saving given dice:', error); }
-            }
-            toast.success(`Dé "${skin.name}" ajouté à l'inventaire !`);
+        const handleGive = async (id: string, type: 'dice' | 'token') => {
+            if (!uid) return;
+            const field = type === 'dice' ? 'dice_inventory' : 'token_inventory';
+            const setter = type === 'dice' ? setDiceInventory : setTokenInventory;
+            try {
+                await updateDoc(doc(db, 'users', uid), { [field]: arrayUnion(id) });
+                setter(prev => [...prev, id]);
+                toast.success(`Objet ajouté au sac !`);
+            } catch (e) { console.error("Give failed", e); }
         };
-
-        (window as any).give = handleGiveDice;
-        Object.keys(DICE_SKINS).forEach(id => { (window as any)[`give_${id}`] = () => handleGiveDice(id); });
-        return () => {
-            delete (window as any).give;
-            Object.keys(DICE_SKINS).forEach(id => delete (window as any)[`give_${id}`]);
-        };
-    }, [uid, diceInventory]);
+        (window as any).give_dice = (id: string) => handleGive(id, 'dice');
+        (window as any).give_token = (id: string) => handleGive(id, 'token');
+        return () => { delete (window as any).give_dice; delete (window as any).give_token; };
+    }, [uid]);
 
     // Keyboard controls
     useEffect(() => {
@@ -160,14 +147,10 @@ export function StoreModal({
 
     const handleBuyItem = async (itemId: string, itemType: 'dice' | 'token', price: number, name: string) => {
         if (price <= 0) {
-            // Free items (or challenges parsed as free directly for now)
-            if (itemType === 'dice') {
-                setDiceInventory(prev => [...prev, itemId]);
-                if (uid) await updateDoc(doc(db, 'users', uid), { dice_inventory: arrayUnion(itemId) });
-            } else {
-                setTokenInventory(prev => [...prev, itemId]);
-                if (uid) await updateDoc(doc(db, 'users', uid), { token_inventory: arrayUnion(itemId) });
-            }
+            const invent = itemType === 'dice' ? setDiceInventory : setTokenInventory;
+            const field = itemType === 'dice' ? 'dice_inventory' : 'token_inventory';
+            invent(prev => [...prev, itemId]);
+            if (uid) await updateDoc(doc(db, 'users', uid), { [field]: arrayUnion(itemId) });
             toast.success(`${itemType === 'dice' ? 'Dés' : 'Cadre'} "${name}" obtenu !`);
             return;
         }
@@ -175,10 +158,7 @@ export function StoreModal({
         try {
             setIsCheckingOut(true);
             toast.loading("Redirection vers le paiement...");
-
-            // Format ID for checkout so backend knows what giving. We prefix tokens.
             const checkoutId = itemType === 'token' ? `token_${itemId}` : itemId;
-
             const response = await fetch('/api/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -186,12 +166,10 @@ export function StoreModal({
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Erreur de paiement');
-            toast.dismiss();
             if (data.url) window.location.href = data.url;
-            else throw new Error('Url de redirection manquante');
         } catch (error: any) {
             toast.dismiss();
-            toast.error(error.message || "Une erreur est survenue lors de l'achat");
+            toast.error(error.message || "Une erreur est survenue");
         } finally {
             setIsCheckingOut(false);
         }
@@ -208,289 +186,413 @@ export function StoreModal({
 
     const handleEquipToken = async (src: string) => {
         if (onSelectTokenSkin) onSelectTokenSkin(src);
-        // We don't save token_skin to db here, it's saved on character save inside CharacterImage.
-        toast.success("Cadre appliqué en aperçu");
+        if (uid) {
+            try { await updateDoc(doc(db, 'users', uid), { token_skin: src }); }
+            catch (error) { console.error('Error saving token skin:', error); }
+        }
+        toast.success("Cadre appliqué");
     };
 
+    const handleSubscribe = async () => {
+        setIsCheckingOut(true);
+        try {
+            const response = await fetch("/api/subscribe", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId: uid || "",
+                    userEmail: email || "",
+                    returnUrl: window.location.pathname,
+                }),
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.error || "Erreur lors de la création de la session.");
+            if (data.url) window.location.href = data.url;
+        } catch (err: any) {
+            toast.error(err.message || "Une erreur est survenue.");
+        } finally {
+            setIsCheckingOut(false);
+        }
+    };
+
+    const handleManagePortal = async () => {
+        if (!stripeCustomerId) return;
+        setIsManagingPortal(true);
+        try {
+            const response = await fetch("/api/stripe-portal", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    stripeCustomerId: stripeCustomerId,
+                    returnUrl: window.location.pathname,
+                }),
+            });
+            const data = await response.json();
+            if (data.url) window.location.href = data.url;
+        } catch (err) {
+            console.error("Portal error:", err);
+            toast.error("Erreur d'accès au portail de gestion.");
+        } finally {
+            setIsManagingPortal(false);
+        }
+    };
 
     // --- DATA PREPARATION ---
 
-    // Dice
     const allDiceSkins = Object.values(DICE_SKINS);
-    const ownedDice = allDiceSkins.filter(s => isPremium || diceInventory.includes(s.id));
-    const unownedDice = allDiceSkins.filter(s => !isPremium && !diceInventory.includes(s.id));
-
-    // Tokens
     const enrichedTokens = tokenList.map(apiToken => {
-        const def = TOKEN_DEFINITIONS[apiToken.name] || {
-            id: apiToken.name,
-            name: `Cadre ${apiToken.name.replace('Token', '')}`,
-            price: 100, // Default price for undocumented tokens
-            rarity: 'common',
-            unlockCondition: 'purchase'
-        } as TokenSkin;
-
+        const def = getTokenDefinition(apiToken.name);
         return { ...def, src: apiToken.src };
     });
 
-    const ownedTokens = enrichedTokens.filter(s => isPremium || tokenInventory.includes(s.id) || s.unlockCondition === 'free');
-    const unownedTokens = enrichedTokens.filter(s => !isPremium && !tokenInventory.includes(s.id) && s.unlockCondition !== 'free');
-
-
-    // --- RENDERERS ---
-
-    const renderDiceGrid = (skins: DiceSkin[], isOwned: boolean) => {
-        if (skins.length === 0) {
-            return (
-                <div className="flex flex-col items-center justify-center gap-4 py-24">
-                    {isOwned ? (
-                        <>
-                            <Package className="w-16 h-16 opacity-20 text-neutral-500" />
-                            <p className="text-base text-neutral-500">Votre inventaire est vide.</p>
-                        </>
-                    ) : (
-                        <>
-                            <Gem className="w-16 h-16 opacity-20 text-neutral-500" />
-                            <p className="text-base text-neutral-400">Vous possédez déjà tous les dés disponibles.</p>
-                        </>
-                    )}
-                </div>
-            );
+    const getInventoryItems = () => {
+        const items: ({ type: 'dice', data: DiceSkin } | { type: 'token', data: TokenSkin & { src: string } })[] = [];
+        if (filter === 'all' || filter === 'dice') {
+            allDiceSkins.filter(s => isPremium || diceInventory.includes(s.id)).forEach(d => items.push({ type: 'dice', data: d }));
         }
-
-        const sortedSkins = isOwned ? skins : [...skins].sort((a, b) => a.price - b.price);
-
-        return (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {sortedSkins.map((skin) => (
-                    <DiceCard
-                        key={skin.id}
-                        skin={skin}
-                        isOwned={isOwned}
-                        isEquipped={currentDiceSkinId === skin.id}
-                        canAfford={!isCheckingOut}
-                        onBuy={() => handleBuyItem(skin.id, 'dice', skin.price, skin.name)}
-                        onEquip={() => handleEquipDice(skin.id)}
-                    />
-                ))}
-            </div>
-        );
+        if (filter === 'all' || filter === 'token') {
+            enrichedTokens.filter(s => isPremium || tokenInventory.includes(s.id) || s.unlockCondition === 'free').forEach(t => items.push({ type: 'token', data: t }));
+        }
+        return items;
     };
 
-    const renderTokenGrid = (skins: (TokenSkin & { src: string })[], isOwned: boolean) => {
-        if (skins.length === 0) {
-            return (
-                <div className="flex flex-col items-center justify-center gap-4 py-24">
-                    {isOwned ? (
-                        <>
-                            <Package className="w-16 h-16 opacity-20 text-neutral-500" />
-                            <p className="text-base text-neutral-500">Votre inventaire est vide.</p>
-                        </>
-                    ) : (
-                        <>
-                            <Gem className="w-16 h-16 opacity-20 text-neutral-500" />
-                            <p className="text-base text-neutral-400">Vous possédez déjà tous les cadres disponibles.</p>
-                        </>
-                    )}
-                </div>
-            );
+    const getStoreItems = () => {
+        if (isPremium) return [];
+        const items: ({ type: 'dice', data: DiceSkin } | { type: 'token', data: TokenSkin & { src: string } })[] = [];
+        if (filter === 'all' || filter === 'dice') {
+            allDiceSkins.filter(s => !diceInventory.includes(s.id)).forEach(d => items.push({ type: 'dice', data: d }));
         }
-
-        const sortedSkins = isOwned ? skins : [...skins].sort((a, b) => a.price - b.price);
-
-        return (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {sortedSkins.map((skin) => (
-                    <TokenCard
-                        key={skin.id}
-                        skin={skin}
-                        src={skin.src}
-                        isOwned={isOwned}
-                        isEquipped={currentTokenSrc === skin.src}
-                        canAfford={!isCheckingOut}
-                        onBuy={() => handleBuyItem(skin.id, 'token', skin.price, skin.name)}
-                        onEquip={() => handleEquipToken(skin.src)}
-                    />
-                ))}
-            </div>
-        );
+        if (filter === 'all' || filter === 'token') {
+            enrichedTokens.filter(s => !tokenInventory.includes(s.id) && s.unlockCondition !== 'free').forEach(t => items.push({ type: 'token', data: t }));
+        }
+        return items;
     };
 
+    const displayItems = activeTab === 'inventory' ? getInventoryItems() : getStoreItems();
 
     if (!mounted || !shouldRender) return null;
 
     return createPortal(
         <div
-            data-store-portal
             className="fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4"
-            style={{
-                pointerEvents: isVisible ? 'auto' : 'none',
-                opacity: isVisible ? 1 : 0,
-                transition: 'opacity 0.25s ease',
-            }}
+            style={{ pointerEvents: isVisible ? 'auto' : 'none', opacity: isVisible ? 1 : 0, transition: 'opacity 0.25s ease' }}
         >
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/70 backdrop-blur-md" onClick={onClose} />
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-            {/* Modal */}
             <div
-                className="relative z-10 w-full max-w-5xl h-[90vh] max-h-[850px] flex flex-col overflow-hidden rounded-2xl shadow-2xl border border-white/10"
+                className="relative z-10 w-full max-w-6xl h-[92vh] max-h-[900px] flex flex-col overflow-hidden rounded-3xl shadow-2xl border border-[var(--border-color)] bg-[var(--bg-dark)] text-[var(--text-primary)]"
                 style={{
-                    background: '#09090b',
-                    transform: isVisible ? 'scale(1) translateY(0)' : 'scale(0.97) translateY(12px)',
-                    transition: 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+                    transform: isVisible ? 'scale(1) translateY(0)' : 'scale(0.98) translateY(10px)',
+                    transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* --- HEADER --- */}
-                <div className="relative px-6 py-4 shrink-0 flex items-center justify-between bg-white/5 border-b border-white/5">
-                    <div className="flex items-center gap-4">
-                        <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-black/40 border border-white/10 shadow-inner">
-                            <Store className="w-5 h-5 text-neutral-300" />
+                <div className="px-8 py-6 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--bg-darker)]/40">
+                    <div className="flex items-center gap-5">
+                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--text-primary)]/10 to-transparent border border-[var(--border-color)] flex items-center justify-center shadow-inner">
+                            <Store className="w-6 h-6 text-[var(--accent-brown)]" />
                         </div>
                         <div>
-                            <h2 className="text-base font-bold tracking-wide text-white">Boutique & Inventaire</h2>
-                            <p className="text-xs text-neutral-400">Personnalisez votre expérience</p>
+                            <h2 className="text-xl font-black tracking-tight text-[var(--text-primary)] uppercase italic">La Boutique du MJ</h2>
+                            <p className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest">Épique & Légendaire</p>
                         </div>
                     </div>
 
-                    {/* Category Switcher (Center-ish) */}
-                    <div className="hidden md:flex bg-black/50 p-1 rounded-xl border border-white/10 backdrop-blur-sm self-center absolute left-1/2 -translate-x-1/2">
+                    <div className="flex bg-[var(--bg-darker)]/60 p-1.5 rounded-2xl border border-[var(--border-color)] backdrop-blur-md">
                         <button
-                            onClick={() => setActiveCategory('dice')}
-                            className={`flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${activeCategory === 'dice'
-                                    ? 'bg-white/10 text-white shadow-sm ring-1 ring-white/20'
-                                    : 'text-neutral-500 hover:text-neutral-300 hover:bg-white/5'
-                                }`}
+                            onClick={() => setActiveTab('home')}
+                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-tighter transition-all duration-300 ${activeTab === 'home'
+                                ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] shadow-[0_0_20px_rgba(var(--accent-brown-rgb),0.3)] scale-105'
+                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                        >
+                            <LayoutGrid className="w-4 h-4" />
+                            Accueil
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('store')}
+                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-tighter transition-all duration-300 ${activeTab === 'store'
+                                ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] shadow-[0_0_20px_rgba(var(--accent-brown-rgb),0.3)] scale-105'
+                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                        >
+                            <Store className="w-4 h-4" />
+                            Boutique
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('inventory')}
+                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-tighter transition-all duration-300 ${activeTab === 'inventory'
+                                ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] shadow-[0_0_20px_rgba(var(--accent-brown-rgb),0.3)] scale-105'
+                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                        >
+                            <Backpack className="w-4 h-4" />
+                            Mon Sac
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('premium')}
+                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-tighter transition-all duration-300 ${activeTab === 'premium'
+                                ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] shadow-[0_0_20px_rgba(var(--accent-brown-rgb),0.3)] scale-105'
+                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                        >
+                            <Crown className="w-4 h-4" />
+                            Premium
+                        </button>
+                    </div>
+
+                    <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-[var(--text-primary)]/10 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">
+                        <X className="w-6 h-6" />
+                    </button>
+                </div>
+
+                {/* --- FILTERS (Only for Store and Inventory) --- */}
+                {(activeTab === 'store' || activeTab === 'inventory') && (
+                    <div className="flex items-center gap-3 px-8 py-4 bg-[var(--bg-darker)]/50 border-b border-[var(--border-color)] overflow-x-auto no-scrollbar">
+                        <button
+                            onClick={() => setFilter('all')}
+                            className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${filter === 'all'
+                                ? 'bg-[var(--text-primary)]/10 text-[var(--text-primary)] border-[var(--border-color)]'
+                                : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'}`}
+                        >
+                            Tout Voir
+                        </button>
+                        <div className="w-[1px] h-4 bg-[var(--border-color)] mx-2" />
+                        <button
+                            onClick={() => setFilter('dice')}
+                            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${filter === 'dice'
+                                ? 'bg-[var(--accent-blue)]/20 text-[var(--accent-blue)] border-[var(--accent-blue)]/30'
+                                : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'}`}
                         >
                             <Dice5 className="w-4 h-4" />
                             Dés 3D
                         </button>
                         <button
-                            onClick={() => setActiveCategory('token')}
-                            className={`flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-semibold transition-all duration-300 ${activeCategory === 'token'
-                                    ? 'bg-white/10 text-white shadow-sm ring-1 ring-white/20'
-                                    : 'text-neutral-500 hover:text-neutral-300 hover:bg-white/5'
-                                }`}
+                            onClick={() => setFilter('token')}
+                            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${filter === 'token'
+                                ? 'bg-[var(--accent-brown)]/20 text-[var(--accent-brown)] border-[var(--accent-brown)]/30'
+                                : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'}`}
                         >
                             <LayoutGrid className="w-4 h-4" />
                             Cadres
                         </button>
                     </div>
+                )}
 
-                    <button
-                        onClick={onClose}
-                        className="p-2 rounded-lg hover:bg-white/10 text-neutral-400 hover:text-white transition-colors ml-auto md:ml-0"
-                    >
-                        <X className="w-5 h-5" />
-                    </button>
-                </div>
-
-                {/* Mobile Category Switcher */}
-                <div className="flex md:hidden bg-[#0c0c0e] border-b border-white/5 p-2 gap-2">
-                    <button
-                        onClick={() => setActiveCategory('dice')}
-                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeCategory === 'dice' ? 'bg-white/10 text-white' : 'text-neutral-500'
-                            }`}
-                    >
-                        <Dice5 className="w-4 h-4" />
-                        Dés
-                    </button>
-                    <button
-                        onClick={() => setActiveCategory('token')}
-                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeCategory === 'token' ? 'bg-white/10 text-white' : 'text-neutral-500'
-                            }`}
-                    >
-                        <LayoutGrid className="w-4 h-4" />
-                        Cadres
-                    </button>
-                </div>
-
-                {/* --- SUB TABS --- */}
-                <div className="flex items-end gap-2 px-6 shrink-0 bg-[#0c0c0e] border-b border-white/5 pt-2">
-                    {subTabs.map((tab) => {
-                        const isActive = activeTab === tab.id;
-                        const Icon = tab.icon;
-                        return (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id as 'inventory' | 'store')}
-                                className={`relative flex items-center gap-2 px-6 py-3 text-sm font-semibold transition-all duration-200 rounded-t-lg
-                                    ${isActive ? 'bg-[#050505] text-white border-t border-x border-white/10 border-b-0' : 'text-neutral-500 hover:text-neutral-300 hover:bg-white/5 border border-transparent'}`}
-                                style={{
-                                    borderBottomColor: isActive ? '#050505' : 'transparent',
-                                    transform: isActive ? 'translateY(1px)' : 'none',
-                                    zIndex: isActive ? 10 : 1
-                                }}
-                            >
-                                <Icon className="w-4 h-4" />
-                                {tab.label}
-                            </button>
-                        );
-                    })}
-                </div>
-
-                {/* --- CONTENT AREA --- */}
-                <div className="flex-1 overflow-hidden relative bg-[#050505] z-0">
+                {/* --- CONTENT --- */}
+                <div className="flex-1 overflow-hidden relative bg-[var(--bg-canvas)]">
                     {isLoadingInventory ? (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                            <Loader2 className="w-8 h-8 animate-spin text-neutral-500" />
-                            <span className="text-sm text-neutral-500 animate-pulse">Chargement de la boutique...</span>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+                            <div className="relative w-16 h-16">
+                                <div className="absolute inset-0 border-4 border-[var(--text-primary)]/5 rounded-full" />
+                                <div className="absolute inset-0 border-4 border-t-[var(--accent-brown)] rounded-full animate-spin" />
+                            </div>
+                            <span className="text-xs font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">Chargement...</span>
                         </div>
                     ) : (
-                        <ScrollArea className="h-full w-full">
-                            <div className="p-6 md:p-8 min-h-full">
-
-                                {/* Premium Banner */}
-                                {isPremium && (
-                                    <div className="mb-8 flex items-center gap-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-5 backdrop-blur-sm shadow-xl shadow-amber-900/10">
-                                        <div className="p-2 bg-amber-500/20 rounded-full border border-amber-500/30">
-                                            <Crown className="h-6 w-6 text-amber-500 shrink-0 drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]" />
-                                        </div>
-                                        <div>
-                                            <h3 className="text-base font-bold text-amber-500 mb-0.5">Compte Premium Actif</h3>
-                                            <p className="text-sm text-amber-600/80">
-                                                Vous avez accès à l'intégralité du contenu de la boutique.
-                                            </p>
-                                        </div>
-                                    </div>
-                                )}
-
-                                {/* Inventory View */}
-                                {activeTab === 'inventory' && (
-                                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 pb-20">
-                                        {activeCategory === 'dice'
-                                            ? renderDiceGrid(ownedDice, true)
-                                            : renderTokenGrid(ownedTokens, true)
-                                        }
-                                    </div>
-                                )}
-
-                                {/* Store View */}
-                                {activeTab === 'store' && (
-                                    <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 pb-20">
-                                        {isPremium ? (
-                                            <div className="flex flex-col items-center justify-center gap-6 py-32 text-center">
-                                                <div className="relative">
-                                                    <div className="absolute inset-0 bg-amber-500 blur-3xl opacity-20" />
-                                                    <Crown className="w-24 h-24 text-amber-500 relative z-10 drop-shadow-[0_0_25px_rgba(245,158,11,0.6)]" />
+                        <ScrollArea className="h-full">
+                            <div className="p-8">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                                    {/* Homepage Content */}
+                                    {activeTab === 'home' && (
+                                        <div className="col-span-full space-y-12">
+                                            {/* Hero Banner */}
+                                            <div className={cn(
+                                                "relative rounded-[2.5rem] overflow-hidden border transition-all duration-700 p-8 sm:p-12",
+                                                "bg-gradient-to-br from-[var(--accent-brown)]/30 via-[var(--bg-dark)] to-[var(--bg-darker)] border-[var(--accent-brown)]/40",
+                                                "hover:shadow-[0_0_80px_rgba(var(--accent-brown-rgb),0.15)] group/hero"
+                                            )}>
+                                                <div className="absolute top-0 right-0 p-12 opacity-5 rotate-12 group-hover/hero:rotate-[20deg] group-hover/hero:scale-110 transition-transform duration-1000">
+                                                    <Crown className="w-80 h-80 text-[var(--accent-brown)]" />
                                                 </div>
-                                                <div className="space-y-2">
-                                                    <h3 className="text-2xl font-bold text-amber-500">Boutique dévalisée !</h3>
-                                                    <p className="text-base font-medium text-amber-500/80 max-w-md mx-auto">
-                                                        En tant que membre Premium, tout le contenu actuel et futur vous est instantanément acquis.
-                                                        Rendez-vous dans l'inventaire.
-                                                    </p>
+
+                                                <div className="relative z-10 flex flex-col items-start gap-6 max-w-xl">
+                                                    <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-[var(--accent-brown)]/20 border border-[var(--accent-brown)]/30">
+                                                        <Sparkles className="w-4 h-4 text-[var(--accent-brown)]" />
+                                                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent-brown)]">Offre Limitée</span>
+                                                    </div>
+
+                                                    <div className="space-y-4">
+                                                        <h3 className="text-4xl sm:text-5xl font-black text-[var(--text-primary)] italic uppercase tracking-tighter leading-none">VTT-DD <br /><span className="text-[var(--accent-brown)]">PREMIUM</span></h3>
+                                                        <p className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-tight opacity-70">
+                                                            L'accès total à tous les trésors passés, présents et futurs. Débloquez la puissance ultime.
+                                                        </p>
+                                                    </div>
+
+                                                    <button
+                                                        onClick={() => setActiveTab('premium')}
+                                                        className="px-10 py-4 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all flex items-center gap-3 shadow-[0_0_30px_rgba(var(--accent-brown-rgb),0.4)]"
+                                                    >
+                                                        En savoir plus
+                                                    </button>
                                                 </div>
                                             </div>
-                                        ) : (
-                                            activeCategory === 'dice'
-                                                ? renderDiceGrid(unownedDice, false)
-                                                : renderTokenGrid(unownedTokens, false)
-                                        )}
-                                    </div>
-                                )}
 
+                                            {/* Section: Featured Dice */}
+                                            <div className="space-y-6">
+                                                <div className="flex items-end justify-between px-2">
+                                                    <div className="space-y-1">
+                                                        <h4 className="text-2xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter">Dés Légendaires</h4>
+                                                        <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em]">Sélection du moment</p>
+                                                    </div>
+                                                    <button onClick={() => { setActiveTab('store'); setFilter('dice'); }} className="text-[10px] font-black text-[var(--accent-brown)] uppercase tracking-widest hover:underline px-4 py-2 bg-[var(--text-primary)]/5 rounded-xl border border-[var(--border-color)]">
+                                                        Voir tout
+                                                    </button>
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                                    {Object.values(DICE_SKINS)
+                                                        .filter(s => s.rarity === 'legendary' || s.rarity === 'epic')
+                                                        .slice(0, 4)
+                                                        .map(skin => (
+                                                            <div key={skin.id} className="animate-in fade-in slide-in-from-bottom-8 duration-700">
+                                                                <DiceCard
+                                                                    skin={skin}
+                                                                    isOwned={diceInventory.includes(skin.id)}
+                                                                    isEquipped={currentDiceSkinId === skin.id}
+                                                                    canAfford={!isCheckingOut}
+                                                                    onBuy={() => handleBuyItem(skin.id, 'dice', skin.price, skin.name)}
+                                                                    onEquip={() => handleEquipDice(skin.id)}
+                                                                />
+                                                            </div>
+                                                        ))
+                                                    }
+                                                </div>
+                                            </div>
+
+                                            {/* Section: Latest Tokens */}
+                                            <div className="space-y-6">
+                                                <div className="flex items-end justify-between px-2">
+                                                    <div className="space-y-1">
+                                                        <h4 className="text-2xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter">Nouveaux Cadres</h4>
+                                                        <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em]">Personnalisation ultime</p>
+                                                    </div>
+                                                    <button onClick={() => { setActiveTab('store'); setFilter('token'); }} className="text-[10px] font-black text-[var(--accent-brown)] uppercase tracking-widest hover:underline px-4 py-2 bg-[var(--text-primary)]/5 rounded-xl border border-[var(--border-color)]">
+                                                        Voir tout
+                                                    </button>
+                                                </div>
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                                                    {Object.values(TOKEN_DEFINITIONS)
+                                                        .filter((t: TokenSkin) => t.unlockCondition === 'purchase' || t.price > 0)
+                                                        .slice(0, 4)
+                                                        .map((token: TokenSkin) => (
+                                                            <div key={token.id} className="animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
+                                                                <TokenCard
+                                                                    skin={token}
+                                                                    src={token.id} // Based on getTokenDefinition helper in token-definitions.ts
+                                                                    isOwned={tokenInventory.includes(token.id)}
+                                                                    isEquipped={currentTokenSrc === token.id}
+                                                                    canAfford={!isCheckingOut}
+                                                                    onBuy={() => handleBuyItem(token.id, 'token', token.price, token.name)}
+                                                                    onEquip={() => handleEquipToken(token.id)}
+                                                                />
+                                                            </div>
+                                                        ))
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Premium Page */}
+                                    {activeTab === 'premium' && (
+                                        <div className="col-span-full">
+                                            <div className={cn(
+                                                "relative flex flex-col items-center justify-center rounded-3xl overflow-hidden border transition-all duration-500 min-h-[500px] p-12 text-center",
+                                                "bg-gradient-to-br from-[var(--accent-brown)]/20 via-[var(--bg-dark)] to-[var(--bg-darker)] border-[var(--accent-brown)]/30",
+                                                "hover:border-[var(--accent-brown)] hover:shadow-[0_0_50px_rgba(var(--accent-brown-rgb),0.1)]"
+                                            )}>
+                                                <div className="absolute top-0 right-0 p-10 opacity-10 rotate-12">
+                                                    <Crown className="w-64 h-64 text-[var(--accent-brown)]" />
+                                                </div>
+
+                                                <div className="relative z-10 flex flex-col items-center gap-6 max-w-2xl">
+                                                    <div className="w-20 h-20 rounded-3xl bg-[var(--accent-brown)]/10 flex items-center justify-center border border-[var(--accent-brown)]/20 shadow-inner">
+                                                        <Crown className="w-10 h-10 text-[var(--accent-brown)]" />
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <h3 className="text-4xl font-black text-[var(--text-primary)] italic uppercase tracking-tighter">Abonnement Premium</h3>
+                                                        <p className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">L'expérience Ultime du MJ</p>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full mt-4 text-left">
+                                                        {[
+                                                            { icon: <Dice5 />, text: "Débloquez TOUS les dés 3D" },
+                                                            { icon: <LayoutGrid />, text: "Images de jetons illimitées" },
+                                                            { icon: <Package />, text: "Accès aux futurs contenus" },
+                                                            { icon: <Sparkles />, text: "Soutenez le créateur" },
+                                                        ].map((benefit, i) => (
+                                                            <div key={i} className="flex items-center gap-3 p-4 rounded-2xl bg-[var(--bg-darker)]/50 border border-[var(--border-color)]">
+                                                                <div className="text-[var(--accent-brown)]">{benefit.icon}</div>
+                                                                <span className="text-xs font-black uppercase tracking-tight">{benefit.text}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+
+                                                    <div className="flex flex-col items-center gap-4 mt-8">
+                                                        <div className="flex items-baseline gap-1">
+                                                            <span className="text-5xl font-black text-[var(--text-primary)] tracking-tighter">4.99 €</span>
+                                                            <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest">/ mois</span>
+                                                        </div>
+
+                                                        {isPremium ? (
+                                                            <button
+                                                                onClick={handleManagePortal}
+                                                                disabled={isManagingPortal}
+                                                                className="px-12 py-4 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-2xl text-sm font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all flex items-center gap-3 shadow-xl shadow-[var(--accent-brown)]/20"
+                                                            >
+                                                                {isManagingPortal ? <Loader2 className="w-5 h-5 animate-spin" /> : <Settings className="w-5 h-5" />}
+                                                                Gérer l'abonnement
+                                                            </button>
+                                                        ) : (
+                                                            <button
+                                                                onClick={handleSubscribe}
+                                                                disabled={isCheckingOut}
+                                                                className="px-12 py-4 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-2xl text-sm font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all flex items-center gap-3 shadow-[0_0_40px_rgba(var(--accent-brown-rgb),0.5)]"
+                                                            >
+                                                                {isCheckingOut ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                                                                Devenir Premium
+                                                            </button>
+                                                        )}
+                                                        <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-tighter opacity-50">Annulation à tout moment via Stripe Portal</p>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Item Grid */}
+                                    {activeTab !== 'premium' && (
+                                        displayItems.length === 0 ? (
+                                            <div className="col-span-full py-40 flex flex-col items-center gap-4 opacity-30">
+                                                <Package className="w-16 h-16 text-[var(--text-secondary)]" />
+                                                <p className="text-xs font-bold uppercase tracking-widest leading-none">Aucun butin ici...</p>
+                                            </div>
+                                        ) : (
+                                            displayItems.map((item) => (
+                                                <div key={`${item.type}-${item.data.id}`} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                                    {item.type === 'dice' ? (
+                                                        <DiceCard
+                                                            skin={item.data}
+                                                            isOwned={activeTab === 'inventory' || diceInventory.includes(item.data.id)}
+                                                            isEquipped={currentDiceSkinId === item.data.id}
+                                                            canAfford={!isCheckingOut}
+                                                            onBuy={() => handleBuyItem(item.data.id, 'dice', item.data.price, item.data.name)}
+                                                            onEquip={() => handleEquipDice(item.data.id)}
+                                                        />
+                                                    ) : (
+                                                        <TokenCard
+                                                            skin={item.data}
+                                                            src={item.data.src}
+                                                            isOwned={activeTab === 'inventory' || tokenInventory.includes(item.data.id) || item.data.unlockCondition === 'free'}
+                                                            isEquipped={currentTokenSrc === item.data.src}
+                                                            canAfford={!isCheckingOut}
+                                                            onBuy={() => handleBuyItem(item.data.id, 'token', item.data.price, item.data.name)}
+                                                            onEquip={() => handleEquipToken(item.data.src)}
+                                                        />
+                                                    )}
+                                                </div>
+                                            ))
+                                        )
+                                    )}
+                                </div>
                             </div>
                         </ScrollArea>
                     )}
