@@ -1,9 +1,5 @@
 // cropImageHelper.js
-import { parseGIF, decompressFrames } from 'gifuct-js';
-import GIF from 'gif.js';
-
-const VIEWPORT_SIZE = 320; // Standard size for all processing
-const TOKEN_SCALE = 1.25; // Scale token up to give more room for character
+const VIEWPORT_SIZE = 400; // Resolution matching the UI's square container
 
 const loadImage = (url) => new Promise((resolve, reject) => {
   const loadWithProxy = (originalUrl) => {
@@ -16,14 +12,12 @@ const loadImage = (url) => new Promise((resolve, reject) => {
   };
 
   const img = new Image();
-  // Only set crossOrigin if it's not a data URL
   if (url && !url.startsWith('data:')) {
     img.crossOrigin = 'anonymous';
   }
 
   img.onload = () => resolve(img);
   img.onerror = () => {
-    // If direct load fails and it's not a data URL, try the proxy
     if (url && !url.startsWith('data:')) {
       console.warn(`Direct load failed for ${url}, trying proxy...`);
       loadWithProxy(url);
@@ -34,337 +28,61 @@ const loadImage = (url) => new Promise((resolve, reject) => {
   img.src = url;
 });
 
-export const getCroppedImg = (imageSrc, pixelCrop) => {
-  return new Promise(async (resolve, reject) => {
-    try {
-      const image = await loadImage(imageSrc);
+// Returns exactly what is seen in the cropper as a 400x400 PNG
+export const getCroppedImg = async (imageSrc, pixelCrop) => {
+  const image = await loadImage(imageSrc);
 
-      const canvas = document.createElement('canvas');
-      canvas.width = VIEWPORT_SIZE;
-      canvas.height = VIEWPORT_SIZE;
-      const ctx = canvas.getContext('2d');
+  // 1. Create a canvas matching the crop area exactly
+  const cropCanvas = document.createElement('canvas');
+  cropCanvas.width = pixelCrop.width;
+  cropCanvas.height = pixelCrop.height;
+  const cropCtx = cropCanvas.getContext('2d', { alpha: true });
 
-      // Safe draw logic to prevent stretching when crop is out of bounds
-      const px = pixelCrop.x;
-      const py = pixelCrop.y;
-      const pw = pixelCrop.width;
-      const ph = pixelCrop.height;
+  // Clear with transparency (handles empty space if zoomed out)
+  cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
 
-      // Calculate scale to fit VIEWPORT_SIZE
-      const scaleX = VIEWPORT_SIZE / pw;
-      const scaleY = VIEWPORT_SIZE / ph;
+  // Draw the image shifted by the inverted crop coordinates
+  cropCtx.drawImage(image, -pixelCrop.x, -pixelCrop.y);
 
-      // Calculate intersection with image
-      const ix = Math.max(0, px);
-      const iy = Math.max(0, py);
-      const iw = Math.min(px + pw, image.width) - ix;
-      const ih = Math.min(py + ph, image.height) - iy;
+  // 2. Create the final 400x400 output canvas
+  const finalCanvas = document.createElement('canvas');
+  finalCanvas.width = VIEWPORT_SIZE;
+  finalCanvas.height = VIEWPORT_SIZE;
+  const finalCtx = finalCanvas.getContext('2d', { alpha: true });
 
-      // Draw intersection if valid
-      if (iw > 0 && ih > 0) {
-        const dx = ix - px;
-        const dy = iy - py;
-        ctx.drawImage(image,
-          ix, iy, iw, ih,
-          dx * scaleX, dy * scaleY, iw * scaleX, ih * scaleY
-        );
-      }
+  finalCtx.clearRect(0, 0, VIEWPORT_SIZE, VIEWPORT_SIZE);
 
-      const base64Image = canvas.toDataURL('image/png');
-      resolve(base64Image);
-    } catch (e) {
-      reject(e);
-    }
-  });
+  // 3. Scale the cropped image seamlessly into the final viewport
+  finalCtx.drawImage(cropCanvas, 0, 0, VIEWPORT_SIZE, VIEWPORT_SIZE);
+
+  return finalCanvas.toDataURL('image/png', 1.0);
 };
 
-// Crop a GIF by processing each frame
-export const getCroppedGif = async (gifUrl, pixelCrop, onProgress = null) => {
-  try {
-    // Load the GIF
-    const response = await fetch(gifUrl);
-    const arrayBuffer = await response.arrayBuffer();
-    const gif = parseGIF(arrayBuffer);
-    const frames = decompressFrames(gif, true);
+// Composites the token directly over the character (1:1 ratio)
+export const createCompositeImage = async (croppedImageSrc, tokenSrc) => {
+  const [characterImage, tokenImage] = await Promise.all([
+    loadImage(croppedImageSrc),
+    loadImage(tokenSrc)
+  ]);
 
-    if (!frames || frames.length === 0) {
-      throw new Error('No frames found in GIF');
-    }
+  const canvas = document.createElement('canvas');
+  canvas.width = VIEWPORT_SIZE;
+  canvas.height = VIEWPORT_SIZE;
+  const ctx = canvas.getContext('2d', { alpha: true });
 
-    // Create GIF encoder
-    const encoder = new GIF({
-      workers: 2,
-      quality: 10,
-      width: VIEWPORT_SIZE,
-      height: VIEWPORT_SIZE,
-      workerScript: '/gif.worker.js'
-    });
+  ctx.clearRect(0, 0, VIEWPORT_SIZE, VIEWPORT_SIZE);
 
-    // Process each frame
-    for (let i = 0; i < frames.length; i++) {
-      const frame = frames[i];
+  // 1. Draw Character (already cropped and scaled to 400x400)
+  // We apply a circle clip to ensure it doesn't bleed outside the token's hole
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(VIEWPORT_SIZE / 2, VIEWPORT_SIZE / 2, VIEWPORT_SIZE / 2 - 2, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.drawImage(characterImage, 0, 0, VIEWPORT_SIZE, VIEWPORT_SIZE);
+  ctx.restore();
 
-      // Create a temporary canvas for the original frame
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = gif.lsd.width;
-      tempCanvas.height = gif.lsd.height;
-      const tempCtx = tempCanvas.getContext('2d');
+  // 2. Draw Token (exactly 400x400)
+  ctx.drawImage(tokenImage, 0, 0, VIEWPORT_SIZE, VIEWPORT_SIZE);
 
-      // Create ImageData from frame patch
-      const imageData = tempCtx.createImageData(gif.lsd.width, gif.lsd.height);
-
-      // Fill with transparent or background color
-      const transparentIndex = frame.gce?.transparentColorIndex ?? -1;
-
-      // Copy frame data
-      for (let j = 0; j < frame.pixels.length; j++) {
-        const colorIndex = frame.pixels[j];
-        if (colorIndex === transparentIndex) {
-          imageData.data[j * 4 + 3] = 0; // Transparent
-        } else {
-          const color = frame.colorTable[colorIndex] || [0, 0, 0];
-          imageData.data[j * 4] = color[0];     // R
-          imageData.data[j * 4 + 1] = color[1]; // G
-          imageData.data[j * 4 + 2] = color[2]; // B
-          imageData.data[j * 4 + 3] = 255;      // A
-        }
-      }
-
-      tempCtx.putImageData(imageData, 0, 0);
-
-      // Create cropped canvas
-      const croppedCanvas = document.createElement('canvas');
-      croppedCanvas.width = VIEWPORT_SIZE;
-      croppedCanvas.height = VIEWPORT_SIZE;
-      const croppedCtx = croppedCanvas.getContext('2d');
-
-      // Draw cropped region
-      croppedCtx.drawImage(
-        tempCanvas,
-        pixelCrop.x,
-        pixelCrop.y,
-        pixelCrop.width,
-        pixelCrop.height,
-        0,
-        0,
-        VIEWPORT_SIZE,
-        VIEWPORT_SIZE
-      );
-
-      // Add frame to encoder
-      encoder.addFrame(croppedCtx, {
-        delay: frame.delay || 100,
-        copy: true
-      });
-
-      if (onProgress) {
-        onProgress((i + 1) / frames.length * 0.7); // 70% for frame processing
-      }
-    }
-
-    // Render the GIF
-    return new Promise((resolve, reject) => {
-      encoder.on('finished', (blob) => {
-        if (onProgress) onProgress(1.0);
-        resolve(URL.createObjectURL(blob));
-      });
-
-      encoder.on('progress', (p) => {
-        if (onProgress) {
-          onProgress(0.7 + p * 0.3); // Last 30% for encoding
-        }
-      });
-
-      encoder.render();
-    });
-  } catch (error) {
-    console.error('Error cropping GIF:', error);
-    throw error;
-  }
-};
-
-// Create composite image with token overlay
-export const createCompositeImage = (croppedImageSrc, tokenSrc, isGif = false) => {
-  return new Promise((resolve, reject) => {
-    const tokenSize = VIEWPORT_SIZE * TOKEN_SCALE; // Token is larger (400px)
-    const targetSize = tokenSize; // Canvas must fit the full token
-    const imageSize = VIEWPORT_SIZE; // Character should be 320px
-
-    // For GIFs, we can't composite directly without losing animation
-    // Return the GIF as-is to handle overlay via CSS
-    if (isGif) {
-      resolve(croppedImageSrc);
-      return;
-    }
-
-    const canvas = document.createElement('canvas');
-    canvas.width = targetSize;
-    canvas.height = targetSize;
-    const ctx = canvas.getContext('2d', { alpha: true });
-
-    // Ensure the canvas is completely transparent
-    ctx.clearRect(0, 0, targetSize, targetSize);
-
-    const loadImages = async () => {
-      try {
-        const characterImage = await loadImage(croppedImageSrc);
-
-        // Draw character image (centered)
-        // We always scale the cropped content to fit the 320px viewport
-        const imageX = (targetSize - imageSize) / 2;
-        const imageY = (targetSize - imageSize) / 2;
-
-        // Create circular clipping path for the character image
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(targetSize / 2, targetSize / 2, (imageSize / 2) - 2, 0, Math.PI * 2); // Slight inset to avoid bleed
-        ctx.closePath();
-        ctx.clip();
-
-        // Draw the character image forced to imageSize
-        ctx.drawImage(characterImage, imageX, imageY, imageSize, imageSize);
-        ctx.restore();
-
-        // Load and draw token overlay
-        const tokenImage = await loadImage(tokenSrc);
-
-        // Draw token overlay centered (preserving its transparency)
-        const tokenX = (targetSize - tokenSize) / 2;
-        const tokenY = (targetSize - tokenSize) / 2;
-        ctx.drawImage(tokenImage, tokenX, tokenY, tokenSize, tokenSize);
-
-        // Convert to base64 PNG with maximum quality (preserves transparency)
-        const base64Image = canvas.toDataURL('image/png', 1.0);
-        resolve(base64Image);
-
-      } catch (e) {
-        reject(e);
-      }
-    };
-
-    loadImages();
-  });
-};
-
-// Create composite GIF with token overlay on each frame
-export const createCompositeGif = async (gifUrl, tokenSrc, onProgress = null) => {
-  try {
-    const tokenSize = VIEWPORT_SIZE * TOKEN_SCALE; // Token is larger
-    const targetSize = tokenSize; // Canvas must fit the full token
-    const imageSize = VIEWPORT_SIZE; // Use full size for GIFs now too
-
-    // Load the GIF
-    const response = await fetch(gifUrl);
-    const arrayBuffer = await response.arrayBuffer();
-    const gif = parseGIF(arrayBuffer);
-    const frames = decompressFrames(gif, true);
-
-    if (!frames || frames.length === 0) {
-      throw new Error('No frames found in GIF');
-    }
-
-    // Load token image
-    const tokenImage = await new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = tokenSrc;
-    });
-
-    // Create GIF encoder
-    const encoder = new GIF({
-      workers: 2,
-      quality: 10,
-      width: targetSize,
-      height: targetSize,
-      workerScript: '/gif.worker.js',
-      transparent: 0x000000
-    });
-
-    // Process each frame
-    for (let i = 0; i < frames.length; i++) {
-      const frame = frames[i];
-
-      // Create composite canvas
-      const canvas = document.createElement('canvas');
-      canvas.width = targetSize;
-      canvas.height = targetSize;
-      const ctx = canvas.getContext('2d');
-
-      // Clear with transparency
-      ctx.clearRect(0, 0, targetSize, targetSize);
-
-      // Create temporary canvas for frame
-      const tempCanvas = document.createElement('canvas');
-      tempCanvas.width = gif.lsd.width;
-      tempCanvas.height = gif.lsd.height;
-      const tempCtx = tempCanvas.getContext('2d');
-
-      // Create ImageData from frame
-      const imageData = tempCtx.createImageData(gif.lsd.width, gif.lsd.height);
-      const transparentIndex = frame.gce?.transparentColorIndex ?? -1;
-
-      for (let j = 0; j < frame.pixels.length; j++) {
-        const colorIndex = frame.pixels[j];
-        if (colorIndex === transparentIndex) {
-          imageData.data[j * 4 + 3] = 0;
-        } else {
-          const color = frame.colorTable[colorIndex] || [0, 0, 0];
-          imageData.data[j * 4] = color[0];
-          imageData.data[j * 4 + 1] = color[1];
-          imageData.data[j * 4 + 2] = color[2];
-          imageData.data[j * 4 + 3] = 255;
-        }
-      }
-
-      tempCtx.putImageData(imageData, 0, 0);
-
-      // Draw character image (centered and full size)
-      const imageX = (targetSize - imageSize) / 2;
-      const imageY = (targetSize - imageSize) / 2;
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(targetSize / 2, targetSize / 2, (imageSize / 2) - 2, 0, Math.PI * 2);
-      ctx.closePath();
-      ctx.clip();
-      ctx.drawImage(tempCanvas, imageX, imageY, imageSize, imageSize);
-      ctx.restore();
-
-      // Draw token overlay
-      const tokenX = (targetSize - tokenSize) / 2;
-      const tokenY = (targetSize - tokenSize) / 2;
-      ctx.drawImage(tokenImage, tokenX, tokenY, tokenSize, tokenSize);
-
-      // Add frame to encoder
-      encoder.addFrame(ctx, {
-        delay: frame.delay || 100,
-        copy: true
-      });
-
-      if (onProgress) {
-        onProgress((i + 1) / frames.length * 0.7);
-      }
-    }
-
-    // Render the GIF
-    return new Promise((resolve, reject) => {
-      encoder.on('finished', (blob) => {
-        if (onProgress) onProgress(1.0);
-        resolve(URL.createObjectURL(blob));
-      });
-
-      encoder.on('progress', (p) => {
-        if (onProgress) {
-          onProgress(0.7 + p * 0.3);
-        }
-      });
-
-      encoder.render();
-    });
-  } catch (error) {
-    console.error('Error creating composite GIF:', error);
-    throw error;
-  }
+  return canvas.toDataURL('image/png', 1.0);
 };
