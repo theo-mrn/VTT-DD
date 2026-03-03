@@ -22,6 +22,7 @@ interface GameEvent {
     characterId?: string;
     characterName?: string;
     characterAvatar?: string;
+    characterType?: string;
     targetUserId?: string;
     details?: Record<string, any>;
 }
@@ -30,6 +31,7 @@ interface PendingMove {
     charId: string;
     name: string;
     avatar: string;
+    type: string;
     cityId: string | null;
     timestamp: number;
 }
@@ -105,12 +107,12 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
 
             let message = '';
             if (names.length === 1) {
-                message = `${names[0]} a été déplacé vers : ${cityName}.`;
+                message = `**${names[0]}** a été déplacé vers : **${cityName}**.`;
             } else if (names.length === 2) {
-                message = `${names[0]} et ${names[1]} ont été déplacés vers : ${cityName}.`;
+                message = `**${names[0]}** et **${names[1]}** ont été déplacés vers : **${cityName}**.`;
             } else {
                 const last = names.pop();
-                message = `${names.join(', ')} et ${last} ont été déplacés vers : ${cityName}.`;
+                message = `**${names.join('**, **')}** et **${last}** ont été déplacés vers : **${cityName}**.`;
             }
 
             logEvent({
@@ -120,7 +122,8 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                 ...(charMoves.length === 1 ? {
                     characterId: charMoves[0].charId,
                     characterName: charMoves[0].name,
-                    characterAvatar: charMoves[0].avatar
+                    characterAvatar: charMoves[0].avatar,
+                    characterType: charMoves[0].type
                 } : {})
             });
         }
@@ -130,12 +133,12 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
             const names = returnedToGroup.map(m => m.name);
             let message = '';
             if (names.length === 1) {
-                message = `${names[0]} a rejoint le groupe.`;
+                message = `**${names[0]}** a rejoint le groupe.`;
             } else if (names.length === 2) {
-                message = `${names[0]} et ${names[1]} ont rejoint le groupe.`;
+                message = `**${names[0]}** et **${names[1]}** ont rejoint le groupe.`;
             } else {
                 const last = names.pop();
-                message = `${names.join(', ')} et ${last} ont rejoint le groupe.`;
+                message = `**${names.join('**, **')}** et **${last}** ont rejoint le groupe.`;
             }
 
             logEvent({
@@ -144,7 +147,8 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                 ...(returnedToGroup.length === 1 ? {
                     characterId: returnedToGroup[0].charId,
                     characterName: returnedToGroup[0].name,
-                    characterAvatar: returnedToGroup[0].avatar
+                    characterAvatar: returnedToGroup[0].avatar,
+                    characterType: returnedToGroup[0].type
                 } : {})
             });
         }
@@ -180,10 +184,10 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                 const avatar = typeof rawImage === 'object' && rawImage?.src ? rawImage.src : (typeof rawImage === 'string' ? rawImage : '');
 
                 if (change.type === 'removed') {
-                    logEvent({ type: 'mort', message: `${name} a été vaincu !`, characterId: id, characterName: name, characterAvatar: avatar });
+                    logEvent({ type: 'mort', message: `**${name}** a été vaincu !`, characterId: id, characterName: name, characterAvatar: avatar, characterType: char.type });
                 }
                 else if (change.type === 'added') {
-                    logEvent({ type: 'creation', message: `${name} a rejoint l'aventure.`, characterId: id, characterName: name, characterAvatar: avatar });
+                    logEvent({ type: 'creation', message: `**${name}** a rejoint l'aventure.`, characterId: id, characterName: name, characterAvatar: avatar, characterType: char.type });
                 }
                 else if (change.type === 'modified') {
                     const prev = prevChars[id];
@@ -192,17 +196,17 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                     // PV, Level, Stats tracking (simplified for space)
                     const prevPV = Number(prev.PV) || 0;
                     const currPV = Number(char.PV) || 0;
-                    if (prevPV > 0 && currPV <= 0) logEvent({ type: 'mort', message: `${name} a succombé à ses blessures !`, characterId: id, characterName: name, characterAvatar: avatar });
+                    if (prevPV > 0 && currPV <= 0) logEvent({ type: 'mort', message: `**${name}** a succombé à ses blessures !`, characterId: id, characterName: name, characterAvatar: avatar, characterType: char.type });
                     else if (prevPV !== currPV && currPV > 0) {
                         const action = (currPV - prevPV) > 0 ? 'soigné' : 'attaqué';
-                        if (!isPlayer) logEvent({ type: 'combat', message: `${name} a été ${action}.`, characterId: id, characterName: name, characterAvatar: avatar });
-                        else logEvent({ type: 'combat', message: `${name} a ${currPV > prevPV ? "récupéré" : "perdu"} ${Math.abs(currPV - prevPV)} PV.`, characterId: id, characterName: name, characterAvatar: avatar });
+                        if (!isPlayer) logEvent({ type: 'combat', message: `**${name}** a été ${action}.`, characterId: id, characterName: name, characterAvatar: avatar, characterType: char.type });
+                        else logEvent({ type: 'combat', message: `**${name}** a **${currPV > prevPV ? "récupéré" : "perdu"}** ${Math.abs(currPV - prevPV)} PV.`, characterId: id, characterName: name, characterAvatar: avatar, characterType: char.type });
                     }
 
                     if (isPlayer) {
                         const prevLevel = Number(prev.niveau) || 0;
                         const currLevel = Number(char.niveau) || 0;
-                        if (currLevel > prevLevel) logEvent({ type: 'niveau', message: `${name} a atteint le niveau ${currLevel} !`, characterId: id, characterName: name, characterAvatar: avatar });
+                        if (currLevel > prevLevel) logEvent({ type: 'niveau', message: `**${name}** a atteint le niveau **${currLevel}** !`, characterId: id, characterName: name, characterAvatar: avatar, characterType: char.type });
 
                         const statsToCheck = ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA', 'Contact', 'Distance', 'Magie'];
                         const modifiedStats = [];
@@ -211,14 +215,14 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                             const cStat = Number(char[stat]) || 0;
                             if (pStat !== cStat) modifiedStats.push(`${stat} (${cStat > pStat ? '+' : ''}${cStat - pStat})`);
                         }
-                        if (modifiedStats.length > 0) logEvent({ type: 'stats', message: `${name} a vu ses statistiques modifiées : ${modifiedStats.join(', ')}.`, characterId: id, characterName: name, characterAvatar: avatar });
+                        if (modifiedStats.length > 0) logEvent({ type: 'stats', message: `**${name}** a vu ses statistiques modifiées : **${modifiedStats.join(', ')}**.`, characterId: id, characterName: name, characterAvatar: avatar, characterType: char.type });
 
                         // DEPLACEMENT (currentSceneId) -> BUFFERED
                         const prevSceneId = prev.currentSceneId || null;
                         const currSceneId = char.currentSceneId || null;
 
                         if (prevSceneId !== currSceneId) {
-                            pendingMovesRef.current.push({ charId: id, name, avatar, cityId: currSceneId, timestamp: Date.now() });
+                            pendingMovesRef.current.push({ charId: id, name, avatar, type: char.type, cityId: currSceneId, timestamp: Date.now() });
                             if (bufferTimeoutRef.current) clearTimeout(bufferTimeoutRef.current);
                             bufferTimeoutRef.current = setTimeout(processPendingMoves, 800);
                         }
@@ -262,7 +266,7 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
 
                 logEvent({
                     type: 'deplacement',
-                    message: `Le groupe s'est déplacé vers : ${cityName}.`,
+                    message: `Le groupe s'est déplacé vers : **${cityName}**.`,
                 });
             }
             previousGlobalCityIdRef.current = currentCityId;
@@ -290,8 +294,8 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                     const prev = prevInv[id];
                     const itemName = item.message || 'un objet';
                     const currQty = Number(item.quantity) || 1;
-                    if (!prev) logEvent({ type: 'inventaire', message: `${name} a reçu ${currQty}x [${itemName}] dans son inventaire.`, characterId: player.id, characterName: name, characterAvatar: avatar });
-                    else if (currQty > (Number(prev.quantity) || 1)) logEvent({ type: 'inventaire', message: `${name} a reçu ${currQty - (Number(prev.quantity) || 1)}x [${itemName}] supplémentaire(s).`, characterId: player.id, characterName: name, characterAvatar: avatar });
+                    if (!prev) logEvent({ type: 'inventaire', message: `**${name}** a reçu **${currQty}x [${itemName}]** dans son inventaire.`, characterId: player.id, characterName: name, characterAvatar: avatar, characterType: player.type });
+                    else if (currQty > (Number(prev.quantity) || 1)) logEvent({ type: 'inventaire', message: `**${name}** a reçu **${currQty - (Number(prev.quantity) || 1)}x [${itemName}]** supplémentaire(s).`, characterId: player.id, characterName: name, characterAvatar: avatar, characterType: player.type });
                 }
                 previousInventoriesRef.current[name] = currentInv;
             });
