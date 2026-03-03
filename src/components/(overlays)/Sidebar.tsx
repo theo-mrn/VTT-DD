@@ -89,6 +89,10 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
                   <Skull className="h-5 w-5 sm:h-6 sm:w-6 transition-colors duration-150"
                     style={{ color: activeTab === "EncounterGenerator" ? 'var(--accent-brown)' : 'var(--text-secondary)' }} />
                 </button>
+                <button id="vtt-sidebar-historique" onClick={() => handleIconClick("Historique")} className="p-1.5 sm:p-2 transition-colors duration-150">
+                  <History className="h-5 w-5 sm:h-6 sm:w-6 transition-colors duration-150"
+                    style={{ color: activeTab === "Historique" ? 'var(--accent-brown)' : 'var(--text-secondary)' }} />
+                </button>
               </>
             )}
             <button id="vtt-sidebar-fiche" onClick={() => handleIconClick("Component")} className="p-1.5 sm:p-2 transition-colors duration-150">
@@ -106,10 +110,6 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
             <button id="vtt-sidebar-chat" onClick={() => handleIconClick("Chat")} className="p-1.5 sm:p-2 transition-colors duration-150">
               <ImagePlay className="h-5 w-5 sm:h-6 sm:w-6 transition-colors duration-150"
                 style={{ color: activeTab === "Chat" ? 'var(--accent-brown)' : 'var(--text-secondary)' }} />
-            </button>
-            <button id="vtt-sidebar-historique" onClick={() => handleIconClick("Historique")} className="p-1.5 sm:p-2 transition-colors duration-150">
-              <History className="h-5 w-5 sm:h-6 sm:w-6 transition-colors duration-150"
-                style={{ color: activeTab === "Historique" ? 'var(--accent-brown)' : 'var(--text-secondary)' }} />
             </button>
           </div>
         </div>
