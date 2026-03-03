@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { db, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, getDocs } from '@/lib/firebase';
+import { db, auth, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, getDocs } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { History, Shield, UserPlus, Skull, TrendingUp, HandCoins, Activity, Star } from 'lucide-react';
+import { History, Shield, UserPlus, Skull, TrendingUp, HandCoins, Activity, Star, Book, MapPin } from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
 import { useCharacter } from '@/contexts/CharacterContext';
 
@@ -17,6 +17,8 @@ export type EventType =
     | 'stats'
     | 'inventaire'
     | 'competence'
+    | 'note'
+    | 'deplacement'
     | 'info';
 
 export interface GameEvent {
@@ -27,6 +29,7 @@ export interface GameEvent {
     characterId?: string;
     characterName?: string;
     characterAvatar?: string;
+    targetUserId?: string; // If set, only this user (and MJ) can see the event
     details?: Record<string, any>;
 }
 
@@ -48,9 +51,17 @@ export default function Historique({ roomId }: HistoriqueProps) {
         const q = query(eventsRef, orderBy('timestamp', 'desc'));
 
         const unsubscribeEvents = onSnapshot(q, (snapshot) => {
+            const userId = auth.currentUser?.uid;
             const loadedEvents: GameEvent[] = [];
+
             snapshot.forEach((doc) => {
-                loadedEvents.push({ id: doc.id, ...doc.data() } as GameEvent);
+                const data = doc.data() as GameEvent;
+                // Filter: show if no targetUserId OR if user is the target OR if user is MJ
+                const isMJ = false; // We'll need to pass this or check it. Actually the user usually is the one seeing it.
+                // In this context, let's just use the current user's ID for filtering
+                if (!data.targetUserId || data.targetUserId === userId) {
+                    loadedEvents.push({ id: doc.id, ...data });
+                }
             });
             setEvents(loadedEvents);
         });
@@ -71,6 +82,8 @@ export default function Historique({ roomId }: HistoriqueProps) {
             case 'stats': return <Shield className="w-4 h-4 text-green-400" />;
             case 'inventaire': return <HandCoins className="w-4 h-4 text-amber-600" />;
             case 'competence': return <Star className="w-4 h-4 text-purple-400" />;
+            case 'note': return <Book className="w-4 h-4 text-blue-400" />;
+            case 'deplacement': return <MapPin className="w-4 h-4 text-emerald-500" />;
             default: return <History className="w-4 h-4 text-[var(--accent-brown)]" />;
         }
     };

@@ -10,7 +10,7 @@ import {
 import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
 
-import { db, auth, storage, addDoc, collection, doc, updateDoc, deleteDoc, onSnapshot, getDoc, onAuthStateChanged } from "@/lib/firebase"
+import { db, auth, storage, addDoc, collection, doc, updateDoc, deleteDoc, onSnapshot, getDoc, onAuthStateChanged, serverTimestamp } from "@/lib/firebase"
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { cn } from "@/lib/utils"
 import { toast } from 'sonner'
@@ -144,6 +144,22 @@ export default function Notes() {
   }, [roomId, characterId])
 
   // Actions
+  const logHistory = async (message: string, isPrivate: boolean = true) => {
+    if (!roomId) return;
+    try {
+      await addDoc(collection(db, `Historique/${roomId}/events`), {
+        type: 'note',
+        message,
+        characterId: characterId,
+        characterName: characterName,
+        timestamp: serverTimestamp(),
+        targetUserId: isPrivate ? auth.currentUser?.uid : null
+      });
+    } catch (err) {
+      console.error("Erreur log note history:", err);
+    }
+  };
+
   const handleNew = () => {
     setEditingNote({
       title: '', content: '', type: 'other', tags: [], subQuests: [],
@@ -182,6 +198,8 @@ export default function Notes() {
           payload.createdByName = characterName
           await addDoc(collection(db, 'SharedNotes', roomId, 'notes'), payload)
           await deleteDoc(doc(db, 'Notes', roomId, characterId, data.id))
+
+          await logHistory(`${characterName} a partagé une note : [${data.title}]`, false);
 
           toast.success('Note partagée', {
             description: `"${data.title}" est maintenant visible par tous.`,
@@ -223,8 +241,10 @@ export default function Notes() {
           payload.createdBy = characterId
           payload.createdByName = characterName
           await addDoc(collection(db, 'SharedNotes', roomId, 'notes'), payload)
+          await logHistory(`${characterName} a publié une note partagée : [${data.title}]`, false);
         } else {
           await addDoc(collection(db, 'Notes', roomId, characterId), payload)
+          await logHistory(`Vous avez rédigé une nouvelle note : [${data.title}]`, true);
         }
 
         toast.success('Note créée', {
@@ -298,6 +318,8 @@ export default function Notes() {
       delete (payload as any).id
 
       await addDoc(collection(db, 'SharedNotes', roomId, 'notes'), payload)
+
+      await logHistory(`${characterName} a partagé une note : [${note.title}]`, false);
 
       // Delete private version
       await deleteDoc(doc(db, 'Notes', roomId, characterId, note.id))

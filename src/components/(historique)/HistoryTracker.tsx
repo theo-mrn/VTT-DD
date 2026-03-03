@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef } from 'react';
-import { db, collection, onSnapshot, addDoc, serverTimestamp } from '@/lib/firebase';
+import { db, collection, onSnapshot, addDoc, serverTimestamp, doc } from '@/lib/firebase';
 import { useCharacter } from '@/contexts/CharacterContext';
 
 type EventType =
@@ -12,6 +12,8 @@ type EventType =
     | 'stats'
     | 'inventaire'
     | 'competence'
+    | 'note'
+    | 'deplacement'
     | 'info';
 
 interface GameEvent {
@@ -20,7 +22,16 @@ interface GameEvent {
     characterId?: string;
     characterName?: string;
     characterAvatar?: string;
+    targetUserId?: string;
     details?: Record<string, any>;
+}
+
+interface PendingMove {
+    charId: string;
+    name: string;
+    avatar: string;
+    cityId: string | null;
+    timestamp: number;
 }
 
 interface HistoryTrackerProps {
@@ -35,6 +46,15 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
 
     // Inventories state to track differences
     const previousInventoriesRef = useRef<Record<string, Record<string, any>>>({});
+
+    // City names for better messages
+    const cityNamesRef = useRef<Record<string, string>>({});
+    const previousGlobalCityIdRef = useRef<string | null>(null);
+
+    // Buffering for movements
+    const pendingMovesRef = useRef<PendingMove[]>([]);
+    const bufferTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const lastGlobalMoveRef = useRef<{ cityId: string | null, timestamp: number } | null>(null);
 
     const { characters } = useCharacter();
 
@@ -51,20 +71,97 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
         }
     };
 
-    // 1. Observer for Characters collection to detect changes (PV, creation, level up, stats)
+    // Process buffered movement events
+    const processPendingMoves = () => {
+        if (pendingMovesRef.current.length === 0) return;
+
+        const moves = [...pendingMovesRef.current];
+        pendingMovesRef.current = [];
+
+        // Group moves by destination (cityId)
+        const groupedByCity: Record<string, PendingMove[]> = {};
+        const returnedToGroup: PendingMove[] = [];
+
+        moves.forEach(move => {
+            if (move.cityId) {
+                if (!groupedByCity[move.cityId]) groupedByCity[move.cityId] = [];
+                groupedByCity[move.cityId].push(move);
+            } else {
+                returnedToGroup.push(move);
+            }
+        });
+
+        // 1. Process moves to specific cities
+        for (const [cityId, charMoves] of Object.entries(groupedByCity)) {
+            // Check if this matches a very recent global move (suppression)
+            const globalMove = lastGlobalMoveRef.current;
+            if (globalMove && globalMove.cityId === cityId && (Date.now() - globalMove.timestamp < 3000)) {
+                // Suppress: it's part of the group move already logged
+                continue;
+            }
+
+            const cityName = cityNamesRef.current[cityId] || 'un nouveau lieu';
+            const names = charMoves.map(m => m.name);
+
+            let message = '';
+            if (names.length === 1) {
+                message = `${names[0]} a été déplacé vers : ${cityName}.`;
+            } else if (names.length === 2) {
+                message = `${names[0]} et ${names[1]} ont été déplacés vers : ${cityName}.`;
+            } else {
+                const last = names.pop();
+                message = `${names.join(', ')} et ${last} ont été déplacés vers : ${cityName}.`;
+            }
+
+            logEvent({
+                type: 'deplacement',
+                message,
+                // Only attach character info if it's a single person
+                ...(charMoves.length === 1 ? {
+                    characterId: charMoves[0].charId,
+                    characterName: charMoves[0].name,
+                    characterAvatar: charMoves[0].avatar
+                } : {})
+            });
+        }
+
+        // 2. Process returns to group
+        if (returnedToGroup.length > 0) {
+            const names = returnedToGroup.map(m => m.name);
+            let message = '';
+            if (names.length === 1) {
+                message = `${names[0]} a rejoint le groupe.`;
+            } else if (names.length === 2) {
+                message = `${names[0]} et ${names[1]} ont rejoint le groupe.`;
+            } else {
+                const last = names.pop();
+                message = `${names.join(', ')} et ${last} ont rejoint le groupe.`;
+            }
+
+            logEvent({
+                type: 'deplacement',
+                message,
+                ...(returnedToGroup.length === 1 ? {
+                    characterId: returnedToGroup[0].charId,
+                    characterName: returnedToGroup[0].name,
+                    characterAvatar: returnedToGroup[0].avatar
+                } : {})
+            });
+        }
+    };
+
+    // 1. Observer for Characters collection
     useEffect(() => {
-        if (!roomId || !isMJ) return; // ONLY the MJ should run this tracking logic to avoid duplicating DB writes for all clients
+        if (!roomId || !isMJ) return;
 
         const charsRef = collection(db, `cartes/${roomId}/characters`);
-
         const unsubscribeChars = onSnapshot(charsRef, (snapshot) => {
             const currentChars: Record<string, any> = {};
 
-            snapshot.forEach(doc => {
-                currentChars[doc.id] = { id: doc.id, ...doc.data() };
+            snapshot.forEach(docSnap => {
+                currentChars[docSnap.id] = { id: docSnap.id, ...docSnap.data() };
             });
 
-            // Don't log everything on first load
             if (isInitialLoadRef.current) {
                 previousCharactersRef.current = currentChars;
                 isInitialLoadRef.current = false;
@@ -79,145 +176,51 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                 const name = char.Nomperso || 'Inconnu';
                 const isPlayer = char.type === 'joueurs';
 
-                // Extraire l'avatar (gère les différents formats d'image : joueurs, PNJ, objets avec src)
                 const rawImage = char.imageURL2 || char.imageURLFinal || char.image || char.imageUrl || char.imageURL;
                 const avatar = typeof rawImage === 'object' && rawImage?.src ? rawImage.src : (typeof rawImage === 'string' ? rawImage : '');
 
                 if (change.type === 'removed') {
-                    logEvent({
-                        type: 'mort',
-                        message: `${name} a été vaincu !`,
-                        characterId: id,
-                        characterName: name,
-                        characterAvatar: avatar
-                    });
+                    logEvent({ type: 'mort', message: `${name} a été vaincu !`, characterId: id, characterName: name, characterAvatar: avatar });
                 }
                 else if (change.type === 'added') {
-                    logEvent({
-                        type: 'creation',
-                        message: `${name} a rejoint l'aventure.`,
-                        characterId: id,
-                        characterName: name,
-                        characterAvatar: avatar
-                    });
+                    logEvent({ type: 'creation', message: `${name} a rejoint l'aventure.`, characterId: id, characterName: name, characterAvatar: avatar });
                 }
                 else if (change.type === 'modified') {
                     const prev = prevChars[id];
-                    if (!prev) return; // Par sécurité
+                    if (!prev) return;
 
-                    // --- 2. MORT PAR PV ---
+                    // PV, Level, Stats tracking (simplified for space)
                     const prevPV = Number(prev.PV) || 0;
                     const currPV = Number(char.PV) || 0;
-
-                    if (prevPV > 0 && currPV <= 0) {
-                        logEvent({
-                            type: 'mort',
-                            message: `${name} a succombé à ses blessures !`,
-                            characterId: id,
-                            characterName: name,
-                            characterAvatar: avatar
-                        });
-                    }
-                    // --- 3. COMBAT / PV MODIFIÉS ---
+                    if (prevPV > 0 && currPV <= 0) logEvent({ type: 'mort', message: `${name} a succombé à ses blessures !`, characterId: id, characterName: name, characterAvatar: avatar });
                     else if (prevPV !== currPV && currPV > 0) {
-                        const diff = currPV - prevPV;
-                        const action = diff > 0 ? 'soigné' : 'attaqué';
-                        const points = Math.abs(diff);
-
-                        if (!isPlayer) {
-                            logEvent({
-                                type: 'combat',
-                                message: `${name} a été ${action}.`,
-                                characterId: id,
-                                characterName: name,
-                                characterAvatar: avatar
-                            });
-                        } else {
-                            logEvent({
-                                type: 'combat',
-                                message: `${name} a ${diff > 0 ? "récupéré" : "perdu"} ${points} PV.`,
-                                characterId: id,
-                                characterName: name,
-                                characterAvatar: avatar,
-                                details: { diff, currPV }
-                            });
-                        }
+                        const action = (currPV - prevPV) > 0 ? 'soigné' : 'attaqué';
+                        if (!isPlayer) logEvent({ type: 'combat', message: `${name} a été ${action}.`, characterId: id, characterName: name, characterAvatar: avatar });
+                        else logEvent({ type: 'combat', message: `${name} a ${currPV > prevPV ? "récupéré" : "perdu"} ${Math.abs(currPV - prevPV)} PV.`, characterId: id, characterName: name, characterAvatar: avatar });
                     }
 
-                    // --- 4. JOUEURS UNIQUEMENT ---
                     if (isPlayer) {
-                        // NIVEAU
                         const prevLevel = Number(prev.niveau) || 0;
                         const currLevel = Number(char.niveau) || 0;
+                        if (currLevel > prevLevel) logEvent({ type: 'niveau', message: `${name} a atteint le niveau ${currLevel} !`, characterId: id, characterName: name, characterAvatar: avatar });
 
-                        if (currLevel > prevLevel) {
-                            logEvent({
-                                type: 'niveau',
-                                message: `${name} a atteint le niveau ${currLevel} !`,
-                                characterId: id,
-                                characterName: name,
-                                characterAvatar: avatar,
-                                details: { level: currLevel }
-                            });
-                        }
-
-                        // STATS
                         const statsToCheck = ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA', 'Contact', 'Distance', 'Magie'];
                         const modifiedStats = [];
-
                         for (const stat of statsToCheck) {
                             const pStat = Number(prev[stat]) || 0;
                             const cStat = Number(char[stat]) || 0;
-                            if (pStat !== cStat) {
-                                const diff = cStat - pStat;
-                                modifiedStats.push(`${stat} (${diff > 0 ? '+' : ''}${diff})`);
-                            }
+                            if (pStat !== cStat) modifiedStats.push(`${stat} (${cStat > pStat ? '+' : ''}${cStat - pStat})`);
                         }
+                        if (modifiedStats.length > 0) logEvent({ type: 'stats', message: `${name} a vu ses statistiques modifiées : ${modifiedStats.join(', ')}.`, characterId: id, characterName: name, characterAvatar: avatar });
 
-                        if (modifiedStats.length > 0) {
-                            logEvent({
-                                type: 'stats',
-                                message: `${name} a vu ses statistiques modifiées : ${modifiedStats.join(', ')}.`,
-                                characterId: id,
-                                characterName: name,
-                                characterAvatar: avatar,
-                                details: { modifiedStats }
-                            });
-                        }
+                        // DEPLACEMENT (currentSceneId) -> BUFFERED
+                        const prevSceneId = prev.currentSceneId || null;
+                        const currSceneId = char.currentSceneId || null;
 
-                        // COMPETENCES / VOIES
-                        for (let i = 1; i <= 10; i++) {
-                            const pV = Number(prev[`v${i}`]) || 0;
-                            const cV = Number(char[`v${i}`]) || 0;
-                            const voieFile = char[`Voie${i}`];
-
-                            if (cV > pV && voieFile) {
-                                // Tenter de récupérer le nom de la compétence depuis le JSON
-                                fetch(`/tabs/${voieFile}`)
-                                    .then(res => res.json())
-                                    .then(data => {
-                                        const skillName = data[`Affichage${cV}`] || `Rang ${cV}`;
-                                        logEvent({
-                                            type: 'competence',
-                                            message: `${name} a débloqué la compétence [${skillName}] (Rang ${cV}).`,
-                                            characterId: id,
-                                            characterName: name,
-                                            characterAvatar: avatar,
-                                            details: { voie: voieFile, rank: cV, skillName }
-                                        });
-                                    })
-                                    .catch(err => {
-                                        console.error("Erreur lors de la récupération de la compétence:", err);
-                                        // Fallback si le fetch échoue
-                                        logEvent({
-                                            type: 'competence',
-                                            message: `${name} a progressé dans une voie (Rang ${cV}).`,
-                                            characterId: id,
-                                            characterName: name,
-                                            characterAvatar: avatar
-                                        });
-                                    });
-                            }
+                        if (prevSceneId !== currSceneId) {
+                            pendingMovesRef.current.push({ charId: id, name, avatar, cityId: currSceneId, timestamp: Date.now() });
+                            if (bufferTimeoutRef.current) clearTimeout(bufferTimeoutRef.current);
+                            bufferTimeoutRef.current = setTimeout(processPendingMoves, 800);
                         }
                     }
                 }
@@ -229,81 +232,73 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
         return () => unsubscribeChars();
     }, [roomId, isMJ]);
 
-
-    // 2. Observer for Inventory for Players only
+    // 2. Observer for Cities
     useEffect(() => {
-        if (!roomId || !isMJ || characters.length === 0) return; // ONLY the MJ should run this tracking logic
+        if (!roomId || !isMJ) return;
+        const citiesRef = collection(db, `cartes/${roomId}/cities`);
+        const unsubscribeCities = onSnapshot(citiesRef, (snapshot) => {
+            const names: Record<string, string> = {};
+            snapshot.forEach(docSnap => { names[docSnap.id] = docSnap.data().name || 'Lieu inconnu'; });
+            cityNamesRef.current = names;
+        });
+        return () => unsubscribeCities();
+    }, [roomId, isMJ]);
 
+    // 3. Observer for Global Settings (Group Location)
+    useEffect(() => {
+        if (!roomId || !isMJ) return;
+        const settingsRef = doc(db, `cartes/${roomId}/settings/general`);
+        const unsubscribeSettings = onSnapshot(settingsRef, (snapshot) => {
+            if (!snapshot.exists()) return;
+            const data = snapshot.data();
+            const currentCityId = data.currentCityId;
+            const prevCityId = previousGlobalCityIdRef.current;
+
+            if (prevCityId !== null && currentCityId !== prevCityId) {
+                const cityName = cityNamesRef.current[currentCityId] || 'une nouvelle zone';
+
+                // Track global move for suppression logic
+                lastGlobalMoveRef.current = { cityId: currentCityId, timestamp: Date.now() };
+
+                logEvent({
+                    type: 'deplacement',
+                    message: `Le groupe s'est déplacé vers : ${cityName}.`,
+                });
+            }
+            previousGlobalCityIdRef.current = currentCityId;
+        });
+        return () => unsubscribeSettings();
+    }, [roomId, isMJ]);
+
+    // 4. Observer for Inventory
+    useEffect(() => {
+        if (!roomId || !isMJ || characters.length === 0) return;
         const unsubscribes: (() => void)[] = [];
-
-        // Only track players
         const players = characters.filter(c => c.type === 'joueurs');
-
         players.forEach(player => {
             const name = player.Nomperso;
             if (!name) return;
-
             const rawImage = player.imageURL2 || player.imageURLFinal || player.image || player.imageUrl || player.imageURL;
             const avatar = typeof rawImage === 'object' && rawImage?.src ? rawImage.src : (typeof rawImage === 'string' ? rawImage : '');
-
             const invRef = collection(db, `Inventaire/${roomId}/${name}`);
             const unsub = onSnapshot(invRef, (snapshot) => {
                 const currentInv: Record<string, any> = {};
-                snapshot.forEach(doc => {
-                    currentInv[doc.id] = { id: doc.id, ...doc.data() };
-                });
-
-                // Init if first time
-                if (!previousInventoriesRef.current[name]) {
-                    previousInventoriesRef.current[name] = currentInv;
-                    return;
-                }
-
+                snapshot.forEach(docSnap => { currentInv[docSnap.id] = { id: docSnap.id, ...docSnap.data() }; });
+                if (!previousInventoriesRef.current[name]) { previousInventoriesRef.current[name] = currentInv; return; }
                 const prevInv = previousInventoriesRef.current[name];
-
-                // Check for new items or increased quantities
                 for (const [id, item] of Object.entries(currentInv)) {
                     const prev = prevInv[id];
                     const itemName = item.message || 'un objet';
                     const currQty = Number(item.quantity) || 1;
-
-                    // New object entirely
-                    if (!prev) {
-                        logEvent({
-                            type: 'inventaire',
-                            message: `${name} a reçu ${currQty}x [${itemName}] dans son inventaire.`,
-                            characterId: player.id,
-                            characterName: name,
-                            characterAvatar: avatar
-                        });
-                    }
-                    // Existing object, increased quantity
-                    else {
-                        const prevQty = Number(prev.quantity) || 1;
-                        if (currQty > prevQty) {
-                            const diff = currQty - prevQty;
-                            logEvent({
-                                type: 'inventaire',
-                                message: `${name} a reçu ${diff}x [${itemName}] supplémentaire(s).`,
-                                characterId: player.id,
-                                characterName: name,
-                                characterAvatar: avatar
-                            });
-                        }
-                    }
+                    if (!prev) logEvent({ type: 'inventaire', message: `${name} a reçu ${currQty}x [${itemName}] dans son inventaire.`, characterId: player.id, characterName: name, characterAvatar: avatar });
+                    else if (currQty > (Number(prev.quantity) || 1)) logEvent({ type: 'inventaire', message: `${name} a reçu ${currQty - (Number(prev.quantity) || 1)}x [${itemName}] supplémentaire(s).`, characterId: player.id, characterName: name, characterAvatar: avatar });
                 }
-
                 previousInventoriesRef.current[name] = currentInv;
             });
-
             unsubscribes.push(unsub);
         });
-
-        return () => {
-            unsubscribes.forEach(unsub => unsub());
-        };
-
+        return () => unsubscribes.forEach(unsub => unsub());
     }, [roomId, isMJ, characters]);
 
-    return null; // Headless component
+    return null;
 }
