@@ -19,6 +19,7 @@ interface GameEvent {
     message: string;
     characterId?: string;
     characterName?: string;
+    characterAvatar?: string;
     details?: Record<string, any>;
 }
 
@@ -78,12 +79,17 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                 const name = char.Nomperso || 'Inconnu';
                 const isPlayer = char.type === 'joueurs';
 
+                // Extraire l'avatar (gère les différents formats d'image : joueurs, PNJ, objets avec src)
+                const rawImage = char.imageURL2 || char.imageURLFinal || char.image || char.imageUrl || char.imageURL;
+                const avatar = typeof rawImage === 'object' && rawImage?.src ? rawImage.src : (typeof rawImage === 'string' ? rawImage : '');
+
                 if (change.type === 'removed') {
                     logEvent({
                         type: 'mort',
                         message: `${name} a été vaincu !`,
                         characterId: id,
-                        characterName: name
+                        characterName: name,
+                        characterAvatar: avatar
                     });
                 }
                 else if (change.type === 'added') {
@@ -91,7 +97,8 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                         type: 'creation',
                         message: `${name} a rejoint l'aventure.`,
                         characterId: id,
-                        characterName: name
+                        characterName: name,
+                        characterAvatar: avatar
                     });
                 }
                 else if (change.type === 'modified') {
@@ -107,7 +114,8 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                             type: 'mort',
                             message: `${name} a succombé à ses blessures !`,
                             characterId: id,
-                            characterName: name
+                            characterName: name,
+                            characterAvatar: avatar
                         });
                     }
                     // --- 3. COMBAT / PV MODIFIÉS ---
@@ -121,7 +129,8 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                                 type: 'combat',
                                 message: `${name} a été ${action}.`,
                                 characterId: id,
-                                characterName: name
+                                characterName: name,
+                                characterAvatar: avatar
                             });
                         } else {
                             logEvent({
@@ -129,6 +138,7 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                                 message: `${name} a ${diff > 0 ? "récupéré" : "perdu"} ${points} PV.`,
                                 characterId: id,
                                 characterName: name,
+                                characterAvatar: avatar,
                                 details: { diff, currPV }
                             });
                         }
@@ -146,6 +156,7 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                                 message: `${name} a atteint le niveau ${currLevel} !`,
                                 characterId: id,
                                 characterName: name,
+                                characterAvatar: avatar,
                                 details: { level: currLevel }
                             });
                         }
@@ -169,27 +180,44 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                                 message: `${name} a vu ses statistiques modifiées : ${modifiedStats.join(', ')}.`,
                                 characterId: id,
                                 characterName: name,
+                                characterAvatar: avatar,
                                 details: { modifiedStats }
                             });
                         }
 
                         // COMPETENCES / VOIES
-                        const voiesModifiees = [];
                         for (let i = 1; i <= 10; i++) {
                             const pV = Number(prev[`v${i}`]) || 0;
                             const cV = Number(char[`v${i}`]) || 0;
-                            if (cV > pV && char[`Voie${i}`]) {
-                                voiesModifiees.push(`Voie ${i} (Rang ${cV})`);
-                            }
-                        }
+                            const voieFile = char[`Voie${i}`];
 
-                        if (voiesModifiees.length > 0) {
-                            logEvent({
-                                type: 'competence',
-                                message: `${name} a progressé dans ses apprentissages : ${voiesModifiees.join(', ')}.`,
-                                characterId: id,
-                                characterName: name
-                            });
+                            if (cV > pV && voieFile) {
+                                // Tenter de récupérer le nom de la compétence depuis le JSON
+                                fetch(`/tabs/${voieFile}`)
+                                    .then(res => res.json())
+                                    .then(data => {
+                                        const skillName = data[`Affichage${cV}`] || `Rang ${cV}`;
+                                        logEvent({
+                                            type: 'competence',
+                                            message: `${name} a débloqué la compétence [${skillName}] (Rang ${cV}).`,
+                                            characterId: id,
+                                            characterName: name,
+                                            characterAvatar: avatar,
+                                            details: { voie: voieFile, rank: cV, skillName }
+                                        });
+                                    })
+                                    .catch(err => {
+                                        console.error("Erreur lors de la récupération de la compétence:", err);
+                                        // Fallback si le fetch échoue
+                                        logEvent({
+                                            type: 'competence',
+                                            message: `${name} a progressé dans une voie (Rang ${cV}).`,
+                                            characterId: id,
+                                            characterName: name,
+                                            characterAvatar: avatar
+                                        });
+                                    });
+                            }
                         }
                     }
                 }
@@ -214,6 +242,9 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
         players.forEach(player => {
             const name = player.Nomperso;
             if (!name) return;
+
+            const rawImage = player.imageURL2 || player.imageURLFinal || player.image || player.imageUrl || player.imageURL;
+            const avatar = typeof rawImage === 'object' && rawImage?.src ? rawImage.src : (typeof rawImage === 'string' ? rawImage : '');
 
             const invRef = collection(db, `Inventaire/${roomId}/${name}`);
             const unsub = onSnapshot(invRef, (snapshot) => {
@@ -242,7 +273,8 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                             type: 'inventaire',
                             message: `${name} a reçu ${currQty}x [${itemName}] dans son inventaire.`,
                             characterId: player.id,
-                            characterName: name
+                            characterName: name,
+                            characterAvatar: avatar
                         });
                     }
                     // Existing object, increased quantity
@@ -254,7 +286,8 @@ export default function HistoryTracker({ roomId, isMJ }: HistoryTrackerProps) {
                                 type: 'inventaire',
                                 message: `${name} a reçu ${diff}x [${itemName}] supplémentaire(s).`,
                                 characterId: player.id,
-                                characterName: name
+                                characterName: name,
+                                characterAvatar: avatar
                             });
                         }
                     }
