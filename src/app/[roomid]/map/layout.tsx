@@ -13,6 +13,8 @@ import OverlayComponent from "@/components/(overlays)/overlay";
 import { DiceThrower } from "@/components/(dices)/throw";
 import { NPCManager } from '@/components/(personnages)/personnages'
 import Chat from "@/components/(chat)/Chat";
+import Historique from "@/components/(historique)/Historique";
+import HistoryTracker from "@/components/(historique)/HistoryTracker";
 import EncounterGenerator from "@/components/(encounter)/EncounterGenerator";
 import { auth, onAuthStateChanged, db, doc, onSnapshot } from "@/lib/firebase";
 import { X } from "lucide-react";
@@ -112,6 +114,8 @@ export default function Layout({ children }: LayoutProps) {
         return <Competences />;
       case "Chat":
         return <Chat />;
+      case "Historique":
+        return <Historique roomId={roomId} />;
       // Case DiceRoller removed from here to separate persistent rendering
       default:
         return null;
@@ -137,6 +141,8 @@ export default function Layout({ children }: LayoutProps) {
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1100px]";
       case "Chat":
         return "w-full sm:w-[500px] md:w-[600px] lg:w-[400px]";
+      case "Historique":
+        return "w-full sm:w-[500px] md:w-[600px] lg:w-[400px]";
       case "EncounterGenerator":
         return "w-full sm:w-[95vw] md:w-[90vw] lg:w-[1200px]";
       default:
@@ -160,6 +166,9 @@ export default function Layout({ children }: LayoutProps) {
             <div className="absolute left-5 z-0">
               <OverlayComponent onPanelToggle={setIsPanelOpen} />
             </div>
+
+            {/* Persistent History Tracker for recording events */}
+            <HistoryTracker roomId={roomId} isMJ={isMJ} />
 
             {/* Persistent Music Player Container */}
             <aside
@@ -186,7 +195,7 @@ export default function Layout({ children }: LayoutProps) {
               <aside
                 id="vtt-side-panel"
                 className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${getPanelWidth()} text-black shadow-lg z-20
-            ${activeTab === 'Chat' ? 'overflow-hidden' : 'overflow-y-auto'}`}
+            ${(activeTab === 'Chat' || activeTab === 'Historique') ? 'overflow-hidden' : 'overflow-y-auto'}`}
               >
 
                 {/* Bouton de fermeture pour mobile/tablette */}
@@ -198,7 +207,7 @@ export default function Layout({ children }: LayoutProps) {
                   <X className="h-5 w-5" />
                 </button>
 
-                <div className={activeTab === 'Chat' || activeTab === 'NPCManager' ? 'h-full' : ""}>
+                <div className={(activeTab === 'Chat' || activeTab === 'Historique' || activeTab === 'NPCManager') ? 'h-full' : ""}>
                   {renderActiveTab()}
                 </div>
               </aside>
