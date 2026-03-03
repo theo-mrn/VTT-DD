@@ -3,6 +3,7 @@ import Link from "next/link"
 
 export default function Home() {
     return <div>
+        <script src="./node_modules/preline/dist/preline.js"></script>
         <HeroSection />
         <footer className="w-full py-4 text-center text-sm text-foreground/60 border-t border-border/40 bg-background z-50">
             <p>
