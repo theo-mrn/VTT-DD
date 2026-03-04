@@ -1,5 +1,6 @@
-import { db } from '@/lib/firebase';
+import { db, realtimeDb } from '@/lib/firebase';
 import { collection, addDoc } from 'firebase/firestore';
+import { ref, update } from 'firebase/database';
 import { Character } from '@/app/[roomid]/map/types';
 
 /**
@@ -87,7 +88,15 @@ export const pasteCharacter = async (
         // For now, ensuring Nomperso exists is the critical part.
 
         // 7. Save to Firestore
-        await addDoc(collection(db, 'cartes', roomId, 'characters'), newCharData);
+        const docRef = await addDoc(collection(db, 'cartes', roomId, 'characters'), newCharData);
+
+        // 8. Écrire la position initiale en RTDB
+        const posData: any = { x: newCharData.x, y: newCharData.y };
+        if (selectedCityId && newCharData.positions?.[selectedCityId]) {
+            posData.positions = { [selectedCityId]: newCharData.positions[selectedCityId] };
+        }
+        await update(ref(realtimeDb, `rooms/${roomId}/positions/${docRef.id}`), posData);
+
         console.log("Details: Character pasted successfully", newCharData.name || newCharData.Nomperso);
 
     } catch (error) {

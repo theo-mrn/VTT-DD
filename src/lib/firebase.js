@@ -3,7 +3,7 @@ import { initializeApp } from 'firebase/app';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getAuth, onAuthStateChanged, signOut, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore, doc, setDoc, addDoc, getDoc, writeBatch, collection, orderBy, onSnapshot, updateDoc, deleteDoc, query, where, getDocs, serverTimestamp, limit, limitToLast, Timestamp } from 'firebase/firestore';
-import { getDatabase, ref as dbRef, set, onValue, update } from 'firebase/database';
+import { getDatabase, ref as dbRef, set, onValue, update, get as rtdbGet, push as rtdbPush, remove as rtdbRemove } from 'firebase/database';
 import { getAnalytics, setAnalyticsCollectionEnabled } from 'firebase/analytics';
 
 const firebaseConfig = {
@@ -30,4 +30,4 @@ const realtimeDb = getDatabase(app); // Realtime Database pour la synchronisatio
 const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 
 // Export services and methods for use in other parts of the application
-export { auth, db, storage, realtimeDb, analytics, setAnalyticsCollectionEnabled, onAuthStateChanged, writeBatch, doc, getAuth, signOut, orderBy, setDoc, getDoc, collection, addDoc, onSnapshot, updateDoc, deleteDoc, query, where, getDocs, ref, uploadBytes, getDownloadURL, dbRef, set, onValue, update, serverTimestamp, limit, limitToLast, GoogleAuthProvider, Timestamp };
+export { auth, db, storage, realtimeDb, analytics, setAnalyticsCollectionEnabled, onAuthStateChanged, writeBatch, doc, getAuth, signOut, orderBy, setDoc, getDoc, collection, addDoc, onSnapshot, updateDoc, deleteDoc, query, where, getDocs, ref, uploadBytes, getDownloadURL, dbRef, set, onValue, update, rtdbGet, rtdbPush, rtdbRemove, serverTimestamp, limit, limitToLast, GoogleAuthProvider, Timestamp };

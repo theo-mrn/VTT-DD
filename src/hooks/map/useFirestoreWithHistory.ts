@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { doc, deleteDoc, updateDoc, setDoc, getDoc, addDoc, collection, DocumentReference } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { ref as rtdbRef, update as rtdbUpdate, get as rtdbGet, set as rtdbSet, push as rtdbPush } from 'firebase/database';
+import { db, realtimeDb } from '@/lib/firebase';
 import { useUndoRedo } from '@/contexts/UndoRedoContext';
 
 /**
@@ -127,10 +128,171 @@ export function useFirestoreWithHistory(roomId: string) {
         });
     }, [roomId, recordAction]);
 
+    /**
+     * Met à jour la position world map d'un personnage en RTDB avec historique
+     */
+    const updatePositionWithHistory = useCallback(async (
+        characterId: string,
+        updates: { x: number; y: number },
+        description?: string
+    ): Promise<void> => {
+        const rtdbPath = `rooms/${roomId}/positions/${characterId}`;
+        const charPosRef = rtdbRef(realtimeDb, rtdbPath);
+
+        // Lire les valeurs actuelles pour l'undo
+        const snapshot = await rtdbGet(charPosRef);
+        const currentData = snapshot.val() || {};
+        const previousData: any = {};
+        for (const key in updates) {
+            if (key in currentData) previousData[key] = currentData[key];
+        }
+
+        await rtdbUpdate(charPosRef, updates);
+
+        recordAction({
+            type: 'RTDB_UPDATE',
+            collection: 'positions',
+            documentId: characterId,
+            previousData,
+            newData: updates,
+            description: description || 'Déplacement',
+            roomId,
+            rtdbPath,
+        });
+    }, [roomId, recordAction]);
+
+    /**
+     * Met à jour la position d'un personnage dans une ville spécifique en RTDB avec historique
+     */
+    const setCityPositionWithHistory = useCallback(async (
+        characterId: string,
+        cityId: string,
+        position: { x: number; y: number },
+        description?: string
+    ): Promise<void> => {
+        const rtdbPath = `rooms/${roomId}/positions/${characterId}/positions/${cityId}`;
+        const cityPosRef = rtdbRef(realtimeDb, rtdbPath);
+
+        // Lire les valeurs actuelles pour l'undo
+        const snapshot = await rtdbGet(cityPosRef);
+        const previousData = snapshot.val() || undefined;
+
+        await rtdbUpdate(cityPosRef, position);
+
+        recordAction({
+            type: 'RTDB_UPDATE',
+            collection: 'positions',
+            documentId: characterId,
+            previousData,
+            newData: position,
+            description: description || 'Déplacement',
+            roomId,
+            rtdbPath,
+        });
+    }, [roomId, recordAction]);
+
+    // ─── RTDB CRUD générique (drawings, obstacles, notes) ─────────────────────
+
+    /**
+     * Ajoute un document RTDB avec historique. Génère un ID unique via push().
+     * Retourne l'ID généré.
+     */
+    const addToRtdbWithHistory = useCallback(async (
+        collectionName: string,
+        data: any,
+        description?: string
+    ): Promise<string> => {
+        const collectionRef = rtdbRef(realtimeDb, `rooms/${roomId}/${collectionName}`);
+        const newNodeRef = rtdbPush(collectionRef);
+        const id = newNodeRef.key!;
+
+        await rtdbSet(newNodeRef, data);
+
+        const rtdbPath = `rooms/${roomId}/${collectionName}/${id}`;
+        recordAction({
+            type: 'RTDB_ADD',
+            collection: collectionName,
+            documentId: id,
+            newData: data,
+            description: description || `Ajout dans ${collectionName}`,
+            roomId,
+            rtdbPath,
+        });
+
+        return id;
+    }, [roomId, recordAction]);
+
+    /**
+     * Met à jour un document RTDB avec historique.
+     */
+    const updateRtdbWithHistory = useCallback(async (
+        collectionName: string,
+        docId: string,
+        updates: any,
+        description?: string
+    ): Promise<void> => {
+        const rtdbPath = `rooms/${roomId}/${collectionName}/${docId}`;
+        const nodeRef = rtdbRef(realtimeDb, rtdbPath);
+
+        // Lire les valeurs actuelles pour l'undo
+        const snapshot = await rtdbGet(nodeRef);
+        const currentData = snapshot.val() || {};
+        const previousData: any = {};
+        for (const key in updates) {
+            if (key in currentData) previousData[key] = currentData[key];
+        }
+
+        await rtdbUpdate(nodeRef, updates);
+
+        recordAction({
+            type: 'RTDB_UPDATE',
+            collection: collectionName,
+            documentId: docId,
+            previousData,
+            newData: updates,
+            description: description || `Modification de ${collectionName}`,
+            roomId,
+            rtdbPath,
+        });
+    }, [roomId, recordAction]);
+
+    /**
+     * Supprime un document RTDB avec historique.
+     */
+    const deleteFromRtdbWithHistory = useCallback(async (
+        collectionName: string,
+        docId: string,
+        description?: string
+    ): Promise<void> => {
+        const rtdbPath = `rooms/${roomId}/${collectionName}/${docId}`;
+        const nodeRef = rtdbRef(realtimeDb, rtdbPath);
+
+        // Lire les données avant suppression pour l'undo
+        const snapshot = await rtdbGet(nodeRef);
+        const previousData = snapshot.val() || undefined;
+
+        await rtdbSet(nodeRef, null);
+
+        recordAction({
+            type: 'RTDB_DELETE',
+            collection: collectionName,
+            documentId: docId,
+            previousData,
+            description: description || `Suppression de ${collectionName}`,
+            roomId,
+            rtdbPath,
+        });
+    }, [roomId, recordAction]);
+
     return {
         addWithHistory,
         deleteWithHistory,
         updateWithHistory,
         setWithHistory,
+        updatePositionWithHistory,
+        setCityPositionWithHistory,
+        addToRtdbWithHistory,
+        updateRtdbWithHistory,
+        deleteFromRtdbWithHistory,
     };
 }

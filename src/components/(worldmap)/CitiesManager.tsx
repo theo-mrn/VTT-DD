@@ -7,7 +7,8 @@ import { createPortal } from "react-dom";
 
 
 import { useGame } from "@/contexts/GameContext";
-import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where, writeBatch, getDoc, setDoc, getDocs } from "@/lib/firebase";
+import { db, realtimeDb, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where, writeBatch, getDoc, setDoc, getDocs } from "@/lib/firebase";
+import { ref as rtdbRef, get as rtdbGet, update as rtdbUpdate } from 'firebase/database';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -345,32 +346,47 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                         deletedCount.objects++;
                     });
 
-                    // 3. Delete Drawings
-                    const drawingsRef = collection(db, `cartes/${effectiveRoomId}/drawings`);
-                    const drawingsQuery = query(drawingsRef, where('cityId', '==', id));
-                    const drawingsSnapshot = await getDocs(drawingsQuery);
-                    drawingsSnapshot.forEach((docSnap) => {
-                        batch.delete(docSnap.ref);
-                        deletedCount.drawings++;
-                    });
+                    // 3. Delete Drawings (RTDB)
+                    const rtdbDrawingsSnap = await rtdbGet(rtdbRef(realtimeDb, `rooms/${effectiveRoomId}/drawings`));
+                    const rtdbDrawings = rtdbDrawingsSnap.val() || {};
+                    const drawingNulls: Record<string, null> = {};
+                    for (const [drawId, data] of Object.entries(rtdbDrawings)) {
+                        if (drawId !== '_migrated' && (data as any)?.cityId === id) {
+                            drawingNulls[drawId] = null;
+                            deletedCount.drawings++;
+                        }
+                    }
+                    if (Object.keys(drawingNulls).length > 0) {
+                        await rtdbUpdate(rtdbRef(realtimeDb, `rooms/${effectiveRoomId}/drawings`), drawingNulls);
+                    }
 
-                    // 4. Delete Notes (text)
-                    const notesRef = collection(db, `cartes/${effectiveRoomId}/text`);
-                    const notesQuery = query(notesRef, where('cityId', '==', id));
-                    const notesSnapshot = await getDocs(notesQuery);
-                    notesSnapshot.forEach((docSnap) => {
-                        batch.delete(docSnap.ref);
-                        deletedCount.notes++;
-                    });
+                    // 4. Delete Notes (RTDB)
+                    const rtdbNotesSnap = await rtdbGet(rtdbRef(realtimeDb, `rooms/${effectiveRoomId}/notes`));
+                    const rtdbNotes = rtdbNotesSnap.val() || {};
+                    const noteNulls: Record<string, null> = {};
+                    for (const [noteId, data] of Object.entries(rtdbNotes)) {
+                        if (noteId !== '_migrated' && (data as any)?.cityId === id) {
+                            noteNulls[noteId] = null;
+                            deletedCount.notes++;
+                        }
+                    }
+                    if (Object.keys(noteNulls).length > 0) {
+                        await rtdbUpdate(rtdbRef(realtimeDb, `rooms/${effectiveRoomId}/notes`), noteNulls);
+                    }
 
-                    // 5. Delete Obstacles
-                    const obstaclesRef = collection(db, `cartes/${effectiveRoomId}/obstacles`);
-                    const obstaclesQuery = query(obstaclesRef, where('cityId', '==', id));
-                    const obstaclesSnapshot = await getDocs(obstaclesQuery);
-                    obstaclesSnapshot.forEach((docSnap) => {
-                        batch.delete(docSnap.ref);
-                        deletedCount.obstacles++;
-                    });
+                    // 5. Delete Obstacles (RTDB)
+                    const rtdbObstaclesSnap = await rtdbGet(rtdbRef(realtimeDb, `rooms/${effectiveRoomId}/obstacles`));
+                    const rtdbObstacles = rtdbObstaclesSnap.val() || {};
+                    const obstacleNulls: Record<string, null> = {};
+                    for (const [obsId, data] of Object.entries(rtdbObstacles)) {
+                        if (obsId !== '_migrated' && (data as any)?.cityId === id) {
+                            obstacleNulls[obsId] = null;
+                            deletedCount.obstacles++;
+                        }
+                    }
+                    if (Object.keys(obstacleNulls).length > 0) {
+                        await rtdbUpdate(rtdbRef(realtimeDb, `rooms/${effectiveRoomId}/obstacles`), obstacleNulls);
+                    }
 
                     // 6. Delete Lights
                     const lightsRef = collection(db, `cartes/${effectiveRoomId}/lights`);

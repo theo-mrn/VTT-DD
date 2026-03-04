@@ -2,12 +2,13 @@
 
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { doc, setDoc, deleteDoc, updateDoc, addDoc, collection, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { ref as rtdbRef, update as rtdbUpdate, set as rtdbSet } from 'firebase/database';
+import { db, realtimeDb } from '@/lib/firebase';
 import { toast } from 'sonner';
 
 // Type définissant une action undoable
 export interface UndoableAction {
-    type: 'ADD' | 'DELETE' | 'UPDATE' | 'SET';
+    type: 'ADD' | 'DELETE' | 'UPDATE' | 'SET' | 'RTDB_UPDATE' | 'RTDB_ADD' | 'RTDB_DELETE';
     collection: string; // ex: 'characters', 'objects', 'lights', etc.
     documentId: string;
     previousData?: any; // Données avant modification (pour UPDATE/DELETE)
@@ -15,6 +16,7 @@ export interface UndoableAction {
     timestamp: number;
     description?: string; // Description lisible (ex: "Suppression de Gandalf")
     roomId: string; // ID de la salle pour construire les chemins Firebase
+    rtdbPath?: string; // Chemin RTDB pour les actions de type RTDB_UPDATE
 }
 
 interface UndoRedoContextType {
@@ -102,6 +104,30 @@ export function UndoRedoProvider({ children }: { children: ReactNode }) {
                         toast.success(action.description || 'Action annulée');
                     }
                     break;
+
+                case 'RTDB_UPDATE':
+                    if (action.previousData && action.rtdbPath) {
+                        const rtdbNodeRef = rtdbRef(realtimeDb, action.rtdbPath);
+                        await rtdbUpdate(rtdbNodeRef, action.previousData);
+                        toast.success(action.description || 'Position restaurée');
+                    }
+                    break;
+
+                case 'RTDB_ADD':
+                    // Annuler un ajout RTDB = supprimer le noeud
+                    if (action.rtdbPath) {
+                        await rtdbSet(rtdbRef(realtimeDb, action.rtdbPath), null);
+                        toast.success(action.description || 'Ajout annulé');
+                    }
+                    break;
+
+                case 'RTDB_DELETE':
+                    // Annuler une suppression RTDB = restaurer les données
+                    if (action.previousData && action.rtdbPath) {
+                        await rtdbSet(rtdbRef(realtimeDb, action.rtdbPath), action.previousData);
+                        toast.success(action.description || 'Suppression annulée');
+                    }
+                    break;
             }
 
             // Déplacer l'action du undo vers le redo stack
@@ -154,6 +180,30 @@ export function UndoRedoProvider({ children }: { children: ReactNode }) {
                     // CRITICAL: Use merge to avoid deleting fields not in newData
                     if (action.newData) {
                         await setDoc(ref, action.newData, { merge: true });
+                        toast.success('Action refaite');
+                    }
+                    break;
+
+                case 'RTDB_UPDATE':
+                    if (action.newData && action.rtdbPath) {
+                        const rtdbNodeRef = rtdbRef(realtimeDb, action.rtdbPath);
+                        await rtdbUpdate(rtdbNodeRef, action.newData);
+                        toast.success('Action refaite');
+                    }
+                    break;
+
+                case 'RTDB_ADD':
+                    // Refaire un ajout RTDB = recréer le noeud
+                    if (action.newData && action.rtdbPath) {
+                        await rtdbSet(rtdbRef(realtimeDb, action.rtdbPath), action.newData);
+                        toast.success('Action refaite');
+                    }
+                    break;
+
+                case 'RTDB_DELETE':
+                    // Refaire une suppression RTDB = re-supprimer le noeud
+                    if (action.rtdbPath) {
+                        await rtdbSet(rtdbRef(realtimeDb, action.rtdbPath), null);
                         toast.success('Action refaite');
                     }
                     break;
