@@ -327,8 +327,8 @@ export default function Component() {
         video.src = objectUrl;
         video.autoplay = true;
         video.loop = true;
-        video.muted = audioVolumes.backgroundAudio === 0;
-        video.volume = audioVolumes.backgroundAudio;
+        video.muted = true;
+        video.volume = 0;
         video.playsInline = true;
         // Blob URLs don't need crossOrigin as they are local
 
@@ -373,8 +373,8 @@ export default function Component() {
       video.src = cacheBustedUrl;
       video.autoplay = true;
       video.loop = true;
-      video.muted = audioVolumes.backgroundAudio === 0;
-      video.volume = audioVolumes.backgroundAudio;
+      video.muted = true;
+      video.volume = 0;
       video.playsInline = true;
 
       video.onloadedmetadata = () => {
@@ -411,14 +411,11 @@ export default function Component() {
     }
   }
 
-  // 🎵 Update background video audio settings when they change
-  // 🎵 Update background video audio settings when they change
+  // 🎵 Update background video playback settings when they change
   useEffect(() => {
-    // Background Video Logic
     if (bgImageObject instanceof HTMLVideoElement) {
-      // Sync Volume
-      bgImageObject.volume = audioVolumes.backgroundAudio;
-      bgImageObject.muted = audioVolumes.backgroundAudio === 0;
+      bgImageObject.muted = true;
+      bgImageObject.volume = 0;
 
       if (performanceMode === 'static') {
         bgImageObject.pause();
@@ -426,7 +423,7 @@ export default function Component() {
         bgImageObject.play().catch(() => { });
       }
     }
-  }, [bgImageObject, performanceMode, audioVolumes.backgroundAudio]);
+  }, [bgImageObject, performanceMode]);
 
 
 
@@ -1459,21 +1456,13 @@ export default function Component() {
 
   useAudioZones(effectiveMusicZones, listenerPos, true, audioVolumes.musicZones);
 
-  // 🎵 Update background video audio settings when they change
+  // Force background video to always be muted
   useEffect(() => {
     if (videoRef.current) {
-      const isLayerVis = isLayerVisible('background_audio');
-
-      // Use ONLY local mixer volume. Ignore old Firebase synced volume.
-      const shouldMute = !isLayerVis || audioVolumes.backgroundAudio <= 0.001;
-
-      videoRef.current.muted = shouldMute;
-
-      // Ensure volume is between 0 and 1. Apply mixer volume directly.
-      const safeVolume = shouldMute ? 0 : Math.max(0, Math.min(1, audioVolumes.backgroundAudio));
-      videoRef.current.volume = safeVolume;
+      videoRef.current.muted = true;
+      videoRef.current.volume = 0;
     }
-  }, [isLayerVisible, audioVolumes.backgroundAudio]); // Removed old system dependencies
+  }, [isLayerVisible]);
 
 
 
