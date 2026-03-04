@@ -326,7 +326,7 @@ function MapToolbar({
                     </div>
 
                     {/* Toolbar Body */}
-                    <div className="flex items-center p-1.5 bg-[#0a0a0a]/90 backdrop-blur-2xl border border-[#333] rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.7)] ring-1 ring-white/5">
+                    <div className="flex flex-wrap justify-center items-center gap-y-1.5 p-1.5 bg-[#0a0a0a]/90 backdrop-blur-2xl border border-[#333] rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.7)] ring-1 ring-white/5 w-max max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-2rem)]">
 
                         {/* --- GROUP 1: NAVIGATION & VIEW --- */}
                         <div id="vtt-toolbar-group-nav" className="flex items-center px-1">
