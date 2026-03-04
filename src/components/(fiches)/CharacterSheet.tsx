@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Heart, Shield, X, User, Package } from 'lucide-react';
-import { auth, db, doc, getDoc, onSnapshot, collection } from '@/lib/firebase';
+import { auth, db, doc, getDoc, collection } from '@/lib/firebase';
+import { useCalculatedBonuses } from '@/hooks/useCharacterData';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import CharacterImage from '@/components/(fiches)/CharacterImage';
 import InventoryManagement2 from '@/components/(inventaire)/inventaire2';
@@ -68,7 +69,7 @@ type TabType = 'character' | 'inventory';
 
 export default function CharacterSheet({ characterId, roomId, onClose }: CharacterSheetProps) {
   const [character, setCharacter] = useState<Character | null>(null);
-  const [bonuses, setBonuses] = useState<Bonuses | null>(null);
+  const { totalBonuses: bonuses } = useCalculatedBonuses(roomId, character?.Nomperso);
   const [userPersoId, setUserPersoId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('character');
@@ -102,33 +103,7 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
     };
 
     loadCharacter();
-
-    // Écouter les bonus
-    if (character?.Nomperso) {
-      const bonusesRef = collection(db, `Bonus/${roomId}/${character.Nomperso}`);
-      const unsubscribe = onSnapshot(bonusesRef, (snapshot) => {
-        const totalBonuses: Bonuses = {
-          CHA: 0, CON: 0, Contact: 0, DEX: 0, Defense: 0, Distance: 0,
-          FOR: 0, INIT: 0, INT: 0, Magie: 0, PV: 0, SAG: 0, PV_Max: 0,
-        };
-
-        snapshot.forEach((doc) => {
-          const bonusData = doc.data();
-          if (bonusData.active) {
-            Object.keys(totalBonuses).forEach((stat) => {
-              if (bonusData[stat] !== undefined) {
-                totalBonuses[stat] += parseInt(bonusData[stat] || 0);
-              }
-            });
-          }
-        });
-
-        setBonuses(totalBonuses);
-      });
-
-      return () => unsubscribe();
-    }
-  }, [characterId, roomId, character?.Nomperso]);
+  }, [characterId, roomId]);
 
   const getModifier = (value: number): number => {
     return Math.floor((value - 10) / 2);

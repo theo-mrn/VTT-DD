@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useCharacter } from '@/contexts/CharacterContext';
 import { Coins, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
-import { db, collection, onSnapshot, doc, updateDoc } from '@/lib/firebase';
+import { db, doc, updateDoc } from '@/lib/firebase';
+import { useCharacterInventory, useCharacterBonuses } from '@/hooks/useCharacterData';
 
 interface WidgetProps {
     style?: React.CSSProperties;
@@ -15,48 +16,48 @@ export const WidgetBourse: React.FC<WidgetProps> = ({ style }) => {
     const { selectedCharacter, roomId } = useCharacter();
     const [currencies, setCurrencies] = useState<{ name: string, quantity: number, color: string }[]>([]);
 
+    const rawInventory = useCharacterInventory(roomId, selectedCharacter?.Nomperso);
+
     useEffect(() => {
-        if (!selectedCharacter || !roomId) return;
-        const inventoryRef = collection(db, `Inventaire/${roomId}/${selectedCharacter.Nomperso}`);
+        if (!selectedCharacter || !roomId) {
+            setCurrencies([]);
+            return;
+        }
 
-        const unsubscribe = onSnapshot(inventoryRef, (snapshot) => {
-            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as any));
-            const foundCurrencies: typeof currencies = [];
+        const foundCurrencies: typeof currencies = [];
 
-            items.forEach((item: any) => {
-                const isBourse = item.category === 'bourse' ||
-                    (item.message && ["pièce d'or", "pièce d'argent", "pièce de cuivre"].some(s => item.message.toLowerCase().includes(s)));
+        rawInventory.forEach((item: any) => {
+            const isBourse = item.category === 'bourse' ||
+                (item.message && ["pièce d'or", "pièce d'argent", "pièce de cuivre"].some(s => item.message.toLowerCase().includes(s)));
 
-                if (isBourse && item.message) {
-                    let color = "text-[color:var(--text-primary,#d4d4d4)]";
-                    const nameLower = item.message.toLowerCase();
-                    if (nameLower.includes('or')) color = "text-yellow-500";
-                    else if (nameLower.includes('argent')) color = "text-gray-400";
-                    else if (nameLower.includes('cuivre')) color = "text-orange-700";
+            if (isBourse && item.message) {
+                let color = "text-[color:var(--text-primary,#d4d4d4)]";
+                const nameLower = item.message.toLowerCase();
+                if (nameLower.includes('or')) color = "text-yellow-500";
+                else if (nameLower.includes('argent')) color = "text-gray-400";
+                else if (nameLower.includes('cuivre')) color = "text-orange-700";
 
-                    foundCurrencies.push({
-                        name: item.message,
-                        quantity: item.quantity,
-                        color: color
-                    });
-                }
-            });
-
-            foundCurrencies.sort((a, b) => {
-                const getPriority = (name: string) => {
-                    const n = name.toLowerCase();
-                    if (n.includes('or')) return 1;
-                    if (n.includes('argent')) return 2;
-                    if (n.includes('cuivre')) return 3;
-                    return 4;
-                };
-                return getPriority(a.name) - getPriority(b.name) || a.name.localeCompare(b.name);
-            });
-
-            setCurrencies(foundCurrencies);
+                foundCurrencies.push({
+                    name: item.message,
+                    quantity: item.quantity,
+                    color: color
+                });
+            }
         });
-        return () => unsubscribe();
-    }, [selectedCharacter, roomId]);
+
+        foundCurrencies.sort((a, b) => {
+            const getPriority = (name: string) => {
+                const n = name.toLowerCase();
+                if (n.includes('or')) return 1;
+                if (n.includes('argent')) return 2;
+                if (n.includes('cuivre')) return 3;
+                return 4;
+            };
+            return getPriority(a.name) - getPriority(b.name) || a.name.localeCompare(b.name);
+        });
+
+        setCurrencies(foundCurrencies);
+    }, [selectedCharacter, roomId, rawInventory]);
 
     return (
         <div className="h-full w-full p-2 flex flex-col rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] overflow-hidden" style={style}>
@@ -94,22 +95,16 @@ export const WidgetBourse: React.FC<WidgetProps> = ({ style }) => {
 
 export const WidgetEffects: React.FC<WidgetProps> = ({ style }) => {
     const { selectedCharacter, roomId } = useCharacter();
+    const rawEffects = useCharacterBonuses(roomId, selectedCharacter?.Nomperso);
     const [effects, setEffects] = useState<any[]>([]);
 
     useEffect(() => {
-        setEffects([]); // Clear effects immediately to prevent leakage
-        if (!selectedCharacter?.Nomperso || !roomId) return;
-
-        const bonusesRef = collection(db, `Bonus/${roomId}/${selectedCharacter.Nomperso}`);
-
-        const unsubscribe = onSnapshot(bonusesRef, (snapshot) => {
-            const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            setEffects(items);
-        }, (err) => {
-            console.error("Error fetching bonuses:", err);
-        });
-        return () => unsubscribe();
-    }, [selectedCharacter?.Nomperso, roomId]);
+        if (!selectedCharacter?.Nomperso || !roomId) {
+            setEffects([]);
+            return;
+        }
+        setEffects(rawEffects);
+    }, [selectedCharacter?.Nomperso, roomId, rawEffects]);
 
     const toggleEffect = async (effectId: string, currentActive: boolean) => {
         if (!selectedCharacter || !roomId) return;

@@ -54,7 +54,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Map as MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, Lightbulb, ArrowRight, DoorOpen, Pen, ArrowDownUp, Hexagon } from 'lucide-react'
 import { toast } from 'sonner';
 import { auth, db, realtimeDb, dbRef, onValue, onAuthStateChanged } from '@/lib/firebase'
-import { doc, collection, onSnapshot, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
+import { doc, collection, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
 import Combat from '@/components/(combat)/combat2';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -1694,7 +1694,7 @@ export default function Component() {
 
   // ─── RTDB : positions temps réel ─────────────────────────────────────────────
   const rtdbPositionsRef = useRef<PositionsMap>({});
-  const mergeAndSetCharactersRtdbRef = useRef<() => void>(() => {});
+  const mergeAndSetCharactersRtdbRef = useRef<() => void>(() => { });
   const { positionsRef: _rtdbPosRef, updateCharacterPosition, updateCityPosition } = useCharacterPositions(
     roomId,
     () => { mergeAndSetCharactersRtdbRef.current(); }
@@ -1839,11 +1839,9 @@ export default function Component() {
     setLoading(false);
   }, [globalCityId]); // ✅ Removed parseCharacterDoc - it never changes (empty deps)
 
-  //  PERFORMANCE: Create refs for callbacks to use in onSnapshot listeners
   const parseCharacterDocRef = useRef(parseCharacterDoc);
   const mergeAndSetCharactersRef = useRef(mergeAndSetCharacters);
 
-  // Update refs when callbacks change
   useEffect(() => {
     parseCharacterDocRef.current = parseCharacterDoc;
   }, [parseCharacterDoc]);
@@ -1853,9 +1851,6 @@ export default function Component() {
     mergeAndSetCharactersRtdbRef.current = mergeAndSetCharacters;
   }, [mergeAndSetCharacters]);
 
-  // ─── 📡 LISTENERS FIRESTORE CENTRALISÉS ─────────────────────────────────────
-  // Tous les onSnapshot sont gérés dans useMapData pour éviter les doublons et
-  // faciliter la maintenance. Plus besoin de listeners dispersés dans ce fichier.
   useMapData(roomId, selectedCityId, {
     setCharacters,
     setLoading,

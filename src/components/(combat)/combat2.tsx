@@ -13,6 +13,7 @@ import { SUGGESTED_SOUNDS, SOUND_CATEGORIES } from '@/lib/suggested-sounds'
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
+import { useCalculatedBonuses } from '@/hooks/useCharacterData'
 
 // --- Interfaces ---
 
@@ -159,14 +160,22 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   const [customRoll, setCustomRoll] = useState<CustomRoll>({ numDice: 1, numFaces: 20, modifier: 0 })
   const [customDamage, setCustomDamage] = useState<CustomRoll>({ numDice: 1, numFaces: 6, modifier: 0 })
 
-  // Data
   const [roomId, setRoomId] = useState<string | null>(null)
   const [attackerName, setAttackerName] = useState<string>("")
   const [attackerImage, setAttackerImage] = useState<string>("")
   const [attackerType, setAttackerType] = useState<'joueurs' | 'pnj' | 'monster'>('joueurs')
   const [targets, setTargets] = useState<Array<{ id: string, name: string, defense: number, image?: string }>>([])
 
-  const [attacks, setAttacks] = useState<Attacks>({ contact: null, distance: null, magie: null })
+  const { totalBonuses } = useCalculatedBonuses(roomId, attackerName)
+  const [baseAttacks, setBaseAttacks] = useState<{ contact: number, distance: number, magie: number }>({ contact: 0, distance: 0, magie: 0 })
+
+  // Calculate dynamic attacks based on base stats + live bonuses
+  const attacks: Attacks = {
+    contact: baseAttacks.contact + (totalBonuses?.Contact || 0),
+    distance: baseAttacks.distance + (totalBonuses?.Distance || 0),
+    magie: baseAttacks.magie + (totalBonuses?.Magie || 0)
+  }
+
   const [weapons, setWeapons] = useState<Weapon[]>([])
   const [actions, setActions] = useState<Array<{ Nom: string; Description: string; Toucher: number }>>([])
 
@@ -203,10 +212,10 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
               setAttackerName(data.Nomperso || "")
               setAttackerImage(data.imageURLFinal || data.imageURL2 || data.imageURL || "")
               setAttackerType(data.type || 'joueurs')
-              setAttacks({
-                contact: data.Contact_F || data.Contact || 0,
-                distance: data.Distance_F || data.Distance || 0,
-                magie: data.Magie_F || data.Magie || 0
+              setBaseAttacks({
+                contact: parseInt(data.Contact || 0),
+                distance: parseInt(data.Distance || 0),
+                magie: parseInt(data.Magie || 0)
               })
               setActions(data.Actions || [])
               await loadWeapons(fetchedRoomId, data.Nomperso)

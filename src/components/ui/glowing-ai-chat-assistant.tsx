@@ -11,13 +11,13 @@ import { DiceStats } from "@/components/(dices)/dice-stats";
 import { StoreModal } from "../store/store-modal";
 import { DICE_SKINS } from "../(dices)/dice-definitions";
 import { UserProfileDialog } from "@/components/profile/UserProfileDialog";
+import { useCalculatedBonuses } from '@/hooks/useCharacterData';
 
-// Represents one stat that can be inserted as a dice bonus
 interface RollableStat {
-  key: string;       // identifier used in notation (e.g. "FOR", "Durabilité")
-  label: string;     // display label
-  rawValue: number;  // raw stat value
-  hasModifier: boolean; // if true, insert floor((value-10)/2); otherwise insert value directly
+  key: string;
+  label: string;
+  rawValue: number;
+  hasModifier: boolean;
 }
 
 interface CharacterModifiers {
@@ -60,8 +60,8 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
   const [isPrivate, setIsPrivate] = useState(false);
   const [isBlind, setIsBlind] = useState(false);
 
-  // User context
   const [userName, setUserName] = useState("Utilisateur");
+  const { totalBonuses } = useCalculatedBonuses(roomId, userName !== "MJ" && userName !== "Utilisateur" ? userName : undefined);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | undefined>(undefined);
 
@@ -197,9 +197,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
     }
   };
 
-  // --- Logic from dice-roller.tsx ---
 
-  const calculateModifier = (value: number) => Math.floor(value);
 
   const fetchCharacterInfo = async (roomId: string, persoId: string) => {
     try {
@@ -238,7 +236,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
           .map(s => ({
             key: s.key,
             label: s.label,
-            rawValue: Number(charData[`${s.key}_F`] ?? charData[s.key] ?? (s.hasModifier ? 10 : 0)),
+            rawValue: Number(charData[s.key] ?? (s.hasModifier ? 10 : 0)),
             hasModifier: s.hasModifier,
           }));
 
@@ -354,9 +352,14 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
       // Find matching stat (case-insensitive)
       const stat = rollableStats.find(s => s.key.toLowerCase() === match.toLowerCase());
       if (stat) {
+        let baseValue = stat.rawValue;
+        if (totalBonuses && stat.key in totalBonuses) {
+          baseValue += totalBonuses[stat.key as keyof typeof totalBonuses] || 0;
+        }
+
         const val = stat.hasModifier
-          ? Math.floor((stat.rawValue - 10) / 2)
-          : stat.rawValue;
+          ? Math.floor((baseValue - 10) / 2)
+          : baseValue;
         return val.toString();
       }
       // Fallback to old map

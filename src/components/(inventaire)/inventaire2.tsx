@@ -10,8 +10,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Search, Plus, Sword, Target, Shield, Beaker, ChevronRight, Coins, Apple, X, ArrowUpDown, MinusCircle, PlusCircle } from 'lucide-react';
-import { db, doc, collection, onSnapshot, getDoc, updateDoc, setDoc, deleteDoc, addDoc } from '@/lib/firebase';
+import { db, doc, collection, updateDoc, setDoc, deleteDoc, addDoc, getDoc } from '@/lib/firebase';
 import { toast } from 'sonner';
+import { useCharacterInventory, useCharacterBonuses, useSingleItemBonus } from '@/hooks/useCharacterData';
 
 interface InventoryItem {
   id: string;
@@ -64,8 +65,8 @@ const categoryIcons: Record<string, React.ReactNode> = {
 
 export default function InventoryManagement({ playerName, roomId, canEdit = true, onHeightChange, style }: InventoryManagementProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>('');
+  const inventoryRef = collection(db, `Inventaire/${roomId}/${playerName}`);
   const [dialogSearchTerm, setDialogSearchTerm] = useState<string>('');
   const [isAddItemDialogOpen, setIsAddItemDialogOpen] = useState<boolean>(false);
   const [currentCategory, setCurrentCategory] = useState<string>('all');
@@ -87,8 +88,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
   const [bonusActiveMap, setBonusActiveMap] = useState<Record<string, boolean>>({});
   const [itemsWithBonus, setItemsWithBonus] = useState<Set<string>>(new Set());
 
-  const inventoryRef = collection(db, `Inventaire/${roomId}/${playerName}`);
-
+  // inventoryRef removed, handled by hooks
   // Charger les descriptions des objets depuis Items.json
   useEffect(() => {
     const loadItemDescriptions = async () => {
@@ -116,74 +116,63 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
     loadItemDescriptions();
   }, []);
 
-  useEffect(() => {
-    const unsubscribe = onSnapshot(inventoryRef, (snapshot) => {
-      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem));
-      setInventory(items);
-    });
-    return () => unsubscribe();
-  }, [playerName, roomId]);
+  // Utilisation des nouveaux hooks centralisés
+  const inventory = useCharacterInventory<InventoryItem>(roomId, playerName);
+  const allBonuses = useCharacterBonuses(roomId, playerName);
+  const currentItemBonusData = useSingleItemBonus(roomId, playerName, currentItem?.id);
 
+  // Mise à jour de setInventory n'est plus gérée manuellement, inventory est réactif
+
+  // Formatage des bonus de l'item courant sélectionné dans la modale
   useEffect(() => {
-    if (currentItem) {
-      const itemRef = doc(db, `Bonus/${roomId}/${playerName}/${currentItem.id}`);
-      const unsubscribe = onSnapshot(itemRef, (doc) => {
-        if (doc.exists()) {
-          const data = doc.data();
-          const bonusArray = statAttributes.map(stat => ({
-            type: stat,
-            value: data[stat] || 0,
-          }));
-          setBonuses(bonusArray);
-        } else {
-          setBonuses([]);
-        }
-      });
-      return () => unsubscribe();
+    if (currentItemBonusData) {
+      const bonusArray = statAttributes.map(stat => ({
+        type: stat,
+        value: currentItemBonusData[stat] || 0,
+      }));
+      setBonuses(bonusArray);
+    } else {
+      setBonuses([]);
     }
-  }, [currentItem, playerName, roomId]);
+  }, [currentItemBonusData]);
 
+  // Recalcul des bonus globaux de l'inventaire en temps réel !
   useEffect(() => {
-    const loadBonuses = async () => {
-      const bonusesData: Record<string, Bonus[]> = {};
-      const activeData: Record<string, boolean> = {};
-      const itemsWithBonusSet = new Set<string>();
+    const bonusesData: Record<string, Bonus[]> = {};
+    const activeData: Record<string, boolean> = {};
+    const itemsWithBonusSet = new Set<string>();
 
-      for (const item of inventory) {
-        const itemRef = doc(db, `Bonus/${roomId}/${playerName}/${item.id}`);
-        const bonusDoc = await getDoc(itemRef);
-        if (bonusDoc.exists()) {
-          const data = bonusDoc.data();
-          const isActive = data.active ?? true;
+    for (const item of inventory) {
+      // Filtrer les bonus liés à cet objet précis
+      const data = allBonuses.find(b => b.id === item.id);
 
-          const bonusArray = statAttributes
-            .map(stat => ({
-              type: stat,
-              value: data[stat] || 0,
-            }))
-            .filter(bonus => bonus.value !== 0);
+      if (data) {
+        const isActive = data.active ?? true;
 
-          // Si l'item a des bonus (peu importe l'état actif/inactif)
-          if (bonusArray.length > 0) {
-            itemsWithBonusSet.add(item.id);
-            activeData[item.id] = isActive;
+        const bonusArray = statAttributes
+          .map(stat => ({
+            type: stat,
+            value: data[stat as keyof typeof data] || 0,
+          }))
+          .filter(bonus => bonus.value !== 0);
 
-            // Afficher les bonus dans le tooltip seulement s'ils sont actifs
-            if (isActive) {
-              bonusesData[item.id] = bonusArray;
-            }
+        // Si l'item a des bonus
+        if (bonusArray.length > 0) {
+          itemsWithBonusSet.add(item.id);
+          activeData[item.id] = isActive;
+
+          if (isActive) {
+            bonusesData[item.id] = bonusArray as unknown as Bonus[];
           }
         }
       }
-      setBonusesMap(bonusesData);
-      setBonusActiveMap(activeData);
-      setItemsWithBonus(itemsWithBonusSet);
-    };
-
-    if (inventory.length > 0) {
-      loadBonuses();
     }
-  }, [inventory, roomId, playerName]);
+
+    setBonusesMap(bonusesData);
+    setBonusActiveMap(activeData);
+    setItemsWithBonus(itemsWithBonusSet);
+  }, [inventory, allBonuses]);
+
 
   const handleAddItem = async (item: string) => {
     try {
@@ -194,6 +183,15 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
         toast.success(`${item} ajouté`, {
           description: `Quantité : ${existingItem.quantity + 1}`,
           duration: 2000,
+        });
+
+        // Log history (quantité augmentée)
+        import('@/lib/historiqueTrackerService').then(({ logHistoryEvent }) => {
+          logHistoryEvent({
+            roomId, type: 'inventaire',
+            message: `**${playerName}** a reçu **1x [${item}]** supplémentaire(s).`,
+            characterName: playerName
+          });
         });
       } else {
         await addDoc(inventoryRef, {
@@ -207,6 +205,15 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
         });
         toast.success(`${item} créé`, {
           duration: 2000,
+        });
+
+        // Log history (nouvel objet)
+        import('@/lib/historiqueTrackerService').then(({ logHistoryEvent }) => {
+          logHistoryEvent({
+            roomId, type: 'inventaire',
+            message: `**${playerName}** a reçu **1x [${item}]** dans son inventaire.`,
+            characterName: playerName
+          });
         });
       }
       setIsAddItemDialogOpen(false);
@@ -229,6 +236,15 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
           description: `Quantité : ${existingItem.quantity + 1}`,
           duration: 2000,
         });
+
+        // Log history
+        import('@/lib/historiqueTrackerService').then(({ logHistoryEvent }) => {
+          logHistoryEvent({
+            roomId, type: 'inventaire',
+            message: `**${playerName}** a reçu **1x [${item}]** supplémentaire(s).`,
+            characterName: playerName
+          });
+        });
       } else {
         await addDoc(inventoryRef, {
           message: item,
@@ -241,6 +257,15 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
         });
         toast.success(`${item} ajouté`, {
           duration: 2000,
+        });
+
+        // Log history
+        import('@/lib/historiqueTrackerService').then(({ logHistoryEvent }) => {
+          logHistoryEvent({
+            roomId, type: 'inventaire',
+            message: `**${playerName}** a reçu **1x [${item}]** dans son inventaire.`,
+            characterName: playerName
+          });
         });
       }
       setIsAddItemDialogOpen(false);
@@ -261,6 +286,16 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
         description: item?.message,
         duration: 2000,
       });
+
+      if (item) {
+        import('@/lib/historiqueTrackerService').then(({ logHistoryEvent }) => {
+          logHistoryEvent({
+            roomId, type: 'inventaire',
+            message: `**${playerName}** a jeté/perdu **[${item.message}]**.`,
+            characterName: playerName
+          });
+        });
+      }
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
       toast.error('Erreur', {
@@ -309,6 +344,19 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
           description: `${currentItem.message} : ${newItemQuantity}`,
           duration: 2000,
         });
+
+        // Log history differences
+        const diff = newItemQuantity - currentItem.quantity;
+        if (diff !== 0) {
+          import('@/lib/historiqueTrackerService').then(({ logHistoryEvent }) => {
+            logHistoryEvent({
+              roomId, type: 'inventaire',
+              message: `**${playerName}** a **${diff > 0 ? 'reçu' : 'perdu'}** ${Math.abs(diff)}x **[${currentItem.message}]**.`,
+              characterName: playerName
+            });
+          });
+        }
+
         setIsQuantityDialogOpen(false);
         setNewItemQuantity(1);
       } catch (error) {

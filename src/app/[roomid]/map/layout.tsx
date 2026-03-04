@@ -14,7 +14,6 @@ import { DiceThrower } from "@/components/(dices)/throw";
 import { NPCManager } from '@/components/(personnages)/personnages'
 import Chat from "@/components/(chat)/Chat";
 import Historique from "@/components/(historique)/Historique";
-import HistoryTracker from "@/components/(historique)/HistoryTracker";
 import EncounterGenerator from "@/components/(encounter)/EncounterGenerator";
 import { auth, onAuthStateChanged, db, doc, onSnapshot } from "@/lib/firebase";
 import { X } from "lucide-react";
@@ -167,8 +166,6 @@ export default function Layout({ children }: LayoutProps) {
               <OverlayComponent onPanelToggle={setIsPanelOpen} />
             </div>
 
-            {/* Persistent History Tracker for recording events */}
-            <HistoryTracker roomId={roomId} isMJ={isMJ} />
 
             {/* Persistent Music Player Container */}
             <aside
