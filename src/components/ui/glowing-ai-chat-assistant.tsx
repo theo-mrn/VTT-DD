@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { X, Send, Info, Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, ChevronRight, Box, Shield, EyeOff, History, RotateCcw, BarChart2, Store, SwitchCamera, Keyboard, Filter } from 'lucide-react';
 import { doc, getDoc, auth, db, addDoc, collection, updateDoc, query, orderBy, limit, onSnapshot } from "@/lib/firebase";
@@ -12,6 +12,8 @@ import { StoreModal } from "../store/store-modal";
 import { DICE_SKINS } from "../(dices)/dice-definitions";
 import { UserProfileDialog } from "@/components/profile/UserProfileDialog";
 import { useCalculatedBonuses } from '@/hooks/useCharacterData';
+import { useCharacter } from '@/contexts/CharacterContext';
+import { useGame } from '@/contexts/GameContext';
 
 interface RollableStat {
   key: string;
@@ -49,21 +51,76 @@ interface FloatingAiAssistantProps {
 }
 
 export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssistantProps) => {
-  // const [isOpen, setIsOpen] = useState(false); // Controlled by parent
+  const { selectedCharacter, roomId: contextRoomId } = useCharacter();
+  const { isMJ, persoId } = useGame();
+  const roomId = contextRoomId;
+
   const [input, setInput] = useState('');
-  const [roomId, setRoomId] = useState<string | null>(null);
-  const [persoId, setPersoId] = useState<string | null>(null);
-  const [characterModifiers, setCharacterModifiers] = useState<CharacterModifiers>({});
-  const [rollableStats, setRollableStats] = useState<RollableStat[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [show3DAnimations, setShow3DAnimations] = useState(true);
   const [isPrivate, setIsPrivate] = useState(false);
   const [isBlind, setIsBlind] = useState(false);
 
-  const [userName, setUserName] = useState("Utilisateur");
+  const userName = isMJ ? "MJ" : (selectedCharacter?.Nomperso || "Utilisateur");
+  const userAvatar = isMJ ? undefined : (selectedCharacter?.imageURLFinal || selectedCharacter?.imageURL || undefined);
+
+  const rollableStats = useMemo(() => {
+    if (!selectedCharacter) return [];
+
+    const defaultRollable: Record<string, boolean> = {
+      FOR: true, DEX: true, CON: true, SAG: true, INT: true, CHA: true,
+      Defense: false, Contact: false, Magie: false, Distance: false, INIT: false,
+    };
+    const statRollableOverrides: Record<string, boolean> = selectedCharacter.statRollable ?? {};
+
+    const builtinDefs = [
+      { key: 'FOR', label: 'FOR', hasModifier: true },
+      { key: 'DEX', label: 'DEX', hasModifier: true },
+      { key: 'CON', label: 'CON', hasModifier: true },
+      { key: 'SAG', label: 'SAG', hasModifier: true },
+      { key: 'INT', label: 'INT', hasModifier: true },
+      { key: 'CHA', label: 'CHA', hasModifier: true },
+      { key: 'Defense', label: 'Déf', hasModifier: false },
+      { key: 'Contact', label: 'Ctt', hasModifier: false },
+      { key: 'Magie', label: 'Mag', hasModifier: false },
+      { key: 'Distance', label: 'Dst', hasModifier: false },
+      { key: 'INIT', label: 'INIT', hasModifier: false },
+    ];
+
+    const rollables: RollableStat[] = builtinDefs
+      .filter((s) => (s.key in statRollableOverrides ? statRollableOverrides[s.key] : defaultRollable[s.key] ?? false))
+      .map((s) => ({
+        key: s.key,
+        label: s.label,
+        rawValue: Number(selectedCharacter[s.key as keyof typeof selectedCharacter] ?? (s.hasModifier ? 10 : 0)),
+        hasModifier: s.hasModifier,
+      }));
+
+    const customFields = (selectedCharacter.customFields as any[]) ?? [];
+    customFields
+      .filter((f) => f.isRollable && (f.type === 'number' || f.type === 'percent'))
+      .forEach((f) => {
+        rollables.push({
+          key: f.label,
+          label: f.label.length > 5 ? f.label.substring(0, 5) : f.label,
+          rawValue: Number(f.value) || 0,
+          hasModifier: !!(f.hasModifier && f.type === 'number'),
+        });
+      });
+
+    return rollables;
+  }, [selectedCharacter]);
+
+  const characterModifiers = useMemo(() => {
+    const modifiersMap: CharacterModifiers = {};
+    rollableStats.forEach((s: RollableStat) => {
+      modifiersMap[s.key] = s.rawValue;
+    });
+    return modifiersMap;
+  }, [rollableStats]);
+
   const { totalBonuses } = useCalculatedBonuses(roomId, userName !== "MJ" && userName !== "Utilisateur" ? userName : undefined);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [userAvatar, setUserAvatar] = useState<string | undefined>(undefined);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -199,94 +256,10 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
 
 
 
-  const fetchCharacterInfo = async (roomId: string, persoId: string) => {
-    try {
-      const charRef = doc(db, `cartes/${roomId}/characters/${persoId}`);
-      const charSnap = await getDoc(charRef);
-
-      if (charSnap.exists()) {
-        const charData = charSnap.data();
-        setUserName(charData.Nomperso || "Utilisateur");
-        setUserAvatar(charData.imageURLFinal || charData.imageURL || undefined);
-
-        // ── Built-in stats defaults ──
-        const defaultRollable: Record<string, boolean> = {
-          FOR: true, DEX: true, CON: true, SAG: true, INT: true, CHA: true,
-          Defense: false, Contact: false, Magie: false, Distance: false, INIT: false,
-        };
-        const statRollableOverrides: Record<string, boolean> = charData.statRollable ?? {};
-
-        const builtinDefs = [
-          { key: 'FOR', label: 'FOR', hasModifier: true },
-          { key: 'DEX', label: 'DEX', hasModifier: true },
-          { key: 'CON', label: 'CON', hasModifier: true },
-          { key: 'SAG', label: 'SAG', hasModifier: true },
-          { key: 'INT', label: 'INT', hasModifier: true },
-          { key: 'CHA', label: 'CHA', hasModifier: true },
-          { key: 'Defense', label: 'Déf', hasModifier: false },
-          { key: 'Contact', label: 'Ctt', hasModifier: false },
-          { key: 'Magie', label: 'Mag', hasModifier: false },
-          { key: 'Distance', label: 'Dst', hasModifier: false },
-          { key: 'INIT', label: 'INIT', hasModifier: false },
-        ];
-
-        // Build rollable list from built-ins
-        const rollables: RollableStat[] = builtinDefs
-          .filter(s => (s.key in statRollableOverrides ? statRollableOverrides[s.key] : defaultRollable[s.key] ?? false))
-          .map(s => ({
-            key: s.key,
-            label: s.label,
-            rawValue: Number(charData[s.key] ?? (s.hasModifier ? 10 : 0)),
-            hasModifier: s.hasModifier,
-          }));
-
-        // Append rollable custom fields
-        const customFields: Array<{ id: string; label: string; type: string; value: unknown; isRollable?: boolean; hasModifier?: boolean }> =
-          charData.customFields ?? [];
-        customFields
-          .filter(f => f.isRollable && (f.type === 'number' || f.type === 'percent'))
-          .forEach(f => {
-            rollables.push({
-              key: f.label,     // use label as notation key for custom fields
-              label: f.label.length > 5 ? f.label.substring(0, 5) : f.label,
-              rawValue: Number(f.value) || 0,
-              hasModifier: !!(f.hasModifier && f.type === 'number'),
-            });
-          });
-
-        setRollableStats(rollables);
-
-        // Keep characterModifiers for backward compat with replaceCharacteristics
-        const modifiersMap: CharacterModifiers = {};
-        rollables.forEach(s => {
-          modifiersMap[s.key] = s.rawValue;
-        });
-        setCharacterModifiers(modifiersMap);
-      }
-    } catch (error) {
-      console.error("Error fetching character info:", error);
-    }
-  };
-
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (authUser) => {
       if (authUser) {
         setUserEmail(authUser.email || null);
-        const userRef = doc(db, 'users', authUser.uid);
-        getDoc(userRef).then((docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            setRoomId(data.room_id);
-            setPersoId(data.persoId);
-
-            if (data.perso === "MJ") {
-              setUserName("MJ");
-              setUserAvatar(undefined);
-            } else if (data.room_id && data.persoId) {
-              fetchCharacterInfo(data.room_id, data.persoId);
-            }
-          }
-        });
       }
     });
     return () => unsubscribe();
@@ -736,7 +709,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
     }, 0);
   };
 
-  const isMJ = userName === "MJ";
+
 
 
 

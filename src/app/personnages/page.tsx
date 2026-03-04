@@ -3,9 +3,9 @@
 import * as React from 'react'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Crown, Loader2, LogIn, CircleCheck, User } from 'lucide-react'
+import { Plus, Crown, Loader2, LogIn, CircleCheck, User, RotateCcw } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { db, getDocs, collection, doc, setDoc, getDoc, onSnapshot } from '@/lib/firebase'
+import { db, getDocs, collection, doc, setDoc, getDoc } from '@/lib/firebase'
 import { useGame } from '@/contexts/GameContext'
 import { cn } from '@/lib/utils'
 import { AppBackground } from '@/components/ui/background-components'
@@ -56,13 +56,72 @@ export default function CharacterSelection() {
     premium?: boolean;
     showPremiumBadge?: boolean;
   } | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const loadData = useCallback(async () => {
+    if (!user?.uid || !user?.roomId || user.roomId === '0') return;
+    const roomId = user.roomId;
+    setCharactersLoading(true);
+
+    try {
+      // 1. Fetch character list
+      const charactersCollection = collection(db, `cartes/${roomId}/characters`);
+      const snapshot = await getDocs(charactersCollection);
+      const charactersData: Character[] = snapshot.docs
+        .map(doc => ({
+          id: doc.id,
+          Nomperso: doc.data().Nomperso || 'Nom non défini',
+          ...doc.data()
+        } as Character))
+        .filter(character => character.type === "joueurs");
+
+      setCharacters(charactersData);
+
+      // 2. Fetch taken characters
+      const roomNomsCollection = collection(db, `salles/${roomId}/Noms`);
+      const nomsSnapshot = await getDocs(roomNomsCollection);
+      const takenMap: Record<string, any> = {};
+
+      const fetchTasks = nomsSnapshot.docs.map(async (d) => {
+        const data = d.data();
+        if (data.nom && data.nom !== 'MJ') {
+          try {
+            const userDoc = await getDoc(doc(db, 'users', d.id));
+            const userData = userDoc.exists() ? userDoc.data() : null;
+
+            takenMap[data.nom] = {
+              name: userData?.name || data.userName || "Joueur",
+              uid: d.id,
+              pp: userData?.pp || "",
+              titre: userData?.titre || "",
+              imageURL: userData?.imageURL || "",
+              bio: userData?.bio || "",
+              timeSpent: userData?.timeSpent || 0,
+              borderType: userData?.borderType || "none",
+              premium: userData?.premium || false,
+              showPremiumBadge: userData?.showPremiumBadge ?? true
+            };
+          } catch (e) {
+            takenMap[data.nom] = { name: data.userName || "Joueur", uid: d.id };
+          }
+        }
+      });
+
+      await Promise.all(fetchTasks);
+      setTakenCharacters(takenMap);
+    } catch (error) {
+      console.error("Error loading characters:", error);
+    } finally {
+      setCharactersLoading(false);
+      setIsRefreshing(false);
+    }
+  }, [user?.uid, user?.roomId]);
 
 
 
   useEffect(() => {
     if (user?.uid && user?.roomId && user.roomId !== '0') {
       const roomId = user.roomId;
-      setCharactersLoading(true);
 
       // Fetch current user name
       getDoc(doc(db, 'users', user.uid)).then(snap => {
@@ -71,23 +130,8 @@ export default function CharacterSelection() {
         }
       });
 
-      // Listener for characters
-      const charactersCollection = collection(db, `cartes/${roomId}/characters`);
-      const unsubscribeChars = onSnapshot(charactersCollection, (snapshot) => {
-        const charactersData: Character[] = snapshot.docs
-          .map(doc => ({
-            id: doc.id,
-            Nomperso: doc.data().Nomperso || 'Nom non défini',
-            ...doc.data()
-          } as Character))
-          .filter(character => character.type === "joueurs");
-
-        setCharacters(charactersData);
-        setCharactersLoading(false);
-      }, (error) => {
-        console.error("Error listening to characters:", error);
-        setCharactersLoading(false);
-      });
+      // Initial Load
+      loadData();
 
       // Fetch room data
       const fetchRoom = async () => {
@@ -101,50 +145,16 @@ export default function CharacterSelection() {
         }
       }
       fetchRoom();
-
-      // Listener for taken characters in this room
-      const roomNomsCollection = collection(db, `salles/${roomId}/Noms`);
-      const unsubscribeNoms = onSnapshot(roomNomsCollection, async (snapshot) => {
-        const takenMap: Record<string, { name: string, uid: string, pp?: string, titre?: string, imageURL?: string, bio?: string, timeSpent?: number, borderType?: "none" | "blue" | "orange" | "magic" | "magic_purple" | "magic_green" | "magic_red" | "magic_double" | "magic_shine" | "magic_shine_aurora" | "magic_shine_solar" | "magic_shine_twilight", premium?: boolean, showPremiumBadge?: boolean }> = {};
-
-        const fetchTasks = snapshot.docs.map(async (d) => {
-          const data = d.data();
-          if (data.nom && data.nom !== 'MJ') {
-            try {
-              const userDoc = await getDoc(doc(db, 'users', d.id));
-              const userData = userDoc.exists() ? userDoc.data() : null;
-
-              takenMap[data.nom] = {
-                name: userData?.name || data.userName || "Joueur",
-                uid: d.id,
-                pp: userData?.pp || "",
-                titre: userData?.titre || "",
-                imageURL: userData?.imageURL || "",
-                bio: userData?.bio || "",
-                timeSpent: userData?.timeSpent || 0,
-                borderType: userData?.borderType || "none",
-                premium: userData?.premium || false,
-                showPremiumBadge: userData?.showPremiumBadge ?? true
-              };
-            } catch (e) {
-              takenMap[data.nom] = { name: data.userName || "Joueur", uid: d.id };
-            }
-          }
-        });
-
-        await Promise.all(fetchTasks);
-        setTakenCharacters({ ...takenMap });
-      });
-
-      return () => {
-        unsubscribeChars();
-        unsubscribeNoms();
-      };
     } else if (user && (!user.roomId || user.roomId === '0')) {
       setCharacters([]);
       setCharactersLoading(false);
     }
-  }, [user?.uid, user?.roomId]);
+  }, [user?.uid, user?.roomId, loadData]);
+
+  const handleManualRefresh = () => {
+    setIsRefreshing(true);
+    loadData();
+  };
 
   // Select character
   const saveSelectedCharacter = useCallback(async (character: Character) => {
@@ -246,6 +256,15 @@ export default function CharacterSelection() {
           <p className="text-zinc-400 text-base md:text-lg font-light tracking-wide">
             Choisissez votre incarnation pour cette aventure
           </p>
+
+          <button
+            onClick={handleManualRefresh}
+            disabled={isRefreshing || charactersLoading}
+            className="mt-4 flex items-center gap-2 mx-auto px-4 py-2 rounded-full bg-white/5 border border-white/10 hover:bg-white/10 transition-all text-xs text-zinc-400 hover:text-[#c0a080]"
+          >
+            <RotateCcw className={cn("w-3.5 h-3.5", (isRefreshing || charactersLoading) && "animate-spin")} />
+            {isRefreshing ? "Mise à jour..." : "Actualiser la liste"}
+          </button>
         </motion.div>
 
         {/* Profiles grid */}

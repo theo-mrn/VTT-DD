@@ -1,16 +1,16 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   Search, Plus, Book, X, Trash2, Edit, Save,
   MapPin, User, Scroll, Tag, Image as ImageIcon,
   Calendar, CheckCircle2, AlertTriangle, GripVertical,
-  Maximize2, Minimize2, MoreVertical, LayoutGrid, List as ListIcon, Users
+  Maximize2, Minimize2, MoreVertical, LayoutGrid, List as ListIcon, Users, RotateCcw
 } from 'lucide-react'
 import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
 
-import { db, auth, storage, addDoc, collection, doc, updateDoc, deleteDoc, onSnapshot, getDoc, onAuthStateChanged, serverTimestamp } from "@/lib/firebase"
+import { db, auth, storage, addDoc, collection, doc, updateDoc, deleteDoc, getDocs, getDoc, onAuthStateChanged, serverTimestamp } from "@/lib/firebase"
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { cn } from "@/lib/utils"
 import { toast } from 'sonner'
@@ -67,6 +67,7 @@ export default function Notes() {
   const [roomId, setRoomId] = useState<string | null>(null)
   const [characterId, setCharacterId] = useState<string | null>(null)
   const [characterName, setCharacterName] = useState<string>('')
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   // View
   const [searchQuery, setSearchQuery] = useState('')
@@ -81,37 +82,18 @@ export default function Notes() {
   // Deletion
   const [deleteId, setDeleteId] = useState<string | null>(null)
 
-  // Auth & Data Fetching
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid))
-        if (userDoc.exists()) {
-          setRoomId(userDoc.data().room_id)
-          const persoId = userDoc.data().perso
-          setCharacterId(persoId)
+  const loadNotes = useCallback(async (rId?: string, cId?: string) => {
+    const activeRoomId = rId || roomId
+    const activeCharId = cId || characterId
 
-          // Fetch character name
-          if (persoId && userDoc.data().room_id) {
-            const charDoc = await getDoc(doc(db, 'campaigns', userDoc.data().room_id, 'persos', persoId))
-            if (charDoc.exists()) {
-              setCharacterName(charDoc.data().name || 'Personnage')
-            }
-          }
-        }
-      }
-      setLoading(false)
-    })
-    return () => unsubscribe()
-  }, [])
+    if (!activeRoomId || !activeCharId) return
+    setLoading(true)
 
-  useEffect(() => {
-    if (!roomId || !characterId) return
-
-    // Subscribe to private notes (character-specific)
-    const privateNotesRef = collection(db, 'Notes', roomId, characterId)
-    const unsubPrivate = onSnapshot(privateNotesRef, (privateSnapshot) => {
-      const privateNotes = privateSnapshot.docs.map(doc => ({
+    try {
+      // 1. Fetch private notes
+      const privateNotesRef = collection(db, 'Notes', activeRoomId, activeCharId)
+      const privateSnapshot = await getDocs(privateNotesRef)
+      const privateNotesData = privateSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
         tags: doc.data().tags || [],
@@ -120,28 +102,59 @@ export default function Notes() {
         isShared: false,
       })) as Note[]
 
-      // Subscribe to shared notes (room-wide)
-      const sharedNotesRef = collection(db, 'SharedNotes', roomId, 'notes')
-      const unsubShared = onSnapshot(sharedNotesRef, (sharedSnapshot) => {
-        const sharedNotes = sharedSnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          tags: doc.data().tags || [],
-          createdAt: doc.data().createdAt?.toDate() || new Date(),
-          updatedAt: doc.data().updatedAt?.toDate() || new Date(),
-          isShared: true,
-        })) as Note[]
+      // 2. Fetch shared notes
+      const sharedNotesRef = collection(db, 'SharedNotes', activeRoomId, 'notes')
+      const sharedSnapshot = await getDocs(sharedNotesRef)
+      const sharedNotesData = sharedSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        tags: doc.data().tags || [],
+        createdAt: doc.data().createdAt?.toDate() || new Date(),
+        updatedAt: doc.data().updatedAt?.toDate() || new Date(),
+        isShared: true,
+      })) as Note[]
 
-        // Merge and sort both lists
-        const allNotes = [...privateNotes, ...sharedNotes]
-        setNotes(allNotes.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()))
-      })
-
-      return () => unsubShared()
-    })
-
-    return () => unsubPrivate()
+      const allNotes = [...privateNotesData, ...sharedNotesData]
+      setNotes(allNotes.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime()))
+    } catch (error) {
+      console.error("Error loading notes:", error)
+      toast.error("Erreur lors du chargement des notes")
+    } finally {
+      setLoading(false)
+      setIsRefreshing(false)
+    }
   }, [roomId, characterId])
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        const userDoc = await getDoc(doc(db, 'users', user.uid))
+        if (userDoc.exists()) {
+          const rId = userDoc.data().room_id
+          const pId = userDoc.data().perso
+          setRoomId(rId)
+          setCharacterId(pId)
+
+          if (pId && rId) {
+            // Fetch name and notes immediately
+            const charPromise = getDoc(doc(db, 'campaigns', rId, 'persos', pId)).then(charDoc => {
+              if (charDoc.exists()) setCharacterName(charDoc.data().name || 'Personnage')
+            })
+            const notesPromise = loadNotes(rId, pId)
+            await Promise.all([charPromise, notesPromise])
+          }
+        }
+      }
+      setLoading(false)
+    })
+    return () => unsubscribe()
+  }, [loadNotes])
+
+  // Simple handle for generic refresh
+  const handleManualRefresh = () => {
+    setIsRefreshing(true)
+    loadNotes()
+  }
 
   // Actions
   const logHistory = async (message: string, isPrivate: boolean = true) => {
@@ -253,6 +266,7 @@ export default function Notes() {
         })
       }
       setEditorOpen(false)
+      loadNotes()
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error)
       toast.error('Erreur', {
@@ -292,6 +306,7 @@ export default function Notes() {
 
       setDeleteId(null)
       setEditorOpen(false)
+      loadNotes()
     } catch (error) {
       console.error('Erreur lors de la suppression:', error)
       toast.error('Erreur', {
@@ -328,6 +343,7 @@ export default function Notes() {
         description: `"${note.title}" est maintenant visible par tous.`,
         duration: 2000,
       })
+      loadNotes()
     } catch (error) {
       console.error('Erreur lors du partage:', error)
       toast.error('Erreur', {
@@ -364,7 +380,17 @@ export default function Notes() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-serif font-bold text-[var(--accent-header)] tracking-tight">Grimoire</h1>
-            <p className="text-sm text-zinc-500 font-medium">Archives & Connaissances</p>
+            <div className="flex items-center gap-4">
+              <p className="text-sm text-zinc-500 font-medium">Archives & Connaissances</p>
+              <button
+                onClick={handleManualRefresh}
+                disabled={isRefreshing || loading}
+                className="text-[10px] uppercase font-bold text-zinc-600 hover:text-[var(--accent-brown)] transition-colors flex items-center gap-1.5"
+              >
+                <RotateCcw className={cn("w-3 h-3", (isRefreshing || loading) && "animate-spin")} />
+                Actualiser
+              </button>
+            </div>
           </div>
           <button
             onClick={handleNew}

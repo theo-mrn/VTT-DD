@@ -1,35 +1,5 @@
 /**
  * useMapData.ts — Hook centralisé pour tous les listeners Firestore de la map
- *
- * ═══════════════════════════════════════════════════════════════════════════
- * OPTIMISATIONS APPLIQUÉES :
- *
- * 1. FUSION des listeners redondants
- *    - cities/{selectedCityId} → scène + background image dans 1 seul listener
- *      (avant : 2 subscriptions sur le même doc)
- *
- * 2. SKIP hasPendingWrites
- *    - On ignore les snapshots générés par nos propres écritures pour les
- *      collections lourdes (objects, fog). Firestore les génère d'abord en local
- *      avant la confirmation serveur — on l'a déjà appliqué optimistiquement.
- *    - EXCEPTION : characters/NPCs conservent hasPendingWrites car la position
- *      pendant le drag doit être immédiate.
- *
- * 3. DEBOUNCE du brouillard (fog)
- *    - La grille de brouillard peut changer à chaque cell lors du peinture.
- *    - On debounce à 150ms pour éviter 30 setState/seconde.
- *
- * 4. React.startTransition pour les mises à jour non urgentes
- *    - drawings, notes, measurements, musicZones → mises à jour basses priorité
- *    - Le rendu canvas est prioritaire, ces données peuvent attendre 1 frame.
- *
- * 5. Refs stables pour les callbacks
- *    - Les setters passés en callbacks sont wrappés dans useRef pour éviter
- *      que les closures des onSnapshot capturent des références obsolètes.
- *
- * 6. GROUPEMENT per-city en 1 seul useEffect
- *    - Un seul cleanup pour 9 listeners per-city → moins d'overhead React.
- * ═══════════════════════════════════════════════════════════════════════════
  */
 
 import { useEffect, useRef, startTransition } from 'react';
@@ -37,13 +7,15 @@ import {
     doc,
     collection,
     onSnapshot,
+    setDoc,
     query,
     where,
-    setDoc,
+    getDoc,
 } from 'firebase/firestore';
 import { doc as firestoreDoc } from 'firebase/firestore';
 
 import { db } from '@/lib/firebase';
+import { logHistoryEvent, logGlobalMove } from '@/lib/historiqueTrackerService';
 
 import type {
     Character,
@@ -52,49 +24,52 @@ import type {
     SavedDrawing,
     MusicZone,
     Layer,
-    LayerType,
     Scene,
     Portal,
+    MapObject,
 } from '@/app/[roomid]/map/types';
-import type { MapObject } from '@/app/[roomid]/map/types';
 import type { Obstacle } from '@/lib/visibility';
 import type { SharedMeasurement } from '@/app/[roomid]/map/measurements';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface MapDataCallbacks {
-    setCharacters: (chars: Character[]) => void;
-    setLoading: (v: boolean) => void;
-    setLights: (lights: LightSource[]) => void;
-    setObjects: (objects: MapObject[]) => void;
-    setNotes: (notes: MapText[]) => void;
-    setDrawings: (drawings: SavedDrawing[]) => void;
-    setFogGrid: (grid: Map<string, boolean>) => void;
-    setFullMapFog: (v: boolean) => void;
-    setObstacles: (obs: Obstacle[]) => void;
-    setMusicZones: (zones: MusicZone[]) => void;
-    setMeasurements: (ms: SharedMeasurement[]) => void;
-    setLayers: React.Dispatch<React.SetStateAction<Layer[]>>;
-    setPortals: (portals: Portal[]) => void;
-    setCurrentScene: (scene: Scene | null) => void;
-    setBackgroundImage: (url: string | null) => void;
-    setBgImageObject: (obj: HTMLImageElement | HTMLVideoElement | null) => void;
-    setActivePlayerId: (id: string | null) => void;
-    setGlobalTokenScale: (v: number) => void;
-    setShadowOpacity: (v: number) => void;
-    setPixelsPerUnit: (v: number) => void;
-    setUnitName: (v: string) => void;
-    setGlobalCityId: (id: string | null) => void;
-    setCities: (cities: any[]) => void;
-    setPlayersVersion: React.Dispatch<React.SetStateAction<number>>;
-    selectedCityIdRef: React.MutableRefObject<string | null>;
-    loadedPlayersRef: React.MutableRefObject<any[]>;
-    loadedNPCsRef: React.MutableRefObject<Character[]>;
-    mergeAndSetCharactersRef: React.MutableRefObject<() => void>;
-    parseCharacterDocRef: React.MutableRefObject<(doc: any, cityId: string | null) => Character>;
-    audioVolumes: { quickSounds: number; backgroundAudio: number };
-    globalAudioRef: React.MutableRefObject<HTMLAudioElement | null>;
-    isFirstSnapshotRef: React.MutableRefObject<boolean>;
+    setCharacters?: (chars: Character[]) => void;
+    setLoading?: (v: boolean) => void;
+    setLights?: (lights: LightSource[]) => void;
+    setObjects?: (objects: MapObject[]) => void;
+    setNotes?: (notes: MapText[]) => void;
+    setDrawings?: (drawings: SavedDrawing[]) => void;
+    setFogGrid?: (grid: Map<string, boolean>) => void;
+    setFullMapFog?: (v: boolean) => void;
+    setObstacles?: (obs: Obstacle[]) => void;
+    setMusicZones?: (zones: MusicZone[]) => void;
+    setMeasurements?: (ms: SharedMeasurement[]) => void;
+    setLayers?: React.Dispatch<React.SetStateAction<Layer[]>>;
+    setPortals?: (portals: Portal[]) => void;
+    setCurrentScene?: (scene: Scene | null) => void;
+    setBackgroundImage?: (url: string | null) => void;
+    setBgImageObject?: (obj: HTMLImageElement | HTMLVideoElement | null) => void;
+    setActivePlayerId?: (id: string | null) => void;
+    setGlobalTokenScale?: (v: number) => void;
+    setShadowOpacity?: (v: number) => void;
+    setPixelsPerUnit?: (v: number) => void;
+    setUnitName?: (v: string) => void;
+    setGlobalCityId?: (id: string | null) => void;
+    setCities?: (cities: any[]) => void;
+    setPlayersVersion?: React.Dispatch<React.SetStateAction<number>>;
+    setRawPlayers?: (docs: any[]) => void;
+    setRawNPCs?: (chars: Character[]) => void;
+    selectedCityIdRef?: React.MutableRefObject<string | null>;
+    loadedPlayersRef?: React.MutableRefObject<any[]>;
+    loadedNPCsRef?: React.MutableRefObject<Character[]>;
+    mergeAndSetCharactersRef?: React.MutableRefObject<() => void>;
+    parseCharacterDocRef?: React.MutableRefObject<(doc: any, cityId: string | null) => Character>;
+    audioVolumes?: { quickSounds: number; backgroundAudio: number };
+    globalAudioRef?: React.MutableRefObject<HTMLAudioElement | null>;
+    isFirstSnapshotRef?: React.MutableRefObject<boolean>;
+    isMJ?: boolean;
+    enableHistoryTracking?: boolean;
 }
 
 // ─── Utilitaire : debounce ────────────────────────────────────────────────────
@@ -114,101 +89,154 @@ export function useMapData(
     selectedCityId: string | null,
     callbacks: MapDataCallbacks
 ) {
-    // ─── Refs stables pour tous les callbacks ──────────────────────────────────
-    // On utilise des refs pour que les closures des onSnapshot ne capturent
-    // jamais une version "périmée" d'un setter ou d'un ref.
+    const isInitialLoadRef = useRef(true);
+    const lastCharsPVRef = useRef<Map<string, number>>(new Map());
     const cb = useRef(callbacks);
     useEffect(() => { cb.current = callbacks; });
 
     // ──────────────────────────────────────────────────────────────────────────
     // GROUPE GLOBAL : listeners dépendant uniquement de roomId
     // ──────────────────────────────────────────────────────────────────────────
-
     useEffect(() => {
         if (!roomId) return;
         const unsubs: (() => void)[] = [];
 
         // ─── 1. PORTALS ──────────────────────────────────────────────────────────
-        unsubs.push(onSnapshot(
-            query(collection(db, 'cartes', roomId, 'portals')),
-            (snapshot) => {
-                const newPortals: Portal[] = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    portalType: 'scene-change' as const,
-                    ...doc.data(),
-                } as Portal));
-                cb.current.setPortals(newPortals);
-            }
-        ));
-
-        // ─── 2. SETTINGS GENERAL (fusionné — remplace les 2 anciens doublons) ───
-        //    Lit : globalTokenScale, shadowOpacity, pixelsPerUnit, unitName, currentCityId
-        unsubs.push(onSnapshot(
-            doc(db, 'cartes', roomId, 'settings', 'general'),
-            (docSnap) => {
-                // ✅ SKIP hasPendingWrites : paramètres rarement écrits, inutile de
-                //    traiter notre propre écriture deux fois
-                if (docSnap.metadata.hasPendingWrites) return;
-                if (!docSnap.exists()) return;
-                const data = docSnap.data();
-                const c = cb.current;
-                if (data.globalTokenScale !== undefined) c.setGlobalTokenScale(data.globalTokenScale);
-                if (data.shadowOpacity !== undefined) c.setShadowOpacity(data.shadowOpacity);
-                if (data.pixelsPerUnit) c.setPixelsPerUnit(data.pixelsPerUnit);
-                if (data.unitName) c.setUnitName(data.unitName);
-                if (data.currentCityId) c.setGlobalCityId(data.currentCityId);
-            }
-        ));
-
-        // ─── 3. GLOBAL SOUND ────────────────────────────────────────────────────
-        cb.current.isFirstSnapshotRef.current = true;
-        unsubs.push(onSnapshot(
-            firestoreDoc(db, 'global_sounds', roomId),
-            (docSnap) => {
-                const { isFirstSnapshotRef, globalAudioRef, audioVolumes } = cb.current;
-                if (isFirstSnapshotRef.current) { isFirstSnapshotRef.current = false; return; }
-                if (!docSnap.exists()) return;
-                const data = docSnap.data();
-                if (data.soundUrl === null || !data.soundUrl) {
-                    globalAudioRef.current?.pause();
-                    globalAudioRef.current = null;
-                    return;
+        if (cb.current.setPortals) {
+            unsubs.push(onSnapshot(
+                query(collection(db, 'cartes', roomId, 'portals')),
+                (snapshot) => {
+                    const newPortals: Portal[] = snapshot.docs.map(doc => ({
+                        id: doc.id,
+                        portalType: 'scene-change' as const,
+                        ...doc.data(),
+                    } as Portal));
+                    cb.current.setPortals?.(newPortals);
                 }
-                if (data.soundUrl && data.timestamp) {
-                    const eventTime = data.timestamp.toMillis ? data.timestamp.toMillis() : data.timestamp;
-                    const timeDiff = Date.now() - eventTime;
-                    if (timeDiff < 5000 && timeDiff > -2000) {
-                        globalAudioRef.current?.pause();
-                        const audio = new Audio(data.soundUrl);
-                        audio.volume = audioVolumes.quickSounds;
-                        globalAudioRef.current = audio;
-                        audio.addEventListener('ended', () => { globalAudioRef.current = null; });
-                        audio.play().catch(console.error);
+            ));
+        }
+
+        // ─── 2. SETTINGS GENERAL (fusionné) ────────────────────────────────────
+        const hasSettingsCbs = cb.current.setGlobalTokenScale || cb.current.setShadowOpacity ||
+            cb.current.setPixelsPerUnit || cb.current.setUnitName || cb.current.setGlobalCityId;
+
+        if (hasSettingsCbs) {
+            unsubs.push(onSnapshot(
+                doc(db, 'cartes', roomId, 'settings', 'general'),
+                (docSnap) => {
+                    if (docSnap.metadata.hasPendingWrites) return;
+                    if (!docSnap.exists()) return;
+                    const data = docSnap.data();
+                    const c = cb.current;
+                    if (data.globalTokenScale !== undefined) c.setGlobalTokenScale?.(data.globalTokenScale);
+                    if (data.shadowOpacity !== undefined) c.setShadowOpacity?.(data.shadowOpacity);
+                    if (data.pixelsPerUnit) c.setPixelsPerUnit?.(data.pixelsPerUnit);
+                    if (data.unitName) c.setUnitName?.(data.unitName);
+                    if (data.currentCityId) {
+                        const prevCityId = selectedCityId;
+                        c.setGlobalCityId?.(data.currentCityId);
+
+                        // Log group movement if tracking enabled and city actually changed
+                        if (c.enableHistoryTracking && c.isMJ && data.currentCityId !== prevCityId && !isInitialLoadRef.current) {
+                            logGlobalMove(roomId, data.currentCityId, async (id) => {
+                                try {
+                                    const citySnap = await getDoc(doc(db, 'cartes', roomId, 'cities', id));
+                                    return citySnap.exists() ? (citySnap.data()?.Nom || "une nouvelle destination") : "une nouvelle destination";
+                                } catch (e) {
+                                    return "une nouvelle destination";
+                                }
+                            });
+                        }
                     }
                 }
-            }
-        ));
+            ));
+        }
 
-        // ─── 4. PLAYERS (joueurs — global, stable lors des changements de ville) ─
-        unsubs.push(onSnapshot(
-            query(collection(db, 'cartes', roomId, 'characters'), where('type', '==', 'joueurs')),
-            (snapshot) => {
-                const { loadedPlayersRef, setPlayersVersion, mergeAndSetCharactersRef } = cb.current;
-                loadedPlayersRef.current = snapshot.docs;
-                setPlayersVersion(v => v + 1);
-                mergeAndSetCharactersRef.current();
-            }
-        ));
+        // ─── 3. GLOBAL SOUND ────────────────────────────────────────────────────
+        if (cb.current.globalAudioRef) {
+            if (cb.current.isFirstSnapshotRef) cb.current.isFirstSnapshotRef.current = true;
+            unsubs.push(onSnapshot(
+                firestoreDoc(db, 'global_sounds', roomId),
+                (docSnap) => {
+                    const { isFirstSnapshotRef, globalAudioRef, audioVolumes } = cb.current;
+                    if (isFirstSnapshotRef?.current) { isFirstSnapshotRef.current = false; return; }
+                    if (!docSnap.exists()) return;
+                    const data = docSnap.data();
+                    if (!globalAudioRef) return;
+                    if (data.soundUrl === null || !data.soundUrl) {
+                        globalAudioRef.current?.pause();
+                        globalAudioRef.current = null;
+                        return;
+                    }
+                    if (data.soundUrl && data.timestamp) {
+                        const eventTime = data.timestamp.toMillis ? data.timestamp.toMillis() : data.timestamp;
+                        const timeDiff = Date.now() - eventTime;
+                        if (timeDiff < 5000 && timeDiff > -2000) {
+                            globalAudioRef.current?.pause();
+                            const audio = new Audio(data.soundUrl);
+                            if (audioVolumes) audio.volume = audioVolumes.quickSounds;
+                            globalAudioRef.current = audio;
+                            audio.addEventListener('ended', () => { globalAudioRef.current = null; });
+                            audio.play().catch(console.error);
+                        }
+                    }
+                }
+            ));
+        }
 
-        // ─── 5. CITIES COLLECTION (world map) ────────────────────────────────────
-        unsubs.push(onSnapshot(
-            collection(db, 'cartes', roomId, 'cities'),
-            (snapshot) => {
-                // ✅ SKIP hasPendingWrites : les villes changent rarement
-                if (snapshot.metadata.hasPendingWrites) return;
-                cb.current.setCities(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-            }
-        ));
+        // ─── 4. PLAYERS (joueurs) ────────────────────────────────────────────────
+        if (cb.current.loadedPlayersRef || cb.current.setRawPlayers) {
+            unsubs.push(onSnapshot(
+                query(collection(db, 'cartes', roomId, 'characters'), where('type', '==', 'joueurs')),
+                (snapshot) => {
+                    const { loadedPlayersRef, setPlayersVersion, mergeAndSetCharactersRef, setRawPlayers, enableHistoryTracking, isMJ } = cb.current;
+
+                    if (enableHistoryTracking && isMJ && !isInitialLoadRef.current) {
+                        snapshot.docChanges().forEach((change) => {
+                            const data = change.doc.data();
+                            const name = data.Nomperso || "Joueur";
+                            const rawImage = data.imageURL2 || data.imageURLFinal || data.image || data.imageUrl || data.imageURL;
+                            const avatar = typeof rawImage === 'object' && rawImage?.src ? rawImage.src : (typeof rawImage === 'string' ? rawImage : '');
+
+                            if (change.type === "added") {
+                                logHistoryEvent({ roomId, type: 'creation', message: `**${name}** a rejoint l'aventure !`, characterId: change.doc.id, characterName: name, characterAvatar: avatar, characterType: 'joueurs' });
+                            } else if (change.type === "removed") {
+                                logHistoryEvent({ roomId, type: 'info', message: `**${name}** a quitté l'aventure.`, characterId: change.doc.id, characterName: name, characterAvatar: avatar, characterType: 'joueurs' });
+                                lastCharsPVRef.current.delete(change.doc.id);
+                            } else if (change.type === "modified") {
+                                // Track PV changes for players
+                                const oldPV = lastCharsPVRef.current.get(change.doc.id);
+                                const newPV = Number(data.PV) || 0;
+                                if (oldPV !== undefined && oldPV !== newPV) {
+                                    const diff = newPV - oldPV;
+                                    const action = diff > 0 ? "récupéré" : "perdu";
+                                    logHistoryEvent({ roomId, type: 'combat', message: `**${name}** a **${action}** ${Math.abs(diff)} PV.`, characterId: change.doc.id, characterName: name, characterAvatar: avatar, characterType: 'joueurs' });
+                                }
+                            }
+                            lastCharsPVRef.current.set(change.doc.id, Number(data.PV) || 0);
+                        });
+                    } else if (enableHistoryTracking && isMJ && isInitialLoadRef.current) {
+                        // Fill the ref on initial load without logging
+                        snapshot.docs.forEach(d => lastCharsPVRef.current.set(d.id, Number(d.data().PV) || 0));
+                    }
+                    if (loadedPlayersRef) loadedPlayersRef.current = snapshot.docs;
+                    setPlayersVersion?.(v => v + 1);
+                    setRawPlayers?.(snapshot.docs);
+                    mergeAndSetCharactersRef?.current?.();
+                }
+            ));
+        }
+
+        // ─── 5. CITIES ───────────────────────────────────────────────────────────
+        if (cb.current.setCities) {
+            unsubs.push(onSnapshot(
+                collection(db, 'cartes', roomId, 'cities'),
+                (snapshot) => {
+                    if (snapshot.metadata.hasPendingWrites) return;
+                    cb.current.setCities?.(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+                }
+            ));
+        }
 
         return () => unsubs.forEach(u => u());
     }, [roomId]);
@@ -216,49 +244,47 @@ export function useMapData(
     // ──────────────────────────────────────────────────────────────────────────
     // GROUPE PER-CITY : listeners dépendant de roomId + selectedCityId
     // ──────────────────────────────────────────────────────────────────────────
-
     useEffect(() => {
         if (!roomId) return;
         const unsubs: (() => void)[] = [];
 
-        // ─── 6. SCENE + BACKGROUND IMAGE (FUSIONNÉS) ─────────────────────────────
-        //    ✅ OPTIMISATION : avant = 2 subscriptions séparées sur cities/{cityId}
-        //    Maintenant = 1 seule lecture qui alimente scene ET background
+        // ─── 6. SCENE + BACKGROUND ─────────────────────────────────────────────
         if (selectedCityId) {
-            unsubs.push(onSnapshot(
-                doc(db, 'cartes', roomId, 'cities', selectedCityId),
-                (snapshot) => {
-                    const c = cb.current;
-                    if (snapshot.exists()) {
-                        // → Scene (spawn points)
-                        c.setCurrentScene({ id: snapshot.id, ...snapshot.data() } as Scene);
-                        // → Background image
-                        const data = snapshot.data();
-                        if (data.backgroundUrl) {
-                            c.setBackgroundImage(data.backgroundUrl);
+            if (cb.current.setCurrentScene || cb.current.setBackgroundImage) {
+                unsubs.push(onSnapshot(
+                    doc(db, 'cartes', roomId, 'cities', selectedCityId),
+                    (snapshot) => {
+                        const c = cb.current;
+                        if (snapshot.exists()) {
+                            c.setCurrentScene?.({ id: snapshot.id, ...snapshot.data() } as Scene);
+                            const data = snapshot.data();
+                            if (data.backgroundUrl) {
+                                c.setBackgroundImage?.(data.backgroundUrl);
+                            } else {
+                                c.setBackgroundImage?.(null);
+                                c.setBgImageObject?.(null);
+                            }
                         } else {
-                            c.setBackgroundImage(null);
-                            c.setBgImageObject(null);
+                            c.setCurrentScene?.(null);
                         }
-                    } else {
-                        c.setCurrentScene(null);
                     }
-                }
-            ));
+                ));
+            }
         } else {
-            // World map : fond global (pas de scène)
-            cb.current.setCurrentScene(null);
-            unsubs.push(onSnapshot(
-                doc(db, 'cartes', roomId, 'fond', 'fond1'),
-                (docSnap) => {
-                    if (docSnap.exists() && docSnap.data().url) {
-                        cb.current.setBackgroundImage(docSnap.data().url);
+            cb.current.setCurrentScene?.(null);
+            if (cb.current.setBackgroundImage) {
+                unsubs.push(onSnapshot(
+                    doc(db, 'cartes', roomId, 'fond', 'fond1'),
+                    (docSnap) => {
+                        if (docSnap.exists() && docSnap.data().url) {
+                            cb.current.setBackgroundImage?.(docSnap.data().url);
+                        }
                     }
-                }
-            ));
+                ));
+            }
         }
 
-        // ─── 7. LAYERS (visibilité des couches par ville) ─────────────────────────
+        // ─── 7. LAYERS ──────────────────────────────────────────────────────────
         const localLayersDef: Layer[] = [
             { id: 'lights', label: 'Lumières', isVisible: true, order: 0 },
             { id: 'obstacles', label: 'Obstacles', isVisible: true, order: 1 },
@@ -271,150 +297,197 @@ export function useMapData(
         ];
         const layerDocId = selectedCityId ? `layers_${selectedCityId}` : 'layers';
         const layersRef = doc(db, 'cartes', roomId, 'settings', layerDocId);
-        unsubs.push(onSnapshot(layersRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const remoteLayers = docSnap.data().layers as Layer[] | undefined;
-                if (remoteLayers) {
-                    cb.current.setLayers(() =>
-                        localLayersDef.map(local => ({
-                            ...local,
-                            isVisible: remoteLayers.find(r => r.id === local.id)?.isVisible ?? local.isVisible,
-                        }))
-                    );
+        if (cb.current.setLayers) {
+            unsubs.push(onSnapshot(layersRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    const remoteLayers = docSnap.data().layers as Layer[] | undefined;
+                    if (remoteLayers) {
+                        cb.current.setLayers?.(() =>
+                            localLayersDef.map(local => ({
+                                ...local,
+                                isVisible: remoteLayers.find(r => r.id === local.id)?.isVisible ?? local.isVisible,
+                            }))
+                        );
+                    }
+                } else {
+                    setDoc(layersRef, { layers: localLayersDef }, { merge: true });
+                    cb.current.setLayers?.(localLayersDef);
                 }
-            } else {
-                setDoc(layersRef, { layers: localLayersDef }, { merge: true });
-                cb.current.setLayers(localLayersDef);
-            }
-        }));
+            }));
+        }
 
-        // ─── 8. COMBAT STATE → activePlayerId ─────────────────────────────────────
-        if (selectedCityId) {
-            unsubs.push(onSnapshot(
-                doc(db, 'cartes', roomId, 'cities', selectedCityId, 'combat', 'state'),
-                (docSnap) => {
-                    cb.current.setActivePlayerId(docSnap.exists() ? (docSnap.data().activePlayer || null) : null);
-                }
-            ));
-        } else {
-            cb.current.setActivePlayerId(null);
+        if (cb.current.setActivePlayerId) {
+            if (selectedCityId) {
+                unsubs.push(onSnapshot(
+                    doc(db, 'cartes', roomId, 'cities', selectedCityId, 'combat', 'state'),
+                    (docSnap) => {
+                        cb.current.setActivePlayerId?.(docSnap.exists() ? (docSnap.data().activePlayer || null) : null);
+                    }
+                ));
+            } else {
+                cb.current.setActivePlayerId?.(null);
+            }
         }
 
         // ─── 9. NPCs ──────────────────────────────────────────────────────────────
-        //    ❌ PAS de skip hasPendingWrites ici : la position des persos pendant
-        //       le drag doit être immédiate localement.
-        unsubs.push(onSnapshot(
-            query(collection(db, 'cartes', roomId, 'characters'), where('cityId', '==', selectedCityId)),
-            (snapshot) => {
-                const { loadedNPCsRef, parseCharacterDocRef, mergeAndSetCharactersRef, selectedCityIdRef } = cb.current;
-                loadedNPCsRef.current = snapshot.docs
-                    .filter(d => d.data().type !== 'joueurs')
-                    .map(d => parseCharacterDocRef.current(d, selectedCityIdRef.current));
-                mergeAndSetCharactersRef.current();
-            }
-        ));
+        if (cb.current.loadedNPCsRef || cb.current.setRawNPCs) {
+            unsubs.push(onSnapshot(
+                query(collection(db, 'cartes', roomId, 'characters'), where('cityId', '==', selectedCityId)),
+                (snapshot) => {
+                    const { loadedNPCsRef, parseCharacterDocRef, mergeAndSetCharactersRef, selectedCityIdRef, setRawNPCs, enableHistoryTracking, isMJ } = cb.current;
+                    const docs = snapshot.docs.filter(d => d.data().type !== 'joueurs');
 
-        // ─── 10-11. DRAWINGS + NOTES → MIGRÉS VERS RTDB (useRtdbCollections.ts)
+                    if (enableHistoryTracking && isMJ && !isInitialLoadRef.current) {
+                        snapshot.docChanges().forEach((change) => {
+                            const data = change.doc.data();
+                            if (data.type === 'joueurs') return;
+                            const name = data.Nomperso || "Pnj";
+                            const rawImage = data.imageURL2 || data.imageURLFinal || data.image || data.imageUrl || data.imageURL;
+                            const avatar = typeof rawImage === 'object' && rawImage?.src ? rawImage.src : (typeof rawImage === 'string' ? rawImage : '');
 
-        // ─── 12. FOG (avec debounce) ──────────────────────────────────────────────
-        //    ✅ DEBOUNCE 150ms : évite 30 setState/s pendant la peinture du brouillard
-        const fogDocId = selectedCityId ? `fog_${selectedCityId}` : 'fogData';
-        const applyFog = debounce((grid: Map<string, boolean>, fullFog: boolean | undefined) => {
-            const c = cb.current;
-            c.setFogGrid(grid);
-            if (fullFog !== undefined) c.setFullMapFog(fullFog);
-        }, 150);
+                            if (change.type === "added") {
+                                logHistoryEvent({ roomId, type: 'creation', message: `Apparition de : **${name}**.`, characterId: change.doc.id, characterName: name, characterAvatar: avatar, characterType: data.type });
+                            } else if (change.type === "removed") {
+                                logHistoryEvent({ roomId, type: 'info', message: `Disparition de : **${name}**.`, characterId: change.doc.id, characterName: name, characterAvatar: avatar, characterType: data.type });
+                                lastCharsPVRef.current.delete(change.doc.id);
+                            } else if (change.type === "modified") {
+                                // Track PV changes for NPCs
+                                const oldPV = lastCharsPVRef.current.get(change.doc.id);
+                                const newPV = Number(data.PV) || 0;
+                                if (oldPV !== undefined && oldPV !== newPV) {
+                                    const diff = newPV - oldPV;
+                                    const action = diff > 0 ? "soigné" : "attaqué";
+                                    logHistoryEvent({ roomId, type: 'combat', message: `**${name}** a été **${action}** (${diff > 0 ? "+" : ""}${diff} PV).`, characterId: change.doc.id, characterName: name, characterAvatar: avatar, characterType: data.type });
+                                }
+                            }
+                            lastCharsPVRef.current.set(change.doc.id, Number(data.PV) || 0);
+                        });
+                    } else if (enableHistoryTracking && isMJ && isInitialLoadRef.current) {
+                        // Fill the ref on initial load without logging
+                        snapshot.docs.forEach(d => lastCharsPVRef.current.set(d.id, Number(d.data().PV) || 0));
+                    }
 
-        unsubs.push(onSnapshot(
-            doc(db, 'cartes', roomId, 'fog', fogDocId),
-            (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    const grid = data.grid
-                        ? new Map<string, boolean>(Object.entries(data.grid))
-                        : new Map<string, boolean>();
-                    applyFog(grid, data.fullMapFog);
-                } else {
-                    applyFog(new Map(), false);
+                    if (setRawNPCs && parseCharacterDocRef) {
+                        setRawNPCs(docs.map(d => parseCharacterDocRef.current(d, selectedCityIdRef?.current || null)));
+                    }
+                    if (loadedNPCsRef && parseCharacterDocRef) {
+                        loadedNPCsRef.current = docs.map(d => parseCharacterDocRef.current(d, selectedCityIdRef?.current || null));
+                        mergeAndSetCharactersRef?.current?.();
+                    }
                 }
-            }
-        ));
+            ));
+        }
 
-        // ─── 13. OBSTACLES → MIGRÉ VERS RTDB (useRtdbCollections.ts)
+        // ─── 12. FOG ──────────────────────────────────────────────────────────────
+        if (cb.current.setFogGrid) {
+            const fogDocId = selectedCityId ? `fog_${selectedCityId}` : 'fogData';
+            const applyFog = debounce((grid: Map<string, boolean>, fullFog: boolean | undefined) => {
+                const c = cb.current;
+                c.setFogGrid?.(grid);
+                if (fullFog !== undefined) c.setFullMapFog?.(fullFog);
+            }, 150);
+
+            unsubs.push(onSnapshot(
+                doc(db, 'cartes', roomId, 'fog', fogDocId),
+                (docSnap) => {
+                    if (docSnap.exists()) {
+                        const data = docSnap.data();
+                        const grid = data.grid
+                            ? new Map<string, boolean>(Object.entries(data.grid))
+                            : new Map<string, boolean>();
+                        applyFog(grid, data.fullMapFog);
+                    } else {
+                        applyFog(new Map(), false);
+                    }
+                }
+            ));
+        }
 
         // ─── 14. LIGHTS ──────────────────────────────────────────────────────────
-        unsubs.push(onSnapshot(
-            query(collection(db, 'cartes', roomId, 'lights'), where('cityId', '==', selectedCityId)),
-            (snapshot) => {
-                if (snapshot.metadata.hasPendingWrites) return;
-                cb.current.setLights(snapshot.docs.map(d => ({
-                    id: d.id,
-                    x: d.data().x,
-                    y: d.data().y,
-                    name: d.data().name || 'Lumière',
-                    radius: d.data().radius || 10,
-                    visible: d.data().visible ?? true,
-                    cityId: d.data().cityId,
-                })));
-            }
-        ));
+        if (cb.current.setLights) {
+            unsubs.push(onSnapshot(
+                query(collection(db, 'cartes', roomId, 'lights'), where('cityId', '==', selectedCityId)),
+                (snapshot) => {
+                    if (snapshot.metadata.hasPendingWrites) return;
+                    cb.current.setLights?.(snapshot.docs.map(d => ({
+                        id: d.id,
+                        x: d.data().x,
+                        y: d.data().y,
+                        name: d.data().name || 'Lumière',
+                        radius: d.data().radius || 10,
+                        visible: d.data().visible ?? true,
+                        cityId: d.data().cityId,
+                    })));
+                }
+            ));
+        }
 
         // ─── 15. OBJECTS ─────────────────────────────────────────────────────────
-        unsubs.push(onSnapshot(
-            query(collection(db, 'cartes', roomId, 'objects'), where('cityId', '==', selectedCityId)),
-            (snapshot) => {
-                // ✅ SKIP hasPendingWrites : les objets ne se déplacent pas pendant un drag "live"
-                if (snapshot.metadata.hasPendingWrites) return;
-                const objs: MapObject[] = snapshot.docs.map(d => {
-                    const data = d.data();
-                    const img = new Image();
-                    if (data.imageUrl) img.src = data.imageUrl;
-                    return {
-                        id: d.id,
-                        x: data.x || 0,
-                        y: data.y || 0,
-                        width: data.width || 100,
-                        height: data.height || 100,
-                        rotation: data.rotation || 0,
-                        imageUrl: data.imageUrl || '',
-                        name: data.name,
-                        cityId: data.cityId || null,
-                        image: img,
-                        isBackground: data.isBackground || false,
-                        isLocked: data.isLocked || false,
-                        visibility: data.visibility || undefined,
-                        type: (data.type || 'decors') as 'decors' | 'weapon' | 'item',
-                        visibleToPlayerIds: data.visibleToPlayerIds || undefined,
-                        notes: data.notes || undefined,
-                        items: data.items || [],
-                        linkedId: data.linkedId || undefined,
-                    };
-                });
-                cb.current.setObjects(objs);
-            }
-        ));
+        if (cb.current.setObjects) {
+            unsubs.push(onSnapshot(
+                query(collection(db, 'cartes', roomId, 'objects'), where('cityId', '==', selectedCityId)),
+                (snapshot) => {
+                    if (snapshot.metadata.hasPendingWrites) return;
+                    const objs: MapObject[] = snapshot.docs.map(d => {
+                        const data = d.data();
+                        const img = new Image();
+                        if (data.imageUrl) img.src = data.imageUrl;
+                        return {
+                            id: d.id,
+                            x: data.x || 0,
+                            y: data.y || 0,
+                            width: data.width || 100,
+                            height: data.height || 100,
+                            rotation: data.rotation || 0,
+                            imageUrl: data.imageUrl || '',
+                            name: data.name,
+                            cityId: data.cityId || null,
+                            image: img,
+                            isBackground: data.isBackground || false,
+                            isLocked: data.isLocked || false,
+                            visibility: data.visibility || undefined,
+                            type: (data.type || 'decors') as 'decors' | 'weapon' | 'item',
+                            visibleToPlayerIds: data.visibleToPlayerIds || undefined,
+                            notes: data.notes || undefined,
+                            items: data.items || [],
+                            linkedId: data.linkedId || undefined,
+                        };
+                    });
+                    cb.current.setObjects?.(objs);
+                }
+            ));
+        }
 
-        // ─── 16. MUSIC ZONES → startTransition ───────────────────────────────────
-        unsubs.push(onSnapshot(
-            query(collection(db, 'cartes', roomId, 'musicZones'), where('cityId', '==', selectedCityId)),
-            (snapshot) => {
-                if (snapshot.metadata.hasPendingWrites) return;
-                const zones = snapshot.docs
-                    .filter(d => d.data().cityId === selectedCityId)
-                    .map(d => ({ id: d.id, ...d.data() } as MusicZone));
-                startTransition(() => cb.current.setMusicZones(zones));
-            }
-        ));
+        // ─── 16. MUSIC ZONES ───────────────────────────────────
+        if (cb.current.setMusicZones) {
+            unsubs.push(onSnapshot(
+                query(collection(db, 'cartes', roomId, 'musicZones'), where('cityId', '==', selectedCityId)),
+                (snapshot) => {
+                    if (snapshot.metadata.hasPendingWrites) return;
+                    const zones = snapshot.docs
+                        .filter(d => d.data().cityId === selectedCityId)
+                        .map(d => ({ id: d.id, ...d.data() } as MusicZone));
+                    startTransition(() => cb.current.setMusicZones?.(zones));
+                }
+            ));
+        }
 
-        // ─── 17. MEASUREMENTS → startTransition ──────────────────────────────────
-        unsubs.push(onSnapshot(
-            query(collection(db, 'cartes', roomId, 'measurements'), where('cityId', '==', selectedCityId)),
-            (snapshot) => {
-                const ms = snapshot.docs.map(d => d.data() as SharedMeasurement);
-                startTransition(() => cb.current.setMeasurements(ms));
-            }
-        ));
+        // ─── 17. MEASUREMENTS ──────────────────────────────────
+        if (cb.current.setMeasurements) {
+            unsubs.push(onSnapshot(
+                query(collection(db, 'cartes', roomId, 'measurements'), where('cityId', '==', selectedCityId)),
+                (snapshot) => {
+                    const ms = snapshot.docs.map(d => d.data() as SharedMeasurement);
+                    startTransition(() => cb.current.setMeasurements?.(ms));
+                }
+            ));
+        }
 
-        return () => unsubs.forEach(u => u());
+        // Marquer la fin du chargement initial
+        const timer = setTimeout(() => { isInitialLoadRef.current = false; }, 2000);
+        return () => {
+            unsubs.forEach(u => u());
+            clearTimeout(timer);
+        };
     }, [roomId, selectedCityId]);
 }
