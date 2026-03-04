@@ -13,6 +13,7 @@ import {
 } from '@/lib/firebase';
 import { useGame } from './GameContext';
 import { Layout } from 'react-grid-layout';
+import { useCalculatedBonuses } from '@/hooks/useCharacterData';
 
 // ==================== TYPES ====================
 
@@ -161,11 +162,10 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
   const { user } = useGame();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
-  const [bonuses, setBonuses] = useState<Bonuses | null>(null);
-  const [categorizedBonuses, setCategorizedBonuses] = useState<CategorizedBonuses | null>(null);
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const { totalBonuses: bonuses, categorizedBonuses } = useCalculatedBonuses(roomId, selectedCharacter?.Nomperso);
   const [competences, setCompetences] = useState<Competence[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [roomId, setRoomId] = useState<string | null>(null);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
 
   // Cache des compétences par personnage pour éviter les rechargements
@@ -273,64 +273,6 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
       setSelectedCharacter(null);
     }
   }, [selectedCharacterId, characters]);
-
-  // ==================== ÉCOUTE DES BONUS ====================
-
-  useEffect(() => {
-    if (!roomId || !selectedCharacter) {
-      setBonuses(null);
-      setCategorizedBonuses(null);
-      return;
-    }
-
-    const bonusesRef = collection(db, `Bonus/${roomId}/${selectedCharacter.Nomperso}`);
-
-    const unsubscribe = onSnapshot(bonusesRef, (snapshot) => {
-      const totalBonuses: Bonuses = {
-        CHA: 0, CON: 0, Contact: 0, DEX: 0, Defense: 0, Distance: 0,
-        FOR: 0, INIT: 0, INT: 0, Magie: 0, PV_Max: 0, PV: 0, SAG: 0,
-      };
-
-      const categorizedBonuses: CategorizedBonuses = {
-        CHA: { Inventaire: 0, Competence: 0 },
-        CON: { Inventaire: 0, Competence: 0 },
-        Contact: { Inventaire: 0, Competence: 0 },
-        DEX: { Inventaire: 0, Competence: 0 },
-        Defense: { Inventaire: 0, Competence: 0 },
-        Distance: { Inventaire: 0, Competence: 0 },
-        FOR: { Inventaire: 0, Competence: 0 },
-        INIT: { Inventaire: 0, Competence: 0 },
-        INT: { Inventaire: 0, Competence: 0 },
-        Magie: { Inventaire: 0, Competence: 0 },
-        PV_Max: { Inventaire: 0, Competence: 0 },
-        PV: { Inventaire: 0, Competence: 0 },
-        SAG: { Inventaire: 0, Competence: 0 },
-      };
-
-      snapshot.forEach((doc) => {
-        const bonusData = doc.data();
-        if (bonusData.active) {
-          for (let stat in totalBonuses) {
-            if (bonusData[stat] !== undefined) {
-              totalBonuses[stat] += parseInt(bonusData[stat] || 0);
-              if (bonusData.category === "Inventaire") {
-                categorizedBonuses[stat].Inventaire += parseInt(bonusData[stat] || 0);
-              } else if (bonusData.category === "competence") {
-                categorizedBonuses[stat].Competence += parseInt(bonusData[stat] || 0);
-              }
-            }
-          }
-        }
-      });
-
-      setBonuses(totalBonuses);
-      setCategorizedBonuses(categorizedBonuses);
-    }, (error) => {
-      console.error("Erreur lors de l'écoute des bonus:", error);
-    });
-
-    return () => unsubscribe();
-  }, [roomId, selectedCharacter?.Nomperso]);
 
   // ==================== CHARGEMENT DES COMPÉTENCES ====================
 
@@ -585,12 +527,46 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     if (!roomId) return;
 
     try {
+      // ─── ACTIONS-BASED LOGGING (HISTORIQUE) ───
+      const char = characters.find(c => c.id === characterId);
+      if (char) {
+        const name = char.Nomperso || 'Inconnu';
+        const rawImage = char.imageURL2 || char.imageURLFinal || char.image || char.imageUrl || char.imageURL;
+        const avatar = typeof rawImage === 'object' && rawImage?.src ? rawImage.src : (typeof rawImage === 'string' ? rawImage : '');
+
+        import('@/lib/historiqueTrackerService').then(({ logHistoryEvent }) => {
+          // 1. Dégâts ou soins (PV)
+          if (updates.PV !== undefined && updates.PV !== char.PV) {
+            const prevPV = Number(char.PV) || 0;
+            const currPV = Number(updates.PV) || 0;
+
+            if (prevPV > 0 && currPV <= 0) {
+              logHistoryEvent({ roomId, type: 'mort', message: `**${name}** a succombé à ses blessures !`, characterId, characterName: name, characterAvatar: avatar, characterType: char.type });
+            } else if (char.type === 'joueurs' && currPV > 0) {
+              logHistoryEvent({ roomId, type: 'combat', message: `**${name}** a **${currPV > prevPV ? "récupéré" : "perdu"}** ${Math.abs(currPV - prevPV)} PV.`, characterId, characterName: name, characterAvatar: avatar, characterType: char.type });
+            } else if (char.type !== 'joueurs' && currPV > 0) {
+              const action = (currPV - prevPV) > 0 ? 'soigné' : 'attaqué';
+              logHistoryEvent({ roomId, type: 'combat', message: `**${name}** a été ${action}.`, characterId, characterName: name, characterAvatar: avatar, characterType: char.type });
+            }
+          }
+
+          // 2. Niveau (joueurs)
+          if (updates.niveau !== undefined && updates.niveau !== char.niveau && char.type === 'joueurs') {
+            const prevLevel = Number(char.niveau) || 0;
+            const currLevel = Number(updates.niveau) || 0;
+            if (currLevel > prevLevel) {
+              logHistoryEvent({ roomId, type: 'niveau', message: `**${name}** a atteint le niveau **${currLevel}** !`, characterId, characterName: name, characterAvatar: avatar, characterType: char.type });
+            }
+          }
+        });
+      }
+
       await updateDoc(doc(db, `cartes/${roomId}/characters`, characterId), updates);
     } catch (error) {
       console.error("Error updating character:", error);
       throw error;
     }
-  }, [roomId]);
+  }, [roomId, characters]);
 
   // ==================== SÉLECTION DU PERSONNAGE ====================
 
