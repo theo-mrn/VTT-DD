@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Volume2, Sliders, X, Music, MapPin, Film, Zap } from 'lucide-react'
+import { Volume2, Sliders, X, Music, MapPin, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Label } from '@/components/ui/label'
@@ -76,11 +76,6 @@ export function AudioMixerPanel({ isOpen, onClose }: AudioMixerProps) {
             id: 'musicZones' as const,
             label: 'Zones Audio',
             icon: MapPin,
-        },
-        {
-            id: 'backgroundAudio' as const,
-            label: 'Audio de Fond',
-            icon: Film,
         },
         {
             id: 'backgroundMusic' as const,
