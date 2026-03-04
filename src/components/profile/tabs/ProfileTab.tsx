@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, ChangeEvent, useEffect } from "react";
-import { db, storage, doc, setDoc, ref, uploadBytes, getDownloadURL, onSnapshot } from "@/lib/firebase";
+import { db, storage, doc, setDoc, ref, uploadBytes, getDownloadURL, getDoc } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -67,7 +67,6 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
     }, [userData]);
 
     useEffect(() => {
-        let unsubscribe: () => void;
         const setupTitles = async () => {
             try {
                 let titles = await fetchTitles();
@@ -83,26 +82,25 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                 }) as Title[];
                 setAllTitles(mergedTitles);
 
+                // One-time fetch for user titles status
                 const userRef = doc(db, "users", uid);
-                unsubscribe = onSnapshot(userRef, async (userSnap) => {
-                    if (userSnap.exists()) {
-                        const data = userSnap.data();
-                        let statusMap = data.titles || {};
-                        setUserTimeSpent(data.timeSpent || 0);
-                        if (Object.keys(statusMap).length === 0) {
-                            statusMap = await initializeUserTitles(uid, titles);
-                        }
-                        setUserTitlesStatus(statusMap);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                    const data = userSnap.data();
+                    let statusMap = data.titles || {};
+                    setUserTimeSpent(data.timeSpent || 0);
+                    if (Object.keys(statusMap).length === 0) {
+                        statusMap = await initializeUserTitles(uid, titles);
                     }
-                    setLoadingTitles(false);
-                });
+                    setUserTitlesStatus(statusMap);
+                }
+                setLoadingTitles(false);
             } catch (err) {
                 console.error("Failed to load titles", err);
                 setLoadingTitles(false);
             }
         };
         setupTitles();
-        return () => unsubscribe && unsubscribe();
     }, [uid]);
 
     const handleImagePreview = (event: ChangeEvent<HTMLInputElement>, type: "pp" | "banner") => {

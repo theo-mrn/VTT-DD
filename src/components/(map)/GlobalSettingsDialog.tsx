@@ -41,59 +41,11 @@ export default function GlobalSettingsDialog({
 }: GlobalSettingsDialogProps) {
     const { user } = useGame();
     const settings = useSettings();
-
-    // Local state - initialized from context
-    const [localGlobalTokenScale, setLocalGlobalTokenScale] = useState(settings.globalTokenScale);
-    const [localPerformanceMode, setLocalPerformanceMode] = useState(settings.performanceMode);
-    const [localShowCharBorders, setLocalShowCharBorders] = useState(settings.showCharBorders);
-    const [localShowMyCursor, setLocalShowMyCursor] = useState(settings.showMyCursor);
-    const [localShowOtherCursors, setLocalShowOtherCursors] = useState(settings.showOtherCursors);
-    const [localCursorColor, setLocalCursorColor] = useState(settings.cursorColor);
-    const [localCursorTextColor, setLocalCursorTextColor] = useState(settings.cursorTextColor);
     const [showShortcuts, setShowShortcuts] = useState(false);
 
-    // Sync local state when context changes (from DB updates)
-    React.useEffect(() => {
-        setLocalGlobalTokenScale(settings.globalTokenScale);
-        setLocalPerformanceMode(settings.performanceMode);
-        setLocalShowCharBorders(settings.showCharBorders);
-        setLocalShowMyCursor(settings.showMyCursor);
-        setLocalShowOtherCursors(settings.showOtherCursors);
-        setLocalCursorColor(settings.cursorColor);
-        setLocalCursorTextColor(settings.cursorTextColor);
-    }, [
-        settings.globalTokenScale,
-        settings.performanceMode,
-        settings.showCharBorders,
-        settings.showMyCursor,
-        settings.showOtherCursors,
-        settings.cursorColor,
-        settings.cursorTextColor
-    ]);
-
-    // Save all settings to DB and context
-    const handleSave = async () => {
-        // Update context (which updates UI everywhere)
-        settings.setGlobalTokenScale(localGlobalTokenScale);
-        settings.setPerformanceMode(localPerformanceMode);
-        settings.setShowCharBorders(localShowCharBorders);
-        settings.setShowMyCursor(localShowMyCursor);
-        settings.setShowOtherCursors(localShowOtherCursors);
-        settings.setCursorColor(localCursorColor);
-        settings.setCursorTextColor(localCursorTextColor);
-
-        // Save to DB
-        if (user?.uid) {
-            await saveUserSettings(user.uid, {
-                globalTokenScale: localGlobalTokenScale,
-                performanceMode: localPerformanceMode,
-                showCharBorders: localShowCharBorders,
-                showMyCursor: localShowMyCursor,
-                showOtherCursors: localShowOtherCursors,
-                cursorColor: localCursorColor,
-                cursorTextColor: localCursorTextColor
-            });
-        }
+    // Save is now handled automatically by context setters
+    const handleSave = () => {
+        onOpenChange(false);
     };
 
     return (
@@ -159,19 +111,18 @@ export default function GlobalSettingsDialog({
                                         </div>
                                         <div className="flex items-center gap-4">
                                             <Slider
-                                                value={[localGlobalTokenScale]}
+                                                value={[settings.globalTokenScale]}
                                                 min={0.5}
                                                 max={2}
                                                 step={0.1}
-                                                onValueChange={(val) => setLocalGlobalTokenScale(val[0])}
+                                                onValueChange={(val) => settings.setGlobalTokenScale(val[0])}
                                                 className="flex-1"
                                             />
                                             <span className="w-12 text-right font-mono text-sm text-[#c0a080]">
-                                                {localGlobalTokenScale.toFixed(1)}x
+                                                {settings.globalTokenScale.toFixed(1)}x
                                             </span>
                                         </div>
                                     </Card>
-
                                     {/* Character Borders */}
                                     <Card className="p-4 bg-[#242424] border-white/5 flex items-center justify-between">
                                         <div className="space-y-1">
@@ -179,12 +130,11 @@ export default function GlobalSettingsDialog({
                                             <p className="text-xs text-gray-500">Afficher les bordures colorées sur la carte</p>
                                         </div>
                                         <Switch
-                                            checked={localShowCharBorders}
-                                            onCheckedChange={setLocalShowCharBorders}
+                                            checked={settings.showCharBorders}
+                                            onCheckedChange={settings.setShowCharBorders}
                                             className="data-[state=checked]:bg-[#c0a080]"
                                         />
                                     </Card>
-
                                     {/* Show My Cursor Toggle */}
                                     <Card className="p-4 bg-[#242424] border-white/5 flex items-center justify-between">
                                         <div className="space-y-1">
@@ -192,12 +142,11 @@ export default function GlobalSettingsDialog({
                                             <p className="text-xs text-gray-500">Visible par les autres joueurs</p>
                                         </div>
                                         <Switch
-                                            checked={localShowMyCursor}
-                                            onCheckedChange={setLocalShowMyCursor}
+                                            checked={settings.showMyCursor}
+                                            onCheckedChange={settings.setShowMyCursor}
                                             className="data-[state=checked]:bg-[#c0a080]"
                                         />
                                     </Card>
-
                                     {/* Show Other Cursors Toggle */}
                                     <Card className="p-4 bg-[#242424] border-white/5 flex items-center justify-between">
                                         <div className="space-y-1">
@@ -205,8 +154,8 @@ export default function GlobalSettingsDialog({
                                             <p className="text-xs text-gray-500">Afficher les curseurs des autres joueurs</p>
                                         </div>
                                         <Switch
-                                            checked={localShowOtherCursors}
-                                            onCheckedChange={setLocalShowOtherCursors}
+                                            checked={settings.showOtherCursors}
+                                            onCheckedChange={settings.setShowOtherCursors}
                                             className="data-[state=checked]:bg-[#c0a080]"
                                         />
                                     </Card>
@@ -216,47 +165,43 @@ export default function GlobalSettingsDialog({
                                             <Label className="text-base text-gray-200">Personnalisation du Curseur</Label>
                                             <p className="text-xs text-gray-500">Modifier les couleurs de votre curseur</p>
                                         </div>
-
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label className="text-xs text-gray-400">Fond</Label>
                                                 <div className="flex items-center gap-2">
                                                     <div
                                                         className="w-8 h-8 rounded-full border border-white/10 shadow-sm"
-                                                        style={{ backgroundColor: localCursorColor }}
+                                                        style={{ backgroundColor: settings.cursorColor }}
                                                     />
                                                     <input
                                                         type="color"
-                                                        value={localCursorColor}
-                                                        onChange={(e) => setLocalCursorColor(e.target.value)}
+                                                        value={settings.cursorColor}
+                                                        onChange={(e) => settings.setCursorColor(e.target.value)}
                                                         className="h-8 w-full bg-transparent cursor-pointer"
                                                     />
                                                 </div>
                                             </div>
-
                                             <div className="space-y-2">
                                                 <Label className="text-xs text-gray-400">Texte</Label>
                                                 <div className="flex items-center gap-2">
                                                     <div
                                                         className="w-8 h-8 rounded-full border border-white/10 shadow-sm flex items-center justify-center text-xs font-bold"
-                                                        style={{ backgroundColor: localCursorColor, color: localCursorTextColor }}
+                                                        style={{ backgroundColor: settings.cursorColor, color: settings.cursorTextColor }}
                                                     >
                                                         A
                                                     </div>
                                                     <input
                                                         type="color"
-                                                        value={localCursorTextColor}
-                                                        onChange={(e) => setLocalCursorTextColor(e.target.value)}
+                                                        value={settings.cursorTextColor}
+                                                        onChange={(e) => settings.setCursorTextColor(e.target.value)}
                                                         className="h-8 w-full bg-transparent cursor-pointer"
                                                     />
                                                 </div>
                                             </div>
                                         </div>
                                     </Card>
-
                                 </div>
                             </div>
-
                             {/* Performance Section */}
                             <div className="space-y-4">
                                 <div className="flex items-center gap-2">
@@ -265,13 +210,12 @@ export default function GlobalSettingsDialog({
                                     </h4>
                                     <Separator className="flex-1 bg-white/10" />
                                 </div>
-
                                 <Card className="p-4 bg-[#242424] border-white/5 space-y-4">
                                     <div className="space-y-1.5">
                                         <Label className="text-base text-gray-200">Mode de Rendu</Label>
                                         <p className="text-xs text-gray-500">Optimisez pour votre configuration</p>
                                     </div>
-                                    <Select value={localPerformanceMode} onValueChange={(v: any) => setLocalPerformanceMode(v)}>
+                                    <Select value={settings.performanceMode} onValueChange={(v: any) => settings.setPerformanceMode(v)}>
                                         <SelectTrigger className="bg-black/20 border-white/10">
                                             <SelectValue />
                                         </SelectTrigger>

@@ -39,41 +39,25 @@ export default function MapContextMenu({
             id: "borders",
             label: showCharBorders ? "Masquer Bordures" : "Afficher Bordures",
             icon: showCharBorders ? <Scan size={20} /> : <Square size={20} />,
-            onClick: () => {
-                const newVal = !showCharBorders;
-                setShowCharBorders(newVal);
-                if (user?.uid) saveUserSettings(user.uid, { showCharBorders: newVal });
-            }
+            onClick: () => setShowCharBorders(!showCharBorders)
         },
         {
             id: "my-cursor",
             label: showMyCursor ? "Masquer Mon Curseur" : "Montrer Mon Curseur",
             icon: showMyCursor ? <MousePointer2 size={20} /> : <EyeOff size={20} />,
-            onClick: () => {
-                const newVal = !showMyCursor;
-                setShowMyCursor(newVal);
-                if (user?.uid) saveUserSettings(user.uid, { showMyCursor: newVal });
-            }
+            onClick: () => setShowMyCursor(!showMyCursor)
         },
         {
             id: "other-cursors",
             label: showOtherCursors ? "Masquer Autres" : "Voir Autres",
             icon: showOtherCursors ? <Users size={20} /> : <EyeOff size={20} />,
-            onClick: () => {
-                const newVal = !showOtherCursors;
-                setShowOtherCursors(newVal);
-                if (user?.uid) saveUserSettings(user.uid, { showOtherCursors: newVal });
-            }
+            onClick: () => setShowOtherCursors(!showOtherCursors)
         },
         {
             id: "grid",
             label: showGrid ? "Masquer Grille" : "Afficher Grille",
             icon: <Grid size={20} />,
-            onClick: () => {
-                const newVal = !showGrid;
-                setShowGrid(newVal);
-                if (user?.uid) saveUserSettings(user.uid, { showGrid: newVal });
-            }
+            onClick: () => setShowGrid(!showGrid)
         }
     ];
 
