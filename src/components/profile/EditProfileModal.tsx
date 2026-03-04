@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, ChangeEvent, useEffect } from "react";
-import { db, storage, doc, setDoc, ref, uploadBytes, getDownloadURL, getDoc, onSnapshot } from "@/lib/firebase";
+import { db, storage, doc, setDoc, ref, uploadBytes, getDownloadURL, getDoc } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -49,9 +49,7 @@ export default function EditProfileModal({
 
     // Fetch titles and user status on mount
     useEffect(() => {
-        let unsubscribe: () => void;
-
-        const setupRealtimeListener = async () => {
+        const setupTitles = async () => {
             try {
                 // 1. Fetch all titles (static reference)
                 let titles = await fetchTitles();
@@ -77,30 +75,29 @@ export default function EditProfileModal({
                 });
                 setAllTitles(mergedTitles);
 
-                // 2. Setup real-time listener for user data
+                // 2. Fetch user data one-time
                 const userRef = doc(db, "users", uid);
+                const userSnap = await getDoc(userRef);
 
-                unsubscribe = onSnapshot(userRef, async (userSnap) => {
-                    let statusMap: Record<string, "locked" | "unlocked"> = {};
+                let statusMap: Record<string, "locked" | "unlocked"> = {};
 
-                    if (userSnap.exists()) {
-                        const data = userSnap.data();
-                        statusMap = data.titles || {};
-                        const timeSpent = data.timeSpent || 0;
-                        setUserTimeSpent(timeSpent);
+                if (userSnap.exists()) {
+                    const data = userSnap.data();
+                    statusMap = data.titles || {};
+                    const timeSpent = data.timeSpent || 0;
+                    setUserTimeSpent(timeSpent);
 
-                        // If map is empty but user exists, initialize it
-                        if (Object.keys(statusMap).length === 0) {
-                            statusMap = await initializeUserTitles(uid, titles);
-                        }
-                    } else {
-                        // Should not happen for existing users but safe fallback
+                    // If map is empty but user exists, initialize it
+                    if (Object.keys(statusMap).length === 0) {
                         statusMap = await initializeUserTitles(uid, titles);
                     }
+                } else {
+                    // Fallback for new users
+                    statusMap = await initializeUserTitles(uid, titles);
+                }
 
-                    setUserTitlesStatus(statusMap);
-                    setLoadingTitles(false);
-                });
+                setUserTitlesStatus(statusMap);
+                setLoadingTitles(false);
 
             } catch (err) {
                 console.error("Failed to load titles", err);
@@ -110,12 +107,8 @@ export default function EditProfileModal({
         };
 
         if (uid) {
-            setupRealtimeListener();
+            setupTitles();
         }
-
-        return () => {
-            if (unsubscribe) unsubscribe();
-        };
     }, [uid]);
 
     const handleImagePreview = (

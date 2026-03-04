@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { db, auth, doc, onSnapshot } from "@/lib/firebase";
+import { db, auth, doc, getDoc } from "@/lib/firebase";
 import { X as XIcon, Edit, Loader2, Users, Search as SearchIcon, Inbox, Crown, Bell, Shield, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useFriends } from "@/hooks/useFriends";
@@ -67,27 +67,29 @@ export default function ProfileOverlay({ onClose }: ProfileOverlayProps) {
         }
     }, []);
 
-    // Fetch user data real-time
+    // Fetch user data one-time
     useEffect(() => {
         if (!uid) {
             setLoading(false);
             return;
         }
 
-        setLoading(true);
-        const userDocRef = doc(db, "users", uid);
-
-        const unsubscribe = onSnapshot(userDocRef, (docSnap) => {
-            if (docSnap.exists()) {
-                setUserData(docSnap.data() as UserData);
+        const fetchUserData = async () => {
+            setLoading(true);
+            try {
+                const userDocRef = doc(db, "users", uid);
+                const docSnap = await getDoc(userDocRef);
+                if (docSnap.exists()) {
+                    setUserData(docSnap.data() as UserData);
+                }
+            } catch (error) {
+                console.error("Error fetching user data:", error);
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
-        }, (error) => {
-            console.error("Error fetching user data:", error);
-            setLoading(false);
-        });
+        };
 
-        return () => unsubscribe();
+        fetchUserData();
     }, [uid]);
 
     // Handlers mapped to tabs

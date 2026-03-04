@@ -3,8 +3,9 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useTheme } from 'next-themes';
 import { db } from '@/lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useGame } from '@/contexts/GameContext';
+import { saveUserSettings } from '@/lib/saveSettings';
 import type { ThemeName } from '@/lib/saveSettings';
 
 interface SettingsContextType {
@@ -41,82 +42,139 @@ interface SettingsContextType {
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
-/** Syncs the theme from Firestore to next-themes. Kept separate so it can
- *  safely call useTheme() which requires being inside ThemeProvider. */
-function ThemeSyncFromDB({ userId }: { userId: string | undefined }) {
-    const { setTheme } = useTheme();
-
-    useEffect(() => {
-        if (!userId) return;
-
-        const userRef = doc(db, 'users', userId);
-        const unsubscribe = onSnapshot(userRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const theme = docSnap.data()?.settings?.theme as ThemeName | undefined;
-                if (theme) {
-                    setTheme(theme);
-                }
-            }
-        });
-
-        return () => unsubscribe();
-    }, [userId, setTheme]);
-
-    return null;
-}
+// ─── Refactored Provider ───────────────────────────────────────────────────
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
     const { user } = useGame();
+    const { setTheme } = useTheme();
 
-    // State - only defaults, will be overwritten by DB
-    const [cursorColor, setCursorColor] = useState('#000000');
-    const [cursorTextColor, setCursorTextColor] = useState('#ffffff');
-    const [showMyCursor, setShowMyCursor] = useState(true);
-    const [showOtherCursors, setShowOtherCursors] = useState(true);
-
-    const [showGrid, setShowGrid] = useState(false);
-    const [showFogGrid, setShowFogGrid] = useState(false);
-    const [showCharBorders, setShowCharBorders] = useState(true);
-    const [globalTokenScale, setGlobalTokenScale] = useState(1);
-    const [performanceMode, setPerformanceMode] = useState<'high' | 'eco' | 'static'>('high');
-
+    // State
+    const [cursorColor, setCursorColorState] = useState('#000000');
+    const [cursorTextColor, setCursorTextColorState] = useState('#ffffff');
+    const [showMyCursor, setShowMyCursorState] = useState(true);
+    const [showOtherCursors, setShowOtherCursorsState] = useState(true);
+    const [showGrid, setShowGridState] = useState(false);
+    const [showFogGrid, setShowFogGridState] = useState(false);
+    const [showCharBorders, setShowCharBordersState] = useState(true);
+    const [globalTokenScale, setGlobalTokenScaleState] = useState(1);
+    const [performanceMode, setPerformanceModeState] = useState<'high' | 'eco' | 'static'>('high');
     const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
-
     const [isHydrated, setIsHydrated] = useState(false);
 
-    // Subscribe to Firestore updates (READ ONLY - NO WRITES)
-    useEffect(() => {
-        if (!user || !user.uid) {
-            setIsHydrated(true);
-            return;
+    // Persistence Refs
+    const pendingUpdatesRef = React.useRef<Record<string, any>>({});
+    const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+    // Persistence Helper (Debounced Firestore + Instant LocalStorage)
+    const updateSetting = (key: string, value: any, setter: (v: any) => void) => {
+        // 1. Instant UI update
+        setter(value);
+
+        if (!user?.uid) return;
+
+        // 2. Instant LocalStorage update (for subsequent refreshes)
+        try {
+            const localKey = `vtt_settings_${user.uid}`;
+            const existing = JSON.parse(localStorage.getItem(localKey) || '{}');
+            localStorage.setItem(localKey, JSON.stringify({ ...existing, [key]: value }));
+        } catch (e) {
+            console.error("Failed to save to localStorage", e);
         }
 
-        const userRef = doc(db, 'users', user.uid);
-        const unsubscribe = onSnapshot(userRef, (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                const settings = data.settings || {};
+        // 3. Debounced Firestore update
+        pendingUpdatesRef.current[key] = value;
 
-                if (settings.cursorColor !== undefined) setCursorColor(settings.cursorColor);
-                if (settings.cursorTextColor !== undefined) setCursorTextColor(settings.cursorTextColor);
-                if (settings.showMyCursor !== undefined) setShowMyCursor(settings.showMyCursor);
-                if (settings.showOtherCursors !== undefined) setShowOtherCursors(settings.showOtherCursors);
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
-                if (settings.showGrid !== undefined) setShowGrid(settings.showGrid);
-                if (settings.showFogGrid !== undefined) setShowFogGrid(settings.showFogGrid);
-                if (settings.showCharBorders !== undefined) setShowCharBorders(settings.showCharBorders);
-                if (settings.globalTokenScale !== undefined) setGlobalTokenScale(Number(settings.globalTokenScale));
-                if (settings.performanceMode !== undefined) setPerformanceMode(settings.performanceMode);
+        saveTimeoutRef.current = setTimeout(async () => {
+            const updates = { ...pendingUpdatesRef.current };
+            pendingUpdatesRef.current = {}; // Clear buffer
+            saveTimeoutRef.current = null;
+
+            try {
+                await saveUserSettings(user.uid, updates);
+            } catch (error) {
+                console.error("❌ Failed to sync settings to Firestore:", error);
+                // Optionally: merge back into pending if failed, but risk loops
+            }
+        }, 1500); // 1.5s delay fits group of changes
+    };
+
+    // Public Setters (Wrapped with persistence)
+    const setCursorColor = (v: string) => updateSetting('cursorColor', v, setCursorColorState);
+    const setCursorTextColor = (v: string) => updateSetting('cursorTextColor', v, setCursorTextColorState);
+    const setShowMyCursor = (v: boolean) => updateSetting('showMyCursor', v, setShowMyCursorState);
+    const setShowOtherCursors = (v: boolean) => updateSetting('showOtherCursors', v, setShowOtherCursorsState);
+    const setShowGrid = (v: boolean) => updateSetting('showGrid', v, setShowGridState);
+    const setShowFogGrid = (v: boolean) => updateSetting('showFogGrid', v, setShowFogGridState);
+    const setShowCharBorders = (v: boolean) => updateSetting('showCharBorders', v, setShowCharBordersState);
+    const setGlobalTokenScale = (v: number) => updateSetting('globalTokenScale', v, setGlobalTokenScaleState);
+    const setPerformanceMode = (v: 'high' | 'eco' | 'static') => updateSetting('performanceMode', v, setPerformanceModeState);
+
+    // Initial Hydration & Fetch
+    useEffect(() => {
+        async function hydrate() {
+            if (!user?.uid) {
+                setIsHydrated(true);
+                return;
             }
 
-            setIsHydrated(true);
-        }, (error) => {
-            console.error("❌ Error listening to settings:", error);
-            setIsHydrated(true);
-        });
+            // A. Instant hydration from LocalStorage
+            try {
+                const localKey = `vtt_settings_${user.uid}`;
+                const localData = localStorage.getItem(localKey);
+                if (localData) {
+                    const settings = JSON.parse(localData);
+                    if (settings.cursorColor !== undefined) setCursorColorState(settings.cursorColor);
+                    if (settings.cursorTextColor !== undefined) setCursorTextColorState(settings.cursorTextColor);
+                    if (settings.showMyCursor !== undefined) setShowMyCursorState(settings.showMyCursor);
+                    if (settings.showOtherCursors !== undefined) setShowOtherCursorsState(settings.showOtherCursors);
+                    if (settings.showGrid !== undefined) setShowGridState(settings.showGrid);
+                    if (settings.showFogGrid !== undefined) setShowFogGridState(settings.showFogGrid);
+                    if (settings.showCharBorders !== undefined) setShowCharBordersState(settings.showCharBorders);
+                    if (settings.globalTokenScale !== undefined) setGlobalTokenScaleState(Number(settings.globalTokenScale));
+                    if (settings.performanceMode !== undefined) setPerformanceModeState(settings.performanceMode);
+                    if (settings.theme) setTheme(settings.theme);
+                    // We don't set isHydrated yet, wait for Firestore to be source of truth
+                }
+            } catch (e) {
+                console.warn("LocalStorage hydration failed", e);
+            }
 
-        return () => unsubscribe();
-    }, [user]);
+            // B. Fetch from Firestore (Source of Truth)
+            try {
+                const docRef = doc(db, 'users', user.uid);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const settings = docSnap.data().settings || {};
+                    if (settings.cursorColor !== undefined) setCursorColorState(settings.cursorColor);
+                    if (settings.cursorTextColor !== undefined) setCursorTextColorState(settings.cursorTextColor);
+                    if (settings.showMyCursor !== undefined) setShowMyCursorState(settings.showMyCursor);
+                    if (settings.showOtherCursors !== undefined) setShowOtherCursorsState(settings.showOtherCursors);
+                    if (settings.showGrid !== undefined) setShowGridState(settings.showGrid);
+                    if (settings.showFogGrid !== undefined) setShowFogGridState(settings.showFogGrid);
+                    if (settings.showCharBorders !== undefined) setShowCharBordersState(settings.showCharBorders);
+                    if (settings.globalTokenScale !== undefined) setGlobalTokenScaleState(Number(settings.globalTokenScale));
+                    if (settings.performanceMode !== undefined) setPerformanceModeState(settings.performanceMode);
+                    if (settings.theme) setTheme(settings.theme);
+
+                    // Update local storage with fresh data from source
+                    localStorage.setItem(`vtt_settings_${user.uid}`, JSON.stringify(settings));
+                }
+            } catch (error) {
+                console.error("❌ Error fetching settings:", error);
+            } finally {
+                setIsHydrated(true);
+            }
+        }
+
+        hydrate();
+
+        return () => {
+            if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+        };
+    }, [user, setTheme]);
 
     return (
         <SettingsContext.Provider value={{
@@ -132,8 +190,6 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
             showBackgroundSelector, setShowBackgroundSelector,
             isHydrated
         }}>
-            {/* Syncs theme from Firestore → next-themes without polluting context */}
-            <ThemeSyncFromDB userId={user?.uid} />
             {children}
         </SettingsContext.Provider>
     );
