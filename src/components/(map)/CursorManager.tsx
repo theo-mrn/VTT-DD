@@ -160,7 +160,7 @@ export const CursorManager = React.memo<CursorManagerProps>(({
                 lastSentPosRef.current = { x: worldX, y: worldY };
                 lastSentTimeRef.current = now;
             }).catch(console.error);
-        }, 1500);
+        }, 1000);
 
         const handleMouseMove = (e: MouseEvent) => {
             if (!bgImageObject || !isVisibleRef.current) return;
@@ -236,7 +236,7 @@ export const CursorManager = React.memo<CursorManagerProps>(({
                             left: 0,
                             top: 0,
                             transform: `translate(${screenX}px, ${screenY}px)`,
-                            transition: 'transform 1.5s linear' // Smooth interpolation matching 1.5s throttle
+                            transition: 'transform 1s linear' // Smooth interpolation matching 1s throttle
                         }}
                     >
                         {/* SVG Cursor */}
