@@ -18,7 +18,8 @@ import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { useParams } from 'next/navigation'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { collection, addDoc, onSnapshot, query, where, deleteDoc, doc, updateDoc } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { db, realtimeDb } from '@/lib/firebase'
+import { ref as rtdbRef, update as rtdbUpdate } from 'firebase/database'
 import { NPCGrid } from './NPCListView'
 import { CreatureLibraryModal } from './CreatureLibraryModal'
 import { CategoryManager } from './CategoryManager'
@@ -393,7 +394,9 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                 x: 500,
                 y: 500,
             };
-            await addDoc(collection(db, `cartes/${roomId}/characters`), playerCharData);
+            const docRef = await addDoc(collection(db, `cartes/${roomId}/characters`), playerCharData);
+            // Écrire la position initiale en RTDB
+            await rtdbUpdate(rtdbRef(realtimeDb, `rooms/${roomId}/positions/${docRef.id}`), { x: 500, y: 500 });
             alert(`Le personnage ${npcToExport.Nomperso} a été ajouté à la liste des personnages jouables !`);
         } catch (error) {
             console.error("Error making NPC playable:", error);

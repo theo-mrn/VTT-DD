@@ -314,42 +314,7 @@ export function useMapData(
             }
         ));
 
-        // ─── 10. DRAWINGS → startTransition (non urgent) ─────────────────────────
-        unsubs.push(onSnapshot(
-            query(collection(db, 'cartes', roomId, 'drawings'), where('cityId', '==', selectedCityId)),
-            (snapshot) => {
-                // ✅ SKIP hasPendingWrites : on vient d'écrire, on a déjà les données localement
-                if (snapshot.metadata.hasPendingWrites) return;
-                const drws: SavedDrawing[] = [];
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const points = data.points || data.paths;
-                    if (points && Array.isArray(points)) {
-                        drws.push({ id: doc.id, points, color: data.color || '#000000', width: data.width || 5, type: data.type || 'pen' });
-                    }
-                });
-                // ✅ startTransition : pas urgent, laisse le rendu canvas finir d'abord
-                startTransition(() => cb.current.setDrawings(drws));
-            }
-        ));
-
-        // ─── 11. NOTES → startTransition ─────────────────────────────────────────
-        unsubs.push(onSnapshot(
-            query(collection(db, 'cartes', roomId, 'text'), where('cityId', '==', selectedCityId)),
-            (snapshot) => {
-                if (snapshot.metadata.hasPendingWrites) return;
-                const texts: MapText[] = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    text: doc.data().content,
-                    x: doc.data().x || 0,
-                    y: doc.data().y || 0,
-                    color: doc.data().color || 'yellow',
-                    fontSize: doc.data().fontSize,
-                    fontFamily: doc.data().fontFamily,
-                }));
-                startTransition(() => cb.current.setNotes(texts));
-            }
-        ));
+        // ─── 10-11. DRAWINGS + NOTES → MIGRÉS VERS RTDB (useRtdbCollections.ts)
 
         // ─── 12. FOG (avec debounce) ──────────────────────────────────────────────
         //    ✅ DEBOUNCE 150ms : évite 30 setState/s pendant la peinture du brouillard
@@ -375,23 +340,7 @@ export function useMapData(
             }
         ));
 
-        // ─── 13. OBSTACLES ───────────────────────────────────────────────────────
-        unsubs.push(onSnapshot(
-            query(collection(db, 'cartes', roomId, 'obstacles'), where('cityId', '==', selectedCityId)),
-            (snapshot) => {
-                // ✅ SKIP : les obstacles sont édités par le MJ, pas besoin de la version pending
-                if (snapshot.metadata.hasPendingWrites) return;
-                cb.current.setObstacles(snapshot.docs.map(d => ({
-                    id: d.id,
-                    type: d.data().type || 'wall',
-                    points: d.data().points || [],
-                    color: d.data().color,
-                    opacity: d.data().opacity,
-                    direction: d.data().direction,
-                    isOpen: d.data().isOpen,
-                })));
-            }
-        ));
+        // ─── 13. OBSTACLES → MIGRÉ VERS RTDB (useRtdbCollections.ts)
 
         // ─── 14. LIGHTS ──────────────────────────────────────────────────────────
         unsubs.push(onSnapshot(

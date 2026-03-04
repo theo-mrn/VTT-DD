@@ -176,6 +176,9 @@ import { ToolbarSkinSelector } from '@/components/(map)/MapToolbar';
 import { useShortcuts, SHORTCUT_ACTIONS } from '@/contexts/ShortcutsContext';
 import { useUndoRedo } from '@/contexts/UndoRedoContext';
 import { useFirestoreWithHistory } from '@/hooks/map/useFirestoreWithHistory';
+import { useCharacterPositions } from '@/hooks/map/useCharacterPositions';
+import type { PositionsMap } from '@/hooks/map/useCharacterPositions';
+import { useRtdbCollections } from '@/hooks/map/useRtdbCollections';
 import { useMapData } from '@/hooks/map/useMapData';
 
 const getMediaDimensions = (media: HTMLImageElement | HTMLVideoElement | CanvasImageSource) => {
@@ -235,7 +238,7 @@ export default function Component() {
 
   const { isShortcutPressed } = useShortcuts();
   const { undo, redo, canUndo, canRedo, recordAction } = useUndoRedo();
-  const { addWithHistory, deleteWithHistory, updateWithHistory, setWithHistory } = useFirestoreWithHistory(roomId);
+  const { addWithHistory, deleteWithHistory, updateWithHistory, setWithHistory, updatePositionWithHistory, setCityPositionWithHistory, addToRtdbWithHistory, updateRtdbWithHistory, deleteFromRtdbWithHistory } = useFirestoreWithHistory(roomId);
 
 
 
@@ -1689,6 +1692,16 @@ export default function Component() {
   const loadedNPCsRef = useRef<Character[]>([]);
   const [playersVersion, setPlayersVersion] = useState(0); // 🆕 Trigger for sync effect when players change
 
+  // ─── RTDB : positions temps réel ─────────────────────────────────────────────
+  const rtdbPositionsRef = useRef<PositionsMap>({});
+  const mergeAndSetCharactersRtdbRef = useRef<() => void>(() => {});
+  const { positionsRef: _rtdbPosRef, updateCharacterPosition, updateCityPosition } = useCharacterPositions(
+    roomId,
+    () => { mergeAndSetCharactersRtdbRef.current(); }
+  );
+  // Sync le ref local avec celui du hook
+  useEffect(() => { rtdbPositionsRef.current = _rtdbPosRef.current; });
+
   // Helper functions need to be stable or defined outside if they don't depend on scope (they depend on selectedCityId)
   // Since selectedCityId changes, the parsing logic changes (positions). 
   // So `parseCharacterDoc` MUST be inside the effect OR depend on cityId.
@@ -1776,6 +1789,7 @@ export default function Component() {
     const combined: Character[] = [];
 
     const currentCityId = selectedCityIdRef.current; // Always use FRESH cityId
+    const rtdbPositions = _rtdbPosRef.current; // Positions temps réel depuis RTDB
 
     // Parse Global Players dynamically
     const parsedPlayers = loadedPlayersRef.current.map(doc => parseCharacterDoc(doc, currentCityId));
@@ -1792,7 +1806,29 @@ export default function Component() {
       return false;
     });
 
-    [...visiblePlayers, ...loadedNPCsRef.current].forEach(char => {
+    // ✅ RTDB overlay : appliquer les positions temps réel par-dessus les données Firestore
+    const applyRtdbPositions = (chars: Character[]): Character[] => {
+      return chars.map(char => {
+        const rtdbPos = rtdbPositions[char.id];
+        if (!rtdbPos) return char; // pas encore de données RTDB, garder les positions Firestore
+
+        let x = rtdbPos.x ?? char.x;
+        let y = rtdbPos.y ?? char.y;
+
+        // Position spécifique à la ville (prioritaire)
+        if (currentCityId && rtdbPos.positions?.[currentCityId]) {
+          x = rtdbPos.positions[currentCityId].x;
+          y = rtdbPos.positions[currentCityId].y;
+        }
+
+        return { ...char, x, y };
+      });
+    };
+
+    const positionedPlayers = applyRtdbPositions(visiblePlayers);
+    const positionedNPCs = applyRtdbPositions(loadedNPCsRef.current);
+
+    [...positionedPlayers, ...positionedNPCs].forEach(char => {
       if (!visibleIds.has(char.id)) {
         visibleIds.add(char.id);
         combined.push(char);
@@ -1814,6 +1850,7 @@ export default function Component() {
 
   useEffect(() => {
     mergeAndSetCharactersRef.current = mergeAndSetCharacters;
+    mergeAndSetCharactersRtdbRef.current = mergeAndSetCharacters;
   }, [mergeAndSetCharacters]);
 
   // ─── 📡 LISTENERS FIRESTORE CENTRALISÉS ─────────────────────────────────────
@@ -1853,6 +1890,9 @@ export default function Component() {
     globalAudioRef,
     isFirstSnapshotRef,
   });
+
+  // ─── 📡 RTDB LISTENERS pour drawings, obstacles, notes ────────────────────
+  useRtdbCollections(roomId, selectedCityId, { setDrawings, setNotes, setObstacles });
 
   // ⚡ PERFORMANCE: Sync render states to refs
   // This prevents the main render useEffect from re-executing on every state change
@@ -2523,7 +2563,7 @@ export default function Component() {
         obstacleData.isOpen = additionalProps?.isOpen ?? false; // Par défaut fermée
       }
 
-      const docRef = await addWithHistory(
+      await addToRtdbWithHistory(
         'obstacles',
         obstacleData,
         `Ajout d'un obstacle${type ? ` (${type})` : ''}`
@@ -2537,7 +2577,7 @@ export default function Component() {
     if (!roomId || !obstacleId) return;
 
     try {
-      await deleteWithHistory(
+      await deleteFromRtdbWithHistory(
         'obstacles',
         obstacleId,
         `Suppression d'obstacle`
@@ -2553,8 +2593,7 @@ export default function Component() {
     if (!roomId || !obstacleId || newPoints.length < 2) return;
 
     try {
-      const obstacleRef = doc(db, 'cartes', String(roomId), 'obstacles', obstacleId);
-      await updateDoc(obstacleRef, { points: newPoints });
+      await updateRtdbWithHistory('obstacles', obstacleId, { points: newPoints }, 'Modification obstacle');
 
     } catch (error) {
       console.error('❌ Erreur mise à jour obstacle:', error);
@@ -2576,7 +2615,7 @@ export default function Component() {
       ));
 
       // Sauvegarder dans Firebase
-      await updateWithHistory(
+      await updateRtdbWithHistory(
         'obstacles',
         obstacleId,
         { isOpen: newIsOpen },
@@ -2600,14 +2639,10 @@ export default function Component() {
     if (!roomId) return;
 
     try {
-      const obstaclesRef = collection(db, 'cartes', String(roomId), 'obstacles');
-      const snapshot = await getDocs(obstaclesRef);
-
-      // Ne supprimer que les obstacles de la ville actuelle
-      const deletePromises = snapshot.docs
-        .filter(doc => doc.data().cityId === selectedCityId)
-        .map(doc => deleteDoc(doc.ref));
-
+      // Supprimer tous les obstacles de la ville courante depuis RTDB
+      const currentObstacles = obstacles; // déjà filtrés par cityId
+      if (currentObstacles.length === 0) return;
+      const deletePromises = currentObstacles.map(o => deleteFromRtdbWithHistory('obstacles', o.id, 'Suppression groupée'));
       await Promise.all(deletePromises);
 
     } catch (error) {
@@ -2897,7 +2932,7 @@ export default function Component() {
             onClick={() => {
               if (selectedDrawingIndex !== null && roomId) {
                 const drawing = drawings[selectedDrawingIndex];
-                deleteDoc(doc(db, 'cartes', String(roomId), 'drawings', drawing.id));
+                deleteFromRtdbWithHistory('drawings', drawing.id, 'Suppression du tracé');
                 setDrawings(prev => prev.filter((_, i) => i !== selectedDrawingIndex));
                 setSelectedDrawingIndex(null);
               }
@@ -5535,8 +5570,8 @@ export default function Component() {
     if (note.text.trim() && typeof roomIdStr === 'string') {
       try {
         if (editingNote && editingNote.id) {
-          await updateWithHistory(
-            'text',
+          await updateRtdbWithHistory(
+            'notes',
             editingNote.id,
             {
               content: note.text,
@@ -5568,8 +5603,8 @@ export default function Component() {
             cityId: selectedCityId
           };
 
-          await addWithHistory(
-            'text',
+          await addToRtdbWithHistory(
+            'notes',
             noteData,
             `Ajout de la note "${note.text.substring(0, 30)}${note.text.length > 30 ? '...' : ''}"`
           );
@@ -6299,7 +6334,7 @@ export default function Component() {
             if (drawingIndexToDelete !== -1 && roomId) {
               const drawingToDelete = drawings[drawingIndexToDelete];
               // Delete from Firebase
-              deleteDoc(doc(db, 'cartes', String(roomId), 'drawings', drawingToDelete.id));
+              deleteFromRtdbWithHistory('drawings', drawingToDelete.id, 'Suppression du tracé');
               // Optimistic UI update
               const newDrawings = [...drawings];
               newDrawings.splice(drawingIndexToDelete, 1);
@@ -7237,7 +7272,7 @@ export default function Component() {
         const drawingIndexToDelete = drawings.findIndex(drawing => isPointOnDrawing(x, y, drawing, zoom));
         if (drawingIndexToDelete !== -1 && roomId) {
           const drawingToDelete = drawings[drawingIndexToDelete];
-          deleteDoc(doc(db, 'cartes', String(roomId), 'drawings', drawingToDelete.id));
+          deleteFromRtdbWithHistory('drawings', drawingToDelete.id, 'Effacement du tracé');
           const newDrawings = [...drawings];
           newDrawings.splice(drawingIndexToDelete, 1);
           setDrawings(newDrawings);
@@ -7519,9 +7554,7 @@ export default function Component() {
       const drawing = drawings[selectedDrawingIndex];
       if (roomId) {
         try {
-          await updateDoc(doc(db, 'cartes', String(roomId), 'drawings', drawing.id), {
-            points: drawing.points
-          });
+          await updateRtdbWithHistory('drawings', drawing.id, { points: drawing.points }, 'Redimensionnement du tracé');
         } catch (error) {
           console.error("Error saving resize:", error);
         }
@@ -7542,9 +7575,7 @@ export default function Component() {
 
         if (roomId) {
           try {
-            await updateDoc(doc(db, 'cartes', String(roomId), 'drawings', drawing.id), {
-              points: drawing.points
-            });
+            await updateRtdbWithHistory('drawings', drawing.id, { points: drawing.points }, 'Déplacement du tracé');
           } catch (error) {
             console.error("Error updating drawing position:", error);
             // Revert ?
@@ -7616,8 +7647,8 @@ export default function Component() {
       if (hasChanged && roomId && draggedNote?.id) {
         try {
           // Sauvegarder la nouvelle position en Firebase
-          await updateWithHistory(
-            'text',
+          await updateRtdbWithHistory(
+            'notes',
             draggedNote.id,
             {
               x: draggedNote.x,
@@ -7687,44 +7718,28 @@ export default function Component() {
       return;
     }
 
-    //  FIN DU DRAG & DROP PERSONNAGE(S) - Priorité élevée
+    //  FIN DU DRAG & DROP PERSONNAGE(S) - Priorité élevée → RTDB
     if (isDraggingCharacter && draggedCharacterIndex !== null && draggedCharactersOriginalPositions.length > 0) {
       try {
-        // Sauvegarder toutes les nouvelles positions en Firebase
+        // Sauvegarder toutes les nouvelles positions en RTDB (au lieu de Firestore)
         const updatePromises = draggedCharactersOriginalPositions.map(async (originalPos) => {
           const currentChar = characters[originalPos.index];
           const hasChanged = currentChar.x !== originalPos.x || currentChar.y !== originalPos.y;
 
           if (hasChanged && roomId && currentChar?.id) {
-            // 🆕 RETOUR À LA COLLECTION CENTRALE
-            // Tous les personnages sont dans 'characters', on a juste besoin de l'ID
-            const charRef = doc(db, 'cartes', String(roomId), 'characters', currentChar.id);
-
             if (selectedCityId) {
-              // Mode Ville : Sauvegarder dans positions.{cityId} (deep merge)
-              await setWithHistory(
-                'characters',
+              // Mode Ville : Sauvegarder dans RTDB positions/{charId}/positions/{cityId}
+              await setCityPositionWithHistory(
                 currentChar.id,
-                {
-                  positions: {
-                    [selectedCityId]: {
-                      x: currentChar.x,
-                      y: currentChar.y
-                    }
-                  }
-                },
-                `Déplacement de "${currentChar.name}"`,
-                true // merge
+                selectedCityId,
+                { x: currentChar.x, y: currentChar.y },
+                `Déplacement de "${currentChar.name}"`
               );
             } else {
-              // Mode World Map : Sauvegarder dans la racine
-              await updateWithHistory(
-                'characters',
+              // Mode World Map : Sauvegarder dans RTDB positions/{charId}
+              await updatePositionWithHistory(
                 currentChar.id,
-                {
-                  x: currentChar.x,
-                  y: currentChar.y
-                },
+                { x: currentChar.x, y: currentChar.y },
                 `Déplacement de "${currentChar.name}"`
               );
             }
@@ -7985,8 +8000,8 @@ export default function Component() {
             // 🆕 AJOUT DU CITY ID
             cityId: selectedCityId
           };
-          const docRef = await addDoc(collection(db, 'cartes', String(roomId), 'drawings'), newDrawingData);
-          setDrawings(prev => [...prev, { ...newDrawingData, id: docRef.id }]);
+          const newId = await addToRtdbWithHistory('drawings', newDrawingData, 'Ajout d\'un tracé');
+          setDrawings(prev => [...prev, { ...newDrawingData, id: newId }]);
           setCurrentPath([]);
         } catch (error) {
           console.error("Erreur lors de la sauvegarde du tracé:", error);
@@ -8101,8 +8116,8 @@ export default function Component() {
       if (noteToDelete && typeof noteToDelete.id === 'string') {
         try {
           setSelectedNoteIndex(null);
-          await deleteWithHistory(
-            'text',
+          await deleteFromRtdbWithHistory(
+            'notes',
             noteToDelete.id,
             `Suppression de la note "${noteToDelete.text}"`
           );
@@ -8358,8 +8373,8 @@ export default function Component() {
 
         case 'note':
           if (entityToDelete.id) {
-            await deleteWithHistory(
-              'text',
+            await deleteFromRtdbWithHistory(
+              'notes',
               entityToDelete.id,
               `Suppression de la note "${entityToDelete.name}"`
             );
@@ -8383,7 +8398,7 @@ export default function Component() {
 
         case 'drawing':
           if (entityToDelete.id) {
-            await deleteDoc(doc(db, 'cartes', String(roomId), 'drawings', entityToDelete.id));
+            await deleteFromRtdbWithHistory('drawings', entityToDelete.id, 'Suppression du dessin');
             setDrawings(prev => prev.filter(d => d.id !== entityToDelete.id));
             setSelectedDrawingIndex(null);
             toast.success(`Dessin supprimé`);
@@ -8476,10 +8491,10 @@ export default function Component() {
       const noteToUpdate = notes[selectedNoteIndex];
       if (typeof roomId === 'string' && typeof noteToUpdate?.id === 'string') {
         try {
-          await updateDoc(doc(db, 'cartes', roomId, 'text', noteToUpdate.id), {
+          await updateRtdbWithHistory('notes', noteToUpdate.id, {
             content: editingNote.text,
             color: editingNote.color
-          });
+          }, 'Modification de la note');
           setEditingNote(null);
           setNoteDialogOpen(false);
           setSelectedNoteIndex(null);
@@ -8497,12 +8512,12 @@ export default function Component() {
   }
 
   const clearDrawings = async () => {
-    if (!db || !roomId) return;
+    if (!roomId) return;
     try {
-      const drawingsRef = collection(db, 'cartes', String(roomId), 'drawings');
-      const snapshot = await getDocs(drawingsRef);
-      if (snapshot.empty) return;
-      const deletePromises = snapshot.docs.map((doc) => deleteDoc(doc.ref));
+      // Supprimer tous les dessins de la ville courante depuis RTDB
+      const currentDrawings = drawings; // déjà filtrés par cityId
+      if (currentDrawings.length === 0) return;
+      const deletePromises = currentDrawings.map(d => deleteFromRtdbWithHistory('drawings', d.id, 'Suppression groupée'));
       await Promise.all(deletePromises);
       toast.success("les dessin ont bien été éffacés")
     } catch (error) {
@@ -8833,10 +8848,9 @@ export default function Component() {
 
                     console.log(`🎯 Teleporting to (${targetX}, ${targetY}) on scene ${selectedCityId}`);
 
-                    // Update position using the nested structure for player characters
+                    // Position → RTDB, scène → Firestore
+                    await updateCityPosition(persoId, selectedCityId!, targetX!, targetY!);
                     await updateDoc(doc(db, 'cartes', roomId, 'characters', persoId), {
-                      [`positions.${selectedCityId}.x`]: targetX,
-                      [`positions.${selectedCityId}.y`]: targetY,
                       currentSceneId: selectedCityId
                     });
 
@@ -8859,11 +8873,10 @@ export default function Component() {
                       }
                     }
 
-                    // Update character position and scene
+                    // Position → RTDB, scène → Firestore
+                    await updateCharacterPosition(persoId, { x: targetX!, y: targetY! });
                     await updateDoc(doc(db, 'cartes', roomId, 'characters', persoId), {
-                      currentSceneId: activePortalForPlayer.targetSceneId,
-                      x: targetX,
-                      y: targetY
+                      currentSceneId: activePortalForPlayer.targetSceneId
                     });
 
                     // Change to the new scene (this will trigger CitiesManager logic)

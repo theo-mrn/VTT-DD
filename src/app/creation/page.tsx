@@ -9,9 +9,10 @@ import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { ChevronLeft, ChevronRight, Dice6, Check, Images, Upload, Dna, Swords, User, BookOpen, Search, Ghost, Shield, Heart, Zap, Crosshair, Sparkles, Brain } from 'lucide-react'
 import Image from 'next/image'
-import { db, auth, storage } from '@/lib/firebase'
+import { db, auth, storage, realtimeDb } from '@/lib/firebase'
 import { doc, addDoc, collection, getDoc, setDoc } from 'firebase/firestore'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { ref as rtdbRef, update as rtdbUpdate } from 'firebase/database'
 import { onAuthStateChanged } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
 import InventoryManagement from '@/components/(inventaire)/inventaire2'
@@ -273,6 +274,9 @@ export default function CharacterCreationPage() {
       await addDoc(collection(db, `users/${userId}/characters`), characterData)
 
       const docRef = await addDoc(collection(db, `cartes/${roomId}/characters`), characterData)
+
+      // Écrire la position initiale en RTDB
+      await rtdbUpdate(rtdbRef(realtimeDb, `rooms/${roomId}/positions/${docRef.id}`), { x: 500, y: 500 });
 
       // Save Custom Competences if any
       if (characterCustomCompetences.length > 0) {
