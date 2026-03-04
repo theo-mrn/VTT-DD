@@ -4,10 +4,11 @@ import { useParams } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import Sidebar from "@/components/(overlays)/panel";
 import CharacterSheet from "@/components/(fiches)/CharacterSheet";
-import { db, collection, query, where, onSnapshot, doc } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { useMapControl } from "@/contexts/MapControlContext";
 import { useGame } from "@/contexts/GameContext";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
+import { useMapData } from "@/hooks/map/useMapData";
 import { User, Users } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -43,27 +44,11 @@ export default function Component({ onPanelToggle }: OverlayProps) {
   const [mode, setMode] = useState<'joueurs' | 'pnj'>('joueurs');
   const [globalCityId, setGlobalCityId] = useState<string | null>(null);
 
-  // 🆕 Listen to Global Settings (Group Location)
-  useEffect(() => {
-    if (!roomId) return;
-    const settingsRef = doc(db, 'cartes', roomId, 'settings', 'general');
-    const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
-      if (docSnap.exists()) {
-        setGlobalCityId(docSnap.data().currentCityId || null);
-      }
-    });
-    return () => unsubscribe();
-  }, [roomId]);
-
-  // Étape 2 : Récupérer les joueurs
-  useEffect(() => {
-    if (!roomId) return;
-
-    const charactersRef = collection(db, `cartes/${roomId}/characters`);
-    const q = query(charactersRef, where("type", "==", "joueurs"));
-
-    const unsubscribeSnapshot = onSnapshot(q, (querySnapshot) => {
-      const fetchedPlayers: Player[] = querySnapshot.docs.map((doc) => {
+  // 🔄 Use centralized Map Data Hook
+  useMapData(roomId, selectedCityId, {
+    setGlobalCityId,
+    setRawPlayers: (docs: any[]) => {
+      const fetchedPlayers: Player[] = docs.map((doc) => {
         const data = doc.data();
         return {
           id: doc.id,
@@ -75,53 +60,31 @@ export default function Component({ onPanelToggle }: OverlayProps) {
           currentSceneId: data.currentSceneId
         };
       });
-
       setPlayers(fetchedPlayers);
-    });
-
-    return () => unsubscribeSnapshot();
-  }, [roomId]);
-
-  // Étape 3 : Récupérer les NPCs (uniquement de la carte active)
-  useEffect(() => {
-    if (!roomId) return;
-
-    const charactersRef = collection(db, `cartes/${roomId}/characters`);
-    // Filter by cityId to get NPCs on the current map
-    // Note: If selectedCityId is null (world map), we might need to handle that. 
-    // page.tsx seems to treat null as 'world' but let's check what data holds.
-    // If filtering by cityId where cityId is null, firebase might need standard equality.
-
-    // Assuming 'type' != 'joueurs' means NPC.
-    const q = query(
-      charactersRef,
-      where("cityId", "==", selectedCityId),
-      // where("type", "!=", "joueurs") // Compound queries need index. simpler to filter client side if needed or just trust cityId logic (players usually have cityId too?)
-      // In page.tsx, NPCs are queried by cityId. Players are queried globally.
-      // So if we query by cityId, we might get players too if they are assigned to that city.
-      // We should filter them out in memory to be safe/consistent with "NPC Mode".
-    );
-
-    const unsubscribeSnapshot = onSnapshot(q, (querySnapshot) => {
-      const fetchedNpcs: Player[] = querySnapshot.docs
-        .map((doc) => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            name: data.Nomperso || "NPC",
-            image: data.imageURLFinal || data.imageURL2 || data.imageURL || "/placeholder.svg",
-            health: data.PV || 0,
-            maxHealth: data.PV_Max || 10,
-            type: data.type
-          };
-        })
-        .filter(p => p.type !== 'joueurs'); // Ensure only NPCs
-
+    },
+    setRawNPCs: (parsedChars: any[]) => {
+      // Receive characters parsed by parseCharacterDocRef provided below
+      const fetchedNpcs: Player[] = parsedChars.map((char: any) => ({
+        id: char.id,
+        name: char.Nomperso || "NPC",
+        image: char.imageURLFinal || char.imageURL2 || char.imageURL || "/placeholder.svg",
+        health: char.PV || 0,
+        maxHealth: char.PV_Max || 10,
+        type: char.type
+      }));
       setNpcs(fetchedNpcs);
-    });
-
-    return () => unsubscribeSnapshot();
-  }, [roomId, selectedCityId]);
+    },
+    parseCharacterDocRef: {
+      current: (doc: any) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+          Nomperso: data.Nomperso || "NPC",
+        } as any;
+      }
+    }
+  });
 
   const handleDoubleClick = (playerId: string) => {
     setSelectedCharacterId(playerId);

@@ -1884,6 +1884,8 @@ export default function Component() {
     audioVolumes,
     globalAudioRef,
     isFirstSnapshotRef,
+    isMJ,
+    enableHistoryTracking: isMJ,
   });
 
   // ─── 📡 RTDB LISTENERS pour drawings, obstacles, notes ────────────────────
