@@ -8,6 +8,7 @@ import { createPortal } from "react-dom";
 
 import { useGame } from "@/contexts/GameContext";
 import { db, realtimeDb, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where, writeBatch, getDoc, setDoc, getDocs } from "@/lib/firebase";
+import { logHistoryEvent } from "@/lib/historiqueTrackerService";
 import { ref as rtdbRef, get as rtdbGet, update as rtdbUpdate } from 'firebase/database';
 
 import { Button } from "@/components/ui/button";
@@ -128,7 +129,6 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
             snapshot.forEach((doc) => loadedGroups.push({ id: doc.id, ...doc.data() } as SceneGroup));
             setGroups(loadedGroups);
         });
-        return () => unsubscribe();
         return () => unsubscribe();
     }, [effectiveRoomId]);
 
@@ -497,41 +497,59 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                 batch.set(settingsRef, { currentCityId: moveTargetCity.id }, { merge: true });
 
                 // B. Réinitialiser les positions individuelles de TOUS les joueurs (pour qu'ils suivent le global)
-                // 🆕 Si la scène a un spawn point défini, placer les joueurs à cette position
                 const spawnX = moveTargetCity.spawnX ?? 0;
                 const spawnY = moveTargetCity.spawnY ?? 0;
 
                 players.forEach(p => {
                     const charRef = doc(charactersRef, p.id);
                     batch.update(charRef, {
-                        currentSceneId: null, // Remove override
-                        x: spawnX,  // 🆕 Place at spawn point
-                        y: spawnY   // 🆕 Place at spawn point
+                        currentSceneId: moveTargetCity.id,
+                        x: spawnX,
+                        y: spawnY
                     });
                 });
-
-                if (onCitySelect) onCitySelect(moveTargetCity.id);
             }
             // 2. Si mode "sélection" (Individuel)
             else {
-                // 🆕 Si la scène a un spawn point défini, placer les joueurs sélectionnés à cette position
                 const spawnX = moveTargetCity.spawnX ?? 0;
                 const spawnY = moveTargetCity.spawnY ?? 0;
 
-                // Mettre à jour uniquement les joueurs sélectionnés avec l'ID de la scène
                 selectedPlayerIds.forEach(pId => {
                     const charRef = doc(charactersRef, pId);
                     batch.update(charRef, {
                         currentSceneId: moveTargetCity.id,
-                        x: spawnX,  // 🆕 Place at spawn point
-                        y: spawnY   // 🆕 Place at spawn point
+                        x: spawnX,
+                        y: spawnY
                     });
                 });
             }
 
             await batch.commit();
             console.log(`✅ [CitiesManager] Moved ${moveMode === 'all' ? 'everyone' : selectedPlayerIds.size + ' players'} to ${moveTargetCity.name}${moveTargetCity.spawnX !== undefined ? ` at spawn (${moveTargetCity.spawnX}, ${moveTargetCity.spawnY})` : ''}`);
+
+            // Log individual history events for each moved player
+            const movedPlayers = moveMode === 'all'
+                ? players
+                : players.filter(p => selectedPlayerIds.has(p.id));
+
+            for (const p of movedPlayers) {
+                logHistoryEvent({
+                    roomId: effectiveRoomId,
+                    type: 'deplacement',
+                    message: `**${p.name}** a rejoint : **${moveTargetCity.name}**.`,
+                    characterId: p.id,
+                    characterName: p.name,
+                    characterAvatar: p.image,
+                    characterType: 'joueurs',
+                });
+            }
+
             setShowMoveDialog(false);
+
+            // Navigate AFTER batch commits to avoid unmounting the component before the write completes
+            if (moveMode === 'all' && onCitySelect) {
+                onCitySelect(moveTargetCity.id);
+            }
 
         } catch (error) {
             console.error("❌ [CitiesManager] Error executing move:", error);

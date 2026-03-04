@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import YouTube from 'react-youtube';
 import { Volume2, Search, X, Plus, Trash2, Library, Music, Play, Pause, MapPin, Youtube, FileAudio, ListMusic, GripVertical, Check, StopCircle, PlayCircle, Filter, SkipBack, SkipForward, Repeat, Shuffle } from 'lucide-react'
-import { collection, onSnapshot, query, addDoc, deleteDoc, doc, setDoc, doc as firestoreDoc } from 'firebase/firestore'
-import { db, realtimeDb, dbRef, update, onValue, set } from '@/lib/firebase'
+import { onSnapshot, setDoc, doc as firestoreDoc } from 'firebase/firestore'
+import { db, realtimeDb, dbRef, update, onValue } from '@/lib/firebase'
+import { useGMTemplates, type SoundTemplate } from '@/contexts/GMTemplatesContext'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
@@ -15,18 +16,6 @@ import { Switch } from "@/components/ui/switch"
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 
 // --- Types ---
-interface SoundTemplate {
-    id: string
-    name: string
-    soundUrl: string
-    type: 'file' | 'youtube'
-    category?: 'music' | 'sound'
-    duration?: number
-    createdAt?: Date
-}
-
-
-
 interface MusicState {
     videoId: string | null;
     templateId?: string;
@@ -44,13 +33,16 @@ interface SoundDrawerProps {
 
 export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawerProps) {
     const { setDialogOpen } = useDialogVisibility();
+    const {
+        soundTemplates: templates,
+        addSoundTemplate,
+        deleteSoundTemplate,
+    } = useGMTemplates();
 
     // Register dialog state when drawer opens/closes
     useEffect(() => {
         setDialogOpen(isOpen);
     }, [isOpen, setDialogOpen]);
-    // --- Data States ---
-    const [templates, setTemplates] = useState<SoundTemplate[]>([])
 
     // --- UI States ---
     const [activeTab, setActiveTab] = useState<'sounds' | 'music'>('sounds') // Changed from 3 tabs to 2
@@ -91,20 +83,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
     const [globalPlayingId, setGlobalPlayingId] = useState<string | null>(null) // Quick Sound (Files)
     const [musicState, setMusicState] = useState<MusicState>({ videoId: null, isPlaying: false }) // YouTube Music
 
-    // 1. Load Templates (Unified Library)
-    useEffect(() => {
-        if (!roomId || !isOpen) return
-        const q = query(collection(db, `sound_templates/${roomId}/templates`))
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SoundTemplate))
-            setTemplates(data)
-        })
-        return () => unsubscribe()
-    }, [roomId, isOpen])
-
-
-
-    // 3. Listeners for Playback Status
+    // Listeners for Playback Status
     useEffect(() => {
         if (!roomId) return
 
@@ -191,7 +170,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
         // Visual feedback
         setAddedLibraryIds(prev => new Set(prev).add(sound.path))
 
-        await addDoc(collection(db, `sound_templates/${roomId}/templates`), {
+        await addSoundTemplate({
             name: sound.name,
             soundUrl: sound.path,
             type: 'file',
@@ -226,16 +205,13 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                 soundUrl = extractVideoId(youtubeInput)!
             }
 
-            const docRef = await addDoc(collection(db, `sound_templates/${roomId}/templates`), {
+            await addSoundTemplate({
                 name: newSoundName,
                 soundUrl,
                 type: creationType,
                 category: activeTab === 'music' ? 'music' : 'sound',
                 createdAt: new Date()
             })
-
-            // If in Music tab, play it directly if nothing is playing? Or just let it appear in list.
-            // Simplified: just add to list (already done via real-time listener)
 
             setNewSoundName('')
             setNewSoundFile(null)
@@ -246,7 +222,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
     }
 
     const handleDeleteTemplate = async (id: string) => {
-        try { await deleteDoc(doc(db, `sound_templates/${roomId}/templates`, id)); setDeleteConfirmId(null) }
+        try { await deleteSoundTemplate(id); setDeleteConfirmId(null) }
         catch (e) { console.error(e) }
     }
 

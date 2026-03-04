@@ -2,8 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { Users, GripVertical, Search, X, BookTemplate, Map as MapIcon, Plus, Book } from 'lucide-react'
-import { collection, onSnapshot, query, getDocs, addDoc, doc, updateDoc } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { useGMTemplates, type ExistingNPC } from '@/contexts/GMTemplatesContext'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
@@ -23,47 +22,28 @@ interface NPCTemplateDrawerProps {
     currentCityId: string | null
 }
 
-interface ExistingNPC {
-    id: string
-    Nomperso: string
-    imageURL2?: string
-    niveau: number
-    PV: number
-    PV_Max: number
-    Defense: number
-    FOR: number
-    DEX: number
-    CON: number
-    INT: number
-    SAG: number
-    CHA: number
-    Contact: number
-    Distance: number
-    Magie: number
-    INIT: number
-    visibility: 'visible' | 'hidden' | 'ally' | 'invisible'
-    cityName?: string
-    cityId?: string | null
-}
-
 export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, currentCityId }: NPCTemplateDrawerProps) {
     const { setDialogOpen } = useDialogVisibility();
+    const {
+        npcTemplates: templates,
+        npcCategories: categories,
+        existingNPCs,
+        cities,
+        loading,
+        addNPCTemplate,
+        updateNPCTemplate,
+    } = useGMTemplates();
 
     // Register dialog state when drawer opens/closes
     useEffect(() => {
         setDialogOpen(isOpen);
     }, [isOpen, setDialogOpen]);
     const [activeTab, setActiveTab] = useState<'templates' | 'npcs'>('templates')
-    const [templates, setTemplates] = useState<NPC[]>([])
-    const [categories, setCategories] = useState<Category[]>([])
-    const [existingNPCs, setExistingNPCs] = useState<ExistingNPC[]>([])
     const [searchQuery, setSearchQuery] = useState('')
-    const [loading, setLoading] = useState(true)
     const [showCreateForm, setShowCreateForm] = useState(false)
     const [showLibraryModal, setShowLibraryModal] = useState(false)
     const [editingNpcId, setEditingNpcId] = useState<string | null>(null)
     const [isSubmitting, setIsSubmitting] = useState(false)
-    const [cities, setCities] = useState<{ id: string; name: string }[]>([])
     const [selectedCityFilter, setSelectedCityFilter] = useState<string>(currentCityId || 'all')
     const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('all')
 
@@ -95,105 +75,6 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
     }
 
     const [char, setChar] = useState<NewCharacter>(defaultCharacter)
-
-    // Load NPC templates
-    useEffect(() => {
-        if (!roomId || !isOpen) return
-
-        const templatesRef = collection(db, `npc_templates/${roomId}/templates`)
-        const q = query(templatesRef)
-
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const templatesData = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as NPC[]
-            setTemplates(templatesData)
-            setLoading(false)
-        })
-
-        return () => unsubscribe()
-    }, [roomId, isOpen])
-
-    // Load Categories
-    useEffect(() => {
-        if (!roomId || !isOpen) return
-
-        const categoriesRef = collection(db, 'npc_templates', roomId, 'categories')
-
-        const unsubscribe = onSnapshot(categoriesRef, (snapshot) => {
-            const categoryList: Category[] = []
-            snapshot.forEach((doc) => {
-                categoryList.push({ id: doc.id, ...doc.data() } as Category)
-            })
-            setCategories(categoryList)
-        })
-
-        return () => unsubscribe()
-    }, [roomId, isOpen])
-
-    // Load existing NPCs with real-time updates
-    useEffect(() => {
-        if (!roomId || !isOpen) return
-
-        // First load cities for names
-        const loadCityNames = async () => {
-            const citiesRef = collection(db, 'cartes', roomId, 'cities')
-            const citiesSnapshot = await getDocs(citiesRef)
-            const cityNamesMap = new Map<string, string>()
-            const citiesList: { id: string; name: string }[] = []
-            citiesSnapshot.forEach(doc => {
-                const cityName = doc.data().name || 'Ville inconnue'
-                cityNamesMap.set(doc.id, cityName)
-                citiesList.push({ id: doc.id, name: cityName })
-            })
-            setCities(citiesList)
-
-            // Then listen to characters in real-time
-            const charsRef = collection(db, 'cartes', roomId, 'characters')
-            const unsubscribe = onSnapshot(charsRef, (snapshot) => {
-                const npcs: ExistingNPC[] = []
-                snapshot.forEach((doc) => {
-                    const data = doc.data()
-                    // Only PNJs (not players)
-                    if (data.type !== 'joueurs') {
-                        npcs.push({
-                            id: doc.id,
-                            Nomperso: data.Nomperso || 'Sans nom',
-                            imageURL2: data.imageURL2 || data.imageURL,
-                            niveau: data.niveau || 1,
-                            PV: data.PV || 10,
-                            PV_Max: data.PV_Max || 10,
-                            Defense: data.Defense || 5,
-                            FOR: data.FOR || 10,
-                            DEX: data.DEX || 10,
-                            CON: data.CON || 10,
-                            INT: data.INT || 10,
-                            SAG: data.SAG || 10,
-                            CHA: data.CHA || 10,
-                            Contact: data.Contact || 0,
-                            Distance: data.Distance || 0,
-                            Magie: data.Magie || 0,
-                            INIT: data.INIT || 0,
-                            visibility: data.visibility || 'hidden',
-                            cityName: data.cityId ? cityNamesMap.get(data.cityId) : 'Aucune ville',
-                            cityId: data.cityId || null
-                        })
-                    }
-                })
-
-                setExistingNPCs(npcs)
-            })
-
-            return unsubscribe
-        }
-
-        const unsubscribePromise = loadCityNames()
-
-        return () => {
-            unsubscribePromise.then(unsub => unsub?.())
-        }
-    }, [roomId, isOpen])
 
     // Generate random stats
     const generateStats = (diff: number) => {
@@ -245,7 +126,6 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
 
         setIsSubmitting(true)
         const storage = getStorage()
-        const templatesRef = collection(db, 'npc_templates', roomId, 'templates')
 
         let imageURL = ''
 
@@ -288,11 +168,11 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
 
             if (editingNpcId) {
                 // Update existing template
-                await updateDoc(doc(db, 'npc_templates', roomId, 'templates', editingNpcId), npcData)
+                await updateNPCTemplate(editingNpcId, npcData)
                 setEditingNpcId(null)
             } else {
                 // Create new template
-                await addDoc(templatesRef, npcData)
+                await addNPCTemplate(npcData)
             }
 
             // Reset form
@@ -310,8 +190,6 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
         if (!roomId) return
         setIsSubmitting(true)
         try {
-            const templatesRef = collection(db, 'npc_templates', roomId, 'templates')
-
             // Image handling (upload if Base64/DataURL)
             let imageURL = (typeof importedChar.image === 'object' ? importedChar.image?.src : importedChar.image) || ''
             if (imageURL.startsWith('data:')) {
@@ -345,7 +223,7 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
                 Actions: importedChar.Actions || []
             }
 
-            await addDoc(templatesRef, npcData)
+            await addNPCTemplate(npcData)
             setShowLibraryModal(false)
         } catch (error) {
             console.error("Error importing NPC:", error)

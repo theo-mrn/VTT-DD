@@ -10,12 +10,11 @@ import {
     setDoc,
     query,
     where,
-    getDoc,
 } from 'firebase/firestore';
 import { doc as firestoreDoc } from 'firebase/firestore';
 
 import { db } from '@/lib/firebase';
-import { logHistoryEvent, logGlobalMove } from '@/lib/historiqueTrackerService';
+import { logHistoryEvent } from '@/lib/historiqueTrackerService';
 
 import type {
     Character,
@@ -133,20 +132,7 @@ export function useMapData(
                     if (data.pixelsPerUnit) c.setPixelsPerUnit?.(data.pixelsPerUnit);
                     if (data.unitName) c.setUnitName?.(data.unitName);
                     if (data.currentCityId) {
-                        const prevCityId = selectedCityId;
                         c.setGlobalCityId?.(data.currentCityId);
-
-                        // Log group movement if tracking enabled and city actually changed
-                        if (c.enableHistoryTracking && c.isMJ && data.currentCityId !== prevCityId && !isInitialLoadRef.current) {
-                            logGlobalMove(roomId, data.currentCityId, async (id) => {
-                                try {
-                                    const citySnap = await getDoc(doc(db, 'cartes', roomId, 'cities', id));
-                                    return citySnap.exists() ? (citySnap.data()?.Nom || "une nouvelle destination") : "une nouvelle destination";
-                                } catch (e) {
-                                    return "une nouvelle destination";
-                                }
-                            });
-                        }
                     }
                 }
             ));
