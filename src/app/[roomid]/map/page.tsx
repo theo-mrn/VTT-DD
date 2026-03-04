@@ -176,6 +176,7 @@ import { ToolbarSkinSelector } from '@/components/(map)/MapToolbar';
 import { useShortcuts, SHORTCUT_ACTIONS } from '@/contexts/ShortcutsContext';
 import { useUndoRedo } from '@/contexts/UndoRedoContext';
 import { useFirestoreWithHistory } from '@/hooks/map/useFirestoreWithHistory';
+import { useMapData } from '@/hooks/map/useMapData';
 
 const getMediaDimensions = (media: HTMLImageElement | HTMLVideoElement | CanvasImageSource) => {
   if (media instanceof HTMLVideoElement) {
@@ -786,45 +787,7 @@ export default function Component() {
 
   // Map Context Menu State
   const [mapContextMenu, setMapContextMenu] = useState<{ x: number, y: number } | null>(null);
-
-  // 📡 CURRENT SCENE FIREBASE LISTENER (for spawn points)
-  useEffect(() => {
-    if (!roomId || !selectedCityId) {
-      setCurrentScene(null);
-      return;
-    }
-    const sceneDoc = doc(db, 'cartes', roomId, 'cities', selectedCityId);
-    const unsubscribe = onSnapshot(sceneDoc, (snapshot) => {
-      if (snapshot.exists()) {
-        setCurrentScene({ id: snapshot.id, ...snapshot.data() } as Scene);
-      } else {
-        setCurrentScene(null);
-      }
-    });
-    return () => unsubscribe();
-  }, [roomId, selectedCityId]);
-
-
-
-  //  PORTAL FIREBASE LISTENER
-  useEffect(() => {
-    if (!roomId) return;
-    const q = query(collection(db, 'cartes', roomId, 'portals'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newPortals: Portal[] = [];
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        // Add default portalType for legacy portals (backward compatibility)
-        newPortals.push({
-          id: doc.id,
-          portalType: 'scene-change', // Default for legacy portals
-          ...data
-        } as Portal);
-      });
-      setPortals(newPortals);
-    });
-    return () => unsubscribe();
-  }, [roomId]);
+  // 📡 Listeners currentScene et portals → centralisés dans useMapData
 
   //  CHECK FOR PORTAL COLLISIONS (Player characters only)
   useEffect(() => {
@@ -1430,55 +1393,8 @@ export default function Component() {
 
 
 
-  // 🔄 SYNC LAYERS AVEC FIREBASE
-  useEffect(() => {
-    if (!roomId) return;
+  // 📡 Listener layers → centralisé dans useMapData
 
-    // Définition locale des layers (source de vérité pour les labels et l'ordre)
-    const localLayersDef: Layer[] = [
-      { id: 'background', label: 'Fond', isVisible: true, order: 0 },
-      { id: 'notes', label: 'Notes', isVisible: true, order: 2 },
-      { id: 'drawings', label: 'Dessins', isVisible: true, order: 3 },
-      { id: 'objects', label: 'Objets', isVisible: true, order: 4 },
-      { id: 'characters', label: 'Personnages', isVisible: true, order: 5 },
-      { id: 'fog', label: 'Brouillard', isVisible: true, order: 6 },
-      { id: 'obstacles', label: 'Obstacle', isVisible: true, order: 7 },
-      { id: 'music', label: 'Musique (Zones)', isVisible: true, order: 8 },
-    ];
-
-    const getLayerDocId = () => selectedCityId ? `layers_${selectedCityId}` : 'layers';
-    const layersRef = doc(db, 'cartes', roomId, 'settings', getLayerDocId());
-
-    const unsubscribe = onSnapshot(layersRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.layers) {
-          // Fusion intelligente : On garde les labels locaux mais on prend la visibilité de Firebase
-          setLayers(prev => {
-            const remoteLayers = data.layers as Layer[];
-
-            return localLayersDef.map(localLayer => {
-              const remoteLayer = remoteLayers.find(rl => rl.id === localLayer.id);
-              // Si le layer existe distant, on prend sa visibilité, sinon défaut
-              return {
-                ...localLayer,
-                isVisible: remoteLayer ? remoteLayer.isVisible : localLayer.isVisible
-              };
-            });
-          });
-        }
-      } else {
-        // Init default layers if doc doesn't exist used default visibility
-        // But for per-city, maybe we want to inherit from global? 
-        // For now let's just init defaults as requested: "independant de chaque ville"
-        setDoc(layersRef, { layers: localLayersDef }, { merge: true });
-        // Don't necessarily reset local state if we just switched, but here we do to sync with "default" state of that city
-        setLayers(localLayersDef);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [roomId, selectedCityId]);
 
   const toggleLayer = async (layerId: LayerType) => {
     // Optimistic update (optional, but good for UI responsiveness)
@@ -1495,22 +1411,7 @@ export default function Component() {
     }
   };
 
-  useEffect(() => {
-    if (!roomId) return;
-    const settingsRef = doc(db, 'cartes', roomId, 'settings', 'general');
-    const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        if (data.globalTokenScale !== undefined) {
-          setGlobalTokenScale(data.globalTokenScale);
-        }
-        if (data.shadowOpacity !== undefined) {
-          setShadowOpacity(data.shadowOpacity);
-        }
-      }
-    });
-    return () => unsubscribe();
-  }, [roomId]);
+  // 📡 Listener settings/general → centralisé dans useMapData
 
   const updateGlobalTokenScale = async (newScale: number) => {
     if (!roomId || !isMJ) return;
@@ -1705,71 +1606,7 @@ export default function Component() {
     }
   }, [audioVolumes.quickSounds]);
 
-  // 🎵 GLOBAL SOUND PLAYBACK LISTENER - Listen for sounds played by MJ
-  useEffect(() => {
-    if (!roomId) return
-
-    // Reset the flag when the effect runs (on mount or roomId change)
-    isFirstSnapshotRef.current = true;
-
-    const globalSoundRef = firestoreDoc(db, 'global_sounds', roomId)
-
-    const unsubscribe = onSnapshot(globalSoundRef, (docSnap) => {
-      // Skip the first snapshot (initial state) to avoid replaying old sounds
-      if (isFirstSnapshotRef.current) {
-        isFirstSnapshotRef.current = false;
-        return;
-      }
-
-      if (docSnap.exists()) {
-        const data = docSnap.data()
-
-        // Check if it's a stop command
-        if (data.soundUrl === null || !data.soundUrl) {
-          // Stop current audio if any
-          if (globalAudioRef.current) {
-            globalAudioRef.current.pause();
-            globalAudioRef.current = null;
-          }
-          return;
-        }
-
-        if (data.soundUrl && data.timestamp) {
-          const eventTime = data.timestamp.toMillis ? data.timestamp.toMillis() : data.timestamp
-          const now = Date.now()
-          const timeDiff = now - eventTime
-
-          // Only play sounds that are very recent (within 5 seconds)
-          // This handles network latency while preventing old sounds from playing
-          // timeDiff > -2000 allows for small clock differences between client and server
-          if (timeDiff < 5000 && timeDiff > -2000) {
-
-            // Stop previous audio if any
-            if (globalAudioRef.current) {
-              globalAudioRef.current.pause();
-              globalAudioRef.current = null;
-            }
-
-            // Play the sound with volume from mixer
-            const audio = new Audio(data.soundUrl)
-            audio.volume = audioVolumes.quickSounds
-
-            // Store reference
-            globalAudioRef.current = audio;
-
-            // Clear reference when ended
-            audio.addEventListener('ended', () => {
-              globalAudioRef.current = null;
-            });
-
-            audio.play().catch(e => console.error('Error playing sound:', e))
-          }
-        }
-      }
-    })
-
-    return () => unsubscribe()
-  }, [roomId, audioVolumes.quickSounds])
+  // 📡 Listener global sound → centralisé dans useMapData
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
@@ -1807,25 +1644,7 @@ export default function Component() {
     };
   }, [roomId]);
 
-  // 🆕 Écouter le personnage actif de la ville actuelle (indépendant)
-  useEffect(() => {
-    if (!roomId || !selectedCityId) {
-      setActivePlayerId(null);
-      return;
-    }
-
-    const combatRef = doc(db, 'cartes', roomId, 'cities', selectedCityId, 'combat', 'state');
-    const unsubscribe = onSnapshot(combatRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setActivePlayerId(data.activePlayer || null);
-      } else {
-        setActivePlayerId(null);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [roomId, selectedCityId]);
+  // 📡 Listener combat/state → centralisé dans useMapData (doublon supprimé)
 
   // Keyboard shortcut: Ctrl+F / Cmd+F to open search drawer
   useEffect(() => {
@@ -1844,42 +1663,7 @@ export default function Component() {
   }, [isMJ]);
 
 
-  // 🆕 CHARGER LE FOND SELON LA VILLE SÉLECTIONNÉE
-  useEffect(() => {
-    if (!roomId) return;
-
-    let unsubscribe: (() => void) | undefined;
-
-    if (selectedCityId) {
-      // En mode ville : charger le fond spécifique de la ville
-      const cityRef = doc(db, 'cartes', roomId, 'cities', selectedCityId);
-      unsubscribe = onSnapshot(cityRef, (docSnap) => {
-        if (docSnap.exists()) {
-          const cityData = docSnap.data();
-          if (cityData.backgroundUrl) {
-            setBackgroundImage(cityData.backgroundUrl);
-          } else {
-            // Clear background when scene has no background
-            setBackgroundImage(null);
-            setBgImageObject(null); // Clear the previous background
-          }
-        }
-      });
-    } else {
-      // En mode world map : charger le fond global
-      const fondRef = doc(db, 'cartes', roomId, 'fond', 'fond1');
-      unsubscribe = onSnapshot(fondRef, (docSnap) => {
-        if (docSnap.exists() && docSnap.data().url) {
-
-          setBackgroundImage(docSnap.data().url);
-        }
-      });
-    }
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [roomId, selectedCityId]);
+  // 📡 Listener fond/backgroundImage → centralisé dans useMapData
 
   // 🆕 AFFICHER LE MODAL SI PAS DE FOND (MJ seulement)
   useEffect(() => {
@@ -2032,6 +1816,44 @@ export default function Component() {
     mergeAndSetCharactersRef.current = mergeAndSetCharacters;
   }, [mergeAndSetCharacters]);
 
+  // ─── 📡 LISTENERS FIRESTORE CENTRALISÉS ─────────────────────────────────────
+  // Tous les onSnapshot sont gérés dans useMapData pour éviter les doublons et
+  // faciliter la maintenance. Plus besoin de listeners dispersés dans ce fichier.
+  useMapData(roomId, selectedCityId, {
+    setCharacters,
+    setLoading,
+    setLights,
+    setObjects,
+    setNotes,
+    setDrawings,
+    setFogGrid,
+    setFullMapFog,
+    setObstacles,
+    setMusicZones,
+    setMeasurements,
+    setLayers,
+    setPortals,
+    setCurrentScene,
+    setBackgroundImage,
+    setBgImageObject,
+    setActivePlayerId,
+    setGlobalTokenScale,
+    setShadowOpacity,
+    setPixelsPerUnit,
+    setUnitName,
+    setGlobalCityId,
+    setCities,
+    setPlayersVersion,
+    selectedCityIdRef,
+    loadedPlayersRef,
+    loadedNPCsRef,
+    mergeAndSetCharactersRef,
+    parseCharacterDocRef,
+    audioVolumes,
+    globalAudioRef,
+    isFirstSnapshotRef,
+  });
+
   // ⚡ PERFORMANCE: Sync render states to refs
   // This prevents the main render useEffect from re-executing on every state change
   useEffect(() => { charactersRenderRef.current = characters; }, [characters]);
@@ -2110,233 +1932,9 @@ export default function Component() {
     mergeAndSetCharactersRef.current();
   }, [selectedCityId]); // ✅ Removed mergeAndSetCharacters - use ref instead
 
-  // 🆕 CHARGER LES DONNÉES FILTRÉES PAR VILLE (depuis les collections globales)
-  useEffect(() => {
-    if (!roomId) return;
-
-    const unsubscribers: (() => void)[] = [];
-
-    // 1. CHARGER ET FILTRER LES PERSONNAGES (Split: Players Global + NPCs Local)
-    const charactersRef = collection(db, 'cartes', roomId, 'characters');
-    const npcsQuery = query(charactersRef, where('cityId', '==', selectedCityId));
-    const npcsUnsub = onSnapshot(npcsQuery, (snapshot) => {
-      // Filter out players if they appear here (shouldn't if data is clean, but safe to filter)
-      loadedNPCsRef.current = snapshot.docs
-        .filter(doc => doc.data().type !== 'joueurs')
-        .map(doc => parseCharacterDocRef.current(doc, selectedCityId));
-      mergeAndSetCharactersRef.current();
-    });
-    unsubscribers.push(npcsUnsub);
-
-    // 2. CHARGER ET FILTRER LES DESSINS
-    const drawingsRef = collection(db, 'cartes', roomId, 'drawings');
-    const drawingsQuery = query(drawingsRef, where('cityId', '==', selectedCityId));
-    const drawingsUnsub = onSnapshot(drawingsQuery, (snapshot) => {
-      const drws: SavedDrawing[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        const points = data.points || data.paths;
-        if (points && Array.isArray(points)) {
-          drws.push({
-            id: doc.id,
-            points: points,
-            color: data.color || '#000000',
-            width: data.width || 5,
-            type: data.type || 'pen',
-          });
-        }
-      });
-      setDrawings(drws);
-    });
-    unsubscribers.push(drawingsUnsub);
-
-    // 3. CHARGER ET FILTRER LES NOTES
-    const notesRef = collection(db, 'cartes', roomId, 'text');
-    const notesQuery = query(notesRef, where('cityId', '==', selectedCityId));
-    const notesUnsub = onSnapshot(notesQuery, (snapshot) => {
-      const texts: MapText[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        texts.push({
-          id: doc.id,
-          text: data.content,
-          x: data.x || 0,
-          y: data.y || 0,
-          color: data.color || 'yellow',
-          fontSize: data.fontSize,
-          fontFamily: data.fontFamily,
-        });
-      });
-      setNotes(texts);
-    });
-    unsubscribers.push(notesUnsub);
-
-    // 4. CHARGER LE BROUILLARD (Stocké par ID spécifique ex: fog_cityId)
-    // Pour le brouillard, comme c'est un document unique souvent lourd, on utilise des docs séparés dans la même collection
-    const fogDocId = selectedCityId ? `fog_${selectedCityId}` : 'fogData';
-    const fogRef = doc(db, 'cartes', roomId, 'fog', fogDocId);
+  // 📡 Listeners Firestore (per-city + global) → centralisés dans useMapData
 
 
-    const fogUnsub = onSnapshot(fogRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-
-
-        if (data.grid) {
-          const loadedGrid = new Map<string, boolean>(Object.entries(data.grid));
-          setFogGrid(loadedGrid);
-        } else {
-          setFogGrid(new Map());
-        }
-        if (data.fullMapFog !== undefined) {
-          setFullMapFog(data.fullMapFog);
-        }
-      } else {
-
-        setFogGrid(new Map());
-        setFullMapFog(false);
-      }
-    });
-    unsubscribers.push(fogUnsub);
-
-    // 5. 🔦 CHARGER LES OBSTACLES (pour la vision dynamique)
-    const obstaclesRef = collection(db, 'cartes', roomId, 'obstacles');
-    const obstaclesQuery = query(obstaclesRef, where('cityId', '==', selectedCityId));
-    const obstaclesUnsub = onSnapshot(obstaclesQuery, (snapshot) => {
-      const obs: Obstacle[] = [];
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data();
-        obs.push({
-          id: docSnap.id,
-          type: data.type || 'wall',
-          points: data.points || [],
-          color: data.color,
-          opacity: data.opacity,
-          direction: data.direction,
-          isOpen: data.isOpen,
-        });
-      });
-
-      setObstacles(obs);
-    });
-    unsubscribers.push(obstaclesUnsub);
-
-    // 🆕 7. CHARGER ET FILTRER LES LUMIÈRES (LIGHTS)
-    const lightsRef = collection(db, 'cartes', roomId, 'lights');
-    const lightsQuery = query(lightsRef, where('cityId', '==', selectedCityId));
-    const lightsUnsub = onSnapshot(lightsQuery, (snapshot) => {
-      const loadedLights: LightSource[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        loadedLights.push({
-          id: doc.id,
-          x: data.x,
-          y: data.y,
-          name: data.name || 'Lumière',
-          radius: data.radius || 10,
-          visible: data.visible ?? true,
-          cityId: data.cityId
-        });
-      });
-      setLights(loadedLights);
-    });
-    unsubscribers.push(lightsUnsub);
-
-    // 6. CHARGER ET FILTRER LES OBJETS
-    const objectsRef = collection(db, 'cartes', roomId, 'objects');
-    // Important: we assume that if data.cityId is missing, it's effectively null (or arguably we should handle that case, but standardizing on null is better)
-    // Firestore queries are strict: wheres are exact matches.
-    const objectsQuery = query(objectsRef, where('cityId', '==', selectedCityId));
-    const objectsUnsub = onSnapshot(objectsQuery, (snapshot) => {
-      const objs: MapObject[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-
-        // Créer l'image immédiatement
-        const img = new Image();
-        if (data.imageUrl) {
-          img.src = data.imageUrl;
-        }
-
-        objs.push({
-          id: doc.id,
-          x: data.x || 0,
-          y: data.y || 0,
-          width: data.width || 100,
-          height: data.height || 100,
-          rotation: data.rotation || 0,
-          imageUrl: data.imageUrl || '',
-          name: data.name,
-          cityId: data.cityId || null,
-          image: img,
-          isBackground: data.isBackground || false,
-          isLocked: data.isLocked || false, // 🆕 Charger l'état de verrouillage
-          visibility: data.visibility || undefined,
-          type: (data.type || 'decors') as 'decors' | 'weapon' | 'item',
-          visibleToPlayerIds: data.visibleToPlayerIds || undefined,
-          notes: data.notes || undefined, // 🆕 Notes de l'objet
-          items: data.items || [], // 🆕 Items d'inventaire pour les conteneurs
-          linkedId: data.linkedId || undefined // 🆕 ID de partage pour inventaires partagés
-        });
-      });
-      setObjects(objs);
-    });
-    unsubscribers.push(objectsUnsub);
-
-    // 7. CHARGER ZONES DE MUSIQUE
-    const musicZonesRef = collection(db, 'cartes', roomId, 'musicZones');
-    const musicZonesQuery = query(musicZonesRef, where('cityId', '==', selectedCityId));
-    const musicZonesUnsub = onSnapshot(musicZonesQuery, (snapshot) => {
-      const zones: MusicZone[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        if (data.cityId === selectedCityId) {
-          zones.push({ id: doc.id, ...data } as MusicZone);
-        }
-      });
-      setMusicZones(zones);
-    });
-
-    unsubscribers.push(musicZonesUnsub);
-
-    // 8. CHARGER MESURES PARTAGÉES
-    const measurementsRef = collection(db, 'cartes', roomId, 'measurements');
-    const measurementsQuery = query(measurementsRef, where('cityId', '==', selectedCityId));
-    const measurementsUnsub = onSnapshot(measurementsQuery, (snapshot) => {
-      const ms: SharedMeasurement[] = [];
-      snapshot.forEach((doc) => {
-        ms.push(doc.data() as SharedMeasurement);
-      });
-      setMeasurements(ms);
-    });
-    unsubscribers.push(measurementsUnsub);
-
-    return () => {
-      unsubscribers.forEach(unsub => unsub());
-    };
-  }, [roomId, selectedCityId]); // ✅ Removed parseCharacterDoc and mergeAndSetCharacters - use refs
-
-
-  // ------------------------------------------------------------------
-  // 🌍 GLOBAL LISTENER (PLAYERS) - Stays connected across City Switches
-  // ------------------------------------------------------------------
-  useEffect(() => {
-    if (!roomId) return;
-
-    const charactersRef = collection(db, 'cartes', roomId, 'characters');
-    // A. Subscribe to Players (Global)
-    const playersQuery = query(charactersRef, where('type', '==', 'joueurs'));
-    const playersUnsub = onSnapshot(playersQuery, (snapshot) => {
-      loadedPlayersRef.current = snapshot.docs; // Store RAW docs
-      setPlayersVersion(v => v + 1); // 🆕 Trigger sync effect
-      mergeAndSetCharactersRef.current();
-    });
-
-    return () => {
-      playersUnsub();
-      loadedPlayersRef.current = []; // Clear on unmount
-    };
-  }, [roomId]); // ✅ Removed parseCharacterDoc and mergeAndSetCharacters - use refs
 
 
   // 🔄 Update Container Size on Resize
@@ -4206,43 +3804,12 @@ export default function Component() {
   };
 
 
-  const INITializeFirebaseListeners = (room: string) => {
-    const unsubscribers: (() => void)[] = [];
-
-    // Le chargement du fond est maintenant géré par un useEffect séparé (voir ligne ~165)
-
-    // Listener pour les paramètres généraux (pas le personnage actif)
-    const settingsRef = doc(db, 'cartes', room.toString(), 'settings', 'general');
-    const settingsUnsub = onSnapshot(settingsRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data();
-        if (data.pixelsPerUnit) setPixelsPerUnit(data.pixelsPerUnit);
-        if (data.unitName) setUnitName(data.unitName);
-        // Synchroniser la ville actuelle
-        if (data.currentCityId) {
-          setGlobalCityId(data.currentCityId);
-        }
-      }
-    });
-    unsubscribers.push(settingsUnsub);
-
-    // 🆕 Charger les villes pour la world map
-    const citiesRef = collection(db, 'cartes', room.toString(), 'cities');
-    const citiesUnsub = onSnapshot(citiesRef, (snapshot) => {
-      const loadedCities: any[] = [];
-      snapshot.forEach((doc) => {
-        loadedCities.push({ id: doc.id, ...doc.data() });
-      });
-      setCities(loadedCities);
-    });
-    unsubscribers.push(citiesUnsub);
-
-    // NOTE: Fog listener removed from here as it is handled by the main data loading useEffect (line ~890)
-    // to correctly support switching between city-specific fog and global fog files.
-
-    return () => {
-      unsubscribers.forEach(unsub => unsub());
-    };
+  const INITializeFirebaseListeners = (_room: string) => {
+    // 📡 Les listeners Firestore (settings/general, cities, etc.) sont maintenant
+    // centralisés dans useMapData et ne dépendent plus de l'état d'authentification.
+    // Cette fonction ne fait plus rien de spécial — elle existe pour compatibilité
+    // avec le onAuthStateChanged ci-dessus.
+    return () => { };
   };
 
 
@@ -8437,25 +8004,7 @@ export default function Component() {
 
 
 
-  // 🆕 Listen to Active Player (Synced with Combat)
-  useEffect(() => {
-    if (!roomId || !selectedCityId) {
-      setActivePlayerId(null);
-      return;
-    }
-
-    const combatStateRef = doc(db, 'cartes', roomId, 'cities', selectedCityId, 'combat', 'state');
-    const unsubscribe = onSnapshot(combatStateRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setActivePlayerId(data.activePlayer || null);
-      } else {
-        setActivePlayerId(null);
-      }
-    });
-
-    return () => unsubscribe();
-  }, [roomId, selectedCityId]);
+  // 📡 Listener combat/state → centralisé dans useMapData (doublon supprimé ici)
 
   const toggleFogMode = () => {
     setFogMode(!fogMode);
