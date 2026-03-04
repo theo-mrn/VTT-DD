@@ -2,9 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import { Search, X, Volume2, Package, Users, Loader2, GripVertical, Play, Pause, Folder, ChevronRight, ArrowLeft, Plus, Music, FileAudio } from 'lucide-react'
-import { collection, onSnapshot, query, addDoc } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
+import { useGMTemplates, type SoundTemplate } from '@/contexts/GMTemplatesContext'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
@@ -18,13 +17,6 @@ import { advancedSearch, type SearchResult } from '@/lib/advanced-search'
 import { CreatureLibraryModal } from './CreatureLibraryModal'
 import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { uploadWithQuota } from '@/lib/storageHelper'
-
-interface SoundTemplate {
-    id: string
-    name: string
-    soundUrl: string
-    type: 'file' | 'youtube'
-}
 
 interface BestiaryData {
     Nom: string
@@ -73,6 +65,15 @@ interface UnifiedSearchDrawerProps {
 
 export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, currentCityId }: UnifiedSearchDrawerProps) {
     const { setDialogOpen } = useDialogVisibility()
+    const {
+        soundTemplates: sounds,
+        objectTemplates: objects,
+        npcTemplates: npcs,
+        loading,
+        addSoundTemplate,
+        addObjectTemplate,
+        addNPCTemplate,
+    } = useGMTemplates()
 
     // Register dialog state
     useEffect(() => {
@@ -80,16 +81,12 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
     }, [isOpen, setDialogOpen])
 
     // Data states
-    const [sounds, setSounds] = useState<SoundTemplate[]>([])
-    const [objects, setObjects] = useState<ObjectTemplate[]>([])
-    const [npcs, setNPCs] = useState<NPC[]>([])
     const [bestiary, setBestiary] = useState<Record<string, BestiaryData>>({})
 
     // UI states
     const [searchQuery, setSearchQuery] = useState('')
     const [debouncedQuery, setDebouncedQuery] = useState('')
     const [selectedFilter, setSelectedFilter] = useState<'all' | 'sound' | 'object' | 'npc'>('all')
-    const [loading, setLoading] = useState(true)
 
     // Object Navigation State
     const [currentObjectCategory, setCurrentObjectCategory] = useState<string | null>(null)
@@ -116,46 +113,6 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
 
     // NPC creation states
     const [showNPCLibrary, setShowNPCLibrary] = useState(false)
-
-    // Load sounds
-    useEffect(() => {
-        if (!roomId || !isOpen) return
-
-        const q = query(collection(db, `sound_templates/${roomId}/templates`))
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as SoundTemplate))
-            setSounds(data)
-            setLoading(false)
-        })
-
-        return () => unsubscribe()
-    }, [roomId, isOpen])
-
-    // Load objects
-    useEffect(() => {
-        if (!roomId || !isOpen) return
-
-        const q = query(collection(db, `object_templates/${roomId}/templates`))
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ObjectTemplate))
-            setObjects(data)
-        })
-
-        return () => unsubscribe()
-    }, [roomId, isOpen])
-
-    // Load NPCs
-    useEffect(() => {
-        if (!roomId || !isOpen) return
-
-        const q = query(collection(db, `npc_templates/${roomId}/templates`))
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as NPC))
-            setNPCs(data)
-        })
-
-        return () => unsubscribe()
-    }, [roomId, isOpen])
 
     // Load Bestiary
     useEffect(() => {
@@ -430,7 +387,7 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
                 soundUrl = extractVideoId(youtubeInput)!
             }
 
-            await addDoc(collection(db, `sound_templates/${roomId}/templates`), {
+            await addSoundTemplate({
                 name: newSoundName,
                 soundUrl,
                 type: soundCreationType,
@@ -468,7 +425,7 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
                 }
             }
 
-            await addDoc(collection(db, `object_templates/${roomId}/templates`), {
+            await addObjectTemplate({
                 name: newObjectName,
                 imageUrl,
                 createdAt: new Date()
@@ -535,7 +492,7 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
                 Actions: importedChar.Actions || []
             }
 
-            await addDoc(collection(db, `npc_templates/${roomId}/templates`), npcData)
+            await addNPCTemplate(npcData)
             setShowNPCLibrary(false)
         } catch (error) {
             console.error('Error importing NPC:', error)

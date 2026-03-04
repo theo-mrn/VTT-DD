@@ -75,6 +75,7 @@ import { NPCTemplateDrawer } from '@/components/(personnages)/NPCTemplateDrawer'
 import { ObjectDrawer } from '@/components/(personnages)/ObjectDrawer';
 import { SoundDrawer } from '@/components/(personnages)/SoundDrawer';
 import { UnifiedSearchDrawer } from '@/components/(personnages)/UnifiedSearchDrawer';
+import { GMTemplatesProvider } from '@/contexts/GMTemplatesContext';
 import { PlaceNPCModal } from '@/components/(personnages)/PlaceNPCModal';
 import { PlaceObjectModal } from '@/components/(personnages)/PlaceObjectModal';
 import { CreateNoteModal } from '@/components/(map)/CreateNoteModal';
@@ -10542,49 +10543,52 @@ export default function Component() {
         }}
       />
 
-      {/* NPC Template Drawer */}
-      <NPCTemplateDrawer
-        roomId={roomId}
-        isOpen={isNPCDrawerOpen}
-        onClose={() => setIsNPCDrawerOpen(false)}
-        onDragStart={handleTemplateDragStart}
-        currentCityId={selectedCityId}
-      />
+      {/* GM Templates Provider - centralised data for all drawers */}
+      <GMTemplatesProvider roomId={roomId}>
+        {/* NPC Template Drawer */}
+        <NPCTemplateDrawer
+          roomId={roomId}
+          isOpen={isNPCDrawerOpen}
+          onClose={() => setIsNPCDrawerOpen(false)}
+          onDragStart={handleTemplateDragStart}
+          currentCityId={selectedCityId}
+        />
 
-      <ObjectDrawer
-        roomId={roomId}
-        isOpen={isObjectDrawerOpen}
-        onClose={() => setIsObjectDrawerOpen(false)}
-        onDragStart={handleObjectDragStart}
-        currentCityId={selectedCityId}
-      />
+        <ObjectDrawer
+          roomId={roomId}
+          isOpen={isObjectDrawerOpen}
+          onClose={() => setIsObjectDrawerOpen(false)}
+          onDragStart={handleObjectDragStart}
+          currentCityId={selectedCityId}
+        />
 
-      {/* Sound Drawer */}
-      <SoundDrawer
-        roomId={roomId}
-        isOpen={isSoundDrawerOpen}
-        onClose={() => setIsSoundDrawerOpen(false)}
-        onDragStart={handleSoundDragStart}
-        currentCityId={selectedCityId}
-      />
+        {/* Sound Drawer */}
+        <SoundDrawer
+          roomId={roomId}
+          isOpen={isSoundDrawerOpen}
+          onClose={() => setIsSoundDrawerOpen(false)}
+          onDragStart={handleSoundDragStart}
+          currentCityId={selectedCityId}
+        />
 
-      {/* Unified Search Drawer */}
-      <UnifiedSearchDrawer
-        roomId={roomId}
-        isOpen={isUnifiedSearchOpen}
-        onClose={() => setIsUnifiedSearchOpen(false)}
-        onDragStart={(item) => {
-          // Handle drag start based on item type
-          if (item.type === 'sound') {
-            handleSoundDragStart(item.data)
-          } else if (item.type === 'object') {
-            handleObjectDragStart(item.data as ObjectTemplate)
-          } else if (item.type === 'npc') {
-            handleTemplateDragStart(item.data as NPC)
-          }
-        }}
-        currentCityId={selectedCityId}
-      />
+        {/* Unified Search Drawer */}
+        <UnifiedSearchDrawer
+          roomId={roomId}
+          isOpen={isUnifiedSearchOpen}
+          onClose={() => setIsUnifiedSearchOpen(false)}
+          onDragStart={(item) => {
+            // Handle drag start based on item type
+            if (item.type === 'sound') {
+              handleSoundDragStart(item.data)
+            } else if (item.type === 'object') {
+              handleObjectDragStart(item.data as ObjectTemplate)
+            } else if (item.type === 'npc') {
+              handleTemplateDragStart(item.data as NPC)
+            }
+          }}
+          currentCityId={selectedCityId}
+        />
+      </GMTemplatesProvider>
 
       {/* Audio Mixer Panel */}
       <AudioMixerPanel
