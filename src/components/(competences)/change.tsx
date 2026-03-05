@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { db, auth, onAuthStateChanged, getDoc, setDoc, doc, collection, getDocs, deleteDoc } from '@/lib/firebase';
+import { db, auth, getDoc, setDoc, doc, collection, getDocs, deleteDoc } from '@/lib/firebase';
+import { useGame } from '@/contexts/GameContext';
 import { X, Plus, Trash2, Check, ChevronsUpDown, Info, GripVertical } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -192,6 +193,7 @@ function SortableVoieCard({
 
 export default function CharacterProfile({ onClose, characterId: propCharacterId, roomId: propRoomId }: CharacterProfileProps = {}) {
   const router = useRouter();
+  const { user: gameUser } = useGame();
   const [, setProfile] = useState<string | null>(null);
   const [, setRace] = useState<string | null>(null);
   const [voies, setVoies] = useState<Voie[]>([]);
@@ -336,16 +338,12 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
 
     if (propRoomId && propCharacterId) {
       fetchCharacterData();
+    } else if (gameUser?.uid) {
+      fetchCharacterData();
     } else {
-      onAuthStateChanged(auth, (user) => {
-        if (user) {
-          fetchCharacterData();
-        } else {
-          setLoading(false);
-        }
-      });
+      setLoading(false);
     }
-  }, [propCharacterId, propRoomId]);
+  }, [propCharacterId, propRoomId, gameUser?.uid]);
 
   const loadCustomCompetences = async (roomId: string, persoId: string): Promise<CustomCompetence[]> => {
     try {

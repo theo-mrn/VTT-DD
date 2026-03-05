@@ -4,8 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Trophy, Sparkles } from 'lucide-react';
 import { ChallengesModal } from './challenges-modal';
 import { getUserChallengesProgress } from '@/lib/challenges';
-import { auth } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { useGame } from '@/contexts/GameContext';
 import { cn } from '@/lib/utils';
 
 interface ChallengesButtonProps {
@@ -23,30 +22,28 @@ export function ChallengesButton({ variant = "default", className }: ChallengesB
   const [isOpen, setIsOpen] = useState(false);
   const [completedCount, setCompletedCount] = useState(0);
   const [hasNewCompletions, setHasNewCompletions] = useState(false);
+  const { user: gameUser } = useGame();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        setCompletedCount(0);
-        return;
-      }
+    const uid = gameUser?.uid;
+    if (!uid) {
+      setCompletedCount(0);
+      return;
+    }
 
+    const loadProgress = async () => {
       try {
-        const progress = await getUserChallengesProgress(user.uid);
+        const progress = await getUserChallengesProgress(uid);
         const completed = Object.values(progress).filter(p => p.status === "completed").length;
-
-        // Vérifie s'il y a de nouvelles complétions depuis la dernière visite
         const lastSeenCount = parseInt(localStorage.getItem('lastSeenChallengeCount') || '0');
         setHasNewCompletions(completed > lastSeenCount);
-
         setCompletedCount(completed);
       } catch (error) {
         console.error('Error loading challenge count:', error);
       }
-    });
-
-    return () => unsubscribe();
-  }, []);
+    };
+    loadProgress();
+  }, [gameUser?.uid]);
 
   const handleOpen = () => {
     setIsOpen(true);

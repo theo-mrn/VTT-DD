@@ -3,15 +3,14 @@
 import { useEffect, useState } from "react";
 import {
   db,
-  auth,
   doc,
   getDoc,
   collection,
   setDoc,
   getDocs,
-  onAuthStateChanged,
   deleteDoc,
 } from "@/lib/firebase";
+import { useGame } from "@/contexts/GameContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -35,7 +34,8 @@ interface FriendData {
 }
 
 export default function ProfilePage() {
-  const [uid, setUid] = useState<string | null>(null);
+  const { user: gameUser } = useGame();
+  const uid = gameUser?.uid ?? null;
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -47,22 +47,12 @@ export default function ProfilePage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Auth listener
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUid(user.uid);
-      } else {
-        setLoading(false);
-      }
-    });
-    return unsubscribe;
-  }, []);
-
-  // Fetch all user data
+  // Fetch all user data when user is available
   useEffect(() => {
     if (uid) {
       fetchAllData();
+    } else {
+      setLoading(false);
     }
   }, [uid]);
 

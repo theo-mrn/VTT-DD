@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { doc, updateDoc, increment } from "firebase/firestore";
-import { onAuthStateChanged } from "firebase/auth";
+import { useGame } from '@/contexts/GameContext';
 import { checkAndUnlockTimeTitles } from "@/lib/titles";
 import { toast } from "sonner";
 import { trackTimeSpent, checkThresholdChallenges } from '@/lib/challenge-tracker';
@@ -12,23 +12,22 @@ export default function TimeTracker() {
     const timerRef = useRef<NodeJS.Timeout | null>(null);
     const thresholdCheckRef = useRef<NodeJS.Timeout | null>(null);
     const userIdRef = useRef<string | null>(null);
+    const { user: gameUser } = useGame();
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            if (user) {
-                userIdRef.current = user.uid;
-                startTracking();
-            } else {
-                userIdRef.current = null;
-                stopTracking();
-            }
-        });
+        const uid = gameUser?.uid;
+        if (uid) {
+            userIdRef.current = uid;
+            startTracking();
+        } else {
+            userIdRef.current = null;
+            stopTracking();
+        }
 
         return () => {
-            unsubscribe();
             stopTracking();
         };
-    }, []);
+    }, [gameUser?.uid]);
 
     const startTracking = () => {
         if (timerRef.current) return;

@@ -1,8 +1,9 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Cropper from 'react-easy-crop';
-import { doc, updateDoc, getDoc, db, auth, onAuthStateChanged, storage, ref, uploadBytes, getDownloadURL } from '@/lib/firebase';
+import { doc, updateDoc, getDoc, db, auth, storage, ref, uploadBytes, getDownloadURL } from '@/lib/firebase';
 import { getCroppedImg, createCompositeImage, getCroppedGif, createCompositeGif } from '@/lib/cropImageHelper';
+import { useGame } from '@/contexts/GameContext';
 import { Slider } from '@/components/ui/slider';
 import useMeasure from 'react-use-measure';
 import { StoreModal } from '../store/store-modal';
@@ -27,6 +28,7 @@ import {
 export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isGifProp, altText, characterId }) {
   // --- State Management ---
   const [currentUser, setCurrentUser] = useState(null);
+  const { user: gameUser } = useGame();
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
@@ -60,24 +62,23 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
 
   // 1. Auth & Room
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setCurrentUser(user || null);
-      if (user) fetchRoomId(user.uid);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const fetchRoomId = async (uid) => {
-    try {
-      const userDoc = await getDoc(doc(db, `users/${uid}`));
-      if (userDoc.exists()) {
-        const data = userDoc.data();
-        setRoomId(data.room_id);
-        setUserTokenInventory(data.token_inventory || DEFAULT_TOKEN_INVENTORY);
-        setIsPremium(!!data.premium);
-      }
-    } catch (e) { console.error(e); }
-  };
+    const uid = gameUser?.uid;
+    if (!uid) { setCurrentUser(null); return; }
+    setCurrentUser(auth.currentUser);
+    setRoomId(gameUser?.roomId || null);
+    // Still need to fetch inventory and premium from user doc
+    const loadUserData = async () => {
+      try {
+        const userDoc = await getDoc(doc(db, `users/${uid}`));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setUserTokenInventory(data.token_inventory || DEFAULT_TOKEN_INVENTORY);
+          setIsPremium(!!data.premium);
+        }
+      } catch (e) { console.error(e); }
+    };
+    loadUserData();
+  }, [gameUser?.uid, gameUser?.roomId]);
 
   // 2. Character Data
   useEffect(() => {
@@ -412,9 +413,20 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
           {showTokenStore && (
             <StoreModal
               isOpen={showTokenStore}
-              onClose={() => {
+              onClose={async () => {
                 setShowTokenStore(false);
-                if (currentUser) fetchRoomId(currentUser.uid); // Refresh inventory on close
+                // Refresh inventory on close
+                const uid = gameUser?.uid;
+                if (uid) {
+                  try {
+                    const userDoc = await getDoc(doc(db, `users/${uid}`));
+                    if (userDoc.exists()) {
+                      const data = userDoc.data();
+                      setUserTokenInventory(data.token_inventory || DEFAULT_TOKEN_INVENTORY);
+                      setIsPremium(!!data.premium);
+                    }
+                  } catch (e) { console.error(e); }
+                }
               }}
               initialCategory="token"
               currentTokenSrc={previewTokenUrl}

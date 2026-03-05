@@ -10,9 +10,9 @@ import {
   collection,
   setDoc,
   getDocs,
-  onAuthStateChanged,
   deleteDoc,
 } from "@/lib/firebase";
+import { useGame } from "@/contexts/GameContext";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +58,7 @@ interface FriendRequestData {
 
 export default function ProfilePage() {
   const pathname = usePathname();
+  const { user: gameUser } = useGame();
   const [uid, setUid] = useState<string | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
@@ -73,14 +74,11 @@ export default function ProfilePage() {
   const [subError, setSubError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUid(user.uid);
-        setUserEmail(user.email);
-      }
-    });
-    return unsubscribe;
-  }, []);
+    const uid = gameUser?.uid;
+    if (!uid) return;
+    setUid(uid);
+    setUserEmail(auth.currentUser?.email ?? null);
+  }, [gameUser?.uid]);
 
   useEffect(() => {
     if (uid) {

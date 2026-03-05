@@ -6,7 +6,6 @@ import { motion } from 'framer-motion';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { auth, db, doc, updateDoc } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
 import { arrayUnion } from 'firebase/firestore';
 
 function CheckoutSuccessContent() {
@@ -24,7 +23,8 @@ function CheckoutSuccessContent() {
             return;
         }
 
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        const processPurchase = async () => {
+            const user = auth.currentUser;
             if (!user) {
                 setStatus('success');
                 return;
@@ -42,9 +42,9 @@ function CheckoutSuccessContent() {
                 console.error('Error granting item in Firestore:', error);
                 setStatus('error');
             }
-        });
+        };
 
-        return () => unsubscribe();
+        processPurchase();
     }, [sessionId, skinId, type]);
 
     if (status === 'loading') {
