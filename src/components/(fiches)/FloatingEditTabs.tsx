@@ -57,6 +57,20 @@ interface FloatingEditTabsProps {
     onClose: () => void;
 }
 
+// Helper to delete an asset from R2
+export const deleteR2Asset = async (url: string) => {
+    if (!url || !url.startsWith('https://assets.yner.fr/')) return;
+    try {
+        await fetch('/api/delete-asset', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+        });
+    } catch (error) {
+        console.error("Failed to delete asset from R2:", error);
+    }
+};
+
 export function FloatingEditTabs({
     customizationForm,
     setCustomizationForm,
@@ -170,7 +184,13 @@ export function FloatingEditTabs({
                                         <UploadCloud size={14} className="group-hover:text-[#d4b48f]" /> <span className="text-[10px] uppercase font-bold">Importer Image</span>
                                     </label>
                                     <button
-                                        onClick={() => setCustomizationForm({ ...customizationForm, theme_background: '#1c1c1c' })}
+                                        onClick={async () => {
+                                            const oldBg = customizationForm.theme_background;
+                                            setCustomizationForm({ ...customizationForm, theme_background: '#1c1c1c' });
+                                            if (oldBg && oldBg.startsWith('https://assets.yner.fr/')) {
+                                                await deleteR2Asset(oldBg);
+                                            }
+                                        }}
                                         className="p-2 bg-[#2a2a2a] hover:bg-red-900/40 rounded-lg text-[#888] hover:text-red-400 transition-colors"
                                         title="Réinitialiser"
                                     >
@@ -200,7 +220,13 @@ export function FloatingEditTabs({
                                         <UploadCloud size={14} className="group-hover:text-[#d4b48f]" /> <span className="text-[10px] uppercase font-bold">Importer Image</span>
                                     </label>
                                     <button
-                                        onClick={() => setCustomizationForm({ ...customizationForm, theme_secondary_color: '#242424' })}
+                                        onClick={async () => {
+                                            const oldBlockBg = customizationForm.theme_secondary_color;
+                                            setCustomizationForm({ ...customizationForm, theme_secondary_color: '#242424' });
+                                            if (oldBlockBg && oldBlockBg.startsWith('https://assets.yner.fr/')) {
+                                                await deleteR2Asset(oldBlockBg);
+                                            }
+                                        }}
                                         className="p-2 bg-[#2a2a2a] hover:bg-red-900/40 rounded-lg text-[#888] hover:text-red-400 transition-colors"
                                         title="Réinitialiser"
                                     >

@@ -10660,6 +10660,7 @@ export default function Component() {
         isOpen={showBackgroundSelector}
         onClose={() => setShowBackgroundSelector(false)}
         onSelectLocal={handleBackgroundSelectLocal}
+        roomId={String(roomId)}
       />
 
       {/* 🎵 Music Control & Dialog */}

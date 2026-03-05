@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import { db, collection, addDoc, serverTimestamp } from '@/lib/firebase';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -93,20 +92,8 @@ export async function POST(request: Request) {
             ? `${process.env.R2_PUBLIC_URL}/${key}`
             : `${process.env.R2_ENDPOINT}/${process.env.R2_BUCKET_NAME}/${key}`;
 
-        // Store metadata in Firestore
-        const assetDoc = await addDoc(collection(db, 'assets-mapping'), {
-            name: file.name,
-            path: publicUrl,
-            localPath: `/${key}`,
-            category,
-            type,
-            size: file.size,
-            uploadedAt: serverTimestamp(),
-        });
-
         return NextResponse.json({
             url: publicUrl,
-            id: assetDoc.id,
             key,
         });
     } catch (error) {

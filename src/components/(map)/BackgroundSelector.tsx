@@ -18,9 +18,6 @@ interface MapFile {
 
 const MediaItem = React.memo(({ map, onClick }: { map: MapFile, onClick: () => void }) => {
     const [isLoading, setIsLoading] = useState(true);
-    const [progress, setProgress] = useState(0);
-    const [hasError, setHasError] = useState(false);
-    const [objectUrl, setObjectUrl] = useState<string | null>(null);
     const [isVisible, setIsVisible] = useState(false);
     const containerRef = useRef<HTMLButtonElement>(null);
 
@@ -43,64 +40,13 @@ const MediaItem = React.memo(({ map, onClick }: { map: MapFile, onClick: () => v
     }, []);
 
     useEffect(() => {
-        if (!isVisible || map.type !== 'video') {
-            if (map.type === 'image') {
-                setIsLoading(false);
-            }
-            return;
-        }
-
-        let xhr: XMLHttpRequest | null = null;
-        let url: string | null = null;
-
-        const loadAsset = () => {
-            setIsLoading(true);
-            setProgress(0);
-            setHasError(false);
-
-            xhr = new XMLHttpRequest();
-            xhr.open('GET', map.path, true);
-            xhr.responseType = 'blob';
-
-            xhr.onprogress = (event) => {
-                if (event.lengthComputable) {
-                    const percentComplete = Math.round((event.loaded / event.total) * 100);
-                    setProgress(percentComplete);
-                }
-            };
-
-            xhr.onload = () => {
-                if (xhr && xhr.status === 200) {
-                    const blob = xhr.response;
-                    url = URL.createObjectURL(blob);
-                    setObjectUrl(url);
-                    setIsLoading(false);
-                    setProgress(100);
-                } else {
-                    setHasError(true);
-                    setIsLoading(false);
-                }
-            };
-
-            xhr.onerror = () => {
-                setHasError(true);
-                setIsLoading(false);
-            };
-
-            xhr.send();
-        };
-
-        loadAsset();
-
-        return () => {
-            if (xhr) {
-                xhr.abort();
-            }
-            if (url) {
-                URL.revokeObjectURL(url);
-            }
-        };
-    }, [map.path, isVisible, map.type]);
+        if (!isVisible) return;
+        // Laissons un petit délai pour simuler le chargement ou laisser l'image/video s'afficher
+        const timer = setTimeout(() => {
+            setIsLoading(false);
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [isVisible]);
 
     return (
         <button
@@ -110,8 +56,7 @@ const MediaItem = React.memo(({ map, onClick }: { map: MapFile, onClick: () => v
                 e.stopPropagation();
                 onClick();
             }}
-            disabled={(isLoading || hasError) && isVisible && map.type === 'video'}
-            className="group relative aspect-video rounded-xl overflow-hidden border-2 border-[#333] hover:border-[#c0a080] transition-all duration-200 bg-[#0a0a0a] hover:scale-105 hover:shadow-2xl hover:shadow-[#c0a080]/20 disabled:hover:scale-100 disabled:cursor-not-allowed"
+            className="group relative aspect-video rounded-xl overflow-hidden border-2 border-[#333] hover:border-[#c0a080] transition-all duration-200 bg-[#0a0a0a] hover:scale-105 hover:shadow-2xl hover:shadow-[#c0a080]/20"
         >
             <div className="absolute inset-0 flex items-center justify-center">
                 {!isVisible ? (
@@ -122,43 +67,16 @@ const MediaItem = React.memo(({ map, onClick }: { map: MapFile, onClick: () => v
                     <>
                         {map.type === 'video' ? (
                             <>
-                                {isLoading && !hasError && (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-[#0a0a0a]/90 backdrop-blur-sm">
-                                        <div className="relative w-16 h-16 flex items-center justify-center mb-2">
-                                            <Loader2 className="w-8 h-8 animate-spin text-[#c0a080] absolute" />
-                                            <span className="text-[10px] font-bold text-white z-10">{progress}%</span>
-                                        </div>
-                                        <div className="w-1/2 h-1 bg-gray-800 rounded-full overflow-hidden">
-                                            <div
-                                                className="h-full bg-[#c0a080] transition-all duration-300 ease-out"
-                                                style={{ width: `${progress}%` }}
-                                            />
-                                        </div>
-                                    </div>
-                                )}
-
-                                {hasError && (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center z-10 bg-[#1a0505] text-red-500 p-2 text-center">
-                                        <AlertCircle className="w-8 h-8 mb-2" />
-                                        <span className="text-xs">Échec du chargement</span>
-                                    </div>
-                                )}
-
-                                {objectUrl && (
-                                    <>
-                                        <video
-                                            src={objectUrl}
-                                            className="w-full h-full object-cover"
-                                            muted
-                                            autoPlay
-                                            loop
-                                            playsInline
-                                        />
-                                        <div className="absolute top-2 right-2 bg-black/70 rounded-full p-2">
-                                            <Film className="w-4 h-4 text-white" />
-                                        </div>
-                                    </>
-                                )}
+                                <video
+                                    src={`${map.path}#t=0.001`}
+                                    preload="metadata"
+                                    className="w-full h-full object-cover"
+                                    muted
+                                    playsInline
+                                />
+                                <div className="absolute top-2 right-2 bg-black/70 rounded-full p-2">
+                                    <Film className="w-4 h-4 text-white" />
+                                </div>
                             </>
                         ) : (
                             <Image
@@ -176,7 +94,7 @@ const MediaItem = React.memo(({ map, onClick }: { map: MapFile, onClick: () => v
             </div>
 
             {/* Overlay */}
-            {isVisible && !isLoading && !hasError && (
+            {isVisible && !isLoading && (
                 <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="absolute bottom-0 left-0 right-0 p-3">
                         <p className="text-sm text-white font-medium truncate">{map.name}</p>
@@ -191,6 +109,7 @@ interface BackgroundSelectorProps {
     isOpen: boolean;
     onClose: () => void;
     onSelectLocal: (path: string) => void;
+    roomId?: string;
 }
 
 type MediaType = 'animated' | 'static' | 'illustration';
@@ -198,7 +117,8 @@ type MediaType = 'animated' | 'static' | 'illustration';
 export default function BackgroundSelector({
     isOpen,
     onClose,
-    onSelectLocal
+    onSelectLocal,
+    roomId,
 }: BackgroundSelectorProps) {
     const { setDialogOpen } = useDialogVisibility();
 
@@ -209,17 +129,39 @@ export default function BackgroundSelector({
 
     const [maps, setMaps] = useState<MapFile[]>([]);
     const [loading, setLoading] = useState(false);
+    const [uploading, setUploading] = useState(false);
     const [search, setSearch] = useState('');
     const [activeMediaType, setActiveMediaType] = useState<MediaType>('static');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
-        if (file) {
-            const url = URL.createObjectURL(file);
-            onSelectLocal(url);
+        if (!file) return;
+
+        setUploading(true);
+        try {
+            // Upload directly to R2 — no Firebase Storage, no temporary blob URLs
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('category', `Background/${roomId || 'custom'}`);
+            formData.append('type', file.type.startsWith('video') ? 'video' : 'image');
+
+            const response = await fetch('/api/upload-asset', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) throw new Error('Upload failed');
+
+            const data = await response.json();
+            onSelectLocal(data.url); // R2 URL permanente
             onClose();
+        } catch (error) {
+            console.error('Error uploading background to R2:', error);
+            alert("Erreur lors de l'import de l'image. Veuillez réessayer.");
+        } finally {
+            setUploading(false);
         }
     };
 
@@ -431,10 +373,11 @@ export default function BackgroundSelector({
                                 />
                                 <Button
                                     onClick={() => fileInputRef.current?.click()}
-                                    className="bg-[#1a1a1a] border border-[#333] text-gray-300 hover:bg-[#c0a080] hover:text-black hover:border-[#c0a080] transition-all gap-2"
+                                    disabled={uploading}
+                                    className="bg-[#1a1a1a] border border-[#333] text-gray-300 hover:bg-[#c0a080] hover:text-black hover:border-[#c0a080] transition-all gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
-                                    <Upload size={18} />
-                                    Importer
+                                    {uploading ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                                    {uploading ? 'Upload...' : 'Importer'}
                                 </Button>
                             </div>
 
