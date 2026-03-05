@@ -8,9 +8,9 @@ import { useScroll, motion } from 'framer-motion'
 import { Aclonica } from "next/font/google"
 import Login06 from '@/components/ui/login-3'
 import { useRouter } from 'next/navigation'
-import { onAuthStateChanged, signOut } from 'firebase/auth'
-import { auth, db } from '../../lib/firebase'
-import { doc, onSnapshot, addDoc, collection, serverTimestamp } from 'firebase/firestore'
+import { signOut } from 'firebase/auth'
+import { auth, db, doc, getDoc, addDoc, collection, serverTimestamp } from '../../lib/firebase'
+import { useGame } from '@/contexts/GameContext'
 import { Features1 } from '@/components/blocks/features1'
 import { Features2 } from '@/components/blocks/features2'
 import { Features3 } from '@/components/blocks/features3'
@@ -145,31 +145,25 @@ const Logo = () => {
 export function HeroSection() {
     const [isAuthModalOpen, setIsAuthModalOpen] = React.useState(false)
     const [isProfileOpen, setIsProfileOpen] = React.useState(false)
-    const [isUserLoggedIn, setIsUserLoggedIn] = React.useState<boolean | null>(null)
     const [userData, setUserData] = React.useState<any>(null)
 
+    const { user: gameUser, isLoading } = useGame()
+    const isUserLoggedIn = isLoading ? null : !!gameUser?.uid
     const router = useRouter()
 
     React.useEffect(() => {
-        let unsubscribeDoc: () => void;
-        const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-            setIsUserLoggedIn(!!user)
-            if (user) {
-                unsubscribeDoc = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
-                    if (docSnap.exists()) {
-                        setUserData(docSnap.data())
-                    }
-                })
-            } else {
-                setUserData(null)
-                if (unsubscribeDoc) unsubscribeDoc()
+        const uid = gameUser?.uid
+        if (!uid) {
+            setUserData(null)
+            return
+        }
+        // Fetch user profile data for header display
+        getDoc(doc(db, "users", uid)).then((docSnap) => {
+            if (docSnap.exists()) {
+                setUserData(docSnap.data())
             }
         })
-        return () => {
-            unsubscribeAuth()
-            if (unsubscribeDoc) unsubscribeDoc()
-        }
-    }, [])
+    }, [gameUser?.uid])
 
 
 

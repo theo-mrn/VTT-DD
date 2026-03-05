@@ -9,8 +9,8 @@ import { Store, Backpack, Gem, X, Loader2, Crown, LayoutGrid, Dice5, Package, Se
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { auth, db, doc, getDoc, updateDoc } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
 import { arrayUnion } from 'firebase/firestore';
+import { useGame } from '@/contexts/GameContext';
 
 // Default skins given to every user
 const DEFAULT_DICE_INVENTORY = ['gold', 'silver', 'steampunk_copper'];
@@ -42,6 +42,7 @@ export function StoreModal({
     const itemsPerPage = 10;
 
     // User State
+    const { user: gameUser } = useGame();
     const [uid, setUid] = useState<string | null>(null);
     const [email, setEmail] = useState<string | null>(null);
     const [isPremium, setIsPremium] = useState<boolean>(false);
@@ -97,17 +98,18 @@ export function StoreModal({
         };
         loadTokens();
 
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (!user) {
-                setDiceInventory(DEFAULT_DICE_INVENTORY);
-                setTokenInventory(DEFAULT_TOKEN_INVENTORY);
-                setIsLoadingInventory(false);
-                return;
-            }
-            setUid(user.uid);
-            setEmail(user.email);
+        const currentUid = gameUser?.uid;
+        if (!currentUid) {
+            setDiceInventory(DEFAULT_DICE_INVENTORY);
+            setTokenInventory(DEFAULT_TOKEN_INVENTORY);
+            setIsLoadingInventory(false);
+            return;
+        }
+        setUid(currentUid);
+        setEmail(auth.currentUser?.email || null);
+        const loadInventory = async () => {
             try {
-                const userRef = doc(db, 'users', user.uid);
+                const userRef = doc(db, 'users', currentUid);
                 const userSnap = await getDoc(userRef);
                 if (userSnap.exists()) {
                     const data = userSnap.data();
@@ -133,9 +135,9 @@ export function StoreModal({
             } finally {
                 setIsLoadingInventory(false);
             }
-        });
-        return () => unsubscribe();
-    }, []);
+        };
+        loadInventory();
+    }, [gameUser?.uid]);
 
     // Dev Commands
     useEffect(() => {

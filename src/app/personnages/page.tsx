@@ -43,7 +43,6 @@ export default function CharacterSelection() {
   const [selectedCharId, setSelectedCharId] = useState<string | null>(null)
   const [roomData, setRoomData] = useState<RoomData | null>(null)
   const [mjLoading, setMjLoading] = useState(false)
-  const [currentUserName, setCurrentUserName] = useState<string>('')
   const [viewingOccupant, setViewingOccupant] = useState<{
     name: string;
     uid: string;
@@ -123,13 +122,6 @@ export default function CharacterSelection() {
     if (user?.uid && user?.roomId && user.roomId !== '0') {
       const roomId = user.roomId;
 
-      // Fetch current user name
-      getDoc(doc(db, 'users', user.uid)).then(snap => {
-        if (snap.exists()) {
-          setCurrentUserName(snap.data().name || '');
-        }
-      });
-
       // Initial Load
       loadData();
 
@@ -175,7 +167,7 @@ export default function CharacterSelection() {
         const roomRef = doc(db, `salles/${user.roomId}/Noms/${user.uid}`)
         await setDoc(roomRef, {
           nom: character.Nomperso,
-          userName: currentUserName || "Joueur"
+          userName: "Joueur"
         }, { merge: true })
       }
 

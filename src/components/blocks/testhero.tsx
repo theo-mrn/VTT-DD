@@ -1,21 +1,14 @@
 'use client'
 import React from 'react'
 import { useRouter } from 'next/navigation'
-import { onAuthStateChanged } from 'firebase/auth'
-import { auth } from '../../lib/firebase'
+import { useGame } from '@/contexts/GameContext'
 import Hero from "@/components/ui/animated-shader-hero"
 
 // Demo Component showing how to use the Hero
 const HeroDemo: React.FC = () => {
-  const [isUserLoggedIn, setIsUserLoggedIn] = React.useState<boolean | null>(null)
+  const { user: gameUser, isLoading } = useGame()
+  const isUserLoggedIn = isLoading ? null : !!gameUser?.uid
   const router = useRouter()
-
-  React.useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setIsUserLoggedIn(!!user)
-    })
-    return () => unsubscribe()
-  }, [])
 
   const handlePrimaryClick = () => {
     if (isUserLoggedIn) {

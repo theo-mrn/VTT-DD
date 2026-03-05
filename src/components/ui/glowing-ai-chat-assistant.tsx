@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { X, Send, Info, Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, ChevronRight, Box, Shield, EyeOff, History, RotateCcw, BarChart2, Store, SwitchCamera, Keyboard, Filter } from 'lucide-react';
 import { doc, getDoc, auth, db, addDoc, collection, updateDoc, query, orderBy, limit, onSnapshot } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
 import { toast } from 'sonner';
 import { generateSlug } from "@/lib/titles";
 import { getAssetUrl } from "@/lib/asset-loader";
@@ -52,7 +51,7 @@ interface FloatingAiAssistantProps {
 
 export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssistantProps) => {
   const { selectedCharacter, roomId: contextRoomId } = useCharacter();
-  const { isMJ, persoId } = useGame();
+  const { isMJ, persoId, user: gameUser } = useGame();
   const roomId = contextRoomId;
 
   const [input, setInput] = useState('');
@@ -152,10 +151,11 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
 
   // Load skin from Firestore
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
+    const uid = gameUser?.uid;
+    if (!uid) return;
+    const loadSkin = async () => {
       try {
-        const userRef = doc(db, 'users', user.uid);
+        const userRef = doc(db, 'users', uid);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
           const data = userSnap.data();
@@ -166,9 +166,9 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
       } catch (error) {
         console.error('Error loading dice skin from Firestore:', error);
       }
-    });
-    return () => unsubscribe();
-  }, []);
+    };
+    loadSkin();
+  }, [gameUser?.uid]);
 
   useEffect(() => {
     let interval: NodeJS.Timeout;
@@ -257,13 +257,10 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
 
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (authUser) => {
-      if (authUser) {
-        setUserEmail(authUser.email || null);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
+    const uid = gameUser?.uid;
+    if (!uid) return;
+    setUserEmail(auth.currentUser?.email || null);
+  }, [gameUser?.uid]);
 
   // Listen for 3D roll completion
   useEffect(() => {

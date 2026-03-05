@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import { Crown, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { auth, db, doc, updateDoc } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
 
 function SubscribeSuccessContent() {
     const searchParams = useSearchParams();
@@ -21,7 +20,8 @@ function SubscribeSuccessContent() {
             return;
         }
 
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        const processSubscription = async () => {
+            const user = auth.currentUser;
             if (!user) {
                 // Pas connecté, on affiche quand même le succès
                 // Le webhook aura déjà traité l'activation via metadata userId
@@ -30,7 +30,7 @@ function SubscribeSuccessContent() {
             }
 
             try {
-                // Mettre à jour Firestore directement (le webhook s'en charge aussi, 
+                // Mettre à jour Firestore directement (le webhook s'en charge aussi,
                 // mais on le fait ici en fallback pour les utilisateurs connectés)
                 const userRef = doc(db, "users", user.uid);
                 await updateDoc(userRef, {
@@ -43,9 +43,9 @@ function SubscribeSuccessContent() {
                 // On affiche quand même success car le webhook s'en occupe
                 setStatus("success");
             }
-        });
+        };
 
-        return () => unsubscribe();
+        processSubscription();
     }, [sessionId]);
 
     if (status === "loading") {

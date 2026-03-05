@@ -19,8 +19,8 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { auth, db, doc, onSnapshot } from '@/lib/firebase';
-import { onAuthStateChanged } from 'firebase/auth';
+import { db, doc, onSnapshot } from '@/lib/firebase';
+import { useGame } from '@/contexts/GameContext';
 
 interface ChallengesModalProps {
   isOpen: boolean;
@@ -35,6 +35,7 @@ export function ChallengesModal({ isOpen, onClose }: ChallengesModalProps) {
   const [isLoadingChallenges, setIsLoadingChallenges] = useState(true);
   const [uid, setUid] = useState<string | null>(null);
   const [challengesProgress, setChallengesProgress] = useState<Record<string, ChallengeProgress>>({});
+  const { user: gameUser } = useGame();
 
   // Portal lifecycle
   const [shouldRender, setShouldRender] = useState(false);
@@ -56,31 +57,28 @@ export function ChallengesModal({ isOpen, onClose }: ChallengesModalProps) {
     setMounted(true);
   }, []);
 
-  // Auth et chargement des défis
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        setChallengesProgress({});
-        setIsLoadingChallenges(false);
-        return;
-      }
+    const uid = gameUser?.uid;
+    if (!uid) {
+      setChallengesProgress({});
+      setIsLoadingChallenges(false);
+      return;
+    }
 
-      setUid(user.uid);
+    setUid(uid);
 
+    const loadChallenges = async () => {
       try {
-        // Initialise les défis si nécessaire
-        await initializeUserChallenges(user.uid);
+        await initializeUserChallenges(uid);
 
-        // Écoute en temps réel de la progression
-        const progressPath = `users/${user.uid}/challenge_progress`;
+        const progressPath = `users/${uid}/challenge_progress`;
         const unsubscribeProgress = onSnapshot(
           doc(db, progressPath, '_dummy_'),
-          () => { }, // On ne fait rien ici, juste pour trigger le listener parent
+          () => { },
           (error) => console.error("Error listening to challenges:", error)
         );
 
-        // Charge la progression initiale
-        const progress = await getUserChallengesProgress(user.uid);
+        const progress = await getUserChallengesProgress(uid);
         setChallengesProgress(progress);
         setIsLoadingChallenges(false);
 
@@ -89,10 +87,9 @@ export function ChallengesModal({ isOpen, onClose }: ChallengesModalProps) {
         console.error('Error loading challenges:', error);
         setIsLoadingChallenges(false);
       }
-    });
-
-    return () => unsubscribe();
-  }, []);
+    };
+    loadChallenges();
+  }, [gameUser?.uid]);
 
   // Rechargement périodique de la progression (toutes les 5 secondes quand le modal est ouvert)
   useEffect(() => {
