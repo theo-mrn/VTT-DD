@@ -93,9 +93,15 @@ export default function Notes() {
     setLoading(true)
 
     try {
-      // 1. Fetch private notes
+      // Fetch private notes + shared notes in parallel
       const privateNotesRef = collection(db, 'Notes', activeRoomId, activeCharId)
-      const privateSnapshot = await getDocs(privateNotesRef)
+      const sharedNotesRef = collection(db, 'SharedNotes', activeRoomId, 'notes')
+
+      const [privateSnapshot, sharedSnapshot] = await Promise.all([
+        getDocs(privateNotesRef),
+        getDocs(sharedNotesRef),
+      ])
+
       const privateNotesData = privateSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
@@ -105,9 +111,6 @@ export default function Notes() {
         isShared: false,
       })) as Note[]
 
-      // 2. Fetch shared notes
-      const sharedNotesRef = collection(db, 'SharedNotes', activeRoomId, 'notes')
-      const sharedSnapshot = await getDocs(sharedNotesRef)
       const sharedNotesData = sharedSnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
