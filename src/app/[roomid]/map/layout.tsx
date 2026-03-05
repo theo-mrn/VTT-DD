@@ -26,6 +26,7 @@ import { useAudioMixer } from '@/components/(audio)/AudioMixerPanel';
 import { MapControlProvider } from '@/contexts/MapControlContext';
 import { DialogVisibilityProvider } from '@/contexts/DialogVisibilityContext';
 import { ShortcutsProvider } from '@/contexts/ShortcutsContext';
+import { ChatNotificationProvider } from '@/contexts/ChatNotificationContext';
 import { startSidebarTour } from "@/lib/tours";
 
 type LayoutProps = {
@@ -132,95 +133,97 @@ export default function Layout({ children }: LayoutProps) {
     <ShortcutsProvider>
       <DialogVisibilityProvider>
         <MapControlProvider>
-          <div className="relative h-screen bg-[#1c1c1c] text-[#d4d4d4] flex z-30">
-            <div className="z-10">
-              {!isPanelOpen && (
-                <Sidebar activeTab={activeTab} handleIconClick={handleIconClick} isMJ={isMJ} />
-              )}
-            </div>
-
-            <div className="absolute left-5 z-0">
-              <OverlayComponent onPanelToggle={setIsPanelOpen} />
-            </div>
-
-            {/* ── MUSIC (persistent, always in DOM) ── */}
-            <aside className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#242424] h-auto max-h-[85vh] rounded-xl border border-[#333] w-full sm:w-[95vw] md:w-[90vw] lg:w-[900px] text-black shadow-lg z-20 overflow-y-auto ${activeTab === 'Music' ? 'block' : 'hidden'}`}>
-              <CloseBtn />
-              <div>
-                {isMJ
-                  ? <MJMusicPlayer roomId={roomId} masterVolume={audioVolumes.backgroundMusic} />
-                  : <PlayerMusicControl roomId={roomId} />}
-                <YouTubeSFXPlayer roomId={roomId} volume={audioVolumes.globalSound} />
+          <ChatNotificationProvider>
+            <div className="relative h-screen bg-[#1c1c1c] text-[#d4d4d4] flex z-30">
+              <div className="z-10">
+                {!isPanelOpen && (
+                  <Sidebar activeTab={activeTab} handleIconClick={handleIconClick} isMJ={isMJ} />
+                )}
               </div>
-            </aside>
 
-            {/* ── FRESH panels (Fiche, EncounterGenerator, Compétences) ── */}
-            {showFreshPanel && (
-              <aside id="vtt-side-panel" className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${freshPanelWidth} text-black shadow-lg z-20 overflow-y-auto`}>
+              <div className="absolute left-5 z-0">
+                <OverlayComponent onPanelToggle={setIsPanelOpen} />
+              </div>
+
+              {/* ── MUSIC (persistent, always in DOM) ── */}
+              <aside className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#242424] h-auto max-h-[85vh] rounded-xl border border-[#333] w-full sm:w-[95vw] md:w-[90vw] lg:w-[900px] text-black shadow-lg z-20 overflow-y-auto ${activeTab === 'Music' ? 'block' : 'hidden'}`}>
                 <CloseBtn />
-                {renderFreshPanel()}
+                <div>
+                  {isMJ
+                    ? <MJMusicPlayer roomId={roomId} masterVolume={audioVolumes.backgroundMusic} />
+                    : <PlayerMusicControl roomId={roomId} />}
+                  <YouTubeSFXPlayer roomId={roomId} volume={audioVolumes.globalSound} />
+                </div>
               </aside>
-            )}
 
-            {/* ── NOTES (lazy-persistent, all users) ── */}
-            {mounted.notes && (
-              <aside className={asideClass("w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1100px]", activeTab === 'NewComponent', "overflow-y-auto")}>
-                <CloseBtn />
-                <div className="h-full"><MedievalNotes /></div>
-              </aside>
-            )}
+              {/* ── FRESH panels (Fiche, EncounterGenerator, Compétences) ── */}
+              {showFreshPanel && (
+                <aside id="vtt-side-panel" className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${freshPanelWidth} text-black shadow-lg z-20 overflow-y-auto`}>
+                  <CloseBtn />
+                  {renderFreshPanel()}
+                </aside>
+              )}
 
-            {/* ── CHAT (lazy-persistent, all users) ── */}
-            {mounted.chat && (
-              <aside className={asideClass("w-full sm:w-[500px] md:w-[600px] lg:w-[400px]", activeTab === 'Chat', "overflow-hidden")}>
-                <CloseBtn />
-                <div className="h-full"><Chat /></div>
-              </aside>
-            )}
+              {/* ── NOTES (lazy-persistent, all users) ── */}
+              {mounted.notes && (
+                <aside className={asideClass("w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1100px]", activeTab === 'NewComponent', "overflow-y-auto")}>
+                  <CloseBtn />
+                  <div className="h-full"><MedievalNotes /></div>
+                </aside>
+              )}
 
-            {/* ── MJ-ONLY persistent panels ── */}
-            {isMJ && (
-              <>
-                {/* GMDashboard */}
-                {mounted.gmDashboard && (
-                  <aside className={asideClass("w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw]", activeTab === 'GMDashboard', "overflow-y-auto")}>
-                    <CloseBtn />
-                    <GMDashboard />
-                  </aside>
-                )}
+              {/* ── CHAT (lazy-persistent, all users) ── */}
+              {mounted.chat && (
+                <aside className={asideClass("w-full sm:w-[500px] md:w-[600px] lg:w-[400px]", activeTab === 'Chat', "overflow-hidden")}>
+                  <CloseBtn />
+                  <div className="h-full"><Chat /></div>
+                </aside>
+              )}
 
-                {/* NPCManager */}
-                {mounted.npcManager && (
-                  <aside className={asideClass("w-full sm:w-[95vw] md:w-[90vw] lg:w-[1200px]", activeTab === 'NPCManager', "overflow-y-auto h-full")}>
-                    <CloseBtn />
-                    <div className="h-full"><NPCManager /></div>
-                  </aside>
-                )}
+              {/* ── MJ-ONLY persistent panels ── */}
+              {isMJ && (
+                <>
+                  {/* GMDashboard */}
+                  {mounted.gmDashboard && (
+                    <aside className={asideClass("w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw]", activeTab === 'GMDashboard', "overflow-y-auto")}>
+                      <CloseBtn />
+                      <GMDashboard />
+                    </aside>
+                  )}
 
-                {/* Historique */}
-                {mounted.historique && (
-                  <aside className={asideClass("w-full sm:w-[500px] md:w-[600px] lg:w-[400px]", activeTab === 'Historique', "overflow-hidden")}>
-                    <CloseBtn />
-                    <div className="h-full"><Historique roomId={roomId} /></div>
-                  </aside>
-                )}
-              </>
-            )}
+                  {/* NPCManager */}
+                  {mounted.npcManager && (
+                    <aside className={asideClass("w-full sm:w-[95vw] md:w-[90vw] lg:w-[1200px]", activeTab === 'NPCManager', "overflow-y-auto h-full")}>
+                      <CloseBtn />
+                      <div className="h-full"><NPCManager /></div>
+                    </aside>
+                  )}
 
-            {/* ── DICE ROLLER (persistent, all users) ── */}
-            <FloatingAiAssistant
-              isOpen={activeTab === 'DiceRoller'}
-              onClose={() => setActiveTab("")}
-            />
+                  {/* Historique */}
+                  {mounted.historique && (
+                    <aside className={asideClass("w-full sm:w-[500px] md:w-[600px] lg:w-[400px]", activeTab === 'Historique', "overflow-hidden")}>
+                      <CloseBtn />
+                      <div className="h-full"><Historique roomId={roomId} /></div>
+                    </aside>
+                  )}
+                </>
+              )}
 
-            <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c] -z-10">
-              <div className="w-full h-full">{children}</div>
-            </main>
+              {/* ── DICE ROLLER (persistent, all users) ── */}
+              <FloatingAiAssistant
+                isOpen={activeTab === 'DiceRoller'}
+                onClose={() => setActiveTab("")}
+              />
 
-            {/* 3D Dice Overlay */}
-            <DiceThrower />
+              <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c] -z-10">
+                <div className="w-full h-full">{children}</div>
+              </main>
 
-          </div>
+              {/* 3D Dice Overlay */}
+              <DiceThrower />
+
+            </div>
+          </ChatNotificationProvider>
         </MapControlProvider>
       </DialogVisibilityProvider>
     </ShortcutsProvider>
