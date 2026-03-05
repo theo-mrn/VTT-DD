@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
 import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
+import { useGame } from '@/contexts/GameContext'
 import { type NPC, type Category } from '@/components/(personnages)/personnages'
 import { type ObjectTemplate } from '@/app/[roomid]/map/types'
 
@@ -76,6 +77,7 @@ export function useGMTemplates() {
 }
 
 export function GMTemplatesProvider({ roomId, children }: { roomId: string; children: React.ReactNode }) {
+    const { isMJ } = useGame()
     const [npcTemplates, setNpcTemplates] = useState<NPC[]>([])
     const [npcCategories, setNpcCategories] = useState<Category[]>([])
     const [soundTemplates, setSoundTemplates] = useState<SoundTemplate[]>([])
@@ -166,12 +168,12 @@ export function GMTemplatesProvider({ roomId, children }: { roomId: string; chil
         }
     }, [roomId])
 
-    // Load on mount
+    // Load on mount — MJ only, joueurs n'ont jamais besoin de ces données
     useEffect(() => {
-        if (!roomId || loadedRef.current) return
+        if (!roomId || !isMJ || loadedRef.current) return
         loadedRef.current = true
         fetchAll()
-    }, [roomId, fetchAll])
+    }, [roomId, isMJ, fetchAll])
 
     // --- CRUD: NPC Templates ---
 
