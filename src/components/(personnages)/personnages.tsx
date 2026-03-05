@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge"
 import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { useParams } from 'next/navigation'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { collection, addDoc, onSnapshot, query, where, deleteDoc, doc, updateDoc } from 'firebase/firestore'
+import { collection, addDoc, onSnapshot, query, where, deleteDoc, doc, updateDoc, getDocs } from 'firebase/firestore'
 import { db, realtimeDb } from '@/lib/firebase'
 import { ref as rtdbRef, update as rtdbUpdate } from 'firebase/database'
 import { NPCGrid } from './NPCListView'
@@ -335,16 +335,29 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
     const confirmDelete = async () => {
         if (!deleteConfirmId || !roomId) return
         try {
-            // Delete associated Storage images first (silently ignore if missing)
             const npcToDelete = npcs.find(n => n.id === deleteConfirmId)
             if (npcToDelete) {
                 const { getStorage, ref: storageRef, deleteObject } = await import('firebase/storage')
                 const storage = getStorage()
-                const urlsToDelete = [npcToDelete.imageURL, npcToDelete.imageURL2].filter(Boolean) as string[]
+                const urlsToConsider = [npcToDelete.imageURL, npcToDelete.imageURL2].filter(Boolean) as string[]
+
+                // Fetch all map characters once to check which image URLs are still in use
+                const charsSnap = await getDocs(collection(db, 'cartes', roomId, 'characters'))
+                const usedUrls = new Set<string>()
+                charsSnap.forEach(d => {
+                    const data = d.data()
+                    if (data.imageURL) usedUrls.add(data.imageURL)
+                    if (data.imageURL2) usedUrls.add(data.imageURL2)
+                })
+
+                // Only delete Storage files that are NOT referenced by any map character
                 await Promise.allSettled(
-                    urlsToDelete.map(url => {
+                    urlsToConsider.map(url => {
+                        // Skip free R2 assets (not in our Storage)
+                        if (url.startsWith('https://pub-6b6ff93daa684afe8aca1537c143add0.r2.dev/')) return Promise.resolve()
+                        // Skip if still referenced by a character on the map
+                        if (usedUrls.has(url)) return Promise.resolve()
                         try {
-                            // Extract Storage path from the download URL
                             const decodedPath = decodeURIComponent(new URL(url).pathname.split('/o/')[1]?.split('?')[0] ?? '')
                             if (!decodedPath) return Promise.resolve()
                             return deleteObject(storageRef(storage, decodedPath))
