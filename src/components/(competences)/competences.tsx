@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
-import { auth, db, getDoc, onAuthStateChanged, doc, collection, getDocs, updateDoc } from '@/lib/firebase'
+import { db, doc, collection, getDocs, getDoc, updateDoc } from '@/lib/firebase'
+import { useGame } from '@/contexts/GameContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
@@ -86,34 +87,14 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
     const [totalPoints, setTotalPoints] = useState(0)
     const [isModalVisible, setModalVisible] = useState(false)
     const [isUnlockable, setIsUnlockable] = useState(false)
-    const [roomID, setRoomID] = useState<string | null>(null)
-    const [userPersoId, setUserPersoId] = useState<string | null>(null)
-    const [userRole, setUserRole] = useState<string | null>(null)
+    const { user, persoId: userPersoId, isMJ } = useGame()
+    const roomID = user?.roomId ?? null
     const [refreshTrigger, setRefreshTrigger] = useState(0)
 
     useEffect(() => {
-        const loadUser = async () => {
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    const userRef = doc(db, 'users', user.uid)
-                    const userDoc = await getDoc(userRef)
-                    if (userDoc.exists()) {
-                        const userData = userDoc.data()
-                        const roomID = userData?.room_id
-                        const persoId = userData?.persoId
-                        const role = userData?.role
-                        setRoomID(roomID)
-                        setUserPersoId(persoId)
-                        setUserRole(role)
-                        if (roomID) {
-                            await loadCharacters(roomID, persoId)
-                        }
-                    }
-                }
-            })
-        }
-        loadUser()
-    }, [preSelectedCharacterId])
+        if (!roomID) return
+        loadCharacters(roomID, userPersoId || undefined)
+    }, [roomID, userPersoId, preSelectedCharacterId])
 
     const loadCharacters = async (roomID: string, persoId?: string) => {
         const charactersRef = collection(db, `cartes/${roomID}/characters`)
@@ -428,7 +409,7 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
                         >
                             Réinitialiser
                         </Button>
-                        {(selectedCharacter?.id === userPersoId || userRole === 'MJ') && (
+                        {(selectedCharacter?.id === userPersoId || isMJ) && (
                             <Button
                                 id="vtt-skills-btn-manage-voies"
                                 onClick={() => setShowChangeComponent(true)}

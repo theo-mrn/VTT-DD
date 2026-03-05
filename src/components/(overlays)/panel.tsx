@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Check, User, Users, LogOut, X, Clipboard, Share2, SquareUserRound, Settings, Palette, BookOpen, ImageIcon, Store, Zap, ShoppingCart, Library, Skull } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { auth, db, doc, onAuthStateChanged, updateDoc, signOut, onSnapshot } from "@/lib/firebase";
+import { auth, db, doc, updateDoc, signOut, onSnapshot } from "@/lib/firebase";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
 import { useGame } from "@/contexts/GameContext";
 import ProfileOverlay from "@/components/profile/ProfileOverlay";
@@ -58,7 +58,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [currentDiceSkinId, setCurrentDiceSkinId] = useState<string>("gold");
   const [currentTokenSrc, setCurrentTokenSrc] = useState<string>("Token1");
-  const { isMJ, isOwner } = useGame();
+  const { isMJ, isOwner, user: gameUser } = useGame();
 
   // Theme state for custom switcher in sidebar
   const { theme, setTheme, resolvedTheme } = useTheme();
@@ -77,81 +77,62 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
   const handleThemeChange = async (newTheme: ThemeName) => {
     setTheme(newTheme);
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        // We import saveUserSettings in a dynamic way to prevent circular deps or we can do it via firestore directly
-        const userDocRef = doc(db, "users", user.uid);
-        try {
-          // Requires full path or similar to saveUserSettings. For now, doing direct update.
-          await updateDoc(userDocRef, { "settings.theme": newTheme });
-        } catch (error) {
-          console.error("Erreur lors de la sauvegarde du thème:", error);
-        }
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const userDocRef = doc(db, "users", currentUser.uid);
+      try {
+        await updateDoc(userDocRef, { "settings.theme": newTheme });
+      } catch (error) {
+        console.error("Erreur lors de la sauvegarde du thème:", error);
       }
-    });
+    }
   };
 
   const activeThemeObj = THEMES.find(t => t.key === currentTheme) || THEMES[0];
 
   useEffect(() => {
-    let unsubscribeSnapshot: (() => void) | null = null;
+    const uid = gameUser?.uid;
+    if (!uid) return;
 
-    // Fetch user information
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      // Cleanup previous snapshot listener if it exists
-      if (unsubscribeSnapshot) {
-        unsubscribeSnapshot();
-        unsubscribeSnapshot = null;
+    const userDocRef = doc(db, "users", uid);
+    const unsubscribeSnapshot = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setUserName(data.name || "Utilisateur");
+        setUserTitle(data.titre || "Aucun titre");
+        setUserProfilePicture(data.pp || null);
+        setUserBanner(data.imageURL || null);
+        setUserTimeSpent(data.timeSpent || 0);
+        setUserBio(data.bio || null);
+        setIsPremium(data.premium || false);
+        setShowPremiumBadge(data.showPremiumBadge ?? true);
+        setUserBorderType(data.borderType || "none");
+        setRoomId(data.room_id || "");
+        if (data.dice_skin) setCurrentDiceSkinId(data.dice_skin);
+        if (data.token_skin) setCurrentTokenSrc(data.token_skin);
+      } else {
+        console.error("Utilisateur non trouvé dans Firestore");
       }
-
-      if (user) {
-        const userDocRef = doc(db, "users", user.uid);
-
-        unsubscribeSnapshot = onSnapshot(userDocRef, (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            setUserName(data.name || "Utilisateur");
-            setUserTitle(data.titre || "Aucun titre");
-            setUserProfilePicture(data.pp || null);
-            setUserBanner(data.imageURL || null);
-            setUserTimeSpent(data.timeSpent || 0);
-            setUserBio(data.bio || null);
-            setIsPremium(data.premium || false);
-            setShowPremiumBadge(data.showPremiumBadge ?? true);
-            setUserBorderType(data.borderType || "none");
-            setRoomId(data.room_id || "");
-            if (data.dice_skin) setCurrentDiceSkinId(data.dice_skin);
-            if (data.token_skin) setCurrentTokenSrc(data.token_skin);
-          } else {
-            console.error("Utilisateur non trouvé dans Firestore");
-          }
-        }, (error) => {
-          console.error("Erreur lors de l'écoute du profil:", error);
-        });
-      }
+    }, (error) => {
+      console.error("Erreur lors de l'écoute du profil:", error);
     });
 
     return () => {
-      unsubscribeAuth();
-      if (unsubscribeSnapshot) {
-        unsubscribeSnapshot();
-      }
+      unsubscribeSnapshot();
     };
-  }, []);
+  }, [gameUser?.uid]);
 
   const handleQuitterLaPartie = async () => {
-    onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDocRef = doc(db, "users", user.uid);
-
-        try {
-          await updateDoc(userDocRef, { room_id: "" });
-          router.push("/");
-        } catch (error) {
-          console.error("Erreur lors de la mise à jour du room_id :", error);
-        }
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      const userDocRef = doc(db, "users", currentUser.uid);
+      try {
+        await updateDoc(userDocRef, { room_id: "" });
+        router.push("/");
+      } catch (error) {
+        console.error("Erreur lors de la mise à jour du room_id :", error);
       }
-    });
+    }
   };
 
   const handlechangecharacter = () => {

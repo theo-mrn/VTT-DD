@@ -114,7 +114,7 @@ export default function Layout({ children }: LayoutProps) {
       case "Chat":
         return <Chat />;
       case "Historique":
-        return <Historique roomId={roomId} />;
+        return null; // Rendered persistently below
       // Case DiceRoller removed from here to separate persistent rendering
       default:
         return null;
@@ -206,6 +206,10 @@ export default function Layout({ children }: LayoutProps) {
 
                 <div className={(activeTab === 'Chat' || activeTab === 'Historique' || activeTab === 'NPCManager') ? 'h-full' : ""}>
                   {renderActiveTab()}
+                  {/* Persistent Historique - stays mounted, hidden when inactive */}
+                  <div className={activeTab === 'Historique' ? 'h-full' : 'hidden'}>
+                    <Historique roomId={roomId} />
+                  </div>
                 </div>
               </aside>
             )}

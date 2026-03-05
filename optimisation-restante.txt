@@ -1,0 +1,114 @@
+========================================================
+  FICHIERS RESTANTS A OPTIMISER (onAuthStateChanged / getDoc users)
+========================================================
+
+Note: GameContext.tsx est le seul fichier qui DOIT garder onAuthStateChanged
+(c'est la source unique d'auth). Tous les autres peuvent utiliser useGame().
+
+
+--- PRIORITE HAUTE (onAuthStateChanged remplacable par useGame) ---
+
+1. src/components/store/store-modal.tsx
+   -> onAuthStateChanged pour charger l'inventaire dice/token du user
+   -> Remplacer par useGame().user?.uid
+
+2. src/components/(fiches)/CharacterImage.js
+   -> onAuthStateChanged + getDoc(users) pour recuperer room_id
+   -> Remplacer par useGame().user?.roomId
+
+3. src/components/(challenges)/challenges-button.tsx
+   -> onAuthStateChanged pour charger la progression des challenges
+   -> Remplacer par useGame().user?.uid
+
+4. src/components/(challenges)/challenges-modal.tsx
+   -> onAuthStateChanged + onSnapshot sur challenges du user
+   -> Remplacer par useGame().user?.uid
+
+5. src/components/(competences)/change.tsx
+   -> onAuthStateChanged fallback quand pas de props roomId/characterId
+   -> Remplacer par useGame().user?.roomId + persoId
+
+6. src/components/TimeTracker.tsx
+   -> onAuthStateChanged pour tracker le temps de session
+   -> Remplacer par useGame().user?.uid
+
+7. src/components/profile.tsx
+   -> onAuthStateChanged pour set uid/email
+   -> Remplacer par useGame().user?.uid + auth.currentUser?.email
+
+8. src/components/ui/glowing-ai-chat-assistant.tsx
+   -> 2x onAuthStateChanged: charger dice skin + email du user
+   -> Remplacer par useGame().user?.uid
+
+
+--- PRIORITE MOYENNE (pages avec onAuthStateChanged) ---
+
+9. src/app/[roomid]/map/layout.tsx
+   -> onAuthStateChanged + onSnapshot pour verifier que le user est dans la bonne room
+   -> Remplacer par useGame().user?.roomId (deja dispo dans le contexte)
+
+10. src/app/creation/page.tsx
+    -> onAuthStateChanged + getDoc(users) pour userId et donnees user
+    -> Remplacer par useGame().user?.uid
+
+11. src/app/Salle/page.tsx
+    -> onAuthStateChanged pour set userId
+    -> Remplacer par useGame().user?.uid
+
+12. src/app/profile/page.tsx
+    -> onAuthStateChanged pour set uid/email
+    -> Remplacer par useGame().user?.uid
+
+13. src/app/change/page.tsx
+    -> onAuthStateChanged pour trigger le fetch des competences
+    -> Remplacer par useGame().user?.uid + roomId
+
+14. src/app/checkout/success/page.tsx
+    -> onAuthStateChanged pour traiter l'achat (update user doc)
+    -> Remplacer par useGame().user?.uid ou auth.currentUser
+
+15. src/app/checkout/subscribe-success/page.tsx
+    -> onAuthStateChanged pour traiter l'abonnement
+    -> Remplacer par useGame().user?.uid ou auth.currentUser
+
+16. src/app/personnages/page.tsx
+    -> getDoc(users/{uid}) pour nom du user courant (ligne 127)
+    -> Remplacer par useGame().user ou playerData
+
+
+--- PRIORITE BASSE (pages landing / non-critiques) ---
+
+17. src/components/blocks/hero-section-5.tsx
+    -> onAuthStateChanged + onSnapshot sur user doc (landing page)
+
+18. src/components/blocks/testhero.tsx
+    -> onAuthStateChanged simple (detecte si logged in)
+
+
+--- NE PAS MODIFIER (getDoc sur AUTRES users, pas le user courant) ---
+
+- src/app/personnages/page.tsx ligne 89 -> getDoc sur d'autres users (liste persos)
+- src/app/Salle/page.tsx ligne 63 -> getDoc sur le createur de la salle
+- src/components/profile/UserProfileDialog.tsx -> getDoc sur un autre user (profil)
+- src/components/ui/login-3.tsx -> getDoc pour verifier si user existe (creation compte)
+- src/components/(fiches)/theme-portal/ThemeCard.tsx -> getDoc sur l'auteur du theme
+- src/components/ui/testimonial-v2.tsx -> getDoc sur l'auteur du temoignage
+
+
+========================================================
+  DEJA OPTIMISES (cette session)
+========================================================
+- src/contexts/GameContext.tsx (source unique, parallelise, non-bloquant)
+- src/components/(fiches)/fiche.tsx
+- src/components/(fiches)/CharacterSheet.tsx
+- src/components/Statistiques.tsx
+- src/components/(combat)/combat2.tsx
+- src/components/(combat)/MJcombat.tsx
+- src/components/(competences)/competences.tsx
+- src/components/(overlays)/questOverlay.tsx
+- src/components/(infos)/boutique.tsx
+- src/components/(overlays)/panel.tsx
+- src/components/(dices)/dice-roller.tsx
+- src/components/Notes.tsx
+- src/components/(historique)/Historique.tsx
+- src/app/[roomid]/map/layout.tsx (Historique persistent)

@@ -5,8 +5,8 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dice1, RotateCcw, History, Trash2, Shield, BarChart3, Store, Check, EyeOff, Box } from "lucide-react";
 import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy, serverTimestamp, limit, updateDoc } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
 import { trackDiceRoll } from '@/lib/challenge-tracker';
+import { useGame } from '@/contexts/GameContext';
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -74,10 +74,9 @@ export function DiceRoller() {
   const [showStats, setShowStats] = useState(false);
   const [show3DAnimations, setShow3DAnimations] = useState(true);
 
-  // États utilisateur et personnage - récupérés directement de Firebase
-  const [roomId, setRoomId] = useState<string | null>(null);
-  const [persoId, setPersoId] = useState<string | null>(null);
-  const [isMJ, setIsMJ] = useState(false);
+  // États utilisateur - récupérés du contexte
+  const { user: gameUser, persoId, isMJ } = useGame();
+  const roomId = gameUser?.roomId ?? null;
   const [userName, setUserName] = useState("Utilisateur");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [userAvatar, setUserAvatar] = useState<string | undefined>(undefined);
@@ -95,11 +94,12 @@ export function DiceRoller() {
       setShow3DAnimations(saved3D === "true");
     }
 
-    // Load selected skin from Firestore once auth is ready
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) return;
+    const uid = gameUser?.uid;
+    if (!uid) return;
+
+    const loadSkin = async () => {
       try {
-        const userRef = doc(db, 'users', user.uid);
+        const userRef = doc(db, 'users', uid);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
           const data = userSnap.data();
@@ -110,9 +110,9 @@ export function DiceRoller() {
       } catch (error) {
         console.error('Error loading dice skin from Firestore:', error);
       }
-    });
-    return () => unsubscribe();
-  }, []);
+    };
+    loadSkin();
+  }, [gameUser?.uid]);
 
 
 
@@ -190,39 +190,25 @@ export function DiceRoller() {
     return null;
   };
 
-  // Authentification et récupération des données utilisateur
+  // Récupération des données utilisateur et personnage depuis le contexte
   useEffect(() => {
     console.log("window.CHEAT_DICE=20;");
-    const unsubscribe = onAuthStateChanged(auth, (authUser) => {
-      if (authUser) {
-        setUserEmail(authUser.email || null);
-        const userRef = doc(db, 'users', authUser.uid);
-        getDoc(userRef).then((docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            setRoomId(data.room_id);
-            setPersoId(data.persoId);
-            setIsMJ(data.perso === "MJ");
+    if (!roomId) return;
 
-            if (data.perso === "MJ") {
-              setUserName("MJ");
-              setUserAvatar(undefined);
-            } else {
-              // Charger les données du personnage directement depuis Firebase
-              fetchCharacterInfo(data.room_id, data.persoId);
-            }
-            fetchFirebaseRolls(data.room_id);
-          } else {
-            console.log("No such document!");
-          }
-        }).catch((error) => console.error("Error fetching user data:", error));
-      } else {
-        console.log("No user is signed in.");
-      }
-    });
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      setUserEmail(currentUser.email || null);
+    }
 
-    return () => unsubscribe();
-  }, []);
+    if (isMJ) {
+      setUserName("MJ");
+      setUserAvatar(undefined);
+    } else if (persoId) {
+      fetchCharacterInfo(roomId, persoId);
+    }
+
+    fetchFirebaseRolls(roomId);
+  }, [roomId, persoId, isMJ]);
 
   const fetchFirebaseRolls = async (roomId: string) => {
 

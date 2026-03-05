@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer"
 import { Plus, Minus, Dice1, ChevronRight, ChevronLeft, Sword, Skull, Shield, Heart, X, Pencil, Zap, EyeOff, Ghost, Anchor, Flame, Snowflake, Sparkles } from "lucide-react"
-import { auth, db, doc, getDoc, onSnapshot, updateDoc, setDoc, deleteDoc, collection, onAuthStateChanged, writeBatch } from "@/lib/firebase"
+import { db, doc, getDoc, onSnapshot, updateDoc, setDoc, deleteDoc, collection, writeBatch } from "@/lib/firebase"
+import { useGame } from '@/contexts/GameContext'
 import { Dialog, DialogTrigger, DialogPortal, DialogOverlay, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
@@ -172,8 +173,8 @@ export function GMDashboard() {
   const [isOtherDrawerOpen, setIsOtherDrawerOpen] = useState(false)
   const [hpChange, setHpChange] = useState(0)
   const [damageChange, setDamageChange] = useState(0)
-  const [userId, setUserId] = useState<string | null>(null)
-  const [roomId, setRoomId] = useState<string | null>(null)
+  const { user } = useGame()
+  const roomId = user?.roomId ?? null
   const [attackReports, setAttackReports] = useState<AttackReport[]>([])
   const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false)
   const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null)
@@ -182,33 +183,6 @@ export function GMDashboard() {
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null)
   const [viewedCharacter, setViewedCharacter] = useState<Character | null>(null)
   const [customCondition, setCustomCondition] = useState("")
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUserId(user.uid)
-      } else {
-        setUserId(null)
-      }
-    })
-    return () => unsubscribe()
-  }, [])
-
-  useEffect(() => {
-    const fetchRoomId = async () => {
-      if (!userId) return
-      try {
-        const userDoc = await getDoc(doc(db, `users/${userId}`))
-        if (userDoc.exists()) {
-          const data = userDoc.data()
-          setRoomId(data.room_id)
-        }
-      } catch (error) {
-        console.error("Erreur lors de la récupération du roomId :", error)
-      }
-    }
-    fetchRoomId()
-  }, [userId])
 
   // 1. Listen to Current City from Settings
   useEffect(() => {

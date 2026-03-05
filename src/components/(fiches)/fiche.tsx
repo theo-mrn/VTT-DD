@@ -2,10 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  auth,
-  db,
-  doc,
-  getDoc,
   updateDoc,
   storage,
   ref,
@@ -18,6 +14,7 @@ import CompetencesDisplay from "@/components/(competences)/competencesD";
 import Competences from "@/components/(competences)/competences";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useCharacter, Character } from '@/contexts/CharacterContext';
+import { useGame } from '@/contexts/GameContext';
 import { Statistiques } from '@/components/Statistiques';
 import { WidgetAvatar, WidgetDetails, WidgetStats, WidgetVitals, WidgetCombatStats, WidgetCustomGroup, GroupCreationSection } from './FicheWidgets';
 import { CustomField } from '@/contexts/CharacterContext';
@@ -71,10 +68,6 @@ export const WIDGET_REGISTRY = [
   // { id: 'skills', label: 'Compétences', default: { w: 12, h: 8, minW: 6, minH: 6 } },
 ];
 
-interface UserData {
-  persoId?: string;
-  perso?: string;
-}
 
 interface WidgetControlsProps {
   id: string;
@@ -151,7 +144,8 @@ export default function Component() {
     roomId,
   } = useCharacter();
 
-  const [error, setError] = useState<string | null>(null);
+  const { persoId: userPersoId, isMJ } = useGame();
+
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isCustomizing, setIsCustomizing] = useState<boolean>(false);
   const [uploading, setUploading] = useState<boolean>(false);
@@ -163,8 +157,6 @@ export default function Component() {
   const [rollResult, setRollResult] = useState<number | null>(null);
   const [isRaceModalOpen, setIsRaceModalOpen] = useState(false);
   const [selectedRaceAbilities, setSelectedRaceAbilities] = useState<string[]>([]);
-  const [userPersoId, setUserPersoId] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
   const [showLevelUpConfirmationModal, setShowLevelUpConfirmationModal] = useState<boolean>(false);
   const [showCompetencesFullscreen, setShowCompetencesFullscreen] = useState<boolean>(false);
   const [showStatistiques, setShowStatistiques] = useState<boolean>(false);
@@ -347,30 +339,6 @@ export default function Component() {
     e.target.value = '';
   };
 
-  useEffect(() => {
-    const loadUserData = async () => {
-      const user = auth.currentUser;
-      if (!user) {
-        setError("Veuillez vous connecter pour voir les personnages");
-        return;
-      }
-
-      try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-
-        if (userDoc.exists()) {
-          const userData = userDoc.data() as UserData;
-          setUserPersoId(userData?.persoId || null);
-          setUserRole(userData?.perso || null);
-        }
-      } catch (error) {
-        console.error("Erreur lors de la récupération des données utilisateur:", error);
-        setError("Erreur lors du chargement des données: " + (error as Error).message);
-      }
-    };
-
-    loadUserData();
-  }, []);
 
   const updateWidgetDim = (id: string, type: 'w' | 'h', value: number | 'inc' | 'dec') => {
     setLayout(prevLayout => {
@@ -780,14 +748,6 @@ export default function Component() {
     </div>;
   }
 
-  if (error) {
-    return <div className="min-h-screen bg-[var(--bg-dark)] text-[var(--text-primary)] p-4 flex items-center justify-center">
-      <div className="bg-red-500/10 text-red-500 p-4 rounded-lg">
-        {error}
-      </div>
-    </div>;
-  }
-
   // Si le gestionnaire de compétences plein écran est ouvert, l'afficher
   if (showCompetencesFullscreen && selectedCharacter) {
     return (
@@ -846,7 +806,7 @@ export default function Component() {
 
           {selectedCharacter && (
             <div className="flex flex-wrap gap-2 shrink-0">
-              {(selectedCharacter.id === userPersoId || userRole === "MJ") && (
+              {(selectedCharacter.id === userPersoId || isMJ) && (
                 <>
                   <button
                     id="vtt-fiche-btn-modifier"
@@ -888,7 +848,7 @@ export default function Component() {
                 <span className="hidden sm:inline">Stats</span>
               </button>
 
-              {(selectedCharacter.id === userPersoId || userRole === "MJ") && (
+              {(selectedCharacter.id === userPersoId || isMJ) && (
                 <button
                   id="vtt-fiche-btn-edition"
                   onClick={handleEditModeToggle}
@@ -1062,7 +1022,7 @@ export default function Component() {
                     <InventoryManagement2
                       playerName={selectedCharacter.Nomperso}
                       roomId={roomId!}
-                      canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
+                      canEdit={selectedCharacter.id === userPersoId || isMJ}
                       style={boxStyle}
                     />
                   </div>
@@ -1073,7 +1033,7 @@ export default function Component() {
                     <CompetencesDisplay
                       roomId={roomId!}
                       characterId={selectedCharacter.id}
-                      canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
+                      canEdit={selectedCharacter.id === userPersoId || isMJ}
                       onOpenFullscreen={() => setShowCompetencesFullscreen(true)}
                       onHeightChange={(h) => handleWidgetResize('skills', h)}
                       style={boxStyle}
@@ -1265,7 +1225,7 @@ export default function Component() {
                   <InventoryManagement2
                     playerName={selectedCharacter.Nomperso}
                     roomId={roomId!}
-                    canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
+                    canEdit={selectedCharacter.id === userPersoId || isMJ}
                     style={boxStyle}
                   />
                 </div>
@@ -1273,7 +1233,7 @@ export default function Component() {
                   <CompetencesDisplay
                     roomId={roomId!}
                     characterId={selectedCharacter.id}
-                    canEdit={selectedCharacter.id === userPersoId || userRole === "MJ"}
+                    canEdit={selectedCharacter.id === userPersoId || isMJ}
                     onOpenFullscreen={() => setShowCompetencesFullscreen(true)}
                     onHeightChange={(h) => handleWidgetResize('skills', h)}
                     style={boxStyle}
@@ -1381,7 +1341,7 @@ export default function Component() {
               {(editForm.customFields ?? selectedCharacter?.customFields ?? []).length > 0 && (
                 <div className="mb-6">
                   <h3 className="text-sm font-bold text-[var(--text-secondary)] mb-3">Attributs Personnalisés</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
                     {(editForm.customFields ?? selectedCharacter?.customFields ?? []).map((field: CustomField, index: number) => {
                       const updateField = (newVal: string | number | boolean) => {
                         const updatedFields = [...(editForm.customFields ?? selectedCharacter?.customFields ?? [])] as CustomField[];
@@ -1389,7 +1349,7 @@ export default function Component() {
                         setEditForm({ ...editForm, customFields: updatedFields });
                       };
                       return (
-                        <div key={field.id} className="space-y-1.5">
+                        <div key={field.id} className="space-y-2">
                           <label className="text-xs sm:text-sm block text-[var(--text-secondary)]">
                             {field.label}
                             <span className="ml-1.5 text-[10px] font-mono text-[var(--text-secondary)] opacity-60">
@@ -1397,25 +1357,25 @@ export default function Component() {
                             </span>
                           </label>
                           {field.type === 'boolean' ? (
-                            <div className="flex items-center gap-2">
+                            <div className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 flex items-center justify-between min-h-[38px] focus-within:border-[var(--accent-brown)] transition-colors">
+                              <span className="text-sm text-[var(--text-primary)]">{field.value ? 'Oui' : 'Non'}</span>
                               <input
                                 type="checkbox"
                                 checked={!!field.value}
                                 onChange={(e) => updateField(e.target.checked)}
                                 className="w-4 h-4 accent-[var(--accent-brown)] cursor-pointer"
                               />
-                              <span className="text-sm text-[var(--text-primary)]">{field.value ? 'Oui' : 'Non'}</span>
                             </div>
                           ) : field.type === 'percent' ? (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 min-h-[38px] focus-within:border-[var(--accent-brown)] transition-colors">
                               <input
                                 type="number"
                                 min={0} max={100}
                                 value={field.value as number}
                                 onChange={(e) => updateField(Math.min(100, Math.max(0, parseFloat(e.target.value) || 0)))}
-                                className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
+                                className="w-full bg-transparent text-[var(--text-primary)] text-sm outline-none"
                               />
-                              <span className="text-[var(--text-secondary)] text-sm shrink-0">%</span>
+                              <span className="text-[var(--text-secondary)] text-sm font-bold shrink-0 ml-1">%</span>
                             </div>
                           ) : (
                             <input
@@ -1423,7 +1383,7 @@ export default function Component() {
                               value={field.value as string | number}
                               onChange={(e) => updateField(field.type === 'number' ? parseFloat(e.target.value) || 0 : e.target.value)}
                               placeholder=""
-                              className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none"
+                              className="w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent-brown)] outline-none min-h-[38px]"
                             />
                           )}
                         </div>

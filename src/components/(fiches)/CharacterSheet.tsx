@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { Heart, Shield, X, User, Package } from 'lucide-react';
-import { auth, db, doc, getDoc, collection } from '@/lib/firebase';
+import { db, doc, getDoc } from '@/lib/firebase';
 import { useCalculatedBonuses } from '@/hooks/useCharacterData';
+import { useGame } from '@/contexts/GameContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import CharacterImage from '@/components/(fiches)/CharacterImage';
 import InventoryManagement2 from '@/components/(inventaire)/inventaire2';
@@ -60,39 +61,13 @@ interface Bonuses {
   PV_Max: number;
 }
 
-interface UserData {
-  persoId?: string;
-  perso?: string;
-}
-
 type TabType = 'character' | 'inventory';
 
 export default function CharacterSheet({ characterId, roomId, onClose }: CharacterSheetProps) {
   const [character, setCharacter] = useState<Character | null>(null);
   const { totalBonuses: bonuses } = useCalculatedBonuses(roomId, character?.Nomperso);
-  const [userPersoId, setUserPersoId] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string | null>(null);
+  const { persoId: userPersoId, isMJ } = useGame();
   const [activeTab, setActiveTab] = useState<TabType>('character');
-
-  useEffect(() => {
-    const loadUserData = async () => {
-      const user = auth.currentUser;
-      if (user) {
-        try {
-          const userDoc = await getDoc(doc(db, 'users', user.uid));
-          if (userDoc.exists()) {
-            const userData = userDoc.data() as UserData;
-            setUserPersoId(userData?.persoId || null);
-            setUserRole(userData?.perso || null);
-          }
-        } catch (error) {
-          console.error("Erreur lors de la récupération des données utilisateur:", error);
-        }
-      }
-    };
-
-    loadUserData();
-  }, []);
 
   useEffect(() => {
     const loadCharacter = async () => {
@@ -355,7 +330,7 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                 <InventoryManagement2
                   playerName={character.Nomperso}
                   roomId={roomId}
-                  canEdit={character.id === userPersoId || userRole === "MJ"}
+                  canEdit={character.id === userPersoId || isMJ}
                 />
               </div>
             )}

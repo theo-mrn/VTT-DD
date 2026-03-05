@@ -2,16 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import {
-  auth,
   db,
-  onAuthStateChanged,
-  doc,
-  getDoc,
   collection,
   getDocs,
   query,
   where
 } from '@/lib/firebase';
+import { useGame } from '@/contexts/GameContext';
 import { Trophy, Shield, Wand2, Target, Users, Crown, Star, Sword, Heart, Zap, TrendingUp, Award } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -123,26 +120,17 @@ export function Statistiques() {
     };
   };
 
+  const { user } = useGame();
+  const roomIdValue = user?.roomId;
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        setError("Veuillez vous connecter pour voir les statistiques");
-        setLoading(false);
-        return;
-      }
+    if (!roomIdValue) {
+      setLoading(false);
+      return;
+    }
 
+    const fetchCharacters = async () => {
       try {
-        const userDoc = await getDoc(doc(db, 'users', user.uid));
-
-        if (!userDoc.exists()) {
-          setError("Données utilisateur non trouvées");
-          setLoading(false);
-          return;
-        }
-
-        const userData = userDoc.data();
-        const roomIdValue = String(userData?.room_id);
-
         const charactersCollection = collection(db, `cartes/${roomIdValue}/characters`);
         const playerCharactersQuery = query(charactersCollection, where("type", "==", "joueurs"));
         const charactersSnapshot = await getDocs(playerCharactersQuery);
@@ -150,14 +138,8 @@ export function Statistiques() {
         const charactersData = await Promise.all(
           charactersSnapshot.docs.map(async (charDoc) => {
             const charData = { id: charDoc.id, ...charDoc.data() } as Character;
-
-            // Calculer les stats finales avec bonus
             const finalStats = await calculateFinalStats(charData, roomIdValue);
-
-            return {
-              ...charData,
-              ...finalStats
-            };
+            return { ...charData, ...finalStats };
           })
         );
 
@@ -168,10 +150,10 @@ export function Statistiques() {
       } finally {
         setLoading(false);
       }
-    });
+    };
 
-    return () => unsubscribe();
-  }, []);
+    fetchCharacters();
+  }, [roomIdValue]);
 
   const statOptions: StatOption[] = [
     { key: 'FOR', label: 'Force', icon: <Crown size={14} />, color: '#c0a080' },

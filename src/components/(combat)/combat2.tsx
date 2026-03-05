@@ -8,7 +8,8 @@ import {
   X, Sword, Target, Wand2, Settings, Volume2,
   ArrowRight, Shield, Zap, Skull, Library, StopCircle, PlayCircle, Check, Music, Plus, Search
 } from 'lucide-react'
-import { auth, db, doc, getDoc, onAuthStateChanged, collection, getDocs, setDoc, onSnapshot, query } from '@/lib/firebase'
+import { db, doc, getDoc, collection, getDocs, setDoc, onSnapshot, query } from '@/lib/firebase'
+import { useGame } from '@/contexts/GameContext'
 import { SUGGESTED_SOUNDS, SOUND_CATEGORIES } from '@/lib/suggested-sounds'
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -160,7 +161,8 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   const [customRoll, setCustomRoll] = useState<CustomRoll>({ numDice: 1, numFaces: 20, modifier: 0 })
   const [customDamage, setCustomDamage] = useState<CustomRoll>({ numDice: 1, numFaces: 6, modifier: 0 })
 
-  const [roomId, setRoomId] = useState<string | null>(null)
+  const { user: gameUser } = useGame()
+  const roomId = gameUser?.roomId ?? null
   const [attackerName, setAttackerName] = useState<string>("")
   const [attackerImage, setAttackerImage] = useState<string>("")
   const [attackerType, setAttackerType] = useState<'joueurs' | 'pnj' | 'monster'>('joueurs')
@@ -198,52 +200,43 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   // Load Data
   useEffect(() => {
     const fetchData = async () => {
-      onAuthStateChanged(auth, async (user) => {
-        if (user) {
-          const uid = user.uid
-          const userDoc = await getDoc(doc(db, `users/${uid}`))
-          const fetchedRoomId = userDoc.exists() ? userDoc.data().room_id : null
-          setRoomId(fetchedRoomId)
+      if (!roomId || !attackerId) return;
 
-          if (fetchedRoomId && attackerId) {
-            const attackerDoc = await getDoc(doc(db, `cartes/${fetchedRoomId}/characters/${attackerId}`))
-            if (attackerDoc.exists()) {
-              const data = attackerDoc.data()
-              setAttackerName(data.Nomperso || "")
-              setAttackerImage(data.imageURLFinal || data.imageURL2 || data.imageURL || "")
-              setAttackerType(data.type || 'joueurs')
-              setBaseAttacks({
-                contact: parseInt(data.Contact || 0),
-                distance: parseInt(data.Distance || 0),
-                magie: parseInt(data.Magie || 0)
-              })
-              setActions(data.Actions || [])
-              await loadWeapons(fetchedRoomId, data.Nomperso)
-            }
+      const attackerDoc = await getDoc(doc(db, `cartes/${roomId}/characters/${attackerId}`))
+      if (attackerDoc.exists()) {
+        const data = attackerDoc.data()
+        setAttackerName(data.Nomperso || "")
+        setAttackerImage(data.imageURLFinal || data.imageURL2 || data.imageURL || "")
+        setAttackerType(data.type || 'joueurs')
+        setBaseAttacks({
+          contact: parseInt(data.Contact || 0),
+          distance: parseInt(data.Distance || 0),
+          magie: parseInt(data.Magie || 0)
+        })
+        setActions(data.Actions || [])
+        await loadWeapons(roomId, data.Nomperso)
+      }
 
-            // Targets
-            const hasMultipleTargets = targetIds && targetIds.length > 0;
-            const idsToFetch = hasMultipleTargets ? targetIds : (targetId ? [targetId] : []);
-            const uniqueIds = Array.from(new Set(idsToFetch.filter(id => id)));
-            const fetchedTargets = [];
+      // Targets
+      const hasMultipleTargets = targetIds && targetIds.length > 0;
+      const idsToFetch = hasMultipleTargets ? targetIds : (targetId ? [targetId] : []);
+      const uniqueIds = Array.from(new Set(idsToFetch.filter(id => id)));
+      const fetchedTargets = [];
 
-            for (const tId of uniqueIds) {
-              if (!tId) continue;
-              const targetDoc = await getDoc(doc(db, `cartes/${fetchedRoomId}/characters/${tId}`));
-              if (targetDoc.exists()) {
-                const tData = targetDoc.data();
-                fetchedTargets.push({
-                  id: tId,
-                  name: tData.Nomperso || tData.name || "Unknown",
-                  defense: tData.Defense || 10,
-                  image: tData.type === 'joueurs' ? (tData.imageURLFinal || tData.imageURL2 || tData.imageURL) : (tData.imageURL2 || tData.imageURL)
-                });
-              }
-            }
-            setTargets(fetchedTargets);
-          }
+      for (const tId of uniqueIds) {
+        if (!tId) continue;
+        const targetDoc = await getDoc(doc(db, `cartes/${roomId}/characters/${tId}`));
+        if (targetDoc.exists()) {
+          const tData = targetDoc.data();
+          fetchedTargets.push({
+            id: tId,
+            name: tData.Nomperso || tData.name || "Unknown",
+            defense: tData.Defense || 10,
+            image: tData.type === 'joueurs' ? (tData.imageURLFinal || tData.imageURL2 || tData.imageURL) : (tData.imageURL2 || tData.imageURL)
+          });
         }
-      })
+      }
+      setTargets(fetchedTargets);
     }
 
     const loadWeapons = async (rId: string, nom: string) => {
@@ -268,7 +261,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
     }
 
     fetchData()
-  }, [attackerId, targetId, targetIds])
+  }, [roomId, attackerId, targetId, targetIds])
 
   // Load Sounds
   useEffect(() => {

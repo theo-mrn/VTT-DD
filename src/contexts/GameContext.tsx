@@ -32,6 +32,7 @@ export interface PlayerData {
 export interface UserData {
   uid: string;
   roomId: string | null;
+  perso: string | null;
 }
 
 interface GameContextType {
@@ -199,134 +200,77 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Fonction pour restaurer les données du joueur depuis Firebase
-  const restorePlayerDataFromFirebase = useCallback(async (uid: string) => {
+  // Helper pour construire PlayerData depuis un document character
+  const buildPlayerData = (persoId: string, characterData: Record<string, any>, fallbackName?: string): PlayerData => ({
+    id: persoId,
+    Nomperso: characterData.Nomperso || fallbackName,
+    imageURL: characterData.imageURL,
+    imageURL2: characterData.imageURL2,
+    type: characterData.type,
+    niveau: characterData.niveau,
+    PV: characterData.PV_F || characterData.PV,
+    Defense: characterData.Defense_F || characterData.Defense,
+    Contact: characterData.Contact_F || characterData.Contact,
+    Distance: characterData.Distance_F || characterData.Distance,
+    Magie: characterData.Magie_F || characterData.Magie,
+    INIT: characterData.INIT_F || characterData.INIT,
+    FOR: characterData.FOR_F || characterData.FOR,
+    DEX: characterData.DEX_F || characterData.DEX,
+    CON: characterData.CON_F || characterData.CON,
+    SAG: characterData.SAG_F || characterData.SAG,
+    INT: characterData.INT_F || characterData.INT,
+    CHA: characterData.CHA_F || characterData.CHA,
+    x: characterData.x,
+    y: characterData.y,
+    visibility: characterData.visibility,
+    visibilityRadius: characterData.visibilityRadius,
+  });
+
+  // Fonction pour restaurer les données du joueur — reçoit directement les données du snapshot
+  const restorePlayerDataFromSnapshot = useCallback(async (uid: string, userData: Record<string, any>) => {
     try {
-      const userRef = doc(db, 'users', uid);
-      const userDoc = await getDoc(userRef);
+      // Lancer les requêtes en parallèle au lieu de séquentiellement
+      const roomId = userData.room_id;
+      const persoId = userData.persoId;
 
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
+      const [roomDoc, characterDoc] = await Promise.all([
+        roomId ? getDoc(doc(db, 'Salle', roomId)) : Promise.resolve(null),
+        (persoId && roomId) ? getDoc(doc(db, `cartes/${roomId}/characters`, persoId)) : Promise.resolve(null),
+      ]);
 
-        // Check if user is owner of the room
-        if (userData.room_id) {
-          const roomRef = doc(db, 'Salle', userData.room_id);
-          const roomDoc = await getDoc(roomRef);
-          if (roomDoc.exists()) {
-            const roomData = roomDoc.data();
-            setIsOwner(roomData.creatorId === uid);
-          } else {
-            setIsOwner(false);
-          }
+      // Check ownership
+      if (roomDoc && roomDoc.exists()) {
+        setIsOwner(roomDoc.data().creatorId === uid);
+      } else {
+        setIsOwner(false);
+      }
+
+      // Déterminer rôle et charger personnage
+      if (userData.role === 'MJ') {
+        setIsMJ(true);
+        setPersoId(persoId || null);
+        if (characterDoc && characterDoc.exists()) {
+          setPlayerData(buildPlayerData(persoId, characterDoc.data(), userData.perso));
         } else {
-          setIsOwner(false);
-        }
-
-        // Logique corrigée : Prioriser le champ 'role' pour déterminer si l'utilisateur est MJ
-        if (userData.role === 'MJ') {
-          setIsMJ(true);
-          setPersoId(userData.persoId || null);
           setPlayerData(null);
-
-          // Si le MJ a aussi un persoId, charger les données du personnage pour référence
-          if (userData.persoId && userData.room_id) {
-            const characterRef = doc(db, `cartes/${userData.room_id}/characters`, userData.persoId);
-            const characterDoc = await getDoc(characterRef);
-
-            if (characterDoc.exists()) {
-              const characterData = characterDoc.data();
-
-              const fullCharacterData: PlayerData = {
-                id: userData.persoId,
-                Nomperso: characterData.Nomperso || userData.perso,
-                imageURL: characterData.imageURL,
-                imageURL2: characterData.imageURL2,
-                type: characterData.type,
-                niveau: characterData.niveau,
-                PV: characterData.PV_F || characterData.PV,
-                Defense: characterData.Defense_F || characterData.Defense,
-                Contact: characterData.Contact_F || characterData.Contact,
-                Distance: characterData.Distance_F || characterData.Distance,
-                Magie: characterData.Magie_F || characterData.Magie,
-                INIT: characterData.INIT_F || characterData.INIT,
-                FOR: characterData.FOR_F || characterData.FOR,
-                DEX: characterData.DEX_F || characterData.DEX,
-                CON: characterData.CON_F || characterData.CON,
-                SAG: characterData.SAG_F || characterData.SAG,
-                INT: characterData.INT_F || characterData.INT,
-                CHA: characterData.CHA_F || characterData.CHA,
-                x: characterData.x,
-                y: characterData.y,
-                visibility: characterData.visibility,
-                visibilityRadius: characterData.visibilityRadius,
-              };
-
-              setPlayerData(fullCharacterData);
-            }
-          }
-        } else if (userData.persoId && userData.room_id) {
-          // Récupérer les données complètes du personnage
-          const characterRef = doc(db, `cartes/${userData.room_id}/characters`, userData.persoId);
-          const characterDoc = await getDoc(characterRef);
-
-          if (characterDoc.exists()) {
-            const characterData = characterDoc.data();
-
-            const fullCharacterData: PlayerData = {
-              id: userData.persoId,
-              Nomperso: characterData.Nomperso || userData.perso,
-              imageURL: characterData.imageURL,
-              imageURL2: characterData.imageURL2,
-              type: characterData.type,
-              niveau: characterData.niveau,
-              PV: characterData.PV_F || characterData.PV,
-              Defense: characterData.Defense_F || characterData.Defense,
-              Contact: characterData.Contact_F || characterData.Contact,
-              Distance: characterData.Distance_F || characterData.Distance,
-              Magie: characterData.Magie_F || characterData.Magie,
-              INIT: characterData.INIT_F || characterData.INIT,
-              FOR: characterData.FOR_F || characterData.FOR,
-              DEX: characterData.DEX_F || characterData.DEX,
-              CON: characterData.CON_F || characterData.CON,
-              SAG: characterData.SAG_F || characterData.SAG,
-              INT: characterData.INT_F || characterData.INT,
-              CHA: characterData.CHA_F || characterData.CHA,
-              x: characterData.x,
-              y: characterData.y,
-              visibility: characterData.visibility,
-              visibilityRadius: characterData.visibilityRadius,
-            };
-
-            // L'utilisateur est un JOUEUR (pas un MJ)
-            setIsMJ(false);
-            setPersoId(userData.persoId);
-            setPlayerData(fullCharacterData);
-            console.log("🎉 Player data restored from Firebase:", fullCharacterData);
-            console.log(" Set as PLAYER (isMJ = false)");
-          } else {
-            console.log("❌ Character document not found for persoId:", userData.persoId);
-            // Si le personnage n'existe pas, on ne peut pas être sûr du rôle
-            setIsMJ(false);
-            setPersoId(null);
-            setPlayerData(null);
-          }
+        }
+      } else if (persoId && roomId) {
+        if (characterDoc && characterDoc.exists()) {
+          setIsMJ(false);
+          setPersoId(persoId);
+          setPlayerData(buildPlayerData(persoId, characterDoc.data(), userData.perso));
         } else {
-          console.log('⚠️ User has no persoId and no MJ role - unclear state');
-          console.log('🔧 Defaulting to non-MJ state');
           setIsMJ(false);
           setPersoId(null);
           setPlayerData(null);
         }
       } else {
-        console.log("❌ User document not found in Firebase");
-        // Par défaut, pas de MJ
         setIsMJ(false);
         setPersoId(null);
         setPlayerData(null);
       }
     } catch (error) {
-      console.error('💥 Error restoring player data from Firebase:', error);
-      // En cas d'erreur, état par défaut
+      console.error('Error restoring player data:', error);
       setIsMJ(false);
       setPersoId(null);
       setPlayerData(null);
@@ -338,7 +282,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const currentUser = auth.currentUser;
     if (currentUser) {
       const roomId = await getRoomId(currentUser);
-      setUser({ uid: currentUser.uid, roomId });
+      setUser(prev => ({ uid: currentUser.uid, roomId, perso: prev?.perso ?? null }));
     }
   }, [getRoomId]);
 
@@ -382,29 +326,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
               const userData = snapshot.data();
               const roomId = userData.room_id || null;
 
-              setUser({ uid: authUser.uid, roomId });
+              setUser({ uid: authUser.uid, roomId, perso: userData.perso || null });
               setIsAuthenticated(true);
 
-              // Restaurer les données (MJ, Owner, etc.) en fonction du roomId actuel
-              await restorePlayerDataFromFirebase(authUser.uid);
+              // Restaurer les données en passant directement le snapshot (plus de getDoc dupliqué)
+              // + lancer challenges et migration en parallèle (non-bloquant)
+              await restorePlayerDataFromSnapshot(authUser.uid, userData);
 
-              // Initialiser les défis de l'utilisateur (si première connexion)
-              try {
-                await initializeUserChallenges(authUser.uid);
-              } catch (error) {
-                console.error('Error initializing challenges:', error);
-              }
-
-              // Migrer les anciens titres vers le nouveau format (slug)
-              try {
-                const { migrateTitlesForUser } = await import('@/lib/migrate-titles');
-                await migrateTitlesForUser(authUser.uid);
-              } catch (error) {
-                console.error('Error migrating titles:', error);
-              }
+              // Tâches secondaires en parallèle — ne bloquent pas l'affichage
+              Promise.all([
+                initializeUserChallenges(authUser.uid).catch(e => console.error('Error initializing challenges:', e)),
+                import('@/lib/migrate-titles').then(m => m.migrateTitlesForUser(authUser.uid)).catch(e => console.error('Error migrating titles:', e)),
+              ]);
             } else {
               // Gérer le cas où le document user n'existe pas encore
-              setUser({ uid: authUser.uid, roomId: null });
+              setUser({ uid: authUser.uid, roomId: null, perso: null });
               setIsAuthenticated(true);
             }
           }, (error) => {
@@ -440,7 +376,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       authUnsubscribe();
       if (userDocUnsubscribe) userDocUnsubscribe();
     };
-  }, [restorePlayerDataFromFirebase, setIsMJ, setPersoId, setPlayerData]);
+  }, [restorePlayerDataFromSnapshot, setIsMJ, setPersoId, setPlayerData]);
 
   return (
     <GameContext.Provider value={{
