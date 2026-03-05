@@ -485,7 +485,10 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
                                         <span className="w-10 text-sm font-mono text-[var(--text-primary)] text-center">{val}</span>
                                         {mod !== null ? <span className="w-10 text-xs font-mono text-[var(--accent-brown)] text-center">{mod >= 0 ? `+${mod}` : mod}</span> : <span className="w-10" />}
                                         <div className="flex-1" />
-                                        <button onClick={() => handleToggleStatRollable(stat.key)} className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all ${rollable ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)]' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]'}`}>Dés</button>
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => handleToggleStatRollable(stat.key)} className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all ${rollable ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)]' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]'}`}>Dés</button>
+                                            <div className="w-4" />
+                                        </div>
                                     </div>
                                 );
                             })}
@@ -496,18 +499,21 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
                             {customFields.length === 0 ? (
                                 <div className="px-4 py-5 text-sm text-[var(--text-secondary)] italic text-center">Aucun attribut personnalisé.</div>
                             ) : (
-                                customFields.map((field, i) => (
-                                    <div key={field.id} className={`flex items-center gap-3 px-4 py-2.5 ${i < customFields.length - 1 ? 'border-b border-[var(--border-color)]' : ''} hover:bg-[var(--bg-dark)] transition-colors cursor-pointer group`} onClick={() => openEditFieldDialog(field)}>
-                                        <span className="w-24 text-sm font-bold truncate text-[var(--text-primary)]">{field.label}</span>
-                                        <span className="w-10 text-sm font-mono text-[var(--text-primary)] text-center">{field.type === 'boolean' ? (field.value ? 'Oui' : 'Non') : field.type === 'percent' ? `${field.value}%` : String(field.value)}</span>
-                                        {field.hasModifier && field.type === 'number' ? <span className="w-10 text-xs font-mono text-[var(--accent-brown)] text-center">{(() => { const m = Math.floor((Number(field.value) - 10) / 2); return m >= 0 ? `+${m}` : m; })()}</span> : <span className="w-10" />}
-                                        <span className="text-[10px] font-mono px-1 rounded border border-[var(--border-color)] bg-[var(--bg-darker)] text-[var(--text-secondary)]">{field.type === 'number' ? '123' : field.type === 'percent' ? '%' : field.type === 'boolean' ? 'Bool' : 'Aa'}</span>
-                                        {field.isRollable && <span className="text-[10px] font-bold text-[var(--accent-brown)]">Dés</span>}
-                                        {field.hasModifier && <span className="text-[10px] text-[var(--text-secondary)]">Mod</span>}
-                                        <div className="flex-1" />
-                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteField(field.id); }} className="opacity-0 group-hover:opacity-100 text-[var(--text-secondary)] hover:text-red-400 transition-all"><Trash2 size={13} /></button>
-                                    </div>
-                                ))
+                                customFields.map((field, i) => {
+                                    const rollable = !!field.isRollable;
+                                    return (
+                                        <div key={field.id} className={`flex items-center gap-3 px-4 py-2.5 ${i < customFields.length - 1 ? 'border-b border-[var(--border-color)]' : ''} hover:bg-[var(--bg-dark)] transition-colors cursor-pointer group`} onClick={() => openEditFieldDialog(field)}>
+                                            <span className="w-20 text-sm font-bold truncate text-[var(--text-primary)]">{field.label}</span>
+                                            <span className="w-10 text-sm font-mono text-[var(--text-primary)] text-center">{field.type === 'boolean' ? (field.value ? 'Oui' : 'Non') : field.type === 'percent' ? `${field.value}%` : String(field.value)}</span>
+                                            {field.hasModifier && field.type === 'number' ? <span className="w-10 text-xs font-mono text-[var(--accent-brown)] text-center">{(() => { const m = Math.floor((Number(field.value) - 10) / 2); return m >= 0 ? `+${m}` : m; })()}</span> : <span className="w-10" />}
+                                            <div className="flex-1" />
+                                            <div className="flex items-center gap-2">
+                                                <button onClick={(e) => { e.stopPropagation(); if (selectedCharacter) { updateCharacter(selectedCharacter.id, { customFields: customFields.map(f => f.id === field.id ? { ...f, isRollable: !f.isRollable } : f) }); } }} className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all ${rollable ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)]' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]'}`}>Dés</button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteField(field.id); }} className="opacity-0 group-hover:opacity-100 text-[var(--text-secondary)] hover:text-red-400 transition-all w-4 flex justify-center"><Trash2 size={13} /></button>
+                                            </div>
+                                        </div>
+                                    );
+                                })
                             )}
                         </div>
                     </div>

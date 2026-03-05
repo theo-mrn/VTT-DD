@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, MinusCircle, Star, RefreshCw, X, Settings, Search } from "lucide-react";
+import { PlusCircle, MinusCircle, Star, RefreshCw, X, BookOpenCheck, Settings, Search } from "lucide-react";
 import { db, getDoc, doc, setDoc, updateDoc } from "@/lib/firebase";
 import { useCharacter, Competence, BonusData } from "@/contexts/CharacterContext";
 
@@ -313,7 +313,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
               className="h-9 w-9 p-0 hover:bg-[var(--bg-darker)] text-[var(--accent-brown)]"
               title="Plein écran"
             >
-              <Settings className="h-4 w-4" />
+              <BookOpenCheck className="h-4 w-4" />
             </Button>
           </div>
         </div>

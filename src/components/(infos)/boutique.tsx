@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Heart, Sparkles, Check, Crown, Dices, Loader2, Settings, ExternalLink, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import { auth, db, doc, getDoc } from "@/lib/firebase";
-import { onAuthStateChanged } from "firebase/auth";
+import { useGame } from '@/contexts/GameContext';
 import { Button } from "@/components/ui/button";
 import { useRouter, usePathname } from "next/navigation";
 
@@ -47,35 +47,37 @@ export default function Boutique() {
     const [managingPortal, setManagingPortal] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    const { user: gameUser } = useGame();
+
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                try {
-                    const userRef = doc(db, "users", user.uid);
-                    const userSnap = await getDoc(userRef);
-                    if (userSnap.exists()) {
-                        const data = userSnap.data();
-                        setUserData({
-                            uid: user.uid,
-                            email: user.email,
-                            premium: data.premium ?? false,
-                            stripeCustomerId: data.stripeCustomerId,
-                        });
-                    } else {
-                        setUserData({ uid: user.uid, email: user.email, premium: false });
-                    }
-                } catch (err) {
-                    console.error("Error fetching user data:", err);
-                    setUserData({ uid: user.uid, email: user.email, premium: false });
+        if (!gameUser) {
+            setUserData(null);
+            setLoading(false);
+            return;
+        }
+        const fetchPremium = async () => {
+            try {
+                const userRef = doc(db, "users", gameUser.uid);
+                const userSnap = await getDoc(userRef);
+                if (userSnap.exists()) {
+                    const data = userSnap.data();
+                    setUserData({
+                        uid: gameUser.uid,
+                        email: auth.currentUser?.email ?? null,
+                        premium: data.premium ?? false,
+                        stripeCustomerId: data.stripeCustomerId,
+                    });
+                } else {
+                    setUserData({ uid: gameUser.uid, email: auth.currentUser?.email ?? null, premium: false });
                 }
-            } else {
-                setUserData(null);
+            } catch (err) {
+                console.error("Error fetching user data:", err);
+                setUserData({ uid: gameUser.uid, email: auth.currentUser?.email ?? null, premium: false });
             }
             setLoading(false);
-        });
-
-        return () => unsubscribe();
-    }, []);
+        };
+        fetchPremium();
+    }, [gameUser?.uid]);
 
     const handleSubscribe = async () => {
         setSubscribing(true);

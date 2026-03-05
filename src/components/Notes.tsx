@@ -10,10 +10,11 @@ import {
 import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
 
-import { db, auth, storage, addDoc, collection, doc, updateDoc, deleteDoc, getDocs, getDoc, onAuthStateChanged, serverTimestamp } from "@/lib/firebase"
+import { db, auth, storage, addDoc, collection, doc, updateDoc, deleteDoc, getDocs, getDoc, serverTimestamp } from "@/lib/firebase"
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage'
 import { cn } from "@/lib/utils"
 import { toast } from 'sonner'
+import { useGame } from '@/contexts/GameContext'
 
 // --- TYPES ---
 interface SubQuest {
@@ -61,11 +62,13 @@ const NOTE_TYPES = [
 // --- MAIN COMPONENT ---
 
 export default function Notes() {
+  const { user } = useGame()
+  const roomId = user?.roomId ?? null
+  const characterId = user?.perso ?? null
+
   // Data
   const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
-  const [roomId, setRoomId] = useState<string | null>(null)
-  const [characterId, setCharacterId] = useState<string | null>(null)
   const [characterName, setCharacterName] = useState<string>('')
   const [isRefreshing, setIsRefreshing] = useState(false)
 
@@ -126,29 +129,17 @@ export default function Notes() {
   }, [roomId, characterId])
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const userDoc = await getDoc(doc(db, 'users', user.uid))
-        if (userDoc.exists()) {
-          const rId = userDoc.data().room_id
-          const pId = userDoc.data().perso
-          setRoomId(rId)
-          setCharacterId(pId)
-
-          if (pId && rId) {
-            // Fetch name and notes immediately
-            const charPromise = getDoc(doc(db, 'campaigns', rId, 'persos', pId)).then(charDoc => {
-              if (charDoc.exists()) setCharacterName(charDoc.data().name || 'Personnage')
-            })
-            const notesPromise = loadNotes(rId, pId)
-            await Promise.all([charPromise, notesPromise])
-          }
-        }
-      }
+    if (!roomId || !characterId) {
       setLoading(false)
+      return
+    }
+    // Fetch name and notes in parallel — roomId/characterId come from GameContext (already resolved)
+    const charPromise = getDoc(doc(db, 'campaigns', roomId, 'persos', characterId)).then(charDoc => {
+      if (charDoc.exists()) setCharacterName(charDoc.data().name || 'Personnage')
     })
-    return () => unsubscribe()
-  }, [loadNotes])
+    const notesPromise = loadNotes(roomId, characterId)
+    Promise.all([charPromise, notesPromise]).finally(() => setLoading(false))
+  }, [roomId, characterId, loadNotes])
 
   // Simple handle for generic refresh
   const handleManualRefresh = () => {

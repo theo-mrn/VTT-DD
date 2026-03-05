@@ -2,7 +2,7 @@
 import { initializeApp } from 'firebase/app';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { getAuth, onAuthStateChanged, signOut, GoogleAuthProvider } from 'firebase/auth';
-import { getFirestore, doc, setDoc, addDoc, getDoc, writeBatch, collection, orderBy, onSnapshot, updateDoc, deleteDoc, query, where, getDocs, serverTimestamp, limit, limitToLast, Timestamp } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, doc, setDoc, addDoc, getDoc, writeBatch, collection, orderBy, onSnapshot, updateDoc, deleteDoc, query, where, getDocs, serverTimestamp, limit, limitToLast, Timestamp } from 'firebase/firestore';
 import { getDatabase, ref as dbRef, set, onValue, update, get as rtdbGet, push as rtdbPush, remove as rtdbRemove } from 'firebase/database';
 import { getAnalytics, setAnalyticsCollectionEnabled } from 'firebase/analytics';
 
@@ -22,7 +22,9 @@ const app = initializeApp(firebaseConfig);
 
 // Services Firebase
 const auth = getAuth(app); // Authentification Firebase
-const db = getFirestore(app); // Firestore pour la base de données
+const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+}); // Firestore avec cache IndexedDB persistant
 const storage = getStorage(app); // Firebase Storage pour le stockage de fichiers
 const realtimeDb = getDatabase(app); // Realtime Database pour la synchronisation temps réel
 

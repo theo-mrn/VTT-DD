@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { db, auth, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, getDocs, setDoc } from '@/lib/firebase';
+import { db, auth, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, getDocs, setDoc, where, limit } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { History, Shield, UserPlus, Skull, TrendingUp, HandCoins, Activity, Star, Book, MapPin, Sparkles, Loader2, Brain, Pencil, Check, X, ScrollText } from 'lucide-react';
+import { History, Shield, UserPlus, Skull, TrendingUp, HandCoins, Activity, Star, Book, MapPin, Sparkles, Loader2, Pencil, Check, X, ScrollText, ChevronDown } from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
 import { useCharacter } from '@/contexts/CharacterContext';
 import {
@@ -14,6 +14,12 @@ import {
     DialogTitle,
     DialogClose,
 } from "@/components/ui/dialog";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Define event types for better styling and icons
 export type EventType =
@@ -53,16 +59,61 @@ export default function Historique({ roomId }: HistoriqueProps) {
     const [isSummaryModalOpen, setIsSummaryModalOpen] = useState(false);
     const [editingModalDate, setEditingModalDate] = useState<string | null>(null);
     const [editedModalText, setEditedModalText] = useState<string>('');
+    const [displayDate, setDisplayDate] = useState<string>(() => format(new Date(), 'yyyy-MM-dd'));
+    const [historyDates, setHistoryDates] = useState<string[]>([]);
     const scrollRef = useRef<HTMLDivElement>(null);
     const { characters } = useCharacter();
 
-
+    // 1. Fetch available dates ONCE to populate the dropdown
     useEffect(() => {
         if (!roomId) return;
 
-        // 1. Subscribe to events collection to display history
+        const fetchDates = async () => {
+            try {
+                // Only fetch timestamp field via a lightweight query
+                const eventsRef = collection(db, `Historique/${roomId}/events`);
+                const q = query(eventsRef, orderBy('timestamp', 'desc'), limit(200));
+                const snapshot = await getDocs(q);
+                const dates = new Set<string>();
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    if (data.timestamp) {
+                        const d = data.timestamp.toDate ? format(data.timestamp.toDate(), 'yyyy-MM-dd') : format(new Date(data.timestamp), 'yyyy-MM-dd');
+                        dates.add(d);
+                    }
+                });
+
+                const todayStr = format(new Date(), 'yyyy-MM-dd');
+                dates.add(todayStr);
+
+                const datesArr = Array.from(dates).sort((a, b) => b.localeCompare(a));
+                setHistoryDates(datesArr);
+                // Switch to the most recent date with actual events
+                if (datesArr[0]) setDisplayDate(datesArr[0]);
+            } catch (err) {
+                console.error("Error fetching history dates:", err);
+            }
+        };
+
+        fetchDates();
+    }, [roomId]);
+
+    // 2. Subscribe to events specifically for the displayDate with a WHERE clause
+    useEffect(() => {
+        if (!roomId || !displayDate) return;
+
+        const start = new Date(displayDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(displayDate);
+        end.setHours(23, 59, 59, 999);
+
         const eventsRef = collection(db, `Historique/${roomId}/events`);
-        const qEvents = query(eventsRef, orderBy('timestamp', 'desc'));
+        const qEvents = query(
+            eventsRef,
+            where('timestamp', '>=', start),
+            where('timestamp', '<=', end),
+            orderBy('timestamp', 'desc')
+        );
 
         const unsubscribeEvents = onSnapshot(qEvents, (snapshot) => {
             const userId = auth.currentUser?.uid;
@@ -76,8 +127,7 @@ export default function Historique({ roomId }: HistoriqueProps) {
             });
             setEvents(loadedEvents);
 
-            // Auto-select the most recent date for the summary modal context
-            if (loadedEvents.length > 0) {
+            if (loadedEvents.length > 0 && !selectedDate) {
                 const latestEvent = loadedEvents[0];
                 const latestDateStr = latestEvent.timestamp?.toDate
                     ? format(latestEvent.timestamp.toDate(), 'yyyy-MM-dd')
@@ -87,7 +137,7 @@ export default function Historique({ roomId }: HistoriqueProps) {
             }
         });
 
-        // 2. Subscribe to summaries collection to show persisted AI summaries
+        // 3. Subscribe to summaries collection to show persisted AI summaries
         const summariesRef = collection(db, `Historique/${roomId}/summaries`);
         const unsubscribeSummaries = onSnapshot(summariesRef, (snapshot) => {
             const loadedSummaries: Record<string, string> = {};
@@ -101,7 +151,7 @@ export default function Historique({ roomId }: HistoriqueProps) {
             unsubscribeEvents();
             unsubscribeSummaries();
         };
-    }, [roomId]);
+    }, [roomId, displayDate]);
 
 
     // Make nice icons for events
@@ -192,12 +242,13 @@ export default function Historique({ roomId }: HistoriqueProps) {
         }
     };
 
-    // Extract unique dates for navigation in the modal
-    const uniqueDates = Array.from(new Set(events.map(event => {
-        return event.timestamp?.toDate
-            ? format(event.timestamp.toDate(), 'yyyy-MM-dd')
-            : format(new Date(event.timestamp), 'yyyy-MM-dd');
-    }))).sort((a, b) => b.localeCompare(a));
+    const parseAndFormatDateString = (dateStr: string) => {
+        try {
+            return format(new Date(dateStr), 'd MMMM yyyy', { locale: fr }).toUpperCase();
+        } catch (e) {
+            return dateStr;
+        }
+    };
 
     return (
         <div className="flex flex-col h-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg overflow-hidden shadow-xl">
@@ -218,26 +269,24 @@ export default function Historique({ roomId }: HistoriqueProps) {
                     </div>
                 ) : (
                     <div className="space-y-6 max-w-4xl mx-auto">
-                        {/* Group events by Date */}
-                        {Object.entries(
-                            events.reduce((groups, event) => {
-                                const dateStr = event.timestamp?.toDate
-                                    ? format(event.timestamp.toDate(), 'd MMMM yyyy', { locale: fr }).toUpperCase()
-                                    : event.timestamp
-                                        ? format(new Date(event.timestamp), 'd MMMM yyyy', { locale: fr }).toUpperCase()
-                                        : 'INCONNU';
-
-                                if (!groups[dateStr]) groups[dateStr] = [];
-                                groups[dateStr].push(event);
-                                return groups;
-                            }, {} as Record<string, GameEvent[]>)
-                        ).map(([date, dayEvents]) => (
-                            <div key={date} className="space-y-4">
+                        {displayDate && (
+                            <div key={displayDate} className="space-y-4">
                                 <div className="flex items-center gap-4 py-2 sticky top-0 bg-[var(--bg-dark)]/80 backdrop-blur-sm z-10 -mx-4 px-4">
                                     <div className="h-px grow bg-gradient-to-r from-transparent via-[var(--border-color)] to-transparent opacity-50"></div>
-                                    <h3 className="text-[9px] font-black uppercase tracking-[0.3em] text-[var(--text-secondary)] bg-[var(--bg-dark)] px-4 py-1.5 rounded-full border border-[var(--border-color)] shadow-sm">
-                                        {date}
-                                    </h3>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <button className="flex items-center gap-2 text-[9px] font-black uppercase tracking-[0.3em] text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-dark)] hover:bg-[var(--bg-darker)] px-4 py-1.5 rounded-full border border-[var(--border-color)] shadow-sm transition-colors group">
+                                                {parseAndFormatDateString(displayDate)} <ChevronDown className="w-3 h-3 group-hover:translate-y-px transition-transform text-[var(--accent-brown)]" />
+                                            </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent className="bg-[var(--bg-card)] border-[var(--border-color)] max-h-[300px] overflow-y-auto z-50">
+                                            {historyDates.map(d => (
+                                                <DropdownMenuItem key={d} onClick={() => setDisplayDate(d)} className={`text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-colors ${d === displayDate ? 'text-[var(--accent-brown)] bg-[var(--bg-darker)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-dark)]'}`}>
+                                                    {parseAndFormatDateString(d)}
+                                                </DropdownMenuItem>
+                                            ))}
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                     <button
                                         onClick={() => setIsSummaryModalOpen(true)}
                                         className="flex items-center gap-x-2 px-3 py-1.5 bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)] text-[var(--bg-darker)] rounded-full text-[10px] font-bold transition-all shadow-md active:scale-95 group uppercase tracking-widest"
@@ -250,7 +299,7 @@ export default function Historique({ roomId }: HistoriqueProps) {
 
 
                                 <div className="space-y-3">
-                                    {(dayEvents as GameEvent[]).map((event, index) => {
+                                    {events.map((event, index) => {
                                         let finalAvatar = event.characterAvatar;
                                         if (!finalAvatar && event.characterId) {
                                             const char = characters.find(c => c.id === event.characterId);
@@ -304,115 +353,87 @@ export default function Historique({ roomId }: HistoriqueProps) {
                                     })}
                                 </div>
                             </div>
-                        ))}
+                        )}
                     </div>
                 )}
             </div>
 
             {/* Summary Modal */}
             <Dialog open={isSummaryModalOpen} onOpenChange={setIsSummaryModalOpen}>
-                <DialogContent unstyled className="sm:max-w-4xl !p-0 fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full outline-none">
-                    <div className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] overflow-hidden flex flex-col max-h-[85vh] rounded-[2.5rem] shadow-[0_32px_120px_-10px_rgba(0,0,0,0.9)] relative isolate">
-                        {/* Close Button Overlay */}
-                        <div className="absolute top-4 right-4 z-[70]">
-                            <DialogClose className="p-2 transition-all hover:bg-white/10 text-white/40 hover:text-white rounded-full border border-transparent hover:border-white/10">
-                                <X className="size-5" />
-                            </DialogClose>
-                        </div>
+                <DialogContent unstyled showCloseButton={false} className="sm:max-w-3xl !p-0 fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full outline-none">
+                    <div className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] overflow-hidden flex flex-col max-h-[85vh] rounded-2xl shadow-[0_24px_80px_-12px_rgba(0,0,0,0.7)]">
 
-                        <DialogHeader className="p-4 px-8 border-b border-[var(--border-color)] bg-[var(--bg-darker)] backdrop-blur-2xl relative z-50 rounded-t-[2.5rem]">
-                            <div className="absolute top-0 right-14 p-4 opacity-5 pointer-events-none">
-                                <Brain className="w-16 h-16 text-[var(--accent-brown)]" />
+                        {/* Header - sticky */}
+                        <DialogHeader className="shrink-0 px-6 py-5 border-b border-[var(--border-color)] bg-[var(--bg-darker)]">
+                            <div className="flex items-center justify-between">
+                                <DialogTitle className="text-lg font-title text-[var(--accent-brown)] flex items-center gap-2.5">
+                                    <ScrollText className="w-5 h-5" />
+                                    <span className="uppercase tracking-widest font-black">Chroniques</span>
+                                </DialogTitle>
+                                <DialogClose className="p-1.5 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-dark)] transition-colors">
+                                    <X className="size-4" />
+                                </DialogClose>
                             </div>
 
-                            <div className="flex items-center justify-between gap-6 mr-10 relative z-10">
-                                <DialogTitle className="text-2xl font-title text-[var(--accent-brown)] flex items-center gap-3">
-                                    <ScrollText className="w-6 h-6" />
-                                    <span className="uppercase tracking-[0.2em] font-black">Chroniques</span>
-                                </DialogTitle>
-
-                                <div className="flex items-center gap-4">
-                                    <select
-                                        value={selectedDate || ''}
-                                        onChange={(e) => setSelectedDate(e.target.value)}
-                                        className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-xl px-4 py-2 text-[11px] font-bold focus:ring-1 focus:ring-[var(--accent-brown)]/50 outline-none min-w-[170px] shadow-inner appearance-none cursor-pointer hover:border-[var(--accent-brown)]/30 transition-colors uppercase tracking-widest"
-                                    >
-                                        <option value="" disabled>Parchemins...</option>
-                                        {uniqueDates.map(date => (
-                                            <option key={date} value={date}>
-                                                {format(new Date(date), 'dd MMMM yyyy', { locale: fr })}
-                                            </option>
-                                        ))}
-                                    </select>
-
-                                    <button
-                                        onClick={generateSummary}
-                                        disabled={isSummarizing || !selectedDate}
-                                        className="flex items-center gap-x-2 px-5 py-2 bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)] disabled:opacity-50 text-[var(--bg-darker)] rounded-xl text-[10px] font-black transition-all shadow-md active:scale-95 group uppercase tracking-widest"
-                                    >
-                                        {isSummarizing ? (
-                                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                        ) : (
-                                            <Sparkles className="w-4 h-4 group-hover:rotate-12 transition-transform" />
-                                        )}
-                                        {isSummarizing ? "Codification..." : "IA"}
-                                    </button>
-                                </div>
+                            {/* Controls row */}
+                            <div className="flex items-center gap-3 mt-4">
+                                <select
+                                    value={selectedDate || ''}
+                                    onChange={(e) => setSelectedDate(e.target.value)}
+                                    className="flex-1 bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-lg px-3 py-2 text-xs font-semibold focus:ring-1 focus:ring-[var(--accent-brown)]/50 outline-none appearance-none cursor-pointer hover:border-[var(--accent-brown)]/30 transition-colors"
+                                >
+                                    <option value="" disabled>Choisir une date...</option>
+                                    {historyDates.map(date => (
+                                        <option key={date} value={date}>
+                                            {format(new Date(date), 'dd MMMM yyyy', { locale: fr })}
+                                        </option>
+                                    ))}
+                                </select>
+                                <button
+                                    onClick={generateSummary}
+                                    disabled={isSummarizing || !selectedDate}
+                                    className="shrink-0 flex items-center gap-2 px-4 py-2 bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)] disabled:opacity-40 disabled:cursor-not-allowed text-[var(--bg-darker)] rounded-lg text-xs font-bold transition-all active:scale-95 group"
+                                >
+                                    {isSummarizing ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                        <Sparkles className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" />
+                                    )}
+                                    {isSummarizing ? "Génération..." : "Générer avec IA"}
+                                </button>
                             </div>
                         </DialogHeader>
 
-                        <div className="flex-1 overflow-y-auto p-12 custom-scrollbar bg-gradient-to-b from-[var(--bg-dark)]/40 to-transparent min-h-0 relative z-10">
+                        {/* Content - scrollable */}
+                        <div className="flex-1 overflow-y-auto min-h-0 scrollbar-thin">
                             {selectedDate ? (
                                 summaries[selectedDate] ? (
-                                    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-5xl mx-auto">
-                                        <div className="flex items-center justify-between">
-                                            <h4 className="flex items-center gap-x-4 text-[var(--accent-brown)] font-black text-[11px] uppercase tracking-[0.4em] opacity-80">
-                                                <Sparkles className="w-4 h-4 text-indigo-400" />
-                                                Parchemin du {format(new Date(selectedDate), 'dd/MM/yyyy')}
-                                            </h4>
-
-                                            {editingModalDate === selectedDate ? (
-                                                <div className="flex items-center gap-x-3">
-                                                    <button
-                                                        onClick={handleSaveEdit}
-                                                        className="flex items-center gap-2 px-6 py-2 bg-green-500/20 hover:bg-green-500/30 text-green-400 rounded-xl text-[10px] font-black transition-all border border-green-500/30 uppercase tracking-[0.2em] shadow-lg shadow-green-500/10"
-                                                    >
-                                                        <Check className="w-4 h-4" /> Sauvegarder
-                                                    </button>
-                                                    <button
-                                                        onClick={() => setEditingModalDate(null)}
-                                                        className="flex items-center gap-2 px-6 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-500 rounded-xl text-[10px] font-black transition-all border border-red-500/30 uppercase tracking-[0.2em]"
-                                                    >
-                                                        <X className="w-4 h-4" /> Annuler
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    onClick={() => handleStartEdit(selectedDate, summaries[selectedDate])}
-                                                    className="flex items-center gap-2 px-6 py-2 bg-white/5 hover:bg-white/10 text-[var(--accent-brown)] rounded-xl text-[10px] font-black transition-all border border-[var(--border-color)] uppercase tracking-[0.2em] shadow-sm group/btn"
-                                                >
-                                                    <Pencil className="w-3.5 h-3.5 group-hover/btn:scale-110 transition-transform" />
-                                                    L'édit de la plume
-                                                </button>
-                                            )}
+                                    <div className="p-6 space-y-4">
+                                        {/* Date badge */}
+                                        <div className="flex items-center gap-2 text-[var(--text-secondary)]">
+                                            <Sparkles className="w-3.5 h-3.5 text-[var(--accent-brown)]" />
+                                            <span className="text-[11px] font-semibold uppercase tracking-wider">
+                                                Séance du {format(new Date(selectedDate), 'dd MMMM yyyy', { locale: fr })}
+                                            </span>
                                         </div>
 
+                                        {/* Summary text or edit area */}
                                         {editingModalDate === selectedDate ? (
                                             <textarea
                                                 value={editedModalText}
                                                 onChange={(e) => setEditedModalText(e.target.value)}
-                                                className="w-full min-h-[450px] bg-black/40 border-2 border-[var(--accent-brown)]/20 rounded-3xl p-10 text-[16px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent-brown)]/40 transition-all custom-scrollbar leading-[1.8] font-body shadow-inner"
-                                                placeholder="Rédigez ici le récit épique de votre séance..."
+                                                className="w-full min-h-[350px] bg-[var(--bg-dark)] border border-[var(--border-color)] focus:border-[var(--accent-brown)]/40 rounded-lg p-5 text-sm text-[var(--text-primary)] focus:outline-none transition-colors leading-relaxed font-body resize-y scrollbar-thin"
+                                                placeholder="Rédigez ici le récit de votre séance..."
                                                 autoFocus
                                             />
                                         ) : (
-                                            <div className="bg-[var(--bg-darker)]/40 border border-[var(--border-color)] p-12 rounded-[2.5rem] shadow-2xl relative isolate group/summary transition-all hover:bg-[var(--bg-darker)]/50">
-                                                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-transparent via-[var(--accent-brown)]/40 to-transparent opacity-0 group-hover/summary:opacity-100 transition-opacity duration-1000"></div>
-                                                <div className="text-[15px] text-[var(--text-primary)] leading-[1.8] whitespace-pre-wrap font-body selection:bg-[var(--accent-brown)]/30">
+                                            <div className="bg-[var(--bg-dark)]/60 border border-[var(--border-color)] rounded-lg p-6 relative">
+                                                <div className="absolute top-0 left-0 w-0.5 h-full bg-gradient-to-b from-[var(--accent-brown)]/60 via-[var(--accent-brown)]/20 to-transparent rounded-full"></div>
+                                                <div className="text-sm text-[var(--text-primary)] leading-[1.9] whitespace-pre-wrap font-body pl-3 selection:bg-[var(--accent-brown)]/20">
                                                     {summaries[selectedDate].split(/(\*\*.*?\*\*)/g).map((part, i) => {
                                                         if (part.startsWith('**') && part.endsWith('**')) {
                                                             return (
-                                                                <span key={i} className="px-2.5 py-0.5 mx-1 bg-[var(--accent-brown)]/10 border border-[var(--accent-brown)]/20 text-[var(--accent-brown)] rounded-lg font-black text-[10px] uppercase tracking-[0.2em] inline-block shadow-lg shadow-black/20 align-baseline transition-transform hover:scale-105 active:scale-95 cursor-default">
+                                                                <span key={i} className="px-1.5 py-0.5 mx-0.5 bg-[var(--accent-brown)]/10 border border-[var(--accent-brown)]/20 text-[var(--accent-brown)] rounded text-[10px] font-bold uppercase tracking-wider inline-block align-baseline">
                                                                     {part.slice(2, -2)}
                                                                 </span>
                                                             );
@@ -424,22 +445,56 @@ export default function Historique({ roomId }: HistoriqueProps) {
                                         )}
                                     </div>
                                 ) : (
-                                    <div className="flex flex-col items-center justify-center h-full py-24 opacity-30 text-center space-y-10 grayscale hover:grayscale-0 transition-all duration-1000">
-                                        <div className="p-10 bg-[var(--bg-darker)] rounded-full border border-[var(--border-color)] shadow-inner">
-                                            <Sparkles className="w-20 h-20 text-[var(--accent-brown)] animate-pulse" />
+                                    <div className="flex flex-col items-center justify-center py-20 text-center space-y-5">
+                                        <div className="p-6 bg-[var(--bg-dark)] rounded-2xl border border-[var(--border-color)]">
+                                            <Sparkles className="w-10 h-10 text-[var(--accent-brown)] opacity-40" />
                                         </div>
-                                        <p className="text-sm font-black uppercase tracking-[0.5em] max-w-xs leading-loose">
-                                            Aucune chronique n'a été gravée pour cette séance.
+                                        <p className="text-xs text-[var(--text-secondary)] font-medium max-w-[220px] leading-relaxed">
+                                            Aucune chronique pour cette séance. Utilisez le bouton IA pour en générer une.
                                         </p>
                                     </div>
                                 )
                             ) : (
-                                <div className="flex flex-col items-center justify-center h-full py-24 opacity-20 text-center space-y-10">
-                                    <ScrollText className="w-32 h-32 stroke-[1px]" />
-                                    <p className="text-xs font-black uppercase tracking-[0.6em]">Sélectionnez un parchemin d'aventure</p>
+                                <div className="flex flex-col items-center justify-center py-20 text-center space-y-5">
+                                    <ScrollText className="w-12 h-12 text-[var(--text-secondary)] opacity-30" />
+                                    <p className="text-xs text-[var(--text-secondary)] font-medium">
+                                        Sélectionnez une date ci-dessus
+                                    </p>
                                 </div>
                             )}
                         </div>
+
+                        {/* Footer - sticky actions */}
+                        {selectedDate && summaries[selectedDate] && (
+                            <div className="shrink-0 px-6 py-4 border-t border-[var(--border-color)] bg-[var(--bg-darker)] flex items-center justify-end gap-3">
+                                {editingModalDate === selectedDate ? (
+                                    <>
+                                        <button
+                                            onClick={() => setEditingModalDate(null)}
+                                            className="flex items-center gap-1.5 px-4 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] bg-[var(--bg-dark)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg text-xs font-semibold transition-colors"
+                                        >
+                                            <X className="w-3.5 h-3.5" />
+                                            Annuler
+                                        </button>
+                                        <button
+                                            onClick={handleSaveEdit}
+                                            className="flex items-center gap-1.5 px-4 py-2 bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)] text-[var(--bg-darker)] rounded-lg text-xs font-bold transition-colors active:scale-95"
+                                        >
+                                            <Check className="w-3.5 h-3.5" />
+                                            Sauvegarder
+                                        </button>
+                                    </>
+                                ) : (
+                                    <button
+                                        onClick={() => handleStartEdit(selectedDate, summaries[selectedDate])}
+                                        className="flex items-center gap-1.5 px-4 py-2 text-[var(--text-secondary)] hover:text-[var(--accent-brown)] bg-[var(--bg-dark)] hover:bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg text-xs font-semibold transition-colors group/edit"
+                                    >
+                                        <Pencil className="w-3.5 h-3.5 group-hover/edit:scale-110 transition-transform" />
+                                        Modifier
+                                    </button>
+                                )}
+                            </div>
+                        )}
                     </div>
                 </DialogContent>
             </Dialog>
