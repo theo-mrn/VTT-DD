@@ -21,6 +21,7 @@ interface MusicState {
     templateId?: string;
     isPlaying: boolean;
     videoTitle?: string;
+    type?: 'youtube' | 'file'; // type de la source audio
 }
 
 interface SoundDrawerProps {
@@ -292,7 +293,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
         if (isActiveThisTrack) {
             await update(dbRef(realtimeDb, `rooms/${roomId}/music`), { isPlaying: !musicState.isPlaying, lastUpdate: Date.now() })
         } else {
-            await update(dbRef(realtimeDb, `rooms/${roomId}/music`), { videoId: sound.soundUrl, templateId: sound.id, videoTitle: sound.name, isPlaying: true, timestamp: 0, lastUpdate: Date.now() })
+            await update(dbRef(realtimeDb, `rooms/${roomId}/music`), { videoId: sound.soundUrl, templateId: sound.id, videoTitle: sound.name, isPlaying: true, timestamp: 0, lastUpdate: Date.now(), type: sound.type ?? 'youtube' })
         }
     }
 

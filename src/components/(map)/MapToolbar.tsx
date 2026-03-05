@@ -491,14 +491,14 @@ function MapToolbar({
                                 label="Mixeur Audio"
                                 isActive={activeTools.includes(TOOLS.AUDIO_MIXER)}
                             />
-                            {isMJ && (
-                                <ToolButton onAction={onAction}
-                                    id={TOOLS.TOGGLE_ALL_BADGES}
-                                    icon={Eye}
-                                    label="Badges d'état"
-                                    isActive={activeTools.includes(TOOLS.TOGGLE_ALL_BADGES)}
-                                />
-                            )}
+
+                            <ToolButton onAction={onAction}
+                                id={TOOLS.TOGGLE_ALL_BADGES}
+                                icon={Eye}
+                                label="Badges d'état"
+                                isActive={activeTools.includes(TOOLS.TOGGLE_ALL_BADGES)}
+                            />
+
                         </div>
 
                         {/* Collapse Button */}

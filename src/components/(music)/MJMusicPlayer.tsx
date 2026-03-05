@@ -15,6 +15,7 @@ interface MusicState {
   volume: number;
   lastUpdate: number;
   updatedBy: string;
+  type?: 'youtube' | 'file';
 }
 
 interface MJMusicPlayerProps {
@@ -25,7 +26,6 @@ interface MJMusicPlayerProps {
 export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlayerProps) {
   const { user, isMJ } = useGame();
 
-  // State minimal pour la synchronisation
   const [musicState, setMusicState] = useState<MusicState>({
     videoId: null,
     videoTitle: '',
@@ -33,14 +33,16 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
     timestamp: 0,
     volume: 80,
     lastUpdate: Date.now(),
-    updatedBy: ''
+    updatedBy: '',
+    type: 'youtube',
   });
-
-
 
   // Refs pour éviter les closures périmées dans les callbacks
   const playerRef = useRef<YouTubePlayer | null>(null);
   const musicStateRef = useRef<string>(`rooms/${roomId}/music`);
+
+  // Audio HTML pour les fichiers (R2)
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const initialVideoId = useRef<string | null>(null);
   if (!initialVideoId.current && musicState.videoId) {
@@ -73,6 +75,37 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
     }
   }, [user]);
 
+  // --- Gestion Audio HTML (fichiers R2) ---
+  const syncFileAudio = useCallback((data: MusicState) => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+      audioRef.current.volume = Math.max(0, Math.min(1, masterVolume));
+    }
+
+    const audio = audioRef.current;
+
+    // Changer la source si nécessaire
+    if (audio.src !== data.videoId) {
+      audio.src = data.videoId ?? '';
+      audio.load();
+    }
+
+    if (data.isPlaying) {
+      audio.play().catch(e => console.error('[MJMusicPlayer] Audio play error:', e));
+    } else {
+      audio.pause();
+    }
+  }, [masterVolume]);
+
+  // Nettoyer l'audio HTML quand on passe à YouTube
+  const stopFileAudio = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = '';
+      audioRef.current = null;
+    }
+  }, []);
+
   // Options du lecteur YouTube (invisible, mute au démarrage pour éviter le blast)
   const opts: YouTubeProps['opts'] = {
     height: '0',
@@ -96,9 +129,22 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
       if (data) {
         setMusicState(data);
 
-        // Si on a un player prêt
+        const isFileType = data.type === 'file';
+
+        // --- Gestion fichier audio (R2) ---
+        if (isFileType) {
+          // Stopper le lecteur YouTube s'il tourne
+          if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
+            try { playerRef.current.pauseVideo(); } catch (_) { }
+          }
+          syncFileAudio(data);
+          return;
+        }
+
+        // --- Gestion YouTube ---
+        stopFileAudio();
+
         if (playerRef.current && typeof playerRef.current.playVideo === 'function' && hasPlayerSyncedOnce.current) {
-          // Si c'est une mise à jour locale (le MJ vient de cliquer sur pause), on ignore l'event Firebase qui revient
           if (isLocalUpdate.current) return;
 
           try {
@@ -109,15 +155,12 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
               if (data.isPlaying) playerRef.current.loadVideoById(data.videoId, data.timestamp);
               else playerRef.current.cueVideoById(data.videoId, data.timestamp);
             } else {
-              // Gestion Play/Pause
               if (data.isPlaying) playerRef.current.playVideo();
               else playerRef.current.pauseVideo();
 
-              // Gestion Timestamp (Seek si décalage > 1.5s)
               const currentTime = playerRef.current.getCurrentTime();
               if (typeof currentTime === 'number') {
                 const targetTime = data.timestamp;
-
                 if (Math.abs(currentTime - targetTime) > 1.5) {
                   playerRef.current.seekTo(targetTime, true);
                 }
@@ -135,8 +178,11 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
       }
     });
 
-    return () => unsubscribe();
-  }, [roomId]);
+    return () => {
+      unsubscribe();
+      stopFileAudio();
+    };
+  }, [roomId, syncFileAudio, stopFileAudio]);
 
 
 
@@ -145,9 +191,19 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
     if (!musicState.isPlaying || !user || !isMJ) return;
 
     const interval = setInterval(async () => {
+      if (musicState.type === 'file') {
+        // Pour les fichiers audio, sync le timestamp depuis l'élément Audio
+        if (audioRef.current && !audioRef.current.paused) {
+          await update(dbRef(realtimeDb, musicStateRef.current), {
+            timestamp: audioRef.current.currentTime,
+            lastUpdate: Date.now()
+          });
+        }
+        return;
+      }
+
       if (playerRef.current && !isSyncingFromFirebase.current && !isLocalUpdate.current) {
         const currentTime = playerRef.current.getCurrentTime();
-        // On push juste le timestamp sans changer l'état play/pause pour éviter les conflits
         if (typeof currentTime === 'number') {
           await update(dbRef(realtimeDb, musicStateRef.current), {
             timestamp: currentTime,
@@ -158,13 +214,19 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
     }, 4000); // Toutes les 4s
 
     return () => clearInterval(interval);
-  }, [musicState.isPlaying, user, isMJ]);
+  }, [musicState.isPlaying, musicState.type, user, isMJ]);
 
-  // Initialisation du Player
+  // Appliquer le volume master sur le fichier audio
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = Math.max(0, Math.min(1, masterVolume));
+    }
+  }, [masterVolume]);
+
+  // Initialisation du Player YouTube
   const onPlayerReady: YouTubeProps['onReady'] = async (event) => {
     playerRef.current = event.target;
 
-    // Appliquer le volume master
     const safeVolume = Math.max(0, Math.min(100, masterVolume * 100));
     playerRef.current.setVolume(safeVolume);
     if (safeVolume > 0) playerRef.current.unMute();
@@ -172,11 +234,15 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
 
     const state = latestMusicState.current;
 
-    // Mettre à jour le titre si manquant
+    // Si c'est un fichier audio, ne pas initialiser le lecteur YouTube
+    if (state.type === 'file') {
+      hasPlayerSyncedOnce.current = true;
+      return;
+    }
+
     try {
       const videoData = await event.target.getVideoData();
       if (videoData && videoData.title && user && isMJ) {
-        // Si le titre stocké est vide ou différent, on le met à jour
         if (state.videoTitle !== videoData.title) {
           updateMusicState({ videoTitle: videoData.title });
         }
@@ -185,7 +251,6 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
 
     currentVideoIdRef.current = state.videoId;
 
-    // Synchronisation initiale (Seek + Play)
     if (state.videoId) {
       isSyncingFromFirebase.current = true;
 
@@ -207,19 +272,15 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
     }
   };
 
-  // Gestion des changements d'état (Fin de vidéo, Pause manuelle imprévue, Buffering)
   const onPlayerStateChange: YouTubeProps['onStateChange'] = async (event) => {
     const playerState = event.data;
 
-    // Ignore si c'est nous qui pilotons le player via code
     if (isLocalUpdate.current || isSyncingFromFirebase.current) return;
 
-    // MJ Only: Si l'état change (ex: buffering fini, ou pause utilisateur direct sur l'iframe invisible - impossible mais bon)
     if (user && isMJ) {
-      const isPlaying = playerState === 1; // 1 = Playing
+      const isPlaying = playerState === 1;
 
-      // Si l'état diffère de notre state local, on met à jour Firebase
-      if (isPlaying !== musicState.isPlaying && (playerState === 1 || playerState === 2)) { // 1 play, 2 pause
+      if (isPlaying !== musicState.isPlaying && (playerState === 1 || playerState === 2)) {
         await updateMusicState({
           isPlaying,
           timestamp: event.target.getCurrentTime()
@@ -228,21 +289,22 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
     }
   };
 
-  // Appliquer les changements de volume Master
+  // Appliquer les changements de volume Master sur YouTube
   useEffect(() => {
     if (playerRef.current && typeof playerRef.current.setVolume === 'function') {
       const safeVolume = Math.max(0, Math.min(100, masterVolume * 100));
       playerRef.current.setVolume(safeVolume);
-
       if (safeVolume > 0) playerRef.current.unMute();
       else playerRef.current.mute();
     }
   }, [masterVolume]);
 
-  // Rendu minimaliste (invisible) : L'iframe est présente mais cachée
+  const isFileMode = musicState.type === 'file';
+
   return (
     <div className="hidden">
-      {initialVideoId.current && (
+      {/* Lecteur YouTube (uniquement si mode YouTube) */}
+      {!isFileMode && initialVideoId.current && (
         <YouTube
           videoId={initialVideoId.current}
           opts={opts}
