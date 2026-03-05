@@ -2,11 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  updateDoc,
-  storage,
-  ref,
-  uploadBytes,
-  getDownloadURL
+  updateDoc
 } from '@/lib/firebase';
 import { Heart, Shield, Edit, Settings, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Trash2, PlusCircle, Expand, FileEdit, LayoutDashboard, Search, FileDown, UploadCloud, RotateCcw, Droplet, Minus, Plus, Sliders } from 'lucide-react';
 import InventoryManagement2 from '@/components/(inventaire)/inventaire2';
@@ -556,9 +552,24 @@ export default function Component() {
     const file = e.target.files[0];
     setUploading(true);
     try {
-      const storageRef = ref(storage, `backgrounds/${selectedCharacter.id}_${target}_${Date.now()}_${file.name}`);
-      await uploadBytes(storageRef, file);
-      const url = await getDownloadURL(storageRef);
+      const formData = new FormData();
+      formData.append('file', file);
+      // Uploading to the requested directory
+      formData.append('category', 'fiche_background');
+      formData.append('type', 'image');
+
+      const response = await fetch('/api/upload-asset', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const data = await response.json();
+      const url = data.url;
+
       if (target === 'background') {
         setCustomizationForm(prev => ({ ...prev, theme_background: url }));
       } else {
