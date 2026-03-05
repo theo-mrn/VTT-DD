@@ -1,10 +1,11 @@
 "use client";
 
-import { Swords, FileText, Edit, Dice5, ImagePlay, UsersRound, Skull, History } from "lucide-react";
+import { Swords, FileText, Edit, Dice5, UsersRound, Skull, History, MessageSquare } from "lucide-react";
 import { useGame } from "@/contexts/GameContext";
 import SearchMenu from "./SearchMenu";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
 import { useShortcuts, SHORTCUT_ACTIONS } from "@/contexts/ShortcutsContext";
+import { useChatNotification } from "@/contexts/ChatNotificationContext";
 import { useEffect } from "react";
 
 type SidebarProps = {
@@ -18,6 +19,11 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
   const { isHydrated } = useGame();
   const { isDialogOpen } = useDialogVisibility();
   const { isShortcutPressed } = useShortcuts();
+  const { unreadCount, clearUnread } = useChatNotification();
+
+  useEffect(() => {
+    if (activeTab === "Chat") clearUnread();
+  }, [activeTab, clearUnread]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -107,9 +113,14 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
               <Dice5 className="h-5 w-5 sm:h-6 sm:w-6 transition-colors duration-150"
                 style={{ color: activeTab === "DiceRoller" ? 'var(--accent-brown)' : 'var(--text-secondary)' }} />
             </button>
-            <button id="vtt-sidebar-chat" onClick={() => handleIconClick("Chat")} className="p-1.5 sm:p-2 transition-colors duration-150">
-              <ImagePlay className="h-5 w-5 sm:h-6 sm:w-6 transition-colors duration-150"
+            <button id="vtt-sidebar-chat" onClick={() => handleIconClick("Chat")} className="relative p-1.5 sm:p-2 transition-colors duration-150">
+              <MessageSquare className="h-5 w-5 sm:h-6 sm:w-6 transition-colors duration-150"
                 style={{ color: activeTab === "Chat" ? 'var(--accent-brown)' : 'var(--text-secondary)' }} />
+              {unreadCount > 0 && (
+                <span className="absolute top-0 right-0 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow-md border border-[#1c1c1c]">
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </span>
+              )}
             </button>
           </div>
         </div>

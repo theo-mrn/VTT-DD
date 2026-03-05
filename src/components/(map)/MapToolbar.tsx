@@ -34,7 +34,8 @@ import {
     Lightbulb,
     Search,
     Hexagon,
-    MapPin  // 🆕 For spawn point icon
+    MapPin,
+    CirclePlus
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -447,8 +448,8 @@ function MapToolbar({
                                 <div id="vtt-toolbar-group-content" className="flex items-center px-1">
                                     <ToolButton onAction={onAction}
                                         id={TOOLS.UNIFIED_SEARCH}
-                                        icon={Search}
-                                        label="Recherche (Tout)"
+                                        icon={CirclePlus}
+                                        label="Ajouter un élément"
                                         isActive={activeTools.includes(TOOLS.UNIFIED_SEARCH)}
                                     />
                                     <ToolButton onAction={onAction}

@@ -81,7 +81,7 @@ export default function RootLayout({
               <CompetencesProvider>
                 <UndoRedoProvider>
                   <QuotaGuard />
-                  <Toaster position="top-right" />
+                  <Toaster position="top-center" />
                   <TimeTracker />
                   <CookieBanner />
                   <div className="flex flex-col min-h-screen">
