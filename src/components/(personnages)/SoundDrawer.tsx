@@ -9,8 +9,8 @@ import { useGMTemplates, type SoundTemplate } from '@/contexts/GMTemplatesContex
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
-import { SUGGESTED_SOUNDS, SOUND_CATEGORIES } from '@/lib/suggested-sounds'
+
+import { SUGGESTED_SOUNDS, SOUND_CATEGORIES, SUGGESTED_MUSICS, MUSIC_CATEGORIES } from '@/lib/suggested-sounds'
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
@@ -198,9 +198,16 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
         try {
             let soundUrl = ''
             if (creationType === 'file' && newSoundFile) {
-                const storageRef = ref(getStorage(), `sounds/${roomId}/${Date.now()}_${newSoundFile.name}`)
-                const snapshot = await uploadBytes(storageRef, newSoundFile.file)
-                soundUrl = await getDownloadURL(snapshot.ref)
+                const formData = new FormData()
+                formData.append('file', newSoundFile.file)
+                formData.append('roomId', roomId)
+                const res = await fetch('/api/upload-sound', { method: 'POST', body: formData })
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}))
+                    throw new Error(err.error || 'Upload failed')
+                }
+                const { url } = await res.json()
+                soundUrl = url
             } else {
                 soundUrl = extractVideoId(youtubeInput)!
             }
@@ -379,20 +386,12 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                 {/* ADD GLOBAL BUTTON */}
                 {!showCreateForm && (
                     <div className="p-3 border-b border-[#333] bg-[#1a1a1a] flex gap-2">
-                        {activeTab === 'sounds' ? (
-                            <>
-                                <div className="relative flex-1">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500" />
-                                    <Input placeholder="Rechercher..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-8 bg-[#252525] border-none text-white h-8 text-xs" />
-                                </div>
-                                <Button onClick={() => setShowCreateForm(true)} size="sm" className="h-8 bg-[#c0a080] text-black hover:bg-[#d4b494]"><Plus className="w-4 h-4" /></Button>
-                                <Button onClick={() => setIsLibraryOpen(true)} size="icon" variant="outline" className="h-8 w-8 border-[#333] text-gray-400 hover:text-white bg-transparent"><Library className="w-4 h-4" /></Button>
-                            </>
-                        ) : (
-                            <Button onClick={() => setShowCreateForm(true)} size="sm" className="w-full bg-[#c0a080] text-black hover:bg-[#d4b494] gap-2">
-                                <Plus className="w-4 h-4" /> Ajouter une piste
-                            </Button>
-                        )}
+                        <div className="relative flex-1">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500" />
+                            <Input placeholder="Rechercher..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="pl-8 bg-[#252525] border-none text-white h-8 text-xs" />
+                        </div>
+                        <Button onClick={() => setShowCreateForm(true)} size="sm" className="h-8 bg-[#c0a080] text-black hover:bg-[#d4b494]"><Plus className="w-4 h-4" /></Button>
+                        <Button onClick={() => setIsLibraryOpen(true)} size="icon" variant="outline" className="h-8 w-8 border-[#333] text-gray-400 hover:text-white bg-transparent"><Library className="w-4 h-4" /></Button>
                     </div>
                 )}
 
@@ -728,8 +727,12 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                                         <Library className="w-5 h-5 text-[#c0a080]" />
                                     </div>
                                     <div>
-                                        <h2 className="text-lg font-bold text-white">Bibliothèque Audio</h2>
-                                        <p className="text-xs text-gray-500">Importez des sons d'ambiance et effets pour vos parties.</p>
+                                        <h2 className="text-lg font-bold text-white">
+                                            {activeTab === 'music' ? 'Bibliothèque Musicale' : 'Bibliothèque Audio'}
+                                        </h2>
+                                        <p className="text-xs text-gray-500">
+                                            {activeTab === 'music' ? 'Importez de la musique pour la session.' : 'Importez des sons d\'ambiance et effets pour vos parties.'}
+                                        </p>
                                     </div>
                                 </div>
                                 <Button variant="ghost" size="icon" onClick={() => setIsLibraryOpen(false)} className="text-gray-400 hover:text-white">
@@ -766,7 +769,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                                         </Button>
                                         <div className="h-px bg-[#222] my-2 mx-1" />
                                         <div className="px-2 pb-1 text-[10px] font-semibold text-gray-600 uppercase">Catégories</div>
-                                        {SOUND_CATEGORIES.map(cat => (
+                                        {(activeTab === 'music' ? MUSIC_CATEGORIES : SOUND_CATEGORIES).map(cat => (
                                             <Button
                                                 key={cat.id}
                                                 variant="ghost"
@@ -785,7 +788,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                             <div className="flex-1 bg-[#0a0a0a] flex flex-col min-w-0">
                                 <ScrollArea className="flex-1 p-5">
                                     <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                                        {SUGGESTED_SOUNDS
+                                        {(activeTab === 'music' ? SUGGESTED_MUSICS : SUGGESTED_SOUNDS)
                                             .filter(s => {
                                                 const matchesSearch = s.name.toLowerCase().includes(librarySearch.toLowerCase()) || s.category.toLowerCase().includes(librarySearch.toLowerCase())
                                                 const matchesCat = selectedLibraryCategory === 'all' || s.category === selectedLibraryCategory
@@ -858,7 +861,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
                                     </div>
 
                                     {/* Empty State */}
-                                    {SUGGESTED_SOUNDS.filter(s => (s.name.toLowerCase().includes(librarySearch.toLowerCase()) || s.category.includes(librarySearch))).length === 0 && (
+                                    {(activeTab === 'music' ? SUGGESTED_MUSICS : SUGGESTED_SOUNDS).filter(s => (s.name.toLowerCase().includes(librarySearch.toLowerCase()) || s.category.includes(librarySearch))).length === 0 && (
                                         <div className="flex flex-col items-center justify-center py-20 text-gray-500">
                                             <Search className="w-12 h-12 mb-4 opacity-20" />
                                             <p>Aucun son trouvé pour "{librarySearch}"</p>
