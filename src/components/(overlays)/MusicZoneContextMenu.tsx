@@ -12,6 +12,7 @@ import {
     Play,
     Pause
 } from 'lucide-react';
+import YouTube from 'react-youtube';
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -25,6 +26,15 @@ interface MusicZoneContextMenuProps {
     onAction: (action: string, zoneId: string, value?: any) => void;
     isMJ: boolean;
 }
+
+const extractVideoId = (url: string): string | null => {
+    const patterns = [/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&\n?#]+)/, /^([a-zA-Z0-9_-]{11})$/];
+    for (const pattern of patterns) {
+        const match = url.match(pattern);
+        if (match && match[1]) return match[1];
+    }
+    return null;
+};
 
 export default function MusicZoneContextMenu({
     zone,
@@ -41,6 +51,8 @@ export default function MusicZoneContextMenu({
     // Local Audio State
     const [isPlaying, setIsPlaying] = useState(false);
     const audioRef = useRef<HTMLAudioElement | null>(null);
+    const ytPlayerRef = useRef<any>(null);
+    const [localYtId, setLocalYtId] = useState<string | null>(null);
 
     useEffect(() => {
         if (zone) {
@@ -51,8 +63,12 @@ export default function MusicZoneContextMenu({
             if (audioRef.current) {
                 audioRef.current.pause();
                 audioRef.current = null;
-                setIsPlaying(false);
             }
+            if (ytPlayerRef.current) {
+                try { ytPlayerRef.current.pauseVideo(); } catch (e) { }
+            }
+            setLocalYtId(null);
+            setIsPlaying(false);
         }
     }, [zone]);
 
@@ -63,34 +79,51 @@ export default function MusicZoneContextMenu({
                 audioRef.current.pause();
                 audioRef.current = null;
             }
+            if (ytPlayerRef.current) {
+                try { ytPlayerRef.current.pauseVideo(); } catch (e) { }
+            }
         };
     }, []);
 
     // Stop audio if closed
     useEffect(() => {
-        if (!isOpen && audioRef.current) {
-            audioRef.current.pause();
+        if (!isOpen) {
+            if (audioRef.current) {
+                audioRef.current.pause();
+            }
+            if (ytPlayerRef.current) {
+                try { ytPlayerRef.current.pauseVideo(); } catch (e) { }
+            }
             setIsPlaying(false);
         }
     }, [isOpen]);
 
     const toggleLocalPlay = () => {
         if (!zone?.url) return;
+        const ytId = extractVideoId(zone.url);
 
         if (isPlaying) {
-            audioRef.current?.pause();
+            if (ytId) {
+                ytPlayerRef.current?.pauseVideo();
+            } else {
+                audioRef.current?.pause();
+            }
             setIsPlaying(false);
         } else {
-            if (!audioRef.current) {
-                audioRef.current = new Audio(zone.url);
-                audioRef.current.loop = true;
-                audioRef.current.addEventListener('ended', () => setIsPlaying(false));
+            if (ytId) {
+                setLocalYtId(ytId);
+                if (ytPlayerRef.current) {
+                    ytPlayerRef.current.playVideo();
+                }
+            } else {
+                if (!audioRef.current) {
+                    audioRef.current = new Audio(zone.url);
+                    audioRef.current.loop = true;
+                    audioRef.current.addEventListener('ended', () => setIsPlaying(false));
+                }
+                audioRef.current.volume = volume;
+                audioRef.current.play().catch(e => console.error("Error playing audio:", e));
             }
-            audioRef.current.volume = volume; // Use current volume slider? Or keep separate?
-            // If using standard preview, usually max volume or reasonable default. 
-            // Let's use the zone's volume setting to preview exactly as it would sound at "max distance"?
-            // Actually, zone volume is just a multiplier. Let's stick to simple preview at 0.5 or current slider.
-            audioRef.current.play().catch(e => console.error("Error playing audio:", e));
             setIsPlaying(true);
         }
     };
@@ -209,6 +242,9 @@ export default function MusicZoneContextMenu({
                                                 if (audioRef.current) {
                                                     audioRef.current.volume = v;
                                                 }
+                                                if (ytPlayerRef.current) {
+                                                    try { ytPlayerRef.current.setVolume(v * 100); } catch (e) { }
+                                                }
                                             }}
                                             className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-purple-500"
                                         />
@@ -252,6 +288,27 @@ export default function MusicZoneContextMenu({
                             )}
                         </div>
                     </ScrollArea>
+
+                    {localYtId && (
+                        <div className="hidden">
+                            <YouTube
+                                videoId={localYtId}
+                                opts={{
+                                    height: '0',
+                                    width: '0',
+                                    playerVars: { autoplay: 1, loop: 1, playlist: localYtId }
+                                }}
+                                onReady={(e) => {
+                                    ytPlayerRef.current = e.target;
+                                    e.target.setVolume(volume * 100);
+                                    if (isPlaying) e.target.playVideo();
+                                }}
+                                onEnd={(e) => {
+                                    if (isPlaying) Object.values(e.target).forEach((v: any) => v?.playVideo?.());
+                                }}
+                            />
+                        </div>
+                    )}
                 </motion.div>
             )}
         </AnimatePresence>
