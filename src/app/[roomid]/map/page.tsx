@@ -2982,14 +2982,13 @@ export default function Component() {
               onClick={async () => {
                 if (roomId && isMJ) {
                   const deletePromises = selectedObstacleIds.map(async (obstacleId) => {
-                    await deleteWithHistory(
+                    await deleteFromRtdbWithHistory(
                       'obstacles',
                       obstacleId,
                       `Suppression d'obstacle (bulk)`
                     );
                   });
                   await Promise.all(deletePromises);
-                  setObstacles(prev => prev.filter(o => !selectedObstacleIds.includes(o.id)));
                   toast.success(`${selectedObstacleIds.length} obstacles supprimés`);
                   setSelectedObstacleIds([]);
                 }
@@ -3024,13 +3023,12 @@ export default function Component() {
           <div className="flex items-center gap-1 border-l border-r border-white/10 px-2 mx-2">
             <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${selectedObs?.type === 'wall' ? 'bg-white/20 text-white' : 'text-gray-400'}`} onClick={async () => {
               if (!roomId || !selectedObstacleId) return;
-              await updateWithHistory(
+              await updateRtdbWithHistory(
                 'obstacles',
                 selectedObstacleId,
                 { type: 'wall' },
                 `Conversion en mur`
               );
-              setObstacles(prev => prev.map(o => o.id === selectedObstacleId ? { ...o, type: 'wall' } : o));
             }} title="Convertir en Mur">
               <div className="w-3 h-3 bg-current rounded-[1px]" />
             </Button>
@@ -3054,25 +3052,23 @@ export default function Component() {
                 }
               }
 
-              await updateWithHistory(
+              await updateRtdbWithHistory(
                 'obstacles',
                 selectedObstacleId,
                 { type: 'one-way-wall', direction: defaultDir },
                 `Conversion en mur sens-unique`
               );
-              setObstacles(prev => prev.map(o => o.id === selectedObstacleId ? { ...o, type: 'one-way-wall', direction: defaultDir as any } : o));
             }} title="Convertir en Mur sens-unique">
               <ArrowRight className="w-3 h-3" />
             </Button>
             <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${selectedObs?.type === 'door' ? 'bg-green-500/20 text-green-400' : 'text-gray-400'}`} onClick={async () => {
               if (!roomId || !selectedObstacleId) return;
-              await updateWithHistory(
+              await updateRtdbWithHistory(
                 'obstacles',
                 selectedObstacleId,
                 { type: 'door', isOpen: false },
                 `Conversion en porte`
               );
-              setObstacles(prev => prev.map(o => o.id === selectedObstacleId ? { ...o, type: 'door', isOpen: false } : o));
             }} title="Convertir en Porte">
               <DoorOpen className="w-3 h-3" />
             </Button>
@@ -3108,11 +3104,7 @@ export default function Component() {
                 else if (currentDir === 'east') newDir = 'west';
                 else if (currentDir === 'west') newDir = 'east';
 
-                // Update local
-                setObstacles(prev => prev.map(o => o.id === selectedObstacleId ? { ...o, direction: newDir as any } : o));
-
-                // Update Firebase
-                await updateWithHistory(
+                await updateRtdbWithHistory(
                   'obstacles',
                   selectedObstacleId,
                   { direction: newDir },
@@ -3129,12 +3121,11 @@ export default function Component() {
             size="sm"
             onClick={async () => {
               if (selectedObstacleId && roomId && isMJ) {
-                await deleteWithHistory(
+                await deleteFromRtdbWithHistory(
                   'obstacles',
                   selectedObstacleId,
                   `Suppression d'obstacle`
                 );
-                setObstacles(prev => prev.filter(o => o.id !== selectedObstacleId));
                 toast.success("Obstacle supprimé")
                 setSelectedObstacleIds([]);
               }
@@ -7585,7 +7576,7 @@ export default function Component() {
           const hasChanged = JSON.stringify(currentObs.points) !== JSON.stringify(originalObs.points);
 
           if (hasChanged) {
-            await updateWithHistory(
+            await updateRtdbWithHistory(
               'obstacles',
               currentObs.id,
               { points: currentObs.points },
@@ -8082,6 +8073,7 @@ export default function Component() {
           );
           setCharacters(characters.filter((char) => char.id !== characterToDelete.id));
           setSelectedCharacterIndex(null);
+          resetActiveElementSelection();
           toast.success(`Personnage "${characterToDelete.name}" supprimé`);
         } catch (error) {
           console.error("Erreur lors de la suppression du personnage :", error);
@@ -8325,12 +8317,11 @@ export default function Component() {
 
         case 'obstacle':
           if (entityToDelete.id) {
-            await deleteWithHistory(
+            await deleteFromRtdbWithHistory(
               'obstacles',
               entityToDelete.id,
               `Suppression de l'obstacle`
             );
-            setObstacles(prev => prev.filter(o => o.id !== entityToDelete.id));
             setSelectedObstacleIds([]);
             toast.success(`Obstacle supprimé`);
           }
@@ -8413,6 +8404,7 @@ export default function Component() {
     } finally {
       setEntityToDelete(null);
       setDeleteModalOpen(false);
+      resetActiveElementSelection();
     }
   };
 
@@ -8555,7 +8547,8 @@ export default function Component() {
         await deleteDoc(doc(db, 'cartes', String(roomId), 'objects', objectId));
         setContextMenuObjectOpen(false);
         setContextMenuObjectId(null);
-        setSelectedObjectIndices(prev => prev.filter(idx => idx !== objIndex)); // Note: Index might shift if real-time, but for now ok
+        setSelectedObjectIndices(prev => prev.filter(idx => idx !== objIndex));
+        resetActiveElementSelection(); // Note: Index might shift if real-time, but for now ok
       } else if (action === 'toggleBackground') {
         // Toggle background status
         await updateDoc(doc(db, 'cartes', String(roomId), 'objects', objectId), {
@@ -8657,6 +8650,7 @@ export default function Component() {
 
         setContextMenuPortalOpen(false);
         setContextMenuPortalId(null);
+        resetActiveElementSelection();
       } else if (action === 'edit') {
         const portal = portals.find(p => p.id === portalId);
         if (portal) {
@@ -8679,6 +8673,7 @@ export default function Component() {
       if (confirm('Supprimer cette lumière ?')) {
         await deleteDoc(lightDoc);
         setContextMenuLightOpen(false);
+        resetActiveElementSelection();
         toast.success("Lumiere supprimé")
       }
     } else if (action === 'updateRadius') {
@@ -8697,6 +8692,7 @@ export default function Component() {
         setContextMenuMusicZoneOpen(false);
         setContextMenuMusicZoneId(null);
         setSelectedMusicZoneIds(prev => prev.filter(id => id !== zoneId));
+        resetActiveElementSelection();
         toast.success("Zone sonore supprimée")
       } else if (action === 'rename') {
         await updateDoc(doc(db, 'cartes', String(roomId), 'musicZones', zoneId), { name: value });

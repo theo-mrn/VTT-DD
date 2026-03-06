@@ -16,6 +16,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogOverlay } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -327,12 +328,15 @@ export default function Sidebar({ onClose }: SidebarProps) {
               {THEMES.map((t) => {
                 const isActive = currentTheme === t.key;
                 return (
-                  <button
+                  <DropdownMenuItem
                     key={t.key}
-                    onClick={() => handleThemeChange(t.key)}
+                    onSelect={(e) => {
+                      e.preventDefault();
+                      handleThemeChange(t.key);
+                    }}
                     className={cn(
-                      "group relative flex flex-col items-center gap-2 rounded-xl p-2.5 transition-all shrink-0 w-[96px]",
-                      "hover:bg-[var(--border-color)] focus-visible:outline-none",
+                      "group relative flex flex-col items-center gap-2 rounded-xl p-2.5 transition-all shrink-0 w-[96px] cursor-pointer",
+                      "hover:bg-[var(--border-color)] focus:bg-[var(--border-color)] focus:text-current focus-visible:outline-none",
                       isActive && "bg-[var(--border-color)]"
                     )}
                     style={isActive ? { boxShadow: `0 0 0 2px ${t.accent}` } : {}}
@@ -380,7 +384,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                     >
                       {t.label}
                     </span>
-                  </button>
+                  </DropdownMenuItem>
                 );
               })}
             </div>

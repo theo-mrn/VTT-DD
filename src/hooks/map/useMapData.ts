@@ -123,7 +123,6 @@ export function useMapData(
             unsubs.push(onSnapshot(
                 doc(db, 'cartes', roomId, 'settings', 'general'),
                 (docSnap) => {
-                    if (docSnap.metadata.hasPendingWrites) return;
                     if (!docSnap.exists()) return;
                     const data = docSnap.data();
                     const c = cb.current;
@@ -218,7 +217,6 @@ export function useMapData(
             unsubs.push(onSnapshot(
                 collection(db, 'cartes', roomId, 'cities'),
                 (snapshot) => {
-                    if (snapshot.metadata.hasPendingWrites) return;
                     cb.current.setCities?.(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
                 }
             ));
@@ -394,7 +392,6 @@ export function useMapData(
             unsubs.push(onSnapshot(
                 query(collection(db, 'cartes', roomId, 'lights'), where('cityId', '==', selectedCityId)),
                 (snapshot) => {
-                    if (snapshot.metadata.hasPendingWrites) return;
                     cb.current.setLights?.(snapshot.docs.map(d => ({
                         id: d.id,
                         x: d.data().x,
@@ -413,11 +410,8 @@ export function useMapData(
             unsubs.push(onSnapshot(
                 query(collection(db, 'cartes', roomId, 'objects'), where('cityId', '==', selectedCityId)),
                 (snapshot) => {
-                    if (snapshot.metadata.hasPendingWrites) return;
                     const objs: MapObject[] = snapshot.docs.map(d => {
                         const data = d.data();
-                        const img = new Image();
-                        if (data.imageUrl) img.src = data.imageUrl;
                         return {
                             id: d.id,
                             x: data.x || 0,
@@ -428,7 +422,6 @@ export function useMapData(
                             imageUrl: data.imageUrl || '',
                             name: data.name,
                             cityId: data.cityId || null,
-                            image: img,
                             isBackground: data.isBackground || false,
                             isLocked: data.isLocked || false,
                             visibility: data.visibility || undefined,
@@ -449,7 +442,6 @@ export function useMapData(
             unsubs.push(onSnapshot(
                 query(collection(db, 'cartes', roomId, 'musicZones'), where('cityId', '==', selectedCityId)),
                 (snapshot) => {
-                    if (snapshot.metadata.hasPendingWrites) return;
                     const zones = snapshot.docs
                         .filter(d => d.data().cityId === selectedCityId)
                         .map(d => ({ id: d.id, ...d.data() } as MusicZone));
