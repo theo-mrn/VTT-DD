@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion'
+import YouTube from 'react-youtube';
 import poisonIcon from './icons/poison.svg';
 import stunIcon from './icons/stun.svg';
 import blindIcon from './icons/blind.svg';
@@ -1469,7 +1470,8 @@ export default function Component() {
     return [...musicZones, ...charZones];
   }, [musicZones, characters]);
 
-  useAudioZones(effectiveMusicZones, listenerPos, true, audioVolumes.musicZones);
+  const ytPlayersRef = useRef<Map<string, any>>(new Map());
+  const { youtubeZones } = useAudioZones(effectiveMusicZones, listenerPos, true, audioVolumes.musicZones, ytPlayersRef);
 
   // Force background video to always be muted
   useEffect(() => {
@@ -7694,7 +7696,7 @@ export default function Component() {
   };
 
 
-  const handleCanvasMouseUp = async () => {
+  const handleCanvasMouseUp = async (e?: React.MouseEvent | React.TouchEvent | MouseEvent | any) => {
     const rect = bgCanvasRef.current?.getBoundingClientRect();
     //  CALIBRATION END (OPEN DIALOG)
     if (isCalibrating && measureMode && measureStart && measureEnd) {
@@ -8091,21 +8093,47 @@ export default function Component() {
       return;
     }
 
-    //  FIN DU DRAG & DROP OBJET (MULTI)
     if (isDraggingObject && draggedObjectIndex !== null && draggedObjectsOriginalPositions.length > 0) {
       if (roomId) {
         try {
           const updatePromises = draggedObjectsOriginalPositions.map(async (originalPos) => {
             const currentObj = objects[originalPos.index];
-            const hasChanged = currentObj.x !== originalPos.x || currentObj.y !== originalPos.y;
+
+            let finalX = currentObj.x;
+            let finalY = currentObj.y;
+
+            // Calculate final coordinates accurately using the mouse event to bypass stale React state
+            if (e && bgCanvasRef.current && bgImageObject) {
+              const rect = bgCanvasRef.current.getBoundingClientRect();
+              const containerWidth = containerRef.current?.clientWidth || rect.width;
+              const containerHeight = containerRef.current?.clientHeight || rect.height;
+              const { width: imgWidth, height: imgHeight } = getMediaDimensions(bgImageObject);
+              const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+              const scaledWidth = imgWidth * scale * zoom;
+              const scaledHeight = imgHeight * scale * zoom;
+
+              const clientX = e.clientX ?? (e.changedTouches ? e.changedTouches[0].clientX : 0);
+              const clientY = e.clientY ?? (e.changedTouches ? e.changedTouches[0].clientY : 0);
+
+              if (clientX && clientY) {
+                const currentX = ((clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
+                const currentY = ((clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
+                const deltaX = currentX - dragStart.x;
+                const deltaY = currentY - dragStart.y;
+                finalX = originalPos.x + deltaX;
+                finalY = originalPos.y + deltaY;
+              }
+            }
+
+            const hasChanged = finalX !== originalPos.x || finalY !== originalPos.y;
 
             if (hasChanged && currentObj?.id) {
               await updateWithHistory(
                 'objects',
                 currentObj.id,
                 {
-                  x: currentObj.x,
-                  y: currentObj.y
+                  x: finalX,
+                  y: finalY
                 },
                 `Déplacement de l'objet${currentObj.name ? ` "${currentObj.name}"` : ''}`
               );
@@ -11238,6 +11266,42 @@ export default function Component() {
           }}
         />
       )}
+
+      {/* 🎵 INVISIBLE YOUTUBE AUDIO PLAYERS FOR MUSIC ZONES */}
+      <div className="hidden">
+        {youtubeZones.map(zone => (
+          <YouTube
+            key={`yt-zone-${zone.id}`}
+            videoId={zone.trackId}
+            opts={{
+              height: '0',
+              width: '0',
+              playerVars: {
+                autoplay: 1,      // Let the useAudioZones hook manage volume initially
+                controls: 0,
+                disablekb: 1,
+                fs: 0,
+                loop: 1,
+                playlist: zone.trackId,
+              },
+            }}
+            onReady={(e) => {
+              if (ytPlayersRef.current) {
+                // Initialize at 0, hook will apply correct distance volume immediately
+                e.target.setVolume(0);
+                ytPlayersRef.current.set(zone.id, e.target);
+              }
+            }}
+            onEnd={(e) => {
+              // Loop the track
+              e.target.playVideo();
+            }}
+            onError={(e) => {
+              console.warn(`YouTube player error for zone ${zone.name}`, e);
+            }}
+          />
+        ))}
+      </div>
 
     </div >
 
