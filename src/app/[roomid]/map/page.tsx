@@ -51,7 +51,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Map as MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, Lightbulb, ArrowRight, DoorOpen, Pen, ArrowDownUp, Hexagon } from 'lucide-react'
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Map as MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, Lightbulb, ArrowRight, DoorOpen, Pen, ArrowDownUp, Hexagon, MousePointer } from 'lucide-react'
 import { toast } from 'sonner';
 import { auth, db, realtimeDb, dbRef, onValue, onAuthStateChanged } from '@/lib/firebase'
 import { doc, collection, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
@@ -91,6 +91,8 @@ import { type NPC } from '@/components/(personnages)/personnages';
 import {
   type Obstacle,
   type Point as VisibilityPoint,
+  type EdgeMeta,
+  type PolygonViewerInfo,
   drawShadows,
   drawObstacles,
   calculateShadowPolygons,
@@ -886,7 +888,7 @@ export default function Component() {
   // 🔦 DYNAMIC LIGHTING / OBSTACLES STATE
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [visibilityMode, setVisibilityMode] = useState(false);
-  const [currentVisibilityTool, setCurrentVisibilityTool] = useState<'fog' | 'chain' | 'polygon' | 'edit' | 'none'>('chain');
+  const [currentVisibilityTool, setCurrentVisibilityTool] = useState<'fog' | 'chain' | 'edit' | 'none'>('chain');
   const [isDrawingObstacle, setIsDrawingObstacle] = useState(false);
   const [currentObstaclePoints, setCurrentObstaclePoints] = useState<Point[]>([]);
   const [selectedObstacleIds, setSelectedObstacleIds] = useState<string[]>([]); // MULTI-SELECTION
@@ -907,6 +909,19 @@ export default function Component() {
   // 🆕 Nouveaux états pour les types d'obstacles avancés
   const [currentObstacleType, setCurrentObstacleType] = useState<'wall' | 'one-way-wall' | 'door'>('wall');
   const [isOneWayReversed, setIsOneWayReversed] = useState<boolean>(false); // Sens par défaut ou inversé
+  const [pendingEdges, setPendingEdges] = useState<EdgeMeta[]>([]); // Metadata par arête pendant le dessin
+  const [selectedEdgeIndex, setSelectedEdgeIndex] = useState<number | null>(null); // Arête sélectionnée dans un polygon
+  const [isDraggingEdge, setIsDraggingEdge] = useState(false); // Drag d'une arête le long du mur parent
+  const [draggedEdgeIndex, setDraggedEdgeIndex] = useState<number | null>(null);
+  const [draggedEdgeObstacleId, setDraggedEdgeObstacleId] = useState<string | null>(null);
+  const [draggedEdgeOriginalPoints, setDraggedEdgeOriginalPoints] = useState<Point[]>([]); // Points originaux du polygon au début du drag
+
+  // Reset selectedEdgeIndex quand la sélection d'obstacles change
+  useEffect(() => {
+    if (selectedObstacleIds.length !== 1) {
+      setSelectedEdgeIndex(null);
+    }
+  }, [selectedObstacleIds]);
 
   //  LAYERS STATE
   const [showLayerControl, setShowLayerControl] = useState(false);
@@ -1501,11 +1516,33 @@ export default function Component() {
         }
       }
 
-      // Annuler le dessin d'obstacle en cours avec Escape
+      // Finir le dessin d'obstacle en cours avec Escape (sauvegarde les segments individuels)
       if (e.key === 'Escape' && isDrawingObstacle) {
         e.preventDefault();
+
+        // Sauvegarder tous les segments accumulés comme obstacles individuels
+        if (currentObstaclePoints.length >= 2 && pendingEdges.length > 0) {
+          const edgesToSave = [...pendingEdges];
+          const pointsToSave = [...currentObstaclePoints];
+          (async () => {
+            for (let i = 0; i < edgesToSave.length && i < pointsToSave.length - 1; i++) {
+              const edge = edgesToSave[i];
+              const segPoints = [pointsToSave[i], pointsToSave[i + 1]];
+              const props: any = {};
+              if (edge.type === 'one-way-wall' && edge.direction) {
+                props.direction = edge.direction;
+              }
+              if (edge.type === 'door') {
+                props.isOpen = edge.isOpen ?? false;
+              }
+              await saveObstacle(edge.type, segPoints, props);
+            }
+          })();
+        }
+
         setIsDrawingObstacle(false);
         setCurrentObstaclePoints([]);
+        setPendingEdges([]);
       }
 
       // 🆕 Désélectionner les cases de brouillard avec Escape
@@ -2523,12 +2560,39 @@ export default function Component() {
     }
   };
 
+  // Helper pour construire la metadata d'une arête
+  const buildEdgeMeta = (
+    obstacleType: 'wall' | 'one-way-wall' | 'door',
+    reversed: boolean,
+    p1: Point,
+    p2: Point
+  ): EdgeMeta => {
+    const meta: EdgeMeta = { type: obstacleType };
+    if (obstacleType === 'one-way-wall') {
+      const dx = p2.x - p1.x;
+      const dy = p2.y - p1.y;
+      let nx = dy;
+      let ny = -dx;
+      if (reversed) { nx = -nx; ny = -ny; }
+      if (Math.abs(nx) > Math.abs(ny)) {
+        meta.direction = nx > 0 ? 'east' : 'west';
+      } else {
+        meta.direction = ny > 0 ? 'south' : 'north';
+      }
+    }
+    if (obstacleType === 'door') {
+      meta.isOpen = false;
+    }
+    return meta;
+  };
+
   const saveObstacle = async (
     type: 'wall' | 'polygon' | 'one-way-wall' | 'door',
     points: Point[],
     additionalProps?: {
       direction?: 'north' | 'south' | 'east' | 'west';
       isOpen?: boolean;
+      edges?: EdgeMeta[];
     }
   ) => {
     if (!roomId || points.length < 2) return;
@@ -2548,6 +2612,11 @@ export default function Component() {
 
       if (type === 'door') {
         obstacleData.isOpen = additionalProps?.isOpen ?? false; // Par défaut fermée
+      }
+
+      // Ajouter les edges metadata pour les polygons avec portes/murs à sens unique
+      if (type === 'polygon' && additionalProps?.edges) {
+        obstacleData.edges = additionalProps.edges;
       }
 
       await addToRtdbWithHistory(
@@ -2587,12 +2656,39 @@ export default function Component() {
     }
   };
 
-  const toggleDoorState = async (obstacleId: string) => {
+  const toggleDoorState = async (obstacleId: string, edgeIndex?: number) => {
     if (!roomId || !obstacleId || !isMJ) return; // Seul le MJ peut ouvrir/fermer les portes
 
     try {
       const obstacle = obstacles.find(o => o.id === obstacleId);
-      if (!obstacle || obstacle.type !== 'door') return;
+      if (!obstacle) return;
+
+      // Cas 1 : Porte sur une arête de polygon
+      if (edgeIndex !== undefined && obstacle.type === 'polygon' && obstacle.edges) {
+        const edge = obstacle.edges[edgeIndex];
+        if (!edge || edge.type !== 'door') return;
+
+        const newEdges = [...obstacle.edges];
+        newEdges[edgeIndex] = { ...edge, isOpen: !edge.isOpen };
+
+        // Mise à jour optimiste locale
+        setObstacles(prev => prev.map(o =>
+          o.id === obstacleId ? { ...o, edges: newEdges } : o
+        ));
+
+        await updateRtdbWithHistory(
+          'obstacles',
+          obstacleId,
+          { edges: newEdges },
+          `Porte ${!edge.isOpen ? 'ouverte' : 'fermée'} (arête ${edgeIndex})`
+        );
+
+        toast.success(!edge.isOpen ? 'Porte ouverte' : 'Porte fermée', { duration: 2000 });
+        return;
+      }
+
+      // Cas 2 : Porte standalone (obstacle type door)
+      if (obstacle.type !== 'door') return;
 
       const newIsOpen = !obstacle.isOpen;
 
@@ -3012,67 +3108,199 @@ export default function Component() {
       const selectedObstacleId = selectedObstacleIds[0];
       const selectedObs = obstacles.find(o => o.id === selectedObstacleId);
 
+      // Polygon avec edges : afficher les contrôles par arête
+      if (selectedObs?.type === 'polygon' && selectedObs.edges && selectedObs.edges.length > 0) {
+        const currentEdge = selectedEdgeIndex !== null && selectedEdgeIndex < selectedObs.edges.length
+          ? selectedObs.edges[selectedEdgeIndex]
+          : null;
+
+        return (
+          <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+            <span className="text-white text-sm font-medium pr-2">
+              {selectedEdgeIndex !== null && currentEdge
+                ? `Arête ${selectedEdgeIndex + 1} — ${currentEdge.type === 'door' ? 'Porte' : currentEdge.type === 'one-way-wall' ? 'Sens unique' : 'Mur'}`
+                : `Aller dans le menu de visibilité pour editer les murs`}
+            </span>
+
+            {/* Type Switcher pour l'arête sélectionnée */}
+            {selectedEdgeIndex !== null && currentEdge && (
+              <>
+                <div className="flex items-center gap-1 border-l border-r border-white/10 px-2 mx-1">
+                  <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${currentEdge.type === 'wall' ? 'bg-white/20 text-white' : 'text-gray-400'}`} onClick={async () => {
+                    if (!roomId || !selectedObstacleId || !selectedObs.edges) return;
+                    const newEdges = [...selectedObs.edges];
+                    newEdges[selectedEdgeIndex] = { type: 'wall' };
+                    await updateRtdbWithHistory('obstacles', selectedObstacleId, { edges: newEdges }, `Arête ${selectedEdgeIndex + 1} → Mur`);
+                  }} title="Mur">
+                    <div className="w-3 h-3 bg-current rounded-[1px]" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${currentEdge.type === 'one-way-wall' ? 'bg-orange-500/20 text-orange-400' : 'text-gray-400'}`} onClick={async () => {
+                    if (!roomId || !selectedObstacleId || !selectedObs.edges || selectedEdgeIndex === null) return;
+                    if (currentEdge.type === 'one-way-wall') return;
+                    const i = selectedEdgeIndex;
+                    const n = selectedObs.points.length;
+                    const p1 = selectedObs.points[i];
+                    const p2 = selectedObs.points[(i + 1) % n];
+                    // Subdiviser en 3 : mur | sens unique | mur
+                    const splitP1 = { x: p1.x + (p2.x - p1.x) / 3, y: p1.y + (p2.y - p1.y) / 3 };
+                    const splitP2 = { x: p1.x + (p2.x - p1.x) * 2 / 3, y: p1.y + (p2.y - p1.y) * 2 / 3 };
+                    const owEdge = buildEdgeMeta('one-way-wall', false, splitP1, splitP2);
+                    const newPoints = [...selectedObs.points.slice(0, i + 1), splitP1, splitP2, ...selectedObs.points.slice(i + 1)];
+                    const newEdges = [...selectedObs.edges.slice(0, i), { type: 'wall' as const }, owEdge, { type: 'wall' as const }, ...selectedObs.edges.slice(i + 1)];
+                    await updateRtdbWithHistory('obstacles', selectedObstacleId, { points: newPoints, edges: newEdges }, `Sens unique ajouté sur arête ${i + 1}`);
+                    setSelectedEdgeIndex(i + 1);
+                  }} title="Sens unique">
+                    <ArrowRight className="w-3 h-3" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${currentEdge.type === 'door' ? 'bg-green-500/20 text-green-400' : 'text-gray-400'}`} onClick={async () => {
+                    if (!roomId || !selectedObstacleId || !selectedObs.edges || selectedEdgeIndex === null) return;
+                    if (currentEdge.type === 'door') return;
+                    const i = selectedEdgeIndex;
+                    const n = selectedObs.points.length;
+                    const p1 = selectedObs.points[i];
+                    const p2 = selectedObs.points[(i + 1) % n];
+                    // Subdiviser en 3 : mur | porte | mur
+                    const splitP1 = { x: p1.x + (p2.x - p1.x) / 3, y: p1.y + (p2.y - p1.y) / 3 };
+                    const splitP2 = { x: p1.x + (p2.x - p1.x) * 2 / 3, y: p1.y + (p2.y - p1.y) * 2 / 3 };
+                    const newPoints = [...selectedObs.points.slice(0, i + 1), splitP1, splitP2, ...selectedObs.points.slice(i + 1)];
+                    const newEdges = [...selectedObs.edges.slice(0, i), { type: 'wall' as const }, { type: 'door' as const, isOpen: false }, { type: 'wall' as const }, ...selectedObs.edges.slice(i + 1)];
+                    await updateRtdbWithHistory('obstacles', selectedObstacleId, { points: newPoints, edges: newEdges }, `Porte ajoutée sur arête ${i + 1}`);
+                    setSelectedEdgeIndex(i + 1);
+                  }} title="Porte">
+                    <DoorOpen className="w-3 h-3" />
+                  </Button>
+                </div>
+
+                {/* Toggle porte ouverte/fermée */}
+                {currentEdge.type === 'door' && (
+                  <Button
+                    variant={currentEdge.isOpen ? "default" : "secondary"}
+                    size="sm"
+                    className={`h-7 px-2 text-xs ${currentEdge.isOpen ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-700 text-white"}`}
+                    onClick={() => toggleDoorState(selectedObstacleId, selectedEdgeIndex)}
+                  >
+                    <DoorOpen className="w-3 h-3 mr-1" />
+                    {currentEdge.isOpen ? 'Ouverte' : 'Fermée'}
+                  </Button>
+                )}
+
+                {/* Inverser sens one-way */}
+                {currentEdge.type === 'one-way-wall' && (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="h-7 px-2 text-xs"
+                    onClick={async () => {
+                      if (!roomId || !selectedObstacleId || !selectedObs.edges) return;
+                      const currentDir = currentEdge.direction || 'north';
+                      let newDir: 'north' | 'south' | 'east' | 'west' = 'north';
+                      if (currentDir === 'north') newDir = 'south';
+                      else if (currentDir === 'south') newDir = 'north';
+                      else if (currentDir === 'east') newDir = 'west';
+                      else if (currentDir === 'west') newDir = 'east';
+                      const newEdges = [...selectedObs.edges!];
+                      newEdges[selectedEdgeIndex] = { ...currentEdge, direction: newDir };
+                      await updateRtdbWithHistory('obstacles', selectedObstacleId, { edges: newEdges }, `Inversion sens arête ${selectedEdgeIndex + 1}`);
+                    }}
+                  >
+                    Inverser sens ⇄
+                  </Button>
+                )}
+              </>
+            )}
+
+            <Separator orientation="vertical" className="h-6 w-[1px] bg-white/10" />
+
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={async () => {
+                if (selectedObstacleId && roomId && isMJ) {
+                  await deleteFromRtdbWithHistory('obstacles', selectedObstacleId, `Suppression d'obstacle`);
+                  toast.success("Obstacle supprimé");
+                  setSelectedObstacleIds([]);
+                  setSelectedEdgeIndex(null);
+                }
+              }}
+            >
+              <Trash2 className="w-4 h-4 mr-2" /> Supprimer
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setSelectedObstacleIds([]); setSelectedEdgeIndex(null); }}
+              className="text-gray-400 hover:text-white"
+            >
+              Fermer
+            </Button>
+          </div>
+        );
+      }
+
       return (
         <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
           <span className="text-white text-sm font-medium pr-2">
             {selectedObs?.type === 'door' ? 'Porte' :
-              selectedObs?.type === 'one-way-wall' ? 'Mur sens-unique' : 'Obstacle'}
+              selectedObs?.type === 'one-way-wall' ? 'Mur sens-unique' :
+                selectedObs?.type === 'polygon' ? 'Salle' : 'Obstacle'}
           </span>
 
-          {/* Type Switcher */}
-          <div className="flex items-center gap-1 border-l border-r border-white/10 px-2 mx-2">
-            <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${selectedObs?.type === 'wall' ? 'bg-white/20 text-white' : 'text-gray-400'}`} onClick={async () => {
-              if (!roomId || !selectedObstacleId) return;
-              await updateRtdbWithHistory(
-                'obstacles',
-                selectedObstacleId,
-                { type: 'wall' },
-                `Conversion en mur`
-              );
-            }} title="Convertir en Mur">
-              <div className="w-3 h-3 bg-current rounded-[1px]" />
-            </Button>
-            <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${selectedObs?.type === 'one-way-wall' ? 'bg-orange-500/20 text-orange-400' : 'text-gray-400'}`} onClick={async () => {
-              if (!roomId || !selectedObstacleId) return;
+          {/* Type Switcher (seulement pour les obstacles non-polygon) */}
+          {selectedObs?.type !== 'polygon' && (
+            <div className="flex items-center gap-1 border-l border-r border-white/10 px-2 mx-2">
+              <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${selectedObs?.type === 'wall' ? 'bg-white/20 text-white' : 'text-gray-400'}`} onClick={async () => {
+                if (!roomId || !selectedObstacleId) return;
+                await updateRtdbWithHistory(
+                  'obstacles',
+                  selectedObstacleId,
+                  { type: 'wall' },
+                  `Conversion en mur`
+                );
+              }} title="Convertir en Mur">
+                <div className="w-3 h-3 bg-current rounded-[1px]" />
+              </Button>
+              <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${selectedObs?.type === 'one-way-wall' ? 'bg-orange-500/20 text-orange-400' : 'text-gray-400'}`} onClick={async () => {
+                if (!roomId || !selectedObstacleId) return;
 
-              // Calculer direction par défaut
-              const p1 = selectedObs?.points[0];
-              const p2 = selectedObs?.points[1];
-              let defaultDir = 'north';
-              if (p1 && p2) {
-                const dx = p2.x - p1.x;
-                const dy = p2.y - p1.y;
-                // Normale main droite (dy, -dx)
-                let nx = dy;
-                let ny = -dx;
-                if (Math.abs(nx) > Math.abs(ny)) {
-                  defaultDir = nx > 0 ? 'east' : 'west';
-                } else {
-                  defaultDir = ny > 0 ? 'south' : 'north';
+                // Calculer direction par défaut
+                const p1 = selectedObs?.points[0];
+                const p2 = selectedObs?.points[1];
+                let defaultDir = 'north';
+                if (p1 && p2) {
+                  const dx = p2.x - p1.x;
+                  const dy = p2.y - p1.y;
+                  // Normale main droite (dy, -dx)
+                  let nx = dy;
+                  let ny = -dx;
+                  if (Math.abs(nx) > Math.abs(ny)) {
+                    defaultDir = nx > 0 ? 'east' : 'west';
+                  } else {
+                    defaultDir = ny > 0 ? 'south' : 'north';
+                  }
                 }
-              }
 
-              await updateRtdbWithHistory(
-                'obstacles',
-                selectedObstacleId,
-                { type: 'one-way-wall', direction: defaultDir },
-                `Conversion en mur sens-unique`
-              );
-            }} title="Convertir en Mur sens-unique">
-              <ArrowRight className="w-3 h-3" />
-            </Button>
-            <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${selectedObs?.type === 'door' ? 'bg-green-500/20 text-green-400' : 'text-gray-400'}`} onClick={async () => {
-              if (!roomId || !selectedObstacleId) return;
-              await updateRtdbWithHistory(
-                'obstacles',
-                selectedObstacleId,
-                { type: 'door', isOpen: false },
-                `Conversion en porte`
-              );
-            }} title="Convertir en Porte">
-              <DoorOpen className="w-3 h-3" />
-            </Button>
-          </div>
+                await updateRtdbWithHistory(
+                  'obstacles',
+                  selectedObstacleId,
+                  { type: 'one-way-wall', direction: defaultDir },
+                  `Conversion en mur sens-unique`
+                );
+              }} title="Convertir en Mur sens-unique">
+                <ArrowRight className="w-3 h-3" />
+              </Button>
+              <Button variant="ghost" size="icon" className={`h-6 w-6 rounded-full hover:bg-white/20 ${selectedObs?.type === 'door' ? 'bg-green-500/20 text-green-400' : 'text-gray-400'}`} onClick={async () => {
+                if (!roomId || !selectedObstacleId) return;
+                await updateRtdbWithHistory(
+                  'obstacles',
+                  selectedObstacleId,
+                  { type: 'door', isOpen: false },
+                  `Conversion en porte`
+                );
+              }} title="Convertir en Porte">
+                <DoorOpen className="w-3 h-3" />
+              </Button>
+            </div>
+          )}
 
           {/* Bouton pour ouvrir/fermer les portes */}
           {selectedObs?.type === 'door' && (
@@ -3505,22 +3733,11 @@ export default function Component() {
             <Button
               variant="ghost"
               size="icon"
-              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentVisibilityTool === 'polygon' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
-              onClick={() => setCurrentVisibilityTool('polygon')}
-              title="Polygone (cliquer sur le 1er point pour fermer)"
-            >
-              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={currentVisibilityTool === 'polygon' ? 2.5 : 2}>
-                <polygon points="12,2 22,8.5 18,20 6,20 2,8.5" />
-              </svg>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
               className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentVisibilityTool === 'edit' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
               onClick={() => setCurrentVisibilityTool('edit')}
               title="Éditer / Déplacer les murs"
             >
-              <Pen className="w-5 h-5" strokeWidth={currentVisibilityTool === 'edit' ? 2.5 : 2} />
+              <MousePointer className="w-5 h-5" strokeWidth={currentVisibilityTool === 'edit' ? 2.5 : 2} />
             </Button>
             <Button
               variant="ghost"
@@ -4720,63 +4937,89 @@ export default function Component() {
         selectedIds: selectedObstacleIds, // Pass all selected IDs
       });
 
-      // Dessiner l'obstacle en cours de création
+      // 3. Highlight de l'arête sélectionnée dans un polygon
+      if (selectedEdgeIndex !== null && selectedObstacleIds.length === 1) {
+        const selObs = obstacles.find(o => o.id === selectedObstacleIds[0]);
+        if (selObs?.type === 'polygon' && selObs.edges && selectedEdgeIndex < selObs.points.length) {
+          const nextIdx = (selectedEdgeIndex + 1) % selObs.points.length;
+          const ep1 = transformPoint(selObs.points[selectedEdgeIndex]);
+          const ep2 = transformPoint(selObs.points[nextIdx]);
+
+          ctx.beginPath();
+          ctx.strokeStyle = '#00FFFF';
+          ctx.lineWidth = 6;
+          ctx.setLineDash([]);
+          ctx.moveTo(ep1.x, ep1.y);
+          ctx.lineTo(ep2.x, ep2.y);
+          ctx.stroke();
+
+          // Points aux extrémités de l'arête
+          for (const p of [ep1, ep2]) {
+            ctx.beginPath();
+            ctx.fillStyle = '#00FFFF';
+            ctx.arc(p.x, p.y, 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Dessiner l'obstacle en cours de création (outil unifié)
       if (isDrawingObstacle && currentObstaclePoints.length > 0) {
-        ctx.strokeStyle = '#FFD700';
         ctx.lineWidth = 3;
         ctx.setLineDash([5, 5]);
 
-        if (currentVisibilityTool === 'polygon' && currentObstaclePoints.length >= 2) {
-          // Polygone : dessiner toutes les lignes + ligne de retour vers le premier point
-          ctx.beginPath();
-          const firstPoint = transformPoint(currentObstaclePoints[0]);
-          ctx.moveTo(firstPoint.x, firstPoint.y);
+        // Couleur par type d'arête
+        const getEdgeColor = (edge?: EdgeMeta) => {
+          if (!edge) return '#FFD700'; // default gold
+          if (edge.type === 'one-way-wall') return 'rgba(255, 165, 0, 0.9)'; // orange
+          if (edge.type === 'door') return 'rgba(0, 200, 0, 0.9)'; // vert
+          return 'rgba(255, 100, 100, 0.9)'; // rouge pour mur
+        };
 
-          for (let i = 1; i < currentObstaclePoints.length; i++) {
-            const p = transformPoint(currentObstaclePoints[i]);
-            ctx.lineTo(p.x, p.y);
+        // Dessiner chaque arête avec sa couleur
+        if (currentObstaclePoints.length >= 2) {
+          for (let i = 0; i < currentObstaclePoints.length - 1; i++) {
+            const p1 = transformPoint(currentObstaclePoints[i]);
+            const p2 = transformPoint(currentObstaclePoints[i + 1]);
+            ctx.beginPath();
+            ctx.strokeStyle = getEdgeColor(pendingEdges[i]);
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
           }
 
-          // Ligne de fermeture vers le premier point (plus transparent)
+          // Ligne de fermeture vers le premier point (semi-transparent) si >= 3 points
           if (currentObstaclePoints.length >= 3) {
             const lastPoint = transformPoint(currentObstaclePoints[currentObstaclePoints.length - 1]);
-            ctx.stroke();
+            const firstPoint = transformPoint(currentObstaclePoints[0]);
             ctx.beginPath();
-            ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
             ctx.moveTo(lastPoint.x, lastPoint.y);
             ctx.lineTo(firstPoint.x, firstPoint.y);
+            ctx.stroke();
           }
-          ctx.stroke();
+        }
 
-          // Indicateur de fermeture (cercle vert quand on est proche du premier point)
-          if (currentObstaclePoints.length >= 3) {
-            const lastP = currentObstaclePoints[currentObstaclePoints.length - 1];
-            const firstP = currentObstaclePoints[0];
-            const dist = Math.sqrt(Math.pow(lastP.x - firstP.x, 2) + Math.pow(lastP.y - firstP.y, 2));
-
-            if (dist < 20 / zoom) {
-              const fp = transformPoint(firstP);
-              ctx.setLineDash([]);
-              ctx.beginPath();
-              ctx.strokeStyle = '#00FF00';
-              ctx.lineWidth = 3;
-              ctx.arc(fp.x, fp.y, 12, 0, Math.PI * 2);
-              ctx.stroke();
-              ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-              ctx.fill();
-            }
+        // Indicateur de fermeture (cercle vert quand on est proche du premier point)
+        if (currentObstaclePoints.length >= 3 && snapPoint) {
+          const firstP = currentObstaclePoints[0];
+          const dist = Math.sqrt(
+            Math.pow(snapPoint.x - firstP.x, 2) + Math.pow(snapPoint.y - firstP.y, 2)
+          );
+          if (dist < 1) {
+            const fp = transformPoint(firstP);
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.strokeStyle = '#00FF00';
+            ctx.lineWidth = 3;
+            ctx.arc(fp.x, fp.y, 12, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+            ctx.fill();
           }
-        } else {
-          // Chaîne de murs : ligne simple
-          ctx.beginPath();
-          const firstPoint = transformPoint(currentObstaclePoints[0]);
-          ctx.moveTo(firstPoint.x, firstPoint.y);
-
-          for (let i = 1; i < currentObstaclePoints.length; i++) {
-            const p = transformPoint(currentObstaclePoints[i]);
-            ctx.lineTo(p.x, p.y);
-          }
-          ctx.stroke();
         }
 
         ctx.setLineDash([]);
@@ -4796,7 +5039,7 @@ export default function Component() {
       }
 
       // 🔗 Dessiner le point d'accroche (snap point) si détecté
-      if (visibilityMode && snapPoint && (currentVisibilityTool === 'chain' || currentVisibilityTool === 'polygon' || (currentVisibilityTool === 'edit' && isDraggingObstaclePoint))) {
+      if (visibilityMode && snapPoint && (currentVisibilityTool === 'chain' || (currentVisibilityTool === 'edit' && isDraggingObstaclePoint))) {
         const sp = transformPoint(snapPoint);
         ctx.beginPath();
         ctx.strokeStyle = '#00BFFF';
@@ -4817,7 +5060,7 @@ export default function Component() {
     //  CALCUL DES OMBRES POUR MASQUER LES PNJs ET OBJETS (Côté Client seulement)
     // Si un PNJ ou objet est dans l'ombre du joueur (ou allié), il ne doit pas être affiché
     let activeShadowsForFiltering: Point[][] | null = null;
-    let polygonsContainingViewerForFiltering: Obstacle[] = [];
+    let polygonsContainingViewerForFiltering: PolygonViewerInfo[] = [];
 
     if (!effectiveIsMJ && obstacles.length > 0 && isLayerVisible('obstacles') && precalculatedShadows) {
       // ⚡ OPTIMIZATION: Use precalculated shadows from useMemo!
@@ -4925,10 +5168,39 @@ export default function Component() {
 
           // Check if viewer is inside a polygon but character is outside (hide exterior)
           if (isVisible && polygonsContainingViewerForFiltering.length > 0) {
-            for (const polygon of polygonsContainingViewerForFiltering) {
-              if (!isPointInPolygon(charPos, polygon.points)) {
-                isVisible = false;
-                break;
+            for (const polyInfo of polygonsContainingViewerForFiltering) {
+              if (!isPointInPolygon(charPos, polyInfo.obstacle.points)) {
+                // Le personnage est dehors, mais vérifier s'il est visible via une arête transparente
+                if (polyInfo.transparentEdgeIndices.length > 0) {
+                  let visibleThroughEdge = false;
+                  for (const edgeIdx of polyInfo.transparentEdgeIndices) {
+                    const nextIdx = (edgeIdx + 1) % polyInfo.obstacle.points.length;
+                    const ep1 = polyInfo.obstacle.points[edgeIdx];
+                    const ep2 = polyInfo.obstacle.points[nextIdx];
+                    // Vérifier si le personnage est dans le cône de vision
+                    const viewerPos = precalculatedShadows ? { x: characters.find(c => c.type === 'joueurs')?.x || 0, y: characters.find(c => c.type === 'joueurs')?.y || 0 } : { x: 0, y: 0 };
+                    const extDist = Math.max(imgWidth, imgHeight) * 2;
+                    const d1 = { x: ep1.x - viewerPos.x, y: ep1.y - viewerPos.y };
+                    const d2 = { x: ep2.x - viewerPos.x, y: ep2.y - viewerPos.y };
+                    const l1 = Math.sqrt(d1.x * d1.x + d1.y * d1.y);
+                    const l2 = Math.sqrt(d2.x * d2.x + d2.y * d2.y);
+                    if (l1 > 0.001 && l2 > 0.001) {
+                      const ext1 = { x: ep1.x + (d1.x / l1) * extDist, y: ep1.y + (d1.y / l1) * extDist };
+                      const ext2 = { x: ep2.x + (d2.x / l2) * extDist, y: ep2.y + (d2.y / l2) * extDist };
+                      if (isPointInPolygon(charPos, [ep1, ext1, ext2, ep2])) {
+                        visibleThroughEdge = true;
+                        break;
+                      }
+                    }
+                  }
+                  if (!visibleThroughEdge) {
+                    isVisible = false;
+                    break;
+                  }
+                } else {
+                  isVisible = false;
+                  break;
+                }
               }
             }
           }
@@ -6076,6 +6348,7 @@ export default function Component() {
                 const dist = Math.sqrt(Math.pow(clickX - xx, 2) + Math.pow(clickY - yy, 2));
                 clickedOnThis = dist < 15 / zoom;
               } else if (obs.type === 'polygon' && obs.points.length >= 3) {
+                // Vérifier intérieur
                 let inside = false;
                 for (let i = 0, j = obs.points.length - 1; i < obs.points.length; j = i++) {
                   const xi = obs.points[i].x, yi = obs.points[i].y;
@@ -6084,7 +6357,29 @@ export default function Component() {
                     inside = !inside;
                   }
                 }
-                clickedOnThis = inside;
+                if (inside) {
+                  clickedOnThis = true;
+                } else {
+                  // Aussi vérifier la proximité aux arêtes (clic sur un bord)
+                  for (let i = 0; i < obs.points.length; i++) {
+                    const next = (i + 1) % obs.points.length;
+                    const p1 = obs.points[i];
+                    const p2 = obs.points[next];
+                    const A = clickX - p1.x;
+                    const B = clickY - p1.y;
+                    const C = p2.x - p1.x;
+                    const D = p2.y - p1.y;
+                    const dot = A * C + B * D;
+                    const lenSq = C * C + D * D;
+                    let param = lenSq !== 0 ? dot / lenSq : -1;
+                    let xx, yy;
+                    if (param < 0) { xx = p1.x; yy = p1.y; }
+                    else if (param > 1) { xx = p2.x; yy = p2.y; }
+                    else { xx = p1.x + param * C; yy = p1.y + param * D; }
+                    const d = Math.sqrt(Math.pow(clickX - xx, 2) + Math.pow(clickY - yy, 2));
+                    if (d < 15 / zoom) { clickedOnThis = true; break; }
+                  }
+                }
               }
 
               if (clickedOnThis) {
@@ -6119,8 +6414,50 @@ export default function Component() {
                   setDraggedObstacleOriginalPoints([...clickedSelectedObs.points]);
                   setConnectedPoints(connected);
                   setDragStartPos({ x: clickX, y: clickY });
+                  dragStartPosRef.current = { x: clickX, y: clickY };
                   return;
                 }
+              }
+
+              // Pour les polygons avec edges : détecter l'arête la plus proche au lieu de drag
+              if (clickedSelectedObs.type === 'polygon' && clickedSelectedObs.edges && clickedSelectedObs.edges.length > 0) {
+                let bestEdgeIdx = 0;
+                let bestEdgeDist = Infinity;
+                for (let i = 0; i < clickedSelectedObs.points.length; i++) {
+                  const next = (i + 1) % clickedSelectedObs.points.length;
+                  const p1 = clickedSelectedObs.points[i];
+                  const p2 = clickedSelectedObs.points[next];
+                  // Distance point-segment
+                  const A = clickX - p1.x;
+                  const B = clickY - p1.y;
+                  const C = p2.x - p1.x;
+                  const D = p2.y - p1.y;
+                  const dot = A * C + B * D;
+                  const lenSq = C * C + D * D;
+                  let param = lenSq !== 0 ? dot / lenSq : -1;
+                  let xx, yy;
+                  if (param < 0) { xx = p1.x; yy = p1.y; }
+                  else if (param > 1) { xx = p2.x; yy = p2.y; }
+                  else { xx = p1.x + param * C; yy = p1.y + param * D; }
+                  const d = Math.sqrt(Math.pow(clickX - xx, 2) + Math.pow(clickY - yy, 2));
+                  if (d < bestEdgeDist) {
+                    bestEdgeDist = d;
+                    bestEdgeIdx = i;
+                  }
+                }
+                setSelectedEdgeIndex(bestEdgeIdx);
+
+                // Si l'arête cliquée n'est pas un mur et qu'on est proche, démarrer le drag d'arête
+                const clickedEdge = clickedSelectedObs.edges[bestEdgeIdx];
+                if (clickedEdge && clickedEdge.type !== 'wall' && bestEdgeDist < 15 / zoom) {
+                  setIsDraggingEdge(true);
+                  setDraggedEdgeIndex(bestEdgeIdx);
+                  setDraggedEdgeObstacleId(clickedSelectedObs.id);
+                  setDraggedEdgeOriginalPoints([...clickedSelectedObs.points]);
+                  setDragStartPos({ x: clickX, y: clickY });
+                  dragStartPosRef.current = { x: clickX, y: clickY };
+                }
+                return;
               }
 
               // Not clicking on a handle, so start dragging the whole obstacle(s)
@@ -6161,6 +6498,7 @@ export default function Component() {
               return dist < 15 / zoom;
             }
             if (obstacle.type === 'polygon' && obstacle.points.length >= 3) {
+              // Vérifier si le clic est à l'intérieur du polygon
               let inside = false;
               for (let i = 0, j = obstacle.points.length - 1; i < obstacle.points.length; j = i++) {
                 const xi = obstacle.points[i].x, yi = obstacle.points[i].y;
@@ -6169,7 +6507,28 @@ export default function Component() {
                   inside = !inside;
                 }
               }
-              return inside;
+              if (inside) return true;
+
+              // Aussi vérifier si le clic est proche d'une arête (pour cliquer sur les bords)
+              for (let i = 0; i < obstacle.points.length; i++) {
+                const next = (i + 1) % obstacle.points.length;
+                const p1 = obstacle.points[i];
+                const p2 = obstacle.points[next];
+                const A = clickX - p1.x;
+                const B = clickY - p1.y;
+                const C = p2.x - p1.x;
+                const D = p2.y - p1.y;
+                const dot = A * C + B * D;
+                const lenSq = C * C + D * D;
+                let param = lenSq !== 0 ? dot / lenSq : -1;
+                let xx, yy;
+                if (param < 0) { xx = p1.x; yy = p1.y; }
+                else if (param > 1) { xx = p2.x; yy = p2.y; }
+                else { xx = p1.x + param * C; yy = p1.y + param * D; }
+                const d = Math.sqrt(Math.pow(clickX - xx, 2) + Math.pow(clickY - yy, 2));
+                if (d < 15 / zoom) return true;
+              }
+              return false;
             }
             return false;
           });
@@ -6184,27 +6543,54 @@ export default function Component() {
 
             // ✅ MULTI-SÉLECTION avec Shift (comme pour les objets)
             if (e.shiftKey) {
-              // Si Shift est pressé, ajouter/retirer de la sélection
               if (selectedObstacleIds.includes(clickedObstacle.id)) {
-                // Déjà sélectionné : retirer de la sélection
                 setSelectedObstacleIds(prev => prev.filter(id => id !== clickedObstacle.id));
               } else {
-                // Pas encore sélectionné : ajouter à la sélection
                 setSelectedObstacleIds(prev => [...prev, clickedObstacle.id]);
               }
             } else {
-              // Sans Shift : sélection simple (remplacer)
               setSelectedObstacleIds([clickedObstacle.id]);
+            }
+
+            // Pour les polygons avec edges : détecter l'arête la plus proche
+            if (clickedObstacle.type === 'polygon' && clickedObstacle.edges && clickedObstacle.edges.length > 0) {
+              let bestEdgeIdx = 0;
+              let bestEdgeDist = Infinity;
+              for (let i = 0; i < clickedObstacle.points.length; i++) {
+                const next = (i + 1) % clickedObstacle.points.length;
+                const p1 = clickedObstacle.points[i];
+                const p2 = clickedObstacle.points[next];
+                const A = clickX - p1.x;
+                const B = clickY - p1.y;
+                const C = p2.x - p1.x;
+                const D = p2.y - p1.y;
+                const dot = A * C + B * D;
+                const lenSq = C * C + D * D;
+                let param = lenSq !== 0 ? dot / lenSq : -1;
+                let xx, yy;
+                if (param < 0) { xx = p1.x; yy = p1.y; }
+                else if (param > 1) { xx = p2.x; yy = p2.y; }
+                else { xx = p1.x + param * C; yy = p1.y + param * D; }
+                const d = Math.sqrt(Math.pow(clickX - xx, 2) + Math.pow(clickY - yy, 2));
+                if (d < bestEdgeDist) {
+                  bestEdgeDist = d;
+                  bestEdgeIdx = i;
+                }
+              }
+              setSelectedEdgeIndex(bestEdgeIdx);
+            } else {
+              setSelectedEdgeIndex(null);
             }
           } else {
             // Clic dans le vide : désélectionner tout
             setSelectedObstacleIds([]);
+            setSelectedEdgeIndex(null);
           }
           return;
         }
 
-        // 🔦 MODE VISIBILITÉ - OUTILS DESSIN (chain, polygon)
-        if (visibilityMode && (currentVisibilityTool === 'chain' || currentVisibilityTool === 'polygon')) {
+        // 🔦 MODE VISIBILITÉ - OUTIL DESSIN UNIFIÉ (chain = murs + fermeture polygon)
+        if (visibilityMode && currentVisibilityTool === 'chain') {
           // Désélectionner tout obstacle si on dessine
           setSelectedObstacleIds([]);
 
@@ -6212,69 +6598,41 @@ export default function Component() {
             // CONTINUER le dessin en cours
             const clickPoint = snapPoint || { x: clickX, y: clickY };
 
-            if (currentVisibilityTool === 'chain' && currentObstaclePoints.length >= 1) {
-              // Murs connectés : sauvegarde le segment actuel, puis continue
-              const finalPoints = [...currentObstaclePoints, clickPoint];
+            if (currentObstaclePoints.length >= 1) {
+              // Vérifier si on ferme la forme (clic proche du 1er point, >= 3 points)
+              if (currentObstaclePoints.length >= 3) {
+                const startPoint = currentObstaclePoints[0];
+                const distToStart = Math.sqrt(
+                  Math.pow(clickX - startPoint.x, 2) + Math.pow(clickY - startPoint.y, 2)
+                );
 
-              // Utiliser le type d'obstacle sélectionné
-              const additionalProps: any = {};
+                if (distToStart < 20 / zoom) {
+                  // FERMER LA FORME -> sauvegarder comme polygon avec edges metadata
+                  // Ajouter l'arête de fermeture (dernier point -> premier point)
+                  const closingEdge = buildEdgeMeta(currentObstacleType, isOneWayReversed,
+                    currentObstaclePoints[currentObstaclePoints.length - 1], currentObstaclePoints[0]);
+                  const allEdges = [...pendingEdges, closingEdge];
 
-              if (currentObstacleType === 'one-way-wall' && finalPoints.length >= 2) {
-                // Calculer la direction automatiquement basé sur le segment et le sens (Normal/Inversé)
-                const p1 = finalPoints[0];
-                const p2 = finalPoints[1];
-                const dx = p2.x - p1.x;
-                const dy = p2.y - p1.y;
-
-                // Normale par défaut (rotation -90° / main gauche) : (-dy, dx)
-                // Ou (+90° / main droite) : (dy, -dx)
-                // Choisissons Main Droite par défaut (dy, -dx)
-                let nx = dy;
-                let ny = -dx;
-
-                // Si inversé, on prend l'opposé
-                if (isOneWayReversed) {
-                  nx = -nx;
-                  ny = -ny;
+                  await saveObstacle('polygon', currentObstaclePoints, { edges: allEdges });
+                  setIsDrawingObstacle(false);
+                  setCurrentObstaclePoints([]);
+                  setPendingEdges([]);
+                  return;
                 }
-
-                // Déterminer la cardinalité dominante
-                if (Math.abs(nx) > Math.abs(ny)) {
-                  // Dominante X -> Est ou Ouest
-                  additionalProps.direction = nx > 0 ? 'east' : 'west';
-                } else {
-                  // Dominante Y -> Nord ou Sud
-                  additionalProps.direction = ny > 0 ? 'south' : 'north';
-                }
-
-              } else if (currentObstacleType === 'door') {
-                additionalProps.isOpen = false; // Nouvelles portes fermées par défaut
               }
 
-              await saveObstacle(currentObstacleType, finalPoints, additionalProps);
-              setCurrentObstaclePoints([clickPoint]);
-
-            } else if (currentVisibilityTool === 'polygon') {
-              // Polygone : ajouter des points, fermer si on clique près du début
-              const startPoint = currentObstaclePoints[0];
-              const distToStart = Math.sqrt(
-                Math.pow(clickX - startPoint.x, 2) + Math.pow(clickY - startPoint.y, 2)
-              );
-
-              if (currentObstaclePoints.length >= 3 && distToStart < 20 / zoom) {
-                // Fermer le polygone
-                await saveObstacle('polygon', currentObstaclePoints);
-                setIsDrawingObstacle(false);
-                setCurrentObstaclePoints([]);
-              } else {
-                setCurrentObstaclePoints([...currentObstaclePoints, clickPoint]);
-              }
+              // Pas de fermeture : enregistrer l'arête et ajouter le point
+              const lastPoint = currentObstaclePoints[currentObstaclePoints.length - 1];
+              const edgeMeta = buildEdgeMeta(currentObstacleType, isOneWayReversed, lastPoint, clickPoint);
+              setPendingEdges(prev => [...prev, edgeMeta]);
+              setCurrentObstaclePoints(prev => [...prev, clickPoint]);
             }
           } else {
             // COMMENCER un nouveau dessin
             const startPoint = snapPoint || { x: clickX, y: clickY };
             setIsDrawingObstacle(true);
             setCurrentObstaclePoints([startPoint]);
+            setPendingEdges([]);
           }
           return;
         }
@@ -6815,27 +7173,13 @@ export default function Component() {
 
     // 🔗 DÉTECTION SNAP POINT (commun à Draw et Edit)
     let activeSnapPoint: Point | null = null;
-    if (visibilityMode && (currentVisibilityTool === 'chain' || currentVisibilityTool === 'polygon' || (currentVisibilityTool === 'edit' && isDraggingObstaclePoint))) {
+    if (visibilityMode && (currentVisibilityTool === 'chain' || (currentVisibilityTool === 'edit' && isDraggingObstaclePoint))) {
       const snapDistance = 25 / zoom;
       let minDist = snapDistance;
 
       for (const obstacle of obstacles) {
-        if (obstacle.type === 'wall' && obstacle.points.length >= 2) {
-          for (let i = 0; i < obstacle.points.length; i++) {
-            const point = obstacle.points[i];
-            // Ignorer les points qu'on est en train de déplacer
-            if (currentVisibilityTool === 'edit' && isDraggingObstaclePoint) {
-              const isBeingDragged = connectedPoints.some(cp => cp.obstacleId === obstacle.id && cp.pointIndex === i);
-              if (isBeingDragged) continue;
-            }
-
-            const dist = Math.sqrt(Math.pow(currentX - point.x, 2) + Math.pow(currentY - point.y, 2));
-            if (dist < minDist) {
-              minDist = dist;
-              activeSnapPoint = point;
-            }
-          }
-        } else if (obstacle.type === 'polygon' && obstacle.points.length >= 3) {
+        // Snap sur tous les types d'obstacles qui ont des points
+        if (obstacle.points.length >= 2) {
           for (let i = 0; i < obstacle.points.length; i++) {
             const point = obstacle.points[i];
             // Ignorer les points qu'on est en train de déplacer
@@ -6857,11 +7201,103 @@ export default function Component() {
       setSnapPoint(null);
     }
 
+    // ✏️ MODE EDIT - Drag d'une arête le long du mur parent
+    if (visibilityMode && currentVisibilityTool === 'edit' && isDraggingEdge && draggedEdgeIndex !== null && draggedEdgeObstacleId) {
+      const n = draggedEdgeOriginalPoints.length;
+      const edgeP1Idx = draggedEdgeIndex;
+      const edgeP2Idx = (draggedEdgeIndex + 1) % n;
+
+      // Trouver la ligne parent : le segment "grand" sur lequel l'arête glisse
+      // C'est la ligne entre le coin précédent (non-collinéaire) et le coin suivant (non-collinéaire)
+      // En pratique : le prev du P1 de l'arête et le next du P2 de l'arête
+      const prevCornerIdx = (edgeP1Idx - 1 + n) % n;
+      const nextCornerIdx = (edgeP2Idx + 1) % n;
+      const lineStart = draggedEdgeOriginalPoints[prevCornerIdx];
+      const lineEnd = draggedEdgeOriginalPoints[nextCornerIdx];
+
+      const origP1 = draggedEdgeOriginalPoints[edgeP1Idx];
+      const origP2 = draggedEdgeOriginalPoints[edgeP2Idx];
+
+      // Direction de la ligne parent
+      const dx = lineEnd.x - lineStart.x;
+      const dy = lineEnd.y - lineStart.y;
+      const lineLenSq = dx * dx + dy * dy;
+      if (lineLenSq > 0) {
+        // Projeter le delta de la souris sur la direction de la ligne
+        const mouseDx = currentX - (dragStartPosRef.current?.x ?? currentX);
+        const mouseDy = currentY - (dragStartPosRef.current?.y ?? currentY);
+        const projectedDelta = (mouseDx * dx + mouseDy * dy) / lineLenSq;
+
+        // Calculer les positions originales en paramètre t sur la ligne
+        const t1Orig = ((origP1.x - lineStart.x) * dx + (origP1.y - lineStart.y) * dy) / lineLenSq;
+        const t2Orig = ((origP2.x - lineStart.x) * dx + (origP2.y - lineStart.y) * dy) / lineLenSq;
+
+        // Appliquer le delta projeté
+        let t1New = t1Orig + projectedDelta;
+        let t2New = t2Orig + projectedDelta;
+
+        // Clamper pour rester entre les coins voisins (avec marge minimale de 5px)
+        const lineLen = Math.sqrt(lineLenSq);
+        const minMargin = 5 / lineLen;
+        const edgeLen = t2New - t1New;
+        if (t1New < minMargin) { t1New = minMargin; t2New = t1New + edgeLen; }
+        if (t2New > 1 - minMargin) { t2New = 1 - minMargin; t1New = t2New - edgeLen; }
+
+        const newP1 = { x: lineStart.x + t1New * dx, y: lineStart.y + t1New * dy };
+        const newP2 = { x: lineStart.x + t2New * dx, y: lineStart.y + t2New * dy };
+
+        setObstacles(prev => prev.map(obs => {
+          if (obs.id === draggedEdgeObstacleId) {
+            const newPoints = [...obs.points];
+            newPoints[edgeP1Idx] = newP1;
+            newPoints[edgeP2Idx] = newP2;
+            return { ...obs, points: newPoints };
+          }
+          return obs;
+        }));
+      }
+      return;
+    }
+
     // ✏️ MODE EDIT - Drag d'un point individuel
     if (visibilityMode && currentVisibilityTool === 'edit' && isDraggingObstaclePoint && dragStartPosRef.current) {
       // Utiliser le snap point ou la position souris
-      const targetX = activeSnapPoint ? activeSnapPoint.x : currentX;
-      const targetY = activeSnapPoint ? activeSnapPoint.y : currentY;
+      let targetX = activeSnapPoint ? activeSnapPoint.x : currentX;
+      let targetY = activeSnapPoint ? activeSnapPoint.y : currentY;
+
+      // Contrainte de glissement : si le point est un point de subdivision
+      // (ses voisins sont collinéaires), le contraindre sur la ligne prev—next
+      if (draggedPointIndex !== null && selectedObstacleIds.length === 1 && draggedObstacleOriginalPoints.length >= 3) {
+        const obs = obstacles.find(o => o.id === selectedObstacleIds[0]);
+        if (obs?.type === 'polygon' && obs.edges && obs.edges.length > 0) {
+          const n = draggedObstacleOriginalPoints.length;
+          const prevIdx = (draggedPointIndex - 1 + n) % n;
+          const nextIdx = (draggedPointIndex + 1) % n;
+          const prev = draggedObstacleOriginalPoints[prevIdx];
+          const next = draggedObstacleOriginalPoints[nextIdx];
+          const curr = draggedObstacleOriginalPoints[draggedPointIndex];
+
+          // Vérifier la collinéarité via le produit vectoriel normalisé
+          const cross = (next.x - prev.x) * (curr.y - prev.y) - (next.y - prev.y) * (curr.x - prev.x);
+          const lineLen = Math.sqrt((next.x - prev.x) ** 2 + (next.y - prev.y) ** 2);
+          const normalizedCross = lineLen > 0 ? Math.abs(cross) / lineLen : 0;
+
+          if (normalizedCross < 5) { // < 5px de distance perpendiculaire = collinéaire
+            // Projeter sur la ligne prev—next
+            const dx = next.x - prev.x;
+            const dy = next.y - prev.y;
+            const lenSq = dx * dx + dy * dy;
+            if (lenSq > 0) {
+              let t = ((targetX - prev.x) * dx + (targetY - prev.y) * dy) / lenSq;
+              // Garder une distance minimale de 5px des voisins
+              const minT = 5 / Math.sqrt(lenSq);
+              t = Math.max(minT, Math.min(1 - minT, t));
+              targetX = prev.x + t * dx;
+              targetY = prev.y + t * dy;
+            }
+          }
+        }
+      }
 
       // Mettre à jour TOUS les obstacles connectés
       setObstacles(prev => {
@@ -6898,22 +7334,9 @@ export default function Component() {
     }
 
 
-    if (visibilityMode && (currentVisibilityTool === 'chain' || currentVisibilityTool === 'polygon')) {
-      if (isDrawingObstacle && currentObstaclePoints.length > 0) {
-        // Utiliser le snap point pour la prévisualisation si disponible
-        const cursorPoint = activeSnapPoint || { x: currentX, y: currentY };
-
-        if (currentVisibilityTool === 'chain') {
-          setCurrentObstaclePoints([currentObstaclePoints[0], cursorPoint]);
-        } else if (currentVisibilityTool === 'polygon') {
-          const existingPoints = currentObstaclePoints.slice(0, -1);
-          if (existingPoints.length === currentObstaclePoints.length - 1) {
-            setCurrentObstaclePoints([...existingPoints, cursorPoint]);
-          } else {
-            setCurrentObstaclePoints([...currentObstaclePoints.slice(0, currentObstaclePoints.length - 1), cursorPoint]);
-          }
-        }
-      }
+    if (visibilityMode && currentVisibilityTool === 'chain') {
+      // Pas de mise à jour en temps réel pendant le dessin
+      // (les points sont fixés au clic, le preview utilise snapPoint)
       return;
     }
 
@@ -7299,6 +7722,21 @@ export default function Component() {
     // Réinitialiser le bouton de souris
     const currentMouseButton = mouseButton;
     setMouseButton(null);
+
+    // ✏️ FIN DU DRAG D'ARÊTE
+    if (isDraggingEdge && draggedEdgeObstacleId) {
+      const obstacle = obstacles.find(o => o.id === draggedEdgeObstacleId);
+      if (obstacle) {
+        await updateObstacle(draggedEdgeObstacleId, obstacle.points);
+      }
+      setIsDraggingEdge(false);
+      setDraggedEdgeIndex(null);
+      setDraggedEdgeObstacleId(null);
+      setDraggedEdgeOriginalPoints([]);
+      setDragStartPos(null);
+      dragStartPosRef.current = null;
+      return;
+    }
 
     //  FIN RESIZE OBJET
     if (isResizingObject && resizeStartData && roomId) {
@@ -9297,8 +9735,8 @@ export default function Component() {
 
                 // Check if viewer is inside a polygon but object is outside (hide exterior)
                 if (objectIsVisible && containingPolygons && containingPolygons.length > 0) {
-                  for (const polygon of containingPolygons) {
-                    if (!isPointInPolygon(objCenter, polygon.points)) {
+                  for (const polyInfo of containingPolygons) {
+                    if (!isPointInPolygon(objCenter, polyInfo.obstacle.points)) {
                       objectIsVisible = false;
                       break;
                     }

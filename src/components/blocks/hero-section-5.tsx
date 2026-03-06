@@ -136,8 +136,9 @@ const HeroHeader = ({ onOpenAuth, isUserLoggedIn, userData, onOpenProfile, route
 
 const Logo = () => {
     return (
-        <div>
-            <h1 className={aclonica.className}>YNER</h1>
+        <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="Yner Logo" className="h-12 w-auto drop-shadow-md" />
+            <h1 className={cn("text-3xl tracking-wider text-white", aclonica.className)}>YNER</h1>
         </div>
     )
 }
