@@ -87,6 +87,7 @@ export function useRtdbCollections(
                 opacity: data.opacity,
                 direction: data.direction,
                 isOpen: data.isOpen,
+                edges: data.edges,
             });
         }
         c.setObstacles(obs);
@@ -137,6 +138,7 @@ export function useRtdbCollections(
                     opacity: data.opacity,
                     direction: data.direction,
                     isOpen: data.isOpen,
+                    edges: data.edges,
                 });
             }
             c.setObstacles(obs);
