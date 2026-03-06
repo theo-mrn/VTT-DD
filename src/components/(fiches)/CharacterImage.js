@@ -166,9 +166,11 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
         fetch(composite).then(r => r.blob())
       ]);
 
-      const timestamp = Date.now();
-      const cRef = ref(storage, `characters/${characterId}_cropped_${timestamp}.png`);
-      const fRef = ref(storage, `characters/${characterId}_final_${timestamp}.png`);
+      const playerName = altText || characterId || 'inconnu';
+      const currentRoomId = roomId || 'default_room';
+      const basePath = `joueurs/${currentRoomId}/${playerName}`;
+      const cRef = ref(storage, `${basePath}/${characterId}_cropped.png`);
+      const fRef = ref(storage, `${basePath}/${characterId}_final.png`);
 
       await Promise.all([uploadBytes(cRef, cBlob), uploadBytes(fRef, fBlob)]);
       const [croppedUrl, finalUrl] = await Promise.all([getDownloadURL(cRef), getDownloadURL(fRef)]);
@@ -204,7 +206,11 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
     setUploading(true);
 
     try {
-      const sRef = ref(storage, `characters/${characterId}_${Date.now()}_${file.name}`);
+      const playerName = altText || characterId || 'inconnu';
+      const currentRoomId = roomId || 'default_room';
+      const basePath = `joueurs/${currentRoomId}/${playerName}`;
+      const fileExt = file.name.split('.').pop() || 'png';
+      const sRef = ref(storage, `${basePath}/${characterId}_base.${fileExt}`);
       await uploadBytes(sRef, file);
       const url = await getDownloadURL(sRef);
 
