@@ -9,7 +9,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(req: Request) {
     try {
-        const { skinId, returnUrl = '/' } = await req.json();
+        const { skinId, userId, returnUrl = '/' } = await req.json();
 
         let item: { id: string, name: string, price: number, description?: string, type: 'dice' | 'token', image?: string };
 
@@ -65,11 +65,13 @@ export async function POST(req: Request) {
                 },
             ],
             mode: "payment",
+            invoice_creation: { enabled: true },
             success_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/checkout/success?session_id={CHECKOUT_SESSION_ID}&skin_id=${item.id}&type=${item.type}&returnUrl=${encodeURIComponent(returnUrl)}`,
             cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/checkout/cancel?returnUrl=${encodeURIComponent(returnUrl)}`,
             metadata: {
                 skinId: item.id,
                 type: item.type,
+                userId: userId || "",
             },
         });
 

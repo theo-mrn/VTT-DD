@@ -66,7 +66,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
     // Persistence Helper (Debounced Firestore + Instant LocalStorage)
-    const updateSetting = (key: string, value: any, setter: (v: any) => void) => {
+    const updateSetting = (key: string, value: any, setter: (v: any) => void, currentValue: any) => {
+        if (value === currentValue) return; // Anti-loop from onSnapshot
+
         // 1. Instant UI update
         setter(value);
 
@@ -101,15 +103,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     };
 
     // Public Setters (Wrapped with persistence)
-    const setCursorColor = (v: string) => updateSetting('cursorColor', v, setCursorColorState);
-    const setCursorTextColor = (v: string) => updateSetting('cursorTextColor', v, setCursorTextColorState);
-    const setShowMyCursor = (v: boolean) => updateSetting('showMyCursor', v, setShowMyCursorState);
-    const setShowOtherCursors = (v: boolean) => updateSetting('showOtherCursors', v, setShowOtherCursorsState);
-    const setShowGrid = (v: boolean) => updateSetting('showGrid', v, setShowGridState);
-    const setShowFogGrid = (v: boolean) => updateSetting('showFogGrid', v, setShowFogGridState);
-    const setShowCharBorders = (v: boolean) => updateSetting('showCharBorders', v, setShowCharBordersState);
-    const setGlobalTokenScale = (v: number) => updateSetting('globalTokenScale', v, setGlobalTokenScaleState);
-    const setPerformanceMode = (v: 'high' | 'eco' | 'static') => updateSetting('performanceMode', v, setPerformanceModeState);
+    const setCursorColor = (v: string) => updateSetting('cursorColor', v, setCursorColorState, cursorColor);
+    const setCursorTextColor = (v: string) => updateSetting('cursorTextColor', v, setCursorTextColorState, cursorTextColor);
+    const setShowMyCursor = (v: boolean) => updateSetting('showMyCursor', v, setShowMyCursorState, showMyCursor);
+    const setShowOtherCursors = (v: boolean) => updateSetting('showOtherCursors', v, setShowOtherCursorsState, showOtherCursors);
+    const setShowGrid = (v: boolean) => updateSetting('showGrid', v, setShowGridState, showGrid);
+    const setShowFogGrid = (v: boolean) => updateSetting('showFogGrid', v, setShowFogGridState, showFogGrid);
+    const setShowCharBorders = (v: boolean) => updateSetting('showCharBorders', v, setShowCharBordersState, showCharBorders);
+    const setGlobalTokenScale = (v: number) => updateSetting('globalTokenScale', v, setGlobalTokenScaleState, globalTokenScale);
+    const setPerformanceMode = (v: 'high' | 'eco' | 'static') => updateSetting('performanceMode', v, setPerformanceModeState, performanceMode);
 
     // Initial Hydration & Fetch
     useEffect(() => {

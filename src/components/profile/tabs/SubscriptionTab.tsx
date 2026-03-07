@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
     Crown, Sparkles, Dices, ShieldCheck, Heart,
     Settings, ExternalLink, Loader2, CalendarDays, Check,
+    FileText, Download, ReceiptText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { db, doc, updateDoc } from "@/lib/firebase";
@@ -17,6 +18,18 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+
+interface Invoice {
+    id: string;
+    number: string | null;
+    date: number;
+    amount: number;
+    currency: string;
+    status: string | null;
+    description: string | null;
+    hostedUrl: string | null;
+    pdfUrl: string | null;
+}
 
 interface UserData {
     premium?: boolean;
@@ -44,6 +57,24 @@ export default function SubscriptionTab({ uid, userEmail, userData }: Subscripti
     const [managingPortal, setManagingPortal] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showCancelDialog, setShowCancelDialog] = useState(false);
+    const [invoices, setInvoices] = useState<Invoice[]>([]);
+    const [loadingInvoices, setLoadingInvoices] = useState(false);
+
+    useEffect(() => {
+        if (!userData?.stripeCustomerId) return;
+        setLoadingInvoices(true);
+        fetch("/api/invoices", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ stripeCustomerId: userData.stripeCustomerId }),
+        })
+            .then((res) => res.json())
+            .then((data) => {
+                if (data.invoices) setInvoices(data.invoices);
+            })
+            .catch(console.error)
+            .finally(() => setLoadingInvoices(false));
+    }, [userData?.stripeCustomerId]);
 
     const premiumSinceFormatted = userData?.premiumSince
         ? new Date(userData.premiumSince).toLocaleDateString("fr-FR", {
@@ -344,6 +375,94 @@ export default function SubscriptionTab({ uid, userEmail, userData }: Subscripti
                     </motion.div>
                 ))}
             </div>
+
+            {/* Historique des factures */}
+            {userData?.stripeCustomerId && (
+                <div className="space-y-2">
+                    <p className="text-xs font-semibold uppercase tracking-wider flex items-center gap-1.5" style={{ color: "var(--text-secondary)" }}>
+                        <ReceiptText className="w-3.5 h-3.5" />
+                        Historique des factures
+                    </p>
+
+                    {loadingInvoices ? (
+                        <div className="flex items-center justify-center py-6">
+                            <Loader2 className="w-5 h-5 animate-spin" style={{ color: "var(--text-secondary)" }} />
+                        </div>
+                    ) : invoices.length === 0 ? (
+                        <div
+                            className="text-sm text-center py-6 rounded-lg"
+                            style={{ color: "var(--text-secondary)", background: "var(--bg-darker)", border: "1px solid var(--border-color)" }}
+                        >
+                            Aucune facture pour le moment.
+                        </div>
+                    ) : (
+                        <div className="space-y-1.5">
+                            {invoices.map((inv) => {
+                                const dateStr = new Date(inv.date * 1000).toLocaleDateString("fr-FR", {
+                                    day: "numeric", month: "short", year: "numeric",
+                                });
+                                const amountStr = (inv.amount / 100).toFixed(2).replace(".", ",") + " €";
+                                const isPaid = inv.status === "paid";
+
+                                return (
+                                    <motion.div
+                                        key={inv.id}
+                                        initial={{ opacity: 0, y: 8 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="flex items-center gap-3 p-3 rounded-lg"
+                                        style={{ background: "var(--bg-darker)", border: "1px solid var(--border-color)" }}
+                                    >
+                                        <div
+                                            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                                            style={{ background: isPaid ? "rgba(34,197,94,0.1)" : "rgba(234,179,8,0.1)" }}
+                                        >
+                                            <FileText className="w-4 h-4" style={{ color: isPaid ? "#4ade80" : "#eab308" }} />
+                                        </div>
+
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                                                {inv.description || `Facture #${inv.number || "—"}`}
+                                            </p>
+                                            <p className="text-xs" style={{ color: "var(--text-secondary)" }}>
+                                                {dateStr} · {inv.number ? `#${inv.number}` : ""}
+                                            </p>
+                                        </div>
+
+                                        <span className="text-sm font-semibold flex-shrink-0" style={{ color: "var(--accent-brown)" }}>
+                                            {amountStr}
+                                        </span>
+
+                                        <div className="flex items-center gap-1 flex-shrink-0">
+                                            {inv.hostedUrl && (
+                                                <a
+                                                    href={inv.hostedUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="p-1.5 rounded-md transition-colors hover:bg-white/5"
+                                                    title="Voir la facture"
+                                                >
+                                                    <ExternalLink className="w-3.5 h-3.5" style={{ color: "var(--text-secondary)" }} />
+                                                </a>
+                                            )}
+                                            {inv.pdfUrl && (
+                                                <a
+                                                    href={inv.pdfUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="p-1.5 rounded-md transition-colors hover:bg-white/5"
+                                                    title="Télécharger le PDF"
+                                                >
+                                                    <Download className="w-3.5 h-3.5" style={{ color: "var(--text-secondary)" }} />
+                                                </a>
+                                            )}
+                                        </div>
+                                    </motion.div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 }
