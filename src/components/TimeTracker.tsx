@@ -2,15 +2,19 @@
 
 import { useEffect, useRef } from "react";
 import { db } from "@/lib/firebase";
-import { doc, updateDoc, increment } from "firebase/firestore";
+import { doc, updateDoc, increment, getDoc } from "firebase/firestore";
 import { useGame } from '@/contexts/GameContext';
 import { checkAndUnlockTimeTitles } from "@/lib/titles";
 import { toast } from "sonner";
 import { trackTimeSpent, checkThresholdChallenges } from '@/lib/challenge-tracker';
 
+const ACCUMULATE_INTERVAL_MS = 60_000;   // 1 minute : tick local
+const FLUSH_EVERY_N_TICKS = 5;        // flush vers Firestore toutes les 5 minutes
+
 export default function TimeTracker() {
-    const timerRef = useRef<NodeJS.Timeout | null>(null);
-    const thresholdCheckRef = useRef<NodeJS.Timeout | null>(null);
+    const tickRef = useRef<NodeJS.Timeout | null>(null);
+    const pendingMinutes = useRef<number>(0);   // minutes accumulées localement
+    const tickCount = useRef<number>(0);   // compteur de ticks depuis le dernier flush
     const userIdRef = useRef<string | null>(null);
     const { user: gameUser } = useGame();
 
@@ -25,93 +29,88 @@ export default function TimeTracker() {
         }
 
         return () => {
+            // Flush les minutes restantes avant unmount
+            flushIfPending();
             stopTracking();
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [gameUser?.uid]);
 
-    const startTracking = () => {
-        if (timerRef.current) return;
+    const flushIfPending = async () => {
+        const uid = userIdRef.current;
+        if (!uid || pendingMinutes.current === 0) return;
 
-        // Update every minute (60000ms)
-        timerRef.current = setInterval(async () => {
-            const uid = userIdRef.current;
-            if (!uid) return;
+        const minutesToFlush = pendingMinutes.current;
+        pendingMinutes.current = 0;
+        tickCount.current = 0;
 
-            try {
-                const userRef = doc(db, "users", uid);
+        try {
+            const userRef = doc(db, "users", uid);
 
-                // 1. Increment time spent (minutes)
-                await updateDoc(userRef, {
-                    timeSpent: increment(1)
+            // 1. Une seule écriture groupée
+            await updateDoc(userRef, {
+                timeSpent: increment(minutesToFlush)
+            });
+
+            // 2. Lire le total mis à jour
+            const snap = await getDoc(userRef);
+            if (!snap.exists()) return;
+
+            const totalMinutes: number = snap.data().timeSpent || 0;
+
+            // 3. Vérifier les titres liés au temps
+            const unlockedTitles = await checkAndUnlockTimeTitles(uid, totalMinutes);
+            if (unlockedTitles && unlockedTitles.length > 0) {
+                unlockedTitles.forEach(() => {
+                    toast.success("Nouveau titre débloqué !", {
+                        description: "Consultez votre profil pour voir vos nouveaux titres."
+                    });
                 });
-
-                // 2. Read the updated total time
-                const { getDoc } = await import("firebase/firestore");
-                const snap = await getDoc(userRef);
-                if (snap.exists()) {
-                    const totalMinutes = snap.data().timeSpent || 0;
-
-                    // 3. Check and unlock titles
-                    const unlockedTitles = await checkAndUnlockTimeTitles(uid, totalMinutes);
-                    if (unlockedTitles && unlockedTitles.length > 0) {
-                        unlockedTitles.forEach(() => {
-                            toast.success("Nouveau titre débloqué !", {
-                                description: "Consultez votre profil pour voir vos nouveaux titres."
-                            });
-                        });
-                    }
-
-                    // === CHALLENGE TRACKING: Time Spent ===
-                    trackTimeSpent(uid, totalMinutes).catch(error =>
-                        console.error('Challenge tracking error:', error)
-                    );
-                }
-
-            } catch (error) {
-                console.error("Time tracking error:", error);
             }
-        }, 60000); // 1 minute
 
-        // === CHALLENGE TRACKING: Periodic Threshold Check ===
-        // Vérifie les défis de seuil toutes les 2 minutes
-        thresholdCheckRef.current = setInterval(async () => {
+            // 4. Défis temps
+            await trackTimeSpent(uid, totalMinutes);
+
+            // 5. Défis de seuil (inventaire, stats, niveau…) — profite de la lecture déjà faite
+            const userData = snap.data();
+            let characterData = null;
+            if (userData.room_id && userData.persoId) {
+                const characterRef = doc(db, `rooms/${userData.room_id}/characters/${userData.persoId}`);
+                const characterSnap = await getDoc(characterRef);
+                if (characterSnap.exists()) {
+                    characterData = characterSnap.data();
+                }
+            }
+            await checkThresholdChallenges(uid, userData, characterData);
+
+        } catch (error) {
+            console.error("Time tracking flush error:", error);
+            // Remettre les minutes en attente si l'écriture a échoué
+            pendingMinutes.current += minutesToFlush;
+        }
+    };
+
+    const startTracking = () => {
+        if (tickRef.current) return;
+
+        tickRef.current = setInterval(() => {
             if (!userIdRef.current) return;
 
-            try {
-                const uid = userIdRef.current;
-                const userRef = doc(db, "users", uid);
-                const { getDoc } = await import("firebase/firestore");
-                const userSnap = await getDoc(userRef);
+            // Accumule localement (pas d'accès réseau)
+            pendingMinutes.current += 1;
+            tickCount.current += 1;
 
-                if (!userSnap.exists()) return;
-
-                const userData = userSnap.data();
-
-                // Récupère les données du personnage si disponibles
-                let characterData = null;
-                if (userData.room_id && userData.persoId) {
-                    const characterRef = doc(db, `rooms/${userData.room_id}/characters/${userData.persoId}`);
-                    const characterSnap = await getDoc(characterRef);
-                    if (characterSnap.exists()) {
-                        characterData = characterSnap.data();
-                    }
-                }
-
-                await checkThresholdChallenges(uid, userData, characterData);
-            } catch (error) {
-                console.error("Threshold challenges check error:", error);
+            // Flush toutes les N minutes
+            if (tickCount.current >= FLUSH_EVERY_N_TICKS) {
+                flushIfPending();
             }
-        }, 120000); // 2 minutes
+        }, ACCUMULATE_INTERVAL_MS);
     };
 
     const stopTracking = () => {
-        if (timerRef.current) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-        }
-        if (thresholdCheckRef.current) {
-            clearInterval(thresholdCheckRef.current);
-            thresholdCheckRef.current = null;
+        if (tickRef.current) {
+            clearInterval(tickRef.current);
+            tickRef.current = null;
         }
     };
 

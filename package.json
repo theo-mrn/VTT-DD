@@ -71,6 +71,7 @@
     "deepl-node": "^1.24.0",
     "driver.js": "^1.4.0",
     "firebase": "^11.0.1",
+    "firebase-admin": "^13.7.0",
     "framer-motion": "^11.18.2",
     "fuse.js": "^7.1.0",
     "gif.js": "^0.2.0",
