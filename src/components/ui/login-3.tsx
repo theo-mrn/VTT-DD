@@ -207,7 +207,8 @@ export default function Login06() {
         // Stocker le nom d'utilisateur et le titre dans Firestore
         await setDoc(doc(db, "users", user.uid), {
           name: username,
-          title: "débutant"
+          title: "débutant",
+          email: email,
         });
 
         // Envoyer l'email d'inscription
