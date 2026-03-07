@@ -15,6 +15,7 @@ import { Statistiques } from '@/components/Statistiques';
 import { WidgetAvatar, WidgetDetails, WidgetStats, WidgetVitals, WidgetCombatStats, WidgetCustomGroup, GroupCreationSection } from './FicheWidgets';
 import { CustomField } from '@/contexts/CharacterContext';
 import { WidgetBourse, WidgetEffects } from './FicheWidgetsExtra';
+import { moduleRegistry } from '@/modules/registry';
 import { Responsive, WidthProvider, Layout } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
@@ -371,6 +372,18 @@ export default function Component() {
         label: widgetId.split(':')[1] || 'Groupe',
         default: { w: 60, h: 2, minW: 20, minH: 2 }
       };
+    }
+
+    // Support for module widgets
+    if (!widgetDef && widgetId.startsWith('module:')) {
+      const moduleWidget = moduleRegistry.getCharacterWidgets().find(w => `module:${w.id}` === widgetId);
+      if (moduleWidget) {
+        widgetDef = {
+          id: widgetId,
+          label: moduleWidget.label,
+          default: moduleWidget.defaultLayout
+        };
+      }
     }
 
     if (!widgetDef) return;
@@ -887,7 +900,14 @@ export default function Component() {
             handleResetPositions={handleResetPositions}
             handleSaveLayout={handleSaveLayout}
             layout={layout}
-            WIDGET_REGISTRY={WIDGET_REGISTRY}
+            WIDGET_REGISTRY={[
+              ...WIDGET_REGISTRY,
+              ...moduleRegistry.getCharacterWidgets().map(w => ({
+                id: `module:${w.id}`,
+                label: w.label,
+                default: w.defaultLayout,
+              })),
+            ]}
             isAddWidgetOpen={isAddWidgetOpen}
             setIsAddWidgetOpen={setIsAddWidgetOpen}
             handleAddWidget={handleAddWidget}
@@ -1094,6 +1114,19 @@ export default function Component() {
                     </div>
                   );
                 })}
+                {/* Module widgets (edit mode) */}
+                {layout.filter(l => l.i.startsWith('module:')).map(l => {
+                  const moduleWidget = moduleRegistry.getCharacterWidgets().find(w => `module:${w.id}` === l.i);
+                  if (!moduleWidget) return null;
+                  return (
+                    <div key={l.i} className="relative group hover:z-[100]">
+                      <WidgetControls id={l.i} updateWidgetDim={updateWidgetDim} widthMode="presets" onRemove={handleRemoveWidget} currentCols={currentCols} />
+                      <div className="h-full w-full overflow-hidden rounded-[length:var(--block-radius,0.5rem)] bg-[#242424] border border-dashed border-gray-600">
+                        <moduleWidget.component characterId={selectedCharacter.id} roomId={roomId!} />
+                      </div>
+                    </div>
+                  );
+                })}
               </ResponsiveGridLayout>
             ) : (
               <ResponsiveGridLayout
@@ -1228,6 +1261,16 @@ export default function Component() {
                   return (
                     <div key={l.i} className="overflow-hidden h-full">
                       <WidgetCustomGroup style={boxStyle} label={label} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} />
+                    </div>
+                  );
+                })}
+                {/* Module widgets (view mode) */}
+                {layout.filter(l => l.i.startsWith('module:')).map(l => {
+                  const moduleWidget = moduleRegistry.getCharacterWidgets().find(w => `module:${w.id}` === l.i);
+                  if (!moduleWidget) return null;
+                  return (
+                    <div key={l.i} className="overflow-hidden h-full">
+                      <moduleWidget.component characterId={selectedCharacter.id} roomId={roomId!} />
                     </div>
                   );
                 })}

@@ -21,7 +21,7 @@ import {
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { ChevronRight, Keyboard } from "lucide-react";
+import { ChevronRight, Keyboard, Blocks, ExternalLink } from "lucide-react";
 import { ShortcutsDialog } from "./ShortcutsDialog";
 
 import { useSettings } from '@/contexts/SettingsContext';
@@ -227,6 +227,34 @@ export default function GlobalSettingsDialog({
                                     </Select>
                                 </Card>
                             </div>
+
+                            {/* Modules Section (MJ only) */}
+                            {isMJ && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="font-title text-sm font-semibold text-white uppercase tracking-wider">
+                                            Modules
+                                        </h4>
+                                        <Separator className="flex-1 bg-white/10" />
+                                    </div>
+                                    <Button
+                                        variant="outline"
+                                        className="w-full bg-[#242424] border-white/10 hover:bg-[#2c2c2c] hover:text-[#c0a080] text-gray-300 justify-between h-auto py-4 group"
+                                        onClick={() => window.open('/modules', '_blank')}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="p-2 bg-black/20 rounded-lg group-hover:bg-[#c0a080]/10 transition-colors">
+                                                <Blocks className="w-5 h-5" />
+                                            </div>
+                                            <div className="text-left">
+                                                <div className="font-medium">Gestionnaire de Modules</div>
+                                                <div className="text-xs text-gray-500 font-normal">Installer et gérer les extensions</div>
+                                            </div>
+                                        </div>
+                                        <ExternalLink className="w-4 h-4 text-gray-600 group-hover:text-[#c0a080] transition-colors" />
+                                    </Button>
+                                </div>
+                            )}
                         </div>
 
                         {/* Footer */}

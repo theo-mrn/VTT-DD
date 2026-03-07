@@ -28,6 +28,7 @@ import { DialogVisibilityProvider } from '@/contexts/DialogVisibilityContext';
 import { ShortcutsProvider } from '@/contexts/ShortcutsContext';
 import { ChatNotificationProvider } from '@/contexts/ChatNotificationContext';
 import { startSidebarTour } from "@/lib/tours";
+import { moduleRegistry } from '@/modules/registry';
 
 type LayoutProps = {
   children: ReactNode;
@@ -63,18 +64,31 @@ export default function Layout({ children }: LayoutProps) {
     historique: false,
   });
 
+  // Lazy-mount flags for module panels
+  const [mountedModules, setMountedModules] = useState<Set<string>>(new Set());
+
   const handleIconClick = (tabName: string) => {
     const next = activeTab === tabName ? "" : tabName;
     // Trigger lazy-mount on first open
     if (next) {
-      setMounted(prev => ({
-        ...prev,
-        ...(tabName === 'NewComponent' && { notes: true }),
-        ...(tabName === 'Chat' && { chat: true }),
-        ...(tabName === 'GMDashboard' && { gmDashboard: true }),
-        ...(tabName === 'NPCManager' && { npcManager: true }),
-        ...(tabName === 'Historique' && { historique: true }),
-      }));
+      if (tabName.startsWith('module:')) {
+        const moduleId = tabName.slice('module:'.length);
+        setMountedModules(prev => {
+          if (prev.has(moduleId)) return prev;
+          const copy = new Set(prev);
+          copy.add(moduleId);
+          return copy;
+        });
+      } else {
+        setMounted(prev => ({
+          ...prev,
+          ...(tabName === 'NewComponent' && { notes: true }),
+          ...(tabName === 'Chat' && { chat: true }),
+          ...(tabName === 'GMDashboard' && { gmDashboard: true }),
+          ...(tabName === 'NPCManager' && { npcManager: true }),
+          ...(tabName === 'Historique' && { historique: true }),
+        }));
+      }
     }
     setActiveTab(next);
   };
@@ -208,6 +222,28 @@ export default function Layout({ children }: LayoutProps) {
                   )}
                 </>
               )}
+
+              {/* ── MODULE panels (dynamic) ── */}
+              {moduleRegistry.getSidebarTabs().map(tab => {
+                const tabKey = `module:${tab.id}`;
+                if (tab.persistent) {
+                  if (!mountedModules.has(tab.id)) return null;
+                  return (
+                    <aside key={tabKey} className={asideClass(tab.width || "w-full sm:w-[700px]", activeTab === tabKey, "overflow-y-auto")}>
+                      <CloseBtn />
+                      <tab.component />
+                    </aside>
+                  );
+                } else {
+                  if (activeTab !== tabKey) return null;
+                  return (
+                    <aside key={tabKey} className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${tab.width || freshPanelWidth} text-black shadow-lg z-20 overflow-y-auto`}>
+                      <CloseBtn />
+                      <tab.component />
+                    </aside>
+                  );
+                }
+              })}
 
               {/* ── DICE ROLLER (persistent, all users) ── */}
               <FloatingAiAssistant
