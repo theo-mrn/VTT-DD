@@ -7,6 +7,7 @@ import { Eye, EyeOff, MousePointer2, Users, Square, Scan, Grid, Cloud, Image as 
 import { useSettings } from '@/contexts/SettingsContext';
 import { useGame } from '@/contexts/GameContext';
 import { saveUserSettings } from '@/lib/saveSettings';
+import { moduleRegistry } from '@/modules/registry';
 
 interface MapContextMenuProps {
     position: { x: number, y: number } | null;
@@ -76,6 +77,21 @@ export default function MapContextMenu({
             icon: <ImageIcon size={20} />,
             onClick: () => setShowBackgroundSelector(true)
         });
+    }
+
+    // Module context menu items
+    const ctx = { position, isMJ };
+    for (const contribution of moduleRegistry.getContextMenuItems('map')) {
+        for (const item of contribution.items) {
+            if (item.condition && !item.condition(ctx)) continue;
+            const label = typeof item.label === 'function' ? item.label(ctx) : item.label;
+            items.push({
+                id: `module:${item.id}`,
+                label,
+                icon: item.icon as React.ReactElement,
+                onClick: () => item.onClick(ctx),
+            });
+        }
     }
 
     return (

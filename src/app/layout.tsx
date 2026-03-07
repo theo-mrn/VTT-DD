@@ -6,6 +6,7 @@ import { CompetencesProvider } from "@/contexts/CompetencesContext"
 import { GameProvider } from '@/contexts/GameContext';
 import { CharacterProvider } from '@/contexts/CharacterContext';
 import { UndoRedoProvider } from '@/contexts/UndoRedoContext';
+import { ModuleProvider } from '@/modules/context';
 import { Toaster } from "@/components/ui/sonner"
 import TimeTracker from '@/components/TimeTracker';
 import CookieBanner from '@/components/CookieBanner';
@@ -83,6 +84,7 @@ export default function RootLayout({
           themes={['dark', 'tavern', 'dungeon', 'royal', 'druid']}
         >
           <GameProvider>
+            <ModuleProvider>
             <CharacterProvider>
               <CompetencesProvider>
                 <UndoRedoProvider>
@@ -99,6 +101,7 @@ export default function RootLayout({
                 </UndoRedoProvider>
               </CompetencesProvider>
             </CharacterProvider>
+            </ModuleProvider>
           </GameProvider>
         </ThemeProvider>
       </body>

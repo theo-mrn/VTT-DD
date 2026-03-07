@@ -6,7 +6,8 @@ import SearchMenu from "./SearchMenu";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
 import { useShortcuts, SHORTCUT_ACTIONS } from "@/contexts/ShortcutsContext";
 import { useChatNotification } from "@/contexts/ChatNotificationContext";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
+import { moduleRegistry } from "@/modules/registry";
 
 type SidebarProps = {
   activeTab: string;
@@ -20,6 +21,13 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
   const { isDialogOpen } = useDialogVisibility();
   const { isShortcutPressed } = useShortcuts();
   const { unreadCount, clearUnread } = useChatNotification();
+
+  const moduleTabs = useMemo(() =>
+    moduleRegistry.getSidebarTabs()
+      .filter(tab => !tab.mjOnly || isMJ)
+      .sort((a, b) => (a.order ?? 100) - (b.order ?? 100)),
+    [isMJ]
+  );
 
   useEffect(() => {
     if (activeTab === "Chat") clearUnread();
@@ -122,6 +130,25 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
                 </span>
               )}
             </button>
+            {/* Module sidebar tabs */}
+            {moduleTabs.length > 0 && (
+              <>
+                <div className="w-6 border-t" style={{ borderColor: 'var(--border-color)' }} />
+                {moduleTabs.map(tab => (
+                  <button
+                    key={`module-${tab.id}`}
+                    onClick={() => handleIconClick(`module:${tab.id}`)}
+                    className="p-1.5 sm:p-2 transition-colors duration-150"
+                    title={tab.label}
+                  >
+                    <tab.icon
+                      className="h-5 w-5 sm:h-6 sm:w-6 transition-colors duration-150"
+                      style={{ color: activeTab === `module:${tab.id}` ? 'var(--accent-brown)' : 'var(--text-secondary)' }}
+                    />
+                  </button>
+                ))}
+              </>
+            )}
           </div>
         </div>
       </aside>

@@ -16,6 +16,7 @@ import {
 } from '@/lib/challenges';
 import { generateSlug } from '@/lib/titles';
 import { toast } from 'sonner';
+import { gameEventBus } from '@/modules/event-bus';
 
 /**
  * Type d'événement trackable
@@ -262,6 +263,14 @@ export async function trackDiceRoll(
   result: number,
   isCritical: boolean = false
 ): Promise<void> {
+  // Emit to module event bus
+  gameEventBus.emit({ type: 'dice:roll', payload: { userId: uid, diceCount: 1, diceFaces: diceType, results: [result], total: result, modifier: 0 } });
+  if (isCritical && result === 20) {
+    gameEventBus.emit({ type: 'dice:critical_success', payload: { userId: uid, result } });
+  } else if (isCritical && result === 1) {
+    gameEventBus.emit({ type: 'dice:critical_fail', payload: { userId: uid, result } });
+  }
+
   // Track le lancer basique
   await trackEvent({ uid, event: "dice_roll", value: 1 });
 
@@ -280,6 +289,7 @@ export async function trackDiceRoll(
  * Track un message de chat
  */
 export async function trackChatMessage(uid: string): Promise<void> {
+  gameEventBus.emit({ type: 'chat:message', payload: { userId: uid, text: '' } });
   await trackEvent({ uid, event: "chat_message", value: 1 });
 }
 
@@ -309,6 +319,7 @@ export async function trackSkillLearned(uid: string): Promise<void> {
  * Track un level up
  */
 export async function trackLevelUp(uid: string, newLevel: number): Promise<void> {
+  gameEventBus.emit({ type: 'character:update', payload: { characterId: uid, changes: { niveau: newLevel } } });
   await trackEvent({ uid, event: "level_up", value: 1, metadata: { newLevel } });
 
   // Vérifie les défis de seuil de niveau
@@ -323,6 +334,7 @@ export async function trackCombatWon(
   enemyType?: string,
   enemyLevel?: number
 ): Promise<void> {
+  gameEventBus.emit({ type: 'combat:end', payload: { winnerId: uid } });
   await trackEvent({ uid, event: "combat_won", value: 1, metadata: { enemyType, enemyLevel } });
 
   // Vérifie si c'est un dragon
@@ -335,6 +347,7 @@ export async function trackCombatWon(
  * Track des dégâts infligés
  */
 export async function trackDamageDealt(uid: string, damage: number): Promise<void> {
+  gameEventBus.emit({ type: 'combat:damage', payload: { attackerId: uid, targetId: '', amount: damage } });
   await trackEvent({ uid, event: "damage_dealt", value: damage });
 }
 
