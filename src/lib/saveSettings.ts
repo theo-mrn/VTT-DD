@@ -1,7 +1,7 @@
 import { db } from '@/lib/firebase';
 import { doc, setDoc } from 'firebase/firestore';
 
-export type ThemeName = 'dark' | 'forest' | 'crimson' | 'parchment' | 'midnight';
+export type ThemeName = 'dark' | 'tavern' | 'dungeon' | 'royal' | 'druid';
 
 export interface UserSettings {
     cursorColor?: string;

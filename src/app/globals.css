@@ -98,160 +98,160 @@
   --chart-bar-alt: #8b5cf6;
 }
 
-/* ─── Theme: Forest ──────────────────────── */
-.forest {
-  --background: 150 15% 8%;
-  --foreground: 120 10% 88%;
-  --card: 150 15% 8%;
-  --card-foreground: 120 10% 88%;
-  --popover: 150 15% 8%;
-  --popover-foreground: 120 10% 88%;
-  --primary: 120 10% 88%;
-  --primary-foreground: 150 15% 8%;
-  --secondary: 150 12% 14%;
-  --secondary-foreground: 120 10% 88%;
-  --muted: 150 12% 14%;
-  --muted-foreground: 120 8% 55%;
-  --accent: 150 12% 14%;
-  --accent-foreground: 120 10% 88%;
-  --destructive: 0 62.8% 30.6%;
+/* ─── Theme: Tavern (Taverne) ──────────────────────── */
+.tavern {
+  --background: 30 20% 8%;
+  --foreground: 30 25% 85%;
+  --card: 30 20% 10%;
+  --card-foreground: 30 25% 85%;
+  --popover: 30 20% 10%;
+  --popover-foreground: 30 25% 85%;
+  --primary: 35 45% 45%;
+  --primary-foreground: 30 30% 95%;
+  --secondary: 30 20% 16%;
+  --secondary-foreground: 30 25% 85%;
+  --muted: 30 20% 16%;
+  --muted-foreground: 30 15% 60%;
+  --accent: 30 20% 16%;
+  --accent-foreground: 30 25% 85%;
+  --destructive: 0 60% 40%;
   --destructive-foreground: 0 0% 98%;
-  --border: 150 12% 18%;
-  --input: 150 12% 18%;
-  --ring: 140 40% 50%;
+  --border: 30 20% 20%;
+  --input: 30 20% 20%;
+  --ring: 35 45% 45%;
 
-  --bg-dark: #141f14;
-  --bg-darker: #0a120a;
-  --bg-card: #162016;
-  --bg-canvas: #0f180f;
-  --border-color: #233223;
-  --text-primary: #c8d8c0;
-  --text-secondary: #8aaa80;
-  --accent-brown: #6abf6a;
-  --accent-brown-hover: #80d480;
-  --accent-blue: #4a9e8a;
-  --accent-blue-hover: #5ab4a0;
-  --accent-header: #c8d8c0;
-  --chart-line: #ef4444;
-  --chart-bar: #6abf6a;
-  --chart-bar-alt: #4a9e8a;
+  --bg-dark: #1f1610;
+  --bg-darker: #120c08;
+  --bg-card: #281d15;
+  --bg-canvas: #1a120d;
+  --border-color: #443224;
+  --text-primary: #e6dac3;
+  --text-secondary: #9c8a75;
+  --accent-brown: #96613d;
+  --accent-brown-hover: #b87a4f;
+  --accent-blue: #644536;
+  --accent-blue-hover: #825b48;
+  --accent-header: #e6dac3;
+  --chart-line: #b33939;
+  --chart-bar: #96613d;
+  --chart-bar-alt: #644536;
 }
 
-/* ─── Theme: Crimson ─────────────────────── */
-.crimson {
-  --background: 0 15% 7%;
-  --foreground: 20 10% 88%;
-  --card: 0 15% 7%;
-  --card-foreground: 20 10% 88%;
-  --popover: 0 15% 7%;
-  --popover-foreground: 20 10% 88%;
-  --primary: 20 10% 88%;
-  --primary-foreground: 0 15% 7%;
-  --secondary: 0 12% 13%;
-  --secondary-foreground: 20 10% 88%;
-  --muted: 0 12% 13%;
-  --muted-foreground: 20 8% 52%;
-  --accent: 0 12% 13%;
-  --accent-foreground: 20 10% 88%;
-  --destructive: 0 62.8% 30.6%;
+/* ─── Theme: Dungeon (Donjon) ─────────────────────── */
+.dungeon {
+  --background: 220 15% 6%;
+  --foreground: 220 15% 80%;
+  --card: 220 15% 8%;
+  --card-foreground: 220 15% 80%;
+  --popover: 220 15% 8%;
+  --popover-foreground: 220 15% 80%;
+  --primary: 200 40% 30%;
+  --primary-foreground: 220 15% 95%;
+  --secondary: 220 15% 14%;
+  --secondary-foreground: 220 15% 80%;
+  --muted: 220 15% 14%;
+  --muted-foreground: 220 10% 55%;
+  --accent: 220 15% 14%;
+  --accent-foreground: 220 15% 80%;
+  --destructive: 0 50% 35%;
   --destructive-foreground: 0 0% 98%;
-  --border: 0 12% 17%;
-  --input: 0 12% 17%;
-  --ring: 0 60% 45%;
+  --border: 220 15% 18%;
+  --input: 220 15% 18%;
+  --ring: 200 40% 30%;
 
-  --bg-dark: #1e1010;
-  --bg-darker: #120808;
-  --bg-card: #201212;
-  --bg-canvas: #160c0c;
-  --border-color: #331818;
-  --text-primary: #d8c8c0;
-  --text-secondary: #aa8880;
-  --accent-brown: #c0504a;
-  --accent-brown-hover: #d46460;
-  --accent-blue: #9e5a3a;
-  --accent-blue-hover: #b46e50;
-  --accent-header: #d8c8c0;
-  --chart-line: #ef4444;
-  --chart-bar: #c0504a;
-  --chart-bar-alt: #9e5a3a;
+  --bg-dark: #0f1115;
+  --bg-darker: #07080a;
+  --bg-card: #15181e;
+  --bg-canvas: #0c0d11;
+  --border-color: #2b303b;
+  --text-primary: #b4bcc8;
+  --text-secondary: #6e7683;
+  --accent-brown: #3b5f70;
+  --accent-brown-hover: #4e7a8f;
+  --accent-blue: #2c3e50;
+  --accent-blue-hover: #3d5668;
+  --accent-header: #b4bcc8;
+  --chart-line: #8b2f2f;
+  --chart-bar: #3b5f70;
+  --chart-bar-alt: #2c3e50;
 }
 
-/* ─── Theme: Parchment ───────────────────── */
-.parchment {
-  --background: 40 35% 92%;
-  --foreground: 30 20% 15%;
-  --card: 40 35% 92%;
-  --card-foreground: 30 20% 15%;
-  --popover: 40 35% 92%;
-  --popover-foreground: 30 20% 15%;
-  --primary: 30 20% 15%;
-  --primary-foreground: 40 35% 92%;
-  --secondary: 40 25% 85%;
-  --secondary-foreground: 30 20% 15%;
-  --muted: 40 25% 85%;
-  --muted-foreground: 30 12% 45%;
-  --accent: 40 25% 85%;
-  --accent-foreground: 30 20% 15%;
-  --destructive: 0 84.2% 60.2%;
+/* ─── Theme: Royal (Cour Royale) ───────────────────── */
+.royal {
+  --background: 340 35% 8%;
+  --foreground: 45 40% 85%;
+  --card: 340 35% 10%;
+  --card-foreground: 45 40% 85%;
+  --popover: 340 35% 10%;
+  --popover-foreground: 45 40% 85%;
+  --primary: 45 70% 45%;
+  --primary-foreground: 340 40% 5%;
+  --secondary: 340 30% 16%;
+  --secondary-foreground: 45 40% 85%;
+  --muted: 340 30% 16%;
+  --muted-foreground: 340 20% 60%;
+  --accent: 340 30% 16%;
+  --accent-foreground: 45 40% 85%;
+  --destructive: 0 60% 40%;
   --destructive-foreground: 0 0% 98%;
-  --border: 35 20% 75%;
-  --input: 35 20% 75%;
-  --ring: 30 50% 40%;
+  --border: 340 30% 22%;
+  --input: 340 30% 22%;
+  --ring: 45 70% 45%;
 
-  --bg-dark: #f2e8d0;
-  --bg-darker: #e8dfc4;
-  --bg-card: #f5eedc;
-  --bg-canvas: #faf5e8;
-  --border-color: #c8b890;
-  --text-primary: #2c1e0e;
-  --text-secondary: #6a5030;
-  --accent-brown: #8b5e2c;
-  --accent-brown-hover: #a07038;
-  --accent-blue: #4a6880;
-  --accent-blue-hover: #5c7a94;
-  --accent-header: #2c1e0e;
-  --chart-line: #c0383a;
-  --chart-bar: #4a6880;
-  --chart-bar-alt: #8b5e2c;
+  --bg-dark: #1f0b12;
+  --bg-darker: #12060a;
+  --bg-card: #281017;
+  --bg-canvas: #18080d;
+  --border-color: #4a1f2c;
+  --text-primary: #e6d3a8;
+  --text-secondary: #b89f81;
+  --accent-brown: #c7a442;
+  --accent-brown-hover: #e0be5a;
+  --accent-blue: #70263c;
+  --accent-blue-hover: #8f314d;
+  --accent-header: #e6d3a8;
+  --chart-line: #c74242;
+  --chart-bar: #c7a442;
+  --chart-bar-alt: #70263c;
 }
 
-/* ─── Theme: Midnight ────────────────────── */
-.midnight {
-  --background: 220 25% 8%;
-  --foreground: 210 20% 90%;
-  --card: 220 25% 8%;
-  --card-foreground: 210 20% 90%;
-  --popover: 220 25% 8%;
-  --popover-foreground: 210 20% 90%;
-  --primary: 210 20% 90%;
-  --primary-foreground: 220 25% 8%;
-  --secondary: 220 20% 14%;
-  --secondary-foreground: 210 20% 90%;
-  --muted: 220 20% 14%;
-  --muted-foreground: 210 15% 55%;
-  --accent: 220 20% 14%;
-  --accent-foreground: 210 20% 90%;
-  --destructive: 0 62.8% 30.6%;
+/* ─── Theme: Druid (Bosquet Druidique) ────────────────────── */
+.druid {
+  --background: 120 20% 7%;
+  --foreground: 90 25% 85%;
+  --card: 120 20% 9%;
+  --card-foreground: 90 25% 85%;
+  --popover: 120 20% 9%;
+  --popover-foreground: 90 25% 85%;
+  --primary: 100 40% 35%;
+  --primary-foreground: 90 25% 95%;
+  --secondary: 120 20% 15%;
+  --secondary-foreground: 90 25% 85%;
+  --muted: 120 20% 15%;
+  --muted-foreground: 90 15% 60%;
+  --accent: 120 20% 15%;
+  --accent-foreground: 90 25% 85%;
+  --destructive: 0 50% 35%;
   --destructive-foreground: 0 0% 98%;
-  --border: 220 20% 18%;
-  --input: 220 20% 18%;
-  --ring: 200 70% 55%;
+  --border: 120 20% 20%;
+  --input: 120 20% 20%;
+  --ring: 100 40% 35%;
 
-  --bg-dark: #10182a;
-  --bg-darker: #080f1e;
-  --bg-card: #121c30;
-  --bg-canvas: #0c1424;
-  --border-color: #1e2e48;
-  --text-primary: #c8d8e8;
-  --text-secondary: #7a98b8;
-  --accent-brown: #4aa8d8;
-  --accent-brown-hover: #60bce8;
-  --accent-blue: #5060c0;
-  --accent-blue-hover: #6474d4;
-  --accent-header: #c8d8e8;
-  --chart-line: #ef4444;
-  --chart-bar: #4aa8d8;
-  --chart-bar-alt: #5060c0;
+  --bg-dark: #0f1510;
+  --bg-darker: #080b08;
+  --bg-card: #141c15;
+  --bg-canvas: #0c110d;
+  --border-color: #273829;
+  --text-primary: #dce6cc;
+  --text-secondary: #8c9e7e;
+  --accent-brown: #547d41;
+  --accent-brown-hover: #6d9c56;
+  --accent-blue: #455e37;
+  --accent-blue-hover: #5a7a48;
+  --accent-header: #dce6cc;
+  --chart-line: #c25340;
+  --chart-bar: #547d41;
+  --chart-bar-alt: #455e37;
 }
 
 .bg-primary {

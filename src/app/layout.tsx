@@ -80,7 +80,7 @@ export default function RootLayout({
           defaultTheme="dark"
           enableSystem={false}
           disableTransitionOnChange
-          themes={['dark', 'forest', 'crimson', 'parchment', 'midnight']}
+          themes={['dark', 'tavern', 'dungeon', 'royal', 'druid']}
         >
           <GameProvider>
             <CharacterProvider>
