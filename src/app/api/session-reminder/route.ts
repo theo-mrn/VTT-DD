@@ -1,6 +1,7 @@
 import { SessionReminderEmailTemplate } from '@/components/emails/session-reminder-email-template';
 import { Resend } from 'resend';
-import { db, collection, getDocs, query, where, doc, getDoc, updateDoc, Timestamp } from '@/lib/firebase';
+import { adminDb } from '@/lib/firebase-admin';
+import { Timestamp } from 'firebase-admin/firestore';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -24,11 +25,8 @@ export async function GET(request: Request) {
         const now = new Date();
         const in24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
-        const nowTimestamp = Timestamp.fromDate(now);
-        const in24hTimestamp = Timestamp.fromDate(in24h);
-
         // Get all rooms
-        const sallesSnapshot = await getDocs(collection(db, 'Salle'));
+        const sallesSnapshot = await adminDb.collection('Salle').get();
 
         let totalEmailsSent = 0;
         let sessionsProcessed = 0;
@@ -39,14 +37,12 @@ export async function GET(request: Request) {
             const roomData = salleDoc.data();
             const campaignName = roomData.title || 'votre campagne';
 
-            // Query sessions happening in the next 24h that haven't been reminded
-            const sessionsQuery = query(
-                collection(db, `Salle/${roomId}/sessions`),
-                where('date', '>=', nowTimestamp),
-                where('date', '<=', in24hTimestamp),
-            );
-
-            const sessionsSnapshot = await getDocs(sessionsQuery);
+            // Query sessions happening in the next 24h
+            const sessionsSnapshot = await adminDb
+                .collection(`Salle/${roomId}/sessions`)
+                .where('date', '>=', Timestamp.fromDate(now))
+                .where('date', '<=', Timestamp.fromDate(in24h))
+                .get();
 
             for (const sessionDoc of sessionsSnapshot.docs) {
                 const sessionData = sessionDoc.data();
@@ -60,23 +56,35 @@ export async function GET(request: Request) {
 
                 const formattedDate = format(sessionDate, "EEEE d MMMM 'à' HH:mm", { locale: fr });
 
-                // Get players in this room
-                const nomsSnapshot = await getDocs(collection(db, `salles/${roomId}/Noms`));
-                const playerUids = nomsSnapshot.docs.map(d => d.id);
+                // Get players: try salles/{roomId}/Noms first, fallback to scanning users with this room
+                const playerUids = new Set<string>();
+
+                const nomsSnapshot = await adminDb.collection(`salles/${roomId}/Noms`).get();
+                nomsSnapshot.docs.forEach(d => playerUids.add(d.id));
+
+                // Also find users who have this room in their rooms subcollection
+                const usersSnapshot = await adminDb.collection('users').get();
+                for (const userDoc of usersSnapshot.docs) {
+                    const userRoomDoc = await adminDb.doc(`users/${userDoc.id}/rooms/${roomId}`).get();
+                    if (userRoomDoc.exists) {
+                        playerUids.add(userDoc.id);
+                    }
+                }
 
                 // Fetch emails for each player
                 const emailBatch: { to: string[]; firstName: string }[] = [];
 
                 for (const uid of playerUids) {
                     try {
-                        const userDoc = await getDoc(doc(db, 'users', uid));
-                        if (!userDoc.exists()) continue;
+                        const userDoc = await adminDb.doc(`users/${uid}`).get();
+                        if (!userDoc.exists) continue;
 
-                        const userData = userDoc.data();
+                        const userData = userDoc.data()!;
 
                         // Respect email notification preferences
                         if (userData.emailNotifications === false) continue;
 
+                        // Try Firestore email, fallback to Firebase Auth email
                         const email = userData.email;
                         if (!email) continue;
 
@@ -116,10 +124,12 @@ export async function GET(request: Request) {
                     }
                 }
 
-                // Mark session as reminded
-                await updateDoc(doc(db, `Salle/${roomId}/sessions`, sessionDoc.id), {
-                    reminderSent: true,
-                });
+                // Only mark as reminded if emails were actually sent
+                if (totalEmailsSent > 0) {
+                    await adminDb.doc(`Salle/${roomId}/sessions/${sessionDoc.id}`).update({
+                        reminderSent: true,
+                    });
+                }
 
                 sessionsProcessed++;
             }
@@ -131,8 +141,11 @@ export async function GET(request: Request) {
             totalEmailsSent,
             errors: errors.length > 0 ? errors : undefined,
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Session reminder error:', error);
-        return Response.json({ error: 'Internal Server Error' }, { status: 500 });
+        return Response.json({
+            error: 'Internal Server Error',
+            message: error?.message || String(error),
+        }, { status: 500 });
     }
 }

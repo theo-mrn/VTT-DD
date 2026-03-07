@@ -357,6 +357,9 @@ async function checkTimeBasedChallenges(uid: string, totalMinutes: number): Prom
 
     if (progress.status === "completed") continue;
 
+    // SKIP write if value hasn't actually progressed
+    if (progress.progress === totalMinutes) continue;
+
     const target = challenge.condition.target;
     const isCompleted = totalMinutes >= target;
 
@@ -535,6 +538,11 @@ export async function checkThresholdChallenges(
 
     const target = challenge.condition.target;
     const isCompleted = currentValue >= target;
+
+    // SKIP write if the value is strictly the same and status hasn't changed.
+    if (progress.progress === currentValue && progress.status === (isCompleted ? "completed" : "in_progress")) {
+      continue;
+    }
 
     if (isCompleted) {
       await updateDoc(progressRef, {

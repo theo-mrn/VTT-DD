@@ -67,45 +67,69 @@ export function ChallengesModal({ isOpen, onClose }: ChallengesModalProps) {
 
     setUid(uid);
 
+    let unsubscribeProgress: () => void = () => { };
+
     const loadChallenges = async () => {
       try {
         await initializeUserChallenges(uid);
 
-        const progressPath = `users/${uid}/challenge_progress`;
-        const unsubscribeProgress = onSnapshot(
-          doc(db, progressPath, '_dummy_'),
-          () => { },
-          (error) => console.error("Error listening to challenges:", error)
-        );
+        const { collection } = await import('@/lib/firebase');
 
-        const progress = await getUserChallengesProgress(uid);
-        setChallengesProgress(progress);
+        // Récupère l'état initial
+        const initialProgress = await getUserChallengesProgress(uid);
+        setChallengesProgress(initialProgress);
         setIsLoadingChallenges(false);
 
-        return () => unsubscribeProgress();
+        // Puis écoute les changements en temps réel pendant que le component est monté
+        const progressRef = collection(db, `users/${uid}/challenge_progress`);
+        unsubscribeProgress = onSnapshot(progressRef, (snapshot) => {
+          setChallengesProgress(prev => {
+            const newProgress = { ...prev };
+            let changed = false;
+
+            snapshot.docChanges().forEach((change) => {
+              if (change.type === 'added' || change.type === 'modified') {
+                const data = change.doc.data() as any;
+
+                // Adapter le format du Timestamp pour le ChallengeProgress
+                const formattedProgress: ChallengeProgress = {
+                  challengeId: data.challengeId || change.doc.id,
+                  status: data.status,
+                  progress: data.progress,
+                  startedAt: data.startedAt?.toDate(),
+                  completedAt: data.completedAt?.toDate(),
+                  lastUpdated: data.lastUpdated?.toDate(),
+                  attempts: data.attempts || 0,
+                  currentStreak: data.currentStreak,
+                  metadata: data.metadata,
+                };
+
+                // Petite vérification pour éviter des re-renders inutiles
+                if (JSON.stringify(newProgress[change.doc.id]) !== JSON.stringify(formattedProgress)) {
+                  newProgress[change.doc.id] = formattedProgress;
+                  changed = true;
+                }
+              }
+            });
+
+            return changed ? newProgress : prev;
+          });
+        }, (error) => console.error("Error listening to real-time challenges:", error));
+
       } catch (error) {
         console.error('Error loading challenges:', error);
         setIsLoadingChallenges(false);
       }
     };
+
     loadChallenges();
+
+    return () => {
+      unsubscribeProgress();
+    };
   }, [gameUser?.uid]);
 
-  // Rechargement périodique de la progression (toutes les 5 secondes quand le modal est ouvert)
-  useEffect(() => {
-    if (!isOpen || !uid) return;
-
-    const interval = setInterval(async () => {
-      try {
-        const progress = await getUserChallengesProgress(uid);
-        setChallengesProgress(progress);
-      } catch (error) {
-        console.error('Error refreshing challenges:', error);
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [isOpen, uid]);
+  // Le rechargement périodique de 5 secondes a été supprimé. Le onSnapshot gère déjà le temps réel.
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
