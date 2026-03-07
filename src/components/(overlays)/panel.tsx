@@ -70,10 +70,10 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
   const THEMES: { key: ThemeName; label: string; accent: string; bg: string; text: string }[] = [
     { key: 'dark', label: 'Défaut', accent: '#c0a080', bg: '#18181b', text: '#d4d4d4' },
-    { key: 'forest', label: 'Forêt', accent: '#6abf6a', bg: '#162016', text: '#c8d8c0' },
-    { key: 'crimson', label: 'Feu', accent: '#c0504a', bg: '#201212', text: '#d8c8c0' },
-    { key: 'parchment', label: 'Parchemin', accent: '#8b5e2c', bg: '#f5eedc', text: '#2c1e0e' },
-    { key: 'midnight', label: 'Minuit', accent: '#4aa8d8', bg: '#121c30', text: '#c8d8e8' },
+    { key: 'tavern', label: 'Taverne', accent: '#96613d', bg: '#281d15', text: '#e6dac3' },
+    { key: 'dungeon', label: 'Donjon', accent: '#3b5f70', bg: '#15181e', text: '#b4bcc8' },
+    { key: 'royal', label: 'Cour Royale', accent: '#c7a442', bg: '#281017', text: '#e6d3a8' },
+    { key: 'druid', label: 'Bosquet', accent: '#547d41', bg: '#141c15', text: '#dce6cc' },
   ];
 
   const handleThemeChange = async (newTheme: ThemeName) => {
