@@ -111,14 +111,14 @@ async function updateChallengeForEvent(
   switch (challenge.condition.type) {
     case "reach_count":
       // Simple compteur
-      newProgress += value;
+      newProgress = (currentProgress.progress || 0) + value;
       newStatus = "in_progress";
       break;
 
     case "consecutive":
       // Nécessite consécutivité
       if (challenge.condition.context?.consecutive) {
-        if (metadata.isConsecutive) {
+        if (metadata?.isConsecutive) {
           currentStreak += value;
           newProgress = currentStreak;
         } else {
@@ -131,7 +131,7 @@ async function updateChallengeForEvent(
 
     case "accumulate":
       // Accumule une valeur totale (ex: dégâts)
-      newProgress += value;
+      newProgress = (currentProgress.progress || 0) + value;
       newStatus = "in_progress";
       break;
 
@@ -149,6 +149,16 @@ async function updateChallengeForEvent(
 
   // Vérifie si le défi est complété
   const isCompleted = newProgress >= challenge.condition.target;
+  const finalStatus = isCompleted ? "completed" : newStatus;
+
+  // SKIP write if absolutely nothing changed
+  if (
+    newProgress === (currentProgress.progress || 0) &&
+    finalStatus === (currentProgress.status || "in_progress") &&
+    currentStreak === (currentProgress.currentStreak || 0)
+  ) {
+    return;
+  }
 
   // Met à jour la progression
   const updateData: any = {
@@ -357,8 +367,11 @@ async function checkTimeBasedChallenges(uid: string, totalMinutes: number): Prom
 
     if (progress.status === "completed") continue;
 
+    // Normalisation
+    const oldProgress = progress.progress || 0;
+
     // SKIP write if value hasn't actually progressed
-    if (progress.progress === totalMinutes) continue;
+    if (oldProgress === totalMinutes) continue;
 
     const target = challenge.condition.target;
     const isCompleted = totalMinutes >= target;
@@ -539,8 +552,13 @@ export async function checkThresholdChallenges(
     const target = challenge.condition.target;
     const isCompleted = currentValue >= target;
 
+    // Normalisation des valeurs pour la comparaison
+    const oldProgress = progress.progress || 0;
+    const oldStatus = progress.status || "in_progress";
+    const newStatus = isCompleted ? "completed" : "in_progress";
+
     // SKIP write if the value is strictly the same and status hasn't changed.
-    if (progress.progress === currentValue && progress.status === (isCompleted ? "completed" : "in_progress")) {
+    if (oldProgress === currentValue && oldStatus === newStatus) {
       continue;
     }
 

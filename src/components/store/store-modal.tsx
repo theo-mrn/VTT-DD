@@ -182,7 +182,7 @@ export function StoreModal({
             const response = await fetch('/api/checkout', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ skinId: checkoutId, returnUrl: window.location.pathname }),
+                body: JSON.stringify({ skinId: checkoutId, userId: uid, returnUrl: window.location.pathname }),
             });
             const data = await response.json();
             if (!response.ok) throw new Error(data.error || 'Erreur de paiement');
