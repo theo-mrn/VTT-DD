@@ -6,15 +6,16 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
-import { ArrowLeft, Users, Trash, Plus, Search, Play, Settings, Eye, Gamepad2 } from 'lucide-react'
+import { ArrowLeft, Users, Trash, Plus, Search, Play, Settings, Eye, Gamepad2, Shield, Swords } from 'lucide-react'
 import { auth, db, collection, doc, getDocs, getDoc, setDoc, updateDoc, deleteDoc, storage } from '@/lib/firebase'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
 import { AlertTitle } from "@/components/ui/alert"
 import { cn } from '@/lib/utils'
 import { RoomUsersManager } from './components/RoomUsersManager'
+import { RoomChat } from './components/RoomChat'
+import { RoomSessions } from './components/RoomSessions'
 import { toast } from 'sonner'
 
 
@@ -207,6 +208,9 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
                 <p className="text-muted-foreground leading-relaxed">{room.description}</p>
               </CardContent>
             </Card>
+
+            {/* Chat */}
+            <RoomChat roomId={room.id} isOwner={room.creatorId === auth.currentUser?.uid} />
           </div>
 
           {/* Sidebar avec infos et actions */}
@@ -275,6 +279,9 @@ function RoomPresentation({ room, onBack, onEdit }: { room: Room; onBack: () => 
               </CardContent>
             </Card>
 
+            {/* Sessions */}
+            <RoomSessions roomId={room.id} isOwner={room.creatorId === auth.currentUser?.uid} />
+
             {/* Créateur */}
             {creatorInfo && (
               <Card>
@@ -329,6 +336,7 @@ export default function Component() {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [showAlert, setShowAlert] = useState(false)
+  const [role, setRole] = useState<'mj' | 'joueur' | null>(null)
 
   const router = useRouter()
 
@@ -533,23 +541,83 @@ export default function Component() {
     )
   }
 
+  // Filtered room lists
+  const myCreatedRooms = userRooms.filter((room) => room.creatorId === userId)
+  const myJoinedRooms = userRooms.filter((room) => room.creatorId !== userId)
+  const availablePublicRooms = publicRooms.filter((room) => (room.occupantsCount || 0) < room.maxPlayers)
+
+  // Room list component (shared between MJ and Joueur views)
+  const RoomList = ({ rooms: roomList, emptyIcon: EmptyIcon, emptyTitle, emptyDescription }: {
+    rooms: Room[]
+    emptyIcon: React.ElementType<{ className?: string }>
+    emptyTitle: string
+    emptyDescription: string
+  }) => (
+    roomList.length > 0 ? (
+      <div className="grid gap-4">
+        {roomList.map((room) => (
+          <div key={room.id} className="group relative">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm" />
+            <Card className="relative border-border/50 hover:border-primary/30 transition-all duration-300">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div>
+                      <h3 className="font-semibold text-foreground">{room.title}</h3>
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {room.occupantsCount || 0}/{room.maxPlayers} joueurs
+                        </span>
+                        <span className={cn("px-2 py-0.5 rounded-full text-xs",
+                          room.isPublic ? "bg-green-500/10 text-green-500" : "bg-orange-500/10 text-orange-500"
+                        )}>
+                          {room.isPublic ? "Publique" : "Privée"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => setSelectedRoom(room)}
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                  >
+                    <Eye className="h-3 w-3" />
+                    Voir
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <div className="text-center py-12">
+        <EmptyIcon className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+        <h3 className="text-lg font-semibold text-foreground mb-2">{emptyTitle}</h3>
+        <p className="text-muted-foreground">{emptyDescription}</p>
+      </div>
+    )
+  )
+
   return (
     <div className="min-h-screen bg-background">
-      {/* Header moderne */}
+      {/* Header */}
       <div className="border-b border-border/40 bg-card/50 backdrop-blur-sm">
         <div className="container mx-auto px-6 py-6">
           <div className="text-center space-y-2">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-              Trouvez une partie
+              {role === null ? 'Bienvenue, aventurier' : role === 'mj' ? 'Espace Maître du Jeu' : 'Espace Joueur'}
             </h1>
             <p className="text-muted-foreground text-lg">
-              Rejoignez une aventure ou créez votre propre monde
+              {role === null ? 'Quel est votre rôle ?' : role === 'mj' ? 'Créez et gérez vos campagnes' : 'Rejoignez une aventure'}
             </p>
           </div>
         </div>
       </div>
 
-      {/* Alert moderne */}
+      {/* Alert */}
       {showAlert && (
         <div className="fixed top-4 right-4 bg-destructive text-destructive-foreground p-4 rounded-lg shadow-lg z-50 border border-destructive/20">
           <AlertTitle className="mb-1">Aucune salle trouvée</AlertTitle>
@@ -558,271 +626,279 @@ export default function Component() {
       )}
 
       <div className="container mx-auto px-6 py-8">
-        <Tabs defaultValue="rejoindre" className="w-full max-w-6xl mx-auto">
-          <TabsList className="grid w-full grid-cols-3 h-12 bg-muted/50">
-            <TabsTrigger value="rejoindre" className="gap-2">
-              <Search className="h-4 w-4" />
-              Rejoindre
-            </TabsTrigger>
-            <TabsTrigger value="creer" className="gap-2">
-              <Plus className="h-4 w-4" />
-              Créer
-            </TabsTrigger>
-            <TabsTrigger value="mes-salles" className="gap-2">
-              <Eye className="h-4 w-4" />
-              Mes parties
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="rejoindre" className="mt-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Rejoindre par code */}
-              <Card className="relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Search className="h-5 w-5" />
-                    Entrez un code
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Input
-                      type="text"
-                      placeholder="Code à 6 chiffres"
-                      value={roomCode}
-                      onChange={(e) => setRoomCode(e.target.value)}
-                      maxLength={6}
-                      className="text-xl font-mono tracking-wider text-center h-12"
-                    />
-                    <Button
-                      onClick={() => handleJoinRoom(roomCode)}
-                      size="lg"
-                      className="w-full gap-2"
-                    >
-                      <Play className="h-4 w-4" />
-                      Rejoindre
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Salles publiques */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    Salles publiques
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3 max-h-80 overflow-y-auto">
-                    {publicRooms.length > 0 ? (
-                      publicRooms.map((room) => (
-                        <div key={room.id} className="group relative">
-                          <div className="absolute bg-gradient-to-r from-primary/20 to-primary/10 rounded-lg opacity-0 group-hover:opacity-100 transition duration-300" />
-                          <div className="relative flex items-center justify-between p-3 bg-card border border-border rounded-lg hover:shadow-md transition-all duration-200">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                              <div className="flex flex-col">
-                                <span className="font-medium">{room.title}</span>
-                                <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                                  <Users className="h-2 w-2" />
-                                  {room.occupantsCount || 0}/{room.maxPlayers}
-                                </span>
-                              </div>
-                            </div>
-                            <Button
-                              onClick={() => handleJoinRoom(room.id)}
-                              variant="outline"
-                              size="sm"
-                              className="gap-2"
-                            >
-                              <Play className="h-3 w-3" />
-                              Rejoindre
-                            </Button>
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-8">
-                        <Users className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                        <p className="text-muted-foreground">Aucune salle publique disponible</p>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="creer" className="mt-6">
-            <Card className="max-w-2xl mx-auto">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Plus className="h-5 w-5" />
-                  Créer une nouvelle partie
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleCreateRoom} className="space-y-6">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label htmlFor="title" className="text-sm font-medium text-foreground">Titre *</label>
-                      <Input
-                        type="text"
-                        id="title"
-                        name="title"
-                        value={newRoom.title}
-                        onChange={handleInputChange}
-                        placeholder="Ma super aventure"
-                        required
-                        className="h-11"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label htmlFor="maxPlayers" className="text-sm font-medium text-foreground">Joueurs max *</label>
-                      <Input
-                        type="number"
-                        id="maxPlayers"
-                        name="maxPlayers"
-                        value={newRoom.maxPlayers}
-                        onChange={handleInputChange}
-                        min="1"
-                        max="12"
-                        required
-                        className="h-11"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="description" className="text-sm font-medium text-foreground">Description *</label>
-                    <Textarea
-                      id="description"
-                      name="description"
-                      value={newRoom.description}
-                      onChange={handleInputChange}
-                      placeholder="Décrivez votre aventure, le style de jeu, l'ambiance..."
-                      rows={4}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label htmlFor="image" className="text-sm font-medium text-foreground">Image de la salle *</label>
-                    <Input
-                      type="file"
-                      id="image"
-                      onChange={handleFileChange}
-                      accept="image/*"
-                      required
-                      className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-muted file:text-muted-foreground hover:file:bg-muted/80"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium text-foreground">Salle publique</label>
-                      <p className="text-xs text-muted-foreground">
-                        Les salles publiques apparaissent dans la liste pour tous les joueurs
-                      </p>
-                    </div>
-                    <Switch
-                      id="isPublic"
-                      checked={newRoom.isPublic}
-                      onCheckedChange={handleToggleChange}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
-                    <div className="space-y-1">
-                      <label className="text-sm font-medium text-foreground">Création de personnages</label>
-                      <p className="text-xs text-muted-foreground">
-                        Autorise les joueurs à créer de nouveaux personnages
-                      </p>
-                    </div>
-                    <Switch
-                      id="allowCharacterCreation"
-                      checked={newRoom.allowCharacterCreation}
-                      onCheckedChange={handleToggleCreationChange}
-                    />
-                  </div>
-
-                  <Button type="submit" className="w-full gap-2 h-11" size="lg">
-                    <Plus className="h-4 w-4" />
-                    Créer la salle
-                  </Button>
-                </form>
+        {/* Role selection */}
+        {role === null ? (
+          <div className="max-w-3xl mx-auto grid md:grid-cols-2 gap-6">
+            <Card
+              className="group cursor-pointer relative overflow-hidden hover:border-primary/50 transition-all duration-300"
+              onClick={() => setRole('mj')}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-300 pointer-events-none" />
+              <CardContent className="p-8 flex flex-col items-center text-center gap-4">
+                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <Shield className="h-10 w-10 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground mb-2">Je suis MJ</h2>
+                  <p className="text-muted-foreground">
+                    Créez des campagnes, gérez vos salles et guidez vos joueurs
+                  </p>
+                </div>
               </CardContent>
             </Card>
-          </TabsContent>
 
-          <TabsContent value="mes-salles" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Eye className="h-5 w-5" />
-                  Mes parties
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {userRooms.length > 0 ? (
-                  <div className="grid gap-4">
-                    {userRooms.map((room) => (
-                      <div key={room.id} className="group relative">
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-primary/20 via-primary/40 to-primary/20 rounded-xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm" />
-                        <Card className="relative border-border/50 hover:border-primary/30 transition-all duration-300">
-                          <CardContent className="p-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-4">
-                                <div>
-                                  <h3 className="font-semibold text-foreground">{room.title}</h3>
-                                  <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
-                                    <span className="flex items-center gap-1">
-                                      <Users className="h-3 w-3" />
-                                      {room.occupantsCount || 0}/{room.maxPlayers} joueurs
-                                    </span>
-                                    <span className={cn("px-2 py-0.5 rounded-full text-xs",
-                                      room.isPublic ? "bg-green-500/10 text-green-500" : "bg-orange-500/10 text-orange-500"
-                                    )}>
-                                      {room.isPublic ? "Publique" : "Privée"}
+            <Card
+              className="group cursor-pointer relative overflow-hidden hover:border-primary/50 transition-all duration-300"
+              onClick={() => setRole('joueur')}
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition duration-300 pointer-events-none" />
+              <CardContent className="p-8 flex flex-col items-center text-center gap-4">
+                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                  <Swords className="h-10 w-10 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground mb-2">Je suis Joueur</h2>
+                  <p className="text-muted-foreground">
+                    Rejoignez une campagne et partez à l&apos;aventure
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <div className="w-full max-w-6xl mx-auto">
+            {/* Back to role selection */}
+            <Button variant="ghost" size="sm" onClick={() => setRole(null)} className="gap-2 mb-4">
+              <ArrowLeft className="h-4 w-4" /> Changer de rôle
+            </Button>
+
+            {role === 'mj' ? (
+              /* ===== MJ VIEW ===== */
+              <div className="grid lg:grid-cols-2 gap-6 items-start">
+                {/* Créer une salle */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Plus className="h-5 w-5" />
+                      Créer une nouvelle partie
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleCreateRoom} className="space-y-6">
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label htmlFor="title" className="text-sm font-medium text-foreground">Titre *</label>
+                          <Input
+                            type="text"
+                            id="title"
+                            name="title"
+                            value={newRoom.title}
+                            onChange={handleInputChange}
+                            placeholder="Ma super aventure"
+                            required
+                            className="h-11"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label htmlFor="maxPlayers" className="text-sm font-medium text-foreground">Joueurs max *</label>
+                          <Input
+                            type="number"
+                            id="maxPlayers"
+                            name="maxPlayers"
+                            value={newRoom.maxPlayers}
+                            onChange={handleInputChange}
+                            min="1"
+                            max="12"
+                            required
+                            className="h-11"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label htmlFor="description" className="text-sm font-medium text-foreground">Description *</label>
+                        <Textarea
+                          id="description"
+                          name="description"
+                          value={newRoom.description}
+                          onChange={handleInputChange}
+                          placeholder="Décrivez votre aventure, le style de jeu, l'ambiance..."
+                          rows={4}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label htmlFor="image" className="text-sm font-medium text-foreground">Image de la salle *</label>
+                        <Input
+                          type="file"
+                          id="image"
+                          onChange={handleFileChange}
+                          accept="image/*"
+                          required
+                          className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-muted file:text-muted-foreground hover:file:bg-muted/80"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                        <div className="space-y-1">
+                          <label className="text-sm font-medium text-foreground">Salle publique</label>
+                          <p className="text-xs text-muted-foreground">
+                            Les salles publiques apparaissent dans la liste pour tous les joueurs
+                          </p>
+                        </div>
+                        <Switch
+                          id="isPublic"
+                          checked={newRoom.isPublic}
+                          onCheckedChange={handleToggleChange}
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+                        <div className="space-y-1">
+                          <label className="text-sm font-medium text-foreground">Création de personnages</label>
+                          <p className="text-xs text-muted-foreground">
+                            Autorise les joueurs à créer de nouveaux personnages
+                          </p>
+                        </div>
+                        <Switch
+                          id="allowCharacterCreation"
+                          checked={newRoom.allowCharacterCreation}
+                          onCheckedChange={handleToggleCreationChange}
+                        />
+                      </div>
+
+                      <Button type="submit" className="w-full gap-2 h-11" size="lg">
+                        <Plus className="h-4 w-4" />
+                        Créer la salle
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+
+                {/* Mes salles */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Shield className="h-5 w-5" />
+                      Mes salles
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <RoomList
+                      rooms={myCreatedRooms}
+                      emptyIcon={Shield}
+                      emptyTitle="Aucune salle créée"
+                      emptyDescription="Vous n'avez pas encore créé de salle. Créez-en une pour commencer !"
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            ) : (
+              /* ===== JOUEUR VIEW ===== */
+              <div className="space-y-8">
+                {/* Rejoindre */}
+                <div className="grid md:grid-cols-2 gap-6">
+                  {/* Rejoindre par code */}
+                  <Card className="relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent pointer-events-none" />
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Search className="h-5 w-5" />
+                        Entrez un code
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Input
+                          type="text"
+                          placeholder="Code à 6 chiffres"
+                          value={roomCode}
+                          onChange={(e) => setRoomCode(e.target.value)}
+                          maxLength={6}
+                          className="text-xl font-mono tracking-wider text-center h-12"
+                        />
+                        <Button
+                          onClick={() => handleJoinRoom(roomCode)}
+                          size="lg"
+                          className="w-full gap-2"
+                        >
+                          <Play className="h-4 w-4" />
+                          Rejoindre
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Campagnes actives */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        Campagnes actives
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3 max-h-80 overflow-y-auto">
+                        {availablePublicRooms.length > 0 ? (
+                          availablePublicRooms.map((room) => (
+                            <div key={room.id} className="group relative">
+                              <div className="absolute bg-gradient-to-r from-primary/20 to-primary/10 rounded-lg opacity-0 group-hover:opacity-100 transition duration-300" />
+                              <div className="relative flex items-center justify-between p-3 bg-card border border-border rounded-lg hover:shadow-md transition-all duration-200">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{room.title}</span>
+                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                      <Users className="h-2 w-2" />
+                                      {room.occupantsCount || 0}/{room.maxPlayers}
                                     </span>
                                   </div>
                                 </div>
+                                <Button
+                                  onClick={() => handleJoinRoom(room.id)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-2"
+                                >
+                                  <Play className="h-3 w-3" />
+                                  Rejoindre
+                                </Button>
                               </div>
-                              <Button
-                                onClick={() => setSelectedRoom(room)}
-                                variant="outline"
-                                size="sm"
-                                className="gap-2"
-                              >
-                                <Eye className="h-3 w-3" />
-                                Voir
-                              </Button>
                             </div>
-                          </CardContent>
-                        </Card>
+                          ))
+                        ) : (
+                          <div className="text-center py-8">
+                            <Users className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                            <p className="text-muted-foreground">Aucune campagne disponible</p>
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <Gamepad2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-lg font-semibold text-foreground mb-2">Aucune partie trouvée</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Vous n&apos;avez pas encore de salles. Rejoignez ou créez une salle pour commencer.
-                    </p>
-                    <Button variant="outline" className="gap-2">
-                      <Plus className="h-4 w-4" />
-                      Créer ma première salle
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Mes parties rejointes */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Gamepad2 className="h-5 w-5" />
+                      Mes parties rejointes
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <RoomList
+                      rooms={myJoinedRooms}
+                      emptyIcon={Gamepad2}
+                      emptyTitle="Aucune partie rejointe"
+                      emptyDescription="Vous n'avez pas encore rejoint de partie. Utilisez un code ou parcourez les campagnes actives."
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
