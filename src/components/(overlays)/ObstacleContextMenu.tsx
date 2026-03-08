@@ -71,29 +71,39 @@ export default function ObstacleContextMenu({
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
                     className="fixed right-24 top-24 w-64 bg-[#1e1e1e]/95 backdrop-blur-md border border-[#333] rounded-xl shadow-2xl z-[9999] flex flex-col overflow-hidden"
                 >
-                    {/* Header */}
+                    {/* Header avec Image */}
                     <div
-                        className="flex items-center justify-between px-4 py-3 border-b border-[#333] cursor-move"
-                        onPointerDown={(e) => dragControls.start(e)}
+                        className={`relative ${isMJ ? 'cursor-move' : ''} h-32`}
+                        onPointerDown={(e) => isMJ && dragControls.start(e)}
                     >
-                        <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#c0a080] to-[#a08060] flex items-center justify-center">
-                                <svg className="w-4 h-4 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}>
-                                    <polyline points="4,18 10,8 18,12 22,4" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
-                            </div>
-                            <h3 className="text-sm font-bold text-white">
-                                {getObstacleLabel(selectedObs)}
-                            </h3>
+                        {/* Background Image */}
+                        <div className="absolute inset-0 bg-[#000] flex items-center justify-center overflow-hidden">
+                            <img
+                                src="/assets/door.png"
+                                className="w-full h-full object-contain opacity-80"
+                                alt="Obstacle"
+                            />
                         </div>
+
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 rounded-lg text-gray-400 hover:text-white hover:bg-[#333]"
+                            className="absolute top-2 right-2 h-6 w-6 bg-black/50 hover:bg-black/70 text-white rounded-full z-20"
                             onClick={onClose}
                         >
-                            <X className="w-4 h-4" />
+                            <X size={14} />
                         </Button>
+                    </div>
+
+                    <Separator className="bg-[#333]" />
+
+                    {/* Object Name - visible to all */}
+                    <div className="p-4 pb-2">
+                        <div className="group relative flex justify-center items-center gap-2">
+                            <h2 className="text-xl font-bold text-[#e0e0e0] font-serif tracking-wide text-center">
+                                {getObstacleLabel(selectedObs)}
+                            </h2>
+                        </div>
                     </div>
 
                     {/* Body */}
