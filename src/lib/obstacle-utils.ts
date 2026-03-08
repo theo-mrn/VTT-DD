@@ -371,3 +371,63 @@ export function getMergedWallPoints(
 
   return [start, end];
 }
+
+/**
+ * Test if two line segments (a1→a2) and (b1→b2) intersect.
+ * Uses cross-product orientation test.
+ */
+export function segmentsIntersect(
+  a1: Point, a2: Point,
+  b1: Point, b2: Point
+): boolean {
+  const cross = (o: Point, a: Point, b: Point) =>
+    (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+
+  const d1 = cross(b1, b2, a1);
+  const d2 = cross(b1, b2, a2);
+  const d3 = cross(a1, a2, b1);
+  const d4 = cross(a1, a2, b2);
+
+  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
+      ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
+    return true;
+  }
+
+  // Collinear / endpoint cases — check if point lies on segment
+  const onSegment = (p: Point, q: Point, r: Point) =>
+    Math.min(q.x, r.x) <= p.x && p.x <= Math.max(q.x, r.x) &&
+    Math.min(q.y, r.y) <= p.y && p.y <= Math.max(q.y, r.y);
+
+  if (d1 === 0 && onSegment(a1, b1, b2)) return true;
+  if (d2 === 0 && onSegment(a2, b1, b2)) return true;
+  if (d3 === 0 && onSegment(b1, a1, a2)) return true;
+  if (d4 === 0 && onSegment(b2, a1, a2)) return true;
+
+  return false;
+}
+
+/**
+ * Check if a movement from→to is blocked by any obstacle.
+ * Blocking obstacles: walls, closed doors, windows, one-way walls.
+ * Open doors allow passage.
+ */
+export function isMovementBlocked(
+  from: Point, to: Point,
+  obstacles: Obstacle[]
+): boolean {
+  for (const obstacle of obstacles) {
+    // Skip open doors
+    if (obstacle.type === 'door' && obstacle.isOpen) continue;
+    // Skip non-blocking types
+    if (obstacle.type === 'polygon' || obstacle.type === 'rectangle') continue;
+
+    if (obstacle.points.length >= 2) {
+      const p1 = obstacle.points[0];
+      const p2 = obstacle.points[1];
+      if (segmentsIntersect(from, to, p1, p2)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}

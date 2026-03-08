@@ -105,7 +105,7 @@ import {
   isPointInShadows,
   type ShadowResult
 } from '@/lib/visibility';
-import { findNearestWallSegment, calculateSplitPoints, determineOneWayDirection, DEFAULT_FEATURE_WIDTH, findAdjacentWalls, getMergedWallPoints, findAllConnectedWalls, findClosedLoops } from '@/lib/obstacle-utils';
+import { findNearestWallSegment, calculateSplitPoints, determineOneWayDirection, DEFAULT_FEATURE_WIDTH, findAdjacentWalls, getMergedWallPoints, findAllConnectedWalls, findClosedLoops, isMovementBlocked } from '@/lib/obstacle-utils';
 import { LayerControl } from '@/components/(map)/LayerControl';
 import { useSettings } from '@/contexts/SettingsContext';
 import { SelectionMenu, type SelectionCandidates, type SelectionType } from '@/components/(map)/SelectionMenu';
@@ -7183,12 +7183,13 @@ export default function Component() {
         setCharacters(prev => prev.map((char, index) => {
           const originalPos = draggedCharactersOriginalPositions.find(pos => pos.index === index);
           if (originalPos) {
-            return {
-              ...char,
-              // 🔒 Prevent moving outside map boundaries
-              x: Math.max(0, Math.min(imgWidth, originalPos.x + deltaX)),
-              y: Math.max(0, Math.min(imgHeight, originalPos.y + deltaY))
-            };
+            const newX = Math.max(0, Math.min(imgWidth, originalPos.x + deltaX));
+            const newY = Math.max(0, Math.min(imgHeight, originalPos.y + deltaY));
+            // 🚧 Joueurs : bloquer si le déplacement traverse un mur/porte fermée/fenêtre
+            if (!isMJ && obstacles.length > 0 && isMovementBlocked({ x: char.x, y: char.y }, { x: newX, y: newY }, obstacles)) {
+              return char;
+            }
+            return { ...char, x: newX, y: newY };
           }
           return char;
         }));
