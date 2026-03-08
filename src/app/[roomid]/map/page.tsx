@@ -4599,6 +4599,42 @@ export default function Component() {
           }
         }
 
+        // Indicateur de fermeture implicite via mur partagé existant
+        if (currentObstaclePoints.length >= 2 && snapPoint) {
+          const startPt = currentObstaclePoints[0];
+          const endPt = snapPoint;
+          const d = (a: Point, b: Point) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+          const hasSharedWall = obstacles.some(obs => {
+            if (obs.points.length < 2) return false;
+            if (obs.type !== 'wall' && obs.type !== 'door' && obs.type !== 'one-way-wall' && obs.type !== 'window') return false;
+            const p1 = obs.points[0];
+            const p2 = obs.points[obs.points.length - 1];
+            return (d(p1, endPt) < 5 && d(p2, startPt) < 5) ||
+                   (d(p2, endPt) < 5 && d(p1, startPt) < 5);
+          });
+          if (hasSharedWall) {
+            // Cercle vert sur le snap point pour indiquer la fermeture
+            const sp = transformPoint(endPt);
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.strokeStyle = '#00FF00';
+            ctx.lineWidth = 3;
+            ctx.arc(sp.x, sp.y, 14, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+            ctx.fill();
+            // Ligne de fermeture en vert semi-transparent vers le start
+            const fp = transformPoint(startPt);
+            ctx.beginPath();
+            ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([6, 4]);
+            ctx.moveTo(sp.x, sp.y);
+            ctx.lineTo(fp.x, fp.y);
+            ctx.stroke();
+          }
+        }
+
         ctx.setLineDash([]);
 
         // Dessiner les points (vertices)
@@ -4677,11 +4713,46 @@ export default function Component() {
     }
 
     // 🚪 DESSINER LES PORTES POUR TOUS (joueurs inclus)
-    // Les portes sont toujours visibles pour permettre l'interaction
+    // Visibles si pas dans le brouillard et si ligne de vue directe non bloquée par un mur
     if (!effectiveIsMJ && obstacles.length > 0 && isLayerVisible('obstacles')) {
+      const effectivePersoIdDoor = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
+      const viewerForDoors = characters.find(c => c.id === effectivePersoIdDoor && c.x !== undefined && c.y !== undefined);
+
+      // Raycasting : un mur opaque bloque-t-il la vue directe vers la porte ?
+      const isDoorVisibleFromViewer = (door: Obstacle, vx: number, vy: number): boolean => {
+        const mx = (door.points[0].x + door.points[1].x) / 2;
+        const my = (door.points[0].y + door.points[1].y) / 2;
+        for (const obs of obstacles) {
+          if (obs.id === door.id) continue;
+          if (obs.type === 'door' && obs.isOpen) continue;
+          if (obs.type === 'window') continue;
+          if (obs.type !== 'wall' && obs.type !== 'door' && obs.type !== 'one-way-wall') continue;
+          if (obs.points.length < 2) continue;
+          const cx = obs.points[0].x, cy = obs.points[0].y;
+          const dx = obs.points[1].x, dy = obs.points[1].y;
+          const denom = (mx - vx) * (dy - cy) - (my - vy) * (dx - cx);
+          if (Math.abs(denom) < 1e-10) continue;
+          const t = ((cx - vx) * (dy - cy) - (cy - vy) * (dx - cx)) / denom;
+          const u = ((cx - vx) * (my - vy) - (cy - vy) * (mx - vx)) / denom;
+          if (t > 0.01 && t < 0.99 && u > 0.01 && u < 0.99) return false;
+        }
+        return true;
+      };
+
       const doors = obstacles.filter(o => o.type === 'door');
       for (const door of doors) {
         if (door.points.length < 2) continue;
+
+        const doorMid = {
+          x: (door.points[0].x + door.points[1].x) / 2,
+          y: (door.points[0].y + door.points[1].y) / 2,
+        };
+
+        // Vérifier le brouillard
+        if (fullMapFog || isCellInFog(doorMid.x, doorMid.y, fogGrid, fogCellSize)) continue;
+
+        // Vérifier la ligne de vue directe (raycasting simple)
+        if (viewerForDoors && !isDoorVisibleFromViewer(door, viewerForDoors.x, viewerForDoors.y)) continue;
         const p1 = transformPoint(door.points[0]);
         const p2 = transformPoint(door.points[1]);
 
@@ -6183,6 +6254,35 @@ export default function Component() {
                 }
               }
 
+              // Vérifier fermeture implicite via mur partagé existant
+              // (le dernier point snappe sur un endpoint connecté au 1er point par un mur existant)
+              if (snapPoint && currentObstaclePoints.length >= 2) {
+                const startPoint = currentObstaclePoints[0];
+                const endPoint = snapPoint;
+                const closingWall = obstacles.find(obs => {
+                  if (obs.points.length < 2) return false;
+                  if (obs.type !== 'wall' && obs.type !== 'door' && obs.type !== 'one-way-wall' && obs.type !== 'window') return false;
+                  const p1 = obs.points[0];
+                  const p2 = obs.points[obs.points.length - 1];
+                  const d = (a: Point, b: Point) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
+                  const snapDist = 5;
+                  return (d(p1, endPoint) < snapDist && d(p2, startPoint) < snapDist) ||
+                         (d(p2, endPoint) < snapDist && d(p1, startPoint) < snapDist);
+                });
+
+                if (closingWall) {
+                  // Fermeture implicite : sauvegarder les murs du chain (sans dupliquer le mur partagé)
+                  const allPoints = [...currentObstaclePoints, endPoint];
+                  for (let i = 0; i < allPoints.length - 1; i++) {
+                    await saveObstacle('wall', [allPoints[i], allPoints[i + 1]]);
+                  }
+                  setIsDrawingObstacle(false);
+                  setCurrentObstaclePoints([]);
+                  setPendingEdges([]);
+                  return;
+                }
+              }
+
               // Pas de fermeture : enregistrer l'arête (toujours mur) et ajouter le point
               const edgeMeta: EdgeMeta = { type: 'wall' };
               setPendingEdges(prev => [...prev, edgeMeta]);
@@ -6355,6 +6455,37 @@ export default function Component() {
           const clickedDoor = obstacles.find(obstacle => {
             if (obstacle.type !== 'door') return false;
             if (obstacle.points.length < 2) return false;
+
+            // Joueurs : vérifier que la porte est visible (pas dans brouillard, ligne de vue directe)
+            if (!isMJ) {
+              const doorMidPt = {
+                x: (obstacle.points[0].x + obstacle.points[1].x) / 2,
+                y: (obstacle.points[0].y + obstacle.points[1].y) / 2,
+              };
+              if (fullMapFog || isCellInFog(doorMidPt.x, doorMidPt.y, fogGrid, fogCellSize)) return false;
+              const effPersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
+              const viewer = characters.find(c => c.id === effPersoId && c.x !== undefined && c.y !== undefined);
+              if (viewer) {
+                // Raycasting : un mur opaque bloque-t-il la vue ?
+                const vx = viewer.x, vy = viewer.y;
+                const mx = doorMidPt.x, my = doorMidPt.y;
+                for (const obs of obstacles) {
+                  if (obs.id === obstacle.id) continue;
+                  if (obs.type === 'door' && obs.isOpen) continue;
+                  if (obs.type === 'window') continue;
+                  if (obs.type !== 'wall' && obs.type !== 'door' && obs.type !== 'one-way-wall') continue;
+                  if (obs.points.length < 2) continue;
+                  const cx = obs.points[0].x, cy = obs.points[0].y;
+                  const dx = obs.points[1].x, dy = obs.points[1].y;
+                  const denom = (mx - vx) * (dy - cy) - (my - vy) * (dx - cx);
+                  if (Math.abs(denom) < 1e-10) continue;
+                  const t = ((cx - vx) * (dy - cy) - (cy - vy) * (dx - cx)) / denom;
+                  const u = ((cx - vx) * (my - vy) - (cy - vy) * (mx - vx)) / denom;
+                  if (t > 0.01 && t < 0.99 && u > 0.01 && u < 0.99) return false;
+                }
+              }
+            }
+
             const p1 = obstacle.points[0];
             const p2 = obstacle.points[1];
             const A = clickX - p1.x;

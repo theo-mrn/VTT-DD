@@ -222,70 +222,104 @@ export function findClosedLoops(obstacles: Obstacle[]): {
     o.points.length >= 2
   );
 
-  const usedInLoop = new Set<string>();
+  if (wallObs.length < 3) return [];
+
+  // 1. Build node graph: merge endpoints within snap distance
+  const nodes: Point[] = [];
+  const wallNodes: [number, number][] = []; // [nodeA, nodeB] for each wall
+
+  for (const wall of wallObs) {
+    const idxs: number[] = [];
+    for (let pi = 0; pi < 2; pi++) {
+      const p = wall.points[pi];
+      let nodeIdx = -1;
+      for (let ni = 0; ni < nodes.length; ni++) {
+        if (pointsMatch(p, nodes[ni])) { nodeIdx = ni; break; }
+      }
+      if (nodeIdx === -1) { nodeIdx = nodes.length; nodes.push(p); }
+      idxs.push(nodeIdx);
+    }
+    wallNodes.push([idxs[0], idxs[1]]);
+  }
+
+  // 2. Build adjacency: node -> [{wallIndex, otherNode}]
+  const adj: { wi: number; other: number }[][] = Array.from({ length: nodes.length }, () => []);
+  for (let wi = 0; wi < wallObs.length; wi++) {
+    const [a, b] = wallNodes[wi];
+    adj[a].push({ wi, other: b });
+    adj[b].push({ wi, other: a });
+  }
+
+  // 3. For each wall, BFS to find the shortest cycle containing it
+  const foundLoopKeys = new Set<string>();
   const loops: { points: Point[]; wallObstacles: Obstacle[] }[] = [];
 
-  for (const startWall of wallObs) {
-    if (usedInLoop.has(startWall.id)) continue;
+  for (let startWi = 0; startWi < wallObs.length; startWi++) {
+    const [nodeA, nodeB] = wallNodes[startWi];
 
-    // Try to trace a loop starting from startWall
-    const chain: Obstacle[] = [startWall];
-    const chainIds = new Set([startWall.id]);
-    let currentEnd = startWall.points[1];
-    const target = startWall.points[0];
+    // BFS from nodeB to nodeA, without using wall startWi
+    const parentNode = new Int32Array(nodes.length).fill(-1);
+    const parentWall = new Int32Array(nodes.length).fill(-1);
+    parentNode[nodeB] = nodeB; // mark as visited (self = root)
+    const queue: number[] = [nodeB];
     let found = false;
 
-    while (true) {
-      // Check if loop is closed
-      if (chain.length >= 3 && pointsMatch(currentEnd, target)) {
-        found = true;
-        break;
-      }
+    bfs: while (queue.length > 0) {
+      const node = queue.shift()!;
+      for (const { wi, other } of adj[node]) {
+        if (wi === startWi) continue; // don't use the starting wall
+        if (other === nodeA) {
+          // Check min length: need at least 2 more walls (total >= 3)
+          let pathLen = 1;
+          let trace = node;
+          while (trace !== nodeB) { pathLen++; trace = parentNode[trace]; }
+          if (pathLen >= 2) {
+            // Reconstruct: startWall + path from nodeB to node + this wall
+            const pathWalls: number[] = [wi];
+            let cur = node;
+            while (cur !== nodeB) { pathWalls.push(parentWall[cur]); cur = parentNode[cur]; }
+            pathWalls.reverse();
 
-      // Find next connected wall (not already in chain or used)
-      let nextWall: Obstacle | null = null;
-      let nextEnd: Point | null = null;
+            const loopWallIndices = [startWi, ...pathWalls];
+            const loopKey = loopWallIndices.slice().sort((a, b) => a - b).join(',');
 
-      for (const wall of wallObs) {
-        if (chainIds.has(wall.id) || usedInLoop.has(wall.id)) continue;
-        if (pointsMatch(wall.points[0], currentEnd)) {
-          nextWall = wall;
-          nextEnd = wall.points[1];
-          break;
-        } else if (pointsMatch(wall.points[1], currentEnd)) {
-          nextWall = wall;
-          nextEnd = wall.points[0];
-          break;
+            if (!foundLoopKeys.has(loopKey)) {
+              foundLoopKeys.add(loopKey);
+
+              // Build ordered points
+              const loopWalls = loopWallIndices.map(i => wallObs[i]);
+              const points: Point[] = [];
+              const orderedWalls: Obstacle[] = [];
+              let prevEnd = wallObs[startWi].points[0];
+
+              for (const wall of loopWalls) {
+                if (pointsMatch(wall.points[0], prevEnd)) {
+                  points.push(wall.points[0]);
+                  prevEnd = wall.points[1];
+                } else {
+                  points.push(wall.points[1]);
+                  prevEnd = wall.points[0];
+                }
+                orderedWalls.push(wall);
+              }
+              loops.push({ points, wallObstacles: orderedWalls });
+            }
+            found = true;
+            break bfs;
+          }
+        }
+        if (parentNode[other] === -1) {
+          parentNode[other] = node;
+          parentWall[other] = wi;
+          queue.push(other);
         }
       }
-
-      if (!nextWall || !nextEnd) break; // Dead end
-
-      chain.push(nextWall);
-      chainIds.add(nextWall.id);
-      currentEnd = nextEnd;
     }
 
-    if (found) {
-      for (const wall of chain) usedInLoop.add(wall.id);
-
-      // Build ordered points from the chain
-      const points: Point[] = [];
-      const orderedWalls: Obstacle[] = [];
-      let prevEnd = startWall.points[0];
-
-      for (const wall of chain) {
-        if (pointsMatch(wall.points[0], prevEnd)) {
-          points.push(wall.points[0]);
-          prevEnd = wall.points[1];
-        } else {
-          points.push(wall.points[1]);
-          prevEnd = wall.points[0];
-        }
-        orderedWalls.push(wall);
-      }
-
-      loops.push({ points, wallObstacles: orderedWalls });
+    // Reset parentNode/parentWall for next iteration
+    if (found || queue.length === 0) {
+      parentNode.fill(-1);
+      parentWall.fill(-1);
     }
   }
 
