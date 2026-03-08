@@ -87,6 +87,7 @@ export function useRtdbCollections(
                 opacity: data.opacity,
                 direction: data.direction,
                 isOpen: data.isOpen,
+                isLocked: data.isLocked,
                 edges: data.edges,
             });
         }
@@ -138,7 +139,9 @@ export function useRtdbCollections(
                     opacity: data.opacity,
                     direction: data.direction,
                     isOpen: data.isOpen,
+                    isLocked: data.isLocked,
                     edges: data.edges,
+                    roomMode: data.roomMode,
                 });
             }
             c.setObstacles(obs);
@@ -159,7 +162,55 @@ export function useRtdbCollections(
         });
 
         const unsub2 = onValue(obstaclesRef, (snapshot) => {
-            rawObstaclesRef.current = snapshot.val() || {};
+            const data = snapshot.val() || {};
+
+            // Auto-migration : convertir polygons/rectangles en murs individuels
+            const migrations: Record<string, any> = {};
+            for (const [id, obsData] of Object.entries(data) as [string, any][]) {
+                if (obsData.type === 'polygon' && obsData.points?.length >= 3) {
+                    const points = obsData.points;
+                    const edges = obsData.edges || [];
+                    for (let i = 0; i < points.length; i++) {
+                        const next = (i + 1) % points.length;
+                        const edge = edges[i];
+                        const wallData: Record<string, any> = {
+                            type: edge?.type || 'wall',
+                            points: [points[i], points[next]],
+                            cityId: obsData.cityId,
+                        };
+                        if (edge?.direction) wallData.direction = edge.direction;
+                        if (edge?.isOpen !== undefined) wallData.isOpen = edge.isOpen;
+                        migrations[`${id}_e${i}`] = wallData;
+                    }
+                    migrations[id] = null; // supprimer le polygon original
+                } else if (obsData.type === 'rectangle' && obsData.points?.length >= 2) {
+                    const [tl, br] = obsData.points;
+                    const tr = { x: br.x, y: tl.y };
+                    const bl = { x: tl.x, y: br.y };
+                    const rectWalls = [
+                        [tl, tr], [tr, br], [br, bl], [bl, tl]
+                    ];
+                    for (let i = 0; i < rectWalls.length; i++) {
+                        migrations[`${id}_e${i}`] = {
+                            type: 'wall',
+                            points: rectWalls[i],
+                            cityId: obsData.cityId,
+                        };
+                    }
+                    migrations[id] = null; // supprimer le rectangle original
+                }
+            }
+
+            if (Object.keys(migrations).length > 0) {
+                console.log('[Migration] Converting polygons/rectangles to individual walls...');
+                update(obstaclesRef, migrations).catch(err => {
+                    console.error('[Migration] Error converting polygons:', err);
+                });
+                // L'update déclenchera un nouveau onValue avec les données migrées
+                return;
+            }
+
+            rawObstaclesRef.current = data;
             refilter.current();
         });
 
