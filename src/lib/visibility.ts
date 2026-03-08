@@ -367,6 +367,7 @@ function getSegmentsFromRectangle(tl: Point, br: Point): Segment[] {
 export type PolygonViewerInfo = {
     points: Point[]; // polygon outline
     transparentEdgeIndices: number[]; // indices des arêtes qui ne bloquent pas la vision
+    wallObstacles?: Obstacle[]; // wallObstacles[i] = the wall from points[i] to points[(i+1) % n]
 };
 
 /**
@@ -401,7 +402,7 @@ export function getPolygonsContainingViewer(
             }
         }
 
-        results.push({ points: loop.points, transparentEdgeIndices });
+        results.push({ points: loop.points, transparentEdgeIndices, wallObstacles: loop.wallObstacles });
     }
 
     // Fallback: also check legacy polygon obstacles (backward compat during migration)
@@ -634,12 +635,26 @@ export function drawShadows(
     }
 
     // 2. Handle case where viewer is INSIDE a polygon
-    // In this case, we need to hide everything OUTSIDE the polygon
+    // BFS through connected rooms via transparent edges (doors, windows)
+    // Instead of drawing infinite cones, cut out adjacent rooms directly
     if (polygonsContainingViewer.length > 0) {
-        // Use destination-out to "cut holes" where the polygon interiors are
-        // First, we need a different approach: draw everything black, then cut out the polygon
+        // Get all closed loops for adjacency detection
+        const allLoops = findClosedLoops(obstacles);
 
-        // Create another temp canvas for the exterior mask
+        // Build a map: wallId → list of loop indices that contain this wall
+        const wallToLoops = new Map<string, number[]>();
+        for (let li = 0; li < allLoops.length; li++) {
+            const loop = allLoops[li];
+            const isIndividualMode = loop.wallObstacles.some(w => w.roomMode === 'individual');
+            if (isIndividualMode) continue;
+            for (const wall of loop.wallObstacles) {
+                const existing = wallToLoops.get(wall.id) || [];
+                existing.push(li);
+                wallToLoops.set(wall.id, existing);
+            }
+        }
+
+        // Create exterior canvas
         let exteriorCanvas = options.exteriorCanvas;
         let exteriorCtx: CanvasRenderingContext2D | null = null;
 
@@ -666,43 +681,188 @@ export function drawShadows(
             exteriorCtx.fillStyle = 'black';
             exteriorCtx.fillRect(0, 0, canvas.width / scaleX, canvas.height / scaleY);
 
-            // Cut out the interior of each polygon the viewer is inside
             exteriorCtx.globalCompositeOperation = 'destination-out';
             exteriorCtx.fillStyle = 'white';
 
-            for (const polyInfo of polygonsContainingViewer) {
-                const polyPoints = polyInfo.points;
-                if (polyPoints.length < 3) continue;
-
-                // Découper l'intérieur du polygone
+            // Helper to cut out a polygon interior
+            const cutOutPoly = (points: Point[]) => {
+                if (points.length < 3 || !exteriorCtx) return;
                 exteriorCtx.beginPath();
-                const first = transformPoint(polyPoints[0]);
-                exteriorCtx.moveTo(first.x, first.y);
-
-                for (let i = 1; i < polyPoints.length; i++) {
-                    const p = transformPoint(polyPoints[i]);
+                const f = transformPoint(points[0]);
+                exteriorCtx.moveTo(f.x, f.y);
+                for (let i = 1; i < points.length; i++) {
+                    const p = transformPoint(points[i]);
                     exteriorCtx.lineTo(p.x, p.y);
                 }
-
                 exteriorCtx.closePath();
                 exteriorCtx.fill();
+            };
 
-                // Découper des cônes de vision à travers les arêtes transparentes
-                // (portes ouvertes, murs à sens unique côté autorisé)
-                if (polyInfo.transparentEdgeIndices.length > 0) {
+            for (const polyInfo of polygonsContainingViewer) {
+                if (polyInfo.points.length < 3) continue;
+
+                // Cut out the viewer's room
+                cutOutPoly(polyInfo.points);
+
+                // BFS through connected rooms via transparent edges
+                if (polyInfo.transparentEdgeIndices.length > 0 && polyInfo.wallObstacles) {
+                    // Find the viewer's loop index
+                    const viewerWallIds = new Set(polyInfo.wallObstacles.map(w => w.id));
+                    const viewerLoopIdx = allLoops.findIndex(loop =>
+                        loop.wallObstacles.length === polyInfo.wallObstacles!.length &&
+                        loop.wallObstacles.every(w => viewerWallIds.has(w.id))
+                    );
+
+                    const visitedLoops = new Set<number>();
+                    if (viewerLoopIdx >= 0) visitedLoops.add(viewerLoopIdx);
+
+                    // Queue: loop index + transparent wall IDs to expand through
+                    const queue: { loopIdx: number; transparentWallIds: Set<string> }[] = [];
+
+                    // Seed with viewer's transparent edges
+                    const viewerTransparentWallIds = new Set<string>();
+                    for (const edgeIdx of polyInfo.transparentEdgeIndices) {
+                        viewerTransparentWallIds.add(polyInfo.wallObstacles[edgeIdx].id);
+                    }
+                    if (viewerLoopIdx >= 0) {
+                        queue.push({ loopIdx: viewerLoopIdx, transparentWallIds: viewerTransparentWallIds });
+                    }
+
+                    let hasOutdoorEdge = false;
+
+                    while (queue.length > 0) {
+                        const { loopIdx, transparentWallIds } = queue.shift()!;
+
+                        for (const wallId of transparentWallIds) {
+                            const adjacentLoopIndices = wallToLoops.get(wallId) || [];
+                            let foundAdjacentRoom = false;
+
+                            for (const adjIdx of adjacentLoopIndices) {
+                                if (visitedLoops.has(adjIdx)) {
+                                    if (adjIdx !== loopIdx) foundAdjacentRoom = true;
+                                    continue;
+                                }
+                                visitedLoops.add(adjIdx);
+                                foundAdjacentRoom = true;
+
+                                const adjLoop = allLoops[adjIdx];
+                                // Cut out adjacent room interior
+                                cutOutPoly(adjLoop.points);
+
+                                // Find transparent edges in adjacent room for further expansion
+                                const adjTransparentWallIds = new Set<string>();
+                                for (let i = 0; i < adjLoop.wallObstacles.length; i++) {
+                                    const wall = adjLoop.wallObstacles[i];
+                                    if ((wall.type === 'door' && wall.isOpen) || wall.type === 'window') {
+                                        adjTransparentWallIds.add(wall.id);
+                                    } else if (wall.type === 'one-way-wall') {
+                                        const nextIdx = (i + 1) % adjLoop.points.length;
+                                        const seg = { p1: adjLoop.points[i], p2: adjLoop.points[nextIdx] };
+                                        if (!isViewerBlockedByOneWayWall(viewerPos, seg, wall.direction || 'north')) {
+                                            adjTransparentWallIds.add(wall.id);
+                                        }
+                                    }
+                                }
+
+                                if (adjTransparentWallIds.size > 0) {
+                                    queue.push({ loopIdx: adjIdx, transparentWallIds: adjTransparentWallIds });
+                                }
+                            }
+
+                            // If this transparent edge doesn't lead to any room → outdoor
+                            if (!foundAdjacentRoom) hasOutdoorEdge = true;
+                        }
+                    }
+
+                    // For transparent edges that lead to outdoors: draw vision cone
+                    if (hasOutdoorEdge) {
+                        const extendDistance = Math.max(mapBounds.width, mapBounds.height) * 2;
+
+                        for (const edgeIdx of polyInfo.transparentEdgeIndices) {
+                            const wall = polyInfo.wallObstacles[edgeIdx];
+                            const adjIndices = wallToLoops.get(wall.id) || [];
+                            const leadsToRoom = adjIndices.some(idx => idx !== viewerLoopIdx);
+                            if (leadsToRoom) continue; // Already handled by BFS
+
+                            const nextIdx = (edgeIdx + 1) % polyInfo.points.length;
+                            const ep1 = polyInfo.points[edgeIdx];
+                            const ep2 = polyInfo.points[nextIdx];
+
+                            const dir1 = { x: ep1.x - viewerPos.x, y: ep1.y - viewerPos.y };
+                            const dir2 = { x: ep2.x - viewerPos.x, y: ep2.y - viewerPos.y };
+                            const len1 = Math.sqrt(dir1.x * dir1.x + dir1.y * dir1.y);
+                            const len2 = Math.sqrt(dir2.x * dir2.x + dir2.y * dir2.y);
+                            if (len1 < 0.001 || len2 < 0.001) continue;
+
+                            const extended1 = {
+                                x: ep1.x + (dir1.x / len1) * extendDistance,
+                                y: ep1.y + (dir1.y / len1) * extendDistance,
+                            };
+                            const extended2 = {
+                                x: ep2.x + (dir2.x / len2) * extendDistance,
+                                y: ep2.y + (dir2.y / len2) * extendDistance,
+                            };
+
+                            exteriorCtx.beginPath();
+                            const tp1 = transformPoint(ep1);
+                            const te1 = transformPoint(extended1);
+                            const te2 = transformPoint(extended2);
+                            const tp2 = transformPoint(ep2);
+                            exteriorCtx.moveTo(tp1.x, tp1.y);
+                            exteriorCtx.lineTo(te1.x, te1.y);
+                            exteriorCtx.lineTo(te2.x, te2.y);
+                            exteriorCtx.lineTo(tp2.x, tp2.y);
+                            exteriorCtx.closePath();
+                            exteriorCtx.fill();
+                        }
+
+                        // Re-draw individual wall shadows to block outdoor cones
+                        exteriorCtx.globalCompositeOperation = 'source-over';
+                        exteriorCtx.fillStyle = 'black';
+                        for (const obstacle of obstacles) {
+                            if (obstacle.type === 'door' && obstacle.isOpen) continue;
+                            if (obstacle.type === 'window') continue;
+                            if (obstacle.type !== 'wall' && obstacle.type !== 'door' && obstacle.type !== 'one-way-wall') continue;
+                            if (obstacle.points.length < 2) continue;
+
+                            if (obstacle.type === 'one-way-wall') {
+                                const seg = { p1: obstacle.points[0], p2: obstacle.points[1] };
+                                if (!isViewerBlockedByOneWayWall(viewerPos, seg, obstacle.direction || 'north')) continue;
+                            }
+
+                            const segment = { p1: obstacle.points[0], p2: obstacle.points[1] };
+                            const wallShadow = calculateShadowPolygon(viewerPos, segment, mapBounds);
+                            if (wallShadow.length >= 3) {
+                                exteriorCtx.beginPath();
+                                const sf = transformPoint(wallShadow[0]);
+                                exteriorCtx.moveTo(sf.x, sf.y);
+                                for (let j = 1; j < wallShadow.length; j++) {
+                                    const sp = transformPoint(wallShadow[j]);
+                                    exteriorCtx.lineTo(sp.x, sp.y);
+                                }
+                                exteriorCtx.closePath();
+                                exteriorCtx.fill();
+                            }
+                        }
+                        exteriorCtx.globalCompositeOperation = 'destination-out';
+                        exteriorCtx.fillStyle = 'white';
+                    }
+                }
+
+                // Legacy polygons (no wallObstacles): fall back to cone approach
+                if (polyInfo.transparentEdgeIndices.length > 0 && !polyInfo.wallObstacles) {
                     const extendDistance = Math.max(mapBounds.width, mapBounds.height) * 2;
+                    const polyPoints = polyInfo.points;
 
                     for (const edgeIdx of polyInfo.transparentEdgeIndices) {
                         const nextIdx = (edgeIdx + 1) % polyPoints.length;
                         const ep1 = polyPoints[edgeIdx];
                         const ep2 = polyPoints[nextIdx];
 
-                        // Calculer le cône de vision depuis le viewer à travers cette arête
                         const dir1 = { x: ep1.x - viewerPos.x, y: ep1.y - viewerPos.y };
                         const dir2 = { x: ep2.x - viewerPos.x, y: ep2.y - viewerPos.y };
                         const len1 = Math.sqrt(dir1.x * dir1.x + dir1.y * dir1.y);
                         const len2 = Math.sqrt(dir2.x * dir2.x + dir2.y * dir2.y);
-
                         if (len1 < 0.001 || len2 < 0.001) continue;
 
                         const extended1 = {
@@ -714,7 +874,6 @@ export function drawShadows(
                             y: ep2.y + (dir2.y / len2) * extendDistance,
                         };
 
-                        // Dessiner le cône : ep1 -> extended1 -> extended2 -> ep2
                         exteriorCtx.beginPath();
                         const tp1 = transformPoint(ep1);
                         const te1 = transformPoint(extended1);
@@ -729,6 +888,53 @@ export function drawShadows(
                     }
                 }
             }
+
+            // Re-draw shadows from ALL opaque walls inside revealed rooms
+            // This adds shadows behind walls even inside rooms (corners, L-shapes, etc.)
+            exteriorCtx.globalCompositeOperation = 'source-over';
+            exteriorCtx.fillStyle = 'black';
+            for (const obstacle of obstacles) {
+                if (obstacle.type === 'door' && obstacle.isOpen) continue;
+                if (obstacle.type === 'window') continue;
+                if (obstacle.points.length < 2) continue;
+
+                if (obstacle.type === 'one-way-wall') {
+                    const seg = { p1: obstacle.points[0], p2: obstacle.points[1] };
+                    if (!isViewerBlockedByOneWayWall(viewerPos, seg, obstacle.direction || 'north')) continue;
+                }
+
+                if (obstacle.type === 'wall' || obstacle.type === 'door' || obstacle.type === 'one-way-wall') {
+                    const segment = { p1: obstacle.points[0], p2: obstacle.points[1] };
+                    const wallShadow = calculateShadowPolygon(viewerPos, segment, mapBounds);
+                    if (wallShadow.length >= 3) {
+                        exteriorCtx.beginPath();
+                        const sf = transformPoint(wallShadow[0]);
+                        exteriorCtx.moveTo(sf.x, sf.y);
+                        for (let j = 1; j < wallShadow.length; j++) {
+                            const sp = transformPoint(wallShadow[j]);
+                            exteriorCtx.lineTo(sp.x, sp.y);
+                        }
+                        exteriorCtx.closePath();
+                        exteriorCtx.fill();
+                    }
+                } else if (obstacle.type === 'rectangle' && obstacle.points.length >= 2) {
+                    for (const segment of getSegmentsFromRectangle(obstacle.points[0], obstacle.points[1])) {
+                        const wallShadow = calculateShadowPolygon(viewerPos, segment, mapBounds);
+                        if (wallShadow.length >= 3) {
+                            exteriorCtx.beginPath();
+                            const sf = transformPoint(wallShadow[0]);
+                            exteriorCtx.moveTo(sf.x, sf.y);
+                            for (let j = 1; j < wallShadow.length; j++) {
+                                const sp = transformPoint(wallShadow[j]);
+                                exteriorCtx.lineTo(sp.x, sp.y);
+                            }
+                            exteriorCtx.closePath();
+                            exteriorCtx.fill();
+                        }
+                    }
+                }
+            }
+
             exteriorCtx.restore();
 
             // Composite the exterior mask onto the main temp canvas
@@ -737,8 +943,6 @@ export function drawShadows(
             tempCtx.resetTransform();
             tempCtx.drawImage(exteriorCanvas, 0, 0);
             tempCtx.restore();
-            // Restoring scaleX/scaleY is handled by tempCtx.restore() but we didn't save before resetTransform in original code safely. 
-            // In this new block, we rely on the outer tempCtx.save().
         }
     }
     tempCtx.restore();
