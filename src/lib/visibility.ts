@@ -4,6 +4,8 @@
  * Vision is infinite by default, only blocked by obstacles
  */
 
+import { findClosedLoops } from './obstacle-utils';
+
 export type Point = { x: number; y: number };
 
 export type Segment = {
@@ -12,14 +14,14 @@ export type Segment = {
 };
 
 export type EdgeMeta = {
-    type: 'wall' | 'one-way-wall' | 'door';
+    type: 'wall' | 'one-way-wall' | 'door' | 'window';
     direction?: 'north' | 'south' | 'east' | 'west'; // Pour one-way-wall
     isOpen?: boolean; // Pour door
 };
 
 export type Obstacle = {
     id: string;
-    type: 'wall' | 'rectangle' | 'polygon' | 'one-way-wall' | 'door';
+    type: 'wall' | 'rectangle' | 'polygon' | 'one-way-wall' | 'door' | 'window';
     points: Point[]; // Pour wall: [start, end], rectangle: [topLeft, bottomRight], polygon: [points...]
     color?: string;
     opacity?: number;
@@ -27,7 +29,12 @@ export type Obstacle = {
     // Propriétés pour les obstacles avancés
     direction?: 'north' | 'south' | 'east' | 'west'; // Pour murs à sens unique : direction bloquante
     isOpen?: boolean; // Pour portes : true = ouverte (pas de blocage), false = fermée (bloque)
+    isLocked?: boolean; // Pour portes : true = verrouillée (joueurs ne peuvent pas interagir)
     doorWidth?: number; // Largeur visuelle de la porte (optionnel)
+
+    // Mode ombre pour les murs d'une pièce fermée :
+    // 'room' = assombrit l'intérieur seulement (défaut), 'individual' = chaque mur projette son ombre
+    roomMode?: 'room' | 'individual';
 
     // Metadata par arête pour les polygons fermés (salle avec portes/murs à sens unique)
     // edges[i] décrit l'arête de points[i] à points[(i+1) % points.length]
@@ -249,7 +256,8 @@ function isViewerBlockedByOneWayWall(
 
 /**
  * Calculate all shadow polygons from obstacles
- * Walls cast shadows behind them, polygons only block their interior (or exterior if viewer inside)
+ * Closed rooms (auto-detected from connected walls) darken their interior when viewer is outside.
+ * Individual walls cast shadows behind them.
  */
 export function calculateShadowPolygons(
     viewerPos: Point,
@@ -258,74 +266,79 @@ export function calculateShadowPolygons(
 ): Point[][] {
     const shadows: Point[][] = [];
 
-    for (const obstacle of obstacles) {
-        // 🚪 PORTES : Ne pas bloquer si la porte est ouverte
-        if (obstacle.type === 'door' && obstacle.isOpen) {
-            continue; // Porte ouverte = pas de blocage
+    // 1. Detect closed rooms from connected walls
+    const loops = findClosedLoops(obstacles);
+    const wallsInLoops = new Set<string>();
+    for (const loop of loops) {
+        // Skip loops in 'individual' mode — their walls cast shadows independently
+        const isIndividualMode = loop.wallObstacles.some(w => w.roomMode === 'individual');
+        if (isIndividualMode) continue;
+
+        for (const wall of loop.wallObstacles) {
+            wallsInLoops.add(wall.id);
         }
+    }
 
+    // 2. Handle closed rooms (room mode only)
+    for (const loop of loops) {
+        if (loop.points.length < 3) continue;
+        const isIndividualMode = loop.wallObstacles.some(w => w.roomMode === 'individual');
+        if (isIndividualMode) continue;
+
+        const viewerInside = isPointInPolygon(viewerPos, loop.points);
+        if (!viewerInside) {
+            // Viewer OUTSIDE : darken the room interior
+            shadows.push([...loop.points]);
+        }
+        // Viewer INSIDE : exterior mask handled in drawShadows
+    }
+
+    // 3. Fallback: handle legacy polygon obstacles
+    for (const obstacle of obstacles) {
         if (obstacle.type === 'polygon' && obstacle.points.length >= 3) {
-            // For polygons: check if viewer is inside or outside
             const viewerInside = isPointInPolygon(viewerPos, obstacle.points);
-
-            if (!obstacle.edges) {
-                // Legacy polygon (pas de metadata par arête) : comportement original
-                if (viewerInside) {
-                    // Viewer INSIDE : masque extérieur géré dans drawShadows
-                } else {
-                    // Viewer OUTSIDE : l'intérieur du polygone est ombré
-                    shadows.push([...obstacle.points]);
-                }
-            } else {
-                // Polygon avec metadata par arête (portes, murs à sens unique)
-                if (viewerInside) {
-                    // Viewer INSIDE : masque extérieur géré dans drawShadows
-                    // Les cônes de vision à travers les arêtes transparentes sont gérés là-bas aussi
-                } else {
-                    // Viewer OUTSIDE : assombrir l'intérieur du polygon (comme legacy)
-                    // Pas de shadow cones infinis derrière les murs du fond
-                    shadows.push([...obstacle.points]);
-                }
+            if (!viewerInside) {
+                shadows.push([...obstacle.points]);
             }
-        } else if (obstacle.type === 'one-way-wall' && obstacle.points.length >= 2) {
-            // 🔀 MUR À SENS UNIQUE : Ne bloquer que depuis une direction
+        }
+    }
+
+    // 4. Handle individual obstacles (not part of closed loops)
+    for (const obstacle of obstacles) {
+        if (wallsInLoops.has(obstacle.id)) continue; // Handled by loop
+        if (obstacle.type === 'polygon') continue; // Handled above
+
+        // Skip transparent obstacles
+        if (obstacle.type === 'door' && obstacle.isOpen) continue;
+        if (obstacle.type === 'window') continue;
+
+        if (obstacle.type === 'one-way-wall' && obstacle.points.length >= 2) {
             const segment = { p1: obstacle.points[0], p2: obstacle.points[1] };
             const direction = obstacle.direction || 'north';
-
-            // Vérifier si le viewer est du côté bloquant
             if (isViewerBlockedByOneWayWall(viewerPos, segment, direction)) {
                 const shadow = calculateShadowPolygon(viewerPos, segment, mapBounds);
                 if (shadow.length >= 3) {
                     shadows.push(shadow);
                 }
             }
-            // Sinon, le mur ne bloque pas depuis cette direction
-        } else {
-            // For walls (and chains): cast shadows behind each segment
-            const segments = obstacle.type === 'wall' && obstacle.points.length >= 2
-                ? [{ p1: obstacle.points[0], p2: obstacle.points[1] }]
-                : obstacle.type === 'door' && obstacle.points.length >= 2
-                    ? [{ p1: obstacle.points[0], p2: obstacle.points[1] }] // Porte fermée = comme un mur
-                    : obstacle.type === 'rectangle' && obstacle.points.length >= 2
-                        ? getSegmentsFromRectangle(obstacle.points[0], obstacle.points[1])
-                        : [];
-
-            // For chain walls (polygon with type 'wall'), handle each segment
-            if (obstacle.type === 'wall' && obstacle.points.length > 2) {
-                // This is a chain of walls
-                for (let i = 0; i < obstacle.points.length - 1; i++) {
-                    const segment = { p1: obstacle.points[i], p2: obstacle.points[i + 1] };
-                    const shadow = calculateShadowPolygon(viewerPos, segment, mapBounds);
-                    if (shadow.length >= 3) {
-                        shadows.push(shadow);
-                    }
-                }
-            } else {
-                for (const segment of segments) {
-                    const shadow = calculateShadowPolygon(viewerPos, segment, mapBounds);
-                    if (shadow.length >= 3) {
-                        shadows.push(shadow);
-                    }
+        } else if (obstacle.type === 'wall' && obstacle.points.length >= 2) {
+            const segment = { p1: obstacle.points[0], p2: obstacle.points[1] };
+            const shadow = calculateShadowPolygon(viewerPos, segment, mapBounds);
+            if (shadow.length >= 3) {
+                shadows.push(shadow);
+            }
+        } else if (obstacle.type === 'door' && obstacle.points.length >= 2) {
+            // Closed door = like a wall
+            const segment = { p1: obstacle.points[0], p2: obstacle.points[1] };
+            const shadow = calculateShadowPolygon(viewerPos, segment, mapBounds);
+            if (shadow.length >= 3) {
+                shadows.push(shadow);
+            }
+        } else if (obstacle.type === 'rectangle' && obstacle.points.length >= 2) {
+            for (const segment of getSegmentsFromRectangle(obstacle.points[0], obstacle.points[1])) {
+                const shadow = calculateShadowPolygon(viewerPos, segment, mapBounds);
+                if (shadow.length >= 3) {
+                    shadows.push(shadow);
                 }
             }
         }
@@ -349,46 +362,72 @@ function getSegmentsFromRectangle(tl: Point, br: Point): Segment[] {
 }
 
 /**
- * Info about a polygon containing the viewer, with transparent edge indices
+ * Info about a closed room containing the viewer, with transparent edge indices
  */
 export type PolygonViewerInfo = {
-    obstacle: Obstacle;
+    points: Point[]; // polygon outline
     transparentEdgeIndices: number[]; // indices des arêtes qui ne bloquent pas la vision
 };
 
 /**
- * Get polygons where the viewer is inside (for special exterior masking)
- * Returns transparent edge info for polygons with per-edge metadata
+ * Get closed rooms (from connected walls) where the viewer is inside.
+ * Auto-detects closed loops from individual wall obstacles.
+ * Returns transparent edge info based on wall types (open doors, windows, one-way walls).
  */
 export function getPolygonsContainingViewer(
     viewerPos: Point,
     obstacles: Obstacle[]
 ): PolygonViewerInfo[] {
-    return obstacles
-        .filter(
-            obs => obs.type === 'polygon' &&
-                obs.points.length >= 3 &&
-                isPointInPolygon(viewerPos, obs.points)
-        )
-        .map(obs => {
-            const transparentEdgeIndices: number[] = [];
-            if (obs.edges) {
-                for (let i = 0; i < obs.edges.length; i++) {
-                    const edge = obs.edges[i];
-                    if (edge.type === 'door' && edge.isOpen) {
+    const loops = findClosedLoops(obstacles);
+    const results: PolygonViewerInfo[] = [];
+
+    for (const loop of loops) {
+        if (loop.points.length < 3) continue;
+        const isIndividualMode = loop.wallObstacles.some(w => w.roomMode === 'individual');
+        if (isIndividualMode) continue; // Individual mode: no room behavior
+        if (!isPointInPolygon(viewerPos, loop.points)) continue;
+
+        const transparentEdgeIndices: number[] = [];
+        for (let i = 0; i < loop.wallObstacles.length; i++) {
+            const wall = loop.wallObstacles[i];
+            if ((wall.type === 'door' && wall.isOpen) || wall.type === 'window') {
+                transparentEdgeIndices.push(i);
+            } else if (wall.type === 'one-way-wall') {
+                const next = (i + 1) % loop.points.length;
+                const segment = { p1: loop.points[i], p2: loop.points[next] };
+                if (!isViewerBlockedByOneWayWall(viewerPos, segment, wall.direction || 'north')) {
+                    transparentEdgeIndices.push(i);
+                }
+            }
+        }
+
+        results.push({ points: loop.points, transparentEdgeIndices });
+    }
+
+    // Fallback: also check legacy polygon obstacles (backward compat during migration)
+    for (const obs of obstacles) {
+        if (obs.type !== 'polygon' || obs.points.length < 3) continue;
+        if (!isPointInPolygon(viewerPos, obs.points)) continue;
+
+        const transparentEdgeIndices: number[] = [];
+        if (obs.edges) {
+            for (let i = 0; i < obs.edges.length; i++) {
+                const edge = obs.edges[i];
+                if ((edge.type === 'door' && edge.isOpen) || edge.type === 'window') {
+                    transparentEdgeIndices.push(i);
+                } else if (edge.type === 'one-way-wall') {
+                    const next = (i + 1) % obs.points.length;
+                    const segment = { p1: obs.points[i], p2: obs.points[next] };
+                    if (!isViewerBlockedByOneWayWall(viewerPos, segment, edge.direction || 'north')) {
                         transparentEdgeIndices.push(i);
-                    } else if (edge.type === 'one-way-wall') {
-                        const next = (i + 1) % obs.points.length;
-                        const segment = { p1: obs.points[i], p2: obs.points[next] };
-                        // Si le viewer n'est PAS bloqué, l'arête est transparente pour lui
-                        if (!isViewerBlockedByOneWayWall(viewerPos, segment, edge.direction || 'north')) {
-                            transparentEdgeIndices.push(i);
-                        }
                     }
                 }
             }
-            return { obstacle: obs, transparentEdgeIndices };
-        });
+        }
+        results.push({ points: obs.points, transparentEdgeIndices });
+    }
+
+    return results;
 }
 
 /**
@@ -487,62 +526,112 @@ export function drawShadows(
         tempCtx.fill();
     }
 
-    // 1b. Pour les polygons avec edges vus de l'extérieur :
-    // Découper des cônes de vision à travers les arêtes transparentes (portes ouvertes)
-    tempCtx.globalCompositeOperation = 'destination-out';
-    tempCtx.fillStyle = 'white';
-    const extendDist = Math.max(mapBounds.width, mapBounds.height) * 2;
+    // 1b. Pour les pièces fermées vues de l'extérieur :
+    // Révéler l'intérieur de la pièce si elle a des arêtes transparentes (portes ouvertes, fenêtres)
+    // On utilise un clip sur le polygone de la pièce pour ne pas effacer les ombres au-delà
+    const closedLoops = findClosedLoops(obstacles);
+    for (const loop of closedLoops) {
+        if (loop.points.length < 3) continue;
+        const isIndividualMode = loop.wallObstacles.some(w => w.roomMode === 'individual');
+        if (isIndividualMode) continue;
+        if (isPointInPolygon(viewerPos, loop.points)) continue;
 
-    for (const obstacle of obstacles) {
-        if (obstacle.type !== 'polygon' || !obstacle.edges || obstacle.points.length < 3) continue;
-        if (isPointInPolygon(viewerPos, obstacle.points)) continue; // Viewer à l'intérieur, géré plus bas
+        // Check if this loop has any transparent edges
+        let hasTransparentEdge = false;
+        for (let i = 0; i < loop.wallObstacles.length; i++) {
+            const wall = loop.wallObstacles[i];
+            if ((wall.type === 'door' && wall.isOpen) || wall.type === 'window') {
+                hasTransparentEdge = true;
+                break;
+            } else if (wall.type === 'one-way-wall') {
+                const nextIdx = (i + 1) % loop.points.length;
+                const seg = { p1: loop.points[i], p2: loop.points[nextIdx] };
+                if (!isViewerBlockedByOneWayWall(viewerPos, seg, wall.direction || 'north')) {
+                    hasTransparentEdge = true;
+                    break;
+                }
+            }
+        }
+        if (!hasTransparentEdge) continue;
 
-        for (let i = 0; i < obstacle.points.length; i++) {
-            const edge = obstacle.edges[i];
-            if (!edge) continue;
+        // Clip to room interior and erase the room shadow
+        tempCtx.save();
+        tempCtx.beginPath();
+        const clipFirst = transformPoint(loop.points[0]);
+        tempCtx.moveTo(clipFirst.x, clipFirst.y);
+        for (let i = 1; i < loop.points.length; i++) {
+            const p = transformPoint(loop.points[i]);
+            tempCtx.lineTo(p.x, p.y);
+        }
+        tempCtx.closePath();
+        tempCtx.clip();
 
-            let isTransparent = false;
-            if (edge.type === 'door' && edge.isOpen) {
-                isTransparent = true;
-            } else if (edge.type === 'one-way-wall') {
-                const nextIdx = (i + 1) % obstacle.points.length;
-                const seg = { p1: obstacle.points[i], p2: obstacle.points[nextIdx] };
-                const dir = edge.direction || 'north';
-                if (!isViewerBlockedByOneWayWall(viewerPos, seg, dir)) {
-                    isTransparent = true;
+        // Erase shadow inside the room polygon
+        tempCtx.globalCompositeOperation = 'destination-out';
+        tempCtx.fillStyle = 'white';
+        tempCtx.fill();
+
+        // Now re-draw shadows for the opaque walls of this room (inside the clip)
+        tempCtx.globalCompositeOperation = 'source-over';
+        tempCtx.fillStyle = 'black';
+
+        for (let i = 0; i < loop.wallObstacles.length; i++) {
+            const wall = loop.wallObstacles[i];
+            const nextIdx = (i + 1) % loop.points.length;
+            const wp1 = loop.points[i];
+            const wp2 = loop.points[nextIdx];
+
+            // Determine if this edge is opaque (blocks vision)
+            let isOpaque = true;
+            if ((wall.type === 'door' && wall.isOpen) || wall.type === 'window') {
+                isOpaque = false;
+            } else if (wall.type === 'one-way-wall') {
+                const seg = { p1: wp1, p2: wp2 };
+                if (!isViewerBlockedByOneWayWall(viewerPos, seg, wall.direction || 'north')) {
+                    isOpaque = false;
                 }
             }
 
-            if (isTransparent) {
-                const nextIdx = (i + 1) % obstacle.points.length;
-                const ep1 = obstacle.points[i];
-                const ep2 = obstacle.points[nextIdx];
-
-                const dir1 = { x: ep1.x - viewerPos.x, y: ep1.y - viewerPos.y };
-                const dir2 = { x: ep2.x - viewerPos.x, y: ep2.y - viewerPos.y };
-                const len1 = Math.sqrt(dir1.x * dir1.x + dir1.y * dir1.y);
-                const len2 = Math.sqrt(dir2.x * dir2.x + dir2.y * dir2.y);
-                if (len1 < 0.001 || len2 < 0.001) continue;
-
-                const ext1 = { x: ep1.x + (dir1.x / len1) * extendDist, y: ep1.y + (dir1.y / len1) * extendDist };
-                const ext2 = { x: ep2.x + (dir2.x / len2) * extendDist, y: ep2.y + (dir2.y / len2) * extendDist };
-
-                tempCtx.beginPath();
-                const tp1 = transformPoint(ep1);
-                const te1 = transformPoint(ext1);
-                const te2 = transformPoint(ext2);
-                const tp2 = transformPoint(ep2);
-                tempCtx.moveTo(tp1.x, tp1.y);
-                tempCtx.lineTo(te1.x, te1.y);
-                tempCtx.lineTo(te2.x, te2.y);
-                tempCtx.lineTo(tp2.x, tp2.y);
-                tempCtx.closePath();
-                tempCtx.fill();
+            if (isOpaque) {
+                // Cast shadow from this wall segment inside the room
+                const segment = { p1: wp1, p2: wp2 };
+                const shadow = calculateShadowPolygon(viewerPos, segment, mapBounds);
+                if (shadow.length >= 3) {
+                    tempCtx.beginPath();
+                    const sf = transformPoint(shadow[0]);
+                    tempCtx.moveTo(sf.x, sf.y);
+                    for (let j = 1; j < shadow.length; j++) {
+                        const sp = transformPoint(shadow[j]);
+                        tempCtx.lineTo(sp.x, sp.y);
+                    }
+                    tempCtx.closePath();
+                    tempCtx.fill();
+                }
             }
         }
+
+        tempCtx.restore(); // Removes clip
     }
     tempCtx.globalCompositeOperation = 'source-over';
     tempCtx.fillStyle = 'black';
+
+    // 1c. Draw wall outlines as thick opaque strokes so room boundaries are always visible
+    tempCtx.strokeStyle = 'black';
+    tempCtx.lineCap = 'round';
+    const wallLineWidth = 6;
+    for (const obstacle of obstacles) {
+        if (obstacle.type === 'door' && obstacle.isOpen) continue;
+        if (obstacle.type === 'window') continue;
+        if ((obstacle.type === 'wall' || obstacle.type === 'door' || obstacle.type === 'one-way-wall') && obstacle.points.length >= 2) {
+            const p1 = transformPoint(obstacle.points[0]);
+            const p2 = transformPoint(obstacle.points[1]);
+            tempCtx.lineWidth = wallLineWidth;
+            tempCtx.beginPath();
+            tempCtx.moveTo(p1.x, p1.y);
+            tempCtx.lineTo(p2.x, p2.y);
+            tempCtx.stroke();
+        }
+    }
 
     // 2. Handle case where viewer is INSIDE a polygon
     // In this case, we need to hide everything OUTSIDE the polygon
@@ -582,16 +671,16 @@ export function drawShadows(
             exteriorCtx.fillStyle = 'white';
 
             for (const polyInfo of polygonsContainingViewer) {
-                const polygon = polyInfo.obstacle;
-                if (polygon.points.length < 3) continue;
+                const polyPoints = polyInfo.points;
+                if (polyPoints.length < 3) continue;
 
                 // Découper l'intérieur du polygone
                 exteriorCtx.beginPath();
-                const first = transformPoint(polygon.points[0]);
+                const first = transformPoint(polyPoints[0]);
                 exteriorCtx.moveTo(first.x, first.y);
 
-                for (let i = 1; i < polygon.points.length; i++) {
-                    const p = transformPoint(polygon.points[i]);
+                for (let i = 1; i < polyPoints.length; i++) {
+                    const p = transformPoint(polyPoints[i]);
                     exteriorCtx.lineTo(p.x, p.y);
                 }
 
@@ -604,9 +693,9 @@ export function drawShadows(
                     const extendDistance = Math.max(mapBounds.width, mapBounds.height) * 2;
 
                     for (const edgeIdx of polyInfo.transparentEdgeIndices) {
-                        const nextIdx = (edgeIdx + 1) % polygon.points.length;
-                        const ep1 = polygon.points[edgeIdx];
-                        const ep2 = polygon.points[nextIdx];
+                        const nextIdx = (edgeIdx + 1) % polyPoints.length;
+                        const ep1 = polyPoints[edgeIdx];
+                        const ep2 = polyPoints[nextIdx];
 
                         // Calculer le cône de vision depuis le viewer à travers cette arête
                         const dir1 = { x: ep1.x - viewerPos.x, y: ep1.y - viewerPos.y };
@@ -730,10 +819,16 @@ export function drawObstacles(
             if (obstacle.isOpen) {
                 obstacleStrokeColor = isSelected ? '#FFD700' : 'rgba(0, 255, 0, 0.9)'; // Vert si ouverte
                 obstacleFillColor = 'rgba(0, 255, 0, 0.2)';
+            } else if (obstacle.isLocked) {
+                obstacleStrokeColor = isSelected ? '#FFD700' : 'rgba(200, 160, 50, 0.9)'; // Doré si verrouillée
+                obstacleFillColor = 'rgba(200, 160, 50, 0.2)';
             } else {
                 obstacleStrokeColor = isSelected ? '#FFD700' : 'rgba(255, 0, 0, 0.9)'; // Rouge si fermée
                 obstacleFillColor = 'rgba(255, 0, 0, 0.2)';
             }
+        } else if (obstacle.type === 'window') {
+            obstacleStrokeColor = isSelected ? '#FFD700' : 'rgba(100, 180, 255, 0.9)'; // Bleu clair
+            obstacleFillColor = 'rgba(100, 180, 255, 0.2)';
         }
 
         ctx.beginPath();
@@ -859,18 +954,65 @@ export function drawObstacles(
             ctx.fill();
             ctx.stroke();
 
-            // Symbole : ligne verticale si fermée, arc si ouverte
+            // Symbole : arc si ouverte, cadenas si verrouillée, ligne si fermée
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
             ctx.beginPath();
             if (obstacle.isOpen) {
                 // Arc pour porte ouverte
                 ctx.arc(midX, midY, doorSize * 0.5, -Math.PI / 4, Math.PI / 4);
+                ctx.stroke();
+            } else if (obstacle.isLocked) {
+                // Cadenas pour porte verrouillée
+                const lockW = doorSize * 0.6;
+                const lockH = doorSize * 0.5;
+                ctx.fillStyle = '#fff';
+                // Corps du cadenas (rectangle)
+                ctx.fillRect(midX - lockW / 2, midY - lockH / 2 + 1, lockW, lockH);
+                // Anse du cadenas (arc)
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(midX, midY - lockH / 2 + 1, lockW * 0.35, Math.PI, 0);
+                ctx.stroke();
             } else {
                 // Ligne pour porte fermée
                 ctx.moveTo(midX, midY - doorSize * 0.5);
                 ctx.lineTo(midX, midY + doorSize * 0.5);
+                ctx.stroke();
             }
+            ctx.restore();
+        } else if (obstacle.type === 'window' && obstacle.points.length >= 2) {
+            // Dessiner la fenêtre
+            const p1 = transformPoint(obstacle.points[0]);
+            const p2 = transformPoint(obstacle.points[1]);
+            ctx.setLineDash([6, 4]);
+            ctx.moveTo(p1.x, p1.y);
+            ctx.lineTo(p2.x, p2.y);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // Symbole fenêtre au milieu (croix dans un cercle)
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
+            const winSize = 10;
+
+            ctx.save();
+            ctx.fillStyle = obstacleStrokeColor;
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+
+            ctx.beginPath();
+            ctx.arc(midX, midY, winSize, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            // Croix à l'intérieur
+            ctx.beginPath();
+            ctx.moveTo(midX - winSize * 0.5, midY);
+            ctx.lineTo(midX + winSize * 0.5, midY);
+            ctx.moveTo(midX, midY - winSize * 0.5);
+            ctx.lineTo(midX, midY + winSize * 0.5);
             ctx.stroke();
             ctx.restore();
         } else if (obstacle.type === 'rectangle' && obstacle.points.length >= 2) {
@@ -879,131 +1021,6 @@ export function drawObstacles(
             ctx.rect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
             ctx.fill();
             ctx.stroke();
-        } else if (obstacle.type === 'polygon' && obstacle.points.length >= 3) {
-            if (obstacle.edges && obstacle.edges.length > 0) {
-                // Polygon avec per-edge metadata : dessiner chaque arête avec son style
-                for (let i = 0; i < obstacle.points.length; i++) {
-                    const next = (i + 1) % obstacle.points.length;
-                    const edge = obstacle.edges[i];
-                    const p1 = transformPoint(obstacle.points[i]);
-                    const p2 = transformPoint(obstacle.points[next]);
-
-                    // Couleur selon le type d'arête
-                    let edgeStrokeColor = isSelected ? '#FFD700' : strokeColor;
-                    if (!isSelected && edge) {
-                        if (edge.type === 'one-way-wall') {
-                            edgeStrokeColor = 'rgba(255, 165, 0, 0.9)';
-                        } else if (edge.type === 'door') {
-                            edgeStrokeColor = edge.isOpen ? 'rgba(0, 255, 0, 0.9)' : 'rgba(255, 0, 0, 0.9)';
-                        }
-                    }
-
-                    ctx.beginPath();
-                    ctx.strokeStyle = edgeStrokeColor;
-                    ctx.lineWidth = isSelected ? strokeWidth * 2 : strokeWidth;
-                    ctx.moveTo(p1.x, p1.y);
-                    ctx.lineTo(p2.x, p2.y);
-                    ctx.stroke();
-
-                    // Dessiner les symboles per-edge
-                    if (edge && edge.type === 'one-way-wall') {
-                        // Flèche perpendiculaire (comme pour one-way-wall standalone)
-                        const midX = (p1.x + p2.x) / 2;
-                        const midY = (p1.y + p2.y) / 2;
-                        const arrowLength = 20;
-                        const arrowHeadSize = 8;
-
-                        ctx.save();
-                        ctx.strokeStyle = '#FFFFFF';
-                        ctx.fillStyle = '#FFFFFF';
-                        ctx.lineWidth = 2;
-
-                        const dx = p2.x - p1.x;
-                        const dy = p2.y - p1.y;
-                        const len = Math.sqrt(dx * dx + dy * dy);
-                        if (len > 0) {
-                            let nx = -dy / len;
-                            let ny = dx / len;
-
-                            // Orienter selon la direction
-                            let targetDx = 0, targetDy = 0;
-                            switch (edge.direction) {
-                                case 'north': targetDy = -1; break;
-                                case 'south': targetDy = 1; break;
-                                case 'east': targetDx = 1; break;
-                                case 'west': targetDx = -1; break;
-                                default: targetDy = -1;
-                            }
-                            if (nx * targetDx + ny * targetDy < 0) { nx = -nx; ny = -ny; }
-
-                            const endX = midX + nx * arrowLength;
-                            const endY = midY + ny * arrowLength;
-                            ctx.beginPath();
-                            ctx.moveTo(midX, midY);
-                            ctx.lineTo(endX, endY);
-                            ctx.stroke();
-
-                            const angle = Math.atan2(endY - midY, endX - midX);
-                            ctx.beginPath();
-                            ctx.moveTo(endX, endY);
-                            ctx.lineTo(endX - arrowHeadSize * Math.cos(angle - Math.PI / 6), endY - arrowHeadSize * Math.sin(angle - Math.PI / 6));
-                            ctx.lineTo(endX - arrowHeadSize * Math.cos(angle + Math.PI / 6), endY - arrowHeadSize * Math.sin(angle + Math.PI / 6));
-                            ctx.closePath();
-                            ctx.fill();
-                        }
-                        ctx.restore();
-                    } else if (edge && edge.type === 'door') {
-                        // Symbole de porte (cercle au milieu)
-                        const midX = (p1.x + p2.x) / 2;
-                        const midY = (p1.y + p2.y) / 2;
-                        const doorSize = 10;
-
-                        ctx.save();
-                        ctx.fillStyle = edgeStrokeColor;
-                        ctx.strokeStyle = '#fff';
-                        ctx.lineWidth = 2;
-                        ctx.beginPath();
-                        ctx.arc(midX, midY, doorSize, 0, Math.PI * 2);
-                        ctx.fill();
-                        ctx.stroke();
-
-                        ctx.strokeStyle = '#fff';
-                        ctx.lineWidth = 2;
-                        ctx.beginPath();
-                        if (edge.isOpen) {
-                            ctx.arc(midX, midY, doorSize * 0.5, -Math.PI / 4, Math.PI / 4);
-                        } else {
-                            ctx.moveTo(midX, midY - doorSize * 0.5);
-                            ctx.lineTo(midX, midY + doorSize * 0.5);
-                        }
-                        ctx.stroke();
-                        ctx.restore();
-                    }
-                }
-
-                // Fill le polygon (semi-transparent)
-                ctx.beginPath();
-                const first = transformPoint(obstacle.points[0]);
-                ctx.moveTo(first.x, first.y);
-                for (let i = 1; i < obstacle.points.length; i++) {
-                    const p = transformPoint(obstacle.points[i]);
-                    ctx.lineTo(p.x, p.y);
-                }
-                ctx.closePath();
-                ctx.fillStyle = isSelected ? 'rgba(255, 215, 0, 0.15)' : 'rgba(100, 100, 255, 0.1)';
-                ctx.fill();
-            } else {
-                // Legacy polygon sans edges : comportement original
-                const first = transformPoint(obstacle.points[0]);
-                ctx.moveTo(first.x, first.y);
-                for (let i = 1; i < obstacle.points.length; i++) {
-                    const p = transformPoint(obstacle.points[i]);
-                    ctx.lineTo(p.x, p.y);
-                }
-                ctx.closePath();
-                ctx.fill();
-                ctx.stroke();
-            }
         }
 
         // Draw handles for editing
@@ -1065,19 +1082,19 @@ export function isPointInShadows(
     // (sauf si le point est visible à travers une arête transparente)
     const polygonsContainingViewer = getPolygonsContainingViewer(viewerPos, obstacles);
     for (const polyInfo of polygonsContainingViewer) {
-        const polygon = polyInfo.obstacle;
+        const polyPoints = polyInfo.points;
         // If target point is OUTSIDE the polygon that contains the viewer, it's in shadow
         // SAUF si le point est accessible via une arête transparente
-        if (!isPointInPolygon(targetPoint, polygon.points)) {
+        if (!isPointInPolygon(targetPoint, polyPoints)) {
             if (polyInfo.transparentEdgeIndices.length === 0) {
                 return true; // Aucune arête transparente, tout l'extérieur est ombré
             }
             // Vérifier si le point est dans un cône de vision d'une arête transparente
             let visibleThroughEdge = false;
             for (const edgeIdx of polyInfo.transparentEdgeIndices) {
-                const nextIdx = (edgeIdx + 1) % polygon.points.length;
-                const ep1 = polygon.points[edgeIdx];
-                const ep2 = polygon.points[nextIdx];
+                const nextIdx = (edgeIdx + 1) % polyPoints.length;
+                const ep1 = polyPoints[edgeIdx];
+                const ep2 = polyPoints[nextIdx];
 
                 // Créer le cône de vision et vérifier si le target est dedans
                 const extendDistance = Math.max(mapBounds.width, mapBounds.height) * 2;
