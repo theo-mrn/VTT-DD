@@ -5,6 +5,14 @@ import { Search, ChevronRight, Scroll, Swords, Crown, Check, Info, X } from 'luc
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -34,6 +42,8 @@ export default function Capacites() {
   const [selectedRace, setSelectedRace] = useState<string>("");
   const [selectedProfile, setSelectedProfile] = useState<string>("");
   const [selectedPrestige, setSelectedPrestige] = useState<string>("");
+
+  const [activeTab, setActiveTab] = useState<string>("races");
 
   const [isLoading, setIsLoading] = useState(true);
 
@@ -198,7 +208,7 @@ export default function Capacites() {
       <div className="w-full">
         <Card className="h-full border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-colors bg-[var(--bg-card)]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-[var(--accent-brown)] text-lg">
+            <CardTitle className="text-[#c0a080] text-lg font-papyrus">
               {voie.nom}
               {subtitle && <span className="block text-xs text-[var(--text-secondary)] mt-1 font-normal">{subtitle}</span>}
             </CardTitle>
@@ -224,8 +234,8 @@ export default function Capacites() {
                   >
                     <div className="flex-1">
                       <span className={cn(
-                        "font-medium transition-colors",
-                        isMatch ? "text-[var(--accent-brown)] font-bold" : "text-[var(--text-secondary)]"
+                        "font-medium transition-colors font-papyrus",
+                        isMatch ? "text-[#c0a080] font-bold" : "text-[#d4d4d4]"
                       )}>
                         {competence.titre}
                       </span>
@@ -236,7 +246,7 @@ export default function Capacites() {
                         size="sm"
                         className="h-6 w-6 p-0"
                       >
-                        <Info className="h-4 w-4 text-[var(--accent-brown)]" />
+                        <Info className="h-4 w-4 text-[#c0a080]" />
                       </Button>
                     </div>
                   </li>
@@ -266,7 +276,7 @@ export default function Capacites() {
   const getDisplayedRaces = () => {
     return races.filter(race => {
       // 1. Filter by Selection
-      if (selectedRace && race.nom !== selectedRace) return false;
+      if (selectedRace && selectedRace !== "all_races" && race.nom !== selectedRace) return false;
 
       // 2. Filter by Global Search
       if (globalSearch) {
@@ -286,7 +296,7 @@ export default function Capacites() {
   const getDisplayedProfileVoies = () => {
     return profiles.flatMap(profile => {
       // 1. Filter by Selection (if active)
-      if (selectedProfile && profile.nom !== selectedProfile) return [];
+      if (selectedProfile && selectedProfile !== "all_profiles" && profile.nom !== selectedProfile) return [];
 
       // 2. Filter by Global Search
       if (globalSearch) {
@@ -318,7 +328,7 @@ export default function Capacites() {
   const getDisplayedPrestigeVoies = () => {
     return prestiges.flatMap(prestige => {
       // 1. Filter by Selection (if active)
-      if (selectedPrestige && prestige.nom !== selectedPrestige) return [];
+      if (selectedPrestige && selectedPrestige !== "all_prestiges" && prestige.nom !== selectedPrestige) return [];
 
       // 2. Filter by Global Search
       if (globalSearch) {
@@ -345,25 +355,80 @@ export default function Capacites() {
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-8 min-h-screen">
-      <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-bold text-[var(--accent-brown)]">Compétences</h1>
-      </div>
-
-      <Tabs defaultValue="races" className="w-full" onValueChange={() => {
+    <div className="w-full h-screen overflow-hidden flex flex-col p-4 md:p-8 space-y-6">
+      <Tabs value={activeTab} className="w-full flex-1 flex-col" onValueChange={(val) => {
+        setActiveTab(val);
         setGlobalSearch("");
       }}>
-        <TabsList className="grid w-full grid-cols-3 mb-8">
-          <TabsTrigger value="races" className="flex items-center gap-2">
-            <Scroll className="h-4 w-4" /> Races
-          </TabsTrigger>
-          <TabsTrigger value="profiles" className="flex items-center gap-2">
-            <Swords className="h-4 w-4" /> Profils
-          </TabsTrigger>
-          <TabsTrigger value="prestiges" className="flex items-center gap-2">
-            <Crown className="h-4 w-4" /> Prestiges
-          </TabsTrigger>
-        </TabsList>
+        <div className="flex items-center justify-between mb-6 bg-black/40 border border-white/10 p-1 rounded-xl">
+          <TabsList className="bg-transparent border-none">
+            <TabsTrigger value="races" className="flex items-center gap-2 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70">
+              <Scroll className="h-4 w-4" /> Races
+            </TabsTrigger>
+            <TabsTrigger value="profiles" className="flex items-center gap-2 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70">
+              <Swords className="h-4 w-4" /> Profils
+            </TabsTrigger>
+            <TabsTrigger value="prestiges" className="flex items-center gap-2 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70">
+              <Crown className="h-4 w-4" /> Prestiges
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="flex items-center gap-4 px-2">
+            {activeTab === 'races' && (
+              <Select value={selectedRace} onValueChange={setSelectedRace}>
+                <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                  <SelectValue placeholder="Race..." />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white font-papyrus">
+                  <SelectGroup>
+                    <SelectItem value="all_races">Toutes les races</SelectItem>
+                    {races.map((race) => (
+                      <SelectItem key={race.nom} value={race.nom}>
+                        {race.nom}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            )}
+
+            {activeTab === 'profiles' && (
+              <Select value={selectedProfile} onValueChange={setSelectedProfile}>
+                <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                  <SelectValue placeholder="Profil..." />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white font-papyrus">
+                  <SelectGroup>
+                    <SelectItem value="all_profiles">Tous les profils</SelectItem>
+                    {profiles.map((profile) => (
+                      <SelectItem key={profile.nom} value={profile.nom}>
+                        {profile.nom}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            )}
+
+            {activeTab === 'prestiges' && (
+              <Select value={selectedPrestige} onValueChange={setSelectedPrestige}>
+                <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                  <SelectValue placeholder="Classe..." />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white font-papyrus">
+                  <SelectGroup>
+                    <SelectItem value="all_prestiges">Toutes les classes</SelectItem>
+                    {prestiges.map((prestige) => (
+                      <SelectItem key={prestige.nom} value={prestige.nom}>
+                        {prestige.nom}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+        </div>
 
         {isLoading ? (
           <div className="flex justify-center items-center min-h-[400px]">
@@ -374,66 +439,6 @@ export default function Capacites() {
             {/* RACES TAB */}
             <TabsContent value="races" className="space-y-6">
               <div className="flex flex-col md:flex-row gap-4 max-w-4xl mx-auto mb-6">
-                {/* Combobox Filter */}
-                <div className="flex-1 relative">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block font-semibold text-[var(--text-primary)]">Filtrer par race</label>
-                    {selectedRace && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedRace("");
-                          setRaceSearchTerm("");
-                        }}
-                        className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
-                      >
-                        <X className="w-4 h-4 mr-1" />
-                        Effacer
-                      </Button>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={raceSearchTerm}
-                      onChange={(e) => setRaceSearchTerm(e.target.value)}
-                      onFocus={() => setIsRaceInputFocused(true)}
-                      onBlur={() => setTimeout(() => setIsRaceInputFocused(false), 200)}
-                      placeholder={selectedRace ? `Filtré par: ${selectedRace}` : "Sélectionner une race..."}
-                      className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
-                    />
-                    {isRaceInputFocused && (
-                      <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
-                        {filteredRacesList.length > 0 ? (
-                          filteredRacesList.map((race) => (
-                            <div
-                              key={race.nom}
-                              onClick={() => {
-                                setSelectedRace(race.nom);
-                                setRaceSearchTerm(race.nom);
-                                setIsRaceInputFocused(false);
-                              }}
-                              className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4 text-[var(--accent-brown)]",
-                                  selectedRace === race.nom ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <span className="text-[var(--text-primary)]">{race.nom}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
-                            Aucune race trouvée.
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
 
                 {/* Global Search Bar */}
                 <div className="flex-1">
@@ -451,7 +456,7 @@ export default function Capacites() {
                 </div>
               </div>
 
-              <ScrollArea className="h-[calc(100vh-300px)] pr-4">
+              <ScrollArea className="flex-1 pr-4 styled-scrollbar">
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {getDisplayedRaces().map((race, idx) => (
                     <VoieCard key={idx} voie={race} searchTerm={globalSearch} />
@@ -468,68 +473,6 @@ export default function Capacites() {
             {/* PROFILES TAB */}
             <TabsContent value="profiles" className="space-y-6">
               <div className="flex flex-col md:flex-row gap-4 max-w-4xl mx-auto mb-6">
-                {/* Combobox Filter */}
-                <div className="flex-1 relative">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block font-semibold text-[var(--text-primary)]">Filtrer par profil</label>
-                    {selectedProfile && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedProfile("");
-                          setProfileSearchTerm("");
-                        }}
-                        className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
-                      >
-                        <X className="w-4 h-4 mr-1" />
-                        Effacer
-                      </Button>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={profileSearchTerm}
-                      onChange={(e) => setProfileSearchTerm(e.target.value)}
-                      onFocus={() => setIsProfileInputFocused(true)}
-                      onBlur={() => setTimeout(() => setIsProfileInputFocused(false), 200)}
-                      placeholder={selectedProfile ? `Filtré par: ${selectedProfile}` : "Sélectionner un profil..."}
-                      className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
-                    />
-                    {isProfileInputFocused && (
-                      <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
-                        {filteredProfilesList.length > 0 ? (
-                          filteredProfilesList.map((profile) => (
-                            <div
-                              key={profile.nom}
-                              onClick={() => {
-                                setSelectedProfile(profile.nom);
-                                setProfileSearchTerm(profile.nom);
-                                setIsProfileInputFocused(false);
-                              }}
-                              className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4 text-[var(--accent-brown)]",
-                                  selectedProfile === profile.nom ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <span className="text-[var(--text-primary)]">
-                                {profile.nom} <span className="text-[var(--text-secondary)] text-xs">(5 voies)</span>
-                              </span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
-                            Aucun profil trouvé.
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
 
                 {/* Global Search Bar */}
                 <div className="flex-1">
@@ -547,7 +490,7 @@ export default function Capacites() {
                 </div>
               </div>
 
-              <ScrollArea className="h-[calc(100vh-300px)] pr-4">
+              <ScrollArea className="flex-1 pr-4 styled-scrollbar">
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {getDisplayedProfileVoies().length > 0 ? (
                     getDisplayedProfileVoies().map((voie, idx) => (
@@ -565,68 +508,6 @@ export default function Capacites() {
             {/* PRESTIGES TAB */}
             <TabsContent value="prestiges" className="space-y-6">
               <div className="flex flex-col md:flex-row gap-4 max-w-4xl mx-auto mb-6">
-                {/* Combobox Filter */}
-                <div className="flex-1 relative">
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block font-semibold text-[var(--text-primary)]">Filtrer par classe</label>
-                    {selectedPrestige && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedPrestige("");
-                          setPrestigeSearchTerm("");
-                        }}
-                        className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
-                      >
-                        <X className="w-4 h-4 mr-1" />
-                        Effacer
-                      </Button>
-                    )}
-                  </div>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={prestigeSearchTerm}
-                      onChange={(e) => setPrestigeSearchTerm(e.target.value)}
-                      onFocus={() => setIsPrestigeInputFocused(true)}
-                      onBlur={() => setTimeout(() => setIsPrestigeInputFocused(false), 200)}
-                      placeholder={selectedPrestige ? `Filtré par: ${selectedPrestige}` : "Sélectionner une classe..."}
-                      className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
-                    />
-                    {isPrestigeInputFocused && (
-                      <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
-                        {filteredPrestigesList.length > 0 ? (
-                          filteredPrestigesList.map((prestige) => (
-                            <div
-                              key={prestige.nom}
-                              onClick={() => {
-                                setSelectedPrestige(prestige.nom);
-                                setPrestigeSearchTerm(prestige.nom);
-                                setIsPrestigeInputFocused(false);
-                              }}
-                              className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
-                            >
-                              <Check
-                                className={cn(
-                                  "mr-2 h-4 w-4 text-[var(--accent-brown)]",
-                                  selectedPrestige === prestige.nom ? "opacity-100" : "opacity-0"
-                                )}
-                              />
-                              <span className="text-[var(--text-primary)]">
-                                {prestige.nom} <span className="text-[var(--text-secondary)] text-xs">(5 voies)</span>
-                              </span>
-                            </div>
-                          ))
-                        ) : (
-                          <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
-                            Aucune classe trouvée.
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
 
                 {/* Global Search Bar */}
                 <div className="flex-1">
@@ -644,7 +525,7 @@ export default function Capacites() {
                 </div>
               </div>
 
-              <ScrollArea className="h-[calc(100vh-300px)] pr-4">
+              <ScrollArea className="flex-1 pr-4 styled-scrollbar">
                 <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                   {getDisplayedPrestigeVoies().length > 0 ? (
                     getDisplayedPrestigeVoies().map((voie, idx) => (

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Image from 'next/image'
 import { Card, CardContent } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -64,22 +63,23 @@ function ImageGrid({ images }: ImageGridProps) {
       {images.map((image) => (
         <Card key={image.id} className="relative overflow-hidden group h-[400]"> {/* Increased card height */}
           <CardContent className="p-0 h-full">
-            <Image
+            <img
               src={image.src}
               alt={image.alt}
-              width={400}
-              height={400}  // Adjusted height for performance
-              className="w-full h-full object-cover" // Ensures the image covers the entire card
-              quality={30}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              className="w-full h-full"
               loading="lazy"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/images/placeholder.png'
+              }}
             />
             {/* Download button on hover */}
             <a
               href={image.src}
               download
-              className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity"
             >
-              <button className="bg-white p-2 rounded text-gray-800">Télécharger</button>
+              <button className="bg-[#c0a080] px-6 py-2 rounded text-[#1c1c1c] font-bold uppercase tracking-tighter hover:scale-105 transition-transform">Télécharger</button>
             </a>
           </CardContent>
         </Card>
@@ -92,19 +92,48 @@ export default function ImageGalleryTabs() {
   const [assetCategory, setAssetCategory] = useState<string>('all')
   const [mapCategory, setMapCategory] = useState<string>('all')
   const [photoCategory, setPhotoCategory] = useState<string>('all')
+  const [activeMainTab, setActiveMainTab] = useState<string>('assets')
   const [assetImages, setAssetImages] = useState<ImageData[]>([])
   const [mapImages, setMapImages] = useState<ImageData[]>([])
   const [photoImages, setPhotoImages] = useState<ImageData[]>([])
 
   const [apiMaps, setApiMaps] = useState<ImageData[]>([])
   const [apiMapCategories, setApiMapCategories] = useState<string[]>([])
+  const [assetMap, setAssetMap] = useState<Map<string, string>>(new Map())
+
+  // Load asset mappings once on mount
+  useEffect(() => {
+    const loadMappings = async () => {
+      try {
+        const response = await fetch('/asset-mappings.json')
+        const data = await response.json()
+        const map = new Map<string, string>()
+        data.forEach((m: any) => {
+          if (m.localPath && m.path) map.set(m.localPath, m.path)
+        })
+        setAssetMap(map)
+      } catch (error) {
+        console.error('Error loading asset mappings:', error)
+      }
+    }
+    loadMappings()
+  }, [])
+
+  const resolveAsset = (path: string) => assetMap.get(path) || path
 
   useEffect(() => {
-    const images = assetCategory === 'all'
+    const generated = assetCategory === 'all'
       ? Object.entries(assetCategories).flatMap(([cat, count]) => generateImageData('/Assets', cat, count, 'png'))
       : generateImageData('/Assets', assetCategory, assetCategories[assetCategory], 'png')
-    setAssetImages(images)
-  }, [assetCategory])
+
+    // Resolve all generated paths through the mapping
+    const mapped = generated.map(img => ({
+      ...img,
+      src: resolveAsset(img.src)
+    }))
+
+    setAssetImages(mapped)
+  }, [assetCategory, assetMap])
 
   const getMapCategory = (categoryStr: string): string => {
     const parts = categoryStr.split('/');
@@ -156,7 +185,7 @@ export default function ImageGalleryTabs() {
   }, [mapCategory, apiMaps])
 
   useEffect(() => {
-    const images = photoCategory === 'all'
+    const generated = photoCategory === 'all'
       ? Object.entries(photoCategories).flatMap(([cat, count]) =>
         Array.from({ length: count }, (_, index) => ({
           id: `${cat}-${index + 1}`,
@@ -169,73 +198,84 @@ export default function ImageGalleryTabs() {
         src: `/Photos/${photoCategory}/${photoCategory}${index + 1}.webp`,
         alt: `${photoCategory} ${index + 1}`,
       }))
-    setPhotoImages(images)
-  }, [photoCategory])
+
+    // Resolve all generated paths through the mapping
+    const mapped = generated.map(img => ({
+      ...img,
+      src: resolveAsset(img.src)
+    }))
+
+    setPhotoImages(mapped)
+  }, [photoCategory, assetMap])
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-center mb-8">Galerie d'Images</h1>
-      <Tabs defaultValue="assets" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="assets">Personnages</TabsTrigger>
-          <TabsTrigger value="maps">Cartes</TabsTrigger>
-          <TabsTrigger value="photos">Photos</TabsTrigger>
+    <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full h-full flex flex-col">
+      <div className="flex items-center justify-between mb-6 bg-black/40 border border-white/10 p-1 rounded-xl">
+        <TabsList className="bg-transparent border-none">
+          <TabsTrigger value="assets" className="flex items-center gap-2 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70">Personnages</TabsTrigger>
+          <TabsTrigger value="maps" className="flex items-center gap-2 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70">Cartes</TabsTrigger>
+          <TabsTrigger value="photos" className="flex items-center gap-2 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70">Photos</TabsTrigger>
         </TabsList>
 
-        {/* Assets Tab */}
-        <TabsContent value="assets">
-          <div className="flex justify-end mb-4">
+        <div className="flex items-center gap-4 px-2">
+          {activeMainTab === 'assets' && (
             <Select value={assetCategory} onValueChange={setAssetCategory}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Choisir une catégorie" />
+              <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                <SelectValue placeholder="Catégorie..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white">
                 <SelectItem value="all">Toutes les catégories</SelectItem>
                 {Object.keys(assetCategories).map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <ImageGrid images={assetImages} />
-        </TabsContent>
+          )}
 
-        {/* Maps Tab */}
-        <TabsContent value="maps">
-          <div className="flex justify-end mb-4">
+          {activeMainTab === 'maps' && (
             <Select value={mapCategory} onValueChange={setMapCategory}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Choisir une carte" />
+              <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                <SelectValue placeholder="Carte..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white">
                 <SelectItem value="all">Toutes les cartes</SelectItem>
                 {apiMapCategories.map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <ImageGrid images={mapImages} />
-        </TabsContent>
+          )}
 
-        {/* Photos Tab */}
-        <TabsContent value="photos">
-          <div className="flex justify-end mb-4 text-blue">
+          {activeMainTab === 'photos' && (
             <Select value={photoCategory} onValueChange={setPhotoCategory}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Choisir une catégorie" />
+              <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                <SelectValue placeholder="Catégorie..." />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white">
                 <SelectItem value="all">Toutes les catégories</SelectItem>
                 {Object.keys(photoCategories).map(cat => (
                   <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <ImageGrid images={photoImages} />
-        </TabsContent>
-      </Tabs>
-    </div>
+          )}
+        </div>
+      </div>
+
+      {/* Assets Tab */}
+      <TabsContent value="assets">
+        <ImageGrid images={assetImages} />
+      </TabsContent>
+
+      {/* Maps Tab */}
+      <TabsContent value="maps">
+        <ImageGrid images={mapImages} />
+      </TabsContent>
+
+      {/* Photos Tab */}
+      <TabsContent value="photos">
+        <ImageGrid images={photoImages} />
+      </TabsContent>
+    </Tabs>
   )
 }

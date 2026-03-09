@@ -5,6 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { db, auth, getDoc, setDoc, doc, collection, getDocs, deleteDoc } from '@/lib/firebase';
 import { useGame } from '@/contexts/GameContext';
 import { X, Plus, Trash2, Check, ChevronsUpDown, Info, GripVertical } from 'lucide-react';
@@ -233,6 +241,8 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
   const [prestigeForCompetenceSearchTerm, setPrestigeForCompetenceSearchTerm] = useState<string>('');
   const [isPrestigeForCompetenceInputFocused, setIsPrestigeForCompetenceInputFocused] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [activeTabMain, setActiveTabMain] = useState<string>('profiles');
+  const [activeTabComp, setActiveTabComp] = useState<string>('profiles');
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -1082,17 +1092,23 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
 
               <div className="mb-4">
                 <label className="block font-semibold text-[var(--text-primary)] mb-2">Sélectionner une compétence</label>
-                <select
-                  className="p-2 border border-[var(--border-color)] rounded w-full bg-[var(--bg-dark)] text-[var(--text-primary)]"
-                  value={selectedCompetenceIndex || 0}
-                  onChange={(e) => setSelectedCompetenceIndex(parseInt(e.target.value))}
+                <Select
+                  value={String(selectedCompetenceIndex || 0)}
+                  onValueChange={(val) => setSelectedCompetenceIndex(parseInt(val))}
                 >
-                  {voies[selectedVoieIndex].competences.map((competence, index) => (
-                    <option key={index} value={index}>
-                      {competence.titre}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white">
+                    <SelectGroup>
+                      {voies[selectedVoieIndex].competences.map((competence, index) => (
+                        <SelectItem key={index} value={String(index)}>
+                          {competence.titre}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
 
               {selectedCompetenceIndex !== null && (
@@ -1129,71 +1145,105 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
             {selectedVoieIndex !== null ? 'Choisir une nouvelle voie' : 'Ajouter une voie'}
           </DialogTitle>
 
-          <Tabs defaultValue="profiles" onValueChange={(type) => {
-            // Load all voies when switching tabs
+          <Tabs value={activeTabMain} onValueChange={(type) => {
+            setActiveTabMain(type);
             fetchReplacementVoies(type);
           }}>
-            <TabsList>
-              <TabsTrigger value="profiles">Profils</TabsTrigger>
-              <TabsTrigger value="races">Races</TabsTrigger>
-              <TabsTrigger value="prestiges">Prestiges</TabsTrigger>
-            </TabsList>
+            <div className="flex items-center justify-between mb-6 bg-black/20 p-2 rounded-lg border border-white/5">
+              <TabsList className="bg-transparent border-none">
+                <TabsTrigger value="profiles" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Profils</TabsTrigger>
+                <TabsTrigger value="races" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Races</TabsTrigger>
+                <TabsTrigger value="prestiges" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Prestiges</TabsTrigger>
+              </TabsList>
+
+              <div className="flex items-center gap-4">
+                {activeTabMain === 'profiles' && (
+                  <Select
+                    value={selectedProfile || "none"}
+                    onValueChange={(val) => {
+                      if (val === "none") {
+                        clearProfileFilter();
+                      } else {
+                        const profile = profiles.find(p => p.value === val);
+                        if (profile) handleProfileChange(profile.value, profile.label);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                      <SelectValue placeholder="Profil..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white max-h-60">
+                      <SelectGroup>
+                        <SelectItem value="none">Tous les profils</SelectItem>
+                        {profiles.map((profile) => (
+                          <SelectItem key={profile.value} value={profile.value}>
+                            {profile.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {activeTabMain === 'races' && (
+                  <Select
+                    value={selectedRace || "none"}
+                    onValueChange={(val) => {
+                      if (val === "none") {
+                        clearRaceFilter();
+                      } else {
+                        const race = races.find(r => r.value === val);
+                        if (race) handleRaceChange(race.value, race.label);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                      <SelectValue placeholder="Race..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white max-h-60">
+                      <SelectGroup>
+                        <SelectItem value="none">Toutes les races</SelectItem>
+                        {races.map((race) => (
+                          <SelectItem key={race.value} value={race.value}>
+                            {race.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {activeTabMain === 'prestiges' && (
+                  <Select
+                    value={selectedPrestige || "none"}
+                    onValueChange={(val) => {
+                      if (val === "none") {
+                        clearPrestigeFilter();
+                      } else {
+                        const prestige = prestigeClasses.find(p => p.value === val);
+                        if (prestige) handlePrestigeChange(prestige.value, prestige.label);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                      <SelectValue placeholder="Classe..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white max-h-60">
+                      <SelectGroup>
+                        <SelectItem value="none">Toutes les classes</SelectItem>
+                        {prestigeClasses.map((prestige) => (
+                          <SelectItem key={prestige.value} value={prestige.value}>
+                            {prestige.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
 
             <TabsContent value="profiles">
-              <div className="mb-4 relative">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block font-semibold text-[var(--text-primary)]">Filtrer par profil</label>
-                  {selectedProfile && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearProfileFilter}
-                      className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
-                    >
-                      <X className="w-4 h-4 mr-1" />
-                      Effacer filtre
-                    </Button>
-                  )}
-                </div>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={profileSearchTerm}
-                    onChange={(e) => setProfileSearchTerm(e.target.value)}
-                    onFocus={() => setIsProfileInputFocused(true)}
-                    onBlur={() => setTimeout(() => setIsProfileInputFocused(false), 200)}
-                    placeholder={selectedProfile ? `Filtré par: ${profiles.find(p => p.value === selectedProfile)?.label}` : "Filtrer par profil..."}
-                    className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
-                  />
-                  {isProfileInputFocused && (
-                    <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
-                      {filteredProfiles.length > 0 ? (
-                        filteredProfiles.map((profile) => (
-                          <div
-                            key={profile.value}
-                            onClick={() => handleProfileChange(profile.value, profile.label)}
-                            className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4 text-[var(--accent-brown)]",
-                                selectedProfile === profile.value ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            <span className="text-[var(--text-primary)]">
-                              {profile.label} <span className="text-[var(--text-secondary)] text-xs">(5 voies)</span>
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
-                          Aucun profil trouvé.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {replacementVoies.map((voie, index) => (
                   <Card
@@ -1228,58 +1278,6 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
             </TabsContent>
 
             <TabsContent value="races">
-              <div className="mb-4 relative">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block font-semibold text-[var(--text-primary)]">Filtrer par race</label>
-                  {selectedRace && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearRaceFilter}
-                      className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
-                    >
-                      <X className="w-4 h-4 mr-1" />
-                      Effacer filtre
-                    </Button>
-                  )}
-                </div>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={raceSearchTerm}
-                    onChange={(e) => setRaceSearchTerm(e.target.value)}
-                    onFocus={() => setIsRaceInputFocused(true)}
-                    onBlur={() => setTimeout(() => setIsRaceInputFocused(false), 200)}
-                    placeholder={selectedRace ? `Filtré par: ${races.find(r => r.value === selectedRace)?.label}` : "Filtrer par race..."}
-                    className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
-                  />
-                  {isRaceInputFocused && (
-                    <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
-                      {filteredRaces.length > 0 ? (
-                        filteredRaces.map((race) => (
-                          <div
-                            key={race.value}
-                            onClick={() => handleRaceChange(race.value, race.label)}
-                            className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4 text-[var(--accent-brown)]",
-                                selectedRace === race.value ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            <span className="text-[var(--text-primary)]">{race.label}</span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
-                          Aucune race trouvée.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {replacementVoies.map((voie, index) => (
                   <Card
@@ -1314,60 +1312,6 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
             </TabsContent>
 
             <TabsContent value="prestiges">
-              <div className="mb-4 relative">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block font-semibold text-[var(--text-primary)]">Filtrer par classe de prestige</label>
-                  {selectedPrestige && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearPrestigeFilter}
-                      className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
-                    >
-                      <X className="w-4 h-4 mr-1" />
-                      Effacer filtre
-                    </Button>
-                  )}
-                </div>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={prestigeSearchTerm}
-                    onChange={(e) => setPrestigeSearchTerm(e.target.value)}
-                    onFocus={() => setIsPrestigeInputFocused(true)}
-                    onBlur={() => setTimeout(() => setIsPrestigeInputFocused(false), 200)}
-                    placeholder={selectedPrestige ? `Filtré par: ${prestigeClasses.find(p => p.value === selectedPrestige)?.label}` : "Filtrer par classe..."}
-                    className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
-                  />
-                  {isPrestigeInputFocused && (
-                    <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
-                      {filteredPrestigeClasses.length > 0 ? (
-                        filteredPrestigeClasses.map((prestige) => (
-                          <div
-                            key={prestige.value}
-                            onClick={() => handlePrestigeChange(prestige.value, prestige.label)}
-                            className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4 text-[var(--accent-brown)]",
-                                selectedPrestige === prestige.value ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            <span className="text-[var(--text-primary)]">
-                              {prestige.label} <span className="text-[var(--text-secondary)] text-xs">({prestige.count} voies)</span>
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
-                          Aucun prestige trouvé.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {replacementVoies.map((voie, index) => (
                   <Card
@@ -1414,17 +1358,23 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
 
               <div className="mb-4">
                 <label className="block font-semibold text-[var(--text-primary)] mb-2">Sélectionner une compétence</label>
-                <select
-                  className="p-2 border border-[var(--border-color)] rounded w-full bg-[var(--bg-dark)] text-[var(--text-primary)]"
-                  value={selectedCompetenceIndex || 0}
-                  onChange={(e) => setSelectedCompetenceIndex(parseInt(e.target.value))}
+                <Select
+                  value={String(selectedCompetenceIndex || 0)}
+                  onValueChange={(val) => setSelectedCompetenceIndex(parseInt(val))}
                 >
-                  {selectedReplacement.competences.map((competence, index) => (
-                    <option key={index} value={index}>
-                      {competence.titre}
-                    </option>
-                  ))}
-                </select>
+                  <SelectTrigger className="w-full bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white">
+                    <SelectGroup>
+                      {selectedReplacement.competences.map((competence, index) => (
+                        <SelectItem key={index} value={String(index)}>
+                          {competence.titre}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  </SelectContent>
+                </Select>
               </div>
 
               {selectedCompetenceIndex !== null && (
@@ -1469,70 +1419,105 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
             )}
           </DialogTitle>
 
-          <Tabs defaultValue="profiles" onValueChange={(type) => {
+          <Tabs value={activeTabComp} onValueChange={(type) => {
+            setActiveTabComp(type);
             fetchCompetenceReplacementVoies(type);
           }}>
-            <TabsList>
-              <TabsTrigger value="profiles">Profils</TabsTrigger>
-              <TabsTrigger value="races">Races</TabsTrigger>
-              <TabsTrigger value="prestiges">Prestiges</TabsTrigger>
-            </TabsList>
+            <div className="flex items-center justify-between mb-6 bg-black/20 p-2 rounded-lg border border-white/5">
+              <TabsList className="bg-transparent border-none">
+                <TabsTrigger value="profiles" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Profils</TabsTrigger>
+                <TabsTrigger value="races" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Races</TabsTrigger>
+                <TabsTrigger value="prestiges" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Prestiges</TabsTrigger>
+              </TabsList>
+
+              <div className="flex items-center gap-4">
+                {activeTabComp === 'profiles' && (
+                  <Select
+                    value={selectedProfileForCompetence || "none"}
+                    onValueChange={(val) => {
+                      if (val === "none") {
+                        clearProfileForCompetenceFilter();
+                      } else {
+                        const profile = profiles.find(p => p.value === val);
+                        if (profile) handleProfileForCompetenceChange(profile.value, profile.label);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                      <SelectValue placeholder="Profil..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white max-h-60">
+                      <SelectGroup>
+                        <SelectItem value="none">Tous les profils</SelectItem>
+                        {profiles.map((profile) => (
+                          <SelectItem key={profile.value} value={profile.value}>
+                            {profile.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {activeTabComp === 'races' && (
+                  <Select
+                    value={selectedRaceForCompetence || "none"}
+                    onValueChange={(val) => {
+                      if (val === "none") {
+                        clearRaceForCompetenceFilter();
+                      } else {
+                        const race = races.find(r => r.value === val);
+                        if (race) handleRaceForCompetenceChange(race.value, race.label);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                      <SelectValue placeholder="Race..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white max-h-60">
+                      <SelectGroup>
+                        <SelectItem value="none">Toutes les races</SelectItem>
+                        {races.map((race) => (
+                          <SelectItem key={race.value} value={race.value}>
+                            {race.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
+
+                {activeTabComp === 'prestiges' && (
+                  <Select
+                    value={selectedPrestigeForCompetence || "none"}
+                    onValueChange={(val) => {
+                      if (val === "none") {
+                        clearPrestigeForCompetenceFilter();
+                      } else {
+                        const prestige = prestigeClasses.find(p => p.value === val);
+                        if (prestige) handlePrestigeForCompetenceChange(prestige.value, prestige.label);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+                      <SelectValue placeholder="Classe..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white max-h-60">
+                      <SelectGroup>
+                        <SelectItem value="none">Toutes les classes</SelectItem>
+                        {prestigeClasses.map((prestige) => (
+                          <SelectItem key={prestige.value} value={prestige.value}>
+                            {prestige.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
 
             <TabsContent value="profiles">
-              <div className="mb-4 relative">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block font-semibold text-[var(--text-primary)]">Filtrer par profil</label>
-                  {selectedProfileForCompetence && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearProfileForCompetenceFilter}
-                      className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
-                    >
-                      <X className="w-4 h-4 mr-1" />
-                      Effacer filtre
-                    </Button>
-                  )}
-                </div>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={profileForCompetenceSearchTerm}
-                    onChange={(e) => setProfileForCompetenceSearchTerm(e.target.value)}
-                    onFocus={() => setIsProfileForCompetenceInputFocused(true)}
-                    onBlur={() => setTimeout(() => setIsProfileForCompetenceInputFocused(false), 200)}
-                    placeholder={selectedProfileForCompetence ? `Filtré par: ${profiles.find(p => p.value === selectedProfileForCompetence)?.label}` : "Filtrer par profil..."}
-                    className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
-                  />
-                  {isProfileForCompetenceInputFocused && (
-                    <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
-                      {filteredProfilesForCompetence.length > 0 ? (
-                        filteredProfilesForCompetence.map((profile) => (
-                          <div
-                            key={profile.value}
-                            onClick={() => handleProfileForCompetenceChange(profile.value, profile.label)}
-                            className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4 text-[var(--accent-brown)]",
-                                selectedProfileForCompetence === profile.value ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            <span className="text-[var(--text-primary)]">
-                              {profile.label} <span className="text-[var(--text-secondary)] text-xs">(5 voies)</span>
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
-                          Aucun profil trouvé.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {competenceReplacementVoies.map((voie, index) => (
                   <Card
@@ -1565,58 +1550,6 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
             </TabsContent>
 
             <TabsContent value="races">
-              <div className="mb-4 relative">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block font-semibold text-[var(--text-primary)]">Filtrer par race</label>
-                  {selectedRaceForCompetence && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearRaceForCompetenceFilter}
-                      className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
-                    >
-                      <X className="w-4 h-4 mr-1" />
-                      Effacer filtre
-                    </Button>
-                  )}
-                </div>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={raceForCompetenceSearchTerm}
-                    onChange={(e) => setRaceForCompetenceSearchTerm(e.target.value)}
-                    onFocus={() => setIsRaceForCompetenceInputFocused(true)}
-                    onBlur={() => setTimeout(() => setIsRaceForCompetenceInputFocused(false), 200)}
-                    placeholder={selectedRaceForCompetence ? `Filtré par: ${races.find(r => r.value === selectedRaceForCompetence)?.label}` : "Filtrer par race..."}
-                    className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
-                  />
-                  {isRaceForCompetenceInputFocused && (
-                    <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
-                      {filteredRacesForCompetence.length > 0 ? (
-                        filteredRacesForCompetence.map((race) => (
-                          <div
-                            key={race.value}
-                            onClick={() => handleRaceForCompetenceChange(race.value, race.label)}
-                            className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4 text-[var(--accent-brown)]",
-                                selectedRaceForCompetence === race.value ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            <span className="text-[var(--text-primary)]">{race.label}</span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
-                          Aucune race trouvée.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {competenceReplacementVoies.map((voie, index) => (
                   <Card
@@ -1649,60 +1582,6 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
             </TabsContent>
 
             <TabsContent value="prestiges">
-              <div className="mb-4 relative">
-                <div className="flex items-center justify-between mb-2">
-                  <label className="block font-semibold text-[var(--text-primary)]">Filtrer par classe de prestige</label>
-                  {selectedPrestigeForCompetence && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={clearPrestigeForCompetenceFilter}
-                      className="text-[var(--accent-brown)] hover:text-[var(--text-primary)]"
-                    >
-                      <X className="w-4 h-4 mr-1" />
-                      Effacer filtre
-                    </Button>
-                  )}
-                </div>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={prestigeForCompetenceSearchTerm}
-                    onChange={(e) => setPrestigeForCompetenceSearchTerm(e.target.value)}
-                    onFocus={() => setIsPrestigeForCompetenceInputFocused(true)}
-                    onBlur={() => setTimeout(() => setIsPrestigeForCompetenceInputFocused(false), 200)}
-                    placeholder={selectedPrestigeForCompetence ? `Filtré par: ${prestigeClasses.find(p => p.value === selectedPrestigeForCompetence)?.label}` : "Filtrer par classe..."}
-                    className="w-full p-3 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
-                  />
-                  {isPrestigeForCompetenceInputFocused && (
-                    <div className="absolute z-50 w-full mt-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded shadow-lg max-h-60 overflow-y-auto">
-                      {filteredPrestigeClassesForCompetence.length > 0 ? (
-                        filteredPrestigeClassesForCompetence.map((prestige) => (
-                          <div
-                            key={prestige.value}
-                            onClick={() => handlePrestigeForCompetenceChange(prestige.value, prestige.label)}
-                            className="flex items-center p-3 cursor-pointer hover:bg-[var(--bg-card)] transition-colors"
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4 text-[var(--accent-brown)]",
-                                selectedPrestigeForCompetence === prestige.value ? "opacity-100" : "opacity-0"
-                              )}
-                            />
-                            <span className="text-[var(--text-primary)]">
-                              {prestige.label} <span className="text-[var(--text-secondary)] text-xs">({prestige.count} voies)</span>
-                            </span>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-6 text-center text-[var(--text-secondary)] text-sm">
-                          Aucun prestige trouvé.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {competenceReplacementVoies.map((voie, index) => (
                   <Card
