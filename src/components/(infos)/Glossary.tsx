@@ -1,9 +1,19 @@
 "use client"
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, Shield, Heart, Skull, Sword, Sparkles, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
+import { Search, Shield, BookOpen, Scroll, Skull, Heart, Sword, Sparkles, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import HTMLFlipBook from "react-pageflip";
+import { cn } from "@/lib/utils";
+import { mapImagePath } from "@/utils/imagePathMapper";
 
 // CSS embedded directly in component for specific flipbook needs
 const flipbookStyles = `
@@ -174,23 +184,67 @@ export default function Glossary() {
     const bookRef = useRef<any>(null);
 
     useEffect(() => {
-        Promise.all([
-            fetch('/tabs/bestiairy.json').then(res => res.json()),
-            fetch('/tabs/profile.json').then(res => res.json()),
-            fetch('/tabs/race.json').then(res => res.json()),
-            fetch('/tabs/capacites.json').then(res => res.json())
-        ])
-            .then(([bestiaryData, profileData, raceData, capsData]) => {
-                setMonsters(Object.entries(bestiaryData as Record<string, Omit<Monster, 'id'>>).map(([id, val]) => ({ id, ...val })));
-                setProfiles(Object.entries(profileData as Record<string, Omit<Profile, 'id'>>).map(([id, val]) => ({ id, ...val })));
-                setRaces(Object.entries(raceData as Record<string, Omit<Race, 'id'>>).map(([id, val]) => ({ id, ...val })));
+        const fetchAllData = async () => {
+            try {
+                const [bestiaryData, profileData, raceData, capsData, mappingsResponse] = await Promise.all([
+                    fetch('/tabs/bestiairy.json').then(res => res.json()),
+                    fetch('/tabs/profile.json').then(res => res.json()),
+                    fetch('/tabs/race.json').then(res => res.json()),
+                    fetch('/tabs/capacites.json').then(res => res.json()),
+                    fetch('/asset-mappings.json').then(res => res.json()).catch(() => [])
+                ]);
+
+                // Create a fast lookup map for assets
+                const assetMap = new Map<string, string>();
+                if (Array.isArray(mappingsResponse)) {
+                    mappingsResponse.forEach((m: any) => {
+                        if (m.localPath && m.path) {
+                            assetMap.set(m.localPath, m.path);
+                        }
+                    });
+                }
+
+                const resolveAsset = (path: string) => {
+                    if (!path) return "/placeholder.png";
+                    if (path.startsWith('http')) {
+                        return path;
+                    }
+                    return assetMap.get(path) || path;
+                };
+
+                // Map monster images
+                const resolvedMonsters = Object.entries(bestiaryData as Record<string, Omit<Monster, 'id'>>).map(([id, val]) => ({
+                    id,
+                    ...val,
+                    image: resolveAsset(val.image)
+                }));
+                setMonsters(resolvedMonsters);
+
+                // Map profile images
+                const resolvedProfiles = Object.entries(profileData as Record<string, Omit<Profile, 'id'>>).map(([id, val]) => ({
+                    id,
+                    ...val,
+                    image: resolveAsset(val.image)
+                }));
+                setProfiles(resolvedProfiles);
+
+                // Map race images
+                const resolvedRaces = Object.entries(raceData as Record<string, Omit<Race, 'id'>>).map(([id, val]) => ({
+                    id,
+                    ...val,
+                    image: resolveAsset(val.image)
+                }));
+                setRaces(resolvedRaces);
+
                 setCapabilities(capsData);
                 setLoading(false);
-            })
-            .catch(err => {
+            } catch (err) {
                 console.error("Failed to load glossary data", err);
                 setLoading(false);
-            });
+            }
+        };
+
+        fetchAllData();
     }, []);
 
     const categoryTranslation: Record<string, string> = {
@@ -280,64 +334,82 @@ export default function Glossary() {
     }
 
     return (
-        <div className="h-screen bg-[var(--bg-canvas)] flex flex-col overflow-hidden relative">
+        <div className="h-full w-full flex flex-col overflow-hidden relative p-4 md:p-8">
             <style dangerouslySetInnerHTML={{ __html: flipbookStyles }} />
 
-            {/* Top Header Controls */}
-            <div className="relative z-20 pt-8 pb-4 px-8 w-full max-w-7xl mx-auto flex flex-col items-center gap-6">
-                <div className="flex gap-4 max-w-4xl justify-center w-full">
+            {/* Top Minimal Controls */}
+            <div className="relative z-20 pb-8 shrink-0 w-full max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-6">
+                <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 gap-1 shrink-0">
                     <button
                         onClick={() => setActiveTab('bestiaire')}
-                        className={activeTab === 'bestiaire' ? 'button-primary' : 'button-cancel'}
+                        className={cn(
+                            "flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-all",
+                            activeTab === 'bestiaire'
+                                ? "bg-[#c0a080] text-[#1c1c1c] shadow-lg shadow-[#c0a080]/20"
+                                : "text-[#c0a080]/60 hover:text-[#c0a080] hover:bg-white/5"
+                        )}
                     >
+                        <Skull className="w-4 h-4" />
                         Bestiaire
                     </button>
                     <button
                         onClick={() => setActiveTab('classes')}
-                        className={activeTab === 'classes' ? 'button-primary' : 'button-cancel'}
+                        className={cn(
+                            "flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-all",
+                            activeTab === 'classes'
+                                ? "bg-[#c0a080] text-[#1c1c1c] shadow-lg shadow-[#c0a080]/20"
+                                : "text-[#c0a080]/60 hover:text-[#c0a080] hover:bg-white/5"
+                        )}
                     >
+                        <BookOpen className="w-4 h-4" />
                         Classes
                     </button>
                     <button
                         onClick={() => setActiveTab('races')}
-                        className={activeTab === 'races' ? 'button-primary' : 'button-cancel'}
+                        className={cn(
+                            "flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-all",
+                            activeTab === 'races'
+                                ? "bg-[#c0a080] text-[#1c1c1c] shadow-lg shadow-[#c0a080]/20"
+                                : "text-[#c0a080]/60 hover:text-[#c0a080] hover:bg-white/5"
+                        )}
                     >
+                        <Scroll className="w-4 h-4" />
                         Races
                     </button>
                 </div>
 
                 {/* Search Bar & Filters Layout */}
-                <div className="w-full max-w-3xl mx-auto flex gap-4">
-                    <div className="relative w-full flex items-center">
-                        <Search className="absolute left-3 text-[var(--text-secondary)] w-5 h-5 pointer-events-none" />
+                <div className="flex-1 w-full flex gap-4">
+                    <div className="relative flex-1 group">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c0a080]/40 group-focus-within:text-[#c0a080] w-4 h-4 transition-colors" />
                         <input
                             type="text"
-                            placeholder={activeTab === 'bestiaire' ? "Rechercher dans le bestiaire..." : activeTab === 'classes' ? "Chercher une classe..." : "Chercher une race..."}
+                            placeholder={activeTab === 'bestiaire' ? "Rechercher une créature..." : activeTab === 'classes' ? "Chercher une classe..." : "Chercher une race..."}
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
-                            className="input-field !pl-10 h-12"
+                            className="w-full bg-black/60 border border-[#c0a080]/20 rounded-xl pl-12 pr-4 py-2.5 text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-[#c0a080]/50 focus:ring-1 focus:ring-[#c0a080]/20 transition-all font-papyrus"
                         />
                     </div>
 
-                    {/* Dropdown for Bestiary Categories */}
                     {activeTab === 'bestiaire' && categories.length > 0 && (
-                        <div className="relative w-1/3">
-                            <select
-                                value={selectedCategory || ''}
-                                onChange={(e) => setSelectedCategory(e.target.value === '' ? null : e.target.value)}
-                                className="input-field appearance-none !pr-8 cursor-pointer capitalize h-12"
-                            >
-                                <option value="">Tous les types</option>
-                                {categories.map(cat => (
-                                    <option key={cat} value={cat}>
-                                        {categoryTranslation[cat] || cat}
-                                    </option>
-                                ))}
-                            </select>
-                            <div className="absolute top-1/2 right-3 -translate-y-1/2 pointer-events-none">
-                                <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] rotate-90" />
-                            </div>
-                        </div>
+                        <Select
+                            value={selectedCategory || "all"}
+                            onValueChange={(val) => setSelectedCategory(val === "all" ? null : val)}
+                        >
+                            <SelectTrigger className="w-48 bg-black/60 border-[#c0a080]/20 rounded-xl text-white font-papyrus">
+                                <SelectValue placeholder="Tous les types" />
+                            </SelectTrigger>
+                            <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white font-papyrus">
+                                <SelectGroup>
+                                    <SelectItem value="all">Tous les types</SelectItem>
+                                    {categories.map(cat => (
+                                        <SelectItem key={cat} value={cat} className="capitalize">
+                                            {categoryTranslation[cat] || cat}
+                                        </SelectItem>
+                                    ))}
+                                </SelectGroup>
+                            </SelectContent>
+                        </Select>
                     )}
                 </div>
             </div>

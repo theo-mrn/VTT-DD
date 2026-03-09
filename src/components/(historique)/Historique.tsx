@@ -15,6 +15,14 @@ import {
     DialogClose,
 } from "@/components/ui/dialog";
 import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
@@ -377,18 +385,20 @@ export default function Historique({ roomId }: HistoriqueProps) {
 
                             {/* Controls row */}
                             <div className="flex items-center gap-3 mt-4">
-                                <select
-                                    value={selectedDate || ''}
-                                    onChange={(e) => setSelectedDate(e.target.value)}
-                                    className="flex-1 bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-lg px-3 py-2 text-xs font-semibold focus:ring-1 focus:ring-[var(--accent-brown)]/50 outline-none appearance-none cursor-pointer hover:border-[var(--accent-brown)]/30 transition-colors"
-                                >
-                                    <option value="" disabled>Choisir une date...</option>
-                                    {historyDates.map(date => (
-                                        <option key={date} value={date}>
-                                            {format(new Date(date), 'dd MMMM yyyy', { locale: fr })}
-                                        </option>
-                                    ))}
-                                </select>
+                                <Select value={selectedDate || ""} onValueChange={setSelectedDate}>
+                                    <SelectTrigger className="flex-1 bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] rounded-lg px-3 py-2 text-xs font-semibold">
+                                        <SelectValue placeholder="Choisir une date..." />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white">
+                                        <SelectGroup>
+                                            {historyDates.map(date => (
+                                                <SelectItem key={date} value={date}>
+                                                    {format(new Date(date), 'dd MMMM yyyy', { locale: fr })}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectGroup>
+                                    </SelectContent>
+                                </Select>
                                 <button
                                     onClick={generateSummary}
                                     disabled={isSummarizing || !selectedDate}

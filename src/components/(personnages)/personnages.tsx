@@ -13,6 +13,14 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
 import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { useParams } from 'next/navigation'
@@ -765,16 +773,24 @@ function InspectorView({
                     <div className="flex flex-wrap items-center gap-2">
                         {/* Category Selector/Badge */}
                         {isEditing ? (
-                            <select
-                                className="bg-[#c0a080] text-black text-[10px] uppercase font-bold tracking-wider rounded px-2 py-1 outline-none cursor-pointer border-none"
-                                value={isEditing && char ? (categories.find(c => c.id === category?.id)?.id || '') : ''}
-                                onChange={(e) => onCategoryChange(e.target.value || null)}
+                            <Select
+                                value={category?.id || ''}
+                                onValueChange={(val) => onCategoryChange(val === '' ? null : val)}
                             >
-                                <option value="">Sans catégorie</option>
-                                {categories.map(c => (
-                                    <option key={c.id} value={c.id}>{c.name}</option>
-                                ))}
-                            </select>
+                                <SelectTrigger className="w-fit bg-[#c0a080] text-black text-[10px] uppercase font-bold tracking-wider rounded px-2 py-1 outline-none cursor-pointer border-none h-auto data-[placeholder]:text-black/70">
+                                    <SelectValue placeholder="Sans catégorie" />
+                                </SelectTrigger>
+                                <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white">
+                                    <SelectGroup>
+                                        <SelectItem value="">Sans catégorie</SelectItem>
+                                        {categories.map((cat) => (
+                                            <SelectItem key={cat.id} value={cat.id}>
+                                                {cat.name}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectGroup>
+                                </SelectContent>
+                            </Select>
                         ) : (
                             category && (
                                 <Badge className="bg-[#c0a080] text-black hover:bg-[#c0a080] border-none text-[10px] uppercase font-bold tracking-wider">

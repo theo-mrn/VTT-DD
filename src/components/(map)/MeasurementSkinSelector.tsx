@@ -1,5 +1,13 @@
 
 import React from 'react';
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
 export const FIREBALL_SKIN_OPTIONS = [
     { label: 'Explosion 1', value: 'Fireballs/explosion1.webm' },
@@ -46,15 +54,20 @@ export default function MeasurementSkinSelector({ selectedSkin, onSkinChange, sh
     return (
         <div className="flex items-center gap-2 px-3 py-1.5 bg-[#0a0a0a]/90 backdrop-blur-xl border border-[#333] rounded-lg shadow-lg">
             <span className="text-[#c0a080] text-xs font-medium uppercase tracking-wider">Skin</span>
-            <select
-                value={selectedSkin}
-                onChange={(e) => onSkinChange(e.target.value)}
-                className="bg-black/50 text-white border border-white/10 rounded px-2 py-0.5 text-xs focus:outline-none focus:border-[#c0a080] transition-colors"
-            >
-                {options.map(opt => (
-                    <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-            </select>
+            <Select value={selectedSkin} onValueChange={onSkinChange}>
+                <SelectTrigger className="w-[140px] bg-black/50 text-white border-white/10 h-7 text-xs">
+                    <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white">
+                    <SelectGroup>
+                        {options.map(opt => (
+                            <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                                {opt.label}
+                            </SelectItem>
+                        ))}
+                    </SelectGroup>
+                </SelectContent>
+            </Select>
         </div>
     );
 }

@@ -25,10 +25,7 @@ import { useTheme } from "next-themes";
 import { ThemeName } from "@/lib/saveSettings";
 import { cn } from "@/lib/utils";
 
-import Marketplace from "@/components/(infos)/Information";
-import Capacites from "@/components/(infos)/capacites";
-import Images from "@/components/(infos)/images";
-import Glossary from "@/components/(infos)/Glossary";
+// Resource components are now on the /ressources page
 import { StoreModal } from "@/components/store/store-modal";
 import { RoomUsersManager } from "@/app/Salle/components/RoomUsersManager";
 import { RoomSettingsManager } from "@/app/Salle/components/RoomSettingsManager";
@@ -248,18 +245,10 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
         <button
           className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
-          onClick={() => setOpenDialog("capacites")}
+          onClick={() => window.open('/ressources', '_blank')}
         >
-          <Zap className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
-          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Capacités</span>
-        </button>
-
-        <button
-          className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
-          onClick={() => setOpenDialog("images")}
-        >
-          <ImageIcon className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
-          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Images</span>
+          <BookOpen className="w-5 h-5 text-[var(--accent-brown)]" />
+          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors font-bold">Ressources & Hub</span>
         </button>
 
         {isMJ && (
@@ -271,22 +260,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
             <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Bibliothèque</span>
           </button>
         )}
-
-        <button
-          className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
-          onClick={() => setOpenDialog("information")}
-        >
-          <Store className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
-          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Marché</span>
-        </button>
-
-        <button
-          className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
-          onClick={() => setOpenDialog("bestiaire")}
-        >
-          <Skull className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
-          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Bestiaire</span>
-        </button>
 
         <button
           className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
@@ -452,42 +425,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
         isMJ={isOwner}
       />
 
-      {/* Info Full Screen Overlays */}
-      {openDialog === 'capacites' && (
-        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] overflow-y-auto w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
-          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
-            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
-          </button>
-          <Capacites />
-        </div>
-      )}
-
-      {openDialog === 'images' && (
-        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] overflow-y-auto w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
-          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
-            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
-          </button>
-          <Images />
-        </div>
-      )}
-
-      {openDialog === 'information' && (
-        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] overflow-y-auto w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
-          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
-            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
-          </button>
-          <Marketplace />
-        </div>
-      )}
-
-      {openDialog === 'bestiaire' && (
-        <div className="fixed inset-0 z-[5000] bg-[var(--bg-dark)] overflow-y-auto w-screen h-screen slide-in-from-bottom-2 animate-in duration-300">
-          <button onClick={() => setOpenDialog(null)} className="fixed top-6 right-6 z-[5010] p-3 bg-black/60 hover:bg-red-500/80 text-white rounded-full transition-all backdrop-blur-md shadow-lg group">
-            <X className="w-6 h-6 group-hover:scale-110 transition-transform" />
-          </button>
-          <Glossary />
-        </div>
-      )}
+      {/* Resources are now on a separate page /ressources */}
 
       <StoreModal
         isOpen={openDialog === 'boutique'}

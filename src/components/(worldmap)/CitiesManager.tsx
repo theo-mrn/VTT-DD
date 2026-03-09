@@ -21,6 +21,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import BackgroundSelector from "@/components/(map)/BackgroundSelector";
+import {
+    Select,
+    SelectContent,
+    SelectGroup,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 
 
 interface Scene {
@@ -893,16 +901,24 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                                         </div>
                                         <div className="space-y-2">
                                             <Label className="uppercase text-xs font-bold text-gray-500 tracking-wider text-white">Groupe</Label>
-                                            <select
-                                                value={formData.groupId}
-                                                onChange={(e) => setFormData({ ...formData, groupId: e.target.value })}
-                                                className="w-full h-10 px-3 rounded-md bg-[#1a1a1a] border border-white/10 text-white focus:outline-none focus:border-[#c0a080]/50"
+                                            <Select
+                                                value={formData.groupId || "uncategorized"}
+                                                onValueChange={(val) => setFormData({ ...formData, groupId: val === "uncategorized" ? "" : val })}
                                             >
-                                                <option value="" className="bg-[#111]">Non classé</option>
-                                                {groups.map(g => (
-                                                    <option key={g.id} value={g.id} className="bg-[#111]">{g.name}</option>
-                                                ))}
-                                            </select>
+                                                <SelectTrigger className="w-full bg-[#1a1a1a] border-white/10 text-white focus:ring-0 focus:border-[#c0a080]/50">
+                                                    <SelectValue placeholder="Non classé" />
+                                                </SelectTrigger>
+                                                <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white">
+                                                    <SelectGroup>
+                                                        <SelectItem value="uncategorized">Non classé</SelectItem>
+                                                        {groups.map(g => (
+                                                            <SelectItem key={g.id} value={g.id}>
+                                                                {g.name}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectGroup>
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                     </div>
 

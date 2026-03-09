@@ -34,12 +34,12 @@ export default function Marketplace() {
   }, [])
 
   // Filter categories to exclude certain ones
-  const categories = Object.keys(data).filter(category => 
+  const categories = Object.keys(data).filter(category =>
     !['potions', 'vetements', 'immobilier', 'artisanat_materiaux', 'animaux_familiers'].includes(category)
   );
 
   const filterItems = (items: Item[]): Item[] => {
-    return items.filter(item => 
+    return items.filter(item =>
       Object.values(item).some(value =>
         value?.toLowerCase().includes(searchTerm.toLowerCase())
       )
@@ -51,21 +51,21 @@ export default function Marketplace() {
       case 'armes':
         return (
           <>
-            <TableHead>Nom</TableHead>
-            <TableHead>Type</TableHead>
-            <TableHead>Portée</TableHead>
-            <TableHead>Dégâts</TableHead>
-            <TableHead>Prix</TableHead>
+            <TableHead className="text-[#c0a080] font-bold">Nom</TableHead>
+            <TableHead className="text-[#c0a080] font-bold">Type</TableHead>
+            <TableHead className="text-[#c0a080] font-bold">Portée</TableHead>
+            <TableHead className="text-[#c0a080] font-bold">Dégâts</TableHead>
+            <TableHead className="text-[#c0a080] font-bold">Prix</TableHead>
           </>
         );
       case 'armures':
         return (
           <>
-            <TableHead>Nom</TableHead>
-            <TableHead>DEF</TableHead>
-            <TableHead>Commentaires</TableHead>
-            <TableHead>Prix</TableHead>
-         
+            <TableHead className="text-[#c0a080] font-bold">Nom</TableHead>
+            <TableHead className="text-[#c0a080] font-bold">DEF</TableHead>
+            <TableHead className="text-[#c0a080] font-bold">Commentaires</TableHead>
+            <TableHead className="text-[#c0a080] font-bold">Prix</TableHead>
+
           </>
         );
       case 'objets':
@@ -73,9 +73,9 @@ export default function Marketplace() {
       case 'vehicules':
         return (
           <>
-            <TableHead>Nom</TableHead>
-            {category === 'objets' || category === 'services' ? <TableHead>Effet</TableHead> : null}
-            <TableHead>Prix</TableHead>
+            <TableHead className="text-[#c0a080] font-bold">Nom</TableHead>
+            {category === 'objets' || category === 'services' ? <TableHead className="text-[#c0a080] font-bold">Effet</TableHead> : null}
+            <TableHead className="text-[#c0a080] font-bold">Prix</TableHead>
           </>
         );
       case 'nourriture':
@@ -83,15 +83,15 @@ export default function Marketplace() {
       case 'logement':
         return (
           <>
-            <TableHead>Nom</TableHead>
-            <TableHead>Prix</TableHead>
+            <TableHead className="text-[#c0a080] font-bold">Nom</TableHead>
+            <TableHead className="text-[#c0a080] font-bold">Prix</TableHead>
           </>
         );
       default:
         return (
           <>
-            <TableHead>Nom</TableHead>
-            <TableHead>Prix</TableHead>
+            <TableHead className="text-[#c0a080] font-bold">Nom</TableHead>
+            <TableHead className="text-[#c0a080] font-bold">Prix</TableHead>
           </>
         );
     }
@@ -99,8 +99,8 @@ export default function Marketplace() {
 
   const renderTableRows = (category: string, items: Item[]) => {
     return items.map((item, index) => (
-      <TableRow key={index}>
-        <TableCell>{item.nom}</TableCell>
+      <TableRow key={index} className="border-[var(--border-color)] hover:bg-white/5 transition-colors">
+        <TableCell className="font-medium">{item.nom}</TableCell>
         {category === 'armes' && (
           <>
             <TableCell>{item.type}</TableCell>
@@ -111,54 +111,58 @@ export default function Marketplace() {
         {category === 'armures' && (
           <>
             <TableCell>{item.DEF}</TableCell>
-            <TableCell>{item.commentaires}</TableCell>
+            <TableCell className="text-sm opacity-80">{item.commentaires}</TableCell>
           </>
         )}
-        {(category === 'objets' || category === 'services') && <TableCell>{item.effet}</TableCell>}
-        <TableCell>{item.prix}</TableCell>
+        {(category === 'objets' || category === 'services') && <TableCell className="text-sm opacity-80">{item.effet}</TableCell>}
+        <TableCell className="text-[#c0a080] font-bold">{item.prix}</TableCell>
       </TableRow>
     ));
   };
 
   return (
-    <div className="min-h-screen p-8 font-papyrus">
-      <div className="max-w-6xl mx-auto bg-[var(--bg-dark)] rounded-xl shadow-xl overflow-hidden">
-        <div className="p-8">
-          <Input
-            type="search"
-            placeholder="Rechercher un objet..."
-            className="mb-6 bg-[var(--bg-dark)] text-white placeholder:text-gray-400 border-gray-700"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <Tabs defaultValue={categories[0]} className="w-full">
-            <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-12 gap-2 mb-8 bg-[var(--bg-darker)] text-white">
-              {categories.map((category) => (
-                <TabsTrigger
-                  key={category}
-                  value={category}
-                  onClick={() => setActiveCategory(category)}
-                  className={`px-2 py-1 rounded-lg ${activeCategory === category ? 'bg-primary text-white font-semibold' : 'text-gray-300 hover:text-white'}`}
-                >
-                  {category.charAt(0).toUpperCase() + category.slice(1).replace(/_/g, ' ')}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-            {categories.map((category) => (
-              <TabsContent key={category} value={category}>
-                <Table className="text-white">
-                  <TableHeader>
-                    <TableRow className="border-gray-700">{renderTableHeader(category)}</TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data[category] && renderTableRows(category, filterItems(data[category]))}
-                  </TableBody>
-                </Table>
-              </TabsContent>
-            ))}
-          </Tabs>
-        </div>
+    <div className="w-full h-full flex flex-col p-4 md:p-8 overflow-hidden">
+      <div className="flex flex-col md:flex-row gap-4 mb-6 shrink-0">
+        <Input
+          type="search"
+          placeholder="Rechercher un objet..."
+          className="flex-1 bg-black/40 border-[var(--border-color)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] focus:border-[#c0a080]"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
       </div>
+
+      <Tabs defaultValue={categories[0]} className="w-full flex-1 flex flex-col overflow-hidden">
+        <TabsList className="flex w-full justify-start gap-1 bg-black/20 p-1 h-auto rounded-xl border border-[var(--border-color)] mb-6 overflow-x-auto no-scrollbar shrink-0">
+          {categories.map((category) => (
+            <TabsTrigger
+              key={category}
+              value={category}
+              onClick={() => setActiveCategory(category)}
+              className="px-4 py-1.5 rounded-lg data-[state=active]:bg-[#c0a080] data-[state=active]:text-[var(--bg-dark)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all text-sm font-bold capitalize"
+            >
+              {category.replace(/_/g, ' ')}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <div className="flex-1 overflow-auto rounded-xl bg-black/20 border border-[var(--border-color)]">
+          {categories.map((category) => (
+            <TabsContent key={category} value={category} className="mt-0 outline-none">
+              <Table>
+                <TableHeader className="bg-black/40 sticky top-0 z-10">
+                  <TableRow className="border-[var(--border-color)] hover:bg-transparent uppercase text-[10px] tracking-widest">
+                    {renderTableHeader(category)}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data[category] && renderTableRows(category, filterItems(data[category]))}
+                </TableBody>
+              </Table>
+            </TabsContent>
+          ))}
+        </div>
+      </Tabs>
     </div>
   );
 }
