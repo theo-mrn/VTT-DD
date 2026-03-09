@@ -417,12 +417,6 @@ function MapToolbar({
                                         label="Calques"
                                         isActive={activeTools.includes(TOOLS.LAYERS)}
                                     />
-                                    <ToolButton onAction={onAction}
-                                        id={TOOLS.VISIBILITY}
-                                        icon={Eye}
-                                        label="Brouillard de Guerre"
-                                        isActive={activeTools.includes(TOOLS.VISIBILITY)}
-                                    />
                                     <div className="flex gap-0.5 bg-white/5 rounded-lg p-0.5 mx-1">
                                         <ToolButton onAction={onAction}
                                             id={TOOLS.BACKGROUND}
@@ -464,20 +458,6 @@ function MapToolbar({
                                         label="Point d'apparition"
                                         isActive={activeTools.includes(TOOLS.SPAWN_POINT)}
                                     />
-                                    <ToolButton onAction={onAction}
-                                        id={TOOLS.ADD_CHAR}
-                                        icon={CircleUserRound}
-                                        label="Ajouter PNJ"
-                                        isActive={activeTools.includes(TOOLS.ADD_CHAR)}
-                                    />
-                                    <div className="flex gap-0.5 ml-1">
-                                        <ToolButton onAction={onAction}
-                                            id={TOOLS.MUSIC}
-                                            icon={Volume2}
-                                            label="Musique"
-                                            isActive={activeTools.includes(TOOLS.MUSIC)}
-                                        />
-                                    </div>
                                 </div>
                             </>
                         )}

@@ -974,6 +974,7 @@ export default function Component() {
     fogCellSize,
     obstacles, setObstacles,
     visibilityMode, setVisibilityMode,
+
     currentVisibilityTool, setCurrentVisibilityTool,
     isDrawingObstacle, setIsDrawingObstacle,
     currentObstaclePoints, setCurrentObstaclePoints,
@@ -1013,6 +1014,8 @@ export default function Component() {
     featureType: 'door' | 'one-way-wall' | 'window';
   } | null>(null);
   const dragOverThrottleRef = useRef<number>(0);
+  // Active si le drawer standalone est ouvert OU si le drawer embedded a activé ses outils
+  const isVisActive = visibilityMode || (typeof window !== 'undefined' && (window as any).__visibilityToolsActive === true);
 
   const [audioCharacterId, setAudioCharacterId] = useState<string | null>(null);
   const handleConfigureCharacterAudio = (characterId: string) => {
@@ -2346,7 +2349,9 @@ export default function Component() {
     // Note: dataTransfer.getData() is not available during dragover (security),
     // but we can check types
     const hasJson = e.dataTransfer.types.includes('application/json');
-    if (!hasJson || !visibilityMode) {
+    // Allow preview when dragging an obstacle_feature from ANY drawer (including embedded in UnifiedSearchDrawer)
+    const isDraggingObstacleFeature = (window as any).__isDraggingObstacleFeature === true;
+    if (!hasJson || (!visibilityMode && !isDraggingObstacleFeature)) {
       if (dragFeaturePreview) setDragFeaturePreview(null);
       return;
     }
@@ -4610,7 +4615,7 @@ export default function Component() {
             const p1 = obs.points[0];
             const p2 = obs.points[obs.points.length - 1];
             return (d(p1, endPt) < 5 && d(p2, startPt) < 5) ||
-                   (d(p2, endPt) < 5 && d(p1, startPt) < 5);
+              (d(p2, endPt) < 5 && d(p1, startPt) < 5);
           });
           if (hasSharedWall) {
             // Cercle vert sur le snap point pour indiquer la fermeture
@@ -4652,7 +4657,7 @@ export default function Component() {
       }
 
       // 🔗 Dessiner le point d'accroche (snap point) si détecté
-      if (visibilityMode && snapPoint && (currentVisibilityTool === 'chain' || (currentVisibilityTool === 'edit' && isDraggingObstaclePoint))) {
+      if (isVisActive && snapPoint && (currentVisibilityTool === 'chain' || (currentVisibilityTool === 'edit' && isDraggingObstaclePoint))) {
         const sp = transformPoint(snapPoint);
         ctx.beginPath();
         ctx.strokeStyle = '#00BFFF';
@@ -5980,7 +5985,7 @@ export default function Component() {
 
       // 🔦 MODE VISIBILITÉ + OUTIL BROUILLARD - Accepte clic gauche ET droit
       // Placé AVANT le check sur e.button === 0 pour capturer les clics droits aussi
-      if (visibilityMode && currentVisibilityTool === 'fog' && (e.button === 0 || e.button === 2)) {
+      if (isVisActive && currentVisibilityTool === 'fog' && (e.button === 0 || e.button === 2)) {
         e.preventDefault(); // Empêcher le menu contextuel sur clic droit
         setIsFogDragging(true);
 
@@ -6079,7 +6084,7 @@ export default function Component() {
 
         // 🔦 MODE VISIBILITÉ + OUTIL BROUILLARD - Accepte clic gauche ET droit
         // Placé AVANT le check sur e.button === 0 pour capturer les clics droits aussi
-        if (visibilityMode && currentVisibilityTool === 'fog' && (e.button === 0 || e.button === 2)) {
+        if (isVisActive && currentVisibilityTool === 'fog' && (e.button === 0 || e.button === 2)) {
           e.preventDefault(); // Empêcher le menu contextuel sur clic droit
           setIsFogDragging(true);
 
@@ -6095,7 +6100,7 @@ export default function Component() {
         }
 
         // 🔦 MODE VISIBILITÉ - MODE EDIT (sélection et manipulation d'obstacles)
-        if (visibilityMode && currentVisibilityTool === 'edit' && isLayerVisible('obstacles')) {
+        if (isVisActive && currentVisibilityTool === 'edit' && isLayerVisible('obstacles')) {
           const handleRadius = 12 / zoom; // Rayon de détection des poignées
 
           // 1. Si un obstacle est sélectionné, vérifier si on clique sur une poignée
@@ -6224,7 +6229,7 @@ export default function Component() {
         }
 
         // 🔦 MODE VISIBILITÉ - OUTIL DESSIN UNIFIÉ (chain = murs + fermeture polygon)
-        if (visibilityMode && currentVisibilityTool === 'chain') {
+        if (isVisActive && currentVisibilityTool === 'chain') {
           // Désélectionner tout obstacle si on dessine
           setSelectedObstacleIds([]);
 
@@ -6267,7 +6272,7 @@ export default function Component() {
                   const d = (a: Point, b: Point) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
                   const snapDist = 5;
                   return (d(p1, endPoint) < snapDist && d(p2, startPoint) < snapDist) ||
-                         (d(p2, endPoint) < snapDist && d(p1, startPoint) < snapDist);
+                    (d(p2, endPoint) < snapDist && d(p1, startPoint) < snapDist);
                 });
 
                 if (closingWall) {
@@ -6875,7 +6880,7 @@ export default function Component() {
     }
 
     //  PRIORITÉ 0: Placement continu de brouillard pendant le drag
-    if (isFogDragging && (fogMode || (visibilityMode && currentVisibilityTool === 'fog'))) {
+    if (isFogDragging && (fogMode || (isVisActive && currentVisibilityTool === 'fog'))) {
       const addMode = isFogAddMode;
       addFogCellIfNew(currentX, currentY, addMode);
       return;
@@ -6883,7 +6888,7 @@ export default function Component() {
 
     // 🔗 DÉTECTION SNAP POINT (commun à Draw et Edit)
     let activeSnapPoint: Point | null = null;
-    if (visibilityMode && (currentVisibilityTool === 'chain' || (currentVisibilityTool === 'edit' && isDraggingObstaclePoint))) {
+    if (isVisActive && (currentVisibilityTool === 'chain' || (currentVisibilityTool === 'edit' && isDraggingObstaclePoint))) {
       const snapDistance = 25 / zoom;
       let minDist = snapDistance;
 
@@ -6912,7 +6917,7 @@ export default function Component() {
     }
 
     // ✏️ MODE EDIT - Drag d'une arête le long du mur parent
-    if (visibilityMode && currentVisibilityTool === 'edit' && isDraggingEdge && draggedEdgeIndex !== null && draggedEdgeObstacleId) {
+    if (isVisActive && currentVisibilityTool === 'edit' && isDraggingEdge && draggedEdgeIndex !== null && draggedEdgeObstacleId) {
       const n = draggedEdgeOriginalPoints.length;
       const edgeP1Idx = draggedEdgeIndex;
       const edgeP2Idx = (draggedEdgeIndex + 1) % n;
@@ -6970,7 +6975,7 @@ export default function Component() {
     }
 
     // ✏️ MODE EDIT - Drag d'un point individuel
-    if (visibilityMode && currentVisibilityTool === 'edit' && isDraggingObstaclePoint && dragStartPosRef.current) {
+    if (isVisActive && currentVisibilityTool === 'edit' && isDraggingObstaclePoint && dragStartPosRef.current) {
       // Utiliser le snap point ou la position souris
       let targetX = activeSnapPoint ? activeSnapPoint.x : currentX;
       let targetY = activeSnapPoint ? activeSnapPoint.y : currentY;
@@ -7010,7 +7015,7 @@ export default function Component() {
     }
 
 
-    if (visibilityMode && currentVisibilityTool === 'chain') {
+    if (isVisActive && currentVisibilityTool === 'chain') {
       // Pas de mise à jour en temps réel pendant le dessin
       // (les points sont fixés au clic, le preview utilise snapPoint)
       return;
@@ -8098,7 +8103,7 @@ export default function Component() {
     }
 
     //  Fin du placement continu de brouillard (dans fogMode classique ou visibilityMode avec outil fog)
-    if (isFogDragging && (fogMode || (visibilityMode && currentVisibilityTool === 'fog'))) {
+    if (isFogDragging && (fogMode || (isVisActive && currentVisibilityTool === 'fog'))) {
       setIsFogDragging(false);
       setIsFogAddMode(true);
       setLastFogCell(null);
@@ -9237,7 +9242,7 @@ export default function Component() {
         onMouseUp={handleCanvasMouseUp}
         onMouseLeave={handleCanvasMouseUp}
         onContextMenu={(e) => {
-          if (visibilityMode && currentVisibilityTool === 'fog') {
+          if (isVisActive && currentVisibilityTool === 'fog') {
             e.preventDefault();
             return;
           }
@@ -10691,6 +10696,7 @@ export default function Component() {
             }
           }}
           currentCityId={selectedCityId}
+          vs={visibilityState}
         />
       </GMTemplatesProvider>
 
