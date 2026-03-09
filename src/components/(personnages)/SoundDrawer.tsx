@@ -14,6 +14,7 @@ import { SUGGESTED_SOUNDS, SOUND_CATEGORIES, SUGGESTED_MUSICS, MUSIC_CATEGORIES 
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
+import { advancedSearch } from '@/lib/advanced-search'
 
 // --- Types ---
 interface MusicState {
@@ -30,9 +31,10 @@ interface SoundDrawerProps {
     onClose: () => void
     onDragStart: (sound: SoundTemplate) => void
     currentCityId: string | null
+    isEmbedded?: boolean
 }
 
-export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawerProps) {
+export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }: SoundDrawerProps) {
     const { setDialogOpen } = useDialogVisibility();
     const {
         soundTemplates: templates,
@@ -48,6 +50,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
     // --- UI States ---
     const [activeTab, setActiveTab] = useState<'sounds' | 'music'>('sounds') // Changed from 3 tabs to 2
     const [searchQuery, setSearchQuery] = useState('')
+    const [debouncedQuery, setDebouncedQuery] = useState('')
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
 
     // --- Local/Global Playback States ---
@@ -299,8 +302,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
 
     const playNext = () => {
         // Need to recalculate musicResults here or memoize it outside render
-        const searchFiltered = templates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
-        const musicResults = searchFiltered.filter(t => t.category === 'music')
+        const musicResults = filteredTemplates.filter(t => t.category === 'music')
 
         if (!musicState.videoId || musicResults.length === 0) return
         const currentIndex = musicResults.findIndex(t => musicState.templateId ? t.id === musicState.templateId : t.soundUrl === musicState.videoId)
@@ -309,8 +311,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
     }
 
     const playPrevious = () => {
-        const searchFiltered = templates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
-        const musicResults = searchFiltered.filter(t => t.category === 'music')
+        const musicResults = filteredTemplates.filter(t => t.category === 'music')
 
         if (!musicState.videoId || musicResults.length === 0) return
         const currentIndex = musicResults.findIndex(t => musicState.templateId ? t.id === musicState.templateId : t.soundUrl === musicState.videoId)
@@ -325,13 +326,22 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
         onDragStart(sound)
     }
 
-    // --- Render Helpers ---.
-    // Filter by search query first
-    const searchFiltered = templates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    const filteredTemplates = React.useMemo(() => {
+        if (!debouncedQuery.trim()) return templates;
+
+        const results = advancedSearch(templates, debouncedQuery, {
+            keys: ['name'],
+            threshold: 0.4,
+            useSemanticSearch: true,
+            includeScore: true
+        });
+
+        return results.map(r => r.item as SoundTemplate);
+    }, [templates, debouncedQuery]);
 
     // Then split by category
-    const soundResults = searchFiltered.filter(t => t.category !== 'music') // Default to sound if undefined
-    const musicResults = searchFiltered.filter(t => t.category === 'music')
+    const soundResults = filteredTemplates.filter(t => t.category !== 'music')
+    const musicResults = filteredTemplates.filter(t => t.category === 'music')
 
     const RenderIcon = ({ type }: { type: string }) => type === 'youtube'
         ? <Youtube className="w-4 h-4 text-red-500" />
@@ -339,18 +349,20 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart }: SoundDrawe
 
     return (
         <>
-            <div className={`fixed inset-y-0 right-0 w-80 bg-[#141414] border-l border-[#333] shadow-2xl transform transition-transform duration-300 z-50 flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+            <div className={isEmbedded ? "flex flex-col h-full w-full bg-[#141414]" : `fixed inset-y-0 right-0 w-80 bg-[#141414] border-l border-[#333] shadow-2xl transform transition-transform duration-300 z-50 flex flex-col ${isOpen ? 'translate-x-0' : 'translate-x-full'}`}>
 
                 {/* HEADER */}
-                <div className="p-4 border-b border-[#333] flex items-center justify-between bg-[#1a1a1a]">
-                    <div className="flex items-center gap-2">
-                        <Volume2 className="w-5 h-5 text-[#c0a080]" />
-                        <h2 className="font-bold text-[#e0e0e0]">Sons & Musiques</h2>
+                {!isEmbedded && (
+                    <div className="p-4 border-b border-[#333] flex items-center justify-between bg-[#1a1a1a]">
+                        <div className="flex items-center gap-2">
+                            <Volume2 className="w-5 h-5 text-[#c0a080]" />
+                            <h2 className="font-bold text-[#e0e0e0]">Sons & Musiques</h2>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 text-gray-400 hover:text-white">
+                            <X className="w-4 h-4" />
+                        </Button>
                     </div>
-                    <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 text-gray-400 hover:text-white">
-                        <X className="w-4 h-4" />
-                    </Button>
-                </div>
+                )}
 
                 {/* TABS */}
                 <div className="flex border-b border-[#333]">

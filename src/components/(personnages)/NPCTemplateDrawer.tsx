@@ -13,6 +13,7 @@ import { CreatureLibraryModal } from './CreatureLibraryModal'
 import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
+import { advancedSearch } from '@/lib/advanced-search'
 
 interface NPCTemplateDrawerProps {
     roomId: string
@@ -20,9 +21,10 @@ interface NPCTemplateDrawerProps {
     onClose: () => void
     onDragStart: (template: NPC) => void
     currentCityId: string | null
+    isEmbedded?: boolean
 }
 
-export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, currentCityId }: NPCTemplateDrawerProps) {
+export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, currentCityId, isEmbedded }: NPCTemplateDrawerProps) {
     const { setDialogOpen } = useDialogVisibility();
     const {
         npcTemplates: templates,
@@ -38,8 +40,19 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
     useEffect(() => {
         setDialogOpen(isOpen);
     }, [isOpen, setDialogOpen]);
+
     const [activeTab, setActiveTab] = useState<'templates' | 'npcs'>('templates')
     const [searchQuery, setSearchQuery] = useState('')
+    const [debouncedQuery, setDebouncedQuery] = useState('')
+
+    // Debounce search query
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedQuery(searchQuery)
+        }, 300)
+
+        return () => clearTimeout(timer)
+    }, [searchQuery])
     const [showCreateForm, setShowCreateForm] = useState(false)
     const [showLibraryModal, setShowLibraryModal] = useState(false)
     const [editingNpcId, setEditingNpcId] = useState<string | null>(null)
@@ -232,22 +245,30 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
         }
     }
 
-    // Filter items based on active tab
-    const filteredItems = activeTab === 'templates'
-        ? templates.filter(t => {
-            const matchesSearch = t.Nomperso.toLowerCase().includes(searchQuery.toLowerCase())
-            const matchesCategory = selectedCategoryFilter === 'all' ||
-                (selectedCategoryFilter === 'none' ? !t.categoryId : t.categoryId === selectedCategoryFilter)
-            return matchesSearch && matchesCategory
-        })
-        : existingNPCs
-            .filter(n => {
-                // Filter by search query
-                const matchesSearch = n.Nomperso.toLowerCase().includes(searchQuery.toLowerCase())
-                // Filter by city if a specific city is selected
-                const matchesCity = selectedCityFilter === 'all' || n.cityId === selectedCityFilter
-                return matchesSearch && matchesCity
+    // Filter items based on active tab and search
+    const filteredItems = React.useMemo(() => {
+        // First filter by categories/cities (Hard filters)
+        const baseFiltered = activeTab === 'templates'
+            ? templates.filter(t => {
+                return selectedCategoryFilter === 'all' ||
+                    (selectedCategoryFilter === 'none' ? !t.categoryId : t.categoryId === selectedCategoryFilter)
             })
+            : existingNPCs.filter(n => {
+                return selectedCityFilter === 'all' || n.cityId === selectedCityFilter
+            });
+
+        if (!debouncedQuery.trim()) return baseFiltered;
+
+        // Then apply advanced fuzzy search
+        const results = advancedSearch(baseFiltered, debouncedQuery, {
+            keys: ['Nomperso'],
+            threshold: 0.4,
+            useSemanticSearch: true,
+            includeScore: true
+        });
+
+        return results.map(r => r.item);
+    }, [activeTab, templates, existingNPCs, debouncedQuery, selectedCategoryFilter, selectedCityFilter]);
 
     const handleDragStart = (e: React.DragEvent, item: NPC | ExistingNPC) => {
         e.dataTransfer.effectAllowed = 'copy'
@@ -287,31 +308,33 @@ export function NPCTemplateDrawer({ roomId, isOpen, onClose, onDragStart, curren
     }
 
     return (
-        <div className="fixed right-0 top-0 h-full w-80 bg-[#1a1a1a] border-l border-[#333] z-50 flex flex-col shadow-2xl">
+        <div className={isEmbedded ? "flex flex-col h-full w-full bg-[#1a1a1a]" : "fixed right-0 top-0 h-full w-80 bg-[#1a1a1a] border-l border-[#333] z-50 flex flex-col shadow-2xl"}>
             {/* Header */}
-            <div className="p-4 bg-[#141414] border-b border-[#333] flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-[#c0a080]/10 rounded-lg border border-[#c0a080]/20">
-                        <Users className="w-5 h-5 text-[#c0a080]" />
+            {!isEmbedded && (
+                <div className="p-4 bg-[#141414] border-b border-[#333] flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2 bg-[#c0a080]/10 rounded-lg border border-[#c0a080]/20">
+                            <Users className="w-5 h-5 text-[#c0a080]" />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-bold text-[#c0a080] tracking-tight">
+                                Bibliothèque PNJ
+                            </h2>
+                            <p className="text-xs text-gray-500 font-medium">
+                                Glissez sur la carte
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-lg font-bold text-[#c0a080] tracking-tight">
-                            Bibliothèque PNJ
-                        </h2>
-                        <p className="text-xs text-gray-500 font-medium">
-                            Glissez sur la carte
-                        </p>
-                    </div>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={onClose}
+                        className="h-8 w-8 p-0 text-gray-400 hover:text-white"
+                    >
+                        <X className="w-4 h-4" />
+                    </Button>
                 </div>
-                <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={onClose}
-                    className="h-8 w-8 p-0 text-gray-400 hover:text-white"
-                >
-                    <X className="w-4 h-4" />
-                </Button>
-            </div>
+            )}
 
             {/* Tabs */}
             <div className="flex border-b border-[#333] shrink-0">
