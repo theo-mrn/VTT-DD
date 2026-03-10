@@ -76,7 +76,7 @@ export function ScenarioEditor({ initialContent = "", roomId, scenes = [], onNav
     })
 
     return (
-        <div className="relative w-full flex flex-col h-full bg-transparent">
+        <div className="relative w-full flex flex-col flex-1 bg-transparent">
             <EditorToolbar editor={editor} scenes={scenes} />
             <div className="flex-1 mt-4">
                 <EditorContent editor={editor} />
