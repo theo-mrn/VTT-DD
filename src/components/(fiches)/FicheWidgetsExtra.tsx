@@ -60,7 +60,7 @@ export const WidgetBourse: React.FC<WidgetProps> = ({ style }) => {
     }, [selectedCharacter, roomId, rawInventory]);
 
     return (
-        <div className="h-full w-full p-2 flex flex-col rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] overflow-hidden" style={style}>
+        <div className="h-full w-full p-2 flex flex-col rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] overflow-hidden" style={style}>
             <div className="text-[color:var(--text-secondary,#e0c060)] font-bold text-[10px] uppercase tracking-wider mb-1 flex items-center gap-1 opacity-80 shrink-0">
                 <Coins size={12} /> Bourse
             </div>
@@ -137,7 +137,7 @@ export const WidgetEffects: React.FC<WidgetProps> = ({ style }) => {
     };
 
     return (
-        <div className="h-full w-full p-2 flex flex-col rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] overflow-hidden" style={style}>
+        <div className="h-full w-full p-2 flex flex-col rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] overflow-hidden" style={style}>
             <div className="text-[color:var(--text-secondary,#a0c0e0)] font-bold text-[10px] uppercase tracking-wider mb-2 flex items-center gap-1 opacity-80 shrink-0">
                 <Sparkles size={12} /> Effets Actifs
             </div>
@@ -157,7 +157,7 @@ export const WidgetEffects: React.FC<WidgetProps> = ({ style }) => {
                                     cursor-pointer border rounded-lg p-2 transition-all select-none
                                     ${effect.active
                                         ? 'bg-[#444]/40 border-[#666] text-[color:var(--text-primary,#d4d4d4)] shadow-sm'
-                                        : 'bg-[#2a2a2a]/40 border-[#333] text-[color:var(--text-secondary,#666)] opacity-60 hover:opacity-100'
+                                        : 'bg-[color:var(--bg-secondary,#2a2a2a)]/40 border-[#333] text-[color:var(--text-secondary,#666)] opacity-60 hover:opacity-100'
                                     }
                                 `}
                             >

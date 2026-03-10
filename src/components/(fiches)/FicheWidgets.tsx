@@ -51,7 +51,7 @@ export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => 
     return (
         <div className="h-full p-2 overflow-hidden" ref={ref}>
             <div
-                className="bg-[#2a2a2a] p-2 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] h-full flex flex-col"
+                className="bg-[color:var(--bg-secondary,#2a2a2a)] p-2 rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] h-full flex flex-col"
                 style={{ ...style, fontSize: `${fontSize}px` }}
             >
                 <h2 className="text-[1.3em] font-bold text-[color:var(--text-secondary,#c0a0a0)] mb-2 text-center sm:text-left shrink-0 leading-tight">
@@ -132,10 +132,10 @@ export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?:
         ? { gridTemplateColumns: `repeat(${fieldIds.length}, minmax(0, 1fr))` }
         : undefined;
 
-    const unifiedContainerClasses = isUnified ? 'bg-[#2a2a2a] rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] overflow-hidden' : '';
+    const unifiedContainerClasses = isUnified ? 'bg-[color:var(--bg-secondary,#2a2a2a)] rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] overflow-hidden' : '';
 
     return (
-        <div className={`${containerClassName} ${unifiedContainerClasses}`} style={containerStyle}>
+        <div className={`${containerClassName} ${unifiedContainerClasses}`} style={isUnified ? { ...style, ...containerStyle } : containerStyle}>
             {fieldIds.map((name) => {
                 const customField = selectedCharacter?.customFields?.find(f => f.id === name);
                 const isCustom = !!customField;
@@ -172,7 +172,7 @@ export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?:
 
                 const childClasses = isUnified
                     ? "p-1 text-center h-full flex flex-col justify-center min-h-[50px] overflow-hidden"
-                    : "bg-[#2a2a2a] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] text-center h-full flex flex-col justify-center min-h-[50px] overflow-hidden";
+                    : "bg-[color:var(--bg-secondary,#2a2a2a)] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] text-center h-full flex flex-col justify-center min-h-[50px] overflow-hidden";
 
                 return (
                     <Tooltip key={name}>
@@ -236,10 +236,10 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
         ? { gridTemplateColumns: `repeat(${fieldIds.length}, minmax(0, 1fr))` }
         : undefined;
 
-    const unifiedContainerClasses = isUnified ? 'bg-[#2a2a2a] rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] overflow-hidden' : '';
+    const unifiedContainerClasses = isUnified ? 'bg-[color:var(--bg-secondary,#2a2a2a)] rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] overflow-hidden' : '';
 
     return (
-        <div className={`${containerClassName} ${unifiedContainerClasses}`} style={containerStyle}>
+        <div className={`${containerClassName} ${unifiedContainerClasses}`} style={isUnified ? { ...style, ...containerStyle } : containerStyle}>
             {fieldIds.map(name => {
                 const customField = selectedCharacter?.customFields?.find(f => f.id === name);
                 const isCustom = !!customField;
@@ -251,7 +251,7 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
 
                 const childClasses = isUnified
                     ? `px-4 py-1 flex flex-row justify-between items-center gap-2 h-full min-h-[50px] ${widthClass}`
-                    : `bg-[#2a2a2a] px-4 py-1 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] flex flex-row justify-between items-center gap-2 h-full min-h-[50px] ${widthClass}`;
+                    : `bg-[color:var(--bg-secondary,#2a2a2a)] px-4 py-1 rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] flex flex-row justify-between items-center gap-2 h-full min-h-[50px] ${widthClass}`;
 
                 let displayVal: string | number;
                 if (isCustom) {
@@ -314,10 +314,10 @@ export const WidgetCombatStats: React.FC<WidgetProps & { fieldIds?: string[], la
         ? { gridTemplateColumns: `repeat(${fieldIds.length}, minmax(0, 1fr))` }
         : undefined;
 
-    const unifiedContainerClasses = isUnified ? 'bg-[#2a2a2a] rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] overflow-hidden' : '';
+    const unifiedContainerClasses = isUnified ? 'bg-[color:var(--bg-secondary,#2a2a2a)] rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] overflow-hidden' : '';
 
     return (
-        <div className={`${containerClassName} ${unifiedContainerClasses}`} style={containerStyle}>
+        <div className={`${containerClassName} ${unifiedContainerClasses}`} style={isUnified ? { ...style, ...containerStyle } : containerStyle}>
             {fieldIds.map((name) => {
                 const customField = selectedCharacter?.customFields?.find(f => f.id === name);
                 const isCustom = !!customField;
@@ -334,7 +334,7 @@ export const WidgetCombatStats: React.FC<WidgetProps & { fieldIds?: string[], la
 
                 const childClasses = isUnified
                     ? "p-1 text-center h-full flex flex-col justify-center overflow-hidden min-h-[50px]"
-                    : "bg-[#2a2a2a] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] text-center h-full flex flex-col justify-center overflow-hidden min-h-[50px]";
+                    : "bg-[color:var(--bg-secondary,#2a2a2a)] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] text-center h-full flex flex-col justify-center overflow-hidden min-h-[50px]";
 
                 return (
                     <Tooltip key={name}>
@@ -426,7 +426,7 @@ export const WidgetCustomGroup: React.FC<WidgetCustomGroupProps> = ({ style, lab
         ? { gridTemplateColumns: `repeat(${resolvedFields.length}, minmax(0, 1fr))` }
         : undefined;
 
-    const unifiedContainerClasses = isUnified ? 'bg-[#2a2a2a] rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] overflow-hidden' : '';
+    const unifiedContainerClasses = isUnified ? 'bg-[color:var(--bg-secondary,#2a2a2a)] rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] overflow-hidden' : '';
 
     return (
         <div className="flex flex-col h-full p-1 justify-center">
@@ -435,7 +435,7 @@ export const WidgetCustomGroup: React.FC<WidgetCustomGroupProps> = ({ style, lab
                     {label}
                 </div>
             )}
-            <div className={`flex-1 flex flex-col h-full overflow-hidden ${unifiedContainerClasses}`}>
+            <div className={`flex-1 flex flex-col h-full overflow-hidden ${unifiedContainerClasses}`} style={isUnified ? style : undefined}>
                 <div className={containerClassName} style={containerStyle}>
                     {resolvedFields.map((field) => {
                         const isBaseAbility = ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].includes(field.id);
@@ -457,7 +457,7 @@ export const WidgetCustomGroup: React.FC<WidgetCustomGroupProps> = ({ style, lab
 
                         const childClasses = isUnified
                             ? "p-1 text-center h-full flex flex-col justify-center items-center overflow-hidden min-h-[50px]"
-                            : "bg-[#2a2a2a] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[#3a3a3a] text-center h-full flex flex-col justify-center items-center overflow-hidden min-h-[50px]";
+                            : "bg-[color:var(--bg-secondary,#2a2a2a)] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] text-center h-full flex flex-col justify-center items-center overflow-hidden min-h-[50px]";
 
                         return (
                             <div
@@ -555,7 +555,7 @@ export function GroupCreationSection({
                 placeholder="Libellé du bloc (ex: Social)"
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                className="w-full bg-[#0e0e0e] border border-[#3a3a3a] rounded px-2 py-1 text-xs text-[#d4d4d4]"
+                className="w-full bg-[#0e0e0e] border border-[color:var(--border-color,#3a3a3a)] rounded px-2 py-1 text-xs text-[#d4d4d4]"
             />
 
             <div className="flex gap-1 mt-1">
@@ -566,7 +566,7 @@ export function GroupCreationSection({
                         onClick={() => setLayout(l)}
                         className={`flex-1 py-1 text-[9px] uppercase font-bold border rounded transition-all ${layout === l
                             ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]'
-                            : 'bg-[#141414] text-gray-500 border-[#3a3a3a] hover:border-gray-500'
+                            : 'bg-[#141414] text-gray-500 border-[color:var(--border-color,#3a3a3a)] hover:border-gray-500'
                             }`}
                     >
                         {l}
@@ -580,7 +580,7 @@ export function GroupCreationSection({
                     onClick={() => setStyleOption('separated')}
                     className={`flex-1 py-1 text-[9px] uppercase font-bold border rounded transition-all ${styleOption === 'separated'
                         ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]'
-                        : 'bg-[#141414] text-gray-500 border-[#3a3a3a] hover:border-gray-500'
+                        : 'bg-[#141414] text-gray-500 border-[color:var(--border-color,#3a3a3a)] hover:border-gray-500'
                         }`}
                 >
                     Séparé
@@ -590,7 +590,7 @@ export function GroupCreationSection({
                     onClick={() => setStyleOption('unified')}
                     className={`flex-1 py-1 text-[9px] uppercase font-bold border rounded transition-all ${styleOption === 'unified'
                         ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]'
-                        : 'bg-[#141414] text-gray-500 border-[#3a3a3a] hover:border-gray-500'
+                        : 'bg-[#141414] text-gray-500 border-[color:var(--border-color,#3a3a3a)] hover:border-gray-500'
                         }`}
                 >
                     Lié (Sans bordure)
@@ -606,7 +606,7 @@ export function GroupCreationSection({
                             onClick={() => setJustify(j)}
                             className={`flex flex-1 items-center justify-center py-1 text-[8px] uppercase font-bold border rounded transition-all ${justify === j
                                 ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]'
-                                : 'bg-[#141414] text-gray-500 border-[#3a3a3a] hover:border-gray-500'
+                                : 'bg-[#141414] text-gray-500 border-[color:var(--border-color,#3a3a3a)] hover:border-gray-500'
                                 }`}
                             title={j === 'stretch' ? 'Remplir' : j === 'start' ? 'Gauche/Haut' : j === 'end' ? 'Droite/Bas' : j === 'center' ? 'Centre' : j === 'between' ? 'Espace entre' : 'Espace autour'}
                         >
@@ -619,7 +619,7 @@ export function GroupCreationSection({
             <div className="max-h-[150px] overflow-y-auto space-y-1 mt-1 scrollbar-thin scrollbar-thumb-[#3a3a3a] scrollbar-track-transparent">
                 <div className="text-[9px] font-bold text-gray-500 uppercase px-2 mb-1">Attributs de base</div>
                 {['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA', 'Defense', 'Contact', 'Magie', 'Distance', 'INIT', 'PV', 'PV_Max'].map(id => (
-                    <label key={id} className="flex items-center gap-2 px-2 py-1 hover:bg-[#2a2a2a] rounded cursor-pointer group">
+                    <label key={id} className="flex items-center gap-2 px-2 py-1 hover:bg-[color:var(--bg-secondary,#2a2a2a)] rounded cursor-pointer group">
                         <input
                             type="checkbox"
                             checked={selectedIds.includes(id)}
@@ -633,7 +633,7 @@ export function GroupCreationSection({
                 <div className="text-[9px] font-bold text-gray-500 uppercase px-2 mt-2 mb-1 border-t border-[#2a2a2a] pt-2">Champs Personnalisés</div>
                 {customFields.length > 0 ? (
                     customFields.map(f => (
-                        <label key={f.id} className="flex items-center gap-2 px-2 py-1 hover:bg-[#2a2a2a] rounded cursor-pointer group">
+                        <label key={f.id} className="flex items-center gap-2 px-2 py-1 hover:bg-[color:var(--bg-secondary,#2a2a2a)] rounded cursor-pointer group">
                             <input
                                 type="checkbox"
                                 checked={selectedIds.includes(f.id)}
