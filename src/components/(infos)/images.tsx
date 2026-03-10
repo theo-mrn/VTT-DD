@@ -22,7 +22,7 @@ const assetCategories: CategoryCounts = {
   Elfe: 10,
   Halfelin: 10,
   Humain: 10,
-  Minotaure: 4,
+  Minotaure: 10,
 }
 
 
@@ -58,32 +58,73 @@ interface ImageGridProps {
 }
 
 function ImageGrid({ images }: ImageGridProps) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 60;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [images]);
+
+  if (images.length === 0) {
+    return <div className="text-center text-[#c0a080]/60 mt-12 font-papyrus text-xl">Aucune image trouvée.</div>;
+  }
+
+  const totalPages = Math.ceil(images.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentImages = images.slice(startIndex, startIndex + itemsPerPage);
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
-      {images.map((image) => (
-        <Card key={image.id} className="relative overflow-hidden group h-[400]"> {/* Increased card height */}
-          <CardContent className="p-0 h-full">
-            <img
-              src={image.src}
-              alt={image.alt}
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              className="w-full h-full"
-              loading="lazy"
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = '/images/placeholder.png'
-              }}
-            />
-            {/* Download button on hover */}
-            <a
-              href={image.src}
-              download
-              className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <button className="bg-[#c0a080] px-6 py-2 rounded text-[#1c1c1c] font-bold uppercase tracking-tighter hover:scale-105 transition-transform">Télécharger</button>
-            </a>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="flex flex-col w-full h-full pb-8">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mt-4 mb-8">
+        {currentImages.map((image) => (
+          <Card key={image.id} className="relative overflow-hidden group aspect-square">
+            <CardContent className="p-0 h-full">
+              <img
+                src={image.src}
+                alt={image.alt}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                className="w-full h-full"
+                loading="lazy"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/images/placeholder.png'
+                }}
+              />
+              {/* Download button on hover */}
+              <a
+                href={image.src}
+                download
+                className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <button className="bg-[#c0a080] px-6 py-2 rounded text-[#1c1c1c] font-bold uppercase tracking-tighter hover:scale-105 transition-transform">Télécharger</button>
+              </a>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-6 mt-auto">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="px-5 py-2.5 bg-black/60 border border-[#c0a080]/30 rounded-xl text-[#c0a080] font-papyrus disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#c0a080]/20 hover:border-[#c0a080]/60 transition-all font-bold tracking-wider uppercase text-sm"
+          >
+            Précédent
+          </button>
+
+          <span className="text-[#c0a080] font-papyrus font-bold text-sm tracking-widest uppercase bg-black/40 px-4 py-2 rounded-lg border border-white/5">
+            {currentPage} / {totalPages}
+          </span>
+
+          <button
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+            className="px-5 py-2.5 bg-black/60 border border-[#c0a080]/30 rounded-xl text-[#c0a080] font-papyrus disabled:opacity-30 disabled:cursor-not-allowed hover:bg-[#c0a080]/20 hover:border-[#c0a080]/60 transition-all font-bold tracking-wider uppercase text-sm"
+          >
+            Suivant
+          </button>
+        </div>
+      )}
     </div>
   )
 }
