@@ -252,13 +252,25 @@ export default function Sidebar({ onClose }: SidebarProps) {
         </button>
 
         {isMJ && (
-          <button
-            className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
-            onClick={() => setOpenDialog("bibliotheque")}
-          >
-            <Library className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
-            <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Bibliothèque</span>
-          </button>
+          <>
+            <button
+              className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+              onClick={() => {
+                if (roomId) window.open(`/${roomId}/scenario`, '_blank');
+              }}
+            >
+              <BookOpen className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+              <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Scénario</span>
+            </button>
+
+            <button
+              className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+              onClick={() => setOpenDialog("bibliotheque")}
+            >
+              <Library className="w-5 h-5 text-[var(--text-primary)] hover:text-[var(--accent-brown)]" />
+              <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors">Bibliothèque</span>
+            </button>
+          </>
         )}
 
         <button
