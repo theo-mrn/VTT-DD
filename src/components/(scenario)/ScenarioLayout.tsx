@@ -4,11 +4,12 @@ import { useState, useEffect } from "react"
 import { ScenarioEditor } from "./ScenarioEditor"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Book, Plus, Settings, ChevronRight, FileText, Trash2, Loader2, Save } from "lucide-react"
+import { Book, Plus, Settings, ChevronRight, FileText, Trash2, Loader2, Save, Crown } from "lucide-react"
 import { doc, getDoc, setDoc, onSnapshot } from "@/lib/firebase"
 import { db } from "@/lib/firebase"
 import { toast } from "sonner"
 import { v4 as uuidv4 } from "uuid"
+import { useGame } from "@/contexts/GameContext"
 
 type Scene = {
     id: string
@@ -30,6 +31,27 @@ export function ScenarioLayout({ roomId }: ScenarioLayoutProps) {
     const [activeSceneId, setActiveSceneId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
+    const [isPremium, setIsPremium] = useState(false)
+    const { user: gameUser } = useGame()
+
+    // Fetch premium status
+    useEffect(() => {
+        if (!gameUser?.uid) return
+        
+        const fetchPremiumStatus = async () => {
+            try {
+                const userRef = doc(db, "users", gameUser.uid)
+                const userSnap = await getDoc(userRef)
+                if (userSnap.exists()) {
+                    setIsPremium(!!userSnap.data().premium)
+                }
+            } catch (error) {
+                console.error("Error fetching premium status:", error)
+            }
+        }
+        
+        fetchPremiumStatus()
+    }, [gameUser?.uid])
 
     // Load initial data
     useEffect(() => {
@@ -255,12 +277,27 @@ export function ScenarioLayout({ roomId }: ScenarioLayoutProps) {
                     </Button>
                     <Button
                         onClick={assistWithAI}
-                        disabled={isGenerating || scenes.length === 0}
-                        className="w-full justify-start gap-2 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 hover:from-indigo-500/20 hover:to-purple-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800"
+                        disabled={!isPremium || isGenerating || scenes.length === 0}
+                        className={`w-full justify-start gap-2 border-border/50 ${
+                            isPremium 
+                                ? "bg-gradient-to-r from-indigo-500/10 to-purple-500/10 hover:from-indigo-500/20 hover:to-purple-500/20 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800"
+                                : "bg-white/50 dark:bg-black/40 text-muted-foreground opacity-70 cursor-not-allowed"
+                        }`}
                         variant="outline"
                     >
-                        {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <span>🪄</span>}
-                        {isGenerating ? "Inspiration en cours..." : "Aide IA"}
+                        {!isPremium ? (
+                            <Crown className="h-4 w-4 text-amber-500" />
+                        ) : isGenerating ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <span>🪄</span>
+                        )}
+                        {!isPremium 
+                            ? "Aide IA (Premium)"
+                            : isGenerating 
+                                ? "Inspiration en cours..." 
+                                : "Aide IA"
+                        }
                     </Button>
                 </div>
             </div>
