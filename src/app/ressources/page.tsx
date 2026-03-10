@@ -11,7 +11,7 @@ import Glossary from "@/components/(infos)/Glossary"
 export default function RessourcesPage() {
     return (
         <div
-            className="min-h-screen bg-[#121212] text-[#d4d4d4] font-papyrus overflow-hidden flex flex-col"
+            className="h-screen w-full bg-[#121212] text-[#d4d4d4] font-papyrus flex flex-row overflow-hidden"
             style={{
                 backgroundImage: "url('/assets/bg.jpg')",
                 backgroundAttachment: 'fixed',
@@ -19,39 +19,45 @@ export default function RessourcesPage() {
                 backgroundPosition: 'center'
             }}
         >
-            <Tabs defaultValue="bestiaire" className="w-full flex-1 flex flex-col">
-                <TabsList className="flex w-full justify-start gap-4 bg-black/80 backdrop-blur-2xl p-3 h-auto rounded-none border-b border-white/10 sticky top-0 z-50 overflow-x-auto no-scrollbar">
+            <Tabs defaultValue="bestiaire" orientation="vertical" className="flex-1 flex flex-row h-full w-full">
+                
+                {/* Sidebar */}
+                <TabsList className="flex flex-col justify-center items-center gap-8 bg-black/80 backdrop-blur-2xl w-16 h-full rounded-none border-r border-white/10 z-50 py-8">
                     <TabsTrigger
                         value="bestiaire"
-                        className="flex items-center gap-2 px-6 py-2.5 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70 hover:text-[#c0a080] rounded-md transition-all text-sm font-bold uppercase tracking-widest border border-[#c0a080]/20 data-[state=active]:border-white/40 shadow-sm"
+                        title="Bestiaire"
+                        className="p-3 rounded-xl data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/60 hover:text-[#c0a080] transition-all hover:bg-[#c0a080]/10 data-[state=active]:shadow-[0_0_15px_rgba(192,160,128,0.3)] shadow-none border-none"
                     >
-                        <Skull className="w-4 h-4" />
-                        <span>Bestiaire</span>
+                        <Skull className="w-6 h-6" />
                     </TabsTrigger>
+                    
                     <TabsTrigger
                         value="capacites"
-                        className="flex items-center gap-2 px-6 py-2.5 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70 hover:text-[#c0a080] rounded-md transition-all text-sm font-bold uppercase tracking-widest border border-[#c0a080]/20 data-[state=active]:border-white/40 shadow-sm"
+                        title="Capacités"
+                        className="p-3 rounded-xl data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/60 hover:text-[#c0a080] transition-all hover:bg-[#c0a080]/10 data-[state=active]:shadow-[0_0_15px_rgba(192,160,128,0.3)] shadow-none border-none"
                     >
-                        <Zap className="w-4 h-4" />
-                        <span>Capacités</span>
+                        <Zap className="w-6 h-6" />
                     </TabsTrigger>
+
                     <TabsTrigger
                         value="images"
-                        className="flex items-center gap-2 px-6 py-2.5 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70 hover:text-[#c0a080] rounded-md transition-all text-sm font-bold uppercase tracking-widest border border-[#c0a080]/20 data-[state=active]:border-white/40 shadow-sm"
+                        title="Images"
+                        className="p-3 rounded-xl data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/60 hover:text-[#c0a080] transition-all hover:bg-[#c0a080]/10 data-[state=active]:shadow-[0_0_15px_rgba(192,160,128,0.3)] shadow-none border-none"
                     >
-                        <ImageIcon className="w-4 h-4" />
-                        <span>Images</span>
+                        <ImageIcon className="w-6 h-6" />
                     </TabsTrigger>
+
                     <TabsTrigger
                         value="marche"
-                        className="flex items-center gap-2 px-6 py-2.5 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70 hover:text-[#c0a080] rounded-md transition-all text-sm font-bold uppercase tracking-widest border border-[#c0a080]/20 data-[state=active]:border-white/40 shadow-sm"
+                        title="Marché"
+                        className="p-3 rounded-xl data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/60 hover:text-[#c0a080] transition-all hover:bg-[#c0a080]/10 data-[state=active]:shadow-[0_0_15px_rgba(192,160,128,0.3)] shadow-none border-none"
                     >
-                        <Store className="w-4 h-4" />
-                        <span>Marché</span>
+                        <Store className="w-6 h-6" />
                     </TabsTrigger>
                 </TabsList>
 
-                <div className="flex-1 overflow-auto bg-black/40 backdrop-blur-sm">
+                {/* Main Content Area */}
+                <div className="flex-1 overflow-auto bg-black/40 backdrop-blur-sm h-full relative">
                     <TabsContent value="bestiaire" className="mt-0 outline-none min-h-full">
                         <Glossary />
                     </TabsContent>
@@ -68,6 +74,7 @@ export default function RessourcesPage() {
                         <Marketplace />
                     </TabsContent>
                 </div>
+
             </Tabs>
         </div>
     )

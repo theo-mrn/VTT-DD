@@ -486,24 +486,25 @@ export default function Glossary() {
                                     currentItems.forEach((item, index) => {
                                         const actualPageNum = index + 1;
                                         const isLeft = actualPageNum % 2 !== 0;
-                                        const commonClasses = `bestiary-page h-full w-full flex flex-col p-8 ${isLeft ? 'left-page' : 'right-page'}`;
+                                        const commonClasses = `bestiary-page h-full w-full ${isLeft ? 'left-page' : 'right-page'}`;
 
                                         if (activeTab === 'bestiaire') {
                                             const monster = item as Monster;
                                             pages.push(
                                                 <div key={monster.id} className={commonClasses}>
-                                                    {/* Header */}
-                                                    <div className="mb-4">
-                                                        <h2 className="text-4xl font-serif font-bold text-amber-950 border-b-2 border-amber-900/30 pb-2">
-                                                            {monster.Nom}
-                                                        </h2>
-                                                        <div className="text-amber-800/80 italic font-serif flex justify-between mt-1">
-                                                            <span>{monster.Type}</span>
-                                                            {monster.Challenge && <span>FP {monster.Challenge}</span>}
+                                                    <div className="absolute inset-x-8 top-8 bottom-16 flex flex-col">
+                                                        {/* Header */}
+                                                        <div className="mb-4 shrink-0">
+                                                            <h2 className="text-4xl font-serif font-bold text-amber-950 border-b-2 border-amber-900/30 pb-2">
+                                                                {monster.Nom}
+                                                            </h2>
+                                                            <div className="text-amber-800/80 italic font-serif flex justify-between mt-1">
+                                                                <span>{monster.Type}</span>
+                                                                {monster.Challenge && <span>FP {monster.Challenge}</span>}
+                                                            </div>
                                                         </div>
-                                                    </div>
 
-                                                    <div className="flex-grow overflow-y-auto styled-scrollbar pr-2 pb-8">
+                                                        <div className="flex-1 min-h-0 overflow-y-auto styled-scrollbar pr-2 pb-2">
                                                         <div className="clearfix">
                                                             {monster.image && monster.image !== "/placeholder.png" && (
                                                                 <div className={`float-${isLeft ? 'right ml-6' : 'left mr-6'} mb-4 relative w-[200px] h-[200px]`}>
@@ -566,6 +567,7 @@ export default function Glossary() {
                                                             </div>
                                                         )}
                                                     </div>
+                                                    </div>
                                                     <div className="page-number">{actualPageNum}</div>
                                                 </div>
                                             );
@@ -573,10 +575,11 @@ export default function Glossary() {
                                             const profile = item as Profile;
                                             pages.push(
                                                 <div key={profile.id} className={commonClasses}>
-                                                    <h2 className="text-4xl font-serif font-bold text-amber-950 mb-6 border-b-2 border-amber-900/30 pb-2">
-                                                        {profile.id}
-                                                    </h2>
-                                                    <div className="flex-grow overflow-y-auto styled-scrollbar pr-2 pb-8">
+                                                    <div className="absolute inset-x-8 top-8 bottom-16 flex flex-col">
+                                                        <h2 className="text-4xl font-serif font-bold text-amber-950 mb-6 border-b-2 border-amber-900/30 pb-2 shrink-0">
+                                                            {profile.id}
+                                                        </h2>
+                                                        <div className="flex-1 min-h-0 overflow-y-auto styled-scrollbar pr-2 pb-2">
                                                         <div className="clearfix">
                                                             {profile.image && profile.image !== "/placeholder.png" && (
                                                                 <div className={`float-${isLeft ? 'right ml-6' : 'left mr-6'} mb-4 relative w-[200px] h-[200px]`}>
@@ -603,6 +606,7 @@ export default function Glossary() {
                                                             </div>
                                                         </div>
                                                     </div>
+                                                    </div>
                                                     <div className="page-number">{actualPageNum}</div>
                                                 </div>
                                             );
@@ -611,10 +615,11 @@ export default function Glossary() {
                                             const caps = capabilities[race.id];
                                             pages.push(
                                                 <div key={race.id} className={commonClasses}>
-                                                    <h2 className="text-4xl font-serif font-bold text-amber-950 mb-4 border-b-2 border-amber-900/30 pb-2">
-                                                        {race.id}
-                                                    </h2>
-                                                    <div className="flex-grow overflow-y-auto styled-scrollbar pr-2 pb-8">
+                                                    <div className="absolute inset-x-8 top-8 bottom-16 flex flex-col">
+                                                        <h2 className="text-4xl font-serif font-bold text-amber-950 mb-4 border-b-2 border-amber-900/30 pb-2 shrink-0">
+                                                            {race.id}
+                                                        </h2>
+                                                        <div className="flex-1 min-h-0 overflow-y-auto styled-scrollbar pr-2 pb-2">
                                                         <div className="clearfix">
                                                             {race.image && race.image !== "/placeholder.png" && (
                                                                 <div className={`float-${isLeft ? 'right ml-6' : 'left mr-6'} mb-4 relative w-[200px] h-[200px]`}>
@@ -665,6 +670,7 @@ export default function Glossary() {
                                                                 </div>
                                                             </div>
                                                         )}
+                                                    </div>
                                                     </div>
                                                     <div className="page-number">{actualPageNum}</div>
                                                 </div>
