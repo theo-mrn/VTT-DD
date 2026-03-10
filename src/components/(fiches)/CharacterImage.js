@@ -39,8 +39,8 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
   const [finalImageUrl, setFinalImageUrl] = useState(null);
 
   // Decoration / Tokens
-  const [overlayUrl, setOverlayUrl] = useState("/Token/Token1.png");
-  const [previewTokenUrl, setPreviewTokenUrl] = useState("/Token/Token1.png");
+  const [overlayUrl, setOverlayUrl] = useState("https://assets.yner.fr/Token/Token1.png");
+  const [previewTokenUrl, setPreviewTokenUrl] = useState("https://assets.yner.fr/Token/Token1.png");
   const [tokenList, setTokenList] = useState([]);
 
   // Previews
@@ -97,7 +97,7 @@ export default function CharacterImage({ imageUrl, imageURL2, imageURLFinal, isG
         if (data.assets) {
           const apiTokens = data.assets.map(a => {
             const m = a.name.match(/Token(\d+)\.png/);
-            return m ? { id: parseInt(m[1]), name: a.name.replace('.png', ''), src: a.localPath || a.path } : null;
+            return m ? { id: parseInt(m[1]), name: a.name.replace('.png', ''), src: a.path || a.localPath } : null;
           }).filter(Boolean).sort((a, b) => a.id - b.id);
 
           setRawApiTokens(apiTokens);

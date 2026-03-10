@@ -90,7 +90,7 @@ export function StoreModal({
                 if (data.assets) {
                     const tokens = data.assets.map((a: any) => {
                         const m = a.name.match(/Token(\d+)\.png/);
-                        return m ? { id: parseInt(m[1]), name: a.name.replace('.png', ''), src: a.localPath || a.path } : null;
+                        return m ? { id: parseInt(m[1]), name: a.name.replace('.png', ''), src: a.path || a.localPath } : null;
                     }).filter(Boolean).sort((a: any, b: any) => a.id - b.id);
                     setApiTokens(tokens);
                 }

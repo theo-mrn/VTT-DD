@@ -62,7 +62,7 @@ const NOTE_TYPES = [
 // --- MAIN COMPONENT ---
 
 export default function Notes() {
-  const { user } = useGame()
+  const { user, isMJ } = useGame()
   const roomId = user?.roomId ?? null
   const characterId = user?.perso ?? null
 
@@ -386,13 +386,25 @@ export default function Notes() {
               </button>
             </div>
           </div>
-          <button
-            onClick={handleNew}
-            className="group relative px-6 py-2.5 bg-[var(--accent-brown)] text-black font-bold uppercase tracking-widest text-xs rounded shadow-[0_0_20px_rgba(192,160,128,0.2)] hover:shadow-[0_0_30px_rgba(192,160,128,0.4)] hover:bg-[var(--accent-brown-hover)] transition-all overflow-hidden"
-          >
-            <span className="relative z-10 flex items-center gap-2"><Plus className="w-4 h-4" /> Nouvelle entrée</span>
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-          </button>
+          <div className="flex items-center gap-4">
+            {isMJ && roomId && (
+              <a
+                href={`/${roomId}/scenario`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group relative px-6 py-2.5 border border-[var(--accent-brown)] text-[var(--accent-brown)] font-bold uppercase tracking-widest text-xs rounded hover:bg-[var(--accent-brown)] hover:text-black transition-all overflow-hidden flex items-center"
+              >
+                <span className="relative z-10 flex items-center gap-2"><Book className="w-4 h-4" /> Scénario</span>
+              </a>
+            )}
+            <button
+              onClick={handleNew}
+              className="group relative px-6 py-2.5 bg-[var(--accent-brown)] text-black font-bold uppercase tracking-widest text-xs rounded shadow-[0_0_20px_rgba(192,160,128,0.2)] hover:shadow-[0_0_30px_rgba(192,160,128,0.4)] hover:bg-[var(--accent-brown-hover)] transition-all overflow-hidden"
+            >
+              <span className="relative z-10 flex items-center gap-2"><Plus className="w-4 h-4" /> Nouvelle entrée</span>
+              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+            </button>
+          </div>
         </div>
 
         <div className="flex flex-col md:flex-row items-center gap-4">

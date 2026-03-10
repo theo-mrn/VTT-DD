@@ -304,16 +304,16 @@ export function ScenarioLayout({ roomId }: ScenarioLayoutProps) {
 
             {/* Main Content */}
             <div className="flex-1 flex flex-col overflow-hidden relative z-10 bg-[#f4f1ea] dark:bg-black/40">
-                <div className="relative flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 flex justify-center">
+                <div className="relative flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 flex justify-center items-start">
                     
                     {/* The "Paper" Container */}
                     <div 
-                        className="w-full max-w-[850px] min-h-[1100px] shadow-2xl relative bg-white"
+                        className="w-full max-w-[850px] min-h-[1100px] shadow-2xl relative bg-white flex flex-col"
                         style={{
                             backgroundImage: 'url(/assets/bg.jpg)',
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                            backgroundRepeat: 'no-repeat'
+                            backgroundSize: '100% auto',
+                            backgroundPosition: 'top center',
+                            backgroundRepeat: 'repeat-y'
                         }}
                     >
                         {/* Gold Border with Corner Ornaments */}
@@ -344,7 +344,7 @@ export function ScenarioLayout({ roomId }: ScenarioLayoutProps) {
                         </div>
                         
                         {/* Content Area */}
-                        <div className="relative z-10 px-16 py-20 lg:px-24 text-zinc-800 h-full flex flex-col">
+                        <div className="relative z-10 px-16 py-20 lg:px-24 text-zinc-800 flex-1 flex flex-col">
                             
                             <div className="mb-8 pb-8 border-b border-[#cbb26a]/30">
                                 <input
