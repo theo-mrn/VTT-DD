@@ -54,6 +54,8 @@ export interface Character {
   theme_secondary_color?: string;
   theme_text_color?: string;
   theme_text_secondary_color?: string;
+  theme_border_color?: string;
+  theme_frame_color?: string;
   theme_border_radius?: number;
   layout?: Layout[];
   customFields?: CustomField[];
@@ -167,6 +169,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
   const [competences, setCompetences] = useState<Competence[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(null);
+  const [currentLoadedSignature, setCurrentLoadedSignature] = useState<string | null>(null);
 
   // Cache des compétences par personnage pour éviter les rechargements
   const competencesCache = useRef<Map<string, Competence[]>>(new Map());
@@ -343,21 +346,20 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
       competenceLevels.push(`${selectedCharacter[`Voie${i}`]}:${selectedCharacter[`v${i}`] || 0}`);
     }
     const competenceSignature = competenceLevels.join('|');
-
     const characterCacheKey = `${roomId}-${selectedCharacter.id}-${competenceSignature}`;
+
+    if (currentLoadedSignature === characterCacheKey && competences.length > 0) {
+      // We already have the correct competences loaded for this signature.
+      // Do nothing to avoid overriding fresh bonus states with stale structural cache.
+      return;
+    }
 
     // 1. Vérifier le cache et afficher immédiatement si disponible
     const cachedCompetences = competencesCache.current.get(characterCacheKey);
     if (cachedCompetences) {
       setCompetences(cachedCompetences);
-      return; // If we have an exact match for this state, no need to reload (unless we want to refresh bonuses in background?)
-      // For now, let's rely on cache to be snappy, and assume bonuses are handled by their own subscription if active? 
-      // Actually, bonuses are fetched once here. If bonuses change, we might want to reload. 
-      // However, the issue is about "unlocking" skills, which changes the signature. 
-      // If we blindly return, we miss bonus updates if signature matches. 
-      // But the previous code was doing: setCompetences(cached) AND THEN loadCompetences().
-      // Let's keep the pattern of optimistic cache + refresh if needed, OR just trust the cache for the structural part.
-      // Given the user issue is about "unlocking", the signature change will invalidate cache anyway.
+      setCurrentLoadedSignature(characterCacheKey);
+      return; 
     }
 
     // 2. Charger les nouvelles compétences
@@ -429,6 +431,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
 
           competencesCache.current.set(characterCacheKey, skills);
           setCompetences(skills);
+          setCurrentLoadedSignature(characterCacheKey);
         } else {
           console.error("Character document not found in Firestore.");
           setCompetences([]);
@@ -449,7 +452,12 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
   const refreshCompetences = useCallback(async () => {
     if (!roomId || !selectedCharacter) return;
 
-    const characterCacheKey = `${roomId}-${selectedCharacter.id}`;
+    const competenceLevels = [];
+    for (let i = 1; i <= 10; i++) {
+      competenceLevels.push(`${selectedCharacter[`Voie${i}`]}:${selectedCharacter[`v${i}`] || 0}`);
+    }
+    const competenceSignature = competenceLevels.join('|');
+    const characterCacheKey = `${roomId}-${selectedCharacter.id}-${competenceSignature}`;
 
     // Déclencher un rechargement en forçant une mise à jour
 
@@ -515,6 +523,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
         // Mettre à jour le cache et l'état
         competencesCache.current.set(characterCacheKey, skills);
         setCompetences(skills);
+        setCurrentLoadedSignature(characterCacheKey);
       }
     } catch (error) {
       console.error("Error refreshing character skills:", error);

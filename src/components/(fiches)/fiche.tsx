@@ -298,6 +298,8 @@ export default function Component() {
           theme_secondary_color: themeData.theme_secondary_color || customizationForm.theme_secondary_color,
           theme_text_color: themeData.theme_text_color || customizationForm.theme_text_color,
           theme_text_secondary_color: themeData.theme_text_secondary_color || customizationForm.theme_text_secondary_color,
+          theme_border_color: themeData.theme_border_color || customizationForm.theme_border_color,
+          theme_frame_color: themeData.theme_frame_color || customizationForm.theme_frame_color,
           theme_border_radius: themeData.theme_border_radius ?? customizationForm.theme_border_radius,
         });
 
@@ -551,6 +553,8 @@ export default function Component() {
           theme_secondary_color: selectedCharacter.theme_secondary_color || '#242424',
           theme_text_color: selectedCharacter.theme_text_color || '#d4d4d4',
           theme_text_secondary_color: selectedCharacter.theme_text_secondary_color || '#a0a0a0',
+          theme_border_color: selectedCharacter.theme_border_color || '#3a3a3a',
+          theme_frame_color: selectedCharacter.theme_frame_color || '#cbb26a',
           theme_border_radius: selectedCharacter.theme_border_radius ?? 8,
         });
         setBgType(selectedCharacter.theme_background?.startsWith('http') ? 'image' : 'color');
@@ -788,6 +792,8 @@ export default function Component() {
   const secondaryValue = (previewTheme?.theme_secondary_color ?? (isLayoutEditing ? customizationForm.theme_secondary_color : selectedCharacter?.theme_secondary_color)) || '';
   const textValue = (previewTheme?.theme_text_color ?? (isLayoutEditing ? customizationForm.theme_text_color : selectedCharacter?.theme_text_color)) || '#d4d4d4';
   const textSecondaryValue = (previewTheme?.theme_text_secondary_color ?? (isLayoutEditing ? customizationForm.theme_text_secondary_color : selectedCharacter?.theme_text_secondary_color)) || '#a0a0a0';
+  const borderColorValue = (previewTheme?.theme_border_color ?? (isLayoutEditing ? customizationForm.theme_border_color : selectedCharacter?.theme_border_color)) || '#3a3a3a';
+  const frameColorValue = (previewTheme?.theme_frame_color ?? (isLayoutEditing ? customizationForm.theme_frame_color : selectedCharacter?.theme_frame_color)) || '#cbb26a';
   const borderRadiusValue = previewTheme?.theme_border_radius ??
     (isLayoutEditing ? (customizationForm.theme_border_radius ?? 8) : (selectedCharacter?.theme_border_radius ?? 8));
 
@@ -799,14 +805,16 @@ export default function Component() {
 
   const boxStyle: React.CSSProperties = {
     ...(secondaryValue
-      ? (secondaryValue.startsWith('http')
+      ? (secondaryValue.startsWith('http') || secondaryValue.startsWith('data:')
         ? { backgroundImage: `url(${secondaryValue})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundRepeat: 'no-repeat' }
         : { backgroundColor: secondaryValue })
       : {}),
     '--text-primary': textValue,
     '--text-secondary': textSecondaryValue,
     '--block-radius': `${borderRadiusValue}px`,
-  } as React.CSSProperties & { '--text-primary'?: string, '--text-secondary'?: string, '--block-radius'?: string };
+    '--border-color': borderColorValue,
+    '--bg-secondary': (secondaryValue && !(secondaryValue.startsWith('http') || secondaryValue.startsWith('data:'))) ? secondaryValue : '#2a2a2a',
+  } as React.CSSProperties & { '--text-primary'?: string, '--text-secondary'?: string, '--block-radius'?: string, '--border-color'?: string, '--bg-secondary'?: string };
 
   return (
     <TooltipProvider>
@@ -928,7 +936,35 @@ export default function Component() {
 
         <AttributsDialog open={isAttributsOpen} onOpenChange={setIsAttributsOpen} />
 
-        <div className={`max-w-5xl mx-auto bg-[#242424] rounded-[length:var(--block-radius,0.5rem)] shadow-2xl p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6`} style={mainStyle}>
+        <div className="relative max-w-5xl mx-auto bg-[#242424] rounded-[length:var(--block-radius,0.5rem)] shadow-2xl p-6 sm:p-8 md:p-10 space-y-4 md:space-y-6" style={mainStyle}>
+          {/* Gold Border with Corner Ornaments */}
+          <div className="absolute inset-2 sm:inset-4 md:inset-5 border-[3px] pointer-events-none z-10" style={{ borderColor: frameColorValue }}>
+              {/* Top Left Corner */}
+              <div className="absolute -top-4 -left-4 w-8 h-8 flex items-center justify-center rotate-45 bg-[#242424]" style={mainStyle}>
+                  <div className="absolute inset-0 border-[3px]" style={{ borderColor: frameColorValue }} />
+                  <div className="absolute w-4 h-4 border-[3px]" style={{ borderColor: frameColorValue }} />
+              </div>
+              
+              {/* Top Right Corner */}
+              <div className="absolute -top-4 -right-4 w-8 h-8 flex items-center justify-center rotate-45 bg-[#242424]" style={mainStyle}>
+                  <div className="absolute inset-0 border-[3px]" style={{ borderColor: frameColorValue }} />
+                  <div className="absolute w-4 h-4 border-[3px]" style={{ borderColor: frameColorValue }} />
+              </div>
+              
+              {/* Bottom Left Corner */}
+              <div className="absolute -bottom-4 -left-4 w-8 h-8 flex items-center justify-center rotate-45 bg-[#242424]" style={mainStyle}>
+                  <div className="absolute inset-0 border-[3px]" style={{ borderColor: frameColorValue }} />
+                  <div className="absolute w-4 h-4 border-[3px]" style={{ borderColor: frameColorValue }} />
+              </div>
+              
+              {/* Bottom Right Corner */}
+              <div className="absolute -bottom-4 -right-4 w-8 h-8 flex items-center justify-center rotate-45 bg-[#242424]" style={mainStyle}>
+                  <div className="absolute inset-0 border-[3px]" style={{ borderColor: frameColorValue }} />
+                  <div className="absolute w-4 h-4 border-[3px]" style={{ borderColor: frameColorValue }} />
+              </div>
+          </div>
+
+          <div className="relative z-20 space-y-4 md:space-y-6 w-full h-full">
           {selectedCharacter && !isEditing && (
             isLayoutEditing ? (
               <ResponsiveGridLayout
@@ -1545,6 +1581,7 @@ export default function Component() {
               </div>
             </div>
           )}
+          </div>
         </div>
       </div>
       {editingGroup && (
@@ -1556,12 +1593,12 @@ export default function Component() {
             <div className="py-4">
               <GroupCreationSection
                 mode="edit"
-                baseType={editingGroup.baseType}
-                initialLabel={editingGroup.label}
-                initialFieldIds={editingGroup.fieldIds}
-                layout={editingGroup.layout}
-                styleOption={editingGroup.styleOption}
-                justify={editingGroup.justify}
+                baseType={editingGroup!.baseType}
+                initialLabel={editingGroup!.label}
+                initialFieldIds={editingGroup!.fieldIds}
+                layout={editingGroup!.layout}
+                styleOption={editingGroup!.styleOption}
+                justify={editingGroup!.justify}
                 customFields={selectedCharacter?.customFields ?? []}
                 handleAddWidget={handleUpdateGroup}
               />

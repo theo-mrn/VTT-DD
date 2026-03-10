@@ -265,6 +265,32 @@ export function FloatingEditTabs({
                                         className="w-full h-8 rounded-lg cursor-pointer bg-transparent border-none p-0"
                                     />
                                 </div>
+                                {/* Couleur de Bordure des blocs */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-bold text-[#d4d4d4]">Bordure des Blocs</span>
+                                        <button onClick={() => setCustomizationForm({ ...customizationForm, theme_border_color: '#3a3a3a' })} className="text-[#666] hover:text-[#d4b48f] transition-colors"><RotateCcw size={12} /></button>
+                                    </div>
+                                    <input
+                                        type="color"
+                                        value={customizationForm.theme_border_color || '#3a3a3a'}
+                                        onChange={(e) => setCustomizationForm({ ...customizationForm, theme_border_color: e.target.value })}
+                                        className="w-full h-8 rounded-lg cursor-pointer bg-transparent border-none p-0"
+                                    />
+                                </div>
+                                {/* Couleur du Cadre */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-bold text-[#d4d4d4]">Bordure Principale (Cadre)</span>
+                                        <button onClick={() => setCustomizationForm({ ...customizationForm, theme_frame_color: '#cbb26a' })} className="text-[#666] hover:text-[#d4b48f] transition-colors"><RotateCcw size={12} /></button>
+                                    </div>
+                                    <input
+                                        type="color"
+                                        value={customizationForm.theme_frame_color || '#cbb26a'}
+                                        onChange={(e) => setCustomizationForm({ ...customizationForm, theme_frame_color: e.target.value })}
+                                        className="w-full h-8 rounded-lg cursor-pointer bg-transparent border-none p-0"
+                                    />
+                                </div>
                                 {/* Border Radius */}
                                 <div className="space-y-3 pt-2">
                                     <div className="flex items-center justify-between">

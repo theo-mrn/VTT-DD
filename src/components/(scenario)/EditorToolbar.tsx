@@ -54,7 +54,7 @@ export function EditorToolbar({ editor, scenes = [] }: EditorToolbarProps) {
     }
 
     return (
-        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b border-border bg-background/95 backdrop-blur p-2 shadow-sm rounded-t-md">
+        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-1 border-b border-[#cbb26a]/30 bg-white/40 backdrop-blur-md p-2 shadow-sm rounded-t-md">
             <div className="flex items-center gap-1 mr-2">
                 <Button
                     variant="ghost"

@@ -3,6 +3,8 @@ export interface ThemeValues {
     theme_secondary_color?: string;
     theme_text_color?: string;
     theme_text_secondary_color?: string;
+    theme_border_color?: string;
+    theme_frame_color?: string;
     theme_border_radius?: number;
     [key: string]: any;
 }

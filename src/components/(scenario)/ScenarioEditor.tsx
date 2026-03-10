@@ -56,7 +56,7 @@ export function ScenarioEditor({ initialContent = "", roomId, scenes = [], onNav
         editorProps: {
             attributes: {
                 class:
-                    "prose prose-sm dark:prose-invert sm:prose-base lg:prose-lg xl:prose-xl focus:outline-none max-w-none min-h-[calc(100vh-16rem)] px-8 py-6",
+                    "prose prose-sm sm:prose-base lg:prose-lg xl:prose-xl focus:outline-none max-w-none min-h-[calc(100vh-16rem)] px-2 py-6 prose-headings:font-serif prose-headings:text-[#124263] prose-p:text-zinc-800",
             },
             handleClick: (view, pos, event) => {
                 const target = event.target as HTMLElement
@@ -76,9 +76,9 @@ export function ScenarioEditor({ initialContent = "", roomId, scenes = [], onNav
     })
 
     return (
-        <div className="relative w-full border border-border/50 rounded-md bg-white/80 dark:bg-black/60 backdrop-blur-sm shadow-sm flex flex-col">
+        <div className="relative w-full flex flex-col h-full bg-transparent">
             <EditorToolbar editor={editor} scenes={scenes} />
-            <div className="flex-1">
+            <div className="flex-1 mt-4">
                 <EditorContent editor={editor} />
             </div>
         </div>

@@ -303,58 +303,100 @@ export function ScenarioLayout({ roomId }: ScenarioLayoutProps) {
             </div>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col overflow-hidden relative z-10">
-                <div className="relative flex-1 overflow-y-auto p-4 md:p-8 lg:p-12">
-                    <div className="max-w-7xl mx-auto space-y-6">
-                        <div className="flex items-center justify-between pb-4 border-b border-border/30">
-                            <div>
+            <div className="flex-1 flex flex-col overflow-hidden relative z-10 bg-[#f4f1ea] dark:bg-black/40">
+                <div className="relative flex-1 overflow-y-auto p-4 md:p-8 lg:p-12 flex justify-center">
+                    
+                    {/* The "Paper" Container */}
+                    <div 
+                        className="w-full max-w-[850px] min-h-[1100px] shadow-2xl relative bg-white"
+                        style={{
+                            backgroundImage: 'url(/assets/bg.jpg)',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            backgroundRepeat: 'no-repeat'
+                        }}
+                    >
+                        {/* Gold Border with Corner Ornaments */}
+                        <div className="absolute inset-5 border-[3px] border-[#cbb26a] pointer-events-none">
+                            {/* Top Left Corner */}
+                            <div className="absolute -top-4 -left-4 w-8 h-8 flex items-center justify-center rotate-45 bg-[#fdfbf7]" style={{ backgroundImage: 'url(/assets/bg.jpg)' }}>
+                                <div className="absolute inset-0 border-[3px] border-[#cbb26a]" />
+                                <div className="absolute w-4 h-4 border-[3px] border-[#cbb26a]" />
+                            </div>
+                            
+                            {/* Top Right Corner */}
+                            <div className="absolute -top-4 -right-4 w-8 h-8 flex items-center justify-center rotate-45 bg-[#fdfbf7]" style={{ backgroundImage: 'url(/assets/bg.jpg)' }}>
+                                <div className="absolute inset-0 border-[3px] border-[#cbb26a]" />
+                                <div className="absolute w-4 h-4 border-[3px] border-[#cbb26a]" />
+                            </div>
+                            
+                            {/* Bottom Left Corner */}
+                            <div className="absolute -bottom-4 -left-4 w-8 h-8 flex items-center justify-center rotate-45 bg-[#fdfbf7]" style={{ backgroundImage: 'url(/assets/bg.jpg)' }}>
+                                <div className="absolute inset-0 border-[3px] border-[#cbb26a]" />
+                                <div className="absolute w-4 h-4 border-[3px] border-[#cbb26a]" />
+                            </div>
+                            
+                            {/* Bottom Right Corner */}
+                            <div className="absolute -bottom-4 -right-4 w-8 h-8 flex items-center justify-center rotate-45 bg-[#fdfbf7]" style={{ backgroundImage: 'url(/assets/bg.jpg)' }}>
+                                <div className="absolute inset-0 border-[3px] border-[#cbb26a]" />
+                                <div className="absolute w-4 h-4 border-[3px] border-[#cbb26a]" />
+                            </div>
+                        </div>
+                        
+                        {/* Content Area */}
+                        <div className="relative z-10 px-16 py-20 lg:px-24 text-zinc-800 h-full flex flex-col">
+                            
+                            <div className="mb-8 pb-8 border-b border-[#cbb26a]/30">
                                 <input
                                     type="text"
                                     value={activeScene?.title || ""}
                                     onChange={(e) => {
                                         setScenes(prev => prev.map(s => s.id === activeSceneId ? { ...s, title: e.target.value } : s))
                                     }}
-                                    className="text-3xl font-bold tracking-tight bg-transparent border-none outline-none focus:ring-0 p-0 w-full placeholder:text-muted-foreground/50"
+                                    className="text-4xl md:text-5xl font-serif font-bold tracking-tight bg-transparent border-none outline-none focus:ring-0 p-0 w-full text-[#124263] text-center placeholder:text-[#124263]/30"
                                     placeholder="Titre de la scène..."
                                 />
-                                <p className="text-muted-foreground mt-1">
-                                    Éditez le contenu de la scène ci-dessous.
+                                <p className="text-zinc-600 mt-2 text-center font-serif italic">
+                                    Sous-partie | D&D 2024
                                 </p>
                             </div>
-                            <div className="flex items-center gap-2">
+
+                            <div className="flex items-center gap-2 absolute top-6 right-6 z-20">
                                 <Button
                                     variant="outline"
-                                    className="text-destructive hover:bg-destructive/10 border-destructive/20"
+                                    className="text-destructive hover:bg-destructive/10 border-destructive/20 bg-white/50 backdrop-blur-sm"
                                     onClick={(e) => {
                                         if (activeScene) {
                                             deleteScene(activeScene.id, e)
                                         }
                                     }}
                                 >
-                                    <Trash2 className="h-4 w-4 mr-2" />
-                                    Supprimer
+                                    <Trash2 className="h-4 w-4 md:mr-2" />
+                                    <span className="hidden md:inline">Supprimer</span>
                                 </Button>
-                                <Button onClick={() => saveToFirebase()} disabled={isSaving}>
-                                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                                    Sauvegarder
+                                <Button onClick={() => saveToFirebase()} disabled={isSaving} className="bg-[#124263] text-white hover:bg-[#124263]/90">
+                                    {isSaving ? <Loader2 className="h-4 w-4 animate-spin md:mr-2" /> : <Save className="h-4 w-4 md:mr-2" />}
+                                    <span className="hidden md:inline">Sauvegarder</span>
                                 </Button>
                             </div>
-                        </div>
 
                         {activeScene ? (
-                            <ScenarioEditor
-                                key={activeScene.id} // Force re-render when switching scenes
-                                initialContent={activeScene.content}
-                                roomId={roomId}
-                                scenes={scenes.map(s => ({ id: s.id, title: s.title }))}
-                                onNavigateToScene={setActiveSceneId}
-                                onChange={handleContentChange}
-                            />
+                            <div className="flex-1">
+                                <ScenarioEditor
+                                    key={activeScene.id} // Force re-render when switching scenes
+                                    initialContent={activeScene.content}
+                                    roomId={roomId}
+                                    scenes={scenes.map(s => ({ id: s.id, title: s.title }))}
+                                    onNavigateToScene={setActiveSceneId}
+                                    onChange={handleContentChange}
+                                />
+                            </div>
                         ) : (
-                            <div className="flex items-center justify-center h-64 border border-dashed rounded-lg text-muted-foreground">
+                            <div className="flex items-center justify-center h-64 border border-dashed border-[#cbb26a] rounded-lg text-[#124263]/60 font-serif">
                                 Sélectionnez ou créez une scène pour commencer.
                             </div>
                         )}
+                        </div>
                     </div>
                 </div>
             </div>

@@ -33,6 +33,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
+  const [isToggling, setIsToggling] = useState(false);
   const containerRef = useState<{ current: HTMLDivElement | null }>({ current: null })[0]; // Using a stable ref object
 
   useEffect(() => {
@@ -147,6 +148,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
     event.stopPropagation();
     if (!selectedCharacter) return;
 
+    setIsToggling(true);
     try {
       const bonusPath = `Bonus/${roomId}/${selectedCharacter.Nomperso}/${competenceId}`;
       const bonusDoc = await getDoc(doc(db, bonusPath));
@@ -166,6 +168,8 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
       await refreshCompetences();
     } catch (error) {
       console.error("Error updating active state:", error);
+    } finally {
+      setIsToggling(false);
     }
   };
 
@@ -380,6 +384,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
 
                 {canEdit && selectedCompetence && (
                   <Button
+                    disabled={isToggling}
                     onClick={async (e) => {
                       e.stopPropagation();
                       await toggleCompetenceActive(selectedCompetence.id, e);
@@ -390,7 +395,11 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
                       : "bg-green-500/10 text-green-400 hover:bg-green-500/20 border-green-500/50 border hover:shadow-lg hover:shadow-green-500/20"
                       }`}
                   >
-                    {selectedCompetence.isActive ? "Désactiver" : "Activer"}
+                    {isToggling ? (
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                    ) : (
+                      selectedCompetence.isActive ? "Désactiver" : "Activer"
+                    )}
                   </Button>
                 )}
               </div>
