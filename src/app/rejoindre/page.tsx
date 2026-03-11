@@ -179,7 +179,7 @@ export default function RejoindrePageComponent() {
     <div
       className="min-h-screen text-[var(--text-primary)] font-body relative"
       style={{
-        backgroundImage: `url('https://assets.yner.fr/images/index6.webp')`,
+        backgroundImage: `url('https://assets.yner.fr/images/index2.webp')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed',
@@ -197,7 +197,7 @@ export default function RejoindrePageComponent() {
         />
         {isProfileOpen && <UserProfileDialog isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} userId={userId} />}
         <StoreModal isOpen={isStoreOpen} onClose={() => setIsStoreOpen(false)} />
-        
+
         <div className="container mx-auto px-6 py-8 pt-32">
           {selectedRoom ? (
             <>
@@ -301,7 +301,7 @@ export default function RejoindrePageComponent() {
 
                   {/* Sessions */}
                   <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-xl overflow-hidden">
-                     <RoomSessions roomId={selectedRoom.id} isOwner={selectedRoom.creatorId === userId} />
+                    <RoomSessions roomId={selectedRoom.id} isOwner={selectedRoom.creatorId === userId} />
                   </div>
 
                   {/* Créateur */}

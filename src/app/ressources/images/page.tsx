@@ -33,15 +33,15 @@ export default function ImagesPage() {
   return (
     <div className="min-h-screen w-full relative">
       {/* Global Background */}
-      <div 
+      <div
         className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('https://assets.yner.fr/images/index6.webp')" }}
+        style={{ backgroundImage: "url('https://assets.yner.fr/images/index2.webp')" }}
       />
       <div className="fixed inset-0 z-0 bg-[var(--bg-canvas)]/80 backdrop-blur-sm" />
 
-      <AppNavbar 
-        variant="home" 
-        isUserLoggedIn={!!user} 
+      <AppNavbar
+        variant="home"
+        isUserLoggedIn={!!user}
         userData={userData}
         onOpenProfile={() => setIsProfileOpen(true)}
         onOpenStore={() => setIsStoreOpen(true)}
@@ -51,15 +51,15 @@ export default function ImagesPage() {
         <Images />
       </main>
 
-      <UserProfileDialog 
-        isOpen={isProfileOpen} 
-        onClose={() => setIsProfileOpen(false)} 
+      <UserProfileDialog
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
         userId={user?.uid}
       />
-      
-      <StoreModal 
-        isOpen={isStoreOpen} 
-        onClose={() => setIsStoreOpen(false)} 
+
+      <StoreModal
+        isOpen={isStoreOpen}
+        onClose={() => setIsStoreOpen(false)}
       />
     </div>
   )

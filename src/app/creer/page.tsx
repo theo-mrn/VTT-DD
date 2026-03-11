@@ -140,7 +140,7 @@ export default function CreerPageComponent() {
     <div
       className="min-h-screen text-[var(--text-primary)] font-body relative"
       style={{
-        backgroundImage: `url('https://assets.yner.fr/images/index6.webp')`,
+        backgroundImage: `url('https://assets.yner.fr/images/index2.webp')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed',
