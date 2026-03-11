@@ -262,10 +262,10 @@ const renderMenuItem = (item: MenuItem) => {
         <NavigationMenuTrigger className="!rounded-3xl bg-transparent hover:bg-muted hover:text-foreground transition-all duration-200">{item.title}</NavigationMenuTrigger>
         <NavigationMenuContent className="!rounded-3xl">
           <ul className="w-80 p-3">
-            <NavigationMenuLink className="!rounded-3xl">
-              {item.items.map((subItem) => (
-                <li key={subItem.title}>
-                  {subItem.url ? (
+            {item.items.map((subItem) => (
+              <li key={subItem.title}>
+                {subItem.url ? (
+                  <NavigationMenuLink asChild className="!rounded-3xl">
                     <Link
                       className="flex select-none gap-4 rounded-xl p-3 leading-none no-underline outline-none transition-all duration-200 hover:bg-muted hover:text-accent-foreground"
                       href={subItem.url}
@@ -282,7 +282,9 @@ const renderMenuItem = (item: MenuItem) => {
                         )}
                       </div>
                     </Link>
-                  ) : (
+                  </NavigationMenuLink>
+                ) : (
+                  <NavigationMenuLink asChild className="!rounded-3xl">
                     <button
                       className="flex w-full select-none gap-4 rounded-xl p-3 leading-none no-underline outline-none transition-all duration-200 hover:bg-muted hover:text-accent-foreground text-left"
                       onClick={subItem.onClick}
@@ -299,10 +301,10 @@ const renderMenuItem = (item: MenuItem) => {
                         )}
                       </div>
                     </button>
-                  )}
-                </li>
-              ))}
-            </NavigationMenuLink>
+                  </NavigationMenuLink>
+                )}
+              </li>
+            ))}
           </ul>
         </NavigationMenuContent>
       </NavigationMenuItem>

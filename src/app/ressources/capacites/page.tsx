@@ -33,33 +33,33 @@ export default function CapacitesPage() {
   return (
     <div className="min-h-screen w-full relative">
       {/* Global Background */}
-      <div 
+      <div
         className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('https://assets.yner.fr/images/index6.webp')" }}
+        style={{ backgroundImage: "url('https://assets.yner.fr/images/index2.webp')" }}
       />
       <div className="fixed inset-0 z-0 bg-[var(--bg-canvas)]/80 backdrop-blur-sm" />
 
-      <AppNavbar 
-        variant="home" 
-        isUserLoggedIn={!!user} 
+      <AppNavbar
+        variant="home"
+        isUserLoggedIn={!!user}
         userData={userData}
         onOpenProfile={() => setIsProfileOpen(true)}
         onOpenStore={() => setIsStoreOpen(true)}
       />
 
-      <main className="relative z-10 pt-24 pb-12 px-4 container mx-auto h-[calc(100vh-6rem)] overflow-auto">
+      <main className="relative z-10 pt-24 pb-12 px-4 container mx-auto min-h-screen">
         <Capacites />
       </main>
 
-      <UserProfileDialog 
-        isOpen={isProfileOpen} 
-        onClose={() => setIsProfileOpen(false)} 
+      <UserProfileDialog
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
         userId={user?.uid}
       />
-      
-      <StoreModal 
-        isOpen={isStoreOpen} 
-        onClose={() => setIsStoreOpen(false)} 
+
+      <StoreModal
+        isOpen={isStoreOpen}
+        onClose={() => setIsStoreOpen(false)}
       />
     </div>
   )

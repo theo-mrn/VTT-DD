@@ -415,7 +415,7 @@ export default function Glossary() {
             </div>
 
             {/* Book Container */}
-            <div className="flex-1 w-full relative z-10 flex items-center justify-center px-4 md:px-16 pb-12">
+            <div className="flex-1 w-full relative z-10 flex items-start justify-center px-4 md:px-16 pt-12 pb-0">
                 {/* Navigation Arrows */}
                 <Button
                     variant="ghost"
@@ -431,7 +431,7 @@ export default function Glossary() {
                 >
                     <ChevronRight className="w-10 h-10" />
                 </Button>
-
+                
                 {(() => {
                     const currentItemsLength = activeTab === 'bestiaire'
                         ? filteredMonsters.length
@@ -440,7 +440,7 @@ export default function Glossary() {
                             : filteredRaces.length;
 
                     return currentItemsLength > 0 ? (
-                        <div className="w-full h-full flex items-center justify-center max-w-[1200px]">
+                        <div className="w-full h-full flex items-start justify-center max-w-[1200px]">
                             {/* We use a key based on the filter results to force React to completely remount HTMLFlipBook 
                                 when the length/content changes. This prevents the "removeChild" DOM sync errors. */}
                             <HTMLFlipBook
@@ -449,12 +449,12 @@ export default function Glossary() {
                                         filteredRaces.length
                                     }-${search}-${selectedCategory}`}
                                 width={550}
-                                height={750}
+                                height={850}
                                 size="stretch"
                                 minWidth={300}
                                 maxWidth={600}
                                 minHeight={400}
-                                maxHeight={800}
+                                maxHeight={1000}
                                 maxShadowOpacity={0.8}
                                 showCover={false}
                                 mobileScrollSupport={true}

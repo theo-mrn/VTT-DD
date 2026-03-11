@@ -42,7 +42,7 @@ export default function HomePage() {
     <div
       className="min-h-screen text-[var(--text-primary)] font-body relative"
       style={{
-        backgroundImage: `url('https://assets.yner.fr/images/index6.webp')`,
+        backgroundImage: `url('https://assets.yner.fr/images/index2.webp')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed',
@@ -91,11 +91,11 @@ export default function HomePage() {
                   onClick={() => router.push('/mes-campagnes')}
                 >
                   <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-brown)]/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
+
                   <CardHeader className="relative z-10 pb-4">
                     <CardTitle className={`text-3xl md:text-4xl font-bold text-[var(--accent-brown)] ${aclonica.className}`}>Mes campagnes</CardTitle>
                   </CardHeader>
-                  
+
                   <CardContent className="relative z-10 flex flex-col flex-1 justify-between gap-8 pt-4">
                     <p className="text-xl text-[var(--text-secondary)] max-w-lg leading-relaxed">
                       Reprenez là où vous vous êtes arrêté. Accédez à vos parties sauvegardées, vos personnages et l'histoire de vos mondes.
@@ -169,7 +169,7 @@ export default function HomePage() {
                 >
                   <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-transparent via-[var(--accent-brown)] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
                   <div className="absolute inset-0 bg-gradient-to-r from-[var(--accent-brown)]/5 via-transparent to-[var(--accent-brown)]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                  
+
                   <CardContent className="p-6 md:p-8 flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
                     <div className="flex items-center gap-6">
                       <div className="p-4 rounded-xl bg-[var(--bg-dark)] shadow-inner group-hover:rotate-12 transition-transform duration-500">
@@ -180,7 +180,7 @@ export default function HomePage() {
                         <p className="text-[var(--text-secondary)]">Équipez vos personnages avec des ressources légendaires et des visuels exclusifs.</p>
                       </div>
                     </div>
-                    <Button 
+                    <Button
                       className="bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] font-bold px-8 h-12 rounded-xl transition-all hover:scale-105 active:scale-95"
                     >
                       Ouvrir l'échoppe

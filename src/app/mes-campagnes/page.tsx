@@ -107,10 +107,10 @@ export default function MesCampagnesPage() {
   const isOwner = selectedRoom?.creatorId === userId
 
   return (
-    <div 
+    <div
       className="min-h-screen text-[var(--text-primary)] font-body relative"
       style={{
-        backgroundImage: `url('https://assets.yner.fr/images/index6.webp')`,
+        backgroundImage: `url('https://assets.yner.fr/images/index2.webp')`,
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundAttachment: 'fixed',
@@ -237,7 +237,7 @@ export default function MesCampagnesPage() {
 
                   {/* Sessions */}
                   <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-xl overflow-hidden">
-                     <RoomSessions roomId={selectedRoom.id} isOwner={isOwner} />
+                    <RoomSessions roomId={selectedRoom.id} isOwner={isOwner} />
                   </div>
 
                   {/* Créateur */}
@@ -326,8 +326,8 @@ export default function MesCampagnesPage() {
                                 />
                               </div>
                               <div className="space-y-2">
-                                 <h3 className="font-bold text-xl text-[var(--text-primary)] line-clamp-1">{room.title}</h3>
-                                 <p className="text-sm text-[var(--text-secondary)] line-clamp-2 leading-relaxed">{room.description}</p>
+                                <h3 className="font-bold text-xl text-[var(--text-primary)] line-clamp-1">{room.title}</h3>
+                                <p className="text-sm text-[var(--text-secondary)] line-clamp-2 leading-relaxed">{room.description}</p>
                               </div>
                               <div className="flex items-center justify-between pt-2">
                                 <span className="text-sm font-bold text-[var(--text-secondary)] flex items-center gap-1.5">
@@ -369,8 +369,8 @@ export default function MesCampagnesPage() {
                                 />
                               </div>
                               <div className="space-y-2">
-                                 <h3 className="font-bold text-xl text-[var(--text-primary)] line-clamp-1">{room.title}</h3>
-                                 <p className="text-sm text-[var(--text-secondary)] line-clamp-2 leading-relaxed">{room.description}</p>
+                                <h3 className="font-bold text-xl text-[var(--text-primary)] line-clamp-1">{room.title}</h3>
+                                <p className="text-sm text-[var(--text-secondary)] line-clamp-2 leading-relaxed">{room.description}</p>
                               </div>
                               <div className="flex items-center justify-between pt-2">
                                 <span className="text-sm font-bold text-[var(--text-secondary)] flex items-center gap-1.5">
