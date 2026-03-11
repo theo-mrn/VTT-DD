@@ -111,7 +111,7 @@ const HeroHeader = ({ onOpenAuth, isUserLoggedIn, userData, onOpenProfile, route
                                                 <span>Voir mon profil</span>
                                             </DropdownMenuItem>
                                             <DropdownMenuSeparator className="bg-white/10" />
-                                            <DropdownMenuItem onClick={() => signOut(auth)} className="focus:bg-red-500/20 focus:text-red-400 text-red-400 cursor-pointer gap-2">
+                                            <DropdownMenuItem onClick={() => signOut(auth).then(() => router.push("/"))} className="focus:bg-red-500/20 focus:text-red-400 text-red-400 cursor-pointer gap-2">
                                                 <LogOut className="w-4 h-4" />
                                                 <span>Se déconnecter</span>
                                             </DropdownMenuItem>
@@ -170,7 +170,7 @@ export function HeroSection() {
 
     const handleStartAdventure = () => {
         if (isUserLoggedIn) {
-            router.push('/Salle')
+            router.push('/home')
         } else {
             setIsAuthModalOpen(true)
         }

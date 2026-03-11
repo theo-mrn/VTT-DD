@@ -30,7 +30,7 @@ export async function POST(request: Request) {
         const { data, error } = await resend.emails.send({
             from: 'contact@yner.fr',
             to: [to],
-            subject: `⚔️ Bienvenue sur VTT-DD, ${username || 'Aventurier'} !`,
+            subject: `Bienvenue sur Yner, ${username || 'Aventurier'} !`,
             react: SignUpEmailTemplate({
                 username: username || 'Aventurier',
             }),

@@ -227,10 +227,10 @@ export default function Login06() {
           console.error("Failed to send welcome email:", emailError);
         }
 
-        router.push('/Salle');
+        router.push('/home');
       } else {
         await signInWithEmailAndPassword(auth, email, password);
-        router.push('/Salle');
+        router.push('/home');
       }
     } catch (error: unknown) {
       if (error instanceof Error) {
@@ -282,7 +282,7 @@ export default function Login06() {
         });
       }
 
-      router.push('/Salle');
+      router.push('/home');
     } catch (error: unknown) {
       if (error instanceof Error) {
         setError(error.message);
