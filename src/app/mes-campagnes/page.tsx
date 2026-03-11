@@ -13,6 +13,13 @@ import { StoreModal } from '@/components/store/store-modal'
 import { RoomUsersManager } from '@/app/home/components/RoomUsersManager'
 import { RoomChat } from '@/app/home/components/RoomChat'
 import { RoomSessions } from '@/app/home/components/RoomSessions'
+import { RoomSettingsManager } from '@/app/home/components/RoomSettingsManager'
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog"
 import { cn } from '@/lib/utils'
 import { Aclonica } from "next/font/google"
 
@@ -46,6 +53,7 @@ export default function MesCampagnesPage() {
   const [userData, setUserData] = useState<any>(null)
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isStoreOpen, setIsStoreOpen] = useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const router = useRouter()
 
   useEffect(() => {
@@ -227,7 +235,7 @@ export default function MesCampagnesPage() {
                         {isOwner ? 'Jouer (MJ)' : 'Jouer'}
                       </Button>
                       {isOwner && (
-                        <Button variant="outline" onClick={() => router.push(`/creer`)} className="w-full h-12 gap-2 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-white/10 font-bold">
+                        <Button variant="outline" onClick={() => setIsSettingsOpen(true)} className="w-full h-12 gap-2 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-white/10 font-bold">
                           <Settings className="h-4 w-4" />
                           Gérer la salle
                         </Button>
@@ -273,6 +281,20 @@ export default function MesCampagnesPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Dialog de paramètres */}
+              <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+                <DialogContent className="max-w-2xl bg-[var(--bg-card)] border-[var(--border-color)] p-0 overflow-hidden">
+                  <DialogHeader className="p-6 pb-0">
+                    <DialogTitle className={`text-2xl font-bold text-[var(--accent-brown)] ${aclonica.className}`}>
+                      Paramètres de la campagne
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="max-h-[80vh] overflow-y-auto">
+                    <RoomSettingsManager roomId={selectedRoom.id} />
+                  </div>
+                </DialogContent>
+              </Dialog>
             </div>
           </>
         ) : (

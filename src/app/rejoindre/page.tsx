@@ -173,7 +173,7 @@ export default function RejoindrePageComponent() {
     }
   }
 
-  const availablePublicRooms = publicRooms.filter(r => r.creatorId !== userId)
+  const availablePublicRooms = publicRooms
 
   return (
     <div

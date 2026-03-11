@@ -62,6 +62,7 @@ interface MapToolbarProps {
     showGrid: boolean;
     activeToolContent?: React.ReactNode;
     className?: string;
+    allies?: Array<{ id: string; name: string; avatar?: string }>; // List of ally NPCs for showing ally view button
 }
 
 export const TOOLS = {
@@ -236,7 +237,8 @@ function MapToolbar({
     currentViewMode = 'mj',
     showGrid,
     activeToolContent,
-    className
+    className,
+    allies = []
 }: MapToolbarProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -364,6 +366,15 @@ function MapToolbar({
                                         isActive={activeTools.includes(TOOLS.VIEW_MODE)}
                                     />
                                 </>
+                            )}
+                            {/* Player Ally View Button (like MJ View Mode) */}
+                            {!isMJ && allies.length > 0 && (
+                                <ToolButton onAction={onAction}
+                                    id="ALLY_VIEW_MODE"
+                                    icon={ScanEye}
+                                    label="Vue Allié"
+                                    isActive={activeTools.includes('ALLY_VIEW_MODE')}
+                                />
                             )}
                         </div>
 
