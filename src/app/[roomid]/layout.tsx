@@ -17,7 +17,7 @@ export default function RoomLayout({
 
   useEffect(() => {
     if (!roomid) {
-      router.replace('/Salle');
+      router.replace('/home');
       return;
     }
 
@@ -28,13 +28,13 @@ export default function RoomLayout({
 
         if (!roomDoc.exists()) {
           console.error("Room not found:", roomid);
-          router.replace('/Salle');
+          router.replace('/home');
         } else {
           setIsValidated(true);
         }
       } catch (error) {
         console.error("Error fetching room:", error);
-        router.replace('/Salle');
+        router.replace('/home');
       }
     };
 

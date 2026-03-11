@@ -30,7 +30,7 @@ export default function NotFound() {
                     </Link>
                 </Button>
                 <Button asChild variant="outline" size="lg" className="gap-2">
-                    <Link href="/Salle">
+                    <Link href="/home">
                         Trouver une partie
                     </Link>
                 </Button>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Check, User, Users, LogOut, X, Clipboard, Share2, SquareUserRound, Settings, Palette, BookOpen, ImageIcon, Store, Zap, ShoppingCart, Library, Skull } from "lucide-react";
+import { Check, User, Users, LogOut, X, Clipboard, Share2, SquareUserRound, Settings, Palette, BookOpen, ImageIcon, Store, Zap, ShoppingCart, Library, Skull, ChevronRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { auth, db, doc, updateDoc, signOut, onSnapshot } from "@/lib/firebase";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
@@ -27,8 +27,8 @@ import { cn } from "@/lib/utils";
 
 // Resource components are now on the /ressources page
 import { StoreModal } from "@/components/store/store-modal";
-import { RoomUsersManager } from "@/app/Salle/components/RoomUsersManager";
-import { RoomSettingsManager } from "@/app/Salle/components/RoomSettingsManager";
+import { RoomUsersManager } from "@/app/home/components/RoomUsersManager";
+import { RoomSettingsManager } from "@/app/home/components/RoomSettingsManager";
 import { ChallengesButton } from '@/components/(challenges)/challenges-button';
 import FileLibrary from '@/components/(infos)/FileLibrary';
 
@@ -56,6 +56,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const [openDialog, setOpenDialog] = useState<string | null>(null);
   const [currentDiceSkinId, setCurrentDiceSkinId] = useState<string>("gold");
   const [currentTokenSrc, setCurrentTokenSrc] = useState<string>("Token1");
+  const [isRessourcesOpen, setIsRessourcesOpen] = useState(false);
   const { isMJ, isOwner, user: gameUser } = useGame();
 
   // Theme state for custom switcher in sidebar
@@ -126,7 +127,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
       const userDocRef = doc(db, "users", currentUser.uid);
       try {
         await updateDoc(userDocRef, { room_id: "" });
-        router.push("/");
+        router.push("/home");
       } catch (error) {
         console.error("Erreur lors de la mise à jour du room_id :", error);
       }
@@ -151,7 +152,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const handleSignOut = async () => {
     try {
       await signOut(auth);
-      router.push("/auth");
+      router.push("/home");
     } catch (error) {
       console.error("Erreur lors de la déconnexion :", error);
     }
@@ -243,13 +244,59 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <ChallengesButton variant="sidebar" />
         </div>
 
-        <button
-          className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
-          onClick={() => window.open('/ressources', '_blank')}
-        >
-          <BookOpen className="w-5 h-5 text-[var(--accent-brown)]" />
-          <span className="text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors font-bold">Ressources & Hub</span>
-        </button>
+        <DropdownMenu open={isRessourcesOpen} onOpenChange={setIsRessourcesOpen}>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="w-full flex items-center justify-between p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors group"
+              onMouseEnter={() => setIsRessourcesOpen(true)}
+              onMouseLeave={() => setIsRessourcesOpen(false)}
+              onClick={() => window.open('/ressources', '_blank')}
+            >
+              <div className="flex items-center gap-3">
+                <BookOpen className="w-5 h-5 text-[var(--accent-brown)]" />
+                <span className="text-[var(--text-primary)] group-hover:text-[var(--accent-brown)] transition-colors font-bold">Ressources & Hub</span>
+              </div>
+              <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 transition-all group-hover:translate-x-0.5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent 
+            side="right" 
+            align="start" 
+            sideOffset={10}
+            className="w-56 bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] z-[1050] p-1 shadow-xl"
+            onMouseEnter={() => setIsRessourcesOpen(true)}
+            onMouseLeave={() => setIsRessourcesOpen(false)}
+          >
+            <DropdownMenuItem 
+              onClick={() => window.open('/ressources/bestiaire', '_blank')}
+              className="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+            >
+              <Skull className="w-4 h-4 text-[var(--accent-brown)]" />
+              <span className="text-sm font-medium">Bestiaire</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => window.open('/ressources/capacites', '_blank')}
+              className="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+            >
+              <Zap className="w-4 h-4 text-[var(--accent-brown)]" />
+              <span className="text-sm font-medium">Capacités</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => window.open('/ressources/images', '_blank')}
+              className="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+            >
+              <ImageIcon className="w-4 h-4 text-[var(--accent-brown)]" />
+              <span className="text-sm font-medium">Images</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem 
+              onClick={() => window.open('/ressources/marche', '_blank')}
+              className="flex items-center gap-3 p-2.5 cursor-pointer hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
+            >
+              <Store className="w-4 h-4 text-[var(--accent-brown)]" />
+              <span className="text-sm font-medium">Marché</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {isMJ && (
           <>
@@ -292,6 +339,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                   <span className="text-xs font-semibold mt-1 text-[var(--accent-brown)]">{activeThemeObj.label}</span>
                 </div>
               </div>
+              <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 transition-all group-hover:translate-x-0.5" />
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent className="w-auto min-w-[380px] max-w-[90vw] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] z-[1050] p-4 shadow-xl" side="right" align="start" sideOffset={10}>

@@ -397,6 +397,8 @@
 
   .theme {
     --animate-shine: shine var(--duration) infinite linear;
+    --animate-accordion-down: accordion-down 0.2s ease-out;
+    --animate-accordion-up: accordion-up 0.2s ease-out;
   }
 }
 
@@ -439,9 +441,23 @@
       background-position: 0% 0%;
     }
   }
+  @keyframes accordion-down {
+  from {
+    height: 0;
+    }
+  to {
+    height: var(--radix-accordion-content-height);
+    }
+  }
+  @keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+    }
+  to {
+    height: 0;
+    }
+  }
 }
-
-
 
 /* Resize handles: remove default SVG diagonal, keep native positioning */
 .react-resizable-handle {

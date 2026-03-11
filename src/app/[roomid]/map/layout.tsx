@@ -99,7 +99,7 @@ export default function Layout({ children }: LayoutProps) {
     if (!userRoomId) return;
     if (userRoomId !== roomId) {
       toast.error("Vous avez été expulsé de la salle.");
-      router.push("/Salle");
+      router.push("/home");
     }
   }, [gameUser?.roomId, roomId, router]);
 

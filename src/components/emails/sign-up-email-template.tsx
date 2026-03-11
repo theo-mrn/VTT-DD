@@ -20,7 +20,7 @@ export const SignUpEmailTemplate = ({
 }: SignUpEmailTemplateProps) => (
     <Html>
         <Head />
-        <Preview>Bienvenue sur VTT-DD, {username} !</Preview>
+        <Preview>Bienvenue sur Yner, {username} !</Preview>
         <Body style={main}>
             <Container style={container}>
                 <Section style={header}>
@@ -28,10 +28,6 @@ export const SignUpEmailTemplate = ({
                 </Section>
 
                 <Section style={card}>
-                    <Section style={iconSection}>
-                        <Text style={icon}>⚔️</Text>
-                    </Section>
-
                     <Heading style={welcomeHeading}>LA QUÊTE COMMENCE</Heading>
 
                     <Text style={introText}>
@@ -39,7 +35,7 @@ export const SignUpEmailTemplate = ({
                     </Text>
 
                     <Text style={descriptionText}>
-                        Votre inscription sur VTT-DD a été validée avec succès. Vous êtes maintenant prêt(e) à lancer les dés, explorer de nouveaux mondes et braver tous les dangers avec la communauté.
+                        Votre inscription sur yner a été validée avec succès. Vous êtes maintenant prêt(e) à lancer les dés, explorer de nouveaux mondes et braver tous les dangers avec la communauté.
                     </Text>
 
                     <Hr style={divider} />

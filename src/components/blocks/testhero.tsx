@@ -12,7 +12,7 @@ const HeroDemo: React.FC = () => {
 
   const handlePrimaryClick = () => {
     if (isUserLoggedIn) {
-      router.push('/Salle')
+      router.push('/home')
     } else {
       // Ouvrir la modal d'authentification
       console.log('Ouvrir la modal d\'authentification')
