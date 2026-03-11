@@ -498,6 +498,7 @@ export default function Component() {
 
   const [multiSelectMode, setMultiSelectMode] = useState(false);
   const [measurementScale, setMeasurementScale] = useState<number>(50); // px per unit
+  const [allyViewId, setAllyViewId] = useState<string | null>(null); // 🆕 Vue POV d'un allié pour les joueurs
   const [isDraggingObject, setIsDraggingObject] = useState(false)
   const [draggedObjectIndex, setDraggedObjectIndex] = useState<number | null>(null) // Used for main reference
   const [draggedObjectOriginalPos, setDraggedObjectOriginalPos] = useState({ x: 0, y: 0 })
@@ -693,6 +694,7 @@ export default function Component() {
   const [panMode, setPanMode] = useState(false); // Mode déplacement de carte
 
   const [playerViewMode, setPlayerViewMode] = useState(false); // Mode "Vue Joueur" pour le MJ
+  const [allyViewMode, setAllyViewMode] = useState(false); // Mode "Vue Allié" pour les joueurs
 
   //  MEASUREMENT & CALIBRATION STATE
   const [measureMode, setMeasureMode] = useState(false);
@@ -1986,9 +1988,56 @@ export default function Component() {
 
   // 🔦 OPTIMIZATION: Memoize active viewer to avoid re-finding it constantly
   const activeViewer = React.useMemo(() => {
-    const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
-    return characters.find(c => c.id === effectivePersoId);
-  }, [characters, playerViewMode, viewAsPersoId, persoId]);
+    // MJ viewing as player
+    if (playerViewMode && viewAsPersoId) return characters.find(c => c.id === viewAsPersoId);
+    // Player viewing as ally
+    if (!isMJ && allyViewId) return characters.find(c => c.id === allyViewId);
+    // Default: own character
+    return characters.find(c => c.id === persoId);
+  }, [characters, playerViewMode, viewAsPersoId, persoId, isMJ, allyViewId]);
+
+  // 🆕 Liste des alliés pour les joueurs (pour le bouton vue POV)
+  const playerAllies = React.useMemo(() => {
+    if (isMJ) return []; // MJ n'a pas besoin de la liste d'alliés
+    return characters
+      .filter(char => char.visibility === 'ally')
+      .map(ally => ({
+        id: ally.id,
+        name: ally.name,
+        image: ally.image
+      }));
+  }, [characters, isMJ]);
+
+  // 🆕 Centrer la caméra sur l'allié quand on change de vue (une seule fois au switch)
+  const prevAllyViewIdRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    if (prevAllyViewIdRef.current === allyViewId) return;
+    prevAllyViewIdRef.current = allyViewId;
+
+    if (!bgImageObject || !containerRef.current) return;
+
+    const centerOnCharacter = (char: Character) => {
+      const { width: imgWidth, height: imgHeight } = getMediaDimensions(bgImageObject);
+      const { clientWidth: containerWidth, clientHeight: containerHeight } = containerRef.current!;
+
+      const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+      const scaledWidth = imgWidth * scale * zoom;
+      const scaledHeight = imgHeight * scale * zoom;
+
+      const charScreenX = (char.x / imgWidth) * scaledWidth;
+      const charScreenY = (char.y / imgHeight) * scaledHeight;
+
+      setOffset({ x: charScreenX - containerWidth / 2, y: charScreenY - containerHeight / 2 });
+    };
+
+    if (!isMJ && allyViewId) {
+      const ally = characters.find(c => c.id === allyViewId);
+      if (ally) centerOnCharacter(ally);
+    } else if (!isMJ && !allyViewId) {
+      const player = characters.find(c => c.id === persoId);
+      if (player) centerOnCharacter(player);
+    }
+  }, [allyViewId, characters, isMJ, persoId, bgImageObject, zoom]);
 
   // 🔦 OPTIMIZATION: Memoize shadow calculations
   const lastShadowUpdateRef = React.useRef<number>(0);
@@ -3044,6 +3093,20 @@ export default function Component() {
           setPlayerViewMode(!playerViewMode);
         }
         break;
+
+      // 🆕 Mode Vue Allié pour les joueurs (comme Vue Joueur pour MJ)
+      case 'ALLY_VIEW_MODE':
+        if (!isMJ) {
+          if (allyViewMode) {
+            // Turning off ally view mode - clear the selected ally
+            setAllyViewId(null);
+          }
+          setAllyViewMode(!allyViewMode);
+        }
+        break;
+
+      default:
+        break;
       case TOOLS.AUDIO_MIXER: deactivateIncompatible(TOOLS.AUDIO_MIXER); setIsAudioMixerOpen(!isAudioMixerOpen); break;
       case TOOLS.ADD_CHAR: if (isMJ) { deactivateIncompatible(TOOLS.ADD_CHAR); setIsNPCDrawerOpen(!isNPCDrawerOpen); } break;
 
@@ -3109,6 +3172,7 @@ export default function Component() {
     if (showCharBorders) active.push(TOOLS.TOGGLE_CHAR_BORDERS);
     if (panMode) active.push(TOOLS.PAN);
     if (playerViewMode) active.push(TOOLS.VIEW_MODE);
+    if (allyViewMode) active.push('ALLY_VIEW_MODE'); // 🆕 Vue Allié
     if (measureMode) active.push(TOOLS.MEASURE);
     if (isMusicMode) active.push(TOOLS.MUSIC);
     if (showLayerControl) active.push(TOOLS.LAYERS);
@@ -3441,6 +3505,58 @@ export default function Component() {
         </div>
       );
     }
+
+    // 🆕 Vue Allié pour les joueurs (même UI que Vue Joueur)
+    if (allyViewMode && !isMJ) {
+      return (
+        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+          <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
+            <Eye className="w-4 h-4 text-green-400" />
+            <span className="text-green-400 font-medium text-xs tracking-wide uppercase">VUE ALLIÉ</span>
+          </div>
+
+          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+
+          <div className="flex items-center gap-2">
+            {characters
+              .filter(c => c.visibility === 'ally')
+              .map(ally => {
+                const isSelected = allyViewId === ally.id;
+                return (
+                  <div
+                    key={ally.id}
+                    onClick={() => setAllyViewId(isSelected ? null : ally.id)}
+                    className={`relative w-8 h-8 rounded-full overflow-hidden border-2 cursor-pointer transition-all duration-200 ${isSelected ? 'border-[#c0a080] scale-110 shadow-[0_0_10px_rgba(192,160,128,0.4)]' : 'border-white/10 hover:border-white/40 hover:scale-105 opacity-70 hover:opacity-100'}`}
+                    title={ally.name}
+                  >
+                    {ally.image && (typeof ally.image === 'object' ? (ally.image as any).src : ally.image) ? (
+                      <img src={typeof ally.image === 'object' ? (ally.image as any).src : ally.image} alt={ally.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-[10px] text-zinc-400 font-bold">
+                        {ally.name[0]}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+          </div>
+          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-10 w-10 rounded-lg transition-all duration-200 text-gray-400 hover:text-green-400 hover:bg-green-900/20"
+            onClick={() => {
+              setAllyViewMode(false);
+              setAllyViewId(null);
+            }}
+            title="Quitter"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+      );
+    }
+
     if (measureMode) {
       return (
         <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
@@ -4321,8 +4437,12 @@ export default function Component() {
       // Trouver le personnage du joueur
       let viewerPosition: Point | null = null;
 
-      // [NEW] Use simulated view ID if active
-      const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
+      // [NEW] Use simulated view ID if active (MJ viewing player OR player viewing ally)
+      const effectivePersoId = (playerViewMode && viewAsPersoId)
+        ? viewAsPersoId
+        : (!isMJ && allyViewId)
+          ? allyViewId
+          : persoId;
 
       for (const character of characters) {
         if (character.id === effectivePersoId &&
@@ -9222,6 +9342,7 @@ export default function Component() {
         currentViewMode={playerViewMode ? 'player' : 'mj'}
         showGrid={showGrid}
         activeToolContent={getToolOptionsContent()}
+        allies={playerAllies}
       />
 
       <div
