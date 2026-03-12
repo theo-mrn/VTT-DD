@@ -7,23 +7,23 @@ const aclonica = Aclonica({
     subsets: ['latin'],
 })
 
-export function Features3() {
+export function Features4() {
     return (
         <section className="overflow-hidden py-16 md:py-24">
             <div className="mx-auto max-w-6xl px-6 space-y-10">
                 <div className="max-w-2xl mx-auto text-center">
                     <h2 className={cn("text-4xl font-semibold lg:text-5xl gold-text-gradient", aclonica.className)}>
-                        Customisez vos fiches de personnage
+                        Vision dynamique et ombres
                     </h2>
                     <p className={cn("mt-6 text-lg text-white/60", aclonica.className)}>
-                        Stats, compétences, inventaire, effets actifs — tout est accessible d&apos;un coup d&apos;œil sur une fiche complète et personnalisable.
+                        Un système de vision réaliste avec calcul d&apos;ombres en temps réel. Chaque joueur ne voit que ce que son personnage perçoit.
                     </p>
                 </div>
 
-                <div className="relative rounded-3xl overflow-hidden border border-[#c9a965]/10 gold-glow max-w-2xl mx-auto">
+                <div className="relative rounded-3xl overflow-hidden border border-[#c9a965]/10 gold-glow max-w-3xl mx-auto">
                     <img
-                        src="/landingpage/fiche.png"
-                        alt="Fiche de personnage personnalisable"
+                        src="/landingpage/ombres.gif"
+                        alt="Système de vision dynamique et ombres"
                         className="w-full h-auto"
                     />
                 </div>

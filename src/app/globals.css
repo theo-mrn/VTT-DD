@@ -459,6 +459,27 @@
   }
 }
 
+/* Landing page gold utilities */
+.gold-glow {
+  box-shadow: 0 0 30px rgba(201, 169, 101, 0.2);
+}
+
+.gold-glow-lg {
+  box-shadow: 0 0 60px rgba(201, 169, 101, 0.3);
+}
+
+.gold-text-gradient {
+  background: linear-gradient(90deg, #f5edd6, #c9a965, #f5edd6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.section-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(201, 169, 101, 0.2), transparent);
+}
+
 /* Resize handles: remove default SVG diagonal, keep native positioning */
 .react-resizable-handle {
   background-image: none !important;

@@ -10,7 +10,7 @@ const aclonica = Aclonica({
   subsets: ['latin'],
 })
 
-// --- Types ---
+
 interface Testimonial {
   text: string;
   image: string;
@@ -18,7 +18,7 @@ interface Testimonial {
   role: string;
 }
 
-// --- Sub-Components ---
+
 const TestimonialsColumn = (props: {
   className?: string;
   testimonials: Testimonial[];
@@ -51,23 +51,23 @@ const TestimonialsColumn = (props: {
                   whileHover={{
                     scale: 1.03,
                     y: -8,
-                    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.12), 0 10px 10px -5px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.05)",
+                    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.3), 0 0 20px rgba(201, 169, 101, 0.08)",
                     transition: { type: "spring", stiffness: 400, damping: 17 }
                   }}
                   whileFocus={{
                     scale: 1.03,
                     y: -8,
-                    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.12), 0 10px 10px -5px rgba(0, 0, 0, 0.04), 0 0 0 1px rgba(0, 0, 0, 0.05)",
+                    boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.3), 0 0 20px rgba(201, 169, 101, 0.08)",
                     transition: { type: "spring", stiffness: 400, damping: 17 }
                   }}
-                  className="p-10 rounded-3xl border border-neutral-200 dark:border-neutral-800 shadow-lg shadow-black/5 max-w-xs w-full bg-white dark:bg-neutral-900 transition-all duration-300 cursor-default select-none group focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="p-10 rounded-3xl border border-[#c9a965]/10 max-w-xs w-full bg-white/[0.03] backdrop-blur-sm transition-all duration-300 cursor-default select-none group focus:outline-none focus:ring-2 focus:ring-[#c9a965]/20 hover:border-[#c9a965]/25"
                 >
                   <blockquote className="m-0 p-0">
-                    <p className={cn("text-neutral-600 dark:text-neutral-400 leading-relaxed font-normal m-0 transition-colors duration-300", aclonica.className)}>
-                      "{text}"
+                    <p className={cn("text-[#f5edd6]/70 leading-relaxed font-normal m-0 transition-colors duration-300", aclonica.className)}>
+                      &ldquo;{text}&rdquo;
                     </p>
                     <footer className="flex items-center gap-3 mt-6">
-                      <div className="h-10 w-10 shrink-0 rounded-full bg-[var(--accent-brown)] flex items-center justify-center overflow-hidden text-white font-bold ring-2 ring-neutral-100 dark:ring-neutral-800 group-hover:ring-primary/30 transition-all duration-300">
+                      <div className="h-10 w-10 shrink-0 rounded-full bg-[#c9a965] flex items-center justify-center overflow-hidden text-[#0c0c0e] font-bold ring-2 ring-[#c9a965]/20 group-hover:ring-[#c9a965]/40 transition-all duration-300">
                         {image ? (
                           <img src={image} alt={name} className="h-full w-full object-cover" />
                         ) : (
@@ -75,7 +75,7 @@ const TestimonialsColumn = (props: {
                         )}
                       </div>
                       <div className="flex flex-col">
-                        <cite className={cn("font-semibold not-italic tracking-tight leading-5 text-neutral-900 dark:text-white transition-colors duration-300", aclonica.className)}>
+                        <cite className={cn("font-semibold not-italic tracking-tight leading-5 text-white transition-colors duration-300", aclonica.className)}>
                           {name}
                         </cite>
                       </div>
@@ -132,7 +132,7 @@ export const TestimonialsSection = () => {
 
   if (dbTestimonials.length === 0) return null;
 
-  // Split into columns if we have enough
+
   const firstColumn = dbTestimonials.slice(0, Math.ceil(dbTestimonials.length / 3));
   const secondColumn = dbTestimonials.slice(Math.ceil(dbTestimonials.length / 3), Math.ceil(dbTestimonials.length * 2 / 3));
   const thirdColumn = dbTestimonials.slice(Math.ceil(dbTestimonials.length * 2 / 3));
@@ -155,15 +155,15 @@ export const TestimonialsSection = () => {
       >
         <div className="flex flex-col items-center justify-center max-w-[540px] mx-auto mb-16">
           <div className="flex justify-center">
-            <div className={cn("border border-neutral-300 dark:border-neutral-700 py-1 px-4 rounded-full text-xs font-semibold tracking-wide uppercase text-neutral-600 dark:text-neutral-400 bg-neutral-100/50 dark:bg-neutral-800/50 transition-colors", aclonica.className)}>
+            <div className={cn("border border-[#c9a965]/30 py-1 px-4 rounded-full text-xs font-semibold tracking-wide uppercase text-[#c9a965] bg-[#c9a965]/5 transition-colors", aclonica.className)}>
               Témoignages
             </div>
           </div>
 
-          <h2 id="testimonials-heading" className={cn("text-4xl md:text-5xl font-extrabold tracking-tight mt-6 text-center text-neutral-900 dark:text-white transition-colors", aclonica.className)}>
+          <h2 id="testimonials-heading" className={cn("text-4xl md:text-5xl font-extrabold tracking-tight mt-6 text-center gold-text-gradient transition-colors", aclonica.className)}>
             Ce que disent les aventuriers
           </h2>
-          <p className={cn("text-center mt-5 text-neutral-500 dark:text-neutral-400 text-lg leading-relaxed max-w-sm transition-colors", aclonica.className)}>
+          <p className={cn("text-center mt-5 text-white/50 text-lg leading-relaxed max-w-sm transition-colors", aclonica.className)}>
             Découvrez les retours de la communauté sur leur expérience YNER.
           </p>
         </div>
