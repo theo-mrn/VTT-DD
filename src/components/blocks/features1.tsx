@@ -1,7 +1,8 @@
-import { User, Dices, Users, Settings } from 'lucide-react'
+'use client'
+import React from 'react'
 import { Aclonica } from "next/font/google"
 import { cn } from '@/lib/utils'
-import { ImageAutoSlider } from '@/components/ui/image-auto-slider'
+import { mapImagePath } from '@/utils/imagePathMapper'
 
 const aclonica = Aclonica({
     weight: '400',
@@ -9,46 +10,40 @@ const aclonica = Aclonica({
 })
 
 export function Features1() {
+    const [portraitUrl, setPortraitUrl] = React.useState('')
+
+    React.useEffect(() => {
+        mapImagePath('/Photos/Elfe/Elfe34.webp').then(setPortraitUrl)
+    }, [])
+
     return (
-        <section className="overflow-hidden py-16 md:py-32">
-            <div className="mx-auto max-w-5xl space-y-8 px-6 md:space-y-12">
-                <div className="relative z-10 max-w-2xl">
-                    <h2 className={cn("text-4xl font-semibold lg:text-5xl", aclonica.className)}>Création de personnages immersive</h2>
-                    <p className={cn("mt-6 text-lg", aclonica.className)}>Créez des héros uniques avec notre système complet de création en 5 étapes. Plus de 300 portraits disponibles et un système de compétences avancé.</p>
+        <section className="overflow-hidden py-16 md:py-24">
+            <div className="mx-auto max-w-6xl px-6 space-y-20">
+                <div className="max-w-2xl mx-auto text-center">
+                    <h2 className={cn("text-4xl font-semibold lg:text-5xl gold-text-gradient", aclonica.className)}>
+                        Créez vos propres personnages
+                    </h2>
+                    <p className={cn("mt-6 text-lg text-white/60", aclonica.className)}>
+                        Un système de création complet en 7 étapes : informations, espèce, profil, compétences, caractéristiques, inventaire et portrait.
+                    </p>
                 </div>
-                <div className="relative rounded-3xl overflow-hidden">
-                    <div className="flex items-center justify-center p-4 min-h-[300px]">
-                        <ImageAutoSlider />
-                    </div>
-                </div>
-                <div className="relative mx-auto grid grid-cols-2 gap-x-3 gap-y-6 sm:gap-8 lg:grid-cols-4">
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                            <User className="size-4" />
-                            <h3 className={cn("text-sm font-medium", aclonica.className)}>7 Races</h3>
+
+                {/* Screenshot + portrait composé style exemple.png */}
+                <div className="relative max-w-3xl mt-16">
+                    {/* Portrait en arrière-plan */}
+                    {portraitUrl && (
+                        <div className="absolute -top-40 -left-10 w-48 h-64 md:w-56 md:h-72 rounded-2xl overflow-hidden border border-[#c9a965]/15 shadow-2xl opacity-80 -rotate-6 z-0">
+                            <img src={portraitUrl} alt="" className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-[#0c0c0e]/60 to-transparent" />
                         </div>
-                        <p className="text-muted-foreground text-sm">Humains, Elfes, Nains, Orcs, Drakonides et plus encore.</p>
-                    </div>
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                            <Dices className="size-4" />
-                            <h3 className={cn("text-sm font-medium", aclonica.className)}>Stats Dynamiques</h3>
-                        </div>
-                        <p className="text-muted-foreground text-sm">Génération automatique des caractéristiques avec lancers de dés.</p>
-                    </div>
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                            <Users className="size-4" />
-                            <h3 className={cn("text-sm font-medium", aclonica.className)}>300+ Portraits</h3>
-                        </div>
-                        <p className="text-muted-foreground text-sm">Vaste galerie de portraits ou importez vos propres images.</p>
-                    </div>
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                            <Settings className="size-4" />
-                            <h3 className={cn("text-sm font-medium", aclonica.className)}>Compétences Avancées</h3>
-                        </div>
-                        <p className="text-muted-foreground text-sm">Système de voies personnalisables avec progression détaillée.</p>
+                    )}
+                    {/* Screenshot principal */}
+                    <div className="relative z-10 rounded-3xl overflow-hidden border border-[#c9a965]/10 gold-glow mt-32">
+                        <img
+                            src="/landingpage/creation.png"
+                            alt="Système de création de personnage"
+                            className="w-full h-auto"
+                        />
                     </div>
                 </div>
             </div>
