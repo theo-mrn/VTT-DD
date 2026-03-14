@@ -13,6 +13,7 @@ interface VisibilityDrawerProps {
     onClose: () => void
     vs: VisibilityState
     isEmbedded?: boolean
+    onClearAllObstacles?: () => void
 }
 
 type ConfirmAction =
@@ -21,7 +22,7 @@ type ConfirmAction =
     | { type: 'clear-obstacles' }
     | null
 
-export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded }: VisibilityDrawerProps) {
+export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded, onClearAllObstacles }: VisibilityDrawerProps) {
     const { setDialogOpen } = useDialogVisibility();
     const [confirmAction, setConfirmAction] = useState<ConfirmAction>(null);
 
@@ -81,9 +82,11 @@ export function VisibilityDrawer({ isOpen, onClose, vs, isEmbedded }: Visibility
         }
 
         if (confirmAction.type === 'clear-obstacles') {
-            // Clear all obstacles by setting to empty — handled in page.tsx via vs
-            // Use setObstacles to clear local state (DB sync handled by page.tsx listeners)
-            vs.setObstacles([]);
+            if (onClearAllObstacles) {
+                onClearAllObstacles();
+            } else {
+                vs.setObstacles([]);
+            }
         }
 
         setConfirmAction(null);

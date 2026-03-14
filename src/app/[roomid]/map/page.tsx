@@ -1479,7 +1479,7 @@ export default function Component() {
           selectedObjectIndices.length > 0 ||
           selectedNoteIndex !== null ||
           selectedMusicZoneIds.length > 0 ||
-          (selectedObstacleIds.length > 0 && visibilityMode) ||
+          (selectedObstacleIds.length > 0 && isVisActive) ||
           selectedDrawingIndex !== null ||
           selectedFogCells.length > 0;
 
@@ -4649,11 +4649,11 @@ export default function Component() {
     }
 
     // 🔦 DESSINER LES OBSTACLES (visible seulement pour le MJ en mode édition)
-    if (isLayerVisible('obstacles') && (visibilityMode || (effectiveIsMJ && obstacles.length > 0))) {
+    if (isLayerVisible('obstacles') && (isVisActive || (effectiveIsMJ && obstacles.length > 0))) {
       // 1. Base Layer (Thick Black)
       drawObstacles(ctx, obstacles, transformPoint, {
         strokeColor: '#000000',
-        fillColor: visibilityMode ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.5)',
+        fillColor: isVisActive ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.5)',
         strokeWidth: 10,
         showHandles: false,
         selectedIds: selectedObstacleIds,
@@ -4664,7 +4664,7 @@ export default function Component() {
         strokeColor: '#555555',
         fillColor: 'transparent',
         strokeWidth: 4,
-        showHandles: visibilityMode || selectedObstacleIds.length > 0,
+        showHandles: isVisActive || selectedObstacleIds.length > 0,
         selectedIds: selectedObstacleIds,
       });
 
@@ -7894,9 +7894,20 @@ export default function Component() {
     }
 
     if (isDraggingObject && draggedObjectIndex !== null && draggedObjectsOriginalPositions.length > 0) {
+      // Sauvegarder les données nécessaires AVANT de nettoyer l'état du drag
+      const savedOriginalPositions = [...draggedObjectsOriginalPositions];
+      const savedDragStart = { ...dragStart };
+
+      // Nettoyer l'état du drag IMMÉDIATEMENT (avant les opérations async)
+      // Empêche le mousemove de continuer à déplacer l'objet pendant le save Firebase
+      setIsDraggingObject(false);
+      setDraggedObjectIndex(null);
+      setDraggedObjectsOriginalPositions([]);
+      resetActiveElementSelection();
+
       if (roomId) {
         try {
-          const updatePromises = draggedObjectsOriginalPositions.map(async (originalPos) => {
+          const updatePromises = savedOriginalPositions.map(async (originalPos) => {
             const currentObj = objects[originalPos.index];
 
             let finalX = currentObj.x;
@@ -7918,8 +7929,8 @@ export default function Component() {
               if (clientX && clientY) {
                 const currentX = ((clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
                 const currentY = ((clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
-                const deltaX = currentX - dragStart.x;
-                const deltaY = currentY - dragStart.y;
+                const deltaX = currentX - savedDragStart.x;
+                const deltaY = currentY - savedDragStart.y;
                 finalX = originalPos.x + deltaX;
                 finalY = originalPos.y + deltaY;
               }
@@ -7928,6 +7939,8 @@ export default function Component() {
             const hasChanged = finalX !== originalPos.x || finalY !== originalPos.y;
 
             if (hasChanged && currentObj?.id) {
+              // Passer knownPreviousData pour éviter le getDoc serveur
+              // qui peut déclencher onSnapshot avec les anciennes positions
               await updateWithHistory(
                 'objects',
                 currentObj.id,
@@ -7935,7 +7948,8 @@ export default function Component() {
                   x: finalX,
                   y: finalY
                 },
-                `Déplacement de l'objet${currentObj.name ? ` "${currentObj.name}"` : ''}`
+                `Déplacement de l'objet${currentObj.name ? ` "${currentObj.name}"` : ''}`,
+                { x: originalPos.x, y: originalPos.y }
               );
             }
           });
@@ -7945,7 +7959,7 @@ export default function Component() {
           console.error("Error saving object pos:", e);
           // Revert on error
           setObjects(prev => prev.map((obj, index) => {
-            const originalPos = draggedObjectsOriginalPositions.find(pos => pos.index === index);
+            const originalPos = savedOriginalPositions.find(pos => pos.index === index);
             if (originalPos) {
               return { ...obj, x: originalPos.x, y: originalPos.y };
             }
@@ -7953,12 +7967,6 @@ export default function Component() {
           }));
         }
       }
-      setIsDraggingObject(false);
-      setDraggedObjectIndex(null);
-      setDraggedObjectsOriginalPositions([]);
-
-      // 🎯 Réinitialiser la sélection active après le drag
-      resetActiveElementSelection();
       return;
     }
 
@@ -8437,7 +8445,7 @@ export default function Component() {
     }
 
     // 6. Check for selected obstacle
-    if (selectedObstacleIds.length > 0 && visibilityMode) {
+    if (selectedObstacleIds.length > 0 && isVisActive) {
       const obstacleId = selectedObstacleIds[0];
       const obstacle = obstacles.find(o => o.id === obstacleId);
       setEntityToDelete({
@@ -10818,6 +10826,11 @@ export default function Component() {
           }}
           currentCityId={selectedCityId}
           vs={visibilityState}
+          onClearAllObstacles={() => {
+            const currentObstacles = [...obstacles];
+            setObstacles([]);
+            Promise.all(currentObstacles.map(o => deleteFromRtdbWithHistory('obstacles', o.id, 'Suppression de tous les obstacles')));
+          }}
         />
       </GMTemplatesProvider>
 
@@ -10826,6 +10839,11 @@ export default function Component() {
         isOpen={visibilityMode}
         onClose={toggleVisibilityMode}
         vs={visibilityState}
+        onClearAllObstacles={() => {
+          const currentObstacles = [...obstacles];
+          setObstacles([]);
+          Promise.all(currentObstacles.map(o => deleteFromRtdbWithHistory('obstacles', o.id, 'Suppression de tous les obstacles')));
+        }}
       />
 
       {/* Audio Mixer Panel */}

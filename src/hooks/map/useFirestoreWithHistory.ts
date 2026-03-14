@@ -64,24 +64,30 @@ export function useFirestoreWithHistory(roomId: string) {
     /**
      * Met à jour un document avec enregistrement dans l'historique
      * IMPORTANT: Enregistre uniquement les champs modifiés, pas tout le document
+     * @param knownPreviousData - Si fourni, évite le getDoc (utile pendant le drag pour éviter un refresh du cache qui déclenche onSnapshot avec les anciennes données)
      */
     const updateWithHistory = useCallback(async (
         collectionName: string,
         documentId: string,
         updates: any,
-        description?: string
+        description?: string,
+        knownPreviousData?: any
     ): Promise<void> => {
-        // Récupérer les valeurs actuelles des champs qu'on va modifier
         const docRef = doc(db, 'cartes', roomId, collectionName, documentId);
-        const snapshot = await getDoc(docRef);
 
         let previousData: any = {};
-        if (snapshot.exists()) {
-            const currentData = snapshot.data();
-            // Ne stocker que les champs qui vont être modifiés
-            for (const key in updates) {
-                if (key in currentData) {
-                    previousData[key] = currentData[key];
+        if (knownPreviousData) {
+            previousData = knownPreviousData;
+        } else {
+            // Récupérer les valeurs actuelles des champs qu'on va modifier
+            const snapshot = await getDoc(docRef);
+            if (snapshot.exists()) {
+                const currentData = snapshot.data();
+                // Ne stocker que les champs qui vont être modifiés
+                for (const key in updates) {
+                    if (key in currentData) {
+                        previousData[key] = currentData[key];
+                    }
                 }
             }
         }
