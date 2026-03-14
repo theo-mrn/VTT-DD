@@ -61,9 +61,10 @@ interface UnifiedSearchDrawerProps {
     onDragStart: (item: UnifiedItem) => void
     currentCityId: string | null
     vs?: VisibilityState
+    onClearAllObstacles?: () => void
 }
 
-export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, currentCityId, vs }: UnifiedSearchDrawerProps) {
+export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, currentCityId, vs, onClearAllObstacles }: UnifiedSearchDrawerProps) {
     const { setDialogOpen } = useDialogVisibility()
     const {
         soundTemplates: sounds,
@@ -473,6 +474,7 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
                         onClose={onClose}
                         vs={vs}
                         isEmbedded={true}
+                        onClearAllObstacles={onClearAllObstacles}
                     />
                 </div>
             )}

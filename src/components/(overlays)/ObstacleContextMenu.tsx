@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { motion, AnimatePresence, useDragControls } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Trash2, X, DoorOpen, ArrowRight, Link2, Box, Layers, Lock, Unlock } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -48,8 +48,6 @@ export default function ObstacleContextMenu({
     onConvertTo,
     onToggleRoomMode,
 }: ObstacleContextMenuProps) {
-    const dragControls = useDragControls();
-
     if (!isOpen || selectedIds.length === 0) return null;
 
     const selectedObs = obstacles.find(o => o.id === selectedIds[0]);
@@ -62,26 +60,24 @@ export default function ObstacleContextMenu({
             {isOpen && (
                 <motion.div
                     drag
-                    dragControls={dragControls}
-                    dragListener={false}
                     dragMomentum={false}
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     exit={{ scale: 0.9, opacity: 0 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                    className="fixed right-24 top-24 w-64 bg-[#1e1e1e]/95 backdrop-blur-md border border-[#333] rounded-xl shadow-2xl z-[9999] flex flex-col overflow-hidden"
+                    className="fixed left-24 top-24 w-64 bg-[#1e1e1e]/95 backdrop-blur-md border border-[#333] rounded-xl shadow-2xl z-[999999999] flex flex-col overflow-hidden cursor-move"
                 >
                     {/* Header avec Image */}
                     <div
-                        className={`relative ${isMJ ? 'cursor-move' : ''} h-32`}
-                        onPointerDown={(e) => isMJ && dragControls.start(e)}
+                        className="relative h-32"
                     >
                         {/* Background Image */}
-                        <div className="absolute inset-0 bg-[#000] flex items-center justify-center overflow-hidden">
+                        <div className="absolute inset-0 bg-[#000] flex items-center justify-center overflow-hidden pointer-events-none">
                             <img
                                 src="/assets/door.png"
                                 className="w-full h-full object-contain opacity-80"
                                 alt="Obstacle"
+                                draggable={false}
                             />
                         </div>
 
