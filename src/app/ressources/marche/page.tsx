@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react'
 import { AppNavbar } from '@/components/layout/AppNavbar'
 import { UserProfileDialog } from '@/components/profile/UserProfileDialog'
 import { StoreModal } from '@/components/store/store-modal'
+import { AppBackground } from '@/components/ui/background-components'
 import { auth, db } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { doc, getDoc } from 'firebase/firestore'
@@ -31,25 +32,22 @@ export default function MarchePage() {
   }, [])
 
   return (
-    <div className="min-h-screen w-full relative">
-      {/* Global Background */}
-      <div
-        className="fixed inset-0 z-0 bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('https://assets.yner.fr/images/index2.webp')" }}
-      />
-      <div className="fixed inset-0 z-0 bg-[var(--bg-canvas)]/80 backdrop-blur-sm" />
+    <AppBackground className="text-[var(--text-primary)]">
+      <div className="pointer-events-none absolute top-0 right-0 w-[600px] h-[500px] z-0" style={{ backgroundImage: 'radial-gradient(ellipse 60% 50% at 80% 0%, rgba(192,160,128,0.08) 0%, transparent 70%)' }} />
 
-      <AppNavbar
-        variant="home"
-        isUserLoggedIn={!!user}
-        userData={userData}
-        onOpenProfile={() => setIsProfileOpen(true)}
-        onOpenStore={() => setIsStoreOpen(true)}
-      />
+      <div className="relative z-10 h-screen flex flex-col overflow-hidden">
+        <AppNavbar
+          variant="home"
+          isUserLoggedIn={!!user}
+          userData={userData}
+          onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenStore={() => setIsStoreOpen(true)}
+        />
 
-      <main className="relative z-10 pt-24 pb-12 px-4 container mx-auto h-[calc(100vh-6rem)] overflow-auto">
-        <Marketplace />
-      </main>
+        <main className="flex-1 min-h-0 overflow-hidden pt-20">
+          <Marketplace />
+        </main>
+      </div>
 
       <UserProfileDialog
         isOpen={isProfileOpen}
@@ -61,6 +59,6 @@ export default function MarchePage() {
         isOpen={isStoreOpen}
         onClose={() => setIsStoreOpen(false)}
       />
-    </div>
+    </AppBackground>
   )
 }

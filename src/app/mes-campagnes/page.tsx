@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Play, Plus, Shield, Gamepad2, Eye, ArrowLeft, Settings } from 'lucide-react'
+import { Users, Play, Plus, Shield, Gamepad2, ArrowLeft, Settings, ArrowRight } from 'lucide-react'
 import { auth, db, collection, doc, getDocs, getDoc } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { AppNavbar } from '@/components/layout/AppNavbar'
@@ -14,6 +14,7 @@ import { RoomUsersManager } from '@/app/home/components/RoomUsersManager'
 import { RoomChat } from '@/app/home/components/RoomChat'
 import { RoomSessions } from '@/app/home/components/RoomSessions'
 import { RoomSettingsManager } from '@/app/home/components/RoomSettingsManager'
+import { AppBackground } from '@/components/ui/background-components'
 import {
     Dialog,
     DialogContent,
@@ -115,16 +116,11 @@ export default function MesCampagnesPage() {
   const isOwner = selectedRoom?.creatorId === userId
 
   return (
-    <div
-      className="min-h-screen text-[var(--text-primary)] font-body relative"
-      style={{
-        backgroundImage: `url('https://assets.yner.fr/images/index2.webp')`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
-      }}
-    >
-      <div className="absolute inset-0 bg-[var(--bg-canvas)]/80 backdrop-blur-sm z-0"></div>
+    <AppBackground className="text-[var(--text-primary)] font-body">
+      {/* Ambient glows */}
+      <div className="pointer-events-none absolute top-0 left-1/4 w-[800px] h-[600px] z-0" style={{ backgroundImage: 'radial-gradient(ellipse 70% 50% at 30% 0%, rgba(192,160,128,0.1) 0%, transparent 70%)' }} />
+      <div className="pointer-events-none absolute bottom-0 right-0 w-[500px] h-[500px] z-0" style={{ backgroundImage: 'radial-gradient(ellipse at 100% 100%, rgba(192,160,128,0.04) 0%, transparent 60%)' }} />
+
       <div className="relative z-10">
         <AppNavbar
           variant="home"
@@ -298,129 +294,181 @@ export default function MesCampagnesPage() {
             </div>
           </>
         ) : (
-          /* Vue liste des campagnes */
-          <div className="container mx-auto px-6 py-8 pt-32 pb-24">
-            <div className="max-w-6xl mx-auto space-y-12">
-              <div className="space-y-2 text-center md:text-left">
-                <h1 className={`text-4xl font-bold text-[var(--accent-brown)] ${aclonica.className}`}>Mes campagnes</h1>
-                <p className="text-[var(--text-secondary)] text-lg">Gérez toutes vos parties en cours</p>
+          /* Vue liste des campagnes - split layout */
+          <div className="container mx-auto px-6 pt-28 pb-24 min-h-[calc(100vh-4rem)]">
+            <div className="max-w-7xl mx-auto grid lg:grid-cols-[380px_1fr] gap-10 items-start">
+
+              {/* ── Left panel: Title + Actions ── */}
+              <div className="lg:sticky lg:top-28 space-y-10">
+                <div className="space-y-6">
+                  <h1 className={`text-4xl lg:text-5xl font-bold gold-text-gradient leading-tight ${aclonica.className}`}>
+                    Mes<br />campagnes
+                  </h1>
+                  <p className="text-[var(--text-secondary)] text-base leading-relaxed">
+                    Retrouvez et gérez toutes vos parties en cours
+                  </p>
+                </div>
+
+                {/* Quick actions */}
+                <div className="space-y-3">
+                  <Button
+                    onClick={() => router.push('/creer')}
+                    className="w-full h-13 gap-3 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] text-base font-bold border-none shadow-[0_4px_25px_rgba(192,160,128,0.3)] hover:shadow-[0_4px_35px_rgba(192,160,128,0.5)] transition-all rounded-xl"
+                  >
+                    <Plus className="h-4 w-4" /> Créer une campagne
+                  </Button>
+                  <Button
+                    onClick={() => router.push('/rejoindre')}
+                    variant="outline"
+                    className="w-full h-13 gap-3 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-white/10 text-base font-bold transition-all rounded-xl"
+                  >
+                    <Play className="h-4 w-4" /> Rejoindre une partie
+                  </Button>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="h-px flex-1 bg-gradient-to-r from-[var(--accent-brown)]/30 to-transparent" />
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-4 rounded-xl bg-[var(--bg-card)]/40 backdrop-blur-sm border border-[var(--border-color)]">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Shield className="h-4 w-4 text-[var(--accent-brown)]" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Créées</span>
+                    </div>
+                    <p className="text-2xl font-bold text-[var(--text-primary)]">{myCreatedRooms.length}</p>
+                  </div>
+                  <div className="p-4 rounded-xl bg-[var(--bg-card)]/40 backdrop-blur-sm border border-[var(--border-color)]">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Gamepad2 className="h-4 w-4 text-[var(--accent-brown)]" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">Rejointes</span>
+                    </div>
+                    <p className="text-2xl font-bold text-[var(--text-primary)]">{myJoinedRooms.length}</p>
+                  </div>
+                </div>
               </div>
 
-              {userRooms.length === 0 ? (
-                <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-2xl">
-                  <CardContent className="p-16 text-center space-y-6">
-                    <Gamepad2 className="h-20 w-20 mx-auto text-[var(--text-secondary)] opacity-50" />
+              {/* ── Right panel: Campaign grid ── */}
+              <div className="space-y-10">
+                {userRooms.length === 0 ? (
+                  <div className="text-center py-24 space-y-6 border border-dashed border-[var(--border-color)] rounded-2xl">
+                    <div className="w-20 h-20 mx-auto rounded-2xl bg-[var(--accent-brown)]/5 border border-[var(--accent-brown)]/10 flex items-center justify-center">
+                      <Gamepad2 className="h-10 w-10 text-[var(--text-secondary)] opacity-30" />
+                    </div>
                     <div className="space-y-2">
-                      <h3 className="text-2xl font-bold text-[var(--text-primary)]">Aucune campagne</h3>
-                      <p className="text-[var(--text-secondary)] text-lg max-w-md mx-auto">
+                      <p className="text-[var(--text-primary)] font-bold text-lg">Aucune campagne</p>
+                      <p className="text-[var(--text-secondary)] text-sm max-w-sm mx-auto">
                         Vous n&apos;avez pas encore de campagne. Créez-en une ou rejoignez une partie !
                       </p>
                     </div>
-                    <div className="flex gap-4 justify-center pt-4">
-                      <Button onClick={() => router.push('/creer')} className="h-12 px-8 gap-2 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] border-none font-bold">
-                        <Plus className="h-5 w-5" />
-                        Créer une campagne
-                      </Button>
-                      <Button onClick={() => router.push('/rejoindre')} variant="outline" className="h-12 px-8 gap-2 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-white/10 font-bold">
-                        <Play className="h-5 w-5" />
-                        Rejoindre une partie
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-12">
-                  {myCreatedRooms.length > 0 && (
-                    <div className="space-y-6">
-                      <h2 className={`text-2xl font-bold flex items-center gap-3 text-[var(--accent-brown)] ${aclonica.className}`}>
-                        <Shield className="h-6 w-6" />
-                        Campagnes créées ({myCreatedRooms.length})
-                      </h2>
-                      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {myCreatedRooms.map((room) => (
-                          <Card key={room.id} className="group cursor-pointer border-[var(--border-color)] bg-[var(--bg-card)] hover:border-[var(--accent-brown)] transition-all duration-300 shadow-xl overflow-hidden">
-                            <CardContent className="p-5 space-y-4">
-                              <div className="aspect-video rounded-xl overflow-hidden bg-[var(--bg-dark)] border border-[var(--border-color)]/30">
-                                <img
-                                  src={room.imageUrl || '/placeholder.svg'}
-                                  alt={room.title}
-                                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <h3 className="font-bold text-xl text-[var(--text-primary)] line-clamp-1">{room.title}</h3>
-                                <p className="text-sm text-[var(--text-secondary)] line-clamp-2 leading-relaxed">{room.description}</p>
-                              </div>
-                              <div className="flex items-center justify-between pt-2">
-                                <span className="text-sm font-bold text-[var(--text-secondary)] flex items-center gap-1.5">
-                                  <Users className="h-4 w-4" />
+                  </div>
+                ) : (
+                  <>
+                    {myCreatedRooms.length > 0 && (
+                      <div className="space-y-5">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-xl bg-[var(--accent-brown)]/10 border border-[var(--accent-brown)]/20">
+                            <Shield className="h-5 w-5 text-[var(--accent-brown)]" />
+                          </div>
+                          <div>
+                            <h2 className={`text-2xl font-bold text-[var(--text-primary)] ${aclonica.className}`}>Campagnes créées</h2>
+                            <p className="text-sm text-[var(--text-secondary)]">{myCreatedRooms.length} campagne{myCreatedRooms.length !== 1 ? 's' : ''}</p>
+                          </div>
+                        </div>
+                        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                          {myCreatedRooms.map((room) => (
+                            <div
+                              key={room.id}
+                              onClick={() => setSelectedRoom(room)}
+                              className="group cursor-pointer relative rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-card)]/60 backdrop-blur-sm hover:border-[var(--accent-brown)]/40 transition-all duration-300 hover:shadow-[0_0_30px_rgba(192,160,128,0.08)]"
+                            >
+                              <div className="aspect-[16/10] overflow-hidden bg-[var(--bg-dark)] relative">
+                                {room.imageUrl ? (
+                                  <img src={room.imageUrl} alt={room.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[var(--bg-dark)] to-[var(--bg-card)]">
+                                    <Gamepad2 className="h-12 w-12 text-[var(--accent-brown)]/20" />
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                                <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 text-xs font-bold text-white flex items-center gap-1.5">
+                                  <Users className="h-3 w-3" />
                                   {room.occupantsCount || 0}/{room.maxPlayers}
-                                </span>
-                                <Button
-                                  onClick={() => setSelectedRoom(room)}
-                                  variant="outline"
-                                  size="sm"
-                                  className="gap-2 border-[var(--border-color)] group-hover:border-[var(--accent-brown)] group-hover:text-[var(--accent-brown)] font-bold transition-all"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  Détails
-                                </Button>
+                                </div>
+                                <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-[var(--accent-brown)]/40 backdrop-blur-sm border border-[var(--accent-brown)]/50 text-xs font-bold text-[var(--accent-brown)] flex items-center gap-1.5">
+                                  <Shield className="h-3 w-3" />
+                                  MJ
+                                </div>
                               </div>
-                            </CardContent>
-                          </Card>
-                        ))}
+                              <div className="p-4 space-y-2">
+                                <h3 className="font-bold text-base text-[var(--text-primary)] group-hover:text-[var(--accent-brown)] transition-colors line-clamp-1">{room.title}</h3>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-[var(--text-secondary)]">{room.isPublic ? 'Publique' : 'Privée'}</span>
+                                  <div className="flex items-center gap-1.5 text-sm font-bold text-[var(--accent-brown)] opacity-0 group-hover:opacity-100 transition-opacity">
+                                    Détails <ArrowRight className="h-3.5 w-3.5" />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {myJoinedRooms.length > 0 && (
-                    <div className="space-y-6">
-                      <h2 className={`text-2xl font-bold flex items-center gap-3 text-[var(--accent-brown)] ${aclonica.className}`}>
-                        <Gamepad2 className="h-6 w-6" />
-                        Campagnes rejointes ({myJoinedRooms.length})
-                      </h2>
-                      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {myJoinedRooms.map((room) => (
-                          <Card key={room.id} className="group cursor-pointer border-[var(--border-color)] bg-[var(--bg-card)] hover:border-[var(--accent-brown)] transition-all duration-300 shadow-xl overflow-hidden">
-                            <CardContent className="p-5 space-y-4">
-                              <div className="aspect-video rounded-xl overflow-hidden bg-[var(--bg-dark)] border border-[var(--border-color)]/30">
-                                <img
-                                  src={room.imageUrl || '/placeholder.svg'}
-                                  alt={room.title}
-                                  className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <h3 className="font-bold text-xl text-[var(--text-primary)] line-clamp-1">{room.title}</h3>
-                                <p className="text-sm text-[var(--text-secondary)] line-clamp-2 leading-relaxed">{room.description}</p>
-                              </div>
-                              <div className="flex items-center justify-between pt-2">
-                                <span className="text-sm font-bold text-[var(--text-secondary)] flex items-center gap-1.5">
-                                  <Users className="h-4 w-4" />
+                    {myJoinedRooms.length > 0 && (
+                      <div className="space-y-5">
+                        <div className="flex items-center gap-3">
+                          <div className="p-2 rounded-xl bg-[var(--accent-brown)]/10 border border-[var(--accent-brown)]/20">
+                            <Gamepad2 className="h-5 w-5 text-[var(--accent-brown)]" />
+                          </div>
+                          <div>
+                            <h2 className={`text-2xl font-bold text-[var(--text-primary)] ${aclonica.className}`}>Campagnes rejointes</h2>
+                            <p className="text-sm text-[var(--text-secondary)]">{myJoinedRooms.length} campagne{myJoinedRooms.length !== 1 ? 's' : ''}</p>
+                          </div>
+                        </div>
+                        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                          {myJoinedRooms.map((room) => (
+                            <div
+                              key={room.id}
+                              onClick={() => setSelectedRoom(room)}
+                              className="group cursor-pointer relative rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-card)]/60 backdrop-blur-sm hover:border-[var(--accent-brown)]/40 transition-all duration-300 hover:shadow-[0_0_30px_rgba(192,160,128,0.08)]"
+                            >
+                              <div className="aspect-[16/10] overflow-hidden bg-[var(--bg-dark)] relative">
+                                {room.imageUrl ? (
+                                  <img src={room.imageUrl} alt={room.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[var(--bg-dark)] to-[var(--bg-card)]">
+                                    <Gamepad2 className="h-12 w-12 text-[var(--accent-brown)]/20" />
+                                  </div>
+                                )}
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                                <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 text-xs font-bold text-white flex items-center gap-1.5">
+                                  <Users className="h-3 w-3" />
                                   {room.occupantsCount || 0}/{room.maxPlayers}
-                                </span>
-                                <Button
-                                  onClick={() => setSelectedRoom(room)}
-                                  variant="outline"
-                                  size="sm"
-                                  className="gap-2 border-[var(--border-color)] group-hover:border-[var(--accent-brown)] group-hover:text-[var(--accent-brown)] font-bold transition-all"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                  Détails
-                                </Button>
+                                </div>
                               </div>
-                            </CardContent>
-                          </Card>
-                        ))}
+                              <div className="p-4 space-y-2">
+                                <h3 className="font-bold text-base text-[var(--text-primary)] group-hover:text-[var(--accent-brown)] transition-colors line-clamp-1">{room.title}</h3>
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs text-[var(--text-secondary)]">{room.isPublic ? 'Publique' : 'Privée'}</span>
+                                  <div className="flex items-center gap-1.5 text-sm font-bold text-[var(--accent-brown)] opacity-0 group-hover:opacity-100 transition-opacity">
+                                    Détails <ArrowRight className="h-3.5 w-3.5" />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              )}
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         )}
       </div>
-    </div>
+    </AppBackground>
   )
 }

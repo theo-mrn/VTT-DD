@@ -591,7 +591,6 @@ export default function Component() {
   } | null>(null);
   // États pour la Drag & Drop
   const [draggedCharacter, setDraggedCharacter] = useState<Character | null>(null);
-  const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
   const [editingNote, setEditingNote] = useState<MapText | null>(null);
 
   //  Context Menu State
@@ -614,7 +613,6 @@ export default function Component() {
   const [draggedHandleIndex, setDraggedHandleIndex] = useState<number | null>(null); // 0, 1, 2, 3...
   const [isResizingDrawing, setIsResizingDrawing] = useState(false);
   const [noteDialogOpen, setNoteDialogOpen] = useState(false)
-  const [characterDialogOpen, setCharacterDialogOpen] = useState(false)
 
   //  NPC Template Drag & Drop States
   const [isNPCDrawerOpen, setIsNPCDrawerOpen] = useState(false)
@@ -687,8 +685,6 @@ export default function Component() {
   const [selectionEnd, setSelectionEnd] = useState<Point | null>(null);
   const [isSelectingArea, setIsSelectingArea] = useState(false);
   const [selectedCharacters, setSelectedCharacters] = useState<number[]>([]);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-  const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null);
   const [mouseButton, setMouseButton] = useState<number | null>(null); // Pour tracker quel bouton de souris est pressé
   const fileInputRef = useRef<HTMLInputElement>(null); // Ref pour l'input de changement de fond
   const [panMode, setPanMode] = useState(false); // Mode déplacement de carte
@@ -8309,32 +8305,6 @@ export default function Component() {
 
 
 
-  const handleDeleteCharacter = async () => {
-    if (characterToDelete && roomId) {
-      if (characterToDelete?.id) {
-        try {
-          await deleteWithHistory(
-            'characters',
-            characterToDelete.id,
-            `Suppression de "${characterToDelete.name}"`
-          );
-          setCharacters(characters.filter((char) => char.id !== characterToDelete.id));
-          setSelectedCharacterIndex(null);
-          resetActiveElementSelection();
-          toast.success(`Personnage "${characterToDelete.name}" supprimé`);
-        } catch (error) {
-          console.error("Erreur lors de la suppression du personnage :", error);
-          toast.error(`Erreur lors de la suppression du personnage "${characterToDelete.name}"`);
-        }
-      } else {
-        console.error("ID du personnage introuvable pour la suppression.");
-        toast.error("ID du personnage introuvable pour la suppression.");
-      }
-    } else {
-      console.error("Aucun personnage sélectionné ou roomId invalide.");
-    }
-  };
-
   const handleDeleteNote = async () => {
     const roomIdStr = String(roomId);
     if (selectedNoteIndex !== null && typeof roomIdStr === 'string') {
@@ -8354,13 +8324,6 @@ export default function Component() {
           toast.error(`Erreur lors de la suppression de la note "${noteToDelete.text}"`);
         }
       }
-    }
-  };
-
-  const handleEditCharacter = () => {
-    if (selectedCharacterIndex !== null) {
-      setEditingCharacter(characters[selectedCharacterIndex]);
-      setCharacterDialogOpen(true);
     }
   };
 
@@ -8649,62 +8612,6 @@ export default function Component() {
     }
   };
 
-
-  const handleCharacterEditSubmit = async () => {
-    if (editingCharacter && selectedCharacterIndex !== null && roomId) {
-      const charToUpdate = characters[selectedCharacterIndex];
-      if (charToUpdate?.id) {
-        try {
-          const updatedData: any = {
-            Nomperso: editingCharacter.name,
-            niveau: editingCharacter.niveau,
-            PV: editingCharacter.PV,
-            Defense: editingCharacter.Defense,
-            Contact: editingCharacter.Contact,
-            Distance: editingCharacter.Distance,
-            Magie: editingCharacter.Magie,
-            INIT: editingCharacter.INIT,
-            FOR: editingCharacter.FOR,
-            DEX: editingCharacter.DEX,
-            CON: editingCharacter.CON,
-            SAG: editingCharacter.SAG,
-            INT: editingCharacter.INT,
-            CHA: editingCharacter.CHA,
-            visibility: editingCharacter.visibility,
-            visibilityRadius: editingCharacter.visibilityRadius,
-          };
-
-          const editingCharImageSrc = editingCharacter?.image ? (typeof editingCharacter.image === 'string' ? editingCharacter.image : editingCharacter.image.src) : null;
-          const charToUpdateImageSrc = charToUpdate.image ? (typeof charToUpdate.image === 'string' ? charToUpdate.image : charToUpdate.image.src) : null;
-
-          if (editingCharImageSrc !== charToUpdateImageSrc) {
-            const storage = getStorage();
-            const imageRef = ref(storage, `characters/${editingCharacter.name}-${Date.now()}`);
-            const response = await fetch(editingCharImageSrc as string);
-            const blob = await response.blob();
-            await uploadBytes(imageRef, blob);
-            const imageURL = await getDownloadURL(imageRef);
-            updatedData.imageURL2 = imageURL;
-          }
-
-          await updateDoc(doc(db, 'cartes', String(roomId), 'characters', charToUpdate.id), updatedData);
-          toast.success(`${charToUpdate.name} à été mis à jour`)
-
-          setCharacters((prevCharacters) =>
-            prevCharacters.map((character, index) =>
-              index === selectedCharacterIndex ? { ...character, ...updatedData } : character
-            )
-          );
-
-          setEditingCharacter(null);
-          setCharacterDialogOpen(false);
-          setSelectedCharacterIndex(null);
-        } catch (error) {
-          console.error("Erreur lors de la mise à jour du personnage :", error);
-        }
-      }
-    }
-  };
 
   const handleNoteSubmit = async () => {
     if (editingNote && roomId && selectedNoteIndex !== null) {
@@ -10265,227 +10172,6 @@ export default function Component() {
         } : null}
       />
 
-      <Dialog open={characterDialogOpen} onOpenChange={(open) => {
-        setCharacterDialogOpen(open);
-        if (!open) {
-          // Reset state when dialog closes
-          setEditingCharacter(null);
-          setSelectedCharacterIndex(null);
-        }
-      }}>
-        <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Modifier le personnage</DialogTitle>
-          </DialogHeader>
-          <ScrollArea className="h-auto max-h-[85vh] pr-4">
-            <div className="space-y-6 py-4">
-
-              {/* --- SECTION 1: GÉNÉRAL --- */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Général</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="characterName" className="text-xs text-gray-300">Nom du personnage</Label>
-                    <Input
-                      id="characterName"
-                      value={editingCharacter?.name || ''}
-                      onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, name: e.target.value })}
-                      className="bg-[#2a2a2a] border-gray-600 focus:border-[#c0a080]"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="characterImage" className="text-xs text-gray-300">Image / Token</Label>
-                    <Input
-                      key={editingCharacter?.id || 'new'}
-                      id="characterImage"
-                      type="file"
-                      onChange={(e) => {
-                        const file = e.target.files ? e.target.files[0] : null;
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (e) => {
-                            const img = new Image();
-                            img.onload = () => editingCharacter && setEditingCharacter({ ...editingCharacter, image: img });
-                            if (typeof e.target?.result === 'string') img.src = e.target.result;
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      className="bg-[#2a2a2a] border-gray-600 text-xs cursor-pointer file:bg-gray-700 file:text-white file:border-0 file:rounded-md file:px-2 file:py-1 file:mr-2 hover:bg-[#333]"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* --- SECTION 2: COMBAT & VITALITÉ --- */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Combat & Vitalité</h3>
-                <div className="grid grid-cols-4 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="PV" className="text-[10px] uppercase text-gray-400">PV Actuels</Label>
-                    <Input
-                      id="PV"
-                      type="number"
-                      value={editingCharacter?.PV || 0}
-                      onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, PV: parseInt(e.target.value) || 0 })}
-                      className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="PV_Max" className="text-[10px] uppercase text-gray-400">PV Max</Label>
-                    <Input
-                      id="PV_Max"
-                      type="number"
-                      value={editingCharacter?.PV_Max || editingCharacter?.PV || 0}
-                      onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, PV_Max: parseInt(e.target.value) || 0 })}
-                      className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="Defense" className="text-[10px] uppercase text-gray-400">Défense</Label>
-                    <Input
-                      id="Defense"
-                      type="number"
-                      value={editingCharacter?.Defense || 0}
-                      onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, Defense: parseInt(e.target.value) || 0 })}
-                      className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="INIT" className="text-[10px] uppercase text-gray-400">Initiative</Label>
-                    <Input
-                      id="INIT"
-                      type="number"
-                      value={editingCharacter?.INIT || 0}
-                      onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, INIT: parseInt(e.target.value) || 0 })}
-                      className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="niveau" className="text-[10px] uppercase text-gray-400">Niveau</Label>
-                    <Input
-                      id="niveau"
-                      type="number"
-                      value={editingCharacter?.niveau || 1}
-                      onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, niveau: parseInt(e.target.value) || 1 })}
-                      className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* --- SECTION 3: BONUS D'ATTAQUE --- */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Bonus d'Attaque</h3>
-                <div className="grid grid-cols-3 gap-3">
-                  {['Contact', 'Distance', 'Magie'].map((stat) => (
-                    <div key={stat} className="space-y-1">
-                      <Label htmlFor={stat} className="text-[10px] uppercase text-gray-400">{stat}</Label>
-                      <Input
-                        id={stat}
-                        type="number"
-                        value={editingCharacter?.[stat as keyof Character] as number || 0}
-                        onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, [stat]: parseInt(e.target.value) || 0 })}
-                        className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* --- SECTION 4: CARACTÉRISTIQUES --- */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Caractéristiques</h3>
-                <div className="grid grid-cols-6 gap-2">
-                  {['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].map((stat) => (
-                    <div key={stat} className="space-y-1 text-center">
-                      <Label htmlFor={stat} className="text-[10px] uppercase text-gray-400 block">{stat}</Label>
-                      <Input
-                        id={stat}
-                        type="number"
-                        value={editingCharacter?.[stat as keyof Character] as number || 0}
-                        onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, [stat]: parseInt(e.target.value) || 0 })}
-                        className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono px-1"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* --- SECTION 5: VISIBILITÉ --- */}
-              <div className="space-y-3">
-                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Visibilité</h3>
-                <div className="flex flex-col gap-3">
-                  <div className="flex gap-2">
-                    {[
-                      { id: 'visible', label: 'Visible' },
-                      { id: 'ally', label: 'Allié' },
-                      { id: 'hidden', label: 'Caché' }
-                    ].map((mode) => (
-                      <button
-                        key={mode.id}
-                        type="button"
-                        onClick={() => editingCharacter && setEditingCharacter({ ...editingCharacter, visibility: mode.id as any })}
-                        className={`flex - 1 h - 9 rounded - md border text - sm font - medium transition - colors focus - visible: outline - none focus - visible: ring - 1 focus - visible: ring - ring disabled: pointer - events - none disabled: opacity - 50 ${editingCharacter?.visibility === mode.id
-                          ? 'bg-[#c0a080] border-[#c0a080] text-[#1e1e1e] font-bold shadow-sm'
-                          : 'bg-[#2a2a2a] border-gray-600 text-gray-300 hover:bg-[#3a3a3a] hover:text-white'
-                          } `}
-                      >
-                        {mode.label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {(editingCharacter?.type === 'joueurs' || editingCharacter?.visibility === 'ally') && (
-                    <div className="bg-[#2a2a2a] p-3 rounded-lg border border-gray-700 flex items-center gap-4">
-                      <Label htmlFor="visibilityRadius" className="text-xs text-gray-300 whitespace-nowrap">Rayon de vision</Label>
-                      <div className="flex-1 flex items-center gap-3">
-                        <input
-                          id="visibilityRadius"
-                          type="range"
-                          min="10"
-                          max="500"
-                          value={editingCharacter?.visibilityRadius || 100}
-                          onChange={(e) => editingCharacter && setEditingCharacter({ ...editingCharacter, visibilityRadius: parseInt(e.target.value) || 100 })}
-                          className="flex-1 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-[#c0a080]"
-                        />
-                        <div className="flex gap-2 items-center">
-                          <span className="text-xs font-mono text-[#c0a080] bg-[#1c1c1c] px-2 py-1 rounded border border-gray-600 min-w-[3rem] text-center">
-                            {Math.round(1 + ((editingCharacter?.visibilityRadius || 100) - 10) / 490 * 29)} c.
-                          </span>
-                          <span className="text-[10px] text-gray-500">•</span>
-                          <span className="text-xs font-mono text-blue-400 bg-[#1c1c1c] px-2 py-1 rounded border border-gray-600 min-w-[3rem] text-center">
-                            {((editingCharacter?.visibilityRadius || 100) / pixelsPerUnit).toFixed(1)} {unitName}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-            </div>
-          </ScrollArea>
-          <DialogFooter>
-            <Button onClick={handleCharacterEditSubmit}>Modifier</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
-        <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Confirmer la suppression</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <p>Êtes-vous sûr de vouloir supprimer le personnage {characterToDelete?.name} ? Cette action est irréversible.</p>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setConfirmDeleteOpen(false)}>Annuler</Button>
-            <Button onClick={() => { handleDeleteCharacter(); setConfirmDeleteOpen(false); }}>Supprimer</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {
         showCharacterSheet && selectedCharacterForSheet && roomId && (
@@ -10662,6 +10348,36 @@ export default function Component() {
             await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {
               audio: value
             });
+          } else if (action === 'updatePV') {
+            if (roomId) {
+              const newPV = Number(value);
+              await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), { PV: newPV });
+              setCharacters(prev => prev.map(c => c.id === characterId ? { ...c, PV: newPV } : c));
+            }
+          } else if (action === 'updateStat') {
+            if (isMJ && roomId) {
+              const { key, value: newValue } = value as { key: string; value: number };
+              await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), { [key]: newValue });
+              setCharacters(prev => prev.map(c => c.id === characterId ? { ...c, [key]: newValue } : c));
+            }
+          } else if (action === 'updateImage') {
+            if (isMJ && roomId) {
+              try {
+                const img = value as HTMLImageElement;
+                const storage = getStorage();
+                const imageRef = ref(storage, `characters/${char.name}-${Date.now()}`);
+                const response = await fetch(img.src);
+                const blob = await response.blob();
+                await uploadBytes(imageRef, blob);
+                const imageURL = await getDownloadURL(imageRef);
+                await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), { imageURL2: imageURL });
+                setCharacters(prev => prev.map(c => c.id === characterId ? { ...c, image: imageURL } : c));
+                toast.success(`Image de ${char.name} mise à jour`);
+              } catch (error) {
+                console.error("Erreur lors du changement d'image :", error);
+                toast.error("Erreur lors du changement d'image");
+              }
+            }
           } else if (action === 'updateShape') {
             await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {
               shape: value
@@ -10682,18 +10398,67 @@ export default function Component() {
               'audio.volume': newVolume
             });
           } else if (action === 'delete') {
-            if (isMJ) {
-              setCharacterToDelete(char);
-              setConfirmDeleteOpen(true);
+            if (isMJ && roomId) {
+              try {
+                await deleteWithHistory('characters', characterId, `Suppression de "${char.name}"`);
+                setCharacters(characters.filter((c) => c.id !== characterId));
+                setSelectedCharacterIndex(null);
+                resetActiveElementSelection();
+                toast.success(`Personnage "${char.name}" supprimé`);
+                setContextMenuOpen(false);
+                setContextMenuCharacterId(null);
+              } catch (error) {
+                console.error("Erreur lors de la suppression du personnage :", error);
+                toast.error(`Erreur lors de la suppression du personnage "${char.name}"`);
+              }
             }
           } else if (action === 'edit') {
-            if (isMJ) {
-              const charIndex = characters.findIndex(c => c.id === characterId);
-              if (charIndex !== -1) {
-                setSelectedCharacterIndex(charIndex);
-                setEditingCharacter(char);
-                setCharacterDialogOpen(true);
-                setContextMenuOpen(false);
+            if (isMJ && roomId) {
+              const editedChar = value as Character;
+              try {
+                const updatedData: any = {
+                  Nomperso: editedChar.name,
+                  niveau: editedChar.niveau,
+                  PV: editedChar.PV,
+                  Defense: editedChar.Defense,
+                  Contact: editedChar.Contact,
+                  Distance: editedChar.Distance,
+                  Magie: editedChar.Magie,
+                  INIT: editedChar.INIT,
+                  FOR: editedChar.FOR,
+                  DEX: editedChar.DEX,
+                  CON: editedChar.CON,
+                  SAG: editedChar.SAG,
+                  INT: editedChar.INT,
+                  CHA: editedChar.CHA,
+                  visibility: editedChar.visibility,
+                  visibilityRadius: editedChar.visibilityRadius,
+                };
+
+                const editingCharImageSrc = editedChar?.image ? (typeof editedChar.image === 'string' ? editedChar.image : editedChar.image.src) : null;
+                const charToUpdateImageSrc = char.image ? (typeof char.image === 'string' ? char.image : char.image.src) : null;
+
+                if (editingCharImageSrc !== charToUpdateImageSrc) {
+                  const storage = getStorage();
+                  const imageRef = ref(storage, `characters/${editedChar.name}-${Date.now()}`);
+                  const response = await fetch(editingCharImageSrc as string);
+                  const blob = await response.blob();
+                  await uploadBytes(imageRef, blob);
+                  const imageURL = await getDownloadURL(imageRef);
+                  updatedData.imageURL2 = imageURL;
+                }
+
+                await updateDoc(doc(db, 'cartes', String(roomId), 'characters', characterId), updatedData);
+                toast.success(`${char.name} a été mis à jour`);
+
+                setCharacters((prevCharacters) =>
+                  prevCharacters.map((c) =>
+                    c.id === characterId ? { ...c, ...updatedData } : c
+                  )
+                );
+                setSelectedCharacterIndex(null);
+              } catch (error) {
+                console.error("Erreur lors de la mise à jour du personnage :", error);
               }
             }
           } else if (action === 'setVisibility') {
