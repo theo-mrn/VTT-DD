@@ -1,19 +1,19 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
-import { Plus } from 'lucide-react'
+import { Plus, ImagePlus, Users, Globe, Sparkles, ArrowRight, Gamepad2 } from 'lucide-react'
 import { auth, db, doc, getDoc, setDoc, storage } from '@/lib/firebase'
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { onAuthStateChanged } from 'firebase/auth'
 import { AppNavbar } from '@/components/layout/AppNavbar'
 import { UserProfileDialog } from '@/components/profile/UserProfileDialog'
 import { StoreModal } from '@/components/store/store-modal'
+import { AppBackground } from '@/components/ui/background-components'
 import { toast } from 'sonner'
 import { Aclonica } from "next/font/google"
 
@@ -46,6 +46,17 @@ export default function CreerPageComponent() {
   const [isProfileOpen, setIsProfileOpen] = useState(false)
   const [isStoreOpen, setIsStoreOpen] = useState(false)
   const router = useRouter()
+
+  const imagePreview = useMemo(() => {
+    if (!imageFile) return null
+    return URL.createObjectURL(imageFile)
+  }, [imageFile])
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) URL.revokeObjectURL(imagePreview)
+    }
+  }, [imagePreview])
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -137,16 +148,10 @@ export default function CreerPageComponent() {
   }
 
   return (
-    <div
-      className="min-h-screen text-[var(--text-primary)] font-body relative"
-      style={{
-        backgroundImage: `url('https://assets.yner.fr/images/index2.webp')`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
-      }}
-    >
-      <div className="absolute inset-0 bg-[var(--bg-canvas)]/80 backdrop-blur-sm z-0"></div>
+    <AppBackground className="text-[var(--text-primary)] font-body">
+      {/* Ambient glows */}
+      <div className="pointer-events-none absolute top-0 left-1/4 w-[800px] h-[600px] z-0" style={{ backgroundImage: 'radial-gradient(ellipse 70% 50% at 30% 0%, rgba(192,160,128,0.1) 0%, transparent 70%)' }} />
+      <div className="pointer-events-none absolute bottom-0 right-0 w-[500px] h-[500px] z-0" style={{ backgroundImage: 'radial-gradient(ellipse at 100% 100%, rgba(192,160,128,0.04) 0%, transparent 60%)' }} />
 
       <div className="relative z-10">
         <AppNavbar
@@ -157,126 +162,187 @@ export default function CreerPageComponent() {
           onOpenProfile={() => setIsProfileOpen(true)}
           onOpenStore={() => setIsStoreOpen(true)}
         />
-
         {isProfileOpen && <UserProfileDialog isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} userId={userId} />}
         <StoreModal isOpen={isStoreOpen} onClose={() => setIsStoreOpen(false)} />
 
-        <div className="container mx-auto px-6 py-8 pt-32 pb-24">
-          <div className="max-w-3xl mx-auto space-y-12">
-            <div className="space-y-2 text-center md:text-left">
-              <h1 className={`text-4xl font-bold text-[var(--accent-brown)] ${aclonica.className}`}>Créer une campagne</h1>
-              <p className="text-[var(--text-secondary)] text-lg">Configurez votre partie et invitez vos joueurs</p>
+        {/* ── Split layout: Info left / Form right ── */}
+        <div className="container mx-auto px-6 pt-28 pb-24 min-h-[calc(100vh-4rem)]">
+          <div className="max-w-7xl mx-auto grid lg:grid-cols-[380px_1fr] gap-10 items-start">
+
+            {/* ── Left panel: Title + Preview ── */}
+            <div className="lg:sticky lg:top-28 space-y-10">
+              <div className="space-y-6">
+                <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--accent-brown)]/70">
+                  Nouvelle campagne
+                </p>
+                <h1 className={`text-4xl lg:text-5xl font-bold gold-text-gradient leading-tight ${aclonica.className}`}>
+                  Forgez votre<br />aventure
+                </h1>
+                <p className="text-[var(--text-secondary)] text-base leading-relaxed">
+                  Configurez votre campagne et invitez vos joueurs a rejoindre la quete
+                </p>
+              </div>
+
+              {/* Live preview card */}
+              <div className="rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-card)]/60 backdrop-blur-sm">
+                <div className="aspect-[16/10] overflow-hidden bg-[var(--bg-dark)] relative">
+                  {imagePreview ? (
+                    <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[var(--bg-dark)] to-[var(--bg-card)]">
+                      <Gamepad2 className="h-12 w-12 text-[var(--accent-brown)]/20" />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                  <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 text-xs font-bold text-white flex items-center gap-1.5">
+                    <Users className="h-3 w-3" />
+                    0/{newRoom.maxPlayers}
+                  </div>
+                  {newRoom.isPublic && (
+                    <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-green-500/20 backdrop-blur-sm border border-green-500/30 text-xs font-bold text-green-400 flex items-center gap-1.5">
+                      <Globe className="h-3 w-3" />
+                      Publique
+                    </div>
+                  )}
+                </div>
+                <div className="p-4 space-y-1">
+                  <h3 className="font-bold text-base text-[var(--text-primary)] line-clamp-1">
+                    {newRoom.title || 'Titre de la campagne'}
+                  </h3>
+                  <p className="text-xs text-[var(--text-secondary)] line-clamp-2">
+                    {newRoom.description || 'La description apparaîtra ici...'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-gradient-to-r from-[var(--accent-brown)]/30 to-transparent" />
+              </div>
             </div>
 
-            <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-2xl relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-brown)]/5 to-transparent pointer-events-none" />
+            {/* ── Right panel: Form ── */}
+            <div className="space-y-8">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-[var(--accent-brown)]/10 border border-[var(--accent-brown)]/20">
+                  <Plus className="h-5 w-5 text-[var(--accent-brown)]" />
+                </div>
+                <h2 className={`text-2xl font-bold text-[var(--text-primary)] ${aclonica.className}`}>Configuration</h2>
+              </div>
 
-              <CardHeader className="relative z-10 pb-0">
-                <CardTitle className={`text-2xl font-bold flex items-center gap-3 text-[var(--accent-brown)] ${aclonica.className}`}>
-                  <Plus className="h-6 w-6" />
-                  Nouvelle partie
-                </CardTitle>
-              </CardHeader>
-
-              <CardContent className="relative z-10 p-8 pt-6">
-                <form onSubmit={handleCreateRoom} className="space-y-8">
-                  <div className="grid sm:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <label htmlFor="title" className="text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Titre de la campagne *</label>
-                      <Input
-                        type="text"
-                        id="title"
-                        name="title"
-                        value={newRoom.title}
-                        onChange={handleInputChange}
-                        placeholder="Ex: Le Secret des Anciens"
-                        required
-                        className="h-12 bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] transition-all"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label htmlFor="maxPlayers" className="text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Nombre de joueurs *</label>
-                      <Input
-                        type="number"
-                        id="maxPlayers"
-                        name="maxPlayers"
-                        value={newRoom.maxPlayers}
-                        onChange={handleInputChange}
-                        min="1"
-                        max="12"
-                        required
-                        className="h-12 bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] transition-all"
-                      />
-                    </div>
-                  </div>
-
+              <form onSubmit={handleCreateRoom} className="space-y-6">
+                {/* Title + Players */}
+                <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <label htmlFor="description" className="text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Description *</label>
-                    <Textarea
-                      id="description"
-                      name="description"
-                      value={newRoom.description}
+                    <label htmlFor="title" className="text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Titre *</label>
+                    <Input
+                      type="text"
+                      id="title"
+                      name="title"
+                      value={newRoom.title}
                       onChange={handleInputChange}
-                      placeholder="Décrivez votre aventure, l'ambiance, les prérequis..."
-                      rows={4}
+                      placeholder="Le Secret des Anciens"
                       required
-                      className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] transition-all resize-none p-4"
+                      className="h-12 bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:shadow-[0_0_15px_rgba(192,160,128,0.1)] transition-all rounded-xl"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="maxPlayers" className="text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Joueurs max *</label>
+                    <Input
+                      type="number"
+                      id="maxPlayers"
+                      name="maxPlayers"
+                      value={newRoom.maxPlayers}
+                      onChange={handleInputChange}
+                      min="1"
+                      max="12"
+                      required
+                      className="h-12 bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:shadow-[0_0_15px_rgba(192,160,128,0.1)] transition-all rounded-xl"
+                    />
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-2">
+                  <label htmlFor="description" className="text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Description *</label>
+                  <Textarea
+                    id="description"
+                    name="description"
+                    value={newRoom.description}
+                    onChange={handleInputChange}
+                    placeholder="Décrivez votre aventure, l'ambiance, les prérequis..."
+                    rows={4}
+                    required
+                    className="bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:shadow-[0_0_15px_rgba(192,160,128,0.1)] transition-all resize-none p-4 rounded-xl"
+                  />
+                </div>
+
+                {/* Image upload */}
+                <div className="space-y-2">
+                  <label className="text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Image de couverture *</label>
+                  <label className="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-[var(--border-color)] rounded-xl cursor-pointer hover:border-[var(--accent-brown)] hover:bg-[var(--accent-brown)]/5 transition-all bg-[var(--bg-card)]/30 backdrop-blur-sm group">
+                    <div className="flex items-center gap-3">
+                      <ImagePlus className="w-6 h-6 text-[var(--text-secondary)] group-hover:text-[var(--accent-brown)] transition-colors" />
+                      <p className="text-sm text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] transition-colors">
+                        {imageFile ? imageFile.name : "Cliquez pour uploader une image"}
+                      </p>
+                    </div>
+                    <input type="file" className="hidden" onChange={handleFileChange} accept="image/*" required />
+                  </label>
+                </div>
+
+                {/* Toggles */}
+                <div className="grid gap-3">
+                  <div className="flex items-center justify-between p-4 bg-[var(--bg-card)]/40 backdrop-blur-sm border border-[var(--border-color)] rounded-xl hover:border-[var(--accent-brown)]/30 transition-all">
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 rounded-lg bg-[var(--accent-brown)]/10">
+                        <Globe className="h-4 w-4 text-[var(--accent-brown)]" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="font-bold text-sm text-[var(--text-primary)]">Campagne publique</label>
+                        <p className="text-xs text-[var(--text-secondary)]">
+                          Visible dans les campagnes en ligne
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      id="isPublic"
+                      checked={newRoom.isPublic}
+                      onCheckedChange={handleToggleChange}
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label htmlFor="image" className="text-sm font-bold uppercase tracking-widest text-[var(--text-secondary)] ml-1">Image de couverture *</label>
-                    <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-[var(--border-color)] rounded-xl cursor-pointer hover:bg-[var(--bg-darker)]/40 hover:border-[var(--accent-brown)] transition-all bg-[var(--bg-dark)]/50 group">
-                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                        <Plus className="w-8 h-8 text-[var(--text-secondary)] group-hover:text-[var(--accent-brown)] mb-2 transition-colors" />
-                        <p className="text-sm text-[var(--text-secondary)]">
-                          {imageFile ? imageFile.name : "Cliquez pour uploader une image"}
+                  <div className="flex items-center justify-between p-4 bg-[var(--bg-card)]/40 backdrop-blur-sm border border-[var(--border-color)] rounded-xl hover:border-[var(--accent-brown)]/30 transition-all">
+                    <div className="flex items-center gap-3">
+                      <div className="p-1.5 rounded-lg bg-[var(--accent-brown)]/10">
+                        <Sparkles className="h-4 w-4 text-[var(--accent-brown)]" />
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="font-bold text-sm text-[var(--text-primary)]">Création libre</label>
+                        <p className="text-xs text-[var(--text-secondary)]">
+                          Les joueurs peuvent créer un personnage
                         </p>
                       </div>
-                      <input type="file" id="image" className="hidden" onChange={handleFileChange} accept="image/*" required />
-                    </label>
-                  </div>
-
-                  <div className="grid gap-4">
-                    <div className="flex items-center justify-between p-5 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-xl">
-                      <div className="space-y-1">
-                        <label className="font-bold text-[var(--text-primary)]">Rendre la salle publique</label>
-                        <p className="text-xs text-[var(--text-secondary)] opacity-80">
-                          Apparaîtra dans la liste des campagnes ouvertes
-                        </p>
-                      </div>
-                      <Switch
-                        id="isPublic"
-                        checked={newRoom.isPublic}
-                        onCheckedChange={handleToggleChange}
-                      />
                     </div>
-
-                    <div className="flex items-center justify-between p-5 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-xl">
-                      <div className="space-y-1">
-                        <label className="font-bold text-[var(--text-primary)]">Autoriser la création libre</label>
-                        <p className="text-xs text-[var(--text-secondary)] opacity-80">
-                          Les joueurs peuvent créer un personnage en rejoignant
-                        </p>
-                      </div>
-                      <Switch
-                        id="allowCharacterCreation"
-                        checked={newRoom.allowCharacterCreation}
-                        onCheckedChange={handleToggleCreationChange}
-                      />
-                    </div>
+                    <Switch
+                      id="allowCharacterCreation"
+                      checked={newRoom.allowCharacterCreation}
+                      onCheckedChange={handleToggleCreationChange}
+                    />
                   </div>
+                </div>
 
-                  <Button type="submit" className="w-full h-14 gap-3 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] text-lg font-bold border-none shadow-xl transition-all">
-                    <Plus className="h-5 w-5" />
-                    Créer la campagne
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
+                {/* Submit */}
+                <Button
+                  type="submit"
+                  className="w-full h-14 gap-3 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] text-lg font-bold border-none shadow-[0_4px_25px_rgba(192,160,128,0.3)] hover:shadow-[0_4px_35px_rgba(192,160,128,0.5)] transition-all rounded-xl"
+                >
+                  Créer la campagne <ArrowRight className="h-5 w-5" />
+                </Button>
+              </form>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </AppBackground>
   )
 }

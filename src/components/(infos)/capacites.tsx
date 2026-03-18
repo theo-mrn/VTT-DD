@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Search, ChevronRight, Scroll, Swords, Crown, Check, Info, X } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Search, ChevronRight, Scroll, Swords, Crown, X } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import {
@@ -206,15 +205,15 @@ export default function Capacites() {
   const VoieCard = ({ voie, subtitle, searchTerm }: { voie: Voie, subtitle?: string, searchTerm?: string }) => {
     return (
       <div className="w-full">
-        <Card className="h-full border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-colors bg-[var(--bg-card)]">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-[#c0a080] text-lg font-papyrus">
+        <div className="h-full rounded-2xl border border-[var(--border-color)] hover:border-[var(--accent-brown)]/40 transition-all duration-300 bg-[var(--bg-card)] hover:shadow-[0_0_25px_rgba(192,160,128,0.06)] flex flex-col">
+          <div className="px-4 pt-4 pb-2 shrink-0">
+            <h3 className="text-[var(--accent-brown)] text-base font-bold">
               {voie.nom}
-              {subtitle && <span className="block text-xs text-[var(--text-secondary)] mt-1 font-normal">{subtitle}</span>}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="space-y-2">
+            </h3>
+            {subtitle && <span className="block text-xs text-[var(--text-secondary)] mt-0.5">{subtitle}</span>}
+          </div>
+          <ScrollArea className="flex-1 max-h-[280px] px-4 pb-4">
+            <ul className="space-y-1.5 pr-2">
               {voie.competences.map((competence, index) => {
                 const isMatch = searchTerm && (
                   competence.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -225,36 +224,26 @@ export default function Capacites() {
                   <li
                     key={index}
                     className={cn(
-                      "group flex items-center justify-between p-2 rounded border cursor-pointer transition-all duration-200",
+                      "group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-all duration-200",
                       isMatch
-                        ? "border-[var(--accent-brown)] bg-[var(--accent-brown)]/10 ring-1 ring-[var(--accent-brown)]"
-                        : "border-[var(--border-color)] hover:border-[var(--accent-brown)] bg-[var(--bg-card)]"
+                        ? "bg-[var(--accent-brown)]/15 ring-1 ring-[var(--accent-brown)]/50"
+                        : "hover:bg-[var(--bg-dark)]/50"
                     )}
                     onClick={() => handleCompetenceClick(competence)}
                   >
-                    <div className="flex-1">
-                      <span className={cn(
-                        "font-medium transition-colors font-papyrus",
-                        isMatch ? "text-[#c0a080] font-bold" : "text-[#d4d4d4]"
-                      )}>
-                        {competence.titre}
-                      </span>
-                    </div>
-                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                      >
-                        <Info className="h-4 w-4 text-[#c0a080]" />
-                      </Button>
-                    </div>
+                    <span className={cn(
+                      "text-sm transition-colors",
+                      isMatch ? "text-[var(--accent-brown)] font-bold" : "text-[var(--text-primary)]"
+                    )}>
+                      {competence.titre}
+                    </span>
+                    <ChevronRight className="h-3.5 w-3.5 text-[var(--text-secondary)] opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-2" />
                   </li>
                 );
               })}
             </ul>
-          </CardContent>
-        </Card>
+          </ScrollArea>
+        </div>
       </div>
     );
   };
@@ -355,31 +344,56 @@ export default function Capacites() {
   };
 
   return (
-    <div className="w-full h-screen overflow-hidden flex flex-col p-4 md:p-8 space-y-6">
-      <Tabs value={activeTab} className="w-full flex-1 flex-col" onValueChange={(val) => {
+    <div className="w-full h-full overflow-hidden flex flex-col space-y-0">
+      <Tabs value={activeTab} className="w-full flex-1 min-h-0 flex flex-col" onValueChange={(val) => {
         setActiveTab(val);
         setGlobalSearch("");
       }}>
-        <div className="flex items-center justify-between mb-6 bg-black/40 border border-white/10 p-1 rounded-xl">
-          <TabsList className="bg-transparent border-none">
-            <TabsTrigger value="races" className="flex items-center gap-2 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70">
-              <Scroll className="h-4 w-4" /> Races
-            </TabsTrigger>
-            <TabsTrigger value="profiles" className="flex items-center gap-2 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70">
-              <Swords className="h-4 w-4" /> Profils
-            </TabsTrigger>
-            <TabsTrigger value="prestiges" className="flex items-center gap-2 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70">
-              <Crown className="h-4 w-4" /> Prestiges
-            </TabsTrigger>
-          </TabsList>
+        {/* ── Toolbar: Tabs + Search + Select on one line ── */}
+        <div className="shrink-0 px-4 md:px-8 pt-4 pb-4">
+          <div className="flex items-center gap-3">
+            {/* Tabs */}
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border border-[var(--border-color)] shrink-0">
+              <TabsList className="bg-transparent border-none gap-1 p-0">
+                <TabsTrigger value="races" className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all data-[state=active]:bg-[var(--accent-brown)] data-[state=active]:text-[var(--bg-dark)] data-[state=active]:shadow-[0_2px_10px_rgba(192,160,128,0.3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                  <Scroll className="h-4 w-4" /> Races
+                </TabsTrigger>
+                <TabsTrigger value="profiles" className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all data-[state=active]:bg-[var(--accent-brown)] data-[state=active]:text-[var(--bg-dark)] data-[state=active]:shadow-[0_2px_10px_rgba(192,160,128,0.3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                  <Swords className="h-4 w-4" /> Profils
+                </TabsTrigger>
+                <TabsTrigger value="prestiges" className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all data-[state=active]:bg-[var(--accent-brown)] data-[state=active]:text-[var(--bg-dark)] data-[state=active]:shadow-[0_2px_10px_rgba(192,160,128,0.3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                  <Crown className="h-4 w-4" /> Prestiges
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-          <div className="flex items-center gap-4 px-2">
+            {/* Search */}
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)]" />
+              <input
+                type="text"
+                value={globalSearch}
+                onChange={(e) => setGlobalSearch(e.target.value)}
+                placeholder="Rechercher une capacité..."
+                className="w-full h-10 pl-10 pr-4 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border border-[var(--border-color)] text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)] focus:shadow-[0_0_15px_rgba(192,160,128,0.1)] transition-all"
+              />
+              {globalSearch && (
+                <button
+                  onClick={() => setGlobalSearch("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Select */}
             {activeTab === 'races' && (
               <Select value={selectedRace} onValueChange={setSelectedRace}>
-                <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
-                  <SelectValue placeholder="Race..." />
+                <SelectTrigger className="w-[200px] h-10 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:border-[var(--accent-brown)]">
+                  <SelectValue placeholder="Toutes les races" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white font-papyrus">
+                <SelectContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] rounded-xl">
                   <SelectGroup>
                     <SelectItem value="all_races">Toutes les races</SelectItem>
                     {races.map((race) => (
@@ -394,10 +408,10 @@ export default function Capacites() {
 
             {activeTab === 'profiles' && (
               <Select value={selectedProfile} onValueChange={setSelectedProfile}>
-                <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
-                  <SelectValue placeholder="Profil..." />
+                <SelectTrigger className="w-[200px] h-10 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:border-[var(--accent-brown)]">
+                  <SelectValue placeholder="Tous les profils" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white font-papyrus">
+                <SelectContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] rounded-xl">
                   <SelectGroup>
                     <SelectItem value="all_profiles">Tous les profils</SelectItem>
                     {profiles.map((profile) => (
@@ -412,10 +426,10 @@ export default function Capacites() {
 
             {activeTab === 'prestiges' && (
               <Select value={selectedPrestige} onValueChange={setSelectedPrestige}>
-                <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
-                  <SelectValue placeholder="Classe..." />
+                <SelectTrigger className="w-[200px] h-10 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:border-[var(--accent-brown)]">
+                  <SelectValue placeholder="Toutes les classes" />
                 </SelectTrigger>
-                <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white font-papyrus">
+                <SelectContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] rounded-xl">
                   <SelectGroup>
                     <SelectItem value="all_prestiges">Toutes les classes</SelectItem>
                     {prestiges.map((prestige) => (
@@ -435,111 +449,51 @@ export default function Capacites() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--accent-brown)]" />
           </div>
         ) : (
-          <>
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 md:px-8 pb-4 styled-scrollbar">
             {/* RACES TAB */}
-            <TabsContent value="races" className="space-y-6">
-              <div className="flex flex-col md:flex-row gap-4 max-w-4xl mx-auto mb-6">
-
-                {/* Global Search Bar */}
-                <div className="flex-1">
-                  <label className="block font-semibold text-[var(--text-primary)] mb-2">Recherche textuelle</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3.5 h-4 w-4 text-[var(--text-secondary)]" />
-                    <input
-                      type="text"
-                      value={globalSearch}
-                      onChange={(e) => setGlobalSearch(e.target.value)}
-                      placeholder="Rechercher une compétence..."
-                      className="w-full p-3 pl-10 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
-                    />
+            <TabsContent value="races" className="mt-0">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pb-4">
+                {getDisplayedRaces().map((race, idx) => (
+                  <VoieCard key={idx} voie={race} searchTerm={globalSearch} />
+                ))}
+                {getDisplayedRaces().length === 0 && (
+                  <div className="col-span-full text-center text-[var(--text-secondary)] py-10">
+                    Aucun résultat trouvé.
                   </div>
-                </div>
+                )}
               </div>
-
-              <ScrollArea className="flex-1 pr-4 styled-scrollbar">
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {getDisplayedRaces().map((race, idx) => (
-                    <VoieCard key={idx} voie={race} searchTerm={globalSearch} />
-                  ))}
-                  {getDisplayedRaces().length === 0 && (
-                    <div className="col-span-full text-center text-muted-foreground py-10">
-                      Aucun résultat trouvé.
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
             </TabsContent>
 
             {/* PROFILES TAB */}
-            <TabsContent value="profiles" className="space-y-6">
-              <div className="flex flex-col md:flex-row gap-4 max-w-4xl mx-auto mb-6">
-
-                {/* Global Search Bar */}
-                <div className="flex-1">
-                  <label className="block font-semibold text-[var(--text-primary)] mb-2">Recherche textuelle</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3.5 h-4 w-4 text-[var(--text-secondary)]" />
-                    <input
-                      type="text"
-                      value={globalSearch}
-                      onChange={(e) => setGlobalSearch(e.target.value)}
-                      placeholder="Rechercher une compétence..."
-                      className="w-full p-3 pl-10 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
-                    />
+            <TabsContent value="profiles" className="mt-0">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pb-4">
+                {getDisplayedProfileVoies().length > 0 ? (
+                  getDisplayedProfileVoies().map((voie, idx) => (
+                    <VoieCard key={idx} voie={voie} subtitle={(voie as any)._profileName} searchTerm={globalSearch} />
+                  ))
+                ) : (
+                  <div className="col-span-full text-center text-[var(--text-secondary)] py-10">
+                    Aucun résultat trouvé.
                   </div>
-                </div>
+                )}
               </div>
-
-              <ScrollArea className="flex-1 pr-4 styled-scrollbar">
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {getDisplayedProfileVoies().length > 0 ? (
-                    getDisplayedProfileVoies().map((voie, idx) => (
-                      <VoieCard key={idx} voie={voie} subtitle={(voie as any)._profileName} searchTerm={globalSearch} />
-                    ))
-                  ) : (
-                    <div className="col-span-full text-center text-muted-foreground py-10">
-                      Aucun résultat trouvé.
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
             </TabsContent>
 
             {/* PRESTIGES TAB */}
-            <TabsContent value="prestiges" className="space-y-6">
-              <div className="flex flex-col md:flex-row gap-4 max-w-4xl mx-auto mb-6">
-
-                {/* Global Search Bar */}
-                <div className="flex-1">
-                  <label className="block font-semibold text-[var(--text-primary)] mb-2">Recherche textuelle</label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3.5 h-4 w-4 text-[var(--text-secondary)]" />
-                    <input
-                      type="text"
-                      value={globalSearch}
-                      onChange={(e) => setGlobalSearch(e.target.value)}
-                      placeholder="Rechercher une compétence..."
-                      className="w-full p-3 pl-10 border border-[var(--border-color)] rounded bg-[var(--bg-dark)] text-[var(--text-primary)] placeholder-[var(--text-secondary)] focus:outline-none focus:border-[var(--accent-brown)]"
-                    />
+            <TabsContent value="prestiges" className="mt-0">
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 pb-4">
+                {getDisplayedPrestigeVoies().length > 0 ? (
+                  getDisplayedPrestigeVoies().map((voie, idx) => (
+                    <VoieCard key={idx} voie={voie} subtitle={(voie as any)._profileName} searchTerm={globalSearch} />
+                  ))
+                ) : (
+                  <div className="col-span-full text-center text-[var(--text-secondary)] py-10">
+                    Aucun résultat trouvé.
                   </div>
-                </div>
+                )}
               </div>
-
-              <ScrollArea className="flex-1 pr-4 styled-scrollbar">
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                  {getDisplayedPrestigeVoies().length > 0 ? (
-                    getDisplayedPrestigeVoies().map((voie, idx) => (
-                      <VoieCard key={idx} voie={voie} subtitle={(voie as any)._profileName} searchTerm={globalSearch} />
-                    ))
-                  ) : (
-                    <div className="col-span-full text-center text-muted-foreground py-10">
-                      Aucun résultat trouvé.
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
             </TabsContent>
-          </>
+          </div>
         )}
       </Tabs>
 

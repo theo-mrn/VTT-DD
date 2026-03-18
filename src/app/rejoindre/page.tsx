@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Search, Play, Users, Eye, ArrowLeft, Settings, Shield, Gamepad2 } from 'lucide-react'
+import { Play, Users, ArrowLeft, Settings, Gamepad2, ArrowRight, Globe } from 'lucide-react'
 import { auth, db, collection, doc, getDocs, getDoc, setDoc } from '@/lib/firebase'
 import { onAuthStateChanged } from 'firebase/auth'
 import { AppNavbar } from '@/components/layout/AppNavbar'
@@ -14,6 +14,7 @@ import { StoreModal } from '@/components/store/store-modal'
 import { RoomUsersManager } from '@/app/home/components/RoomUsersManager'
 import { RoomChat } from '@/app/home/components/RoomChat'
 import { RoomSessions } from '@/app/home/components/RoomSessions'
+import { AppBackground } from '@/components/ui/background-components'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Aclonica } from "next/font/google"
@@ -175,17 +176,147 @@ export default function RejoindrePageComponent() {
 
   const availablePublicRooms = publicRooms
 
+  // ─── Detail view (room selected) ───
+  if (selectedRoom) {
+    return (
+      <AppBackground className="text-[var(--text-primary)] font-body">
+        <div
+          className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] z-0"
+          style={{ backgroundImage: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(192,160,128,0.08) 0%, transparent 70%)' }}
+        />
+        <div className="relative z-10">
+          <AppNavbar
+            variant="home"
+            isUserLoggedIn={userId !== null}
+            userData={userData}
+            onOpenAuth={() => router.push('/auth')}
+            onOpenProfile={() => setIsProfileOpen(true)}
+            onOpenStore={() => setIsStoreOpen(true)}
+          />
+          {isProfileOpen && <UserProfileDialog isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} userId={userId} />}
+          <StoreModal isOpen={isStoreOpen} onClose={() => setIsStoreOpen(false)} />
+
+          {/* Sticky header */}
+          <div className="border-b border-[var(--border-color)] bg-[var(--bg-card)]/80 backdrop-blur-md sticky top-0 z-50 mt-16 shadow-lg">
+            <div className="container mx-auto px-6 py-4">
+              <div className="flex items-center gap-4">
+                <Button variant="ghost" size="sm" onClick={() => setSelectedRoom(null)} className="gap-2 text-[var(--text-primary)] hover:bg-white/10">
+                  <ArrowLeft className="h-4 w-4" /> Retour
+                </Button>
+                <div className="h-6 w-px bg-[var(--border-color)]" />
+                <h1 className={`text-2xl font-bold text-[var(--accent-brown)] ${aclonica.className}`}>{selectedRoom.title}</h1>
+              </div>
+            </div>
+          </div>
+
+          <div className="container mx-auto px-6 py-8">
+            <div className="grid lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 space-y-8">
+                <div className="relative group">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-[var(--accent-brown)]/20 via-[var(--accent-brown)]/40 to-[var(--accent-brown)]/20 rounded-2xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm" />
+                  <div className="relative aspect-video rounded-xl overflow-hidden border border-[var(--border-color)] shadow-2xl bg-[var(--bg-dark)]">
+                    <img src={selectedRoom.imageUrl || '/placeholder.svg'} alt={selectedRoom.title} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                  </div>
+                </div>
+                <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl">
+                  <CardContent className="p-8">
+                    <h3 className={`text-xl font-bold mb-4 text-[var(--accent-brown)] ${aclonica.className}`}>Description</h3>
+                    <p className="text-[var(--text-secondary)] leading-relaxed text-lg">{selectedRoom.description}</p>
+                  </CardContent>
+                </Card>
+                <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-xl overflow-hidden">
+                  <RoomChat roomId={selectedRoom.id} isOwner={selectedRoom.creatorId === userId} />
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl">
+                  <CardHeader>
+                    <CardTitle className={`flex items-center gap-2 text-[var(--accent-brown)] ${aclonica.className}`}>
+                      <Gamepad2 className="h-5 w-5" /> Informations
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[var(--text-secondary)] font-medium">Joueurs</span>
+                      <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-[var(--accent-brown)]" />
+                        <span className={cn("font-bold", (selectedRoom.occupantsCount || 0) >= selectedRoom.maxPlayers ? "text-destructive" : "text-[var(--text-primary)]")}>
+                          {selectedRoom.occupantsCount || 0} / {selectedRoom.maxPlayers}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[var(--text-secondary)] font-medium">Visibilité</span>
+                      <span className={cn("px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+                        selectedRoom.isPublic ? "bg-green-500/10 text-green-500 border border-green-500/20" : "bg-orange-500/10 text-orange-500 border border-orange-500/20"
+                      )}>
+                        {selectedRoom.isPublic ? "Publique" : "Privée"}
+                      </span>
+                    </div>
+                    {selectedRoom.creatorId === userId && (
+                      <div className="pt-4 border-t border-[var(--border-color)]">
+                        <p className="text-sm font-bold text-[var(--text-secondary)] mb-2 uppercase tracking-widest">Code de la salle :</p>
+                        <code className="bg-[var(--bg-dark)] px-4 py-3 rounded-lg text-lg font-mono block text-center border border-[var(--border-color)] text-[var(--accent-brown)] font-bold shadow-inner">{selectedRoom.id}</code>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl overflow-hidden">
+                  <CardHeader><CardTitle className={`text-[var(--accent-brown)] ${aclonica.className}`}>Actions</CardTitle></CardHeader>
+                  <CardContent className="space-y-3">
+                    <Button onClick={() => handleJoin(selectedRoom)} className="w-full gap-2 h-12 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] border-none font-bold shadow-[0_0_20px_rgba(192,160,128,0.2)]" size="lg">
+                      <Play className="h-4 w-4" /> Rejoindre la partie
+                    </Button>
+                    {selectedRoom.creatorId === userId && (
+                      <Button variant="outline" onClick={() => router.push(`/creer`)} className="w-full h-12 gap-2 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-white/10 font-bold">
+                        <Settings className="h-4 w-4" /> Gérer la salle
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-xl overflow-hidden">
+                  <RoomSessions roomId={selectedRoom.id} isOwner={selectedRoom.creatorId === userId} />
+                </div>
+
+                {creatorInfo && (
+                  <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl">
+                    <CardHeader><CardTitle className={`text-[var(--accent-brown)] ${aclonica.className}`}>Créateur</CardTitle></CardHeader>
+                    <CardContent>
+                      <div className="flex items-center gap-4">
+                        <div className="relative">
+                          <img src={creatorInfo.pp} alt={creatorInfo.name} className="w-14 h-14 rounded-full border-2 border-[var(--accent-brown)]/30 shadow-md" />
+                          <div className="absolute -inset-0.5 rounded-full bg-[var(--accent-brown)]/20 blur-sm -z-10" />
+                        </div>
+                        <div>
+                          <p className="font-bold text-[var(--text-primary)] text-lg">{creatorInfo.name}</p>
+                          <p className="text-sm text-[var(--accent-brown)] font-medium">Maître de jeu</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-xl overflow-hidden">
+                  <RoomUsersManager roomId={selectedRoom.id} isOwner={selectedRoom.creatorId === userId} />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </AppBackground>
+    )
+  }
+
+  // ─── Main view (join / browse) ───
   return (
-    <div
-      className="min-h-screen text-[var(--text-primary)] font-body relative"
-      style={{
-        backgroundImage: `url('https://assets.yner.fr/images/index2.webp')`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundAttachment: 'fixed',
-      }}
-    >
-      <div className="absolute inset-0 bg-[var(--bg-canvas)]/80 backdrop-blur-sm z-0"></div>
+    <AppBackground className="text-[var(--text-primary)] font-body">
+      {/* Multiple ambient glows */}
+      <div className="pointer-events-none absolute top-0 left-1/4 w-[800px] h-[600px] z-0" style={{ backgroundImage: 'radial-gradient(ellipse 70% 50% at 30% 0%, rgba(192,160,128,0.1) 0%, transparent 70%)' }} />
+      <div className="pointer-events-none absolute bottom-0 right-0 w-[500px] h-[500px] z-0" style={{ backgroundImage: 'radial-gradient(ellipse at 100% 100%, rgba(192,160,128,0.04) 0%, transparent 60%)' }} />
+
       <div className="relative z-10">
         <AppNavbar
           variant="home"
@@ -198,233 +329,126 @@ export default function RejoindrePageComponent() {
         {isProfileOpen && <UserProfileDialog isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} userId={userId} />}
         <StoreModal isOpen={isStoreOpen} onClose={() => setIsStoreOpen(false)} />
 
-        <div className="container mx-auto px-6 py-8 pt-32">
-          {selectedRoom ? (
-            <>
-              {/* Header logic matches mes-campagnes */}
-              <div className="flex items-center gap-4 mb-8">
-                <Button variant="ghost" onClick={() => setSelectedRoom(null)} className="gap-2 hover:bg-white/10 text-[var(--text-primary)]">
-                  <ArrowLeft className="h-4 w-4" /> Retour
+        {/* ── Split layout: Code left / Campaigns right ── */}
+        <div className="container mx-auto px-6 pt-28 pb-24 min-h-[calc(100vh-4rem)]">
+          <div className="max-w-7xl mx-auto grid lg:grid-cols-[380px_1fr] gap-10 items-start">
+
+            {/* ── Left panel: Join with code ── */}
+            <div className="lg:sticky lg:top-28 space-y-10">
+              <div className="space-y-6">
+                <h1 className={`text-4xl lg:text-5xl font-bold gold-text-gradient leading-tight ${aclonica.className}`}>
+                  Rejoignez une campagne
+                </h1>
+                <p className="text-[var(--text-secondary)] text-base leading-relaxed">
+                  Rejoignez une campagne en cours ou trouvez une partie privée
+                </p>
+              </div>
+
+              {/* Code input */}
+              <div className="space-y-4">
+                <Input
+                  type="text"
+                  placeholder="Code de campagne"
+                  value={roomCode}
+                  onChange={(e) => setRoomCode(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom(roomCode)}
+                  maxLength={6}
+                  className="text-xl font-mono tracking-[0.3em] text-center h-14 bg-[var(--bg-card)]/60 backdrop-blur-md border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:shadow-[0_0_30px_rgba(192,160,128,0.15)] transition-all rounded-xl"
+                />
+                <Button
+                  onClick={() => handleJoinRoom(roomCode)}
+                  size="lg"
+                  className="w-full h-13 gap-3 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] text-base font-bold border-none shadow-[0_4px_25px_rgba(192,160,128,0.3)] hover:shadow-[0_4px_35px_rgba(192,160,128,0.5)] transition-all rounded-xl"
+                >
+                  Rejoindre <ArrowRight className="h-4 w-4" />
                 </Button>
-                <div className="h-6 w-px bg-[var(--border-color)]" />
-                <h1 className={`text-2xl font-bold text-[var(--accent-brown)] ${aclonica.className}`}>{selectedRoom.title}</h1>
               </div>
 
-              <div className="grid lg:grid-cols-3 gap-8">
-                {/* Main Content */}
-                <div className="lg:col-span-2 space-y-8">
-                  <div className="relative group">
-                    <div className="absolute -inset-1 bg-gradient-to-r from-[var(--accent-brown)]/20 via-[var(--accent-brown)]/40 to-[var(--accent-brown)]/20 rounded-2xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm"></div>
-                    <div className="relative aspect-video rounded-xl overflow-hidden border border-[var(--border-color)] shadow-2xl bg-[var(--bg-dark)]">
-                      <img
-                        src={selectedRoom.imageUrl || '/placeholder.svg'}
-                        alt={`Image de la salle ${selectedRoom.title}`}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Description */}
-                  <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl">
-                    <CardContent className="p-8">
-                      <h3 className={`text-xl font-bold mb-4 text-[var(--accent-brown)] ${aclonica.className}`}>Description</h3>
-                      <p className="text-[var(--text-secondary)] leading-relaxed text-lg">{selectedRoom.description}</p>
-                    </CardContent>
-                  </Card>
-
-                  {/* Chat */}
-                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-xl overflow-hidden">
-                    <RoomChat roomId={selectedRoom.id} isOwner={selectedRoom.creatorId === userId} />
-                  </div>
-                </div>
-
-                {/* Sidebar */}
-                <div className="space-y-6">
-                  {/* Infos de la salle */}
-                  <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl">
-                    <CardHeader>
-                      <CardTitle className={`flex items-center gap-2 text-[var(--accent-brown)] ${aclonica.className}`}>
-                        <Gamepad2 className="h-5 w-5" />
-                        Informations
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[var(--text-secondary)] font-medium">Joueurs</span>
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-[var(--accent-brown)]" />
-                          <span className={cn("font-bold", (selectedRoom.occupantsCount || 0) >= selectedRoom.maxPlayers ? "text-destructive" : "text-[var(--text-primary)]")}>
-                            {selectedRoom.occupantsCount || 0} / {selectedRoom.maxPlayers}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[var(--text-secondary)] font-medium">Visibilité</span>
-                        <span className={cn("px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
-                          selectedRoom.isPublic ? "bg-green-500/10 text-green-500 border border-green-500/20" : "bg-orange-500/10 text-orange-500 border border-orange-500/20"
-                        )}>
-                          {selectedRoom.isPublic ? "Publique" : "Privée"}
-                        </span>
-                      </div>
-
-                      {selectedRoom.creatorId === userId && (
-                        <div className="pt-4 border-t border-[var(--border-color)]">
-                          <p className="text-sm font-bold text-[var(--text-secondary)] mb-2 uppercase tracking-widest">Code de la salle :</p>
-                          <code className="bg-[var(--bg-dark)] px-4 py-3 rounded-lg text-lg font-mono block text-center border border-[var(--border-color)] text-[var(--accent-brown)] font-bold shadow-inner">{selectedRoom.id}</code>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Actions */}
-                  <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl overflow-hidden">
-                    <CardHeader>
-                      <CardTitle className={`text-[var(--accent-brown)] ${aclonica.className}`}>Actions</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
-                      <Button
-                        onClick={() => handleJoin(selectedRoom)}
-                        className="w-full gap-2 h-12 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] border-none font-bold"
-                        size="lg"
-                      >
-                        <Play className="h-4 w-4" />
-                        Rejoindre la partie
-                      </Button>
-                      {selectedRoom.creatorId === userId && (
-                        <Button variant="outline" onClick={() => router.push(`/creer`)} className="w-full h-12 gap-2 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-white/10 font-bold">
-                          <Settings className="h-4 w-4" />
-                          Gérer la salle
-                        </Button>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Sessions */}
-                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-xl overflow-hidden">
-                    <RoomSessions roomId={selectedRoom.id} isOwner={selectedRoom.creatorId === userId} />
-                  </div>
-
-                  {/* Créateur */}
-                  {creatorInfo && (
-                    <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl">
-                      <CardHeader>
-                        <CardTitle className={`text-[var(--accent-brown)] ${aclonica.className}`}>Créateur</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center gap-4">
-                          <div className="relative">
-                            <img
-                              src={creatorInfo.pp}
-                              alt={`Image de ${creatorInfo.name}`}
-                              className="w-14 h-14 rounded-full border-2 border-[var(--border-color)] shadow-md"
-                            />
-                          </div>
-                          <div>
-                            <p className="font-bold text-[var(--text-primary)] text-lg">{creatorInfo.name}</p>
-                            <p className="text-sm text-[var(--accent-brown)] font-medium">Maître de jeu</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Gestionnaire de Joueurs */}
-                  <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-xl overflow-hidden">
-                    <RoomUsersManager
-                      roomId={selectedRoom.id}
-                      isOwner={selectedRoom.creatorId === userId}
-                    />
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="max-w-6xl mx-auto space-y-12">
-              <div className="space-y-2">
-                <h1 className={`text-4xl font-bold text-[var(--accent-brown)] ${aclonica.className}`}>Rejoindre une partie</h1>
-                <p className="text-[var(--text-secondary)] text-lg">Entrez un code ou choisissez parmi les campagnes actives</p>
-              </div>
-
-              <div className="grid md:grid-cols-2 gap-8">
-                <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl relative overflow-hidden">
-                  <div className="absolute inset-0 bg-gradient-to-br from-[var(--accent-brown)]/5 to-transparent pointer-events-none" />
-                  <CardHeader>
-                    <CardTitle className={`text-2xl font-bold flex items-center gap-3 text-[var(--accent-brown)] ${aclonica.className}`}>
-                      <Search className="h-6 w-6" />
-                      Entrez un code
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-4">
-                      <Input
-                        type="text"
-                        placeholder="Ex: 123456"
-                        value={roomCode}
-                        onChange={(e) => setRoomCode(e.target.value)}
-                        maxLength={6}
-                        className="text-2xl font-mono tracking-widest text-center h-16 bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] transition-all"
-                      />
-                      <Button
-                        onClick={() => handleJoinRoom(roomCode)}
-                        size="lg"
-                        className="w-full h-14 gap-3 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] text-lg font-bold border-none"
-                      >
-                        <Play className="h-5 w-5" />
-                        Rejoindre
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl">
-                  <CardHeader>
-                    <CardTitle className={`text-2xl font-bold flex items-center gap-3 text-[var(--accent-brown)] ${aclonica.className}`}>
-                      <Users className="h-6 w-6" />
-                      Campagnes publiques
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin">
-                      {availablePublicRooms.length > 0 ? (
-                        availablePublicRooms.map((room) => (
-                          <div key={room.id} className="relative group">
-                            <div className="relative flex items-center justify-between p-4 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-xl hover:border-[var(--accent-brown)] transition-all duration-300">
-                              <div className="flex items-center gap-4">
-                                <div className="w-2.5 h-2.5 bg-green-500 rounded-full animate-pulse shadow-[0_0_10px_rgba(34,197,94,0.5)]" />
-                                <div className="flex flex-col">
-                                  <span className="font-bold text-[var(--text-primary)]">{room.title}</span>
-                                  <span className="text-xs text-[var(--text-secondary)] flex items-center gap-1.5 mt-1">
-                                    <Users className="h-3 w-3" />
-                                    {room.occupantsCount || 0}/{room.maxPlayers}
-                                  </span>
-                                </div>
-                              </div>
-                              <Button
-                                onClick={() => handleJoinRoom(room.id)}
-                                variant="outline"
-                                size="sm"
-                                className="gap-2 border-[var(--border-color)] hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)] font-bold transition-all"
-                              >
-                                <Eye className="h-4 w-4" />
-                                Voir
-                              </Button>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center py-12 space-y-4 opacity-50">
-                          <Users className="h-12 w-12 mx-auto text-[var(--text-secondary)]" />
-                          <p className="text-[var(--text-secondary)] font-medium">Aucune campagne publique disponible</p>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+              {/* Divider ornament */}
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-gradient-to-r from-[var(--accent-brown)]/30 to-transparent" />
               </div>
             </div>
-          )}
+
+            {/* ── Right panel: Live campaigns grid ── */}
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-[var(--accent-brown)]/10 border border-[var(--accent-brown)]/20">
+                    <Globe className="h-5 w-5 text-[var(--accent-brown)]" />
+                  </div>
+                  <div>
+                    <h2 className={`text-2xl font-bold text-[var(--text-primary)] ${aclonica.className}`}>Campagnes en ligne</h2>
+                    <p className="text-sm text-[var(--text-secondary)]">{availablePublicRooms.length} partie{availablePublicRooms.length !== 1 ? 's' : ''} disponible{availablePublicRooms.length !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
+              </div>
+
+              {availablePublicRooms.length > 0 ? (
+                <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                  {availablePublicRooms.map((room) => (
+                    <div
+                      key={room.id}
+                      onClick={() => handleJoinRoom(room.id)}
+                      className="group cursor-pointer relative rounded-2xl overflow-hidden border border-[var(--border-color)] bg-[var(--bg-card)]/60 backdrop-blur-sm hover:border-[var(--accent-brown)]/40 transition-all duration-300 hover:shadow-[0_0_30px_rgba(192,160,128,0.08)]"
+                    >
+                      {/* Room image */}
+                      <div className="aspect-[16/10] overflow-hidden bg-[var(--bg-dark)] relative">
+                        {room.imageUrl ? (
+                          <img src={room.imageUrl} alt={room.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-[var(--bg-dark)] to-[var(--bg-card)]">
+                            <Gamepad2 className="h-12 w-12 text-[var(--accent-brown)]/20" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
+                        {/* Player count badge */}
+                        <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 text-xs font-bold text-white flex items-center gap-1.5">
+                          <Users className="h-3 w-3" />
+                          {room.occupantsCount || 0}/{room.maxPlayers}
+                        </div>
+                        {/* Live indicator */}
+                        <div className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-green-500/20 backdrop-blur-sm border border-green-500/30 text-xs font-bold text-green-400 flex items-center gap-1.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                          En ligne
+                        </div>
+                      </div>
+
+                      {/* Room info */}
+                      <div className="p-4 space-y-2">
+                        <h3 className="font-bold text-base text-[var(--text-primary)] group-hover:text-[var(--accent-brown)] transition-colors line-clamp-1">
+                          {room.title}
+                        </h3>
+                        <div className="flex items-center justify-between">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5 text-xs border-[var(--border-color)] hover:border-[var(--accent-brown)] hover:text-[var(--accent-brown)] font-bold transition-all h-8"
+                          >
+                            Rejoindre <ArrowRight className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-24 space-y-6 border border-dashed border-[var(--border-color)] rounded-2xl">
+                  <div className="w-20 h-20 mx-auto rounded-2xl bg-[var(--accent-brown)]/5 border border-[var(--accent-brown)]/10 flex items-center justify-center">
+                    <Globe className="h-10 w-10 text-[var(--text-secondary)] opacity-30" />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[var(--text-primary)] font-bold text-lg">Aucune campagne publique</p>
+                    <p className="text-[var(--text-secondary)] text-sm max-w-sm mx-auto">
+                      Il n&apos;y a pas de campagne publique pour le moment. Utilisez un code d&apos;invitation pour rejoindre une partie privée.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
+    </AppBackground>
   )
 }

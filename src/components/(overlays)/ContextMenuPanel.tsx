@@ -23,7 +23,8 @@ import {
     Square,
     Circle as CircleIcon,
     Package,
-    Ghost
+    Ghost,
+    Minus
 } from 'lucide-react';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Character } from '@/app/[roomid]/map/types';
 import { CharacterAudioDialog } from '@/components/(dialogs)/CharacterAudioDialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter } from "@/components/ui/drawer";
+import { Label } from "@/components/ui/label";
 import { EntityNotes } from './EntityNotes';
 
 interface ContextMenuPanelProps {
@@ -67,6 +71,20 @@ export default function ContextMenuPanel({
 
     // Internal state for embedded audio dialog
     const [isAudioDialogOpen, setIsAudioDialogOpen] = useState(false);
+    const avatarInputRef = React.useRef<HTMLInputElement>(null);
+
+    // States for edit and delete dialogs (moved from page.tsx)
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+    const [localEditingCharacter, setLocalEditingCharacter] = useState<Character | null>(null);
+    const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+
+    // State for PV quick-edit drawer
+    const [isPVDrawerOpen, setIsPVDrawerOpen] = useState(false);
+    const [pvDelta, setPvDelta] = useState(0);
+
+    // State for generic stat-edit drawer (Stats tab)
+    const [editingStat, setEditingStat] = useState<{ key: string; label: string; value: number } | null>(null);
+    const [statDelta, setStatDelta] = useState(0);
 
     // 🆕 Sync local state with Firebase data when character changes
     useEffect(() => {
@@ -76,6 +94,19 @@ export default function ContextMenuPanel({
             setLocalSelectedPlayerIds([]);
         }
     }, [character?.id, character?.visibleToPlayerIds, character?.visibility]);
+
+    // Reset dialog states when panel closes
+    useEffect(() => {
+        if (!isOpen) {
+            setIsEditDialogOpen(false);
+            setLocalEditingCharacter(null);
+            setIsDeleteConfirmOpen(false);
+            setIsPVDrawerOpen(false);
+            setPvDelta(0);
+            setEditingStat(null);
+            setStatDelta(0);
+        }
+    }, [isOpen]);
 
     if (!character) return null;
 
@@ -139,14 +170,20 @@ export default function ContextMenuPanel({
                             {/* Stats Row */}
                             {canViewDetails && (
                                 <div className="grid grid-cols-2 gap-3">
-                                    <div className="bg-[#252525]/50 p-2 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-1 group hover:bg-[#2a2a2a] transition-colors">
+                                    <div
+                                        className="bg-[#252525]/50 p-2 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-1 group hover:bg-[#2a2a2a] transition-colors cursor-pointer"
+                                        onClick={() => { setPvDelta(0); setIsPVDrawerOpen(true); }}
+                                    >
                                         <div className="flex items-center gap-1.5 text-gray-400">
                                             <Heart size={12} className="text-red-500" fill="currentColor" />
                                             <span className="text-[10px] uppercase font-bold tracking-wider">PV</span>
                                         </div>
                                         <span className="text-xl font-bold text-gray-100 font-mono leading-none">{character.PV}</span>
                                     </div>
-                                    <div className="bg-[#252525]/50 p-2 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-1 group hover:bg-[#2a2a2a] transition-colors">
+                                    <div
+                                        className="bg-[#252525]/50 p-2 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-1 group hover:bg-[#2a2a2a] transition-colors cursor-pointer"
+                                        onClick={() => { setStatDelta(0); setEditingStat({ key: 'Defense', label: 'Défense', value: character.Defense ?? 0 }); }}
+                                    >
                                         <div className="flex items-center gap-1.5 text-gray-400">
                                             <Shield size={12} className="text-blue-500" fill="currentColor" />
                                             <span className="text-[10px] uppercase font-bold tracking-wider">DEF</span>
@@ -271,16 +308,40 @@ export default function ContextMenuPanel({
                                     <X size={16} />
                                 </Button>
 
-                                <div className="relative">
+                                <div className={`relative ${character.type !== 'joueurs' ? 'group/avatar cursor-pointer' : ''}`} onClick={() => { if (character.type !== 'joueurs') avatarInputRef.current?.click(); }}>
                                     <Avatar className={`${!isMJ && character.type !== 'joueurs' ? 'h-24 w-24' : 'h-20 w-20'} border-[3px] border-[#c0a080] shadow-xl ring-4 ring-black/30`}>
                                         <AvatarImage src={typeof character.image === 'object' ? character.image.src : character.image} className="object-cover" />
                                         <AvatarFallback className="bg-[#2a2a2a] text-2xl">{character.name[0]}</AvatarFallback>
                                     </Avatar>
+                                    {character.type !== 'joueurs' && (
+                                        <div className="absolute inset-0 rounded-full bg-black/50 opacity-0 group-hover/avatar:opacity-100 transition-opacity flex items-center justify-center">
+                                            <Edit size={16} className="text-white" />
+                                        </div>
+                                    )}
                                     {isMJ && hasAudio && (
                                         <div className="absolute -bottom-1 -right-1 bg-purple-600 rounded-full p-1 border-2 border-[#1a1a1a] shadow-sm">
                                             <Music size={10} className="text-white" />
                                         </div>
                                     )}
+                                    <input
+                                        ref={avatarInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) {
+                                                const reader = new FileReader();
+                                                reader.onload = (ev) => {
+                                                    const img = new window.Image();
+                                                    img.onload = () => onAction('updateImage', character.id, img);
+                                                    if (typeof ev.target?.result === 'string') img.src = ev.target.result;
+                                                };
+                                                reader.readAsDataURL(file);
+                                            }
+                                            e.target.value = '';
+                                        }}
+                                    />
                                 </div>
 
                                 <div className="text-center w-full">
@@ -300,7 +361,10 @@ export default function ContextMenuPanel({
                         {/* Stats Rapides Bar */}
                         {canViewDetails && (
                             <div className="grid grid-cols-2 gap-1 px-4 pb-4 shrink-0">
-                                <div className="bg-[#252525]/50 p-2.5 rounded-xl border border-white/5 flex items-center justify-between group hover:bg-[#2a2a2a] transition-colors">
+                                <div
+                                    className="bg-[#252525]/50 p-2.5 rounded-xl border border-white/5 flex items-center justify-between group hover:bg-[#2a2a2a] transition-colors cursor-pointer"
+                                    onClick={() => { setPvDelta(0); setIsPVDrawerOpen(true); }}
+                                >
                                     <div className="flex items-center gap-2.5 text-gray-400">
                                         <div className="p-1.5 bg-red-900/20 rounded-md text-red-500 group-hover:bg-red-900/30 transition-colors">
                                             <Heart size={14} fill="currentColor" className="opacity-90" />
@@ -309,7 +373,10 @@ export default function ContextMenuPanel({
                                     </div>
                                     <span className="text-lg font-bold text-gray-100 font-mono">{character.PV}</span>
                                 </div>
-                                <div className="bg-[#252525]/50 p-2.5 rounded-xl border border-white/5 flex items-center justify-between group hover:bg-[#2a2a2a] transition-colors">
+                                <div
+                                    className="bg-[#252525]/50 p-2.5 rounded-xl border border-white/5 flex items-center justify-between group hover:bg-[#2a2a2a] transition-colors cursor-pointer"
+                                    onClick={() => { setStatDelta(0); setEditingStat({ key: 'Defense', label: 'Défense', value: character.Defense ?? 0 }); }}
+                                >
                                     <div className="flex items-center gap-2.5 text-gray-400">
                                         <div className="p-1.5 bg-blue-900/20 rounded-md text-blue-500 group-hover:bg-blue-900/30 transition-colors">
                                             <Shield size={14} fill="currentColor" className="opacity-90" />
@@ -323,8 +390,9 @@ export default function ContextMenuPanel({
 
                         <Tabs defaultValue="actions" className="flex-1 flex flex-col min-h-0 w-full">
                             <div className="px-4 pb-2">
-                                <TabsList className="w-full bg-[#252525]/80 p-1 border border-white/5 grid grid-cols-4">
+                                <TabsList className="w-full bg-[#252525]/80 p-1 border border-white/5 grid grid-cols-5">
                                     <TabsTrigger value="actions" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Actions</TabsTrigger>
+                                    <TabsTrigger value="stats" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Stats</TabsTrigger>
                                     <TabsTrigger value="effects" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Effets</TabsTrigger>
                                     <TabsTrigger value="params" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white" disabled={!isMJ}>Param</TabsTrigger>
                                     <TabsTrigger value="notes" className="text-xs data-[state=active]:bg-[#333] data-[state=active]:text-white">Notes</TabsTrigger>
@@ -442,6 +510,95 @@ export default function ContextMenuPanel({
                                                 )}
                                             </div>
                                         )}
+
+                                        {/* Actions de modification/suppression MJ */}
+                                        {isMJ && (
+                                            <>
+                                                <Separator className="bg-white/5" />
+                                                <div className="grid grid-cols-2 gap-2 pt-2">
+                                                    <Button
+                                                        variant="outline"
+                                                        className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-[#333] hover:text-yellow-400 text-gray-300 h-9 text-xs"
+                                                        onClick={() => {
+                                                            setLocalEditingCharacter({ ...character });
+                                                            setIsEditDialogOpen(true);
+                                                        }}
+                                                    >
+                                                        <Edit size={14} />
+                                                        Modifier
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-red-900/20 hover:border-red-900/50 hover:text-red-400 text-gray-300 h-9 text-xs"
+                                                        onClick={() => setIsDeleteConfirmOpen(true)}
+                                                    >
+                                                        <Trash2 size={14} />
+                                                        Supprimer
+                                                    </Button>
+                                                </div>
+                                            </>
+                                        )}
+
+                                    </TabsContent>
+
+                                    <TabsContent value="stats" className="mt-0 space-y-4 focus-visible:ring-0">
+                                        {/* Caractéristiques */}
+                                        <div className="space-y-2">
+                                            <h4 className="text-[10px] uppercase font-bold tracking-wider text-gray-500">Caractéristiques</h4>
+                                            <div className="grid grid-cols-3 gap-1.5">
+                                                {['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].map((stat) => (
+                                                    <div
+                                                        key={stat}
+                                                        className={`bg-[#252525]/50 rounded-lg border border-white/5 p-2 flex items-center justify-between ${isMJ ? 'cursor-pointer hover:bg-[#2a2a2a] hover:border-[#c0a080]/30 transition-colors' : ''}`}
+                                                        onClick={() => isMJ && (() => { setStatDelta(0); setEditingStat({ key: stat, label: stat, value: (character as any)[stat] ?? 0 }); })()}
+                                                    >
+                                                        <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500">{stat}</span>
+                                                        <span className="text-sm font-bold font-mono text-gray-100">{(character as any)[stat] ?? '—'}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Combat */}
+                                        <div className="space-y-2">
+                                            <h4 className="text-[10px] uppercase font-bold tracking-wider text-gray-500">Combat</h4>
+                                            <div className="grid grid-cols-2 gap-1.5">
+                                                {[
+                                                    { key: 'PV', label: 'PV', value: character.PV, max: character.PV_Max, color: 'text-red-400' },
+                                                    { key: 'Defense', label: 'Défense', value: character.Defense, color: 'text-blue-400' },
+                                                    { key: 'INIT', label: 'Initiative', value: character.INIT, color: 'text-yellow-400' },
+                                                    { key: 'niveau', label: 'Niveau', value: character.niveau, color: 'text-purple-400' },
+                                                ].map((s) => (
+                                                    <div
+                                                        key={s.key}
+                                                        className={`bg-[#252525]/50 rounded-lg border border-white/5 p-2 flex items-center justify-between ${isMJ ? 'cursor-pointer hover:bg-[#2a2a2a] hover:border-[#c0a080]/30 transition-colors' : ''}`}
+                                                        onClick={() => isMJ && (() => { setStatDelta(0); setEditingStat({ key: s.key, label: s.label, value: s.value ?? 0 }); })()}
+                                                    >
+                                                        <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500">{s.label}</span>
+                                                        <span className={`text-sm font-bold font-mono ${s.color}`}>
+                                                            {s.value ?? '—'}{s.max ? ` / ${s.max}` : ''}
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        {/* Bonus d'attaque */}
+                                        <div className="space-y-2">
+                                            <h4 className="text-[10px] uppercase font-bold tracking-wider text-gray-500">Bonus d'attaque</h4>
+                                            <div className="grid grid-cols-3 gap-1.5">
+                                                {['Contact', 'Distance', 'Magie'].map((stat) => (
+                                                    <div
+                                                        key={stat}
+                                                        className={`bg-[#252525]/50 rounded-lg border border-white/5 p-2 flex items-center justify-between ${isMJ ? 'cursor-pointer hover:bg-[#2a2a2a] hover:border-[#c0a080]/30 transition-colors' : ''}`}
+                                                        onClick={() => isMJ && (() => { setStatDelta(0); setEditingStat({ key: stat, label: stat, value: (character as any)[stat] ?? 0 }); })()}
+                                                    >
+                                                        <span className="text-[10px] uppercase font-bold tracking-wider text-gray-500">{stat.slice(0, 4)}</span>
+                                                        <span className="text-sm font-bold font-mono text-orange-300">{(character as any)[stat] ?? '—'}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
                                     </TabsContent>
 
                                     <TabsContent value="effects" className="mt-0 focus-visible:ring-0">
@@ -661,31 +818,7 @@ export default function ContextMenuPanel({
                                             </>
                                         )}
 
-                                        {(
-                                            <>
-                                                <Separator className="bg-white/5" />
-                                                <div className="grid grid-cols-2 gap-2 pt-2">
-                                                    <Button
-                                                        variant="outline"
-                                                        className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-[#333] hover:text-yellow-400 text-gray-300 h-9 text-xs"
-                                                        onClick={() => onAction('edit', character.id)}
-                                                    >
-                                                        <Edit size={14} />
-                                                        Modifier
-                                                    </Button>
-                                                    <Button
-                                                        variant="outline"
-                                                        className="justify-start gap-2 bg-[#252525] border-[#333] hover:bg-red-900/20 hover:border-red-900/50 hover:text-red-400 text-gray-300 h-9 text-xs"
-                                                        onClick={() => {
-                                                            onAction('delete', character.id);
-                                                        }}
-                                                    >
-                                                        <Trash2 size={14} />
-                                                        Supprimer
-                                                    </Button>
-                                                </div>
-                                            </>
-                                        )}
+
 
                                     </TabsContent>
 
@@ -703,6 +836,255 @@ export default function ContextMenuPanel({
                     </motion.div>
                 )}
             </AnimatePresence >
+
+            {/* PV Quick-Edit Drawer */}
+            <Drawer open={isPVDrawerOpen} onClose={() => setIsPVDrawerOpen(false)}>
+                <DrawerContent className="bg-[#1a1a1a] border-t border-[#333] max-w-2xl mx-auto">
+                    <DrawerHeader>
+                        <DrawerTitle className="text-white text-center text-2xl">Ajuster les PV</DrawerTitle>
+                        <DrawerDescription className="text-gray-400 text-center">
+                            {character.name} (Actuel: {character.PV})
+                        </DrawerDescription>
+                    </DrawerHeader>
+                    <div className="p-8 flex items-center justify-center gap-8">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-16 w-16 rounded-full border-2 border-[#333] hover:bg-red-500/10 hover:border-red-500 hover:text-red-500 transition-all"
+                            onClick={() => setPvDelta(prev => prev - 1)}
+                        >
+                            <Minus className="h-8 w-8" />
+                        </Button>
+                        <div className={`text-6xl font-bold font-mono ${pvDelta > 0 ? 'text-green-500' : pvDelta < 0 ? 'text-red-500' : 'text-white'}`}>
+                            {pvDelta > 0 ? `+${pvDelta}` : pvDelta}
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-16 w-16 rounded-full border-2 border-[#333] hover:bg-green-500/10 hover:border-green-500 hover:text-green-500 transition-all"
+                            onClick={() => setPvDelta(prev => prev + 1)}
+                        >
+                            <Plus className="h-8 w-8" />
+                        </Button>
+                    </div>
+                    <DrawerFooter className="flex-row justify-center gap-4">
+                        <Button variant="outline" className="w-32 border-[#333] text-gray-300 hover:bg-[#252525]" onClick={() => { setIsPVDrawerOpen(false); setPvDelta(0); }}>Annuler</Button>
+                        <Button
+                            className="w-32 bg-[#c0a080] text-[#1a1a1a] font-bold hover:bg-[#d4b896]"
+                            onClick={() => {
+                                onAction('updatePV', character.id, (character.PV ?? 0) + pvDelta);
+                                setIsPVDrawerOpen(false);
+                                setPvDelta(0);
+                            }}
+                        >
+                            Confirmer
+                        </Button>
+                    </DrawerFooter>
+                </DrawerContent>
+            </Drawer>
+
+            {/* Generic Stat-Edit Drawer (from Stats tab) */}
+            <Drawer open={!!editingStat} onClose={() => { setEditingStat(null); setStatDelta(0); }}>
+                <DrawerContent className="bg-[#1a1a1a] border-t border-[#333] max-w-2xl mx-auto">
+                    <DrawerHeader>
+                        <DrawerTitle className="text-white text-center text-2xl">Ajuster : {editingStat?.label}</DrawerTitle>
+                        <DrawerDescription className="text-gray-400 text-center">
+                            {character.name} (Actuel: {editingStat?.value ?? 0})
+                        </DrawerDescription>
+                    </DrawerHeader>
+                    <div className="p-8 flex items-center justify-center gap-8">
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-16 w-16 rounded-full border-2 border-[#333] hover:bg-red-500/10 hover:border-red-500 hover:text-red-500 transition-all"
+                            onClick={() => setStatDelta(prev => prev - 1)}
+                        >
+                            <Minus className="h-8 w-8" />
+                        </Button>
+                        <div className={`text-6xl font-bold font-mono ${statDelta > 0 ? 'text-green-500' : statDelta < 0 ? 'text-red-500' : 'text-white'}`}>
+                            {statDelta > 0 ? `+${statDelta}` : statDelta}
+                        </div>
+                        <Button
+                            variant="outline"
+                            size="icon"
+                            className="h-16 w-16 rounded-full border-2 border-[#333] hover:bg-green-500/10 hover:border-green-500 hover:text-green-500 transition-all"
+                            onClick={() => setStatDelta(prev => prev + 1)}
+                        >
+                            <Plus className="h-8 w-8" />
+                        </Button>
+                    </div>
+                    <DrawerFooter className="flex-row justify-center gap-4">
+                        <Button variant="outline" className="w-32 border-[#333] text-gray-300 hover:bg-[#252525]" onClick={() => { setEditingStat(null); setStatDelta(0); }}>Annuler</Button>
+                        <Button
+                            className="w-32 bg-[#c0a080] text-[#1a1a1a] font-bold hover:bg-[#d4b896]"
+                            onClick={() => {
+                                if (editingStat) {
+                                    onAction('updateStat', character.id, { key: editingStat.key, value: editingStat.value + statDelta });
+                                    setEditingStat(null);
+                                    setStatDelta(0);
+                                }
+                            }}
+                        >
+                            Confirmer
+                        </Button>
+                    </DrawerFooter>
+                </DrawerContent>
+            </Drawer>
+
+            {/* Edit Character Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+                setIsEditDialogOpen(open);
+                if (!open) setLocalEditingCharacter(null);
+            }}>
+                <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>Modifier le personnage</DialogTitle>
+                    </DialogHeader>
+                    <ScrollArea className="h-auto max-h-[85vh] pr-4">
+                        <div className="space-y-6 py-4">
+
+                            {/* --- SECTION 1: GÉNÉRAL --- */}
+                            <div className="space-y-3">
+                                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Général</h3>
+                                <div className="space-y-1.5">
+                                    <Label htmlFor="characterName" className="text-xs text-gray-300">Nom du personnage</Label>
+                                    <Input
+                                        id="characterName"
+                                        value={localEditingCharacter?.name || ''}
+                                        onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, name: e.target.value })}
+                                        className="bg-[#2a2a2a] border-gray-600 focus:border-[#c0a080]"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* --- SECTION 2: COMBAT & VITALITÉ --- */}
+                            <div className="space-y-3">
+                                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Combat & Vitalité</h3>
+                                <div className="grid grid-cols-4 gap-3">
+                                    <div className="space-y-1">
+                                        <Label htmlFor="PV" className="text-[10px] uppercase text-gray-400">PV Actuels</Label>
+                                        <Input
+                                            id="PV"
+                                            type="number"
+                                            value={localEditingCharacter?.PV || 0}
+                                            onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, PV: parseInt(e.target.value) || 0 })}
+                                            className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="PV_Max" className="text-[10px] uppercase text-gray-400">PV Max</Label>
+                                        <Input
+                                            id="PV_Max"
+                                            type="number"
+                                            value={localEditingCharacter?.PV_Max || localEditingCharacter?.PV || 0}
+                                            onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, PV_Max: parseInt(e.target.value) || 0 })}
+                                            className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="Defense" className="text-[10px] uppercase text-gray-400">Défense</Label>
+                                        <Input
+                                            id="Defense"
+                                            type="number"
+                                            value={localEditingCharacter?.Defense || 0}
+                                            onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, Defense: parseInt(e.target.value) || 0 })}
+                                            className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="INIT" className="text-[10px] uppercase text-gray-400">Initiative</Label>
+                                        <Input
+                                            id="INIT"
+                                            type="number"
+                                            value={localEditingCharacter?.INIT || 0}
+                                            onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, INIT: parseInt(e.target.value) || 0 })}
+                                            className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <Label htmlFor="niveau" className="text-[10px] uppercase text-gray-400">Niveau</Label>
+                                        <Input
+                                            id="niveau"
+                                            type="number"
+                                            value={localEditingCharacter?.niveau || 1}
+                                            onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, niveau: parseInt(e.target.value) || 1 })}
+                                            className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* --- SECTION 3: BONUS D'ATTAQUE --- */}
+                            <div className="space-y-3">
+                                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Bonus d'Attaque</h3>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {['Contact', 'Distance', 'Magie'].map((stat) => (
+                                        <div key={stat} className="space-y-1">
+                                            <Label htmlFor={stat} className="text-[10px] uppercase text-gray-400">{stat}</Label>
+                                            <Input
+                                                id={stat}
+                                                type="number"
+                                                value={localEditingCharacter?.[stat as keyof Character] as number || 0}
+                                                onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [stat]: parseInt(e.target.value) || 0 })}
+                                                className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* --- SECTION 4: CARACTÉRISTIQUES --- */}
+                            <div className="space-y-3">
+                                <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider border-b border-gray-700 pb-1">Caractéristiques</h3>
+                                <div className="grid grid-cols-6 gap-2">
+                                    {['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].map((stat) => (
+                                        <div key={stat} className="space-y-1 text-center">
+                                            <Label htmlFor={stat} className="text-[10px] uppercase text-gray-400 block">{stat}</Label>
+                                            <Input
+                                                id={stat}
+                                                type="number"
+                                                value={localEditingCharacter?.[stat as keyof Character] as number || 0}
+                                                onChange={(e) => localEditingCharacter && setLocalEditingCharacter({ ...localEditingCharacter, [stat]: parseInt(e.target.value) || 0 })}
+                                                className="h-8 bg-[#2a2a2a] border-gray-600 text-center font-mono px-1"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+
+                        </div>
+                    </ScrollArea>
+                    <DialogFooter>
+                        <Button onClick={() => {
+                            if (localEditingCharacter) {
+                                onAction('edit', character.id, localEditingCharacter);
+                                setIsEditDialogOpen(false);
+                                setLocalEditingCharacter(null);
+                            }
+                        }}>Modifier</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+                <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle>Confirmer la suppression</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <p>Êtes-vous sûr de vouloir supprimer le personnage {character.name} ? Cette action est irréversible.</p>
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={() => setIsDeleteConfirmOpen(false)}>Annuler</Button>
+                        <Button onClick={() => {
+                            onAction('delete', character.id);
+                            setIsDeleteConfirmOpen(false);
+                        }}>Supprimer</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {/* Embedded Audio Dialog */}
             < CharacterAudioDialog
