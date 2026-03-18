@@ -9,7 +9,77 @@ import poisonIcon from './icons/poison.svg';
 import stunIcon from './icons/stun.svg';
 import blindIcon from './icons/blind.svg';
 import invisibleIcon from './icons/invisible.svg';
-
+import { useParams } from 'next/navigation'
+import { useGame } from '@/contexts/GameContext'
+import { Button } from "@/components/ui/button"
+import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Map as MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, ArrowRight, DoorOpen, Pen, ArrowDownUp, Hexagon, MousePointer } from 'lucide-react'
+import { toast } from 'sonner';
+import { auth, db, realtimeDb, dbRef, onValue, onAuthStateChanged } from '@/lib/firebase'
+import { doc, collection, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
+import Combat from '@/components/(combat)/combat2';
+import { CONDITIONS } from '@/components/(combat)/MJcombat';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { Component as RadialMenu } from '@/components/ui/radial-menu';
+import CitiesManager from '@/components/(worldmap)/CitiesManager';
+import InteractionLayer from '@/components/(interactions)/InteractionLayer';
+import { VendorInteraction, GameInteraction, LootInteraction, Interaction, MapObject } from '@/app/[roomid]/map/types';
+import { useVisibilityState } from '@/hooks/map/useVisibilityState';
+import { getDominantColor, getContrastColor } from '@/utils/imageUtils';
+import { type EntityToDelete } from '@/components/(map)/DeleteConfirmationModal';
+import ElementSelectionMenu, { type DetectedElement } from '@/components/(map)/ElementSelectionMenu';
+import { doc as firestoreDoc } from 'firebase/firestore'
+import InfoComponent, { type InfoSection } from "@/components/(infos)/info";
+import { type NPC } from '@/components/(personnages)/personnages';
+import { type Obstacle, type Point as VisibilityPoint, type EdgeMeta, type PolygonViewerInfo, drawShadows, drawObstacles, calculateShadowPolygons, isPointInPolygon, getPolygonsContainingViewer, isPointInShadows, type ShadowResult } from '@/lib/visibility';
+import { findNearestWallSegment, calculateSplitPoints, determineOneWayDirection, DEFAULT_FEATURE_WIDTH, findAdjacentWalls, getMergedWallPoints, findAllConnectedWalls, findClosedLoops, isMovementBlocked } from '@/lib/obstacle-utils';
+import { LayerControl } from '@/components/(map)/LayerControl';
+import { useSettings } from '@/contexts/SettingsContext';
+import { SelectionMenu, type SelectionCandidates, type SelectionType } from '@/components/(map)/SelectionMenu';
+import { type ViewMode, type Point, type Character, type LightSource, type MapText, type SavedDrawing, type NewCharacter, type Note, type ObjectTemplate, type Layer, type LayerType, type MusicZone, type Scene, type DrawingTool, type Portal } from './types';
+import { useAudioZones } from '@/hooks/map/useAudioZones';
+import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath } from './drawings';
+import { calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
+import MapToolbar, { TOOLS } from '@/components/(map)/MapToolbar';
+import { useMapControl } from '@/contexts/MapControlContext';
+import { pasteCharacter } from '@/utils/pasteCharacter';
+import { pasteObject } from '@/utils/pasteObject';
+import { CursorManager } from '@/components/(map)/CursorManager';
+import { useAudioMixer } from '@/components/(audio)/AudioMixerPanel';
+import { type MeasurementShape, renderLineMeasurement, renderConeMeasurement, renderCircleMeasurement, renderCubeMeasurement, renderStartPoint, isPointInMeasurement, type SharedMeasurement } from './measurements';
+import { useSkinVideo } from '@/hooks/map/useSkinVideo';
+import { useMeasurementSkins } from '@/hooks/map/useMeasurementSkins';
+import { ToolbarSkinSelector } from '@/components/(map)/MapToolbar';
+import { useShortcuts, SHORTCUT_ACTIONS } from '@/contexts/ShortcutsContext';
+import { useUndoRedo } from '@/contexts/UndoRedoContext';
+import { useFirestoreWithHistory } from '@/hooks/map/useFirestoreWithHistory';
+import { useCharacterPositions } from '@/hooks/map/useCharacterPositions';
+import type { PositionsMap } from '@/hooks/map/useCharacterPositions';
+import { useRtdbCollections } from '@/hooks/map/useRtdbCollections';
+import { useMapData } from '@/hooks/map/useMapData';
+import { getMediaDimensions } from './utils/coordinates';
+import { drawBackgroundLayers } from './renderers/background-renderer';
+import { drawCharacterBorders } from './renderers/character-borders-renderer';
+import { drawMeasurements } from './renderers/measurement-renderer';
+import { drawForegroundLayers } from './renderers/foreground-renderer';
+import { isCharacterVisibleToUser as checkCharacterVisibility, isObjectVisibleToUser as checkObjectVisibility, type CharacterVisibilityContext, type VisibilityContext } from './utils/visibility-checks';
+import { useBackgroundLoader } from '@/hooks/map/useBackgroundLoader';
+import { useKeyboardShortcuts } from '@/hooks/map/useKeyboardShortcuts';
+import { useMusicZoneActions } from '@/hooks/map/useMusicZoneActions';
+import { useElementDetection } from '@/hooks/map/useElementDetection';
+import { useObstacleActions } from '@/hooks/map/useObstacleActions';
+import { useDeleteActions } from '@/hooks/map/useDeleteActions';
+import { useDragAndDrop, type DragFeaturePreview } from '@/hooks/map/useDragAndDrop';
+import { useToolbarActions } from '@/hooks/map/useToolbarActions';
+import MapContextMenus from '@/components/(map)/MapContextMenus';
+import MapDialogs from '@/components/(map)/MapDialogs';
+import { useCanvasMouseDown } from '@/hooks/map/useCanvasMouseDown';
+import { useCanvasMouseMove } from '@/hooks/map/useCanvasMouseMove';
+import { useCanvasMouseUp } from '@/hooks/map/useCanvasMouseUp';
+import StaticToken from '@/components/(map)/StaticToken';
+import LightsLayer from '@/components/(map)/layers/LightsLayer';
+import ObjectsLayer from '@/components/(map)/layers/ObjectsLayer';
+import PortalsLayer from '@/components/(map)/layers/PortalsLayer';
+import CharactersLayer from '@/components/(map)/layers/CharactersLayer';
 
 const CONDITION_ICONS: Record<string, any> = {
   poisoned: { src: poisonIcon },
@@ -45,159 +115,8 @@ const useStatusEffectIcons = () => {
 
   return getIcon;
 };
-import { useParams } from 'next/navigation'
-import { useGame } from '@/contexts/GameContext'
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
-
-import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Map as MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, Lightbulb, ArrowRight, DoorOpen, Pen, ArrowDownUp, Hexagon, MousePointer } from 'lucide-react'
-import { toast } from 'sonner';
-import { auth, db, realtimeDb, dbRef, onValue, onAuthStateChanged } from '@/lib/firebase'
-import { doc, collection, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
-import Combat from '@/components/(combat)/combat2';
-import { CONDITIONS } from '@/components/(combat)/MJcombat';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
-import CharacterSheet from '@/components/(fiches)/CharacterSheet';
-import { Component as RadialMenu } from '@/components/ui/radial-menu';
-import CitiesManager from '@/components/(worldmap)/CitiesManager';
-import ContextMenuPanel from '@/components/(overlays)/ContextMenuPanel';
-import InteractionLayer from '@/components/(interactions)/InteractionLayer';
-import { VendorInteraction, GameInteraction, LootInteraction, Interaction, MapObject } from '@/app/[roomid]/map/types';
-import ObjectContextMenu from '@/components/(overlays)/ObjectContextMenu';
-import ObstacleContextMenu from '@/components/(overlays)/ObstacleContextMenu';
-import LightContextMenu from '@/components/(overlays)/LightContextMenu';
-import MusicZoneContextMenu from '@/components/(overlays)/MusicZoneContextMenu';
-import PortalContextMenu from '@/components/(overlays)/PortalContextMenu';
-import { BulkCharacterContextMenu } from '@/components/(overlays)/BulkCharacterContextMenu';
-import { NPCTemplateDrawer } from '@/components/(personnages)/NPCTemplateDrawer';
-import { ObjectDrawer } from '@/components/(personnages)/ObjectDrawer';
-import { SoundDrawer } from '@/components/(personnages)/SoundDrawer';
-import { UnifiedSearchDrawer } from '@/components/(personnages)/UnifiedSearchDrawer';
-import { VisibilityDrawer } from '@/components/(personnages)/VisibilityDrawer';
-import { useVisibilityState } from '@/hooks/map/useVisibilityState';
-import { GMTemplatesProvider } from '@/contexts/GMTemplatesContext';
-import { PlaceNPCModal } from '@/components/(personnages)/PlaceNPCModal';
-import { PlaceObjectModal } from '@/components/(personnages)/PlaceObjectModal';
-import { CreateNoteModal } from '@/components/(map)/CreateNoteModal';
-import { NoBackgroundModal } from '@/components/(map)/NoBackgroundModal';
-import { getDominantColor, getContrastColor } from '@/utils/imageUtils';
-import { DeleteConfirmationModal, type EntityToDelete } from '@/components/(map)/DeleteConfirmationModal';
-import ElementSelectionMenu, { type DetectedElement } from '@/components/(map)/ElementSelectionMenu';
 
 
-import { doc as firestoreDoc } from 'firebase/firestore'
-import InfoComponent, { type InfoSection } from "@/components/(infos)/info";
-import { type NPC } from '@/components/(personnages)/personnages';
-import {
-  type Obstacle,
-  type Point as VisibilityPoint,
-  type EdgeMeta,
-  type PolygonViewerInfo,
-  drawShadows,
-  drawObstacles,
-  calculateShadowPolygons,
-  isPointInPolygon,
-  getPolygonsContainingViewer,
-  isPointInShadows,
-  type ShadowResult
-} from '@/lib/visibility';
-import { findNearestWallSegment, calculateSplitPoints, determineOneWayDirection, DEFAULT_FEATURE_WIDTH, findAdjacentWalls, getMergedWallPoints, findAllConnectedWalls, findClosedLoops, isMovementBlocked } from '@/lib/obstacle-utils';
-import { LayerControl } from '@/components/(map)/LayerControl';
-import { useSettings } from '@/contexts/SettingsContext';
-import { SelectionMenu, type SelectionCandidates, type SelectionType } from '@/components/(map)/SelectionMenu';
-import { type ViewMode, type Point, type Character, type LightSource, type MapText, type SavedDrawing, type NewCharacter, type Note, type ObjectTemplate, type Layer, type LayerType, type MusicZone, type Scene, type DrawingTool, type Portal } from './types';
-import { useAudioZones } from '@/hooks/map/useAudioZones';
-import { getResizeHandles, isPointOnDrawing, renderDrawings, renderCurrentPath } from './drawings';
-import { calculateDistance, getCellKey, isCellInFog, renderFogLayer } from './shadows';
-import MapToolbar, { TOOLS } from '@/components/(map)/MapToolbar';
-import BackgroundSelector from '@/components/(map)/BackgroundSelector';
-import GlobalSettingsDialog from '@/components/(map)/GlobalSettingsDialog';
-import { useMapControl } from '@/contexts/MapControlContext';
-import { pasteCharacter } from '@/utils/pasteCharacter';
-import { pasteObject } from '@/utils/pasteObject';
-import { CursorManager } from '@/components/(map)/CursorManager';
-import MapContextMenu from '@/components/(overlays)/MapContextMenu';
-
-// ⚡ Static Token Component for Performance Mode (Moved Outside Component to avoid Remounting/Flickering)
-const StaticToken = React.memo(({ src, alt, style, className, performanceMode }: { src: string, alt: string, style?: React.CSSProperties, className?: string, performanceMode: string }) => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const isVideo = src?.toLowerCase().endsWith('.webm') || src?.toLowerCase().endsWith('.mp4');
-
-  if (performanceMode === 'static') {
-    if (isVideo) {
-      // 🎥 Static Video (Paused)
-      return (
-        <video
-          ref={videoRef}
-          src={src}
-          style={{ ...style, objectFit: 'cover' }}
-          className={className}
-          muted
-          playsInline
-          onLoadedData={(e) => {
-            e.currentTarget.currentTime = 0; // First frame
-            e.currentTarget.pause(); // Ensure paused
-          }}
-        />
-      );
-    } else {
-      // 🖼️ Static Image (Frozen GIF) - Use img instead of canvas for proper objectFit support
-      return (
-        <img
-          src={src}
-          alt={alt}
-          style={style}
-          className={className}
-          draggable={false}
-        />
-      );
-    }
-  }
-
-  // 🚀 Animated Default
-  if (isVideo) {
-    return <img src={src} alt={alt} style={style} className={className} draggable={false} />;
-  }
-  return <img src={src} alt={alt} style={style} className={className} draggable={false} />;
-});
-import { AudioMixerPanel, useAudioMixer } from '@/components/(audio)/AudioMixerPanel';
-import MeasurementPanel from '@/components/(map)/MeasurementPanel';
-import PortalConfigDialog from '@/components/(map)/PortalConfigDialog';
-import MeasurementContextMenu from '@/components/(overlays)/MeasurementContextMenu';
-import {
-  type MeasurementShape,
-  renderLineMeasurement,
-  renderConeMeasurement,
-  renderCircleMeasurement,
-  renderCubeMeasurement,
-  renderStartPoint,
-  isPointInMeasurement,
-  type SharedMeasurement
-} from './measurements';
-import { useSkinVideo } from '@/hooks/map/useSkinVideo';
-import { useMeasurementSkins } from '@/hooks/map/useMeasurementSkins';
-import { ToolbarSkinSelector } from '@/components/(map)/MapToolbar';
-import { useShortcuts, SHORTCUT_ACTIONS } from '@/contexts/ShortcutsContext';
-import { useUndoRedo } from '@/contexts/UndoRedoContext';
-import { useFirestoreWithHistory } from '@/hooks/map/useFirestoreWithHistory';
-import { useCharacterPositions } from '@/hooks/map/useCharacterPositions';
-import type { PositionsMap } from '@/hooks/map/useCharacterPositions';
-import { useRtdbCollections } from '@/hooks/map/useRtdbCollections';
-import { useMapData } from '@/hooks/map/useMapData';
-
-const getMediaDimensions = (media: HTMLImageElement | HTMLVideoElement | CanvasImageSource) => {
-  if (media instanceof HTMLVideoElement) {
-    return { width: media.videoWidth, height: media.videoHeight };
-  }
-  if (media instanceof HTMLImageElement) {
-    return { width: media.width, height: media.height };
-  }
-  return { width: (media as any).width || 0, height: (media as any).height || 0 };
-};
 
 
 
@@ -229,10 +148,7 @@ export default function Component() {
 
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null)
-  const [bgImageObject, setBgImageObject] = useState<HTMLImageElement | HTMLVideoElement | null>(null);
-  const [isBackgroundLoading, setIsBackgroundLoading] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState(0); // 🆕 Progress state
-  const videoRef = useRef<HTMLVideoElement | null>(null); // Ref to keep track of video element for cleanup
+  const { bgImageObject, setBgImageObject, isBackgroundLoading, loadingProgress } = useBackgroundLoader({ backgroundImage, performanceMode });
   const [selectedSkin, setSelectedSkin] = useState<string>('Fireballs/explosion1.webm');
   const [isPermanent, setIsPermanent] = useState(false); // 🆕 Permanent measurement toggle
   const [activeInteraction, setActiveInteraction] = useState<{ interaction: VendorInteraction | GameInteraction | LootInteraction, host: Character | MapObject } | null>(null);
@@ -251,186 +167,7 @@ export default function Component() {
 
 
 
-  // 🔄 UNDO/REDO KEYBOARD SHORTCUTS
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.UNDO)) {
-        e.preventDefault();
-        undo();
-      } else if (isShortcutPressed(e, SHORTCUT_ACTIONS.REDO)) {
-        e.preventDefault();
-        redo();
-      }
-    };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isShortcutPressed, undo, redo]);
-
-  useEffect(() => {
-    if (backgroundImage) {
-      loadBackground(backgroundImage);
-    } else {
-      setIsBackgroundLoading(false);
-    }
-    return () => {
-      if (videoRef.current) {
-        videoRef.current.pause();
-        videoRef.current.src = "";
-        videoRef.current = null;
-      }
-    };
-  }, [backgroundImage]);
-
-  const loadBackground = async (url: string) => {
-    setIsBackgroundLoading(true);
-    setLoadingProgress(0);
-
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.src = "";
-      videoRef.current = null;
-    }
-
-    // 💡 Add cache busting to force fresh CORS headers check
-    const cacheBustedUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
-
-    try {
-      // 1. Fetch with progress
-      // We use cache: 'reload' to force network request and avoid browser cache
-      const response = await fetch(cacheBustedUrl, { cache: 'reload', mode: 'cors' });
-
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-
-      const contentLength = response.headers.get('content-length');
-      const total = parseInt(contentLength || '0', 10);
-
-      const reader = response.body?.getReader();
-      if (!reader) throw new Error("Impossible de lire le flux");
-
-      const chunks = [];
-      let receivedLength = 0;
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        chunks.push(value);
-        receivedLength += value.length;
-
-        if (total > 0) {
-          setLoadingProgress(Math.round((receivedLength / total) * 100));
-        }
-      }
-
-      const blob = new Blob(chunks);
-      const objectUrl = URL.createObjectURL(blob);
-
-      // 2. Setup Media
-      const isVideo = url.toLowerCase().includes('.webm') || url.toLowerCase().includes('.mp4');
-
-      if (isVideo) {
-        const video = document.createElement('video');
-        video.src = objectUrl;
-        video.autoplay = true;
-        video.loop = true;
-        video.muted = true;
-        video.volume = 0;
-        video.playsInline = true;
-        // Blob URLs don't need crossOrigin as they are local
-
-        video.onloadedmetadata = () => {
-          setBgImageObject(video);
-          setIsBackgroundLoading(false);
-          video.play().catch(e => console.error("Video play error:", e));
-        };
-        video.onerror = () => {
-          setIsBackgroundLoading(false);
-          loadBackgroundFallback(url); // Retry with fallback if blob fails
-        };
-        videoRef.current = video;
-      } else {
-        const img = new Image();
-        img.src = objectUrl;
-        img.onload = () => {
-          setBgImageObject(img);
-          setIsBackgroundLoading(false);
-        }
-        img.onerror = () => {
-          setIsBackgroundLoading(false);
-          loadBackgroundFallback(url); // Retry with fallback if blob fails
-        }
-      }
-
-    } catch (error) {
-      console.warn("Chargement avec progression échoué (CORS probable), passage en chargement standard...", error);
-      // Fallback: Default standard load
-      loadBackgroundFallback(url);
-    }
-  };
-
-  const loadBackgroundFallback = (url: string) => {
-    // 💡 Add cache busting to force fresh CORS headers check
-    const cacheBustedUrl = `${url}${url.includes('?') ? '&' : '?'}t=${Date.now()}`;
-
-    const isVideo = url.toLowerCase().includes('.webm') || url.toLowerCase().includes('.mp4');
-    if (isVideo) {
-      const video = document.createElement('video');
-      video.crossOrigin = "anonymous";
-      video.src = cacheBustedUrl;
-      video.autoplay = true;
-      video.loop = true;
-      video.muted = true;
-      video.volume = 0;
-      video.playsInline = true;
-
-      video.onloadedmetadata = () => {
-        setBgImageObject(video);
-        setIsBackgroundLoading(false);
-        video.play().catch(e => console.error("Video play error:", e));
-      };
-      videoRef.current = video;
-    } else {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.src = cacheBustedUrl;
-      img.onload = () => {
-        setBgImageObject(img);
-        setIsBackgroundLoading(false);
-      }
-      img.onerror = () => {
-        // Attempt recovery without CORS (will taint canvas but show image)
-        console.warn("CORS load failed. Trying without CORS.");
-        const imgNoCors = new Image();
-        imgNoCors.removeAttribute('crossOrigin');
-        imgNoCors.src = url; // Use original URL for non-CORS fallback
-        imgNoCors.onload = () => {
-          setBgImageObject(imgNoCors);
-          setIsBackgroundLoading(false);
-          // toast.warning("Image chargée sans CORS. Certaines fonctionnalités (Brouillard) peuvent être limitées.");
-        }
-        imgNoCors.onerror = (e) => {
-          console.error("Non-CORS Load Failed:", e, url);
-          setIsBackgroundLoading(false);
-          // toast.error("Échec du chargement de l'image de fond.");
-        }
-      }
-    }
-  }
-
-  // 🎵 Update background video playback settings when they change
-  useEffect(() => {
-    if (bgImageObject instanceof HTMLVideoElement) {
-      bgImageObject.muted = true;
-      bgImageObject.volume = 0;
-
-      if (performanceMode === 'static') {
-        bgImageObject.pause();
-      } else {
-        bgImageObject.play().catch(() => { });
-      }
-    }
-  }, [bgImageObject, performanceMode]);
 
 
 
@@ -1005,312 +742,35 @@ export default function Component() {
   } = visibilityState;
 
   // State for drag & drop preview of doors/one-way walls on walls
-  const [dragFeaturePreview, setDragFeaturePreview] = useState<{
-    projected: Point;
-    obstacle: Obstacle;
-    segmentIndex: number;
-    featureType: 'door' | 'one-way-wall' | 'window';
-  } | null>(null);
-  const dragOverThrottleRef = useRef<number>(0);
+  const [dragFeaturePreview, setDragFeaturePreview] = useState<DragFeaturePreview>(null);
   // Active si le drawer standalone est ouvert OU si le drawer embedded a activé ses outils
   const isVisActive = visibilityMode || (typeof window !== 'undefined' && (window as any).__visibilityToolsActive === true);
 
   const [audioCharacterId, setAudioCharacterId] = useState<string | null>(null);
-  const handleConfigureCharacterAudio = (characterId: string) => {
-    const char = characters.find(c => c.id === characterId);
-    if (!char) return;
-    setAudioCharacterId(characterId);
-    setTempZoneData({
-      name: char.audio?.name || char.name,
-      url: char.audio?.url || '',
-      radius: char.audio?.radius || 200,
-      volume: char.audio?.volume ?? 0.5
-    });
-    setShowMusicDialog(true);
-  };
+  const {
+    handleConfigureCharacterAudio, saveMusicZone, openEditDialog,
+    saveEditedMusicZone, deleteMusicZone, updateMusicZonePosition,
+  } = useMusicZoneActions({
+    roomId, selectedCityId, musicZones, characters,
+    audioCharacterId, newMusicZonePos, tempZoneData, editingMusicZoneId,
+    setShowMusicDialog, setShowEditMusicDialog, setAudioCharacterId,
+    setNewMusicZonePos, setTempZoneData, setEditingMusicZoneId, setSelectedMusicZoneIds,
+    updateWithHistory,
+  });
 
-  const saveMusicZone = async () => {
-    if (!roomId) return;
-
-    // Character Audio Mode
-    if (audioCharacterId) {
-      if (!tempZoneData.url) return; // Name optional?
-
-      const updates = {
-        audio: {
-          name: tempZoneData.name,
-          url: tempZoneData.url,
-          radius: Number(tempZoneData.radius),
-          volume: Number(tempZoneData.volume),
-          loop: true
-        }
-      };
-      await updateDoc(doc(db, 'cartes', roomId, 'characters', audioCharacterId), updates);
-      setShowMusicDialog(false);
-      setAudioCharacterId(null);
-      setTempZoneData({ name: '', url: '', radius: 200, volume: 0.5 });
-      return;
-    }
-
-    // Standard Music Zone Mode
-    if (!newMusicZonePos || !tempZoneData.name || !tempZoneData.url) return;
-
-    const newZone: Omit<MusicZone, 'id'> = {
-      x: newMusicZonePos.x,
-      y: newMusicZonePos.y,
-      radius: parseFloat(tempZoneData.radius.toString()),
-      url: tempZoneData.url,
-      name: tempZoneData.name,
-      volume: parseFloat(tempZoneData.volume.toString()),
-      cityId: selectedCityId
-    };
-
-    await addDoc(collection(db, 'cartes', roomId, 'musicZones'), newZone);
-    setShowMusicDialog(false);
-    setNewMusicZonePos(null);
-    // Reset temp data
-    setTempZoneData({ name: '', url: '', radius: 200, volume: 0.5 });
-  };
-
-  const openEditDialog = (zoneId: string) => {
-    const zone = musicZones.find(z => z.id === zoneId);
-    if (zone) {
-      setEditingMusicZoneId(zoneId);
-      setTempZoneData({
-        name: zone.name || '',
-        url: zone.url || '',
-        radius: zone.radius,
-        volume: zone.volume
-      });
-      setShowEditMusicDialog(true);
-    }
-  };
-
-  const saveEditedMusicZone = async () => {
-    if (!editingMusicZoneId || !tempZoneData.name || !tempZoneData.url || !roomId) return;
-
-    await updateDoc(doc(db, 'cartes', roomId, 'musicZones', editingMusicZoneId), {
-      name: tempZoneData.name,
-      url: tempZoneData.url,
-      radius: parseFloat(tempZoneData.radius.toString()),
-      volume: parseFloat(tempZoneData.volume.toString())
-    });
-
-    setShowEditMusicDialog(false);
-    setEditingMusicZoneId(null);
-    setTempZoneData({ name: '', url: '', radius: 200, volume: 0.5 });
-  };
-
-
-
-  const deleteMusicZone = async (id: string) => {
-    if (!roomId) return;
-    await deleteDoc(doc(db, 'cartes', roomId, 'musicZones', id));
-    setSelectedMusicZoneIds(prev => prev.filter(zid => zid !== id));
-  }
-
-  const updateMusicZonePosition = async (id: string, x: number, y: number) => {
-    if (!roomId) return;
-    const zone = musicZones.find(z => z.id === id);
-    await updateWithHistory(
-      'musicZones',
-      id,
-      { x, y },
-      `Déplacement de la zone musicale${zone?.name ? ` "${zone.name}"` : ''}`
-    );
-  };
-
-  // 🎯 OVERLAPPING ELEMENTS DETECTION SYSTEM
-  /**
-   * Détecte tous les éléments (lumières, portails, zones de musique) à une position donnée
-   * @param clickX - Coordonnée X du clic en coordonnées monde/image
-   * @param clickY - Coordonnée Y du clic en coordonnées monde/image
-   * @returns Liste des éléments détectés
-   */
-  const detectElementsAtPosition = (clickX: number, clickY: number): DetectedElement[] => {
-    const detected: DetectedElement[] = [];
-
-    // Calculer un rayon adapté à la taille de l'image
-    // Taille standard d'un token ~40-50px à l'écran
-    // Rayon monde = Rayon écran / (scale * zoom)
-    // On prend un rayon généreux pour faciliter le clic
-    let worldRadius = 50;
-
-    if (bgImageObject && containerRef.current) {
-      const { width: imgWidth, height: imgHeight } = getMediaDimensions(bgImageObject);
-      const cWidth = containerRef.current.clientWidth;
-      const cHeight = containerRef.current.clientHeight;
-      const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
-      // Rayon écran ~30px -> Monde
-      if (scale > 0) {
-        worldRadius = 30 / scale;
-      }
-    }
-
-    // Fallback si calcul impossible ou trop petit
-    const DETECTION_RADIUS = Math.max(worldRadius, 20 / zoom);
-
-    console.log(`🔍 Détection @ ${Math.round(clickX)},${Math.round(clickY)} - Radius: ${Math.round(DETECTION_RADIUS)}`);
-
-    // Détecter les sources de lumière (MJ only)
-    if (isMJ) {
-      lights.forEach(light => {
-        if (!light.cityId || light.cityId === selectedCityId) {
-          const dist = Math.sqrt(Math.pow(light.x - clickX, 2) + Math.pow(light.y - clickY, 2));
-          if (dist < DETECTION_RADIUS) {
-            detected.push({
-              id: light.id,
-              type: 'light',
-              name: light.name || 'Source de Lumière',
-              position: { x: light.x, y: light.y }
-            });
-          }
-        }
-      });
-    }
-
-    // Détecter les portails (MJ only)
-    if (isMJ) {
-      portals
-        .filter(p => !p.cityId || p.cityId === selectedCityId)
-        .forEach(portal => {
-          const dist = Math.sqrt(Math.pow(portal.x - clickX, 2) + Math.pow(portal.y - clickY, 2));
-          if (dist < DETECTION_RADIUS) {
-            detected.push({
-              id: portal.id,
-              type: 'portal',
-              name: portal.name || 'Portail',
-              position: { x: portal.x, y: portal.y }
-            });
-          }
-        });
-    }
-
-    // Détecter les zones de musique (MJ only)
-    if (isMJ) {
-      musicZones.forEach(zone => {
-        const dist = Math.sqrt(Math.pow(zone.x - clickX, 2) + Math.pow(zone.y - clickY, 2));
-        if (dist < DETECTION_RADIUS) {
-          detected.push({
-            id: zone.id,
-            type: 'musicZone',
-            name: zone.name || 'Zone de Musique',
-            position: { x: zone.x, y: zone.y }
-          });
-        }
-      });
-    }
-
-    // 🎯 Détecter les personnages (PNJ et joueurs)
-    characters.forEach(char => {
-      // Vérifier que le personnage est dans la scène actuelle
-      if (typeof char.x === 'number' && typeof char.y === 'number') {
-        const dist = Math.sqrt(Math.pow(char.x - clickX, 2) + Math.pow(char.y - clickY, 2));
-        if (dist < DETECTION_RADIUS) {
-          let imgUrl: string | null = null;
-          if (char.image) {
-            imgUrl = typeof char.image === 'string' ? char.image : char.image.src;
-          } else if (char.imageUrl) {
-            imgUrl = typeof char.imageUrl === 'string' ? char.imageUrl : char.imageUrl.src;
-          }
-
-          detected.push({
-            id: char.id,
-            type: 'character',
-            name: char.name || 'Personnage',
-            position: { x: char.x, y: char.y },
-            image: imgUrl
-          });
-        }
-      }
-    });
-
-    // 🎯 Détecter les objets (MJ only)
-    if (isMJ) {
-      objects
-        .filter(obj => !obj.cityId || obj.cityId === selectedCityId)
-        .forEach(obj => {
-          const dist = Math.sqrt(Math.pow(obj.x - clickX, 2) + Math.pow(obj.y - clickY, 2));
-          if (dist < DETECTION_RADIUS) {
-            detected.push({
-              id: obj.id,
-              type: 'object',
-              name: obj.name || 'Objet',
-              position: { x: obj.x, y: obj.y },
-              image: obj.imageUrl
-            });
-          }
-        });
-    }
-
-    return detected;
-  };
-
-  /**
-   * Gestionnaire de sélection d'un élément depuis le menu
-   * Active l'élément sélectionné et prépare le drag
-   */
-  const handleElementSelection = (element: DetectedElement, screenX: number, screenY: number) => {
-    // 🔒 Vérifier les permissions AVANT d'appliquer la sélection
-    if (element.type === 'character') {
-      const charIndex = characters.findIndex(c => c.id === element.id);
-      if (charIndex !== -1) {
-        const char = characters[charIndex];
-        const canControl = isMJ || (char.type === 'joueurs' && char.id === persoId) || char.visibility === 'ally';
-
-        if (!canControl) {
-          // Au lieu d'afficher une erreur, on ouvre le menu contextuel pour voir les infos/interagir
-          setContextMenuCharacterId(char.id);
-          setContextMenuOpen(true);
-          setShowElementSelectionMenu(false);
-          // On ne change PAS l'élément actif (pas de drag ni de transparence)
-          return;
-        }
-      }
-    }
-
-    setActiveElementType(element.type);
-    setActiveElementId(element.id);
-    setShowElementSelectionMenu(false);
-
-    // Stocker les informations pour le contexte approprié
-    // Le drag sera effectivement initié au prochain clic sur l'élément actif
-    switch (element.type) {
-      case 'light':
-        setContextMenuLightId(element.id);
-        break;
-      case 'portal':
-        setContextMenuPortalId(element.id);
-        break;
-      case 'musicZone':
-        setSelectedMusicZoneIds([element.id]);
-        break;
-      case 'character':
-        // Trouver l'index du personnage
-        const charIndex = characters.findIndex(c => c.id === element.id);
-        if (charIndex !== -1) {
-          setSelectedCharacterIndex(charIndex);
-        }
-        break;
-      case 'object':
-        // Trouver l'index de l'objet
-        const objIndex = objects.findIndex(o => o.id === element.id);
-        if (objIndex !== -1) {
-          setSelectedObjectIndices([objIndex]);
-        }
-        break;
-    }
-  };
-
-  /**
-   * Réinitialise la sélection active sur clic dans le vide ou changement de mode
-   */
-  const resetActiveElementSelection = () => {
-    setActiveElementType(null);
-    setActiveElementId(null);
-    setDetectedElements([]);
-    setShowElementSelectionMenu(false);
-  };
+  // Element detection — delegates to extracted hook
+  const {
+    detectElementsAtPosition, handleElementSelection, resetActiveElementSelection,
+  } = useElementDetection({
+    isMJ, persoId, selectedCityId, zoom,
+    lights, portals, musicZones, characters, objects,
+    bgImageObject, containerRef,
+    setDetectedElements, setShowElementSelectionMenu,
+    setActiveElementType, setActiveElementId,
+    setContextMenuOpen, setContextMenuCharacterId,
+    setContextMenuLightId, setContextMenuPortalId,
+    setSelectedCharacterIndex, setSelectedObjectIndices, setSelectedMusicZoneIds,
+  });
 
   //  BULK CHARACTER OPERATIONS
   const handleBulkVisibilityChange = async (visibility: 'visible' | 'hidden' | 'ally' | 'custom' | 'invisible') => {
@@ -1441,148 +901,12 @@ export default function Component() {
   const ytPlayersRef = useRef<Map<string, any>>(new Map());
   const { youtubeZones } = useAudioZones(effectiveMusicZones, listenerPos, true, audioVolumes.musicZones, ytPlayersRef);
 
-  // Force background video to always be muted
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.muted = true;
-      videoRef.current.volume = 0;
-    }
-  }, [isLayerVisible]);
 
 
 
 
 
 
-  // 🔦 KEYBOARD EVENT HANDLER pour les obstacles
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // 🛡️ IGNORE INPUTS (Fix for typing deletion issue)
-      if (
-        document.activeElement instanceof HTMLInputElement ||
-        document.activeElement instanceof HTMLTextAreaElement ||
-        (document.activeElement instanceof HTMLElement && document.activeElement.isContentEditable)
-      ) {
-        return;
-      }
-
-      //  CENTRALIZED DELETE - Handle Delete/Backspace for any selected entity
-      if ((e.key === 'Delete' || e.key === 'Backspace') && isMJ) {
-        // Check if we have any selected entity
-        const hasSelection =
-          selectedCharacters.length > 0 ||
-          selectedCharacterIndex !== null ||
-          selectedObjectIndices.length > 0 ||
-          selectedNoteIndex !== null ||
-          selectedMusicZoneIds.length > 0 ||
-          (selectedObstacleIds.length > 0 && isVisActive) ||
-          selectedDrawingIndex !== null ||
-          selectedFogCells.length > 0;
-
-        if (hasSelection) {
-          e.preventDefault();
-          handleDeleteKeyPress();
-          return;
-        }
-      }
-
-      // Finir le dessin d'obstacle en cours avec Escape (sauvegarde les segments individuels)
-      if (e.key === 'Escape' && isDrawingObstacle) {
-        e.preventDefault();
-
-        // Sauvegarder tous les segments accumulés comme murs individuels
-        if (currentObstaclePoints.length >= 2 && pendingEdges.length > 0) {
-          const pointsToSave = [...currentObstaclePoints];
-          (async () => {
-            for (let i = 0; i < pointsToSave.length - 1; i++) {
-              const segPoints = [pointsToSave[i], pointsToSave[i + 1]];
-              await saveObstacle('wall', segPoints);
-            }
-          })();
-        }
-
-        setIsDrawingObstacle(false);
-        setCurrentObstaclePoints([]);
-        setPendingEdges([]);
-      }
-
-      // 🆕 Désélectionner les cases de brouillard avec Escape
-      if (e.key === 'Escape' && selectedFogCells.length > 0) {
-        e.preventDefault();
-        setSelectedFogCells([]);
-      }
-
-      // Quitter le mode obstacle avec Escape si pas de dessin en cours
-      if (e.key === 'Escape' && visibilityMode && !isDrawingObstacle) {
-        e.preventDefault();
-        setVisibilityMode(false);
-      }
-
-      // 📋 COPY (Ctrl+C / Cmd+C)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
-        // Check if a character is selected
-        if (selectedCharacterIndex !== null && characters[selectedCharacterIndex]) {
-          const charToCopy = characters[selectedCharacterIndex];
-
-          if (charToCopy.type === 'joueurs') {
-            toast.error("Impossible de copier un personnage joueur");
-            return;
-          }
-
-          setCopiedCharacterTemplate(charToCopy);
-          setCopiedObjectTemplate(null); // Clear object copy
-          console.log("Character copied:", charToCopy.name);
-          toast.success(`Personnage copié : ${charToCopy.name}`);
-        }
-        // Check if an object is selected
-        else if (selectedObjectIndices.length > 0) {
-          // For now, take the first selected object (single copy support)
-          const objIndex = selectedObjectIndices[0];
-          const objToCopy = objects[objIndex];
-          if (objToCopy) {
-            setCopiedObjectTemplate(objToCopy);
-            setCopiedCharacterTemplate(null); // Clear char copy
-            console.log("Object copied:", objToCopy.name);
-            toast.success(`Objet copié : ${objToCopy.name}`);
-          }
-        }
-      }
-
-      // 📋 PASTE (Ctrl+V / Cmd+V)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
-        if (isMJ) { // Ensure only MJ can paste for now
-          if (copiedCharacterTemplate) {
-            pasteCharacter(roomId, copiedCharacterTemplate, selectedCityId)
-              .then(() => toast.success(`Personnage collé : ${copiedCharacterTemplate.name}`))
-              .catch(err => console.error("Failed to paste character:", err));
-          } else if (copiedObjectTemplate) {
-            pasteObject(roomId, copiedObjectTemplate, selectedCityId)
-              .then(() => toast.success(`Objet collé : ${copiedObjectTemplate.name}`))
-              .catch(err => console.error("Failed to paste object:", err));
-          }
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
-    selectedCharacters,
-    selectedCharacterIndex,
-    selectedObjectIndices,
-    selectedNoteIndex,
-    selectedMusicZoneIds,
-    selectedObstacleIds,
-    selectedDrawingIndex,
-    selectedFogCells,
-    visibilityMode,
-    isDrawingObstacle,
-    isMJ,
-    copiedCharacterTemplate,
-    copiedObjectTemplate, // Added dependency
-    roomId,
-    selectedCityId
-  ]);
 
   // 🎵 Global audio reference for quick sounds
   const globalAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -1637,21 +961,6 @@ export default function Component() {
 
   // 📡 Listener combat/state → centralisé dans useMapData (doublon supprimé)
 
-  // Keyboard shortcut: Ctrl+F / Cmd+F to open search drawer
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Check for Ctrl+F (Windows/Linux) or Cmd+F (Mac)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
-        e.preventDefault(); // Prevent browser's default search
-        if (isMJ) {
-          setIsUnifiedSearchOpen(prev => !prev);
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isMJ]);
 
 
   // 📡 Listener fond/backgroundImage → centralisé dans useMapData
@@ -2134,6 +1443,48 @@ export default function Component() {
     const containerWidth = containerSize.width || containerRef.current?.clientWidth || bgCanvas.width;
     const containerHeight = containerSize.height || containerRef.current?.clientHeight || bgCanvas.height;
 
+    // Construct state objects for extracted renderers
+    const bgRenderState = {
+      zoom, offset, showGrid, notes, selectedNoteIndex,
+      drawings, selectedDrawingIndex, portals, isMJ, selectedCityId,
+      firstPortalPoint, portalPlacementMode, isLayerVisible, fontFamilyMap,
+    };
+
+    const borderRenderState = {
+      zoom, offset, showCharBorders, characters, isMJ, playerViewMode,
+      persoId, viewAsPersoId, activePlayerId, selectedCharacters,
+      isSelectingArea, selectionStart, selectionEnd, globalTokenScale,
+      showAllBadges, visibleBadges, isLayerVisible, isCharacterVisibleToUser,
+    };
+
+    const measureRenderState = {
+      offset, zoom, measurements, measureMode, measureStart, measureEnd,
+      measurementShape, pixelsPerUnit, unitName, isCalibrating,
+      coneAngle, coneShape, coneMode, coneLength, coneWidth,
+      fireballVideo, measurementSkins,
+    };
+
+    const fgRenderState = {
+      zoom, offset, isMJ, playerViewMode, persoId, viewAsPersoId,
+      activePlayerId, allyViewId, selectedCityId,
+      characters, obstacles, effectiveMusicZones, currentPath,
+      currentTool, drawingColor, drawingSize,
+      fogMode, showFogGrid, visibilityMode, currentVisibilityTool,
+      fullMapFog, fogGrid, fogCellSize, selectedFogCells, shadowOpacity,
+      selectedMusicZoneIds, selectedCharacterIndex, audioCharacterId,
+      isDrawingObstacle, currentObstaclePoints, pendingEdges,
+      isVisActive, snapPoint, isDraggingObstaclePoint,
+      dragFeaturePreview, selectedObstacleIds,
+      isSelectingArea, selectionStart, selectionEnd, selectedCharacters,
+      globalTokenScale, showCharBorders, showAllBadges, visibleBadges,
+      precalculatedShadows, currentScene, spawnPointMode, isDraggingSpawnPoint,
+      pixelsPerUnit, unitName,
+      isLayerVisible, isCharacterVisibleToUser, calculateFogOpacity,
+      getConditionIcon, iconHitRegionsRef, shadowTempCanvas, shadowExteriorCanvas,
+      drawMeasurements: (ctx: CanvasRenderingContext2D, iW: number, iH: number, sW: number, sH: number) =>
+        drawMeasurements(ctx, iW, iH, sW, sH, measureRenderState),
+    };
+
     // Determine if we need continuous animation
     const hasAnimatedMeasurement =
       (selectedSkin && measureMode && (measurementShape === 'circle' || measurementShape === 'cone')) ||
@@ -2148,8 +1499,8 @@ export default function Component() {
       // OPTIMIZATION: Only redraw what changes each frame
 
       // Draw static layers ONCE
-      drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
-      drawCharacterBorders(borderCtx, image, containerWidth, containerHeight);
+      drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight, bgRenderState);
+      drawCharacterBorders(borderCtx, image, containerWidth, containerHeight, borderRenderState);
 
       let lastFrameTime = 0;
       const fpsInterval = 1000 / 30; // 30fps for smooth animations with good performance
@@ -2161,12 +1512,12 @@ export default function Component() {
 
           // Only redraw background if it's a video (changes each frame)
           if (image instanceof HTMLVideoElement) {
-            drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
+            drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight, bgRenderState);
           }
 
           // OPTIMIZATION: Only redraw foreground (where measurements are)
           // Background and borders are static, no need to redraw every frame
-          drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
+          drawForegroundLayers(fgCtx, image, containerWidth, containerHeight, fgRenderState);
         }
 
         animationFrameId = requestAnimationFrame(renderLoop);
@@ -2177,9 +1528,9 @@ export default function Component() {
       // ONE-TIME DRAW MODE - for static content
       // Use requestAnimationFrame to ensure smooth rendering in sync with browser
       animationFrameId = requestAnimationFrame(() => {
-        drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight);
-        drawCharacterBorders(borderCtx, image, containerWidth, containerHeight);
-        drawForegroundLayers(fgCtx, image, containerWidth, containerHeight);
+        drawBackgroundLayers(bgCtx, image, containerWidth, containerHeight, bgRenderState);
+        drawCharacterBorders(borderCtx, image, containerWidth, containerHeight, borderRenderState);
+        drawForegroundLayers(fgCtx, image, containerWidth, containerHeight, fgRenderState);
       });
     }
 
@@ -2230,205 +1581,6 @@ export default function Component() {
     setDraggedTemplate(template)
   }
 
-  const handleCanvasDrop = async (e: React.DragEvent) => {
-    e.preventDefault()
-
-    const canvas = bgCanvasRef.current
-    const image = bgImageObject
-    if (!canvas || !image) {
-      return
-    }
-    const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-
-    // Get template data from dataTransfer
-    const templateData = e.dataTransfer.getData('application/json')
-
-    if (!templateData) {
-      return
-    }
-
-    try {
-      // Handle obstacle feature drop (door / one-way-wall on existing wall)
-      if (templateData.includes('"type":"obstacle_feature"')) {
-        const data = JSON.parse(templateData) as { type: string; featureType: 'door' | 'one-way-wall' | 'window' };
-        setDragFeaturePreview(null);
-
-        const rect = canvas.getBoundingClientRect()
-        const containerWidth = containerRef.current?.clientWidth || rect.width
-        const containerHeight = containerRef.current?.clientHeight || rect.height
-        const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight)
-        const scaledWidth = imgWidth * scale * zoom
-        const scaledHeight = imgHeight * scale * zoom
-        const dropX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth
-        const dropY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight
-        const dropPoint: Point = { x: dropX, y: dropY };
-
-        // Find the nearest wall segment
-        const nearest = findNearestWallSegment(dropPoint, obstacles, 30 / zoom);
-        if (!nearest) {
-          toast.error('Aucun mur à proximité', { description: 'Glissez plus près d\'un mur existant.', duration: 2000 });
-          return;
-        }
-
-        const { obstacle: targetObstacle, projected } = nearest;
-
-        {
-          const p1 = targetObstacle.points[0];
-          const p2 = targetObstacle.points[1];
-          const { c1, c2, skipBefore, skipAfter } = calculateSplitPoints(p1, p2, projected);
-
-          // Delete the original obstacle
-          await deleteFromRtdbWithHistory('obstacles', targetObstacle.id, 'Split d\'un mur');
-
-          // Create the new segments
-          if (!skipBefore) {
-            await saveObstacle('wall', [p1, c1]);
-          }
-
-          // Create the feature (door or one-way-wall)
-          const featureProps: any = {};
-          if (data.featureType === 'door') {
-            featureProps.isOpen = false;
-          } else if (data.featureType === 'one-way-wall') {
-            featureProps.direction = determineOneWayDirection(c1, c2);
-          }
-          await saveObstacle(data.featureType, [c1, c2], featureProps);
-
-          if (!skipAfter) {
-            await saveObstacle('wall', [c2, p2]);
-          }
-
-          toast.success(data.featureType === 'door' ? 'Porte ajoutée' : data.featureType === 'window' ? 'Fenêtre ajoutée' : 'Mur à sens unique ajouté', { duration: 1500 });
-        }
-        return;
-      }
-
-      if (templateData.includes('"type":"object_template"')) {
-        const template = JSON.parse(templateData)
-
-        // Logic similar for Object
-        const rect = canvas.getBoundingClientRect()
-        const containerWidth = containerRef.current?.clientWidth || rect.width
-        const containerHeight = containerRef.current?.clientHeight || rect.height
-        const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight)
-        const scaledWidth = imgWidth * scale * zoom
-        const scaledHeight = imgHeight * scale * zoom
-        const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth
-        const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight
-
-
-        setDraggedObjectTemplateForPlace(template)
-        setDropObjectPosition({ x, y })
-        setShowPlaceObjectModal(true)
-        return
-      }
-
-      // Handle sound_template drop
-      if (templateData.includes('"type":"sound_template"')) {
-        const sound = JSON.parse(templateData)
-
-        const rect = canvas.getBoundingClientRect()
-        const containerWidth = containerRef.current?.clientWidth || rect.width
-        const containerHeight = containerRef.current?.clientHeight || rect.height
-        const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight)
-        const scaledWidth = imgWidth * scale * zoom
-        const scaledHeight = imgHeight * scale * zoom
-        const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth
-        const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight
-
-        // Create a music zone with the sound
-        const newZone: Omit<MusicZone, 'id'> = {
-          x,
-          y,
-          radius: 200, // Default radius
-          url: sound.soundUrl,
-          name: sound.name,
-          volume: 0.5, // Default volume
-          cityId: selectedCityId
-        }
-
-        await addDoc(collection(db, 'cartes', roomId, 'musicZones'), newZone)
-
-        toast.success(`Zone sonore "${sound.name}" ajoutée sur la carte`, { duration: 1000 })
-        return
-      }
-
-      const template = JSON.parse(templateData) as NPC
-      const rect = canvas.getBoundingClientRect()
-      const containerWidth = containerRef.current?.clientWidth || rect.width
-      const containerHeight = containerRef.current?.clientHeight || rect.height
-
-      // Calcul de l'échelle et des dimensions scalées (même logique que drawMap)
-      const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight)
-      const scaledWidth = imgWidth * scale * zoom
-      const scaledHeight = imgHeight * scale * zoom
-
-      // IMPORTANT: Utiliser la même formule que handleCanvasMouseMove (lignes 2425-2426)
-      // Le canvas utilise ctx.scale(sizeMultiplier) donc pas besoin de diviser par sizeMultiplier
-      const x = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth
-      const y = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight
-
-
-      setDraggedTemplate(template)
-      setDropPosition({
-        x: Math.max(0, Math.min(imgWidth, x)),
-        y: Math.max(0, Math.min(imgHeight, y))
-      })
-      setShowPlaceModal(true)
-    } catch (error) {
-      console.error('❌ Error parsing template data:', error)
-      toast.error('Erreur lors du placement de l\'élément')
-    }
-  }
-
-  const handleCanvasDragOver = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'copy'
-
-    // Preview for obstacle feature drag (door/one-way-wall on walls)
-    const canvas = bgCanvasRef.current
-    const image = bgImageObject
-    if (!canvas || !image) return;
-
-    // Check if we're dragging an obstacle feature by trying to read types
-    // Note: dataTransfer.getData() is not available during dragover (security),
-    // but we can check types
-    const hasJson = e.dataTransfer.types.includes('application/json');
-    // Allow preview when dragging an obstacle_feature from ANY drawer (including embedded in UnifiedSearchDrawer)
-    const isDraggingObstacleFeature = (window as any).__isDraggingObstacleFeature === true;
-    if (!hasJson || (!visibilityMode && !isDraggingObstacleFeature)) {
-      if (dragFeaturePreview) setDragFeaturePreview(null);
-      return;
-    }
-
-    // Throttle dragover updates to ~30fps for performance
-    const now = Date.now();
-    if (now - dragOverThrottleRef.current < 33) return;
-    dragOverThrottleRef.current = now;
-
-    const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-    const rect = canvas.getBoundingClientRect()
-    const containerWidth = containerRef.current?.clientWidth || rect.width
-    const containerHeight = containerRef.current?.clientHeight || rect.height
-    const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight)
-    const scaledWidth = imgWidth * scale * zoom
-    const scaledHeight = imgHeight * scale * zoom
-    const dropX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth
-    const dropY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight
-
-    const nearest = findNearestWallSegment({ x: dropX, y: dropY }, obstacles, 30 / zoom);
-    if (nearest) {
-      setDragFeaturePreview({
-        projected: nearest.projected,
-        obstacle: nearest.obstacle,
-        segmentIndex: nearest.segmentIndex,
-        featureType: 'door', // We can't know the exact type during dragover
-      });
-    } else {
-      setDragFeaturePreview(null);
-    }
-  }
-
   const handleObjectDragStart = (template: ObjectTemplate) => {
   }
 
@@ -2436,160 +1588,36 @@ export default function Component() {
     setDraggedSoundTemplate(sound)
   }
 
-  const handlePlaceConfirm = async (config: {
-    nombre: number; visibility?: 'public' | 'gm_only' | 'ally' | 'hidden' | 'visible' | 'custom' | 'invisible';
-  }) => {
-    if (!draggedTemplate || !dropPosition) return
+  // Obstacle actions — delegates to extracted hook (must be before useDragAndDrop which uses saveObstacle)
+  const {
+    saveObstacle, deleteObstacle, updateObstacle,
+    toggleDoorState, toggleLockDoor,
+    handleObstacleDelete, handleObstacleDeleteConnected,
+    handleObstacleInvertDirection, handleObstacleConvertTo,
+    handleToggleRoomMode, clearAllObstacles,
+  } = useObstacleActions({
+    roomId, isMJ, selectedCityId,
+    obstacles, setObstacles, setSelectedObstacleIds,
+    addToRtdbWithHistory, updateRtdbWithHistory, deleteFromRtdbWithHistory,
+  });
 
-    try {
-      const charactersRef = collection(db, `cartes/${roomId}/characters`)
-
-      // Create instances based on nombre
-      for (let i = 0; i < config.nombre; i++) {
-        const offsetX = i * 50 // Offset each instance slightly
-        const offsetY = i * 50
-
-        const finalX = dropPosition.x + offsetX
-        const finalY = dropPosition.y + offsetY
-
-        const characterData = {
-          Nomperso: config.nombre > 1 ? `${draggedTemplate.Nomperso} ${i + 1}` : draggedTemplate.Nomperso,
-          type: 'pnj',
-          imageURL2: draggedTemplate.imageURL2 || '',
-          niveau: draggedTemplate.niveau,
-          PV: draggedTemplate.PV,
-          PV_Max: draggedTemplate.PV_Max,
-          Defense: draggedTemplate.Defense,
-          FOR: draggedTemplate.FOR ?? 10,
-          DEX: draggedTemplate.DEX ?? 10,
-          CON: draggedTemplate.CON ?? 10,
-          INT: draggedTemplate.INT ?? 10,
-          SAG: draggedTemplate.SAG ?? 10,
-          CHA: draggedTemplate.CHA ?? 10,
-          Contact: draggedTemplate.Contact ?? 0,
-          Distance: draggedTemplate.Distance ?? 0,
-          Magie: draggedTemplate.Magie ?? 0,
-          INIT: draggedTemplate.INIT ?? 0,
-          Actions: draggedTemplate.Actions || [],
-          visibility: config.visibility,
-          visibilityRadius: 100, // Default visibility radius
-          cityId: selectedCityId, // Associate with current city
-          x: finalX,
-          y: finalY,
-          createdAt: new Date()
-        };
-
-        await addWithHistory(
-          'characters',
-          characterData,
-          `Ajout de "${characterData.Nomperso}"`
-        );
-      }
-
-      // Toast de succès
-      if (config.nombre > 1) {
-        toast.success(`${config.nombre} PNJ "${draggedTemplate.Nomperso}" ajoutés sur la carte`)
-      } else {
-        toast.success(`PNJ "${draggedTemplate.Nomperso}" ajouté sur la carte`)
-      }
-
-    } catch (error) {
-      console.error('❌ Error placing NPC:', error)
-      toast.error('Erreur lors du placement du PNJ')
-    } finally {
-      setShowPlaceModal(false)
-      setDraggedTemplate(null)
-      setDropPosition(null)
-    }
-  }
-
-  const handlePlaceObjectConfirm = async (config: {
-    nombre: number;
-    visibility: 'visible' | 'hidden' | 'custom';
-    visibleToPlayerIds: string[];
-  }) => {
-    if (!draggedObjectTemplateForPlace || !dropObjectPosition || !selectedCityId) return
-
-    try {
-      for (let i = 0; i < config.nombre; i++) {
-        // Add slight offset for multiple objects so they don't stack perfectly
-        const offsetX = i * 20
-        const offsetY = i * 20
-
-        // Calculate width/height (same logic as before)
-        let width = 100;
-        let height = 100;
-
-        try {
-          // Preload image to get dimensions if possible, or just default
-          // In a real scenario we might want to wait, but here we can just fire and forget or await if critical
-          // improved: stick to default if image loading fails quickly
-        } catch (e) {
-          // ignore
-        }
-
-        // Note: resizing logic is a bit complex to duplicate perfectly without refactoring drop logic
-        // For now, we use default 100x100 or try to get ratio if we can efficiently. 
-        // ACTUALLY, let's try to get ratio inside the loop or before.
-        // Better: let's use the template's default dimensions if stored, or 100x100.
-
-        // Let's re-implement the ratio logic briefly
-        if (draggedObjectTemplateForPlace.imageUrl) {
-          try {
-            const img = new Image();
-            img.src = draggedObjectTemplateForPlace.imageUrl;
-            await new Promise((resolve, reject) => {
-              img.onload = resolve;
-              img.onerror = reject;
-            });
-            if (img.width && img.height) {
-              const ratio = img.width / img.height;
-              height = width / ratio;
-            }
-          } catch (e) {
-            console.warn("Could not load image for aspect ratio", e);
-          }
-        }
-
-        const objectData: any = {
-          x: dropObjectPosition.x + offsetX,
-          y: dropObjectPosition.y + offsetY,
-          width,
-          height,
-          rotation: 0,
-          imageUrl: draggedObjectTemplateForPlace.imageUrl,
-          name: draggedObjectTemplateForPlace.name,
-          cityId: selectedCityId,
-          createdAt: new Date(),
-          visibility: config.visibility,
-          visibleToPlayerIds: config.visibility === 'custom' ? config.visibleToPlayerIds : [],
-          type: 'decors',
-          visible: config.visibility === 'visible' || (config.visibility === 'custom' && config.visibleToPlayerIds.length > 0), // Basic visibility fallback
-          isLocked: false
-        };
-
-        await addWithHistory(
-          'objects',
-          objectData,
-          `Ajout de l'objet (${i + 1}/${config.nombre}) "${draggedObjectTemplateForPlace.name}"`
-        );
-      }
-
-      if (config.nombre > 1) {
-        toast.success(`${config.nombre} objets "${draggedObjectTemplateForPlace.name}" ajoutés`)
-      } else {
-        toast.success(`Objet "${draggedObjectTemplateForPlace.name}" ajouté`)
-      }
-
-    } catch (error) {
-      console.error('Error placing object:', error);
-      toast.error("Erreur lors du placement de l'objet");
-    } finally {
-      setDraggedObjectTemplateForPlace(null)
-      setDropObjectPosition(null)
-      setShowPlaceObjectModal(false)
-    }
-  }
+  // Drag & drop — delegates to extracted hook
+  const {
+    handleCanvasDrop, handleCanvasDragOver,
+    handlePlaceConfirm, handlePlaceObjectConfirm,
+  } = useDragAndDrop({
+    bgCanvasRef, containerRef, bgImageObject,
+    zoom, offset, roomId, selectedCityId,
+    obstacles, visibilityMode,
+    showPlaceModal, setShowPlaceModal,
+    showPlaceObjectModal, setShowPlaceObjectModal,
+    draggedTemplate, setDraggedTemplate,
+    dropPosition, setDropPosition,
+    draggedObjectTemplateForPlace, setDraggedObjectTemplateForPlace,
+    dropObjectPosition, setDropObjectPosition,
+    dragFeaturePreview, setDragFeaturePreview,
+    addWithHistory, deleteFromRtdbWithHistory, saveObstacle,
+  });
 
   // Firebase Functions
 
@@ -2650,256 +1678,6 @@ export default function Component() {
   };
 
   // toggleVisibilityMode and buildEdgeMeta are now in useVisibilityState hook
-
-  const saveObstacle = async (
-    type: 'wall' | 'polygon' | 'one-way-wall' | 'door' | 'window',
-    points: Point[],
-    additionalProps?: {
-      direction?: 'north' | 'south' | 'east' | 'west';
-      isOpen?: boolean;
-      edges?: EdgeMeta[];
-    }
-  ) => {
-    if (!roomId || points.length < 2) return;
-
-    try {
-      const obstacleData: any = {
-        type,
-        points,
-        cityId: selectedCityId,
-        createdAt: new Date().toISOString(),
-      };
-
-      // Ajouter les propriétés spécifiques selon le type
-      if (type === 'one-way-wall' && additionalProps?.direction) {
-        obstacleData.direction = additionalProps.direction;
-      }
-
-      if (type === 'door') {
-        obstacleData.isOpen = additionalProps?.isOpen ?? false; // Par défaut fermée
-      }
-
-      await addToRtdbWithHistory(
-        'obstacles',
-        obstacleData,
-        `Ajout d'un obstacle${type ? ` (${type})` : ''}`
-      );
-    } catch (error) {
-      console.error('❌ Erreur sauvegarde obstacle:', error);
-    }
-  };
-
-  const deleteObstacle = async (obstacleId: string) => {
-    if (!roomId || !obstacleId) return;
-
-    try {
-      await deleteFromRtdbWithHistory(
-        'obstacles',
-        obstacleId,
-        `Suppression d'obstacle`
-      );
-      setSelectedObstacleIds([]);
-
-    } catch (error) {
-      console.error('❌ Erreur suppression obstacle:', error);
-    }
-  };
-
-  const updateObstacle = async (obstacleId: string, newPoints: Point[]) => {
-    if (!roomId || !obstacleId || newPoints.length < 2) return;
-
-    try {
-      await updateRtdbWithHistory('obstacles', obstacleId, { points: newPoints }, 'Modification obstacle');
-
-    } catch (error) {
-      console.error('❌ Erreur mise à jour obstacle:', error);
-    }
-  };
-
-  const toggleDoorState = async (obstacleId: string) => {
-    if (!roomId || !obstacleId) return;
-
-    try {
-      const obstacle = obstacles.find(o => o.id === obstacleId);
-      if (!obstacle || obstacle.type !== 'door') return;
-
-      // Les joueurs ne peuvent pas interagir avec les portes verrouillées
-      if (!isMJ && obstacle.isLocked) {
-        toast.error('Porte verrouillée', {
-          description: 'Cette porte est verrouillée.',
-          duration: 2000,
-        });
-        return;
-      }
-
-      const newIsOpen = !obstacle.isOpen;
-
-      // Mise à jour optimiste locale
-      setObstacles(prev => prev.map(o =>
-        o.id === obstacleId ? { ...o, isOpen: newIsOpen } : o
-      ));
-
-      // Sauvegarder dans Firebase
-      await updateRtdbWithHistory(
-        'obstacles',
-        obstacleId,
-        { isOpen: newIsOpen },
-        `Porte ${newIsOpen ? 'ouverte' : 'fermée'}`
-      );
-
-      toast.success(newIsOpen ? 'Porte ouverte' : 'Porte fermée', {
-        duration: 2000,
-      });
-
-    } catch (error) {
-      console.error('❌ Erreur toggle porte:', error);
-      toast.error('Erreur', {
-        description: "Impossible de modifier l'état de la porte.",
-        duration: 3000,
-      });
-    }
-  };
-
-  const toggleLockDoor = async (obstacleId: string) => {
-    if (!roomId || !obstacleId || !isMJ) return;
-
-    try {
-      const obstacle = obstacles.find(o => o.id === obstacleId);
-      if (!obstacle || obstacle.type !== 'door') return;
-
-      const newIsLocked = !obstacle.isLocked;
-
-      // Mise à jour optimiste locale
-      setObstacles(prev => prev.map(o =>
-        o.id === obstacleId ? { ...o, isLocked: newIsLocked } : o
-      ));
-
-      await updateRtdbWithHistory(
-        'obstacles',
-        obstacleId,
-        { isLocked: newIsLocked },
-        `Porte ${newIsLocked ? 'verrouillée' : 'déverrouillée'}`
-      );
-
-      toast.success(newIsLocked ? 'Porte verrouillée' : 'Porte déverrouillée', {
-        duration: 2000,
-      });
-
-    } catch (error) {
-      console.error('❌ Erreur toggle verrou porte:', error);
-      toast.error('Erreur', {
-        description: "Impossible de modifier le verrou de la porte.",
-        duration: 3000,
-      });
-    }
-  };
-
-  // === Obstacle Context Menu Handlers ===
-  const handleObstacleDelete = async (obstacleId: string) => {
-    if (!roomId || !isMJ) return;
-    const targetObs = obstacles.find(o => o.id === obstacleId);
-    if (!targetObs) return;
-
-    // Smart merge: if deleting a door/one-way-wall/window, merge adjacent walls back
-    if ((targetObs.type === 'door' || targetObs.type === 'one-way-wall' || targetObs.type === 'window') && targetObs.points.length === 2) {
-      const { before, after } = findAdjacentWalls(targetObs.id, targetObs.points, obstacles);
-      if (before || after) {
-        const mergedPoints = getMergedWallPoints(targetObs, before, after);
-        await deleteFromRtdbWithHistory('obstacles', targetObs.id, 'Fusion de mur');
-        if (before) await deleteFromRtdbWithHistory('obstacles', before.id, 'Fusion de mur');
-        if (after) await deleteFromRtdbWithHistory('obstacles', after.id, 'Fusion de mur');
-        await saveObstacle('wall', mergedPoints);
-        setSelectedObstacleIds([]);
-        toast.success('Mur reconstitué');
-        return;
-      }
-    }
-
-    await deleteFromRtdbWithHistory('obstacles', obstacleId, `Suppression de mur`);
-    toast.success("Mur supprimé");
-    setSelectedObstacleIds([]);
-  };
-
-  const handleObstacleDeleteConnected = async (obstacleId: string) => {
-    if (!roomId || !isMJ) return;
-    const connectedIds = findAllConnectedWalls(obstacleId, obstacles);
-    const deletePromises = connectedIds.map(id =>
-      deleteFromRtdbWithHistory('obstacles', id, `Suppression de murs adjacents`)
-    );
-    await Promise.all(deletePromises);
-    toast.success(`${connectedIds.length} murs supprimés`);
-    setSelectedObstacleIds([]);
-  };
-
-  const handleObstacleInvertDirection = async (obstacleId: string) => {
-    if (!roomId) return;
-    const obs = obstacles.find(o => o.id === obstacleId);
-    if (!obs) return;
-    const currentDir = obs.direction || 'north';
-    let newDir = 'north';
-    if (currentDir === 'north') newDir = 'south';
-    else if (currentDir === 'south') newDir = 'north';
-    else if (currentDir === 'east') newDir = 'west';
-    else if (currentDir === 'west') newDir = 'east';
-    await updateRtdbWithHistory('obstacles', obstacleId, { direction: newDir }, `Inversion de direction`);
-  };
-
-  const handleObstacleConvertTo = async (obstacleId: string, newType: 'wall' | 'one-way-wall' | 'door' | 'window') => {
-    if (!roomId) return;
-    const obs = obstacles.find(o => o.id === obstacleId);
-    if (!obs) return;
-
-    const updateData: any = { type: newType };
-
-    if (newType === 'one-way-wall') {
-      const p1 = obs.points[0];
-      const p2 = obs.points[1];
-      if (p1 && p2) {
-        updateData.direction = determineOneWayDirection(p1, p2);
-      }
-    }
-
-    if (newType === 'door') {
-      updateData.isOpen = false;
-    }
-
-    await updateRtdbWithHistory('obstacles', obstacleId, updateData, `Conversion en ${newType === 'door' ? 'porte' : newType === 'one-way-wall' ? 'mur sens-unique' : newType === 'window' ? 'fenêtre' : 'mur'}`);
-  };
-
-  const handleToggleRoomMode = async (obstacleId: string) => {
-    if (!roomId) return;
-    const obs = obstacles.find(o => o.id === obstacleId);
-    if (!obs) return;
-
-    // Find the closed loop containing this wall
-    const loops = findClosedLoops(obstacles);
-    const loop = loops.find(l => l.wallObstacles.some(w => w.id === obstacleId));
-    if (!loop) return;
-
-    const newMode = obs.roomMode === 'individual' ? 'room' : 'individual';
-    const label = newMode === 'individual' ? 'Mode obstacles' : 'Mode salle';
-
-    // Update all walls in the loop
-    const updatePromises = loop.wallObstacles.map(wall =>
-      updateRtdbWithHistory('obstacles', wall.id, { roomMode: newMode }, label)
-    );
-    await Promise.all(updatePromises);
-  };
-
-  const clearAllObstacles = async () => {
-    if (!roomId) return;
-
-    try {
-      // Supprimer tous les obstacles de la ville courante depuis RTDB
-      const currentObstacles = obstacles; // déjà filtrés par cityId
-      if (currentObstacles.length === 0) return;
-      const deletePromises = currentObstacles.map(o => deleteFromRtdbWithHistory('obstacles', o.id, 'Suppression groupée'));
-      await Promise.all(deletePromises);
-
-    } catch (error) {
-      console.error('❌ Erreur suppression obstacles:', error);
-    }
-  };
 
   const handleRadialMenuSelect = (item: { id: number; label: string; icon: any }) => {
     //  Désactiver les outils incompatibles avant d'activer le nouveau
@@ -3040,633 +1818,8 @@ export default function Component() {
     }
   };
 
-  const handleToolbarAction = (actionId: string) => {
-    const deactivateIncompatible = (currentTool: string) => {
-      if (currentTool !== TOOLS.DRAW && drawMode) setDrawMode(false);
-      if (currentTool !== TOOLS.PAN && panMode) setPanMode(false);
-      if (currentTool !== TOOLS.MEASURE && measureMode) setMeasureMode(false);
-      if (isMJ) {
-        if (currentTool !== TOOLS.VISIBILITY && visibilityMode) {
-          setVisibilityMode(false);
-          setIsDrawingObstacle(false);
-          setCurrentObstaclePoints([]);
-          setFogMode(false);
-        }
-
-        //  MUTUAL EXCLUSION: Close other drawers
-        if (currentTool !== TOOLS.ADD_OBJ && isObjectDrawerOpen) setIsObjectDrawerOpen(false);
-        if (currentTool !== TOOLS.ADD_CHAR && isNPCDrawerOpen) setIsNPCDrawerOpen(false);
-        if (currentTool !== TOOLS.MUSIC && isSoundDrawerOpen) setIsSoundDrawerOpen(false);
-        if (currentTool !== TOOLS.AUDIO_MIXER && isAudioMixerOpen) setIsAudioMixerOpen(false);
-
-        // If opening a tool that requires the map view, switch back from 'world' mode
-        if ((currentTool === TOOLS.ADD_OBJ ||
-          currentTool === TOOLS.ADD_CHAR ||
-          currentTool === TOOLS.MUSIC ||
-          currentTool === TOOLS.AUDIO_MIXER) && viewMode === 'world') {
-          setViewMode('city');
-        }
-
-        if (currentTool !== TOOLS.MUSIC && isMusicMode) setIsMusicMode(false);
-        if (currentTool !== TOOLS.MULTI_SELECT && multiSelectMode) setMultiSelectMode(false);
-        if (isLightPlacementMode) setIsLightPlacementMode(false);
-        if (currentTool !== TOOLS.PORTAL && portalMode) setPortalMode(false); // 🆕 Fix conflict
-        if (currentTool !== TOOLS.SPAWN_POINT && spawnPointMode) setSpawnPointMode(false); // 🆕 Fix conflict
-      }
-    };
-    switch (actionId) {
-      case TOOLS.PAN: deactivateIncompatible(TOOLS.PAN); togglePanMode(); break;
-      case TOOLS.GRID: setShowGrid(!showGrid); break;
-      case TOOLS.TOGGLE_CHAR_BORDERS: setShowCharBorders(!showCharBorders); break;
-      case TOOLS.LAYERS: setShowLayerControl(!showLayerControl); break;
-      case TOOLS.BACKGROUND: if (isMJ) setShowBackgroundSelector(true); break;
-      case TOOLS.VIEW_MODE:
-        if (isMJ) {
-          if (playerViewMode) {
-            // Turning off player view mode - clear the selected player
-            setViewAsPersoId(null);
-          }
-          setPlayerViewMode(!playerViewMode);
-        }
-        break;
-
-      // 🆕 Mode Vue Allié pour les joueurs (comme Vue Joueur pour MJ)
-      case 'ALLY_VIEW_MODE':
-        if (!isMJ) {
-          if (allyViewMode) {
-            // Turning off ally view mode - clear the selected ally
-            setAllyViewId(null);
-          }
-          setAllyViewMode(!allyViewMode);
-        }
-        break;
-
-      default:
-        break;
-      case TOOLS.AUDIO_MIXER: deactivateIncompatible(TOOLS.AUDIO_MIXER); setIsAudioMixerOpen(!isAudioMixerOpen); break;
-      case TOOLS.ADD_CHAR: if (isMJ) { deactivateIncompatible(TOOLS.ADD_CHAR); setIsNPCDrawerOpen(!isNPCDrawerOpen); } break;
-
-      case TOOLS.ADD_OBJ: if (isMJ) { deactivateIncompatible(TOOLS.ADD_OBJ); setIsObjectDrawerOpen(!isObjectDrawerOpen); } break;
-      case TOOLS.ADD_NOTE: handleAddNote(); break;
-      case TOOLS.MUSIC: if (isMJ) { deactivateIncompatible(TOOLS.MUSIC); setIsSoundDrawerOpen(!isSoundDrawerOpen); } break;
-      case TOOLS.UNIFIED_SEARCH: if (isMJ) { deactivateIncompatible(TOOLS.UNIFIED_SEARCH); setIsUnifiedSearchOpen(!isUnifiedSearchOpen); } break;
-      case TOOLS.PORTAL: if (isMJ) { deactivateIncompatible(TOOLS.PORTAL); setPortalMode(!portalMode); } break;
-      case TOOLS.SPAWN_POINT: if (isMJ) { deactivateIncompatible(TOOLS.SPAWN_POINT); setSpawnPointMode(!spawnPointMode); } break;  // 🆕 Toggle spawn point mode
-      case TOOLS.MULTI_SELECT: if (isMJ) { deactivateIncompatible(TOOLS.MULTI_SELECT); setMultiSelectMode(!multiSelectMode); } break;
-      case TOOLS.BACKGROUND_EDIT: if (isMJ) setIsBackgroundEditMode(!isBackgroundEditMode); break;
-      case TOOLS.DRAW: deactivateIncompatible(TOOLS.DRAW); toggleDrawMode(); break;
-      case TOOLS.MEASURE: deactivateIncompatible(TOOLS.MEASURE); setMeasureMode(!measureMode); setMeasureStart(null); setMeasureEnd(null); setIsCalibrating(false); break;
-      case TOOLS.VISIBILITY: if (isMJ) { deactivateIncompatible(TOOLS.VISIBILITY); toggleVisibilityMode(); } break;
-      case TOOLS.CLEAR_DRAWINGS: clearDrawings(); break;
-      case TOOLS.ZOOM_IN: setZoom(prev => Math.min(prev + 0.1, 5)); break;
-      case TOOLS.ZOOM_OUT: setZoom(prev => Math.max(prev - 0.1, 0.1)); break;
-      case TOOLS.WORLD_MAP: navigateToWorldMap(); break;
-      case TOOLS.TOGGLE_ALL_BADGES: setShowAllBadges(!showAllBadges); break;
-    }
-  };
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Map Tools
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_PAN)) { e.preventDefault(); handleToolbarAction(TOOLS.PAN); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_MEASURE)) { e.preventDefault(); handleToolbarAction(TOOLS.MEASURE); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_DRAW)) { e.preventDefault(); handleToolbarAction(TOOLS.DRAW); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_GRID)) { e.preventDefault(); handleToolbarAction(TOOLS.GRID); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_FOG)) { e.preventDefault(); handleToolbarAction(TOOLS.VISIBILITY); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_SELECT)) { e.preventDefault(); setMeasureMode(false); setDrawMode(false); setPanMode(false); } // Default to "Select" (Pointer)
-
-      // New Tools
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_LAYERS)) { e.preventDefault(); handleToolbarAction(TOOLS.LAYERS); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_BACKGROUND)) { e.preventDefault(); handleToolbarAction(TOOLS.BACKGROUND); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_VIEW_MODE)) { e.preventDefault(); handleToolbarAction(TOOLS.VIEW_MODE); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_SETTINGS)) { e.preventDefault(); setShowGlobalSettingsDialog(true); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_ZOOM_IN)) { e.preventDefault(); handleToolbarAction(TOOLS.ZOOM_IN); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_ZOOM_OUT)) { e.preventDefault(); handleToolbarAction(TOOLS.ZOOM_OUT); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_WORLD_MAP)) { e.preventDefault(); handleToolbarAction(TOOLS.WORLD_MAP); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_ADD_CHAR)) { e.preventDefault(); handleToolbarAction(TOOLS.ADD_CHAR); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_ADD_OBJ)) { e.preventDefault(); handleToolbarAction(TOOLS.ADD_OBJ); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_ADD_NOTE)) { e.preventDefault(); handleToolbarAction(TOOLS.ADD_NOTE); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_MUSIC)) { e.preventDefault(); handleToolbarAction(TOOLS.MUSIC); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_SEARCH)) { e.preventDefault(); handleToolbarAction(TOOLS.UNIFIED_SEARCH); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_PORTAL)) { e.preventDefault(); handleToolbarAction(TOOLS.PORTAL); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_SPAWN)) { e.preventDefault(); handleToolbarAction(TOOLS.SPAWN_POINT); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_CLEAR)) { e.preventDefault(); handleToolbarAction(TOOLS.CLEAR_DRAWINGS); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_MULTI)) { e.preventDefault(); handleToolbarAction(TOOLS.MULTI_SELECT); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_MIXER)) { e.preventDefault(); handleToolbarAction(TOOLS.AUDIO_MIXER); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_BORDERS)) { e.preventDefault(); handleToolbarAction(TOOLS.TOGGLE_CHAR_BORDERS); }
-      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_BADGES)) { e.preventDefault(); handleToolbarAction(TOOLS.TOGGLE_ALL_BADGES); }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isShortcutPressed, handleToolbarAction]);
-
-  const getActiveToolbarTools = (): string[] => {
-    const active: string[] = [];
-    if (drawMode) active.push(TOOLS.DRAW);
-    if (visibilityMode) active.push(TOOLS.VISIBILITY);
-    if (showGrid) active.push(TOOLS.GRID);
-    if (showCharBorders) active.push(TOOLS.TOGGLE_CHAR_BORDERS);
-    if (panMode) active.push(TOOLS.PAN);
-    if (playerViewMode) active.push(TOOLS.VIEW_MODE);
-    if (allyViewMode) active.push('ALLY_VIEW_MODE'); // 🆕 Vue Allié
-    if (measureMode) active.push(TOOLS.MEASURE);
-    if (isMusicMode) active.push(TOOLS.MUSIC);
-    if (showLayerControl) active.push(TOOLS.LAYERS);
-    if (isObjectDrawerOpen) active.push(TOOLS.ADD_OBJ);
-    if (isNPCDrawerOpen) active.push(TOOLS.ADD_CHAR);
-    if (isSoundDrawerOpen) active.push(TOOLS.MUSIC);
-    if (isUnifiedSearchOpen) active.push(TOOLS.UNIFIED_SEARCH);
-    if (portalMode) active.push(TOOLS.PORTAL);
-    if (spawnPointMode) active.push(TOOLS.SPAWN_POINT);  // 🆕 Show spawn point mode as active
-
-    if (multiSelectMode) active.push(TOOLS.MULTI_SELECT);
-    if (isBackgroundEditMode) active.push(TOOLS.BACKGROUND_EDIT);
-    if (isAudioMixerOpen) active.push(TOOLS.AUDIO_MIXER);
-    if (showAllBadges) active.push(TOOLS.TOGGLE_ALL_BADGES);
-    return active;
-  };
-
-  const getToolOptionsContent = () => {
-    //  SELECTION : Dessin
-    if (selectedDrawingIndex !== null) {
-      return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-          <span className="text-white text-sm font-medium pr-2">Dessin sélectionné</span>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => {
-              if (selectedDrawingIndex !== null && roomId) {
-                const drawing = drawings[selectedDrawingIndex];
-                deleteFromRtdbWithHistory('drawings', drawing.id, 'Suppression du tracé');
-                setDrawings(prev => prev.filter((_, i) => i !== selectedDrawingIndex));
-                setSelectedDrawingIndex(null);
-              }
-            }}
-          >
-            <Trash2 className="w-4 h-4 mr-2" /> Supprimer
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSelectedDrawingIndex(null)}
-            className="text-gray-400 hover:text-white"
-          >
-            Fermer
-          </Button>
-        </div>
-      );
-    }
-
-    //  SELECTION : Note
-    if (selectedNoteIndex !== null) {
-      return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-          <Button variant="ghost" size="sm" onClick={handleEditNote} className="text-[#c0a080] hover:text-[#d4b494] hover:bg-white/10">
-            <Edit className="w-4 h-4 mr-2" /> Modifier
-          </Button>
-          <Separator orientation="vertical" className="h-6 w-[1px] bg-white/10 mx-1" />
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={handleDeleteNote}
-          >
-            <X className="w-4 h-4 mr-2" /> Supprimer
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSelectedNoteIndex(null)}
-            className="text-gray-400 hover:text-white"
-          >
-            Fermer
-          </Button>
-        </div>
-      );
-    }
-
-    // Obstacles are handled by ObstacleContextMenu (floating panel), not the bottom toolbar
-
-    // 🆕 SELECTION : Cases de brouillard (MJ seulement)
-    if (selectedFogCells.length > 0 && isMJ) { // 🔒 Réservé au MJ
-      return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-          <span className="text-white text-sm font-medium pr-2">{selectedFogCells.length} case{selectedFogCells.length > 1 ? 's' : ''} de brouillard sélectionnée{selectedFogCells.length > 1 ? 's' : ''}</span>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => {
-              if (window.confirm(`Supprimer ${selectedFogCells.length} case(s) de brouillard ?`)) {
-                const newGrid = new Map(fogGrid);
-                selectedFogCells.forEach(cellKey => {
-                  if (fullMapFog) {
-                    newGrid.set(cellKey, true);
-                  } else {
-                    newGrid.delete(cellKey);
-                  }
-                });
-                setFogGrid(newGrid);
-                saveFogGridWithHistory(newGrid, 'Suppression de cellules de brouillard');
-                setSelectedFogCells([]);
-              }
-            }}
-          >
-            <Trash2 className="w-4 h-4 mr-2" /> Supprimer
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setSelectedFogCells([])}
-            className="text-gray-400 hover:text-white"
-          >
-            Fermer
-          </Button>
-        </div>
-      );
-    }
-
-    //  SELECTION : Multi-Char (MJ)
-    if (selectedCharacters.length > 1 && isMJ) {
-      const hasNonPlayerCharacter = selectedCharacters.some(index =>
-        characters[index]?.type !== 'joueurs'
-      );
-      if (hasNonPlayerCharacter) {
-        return (
-          <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-            <Button variant="destructive" size="sm" onClick={handleDeleteSelectedCharacters}>
-              <X className="w-4 h-4 mr-2" /> Supprimer la sélection ({selectedCharacters.length})
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSelectedCharacters([])}
-              className="text-gray-400 hover:text-white"
-            >
-              Fermer
-            </Button>
-          </div>
-        );
-      }
-    }
-
-    //  SELECTION : Brouillard (MJ)
-    if (isMJ && selectedFogIndex !== null) {
-      return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-          <span className="text-white text-sm font-medium pr-2">Brouillard global</span>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => {
-              setFullMapFog(false);
-              saveFullMapFog(false);
-              setFogGrid(new Map());
-              saveFogGridWithHistory(new Map(), 'Suppression de tout le brouillard');
-            }}>
-            <X className="w-4 h-4 mr-2" /> Supprimer tout
-          </Button>
-        </div>
-      )
-    }
-
-    if (drawMode) {
-      return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentTool === 'pen' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
-              onClick={() => setCurrentTool('pen')}
-              title="Crayon"
-            >
-              <Pencil className="w-5 h-5" strokeWidth={currentTool === 'pen' ? 2.5 : 2} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentTool === 'line' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
-              onClick={() => setCurrentTool('line')}
-              title="Ligne"
-            >
-              <Slash className="w-5 h-5" strokeWidth={currentTool === 'line' ? 2.5 : 2} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentTool === 'rectangle' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
-              onClick={() => setCurrentTool('rectangle')}
-              title="Rectangle"
-            >
-              <Square className="w-5 h-5" strokeWidth={currentTool === 'rectangle' ? 2.5 : 2} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentTool === 'circle' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
-              onClick={() => setCurrentTool('circle')}
-              title="Cercle"
-            >
-              <CircleIcon className="w-5 h-5" strokeWidth={currentTool === 'circle' ? 2.5 : 2} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentTool === 'eraser' ? 'bg-red-500/20 text-red-400 hover:bg-red-500/40' : 'text-gray-400 hover:text-red-400 hover:bg-red-900/20'}`}
-              onClick={() => setCurrentTool('eraser')}
-              title="Gomme (supprime le trait entier)"
-            >
-              <Eraser className="w-5 h-5" />
-            </Button>
-          </div>
-
-          {/* Separator before "Clear All" logic or just integrate it */}
-          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
-
-          {/* Clear All Button */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 rounded-lg transition-all duration-200 text-gray-400 hover:text-red-400 hover:bg-red-900/20"
-            onClick={() => clearDrawings()}
-            title="Tout effacer"
-          >
-            <Trash2 className="w-5 h-5" />
-          </Button>
-
-          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
-
-          {/* Colors */}
-          <div className="flex items-center gap-2">
-            {['#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'].map((color) => (
-              <button
-                key={color}
-                className={`w-5 h-5 rounded-full border-2 transition-transform hover:scale-110 ${drawingColor === color ? 'border-white scale-110 shadow-lg' : 'border-transparent'}`}
-                style={{ backgroundColor: color }}
-                onClick={() => {
-                  setDrawingColor(color);
-                  setCurrentTool('pen');
-                }}
-              />
-            ))}
-            <div className="relative w-6 h-6 rounded-full overflow-hidden border-2 border-zinc-600 hover:border-white transition-colors">
-              <input
-                type="color"
-                value={drawingColor}
-                onChange={(e) => {
-                  setDrawingColor(e.target.value);
-                  setCurrentTool('pen');
-                }}
-                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 m-0 border-0 cursor-pointer"
-              />
-            </div>
-          </div>
-
-          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
-
-          {/* Size */}
-          <div className="flex items-center gap-2">
-            <span className="text-zinc-400 text-xs font-medium uppercase tracking-wider">Taille</span>
-            <input
-              type="range"
-              min="1"
-              max="20"
-              value={drawingSize}
-              onChange={(e) => setDrawingSize(Number(e.target.value))}
-              className="h-1 w-24 bg-gray-700 rounded-full appearance-none cursor-pointer accent-[#c0a080]"
-            />
-            <span className="text-[#c0a080] text-sm font-bold w-4">{drawingSize}</span>
-          </div>
-        </div>
-      );
-    }
-
-    //  MODE : Mesure
-    if (measureMode) {
-      return (
-        <div className="flex flex-col items-center gap-2">
-          {/* Panel moved to main render */}
-        </div>
-      );
-    }
-
-    // Visibility mode UI is now in VisibilityDrawer component
-
-    if (playerViewMode) {
-      return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-          <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
-            <Eye className="w-4 h-4 text-red-400" />
-            <span className="text-red-400 font-medium text-xs tracking-wide uppercase">VUE JOUEUR</span>
-          </div>
-
-          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
-
-          <div className="flex items-center gap-2">
-            {characters
-              .filter(c => c.type === 'joueurs' || c.visibility === 'ally')
-              .map(char => {
-                const isSelected = viewAsPersoId === char.id;
-                return (
-                  <div
-                    key={char.id}
-                    onClick={() => setViewAsPersoId(isSelected ? null : char.id)}
-                    className={`relative w-8 h-8 rounded-full overflow-hidden border-2 cursor-pointer transition-all duration-200 ${isSelected ? 'border-[#c0a080] scale-110 shadow-[0_0_10px_rgba(192,160,128,0.4)]' : 'border-white/10 hover:border-white/40 hover:scale-105 opacity-70 hover:opacity-100'}`}
-                    title={char.name}
-                  >
-                    {char.image && (typeof char.image === 'object' ? (char.image as any).src : char.image) ? (
-                      <img src={typeof char.image === 'object' ? (char.image as any).src : char.image} alt={char.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-[10px] text-zinc-400 font-bold">
-                        {char.name[0]}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-          </div>
-          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 rounded-lg transition-all duration-200 text-gray-400 hover:text-red-400 hover:bg-red-900/20"
-            onClick={() => {
-              setPlayerViewMode(false);
-              setViewAsPersoId(null);
-            }}
-            title="Quitter"
-          >
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
-      );
-    }
-
-    // 🆕 Vue Allié pour les joueurs (même UI que Vue Joueur)
-    if (allyViewMode && !isMJ) {
-      return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-          <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
-            <Eye className="w-4 h-4 text-green-400" />
-            <span className="text-green-400 font-medium text-xs tracking-wide uppercase">VUE ALLIÉ</span>
-          </div>
-
-          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
-
-          <div className="flex items-center gap-2">
-            {characters
-              .filter(c => c.visibility === 'ally')
-              .map(ally => {
-                const isSelected = allyViewId === ally.id;
-                return (
-                  <div
-                    key={ally.id}
-                    onClick={() => setAllyViewId(isSelected ? null : ally.id)}
-                    className={`relative w-8 h-8 rounded-full overflow-hidden border-2 cursor-pointer transition-all duration-200 ${isSelected ? 'border-[#c0a080] scale-110 shadow-[0_0_10px_rgba(192,160,128,0.4)]' : 'border-white/10 hover:border-white/40 hover:scale-105 opacity-70 hover:opacity-100'}`}
-                    title={ally.name}
-                  >
-                    {ally.image && (typeof ally.image === 'object' ? (ally.image as any).src : ally.image) ? (
-                      <img src={typeof ally.image === 'object' ? (ally.image as any).src : ally.image} alt={ally.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-zinc-800 flex items-center justify-center text-[10px] text-zinc-400 font-bold">
-                        {ally.name[0]}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-          </div>
-          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-10 w-10 rounded-lg transition-all duration-200 text-gray-400 hover:text-green-400 hover:bg-green-900/20"
-            onClick={() => {
-              setAllyViewMode(false);
-              setAllyViewId(null);
-            }}
-            title="Quitter"
-          >
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
-      );
-    }
-
-    if (measureMode) {
-      return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-          <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
-            <Ruler className="w-4 h-4 text-[#c0a080]" />
-            <span className="text-[#c0a080] font-medium text-xs tracking-wide uppercase">Mode Mesure</span>
-          </div>
-
-          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
-
-          <div className="text-xs text-gray-400">
-            {isCalibrating ? "Tracez une ligne d'étalon." : "Tracez pour mesurer."}
-          </div>
-
-          {!isCalibrating && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setIsCalibrating(true);
-                setMeasureStart(null);
-                setMeasureEnd(null);
-              }}
-              className="h-8 px-3 ml-2 text-xs font-medium text-gray-400 hover:text-white hover:bg-white/10 rounded-lg"
-            >
-              Étalonner
-            </Button>
-          )}
-          {isCalibrating && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsCalibrating(false)}
-              className="h-8 px-3 ml-2 text-xs font-medium text-red-400 hover:text-red-300 hover:bg-red-400/10 rounded-lg"
-            >
-              Annuler
-            </Button>
-          )}
-        </div>
-      );
-    }
-    if (isMusicMode) {
-      return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-          <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
-            <Music className="w-4 h-4 text-fuchsia-400" />
-            <span className="text-fuchsia-400 font-medium text-xs tracking-wide uppercase">Mode Musique</span>
-          </div>
-
-          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
-
-          <span className="text-xs text-gray-400 hidden sm:inline-block">Clic carte pour placer</span>
-
-          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1 hidden sm:block" />
-
-
-        </div>
-      );
-    }
-
-    //  PORTAL MODE
-    if (portalMode && isMJ) {
-      return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
-          <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
-            <Hexagon className="w-4 h-4 text-[#c0a080]" />
-            <span className="text-[#c0a080] font-medium text-xs tracking-wide uppercase">Mode Portail</span>
-          </div>
-
-          <Separator orientation="vertical" className="h-8 w-[1px] bg-white/10 mx-1" />
-
-          <span className="text-xs text-gray-400 hidden sm:inline-block">Choisissez le type :</span>
-
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setPortalPlacementMode('scene-change')}
-              className={`h-8 px-3 text-xs font-medium rounded-lg transition-colors ${portalPlacementMode === 'scene-change'
-                ? 'bg-[#c0a080] text-black hover:bg-[#d4b594]'
-                : 'text-gray-400 hover:text-white hover:bg-white/10'
-                }`}
-            >
-              <DoorOpen className="w-3 h-3 mr-1.5" />
-              Autre carte
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setPortalPlacementMode('same-map');
-                setFirstPortalPoint(null); // Reset pour un nouveau portail
-              }}
-              className={`h-8 px-3 text-xs font-medium rounded-lg transition-colors ${portalPlacementMode === 'same-map'
-                ? 'bg-[#c0a080] text-black hover:bg-[#d4b594]'
-                : 'text-gray-400 hover:text-white hover:bg-white/10'
-                }`}
-            >
-              <ArrowDownUp className="w-3 h-3 mr-1.5" />
-              Même carte
-            </Button>
-          </div>
-
-          {portalPlacementMode === 'same-map' && firstPortalPoint && (
-            <div className="ml-2 px-2 py-1 bg-blue-500/20 border border-blue-400/30 rounded text-xs text-blue-300">
-              Cliquez pour placer la sortie
-            </div>
-          )}
-        </div>
-      );
-    }
-
-    return null;
-  };
+  // handleToolbarAction, getActiveToolbarTools, getToolOptionsContent
+  // are now in useToolbarActions hook (called after toggleDrawMode/clearDrawings below)
 
   const handleAttack = () => {
 
@@ -3767,1731 +1920,25 @@ export default function Component() {
 
 
 
-  //  NOUVELLE FONCTION : Vérifier si un personnage est visible pour l'utilisateur actuel
+  // Visibility checks — delegates to extracted pure functions
   const isCharacterVisibleToUser = (char: Character): boolean => {
-    // Le MJ en mode normal voit toujours tout
-    const effectiveIsMJ = isMJ && !playerViewMode;
-    if (effectiveIsMJ) return true;
-
-    // 👻 INVISIBLE : Visible UNIQUEMENT par le MJ (sauf en vue joueur)
-    // Cette vérification doit être faite AVANT tout le reste pour garantir l'invisibilité totale
-    if ((char.visibility as string) === 'invisible') {
-      if (effectiveIsMJ) return true;
-      return false;
-    }
-
-    // Les joueurs et alliés sont toujours visibles
-    if (char.type === 'joueurs' || char.visibility === 'ally') {
-      return true;
-    }
-
-    // 🆕 Mode Custom : vérifier si le joueur actuel est dans la liste des joueurs autorisés
-    if ((char.visibility as string) === 'custom') {
-      const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
-      if (!effectivePersoId) return false;
-      return char.visibleToPlayerIds?.includes(effectivePersoId) ?? false;
-    }
-
-    // 🔦 Vérifier si le personnage est dans l'ombre d'un obstacle
-    if (obstacles.length > 0 && bgImageObject) {
-      // Trouver la position du joueur actuel
-      const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
-      const viewer = characters.find(c => c.id === effectivePersoId);
-
-      if (viewer && viewer.x !== undefined && viewer.y !== undefined) {
-        const charPos = { x: char.x, y: char.y };
-        const viewerPos = { x: viewer.x, y: viewer.y };
-        const mapBounds = { width: bgImageObject.width, height: bgImageObject.height };
-
-        // Vérifier si le personnage est dans l'ombre
-        if (isPointInShadows(charPos, viewerPos, obstacles, mapBounds)) {
-          return false; // Le personnage est caché par un obstacle
-        }
-      }
-    }
-
-    // 💡 PRIORITÉ : Vérifier si le personnage est éclairé par une source de lumière
-    // Si oui, il est visible même dans le brouillard
-    const isLit = lights.some((light) => {
-      if (!light.visible) return false;
-      if (light.x === undefined || light.y === undefined || !light.radius) return false;
-
-      // Calculer la distance entre le personnage et la source de lumière
-      const distToLight = calculateDistance(char.x, char.y, light.x, light.y);
-
-      // Convertir le rayon de la lumière en pixels (light.radius est en mètres)
-      const lightRadiusPixels = light.radius * pixelsPerUnit;
-
-      // Le personnage est éclairé si dans le rayon de la lumière
-      return distToLight <= lightRadiusPixels;
-    });
-
-    // Si le personnage est éclairé par une source de lumière, il est visible
-    if (isLit) {
-      return true;
-    }
-
-    // Vérifier si le personnage est dans le brouillard
-    const isInFog = fullMapFog || isCellInFog(char.x, char.y, fogGrid, fogCellSize);
-
-    // Déterminer la visibilité effective (les PNJ dans le brouillard deviennent cachés)
-    // Note: Les alliés et joueurs sont déjà traités au-dessus
-    let effectiveVisibility = char.visibility;
-    if (isInFog) {
-      effectiveVisibility = 'hidden';
-    }
-
-    // Les personnages cachés (ou cachés par le brouillard) ne sont visibles que s'ils sont dans le rayon de vision d'un joueur/allié
-    if (effectiveVisibility === 'hidden') {
-      const containerRef_current = containerRef.current;
-      const canvasRef_current = bgCanvasRef.current;
-      if (!containerRef_current || !canvasRef_current || !bgImageObject) return false;
-
-      const rect = canvasRef_current.getBoundingClientRect();
-      const containerWidth = containerRef_current.clientWidth || rect.width;
-      const containerHeight = containerRef_current.clientHeight || rect.height;
-      const image = bgImageObject;
-
-      const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-      const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
-      const scaledWidth = imgWidth * scale * zoom;
-      const scaledHeight = imgHeight * scale * zoom;
-
-      const charScreenX = (char.x / imgWidth) * scaledWidth - offset.x;
-      const charScreenY = (char.y / imgHeight) * scaledHeight - offset.y;
-
-      // Vérifier si dans le rayon de vision de SON joueur ou d'un allié
-      return characters.some((player) => {
-        const playerScreenX = (player.x / imgWidth) * scaledWidth - offset.x;
-        const playerScreenY = (player.y / imgHeight) * scaledHeight - offset.y;
-        return (
-          (player.id === persoId || player.visibility === 'ally') &&
-          calculateDistance(charScreenX, charScreenY, playerScreenX, playerScreenY) <= ((player.visibilityRadius ?? 100) / imgWidth) * scaledWidth
-        );
-      });
-    }
-
-    // Sinon, visible
-    return true;
+    const ctx: CharacterVisibilityContext = {
+      isMJ, playerViewMode, persoId, viewAsPersoId,
+      obstacles, bgImage: bgImageObject, characters, lights, pixelsPerUnit,
+      fullMapFog, fogGrid, fogCellSize, zoom, offset,
+      containerSize: containerRef.current
+        ? { width: containerRef.current.clientWidth, height: containerRef.current.clientHeight }
+        : null,
+      canvasRect: bgCanvasRef.current
+        ? (() => { const r = bgCanvasRef.current!.getBoundingClientRect(); return { width: r.width, height: r.height }; })()
+        : null,
+    };
+    return checkCharacterVisibility(char, ctx);
   };
 
-  //  NOUVELLE FONCTION : Vérifier si un objet est visible pour l'utilisateur actuel
   const isObjectVisibleToUser = (obj: MapObject): boolean => {
-
-    // Le MJ en mode normal voit toujours tout
-    const effectiveIsMJ = isMJ && !playerViewMode;
-    if (effectiveIsMJ) return true;
-
-    // Si l'objet n'a pas de visibilité définie, il est visible par défaut (rétrocompatibilité)
-    if (!obj.visibility || obj.visibility === 'visible') {
-      return true;
-    }
-
-    // Objets cachés
-    if (obj.visibility === 'hidden') {
-      return false;
-    }
-
-    // 🆕 Mode Custom : vérifier si le joueur actuel est dans la liste des joueurs autorisés
-    if ((obj.visibility as string) === 'custom') {
-      const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
-      if (!effectivePersoId) return false;
-      return obj.visibleToPlayerIds?.includes(effectivePersoId) ?? false;
-    }
-
-    // Par défaut, visible
-    return true;
-  };
-
-
-
-
-  /* Removed duplicates */
-
-  const drawBackgroundLayers = (ctx: CanvasRenderingContext2D, image: CanvasImageSource, containerWidth: number, containerHeight: number) => {
-    const canvas = ctx.canvas;
-    const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-
-    // Nettoyer le canvas
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
-    const scaledWidth = imgWidth * scale * zoom;
-    const scaledHeight = imgHeight * scale * zoom;
-
-
-    // Fonction de transformation des coordonnées map -> screen
-    const transformPoint = (p: Point): Point => ({
-      x: (p.x / imgWidth) * scaledWidth - offset.x,
-      y: (p.y / imgHeight) * scaledHeight - offset.y,
-    });
-
-    // Draw background image
-    if (isLayerVisible('background') && (image instanceof HTMLImageElement || image instanceof HTMLVideoElement || image instanceof HTMLCanvasElement)) {
-      ctx.drawImage(image, -offset.x, -offset.y, scaledWidth, scaledHeight);
-    }
-
-    // Draw grid if enabled
-    if (showGrid && isLayerVisible('grid')) {
-      ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 1;
-      const gridSize = 50 * zoom;
-      for (let x = -offset.x % gridSize; x < canvas.width; x += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
-      }
-      for (let y = -offset.y % gridSize; y < canvas.height; y += gridSize) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
-      }
-    }
-
-
-
-    // Draw each note
-    if (isLayerVisible('notes')) {
-      notes.forEach((note, index) => {
-        const x = (note.x / imgWidth) * scaledWidth - offset.x;
-        const y = (note.y / imgHeight) * scaledHeight - offset.y;
-        ctx.fillStyle = note.color || 'yellow';
-
-        // Utiliser la taille de police de la note ou une taille par défaut
-        const fontSize = (note.fontSize || 16) * zoom;
-
-        // Résoudre la police : CSS Var -> Nom réel -> Fallback
-        const fontVar = note.fontFamily || 'var(--font-body)';
-        const fontFamily = fontFamilyMap[fontVar] || 'Arial';
-
-        ctx.font = `${fontSize}px ${fontFamily}`;
-
-        // 🆕 Gérer les sauts de ligne (\n ou <br>)
-        const textLines = note.text.replace(/<br\s*\/?>/gi, '\n').split('\n');
-        const lineHeight = fontSize * 1.2; // Espacement entre les lignes
-
-        // Afficher chaque ligne séparément
-        textLines.forEach((line, lineIndex) => {
-          const lineY = y + (lineIndex * lineHeight);
-          ctx.fillText(line, x, lineY);
-        });
-
-        if (index === selectedNoteIndex) {
-          ctx.strokeStyle = '#4285F4';
-          ctx.lineWidth = 2;
-
-          // Calculer les dimensions du rectangle de sélection en tenant compte de toutes les lignes
-          let maxWidth = 0;
-          textLines.forEach(line => {
-            const metrics = ctx.measureText(line);
-            if (metrics.width > maxWidth) maxWidth = metrics.width;
-          });
-
-          const padding = 4;
-          const totalHeight = (textLines.length * lineHeight);
-          ctx.strokeRect(x - padding, y - fontSize, maxWidth + (padding * 2), totalHeight + padding);
-        }
-      });
-    }
-    // Draw each saved drawing path
-    // Draw each saved drawing path
-    if (isLayerVisible('drawings') && drawings && Array.isArray(drawings)) {
-      renderDrawings(
-        ctx,
-        drawings,
-        transformPoint,
-        selectedDrawingIndex,
-        imgWidth,
-        imgHeight,
-        zoom,
-        offset,
-        scaledWidth,
-        scaledHeight
-      );
-    }
-
-    //  DRAW PORTAL ZONES (Visible to all - shows activation area)
-    const effectivePortals = portals.filter(p => !p.cityId || p.cityId === selectedCityId);
-    effectivePortals.forEach(portal => {
-      // Show to MJ always, or show to players if visible flag is true
-      if (!isMJ && !portal.visible) return;
-
-      const center = transformPoint({ x: portal.x, y: portal.y });
-      const screenRadius = (portal.radius || 50) * scale * zoom;
-
-      // Safety check
-      if (!isFinite(center.x) || !isFinite(center.y) || !isFinite(screenRadius)) return;
-
-      const portalColor = portal.color || '#3b82f6';
-      ctx.save();
-
-      // Outer glow
-      const gradient = ctx.createRadialGradient(center.x, center.y, 0, center.x, center.y, screenRadius);
-      gradient.addColorStop(0, `${portalColor}40`);
-      gradient.addColorStop(0.7, `${portalColor}20`);
-      gradient.addColorStop(1, `${portalColor}00`);
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(center.x, center.y, screenRadius, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Border (dashed for portals)
-      ctx.strokeStyle = isMJ ? portalColor : `${portalColor}80`;
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 5]);
-      ctx.beginPath();
-      ctx.arc(center.x, center.y, screenRadius, 0, Math.PI * 2);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      ctx.restore();
-    });
-
-    //  DRAW FIRST PORTAL POINT INDICATOR (when placing same-map portal)
-    if (firstPortalPoint && portalPlacementMode === 'same-map' && isMJ) {
-      const center = transformPoint({ x: firstPortalPoint.x, y: firstPortalPoint.y });
-      const radius = 30 * zoom;
-
-      ctx.save();
-      // Pulsing blue circle for entrance
-      ctx.strokeStyle = '#3b82f6';
-      ctx.fillStyle = '#3b82f680';
-      ctx.lineWidth = 3;
-      ctx.setLineDash([]);
-      ctx.beginPath();
-      ctx.arc(center.x, center.y, radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-
-      // Inner marker
-      ctx.fillStyle = '#3b82f6';
-      ctx.beginPath();
-      ctx.arc(center.x, center.y, 5, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Label
-      ctx.font = `${12 * zoom}px Arial`;
-      ctx.fillStyle = '#fff';
-      ctx.textAlign = 'center';
-      ctx.fillText('Entrée', center.x, center.y + radius + 15);
-      ctx.restore();
-    }
-
-  };
-
-  //  DRAW MEASUREMENTS (Shared + Local) - NOW RENDERED LAST (ON TOP)
-  const drawMeasurements = (
-    ctx: CanvasRenderingContext2D,
-    imgWidth: number,
-    imgHeight: number,
-    scaledWidth: number,
-    scaledHeight: number
-  ) => {
-    // 1. Shared Measurements
-    measurements.forEach(m => {
-      // REMOVED: Skip logic - let all measurements render
-      // The local measurement will draw on top if both exist
-
-      const p1 = m.start;
-      const p2 = m.end;
-      if (!p1 || !p2) return;
-
-      const x1 = (p1.x / imgWidth) * scaledWidth - offset.x;
-      const y1 = (p1.y / imgHeight) * scaledHeight - offset.y;
-      const x2 = (p2.x / imgWidth) * scaledWidth - offset.x;
-      const y2 = (p2.y / imgHeight) * scaledHeight - offset.y;
-
-      const screenStart = { x: x1, y: y1 };
-      const screenEnd = { x: x2, y: y2 };
-      const currentScale = scaledWidth / (imgWidth * zoom);
-
-      const renderOptions = {
-        ctx,
-        start: screenStart,
-        end: screenEnd,
-        zoom,
-        scale: currentScale,
-        pixelsPerUnit,
-        unitName: m.unitName || unitName,
-        isCalibrating: false,
-
-        coneAngle: m.coneAngle || 53.13,
-        coneShape: m.coneShape || 'rounded',
-        coneMode: m.coneMode || 'angle',
-        fixedLength: m.fixedLength,
-        coneWidth: m.coneWidth,
-        skinElement: (m.skin && measurementSkins[m.skin]) ? measurementSkins[m.skin] : null
-      };
-
-      switch (m.type) {
-        case 'line': renderLineMeasurement(renderOptions); break;
-        case 'cone': renderConeMeasurement(renderOptions); break;
-        case 'circle': renderCircleMeasurement(renderOptions); break;
-        case 'cube': renderCubeMeasurement(renderOptions); break;
-      }
-    });
-
-    // 2. Active Local Measurement
-    if (measureMode && measureStart) {
-      const p1 = measureStart;
-      const p2 = measureEnd;
-
-      if (p1 && p2) {
-        const x1 = (p1.x / imgWidth) * scaledWidth - offset.x;
-        const y1 = (p1.y / imgHeight) * scaledHeight - offset.y;
-        const x2 = (p2.x / imgWidth) * scaledWidth - offset.x;
-        const y2 = (p2.y / imgHeight) * scaledHeight - offset.y;
-
-        const screenStart = { x: x1, y: y1 };
-        const screenEnd = { x: x2, y: y2 };
-        const currentScale = scaledWidth / (imgWidth * zoom);
-
-        const renderOptions = {
-          ctx,
-          start: screenStart,
-          end: screenEnd,
-          zoom,
-          scale: currentScale,
-          pixelsPerUnit,
-          unitName,
-          isCalibrating,
-          coneAngle: coneAngle,
-          coneShape: coneShape,
-          coneMode: coneMode,
-          fixedLength: coneLength,
-          coneWidth: coneWidth, // Custom
-          skinElement: ((measurementShape === 'circle' || measurementShape === 'cone') && fireballVideo) ? fireballVideo : null
-        };
-
-        switch (measurementShape) {
-          case 'line': renderLineMeasurement(renderOptions); break;
-          case 'cone': renderConeMeasurement(renderOptions); break;
-          case 'circle': renderCircleMeasurement(renderOptions); break;
-          case 'cube': renderCubeMeasurement(renderOptions); break;
-        }
-      } else if (p1 && !p2) {
-        // Start point only
-        const x1 = (p1.x / imgWidth) * scaledWidth - offset.x;
-        const y1 = (p1.y / imgHeight) * scaledHeight - offset.y;
-
-        const shapeNames = { line: 'line', cone: 'cone', circle: 'circle', cube: 'cube' };
-        renderStartPoint(ctx, { x: x1, y: y1 }, zoom, shapeNames[measurementShape]);
-      }
-    }
-  };
-
-
-  //  Draw character borders only (rendered on separate canvas BEFORE character images)
-  const drawCharacterBorders = (ctx: CanvasRenderingContext2D, image: CanvasImageSource, containerWidth: number, containerHeight: number) => {
-    const canvas = ctx.canvas;
-    const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    // Don't draw borders if disabled
-    if (!showCharBorders) return;
-
-    const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
-    const scaledWidth = imgWidth * scale * zoom;
-    const scaledHeight = imgHeight * scale * zoom;
-
-    const effectiveIsMJ = isMJ && !playerViewMode;
-
-    if (isLayerVisible('characters')) {
-      characters.forEach((char, index) => {
-        const x = (char.x / imgWidth) * scaledWidth - offset.x;
-        const y = (char.y / imgHeight) * scaledHeight - offset.y;
-
-        let isVisible = true;
-
-        // Copy visibility logic from drawForegroundLayers
-        let effectiveVisibility = char.visibility;
-
-        if (!isCharacterVisibleToUser(char)) {
-          effectiveVisibility = 'hidden';
-        }
-
-        if (char.visibility === 'ally') {
-          isVisible = true;
-        } else if (effectiveVisibility === 'hidden') {
-          const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
-          const isInPlayerViewMode = playerViewMode && viewAsPersoId;
-
-          if (isInPlayerViewMode) {
-            const viewer = characters.find(c => c.id === effectivePersoId);
-            if (viewer) {
-              const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
-              const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
-              const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-              const radiusScreen = ((viewer.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-              isVisible = dist <= radiusScreen;
-            } else {
-              isVisible = false;
-            }
-          } else {
-            isVisible = effectiveIsMJ || (() => {
-              const viewer = characters.find(c => c.id === effectivePersoId);
-              if (!viewer) return false;
-              const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
-              const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
-              const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-              const radiusScreen = ((viewer.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-              return dist <= radiusScreen;
-            })();
-          }
-        }
-
-        if (isVisible) {
-          // Determine border color and width
-          let borderColor;
-          let lineWidth = 3;
-
-          if (selectedCharacters.includes(index)) {
-            borderColor = 'rgba(0, 255, 0, 1)';
-            lineWidth = 4;
-          } else if (isSelectingArea && selectionStart && selectionEnd) {
-            const minX = Math.min(selectionStart.x, selectionEnd.x);
-            const maxX = Math.max(selectionStart.x, selectionEnd.x);
-            const minY = Math.min(selectionStart.y, selectionEnd.y);
-            const maxY = Math.max(selectionStart.y, selectionEnd.y);
-
-            if (char.x >= minX && char.x <= maxX && char.y >= minY && char.y <= maxY) {
-              borderColor = 'rgba(0, 150, 255, 1)';
-              lineWidth = 4;
-            } else {
-              if (isMJ) {
-                borderColor = char.id === activePlayerId
-                  ? 'rgba(255, 0, 0, 1)'
-                  : char.visibility === 'ally'
-                    ? 'rgba(0, 255, 0, 0.8)'
-                    : char.type === 'joueurs'
-                      ? 'rgba(0, 0, 255, 0.8)'
-                      : 'rgba(255, 165, 0, 0.8)';
-              } else {
-                borderColor = char.id === persoId
-                  ? 'rgba(255, 0, 0, 1)'
-                  : char.visibility === 'ally'
-                    ? 'rgba(0, 255, 0, 0.8)'
-                    : char.type === 'joueurs'
-                      ? 'rgba(0, 0, 255, 0.8)'
-                      : 'rgba(255, 165, 0, 0.8)';
-              }
-            }
-          } else {
-            if (isMJ) {
-              borderColor = char.id === activePlayerId
-                ? 'rgba(255, 0, 0, 1)'
-                : char.visibility === 'ally'
-                  ? 'rgba(0, 255, 0, 0.8)'
-                  : char.type === 'joueurs'
-                    ? 'rgba(0, 0, 255, 0.8)'
-                    : 'rgba(255, 165, 0, 0.8)';
-            } else {
-              borderColor = char.id === persoId
-                ? 'rgba(255, 0, 0, 1)'
-                : char.visibility === 'ally'
-                  ? 'rgba(0, 255, 0, 0.8)'
-                  : char.type === 'joueurs'
-                    ? 'rgba(0, 0, 255, 0.8)'
-                    : 'rgba(255, 165, 0, 0.8)';
-            }
-          }
-
-          ctx.strokeStyle = borderColor;
-          ctx.lineWidth = lineWidth;
-
-          const isPlayerCharacter = char.type === 'joueurs';
-          const charScale = char.scale || 1;
-          const finalScale = charScale * globalTokenScale;
-
-          const baseBorderRadius = isPlayerCharacter ? 32 : 22;
-          const borderRadius = baseBorderRadius * finalScale * zoom;
-
-          //  FILTER VISIBILITY OF BORDER CIRCLES
-          const isSelected = selectedCharacters.includes(index);
-          const isAreaMatch = isSelectingArea && selectionStart && selectionEnd &&
-            char.x >= Math.min(selectionStart.x, selectionEnd.x) &&
-            char.x <= Math.max(selectionStart.x, selectionEnd.x) &&
-            char.y >= Math.min(selectionStart.y, selectionEnd.y) &&
-            char.y <= Math.max(selectionStart.y, selectionEnd.y);
-
-          const isBadgeVisible = showAllBadges || visibleBadges.has(char.id);
-          const isGMAndActivePlayer = isMJ && char.id === activePlayerId;
-
-          // Only draw if selected, badge visible, or important GM info (active player)
-          if (isSelected || isAreaMatch || isBadgeVisible || isGMAndActivePlayer) {
-            // Draw character border circle or square
-            ctx.beginPath();
-            if (char.shape === 'square') {
-              // Draw rounded square (matching rounded-lg ~ 0.5rem = 8px usually, but scaling with zoom)
-              // rounded-lg is fixed in CSS, but for canvas we might want it proportional or fixed?
-              // The CSS uses 'rounded-lg' which is 0.5rem (8px). 
-              // Let's use a small proportional radius for the square corners to look nice.
-              const cornerRadius = borderRadius * 0.25; // Experimental value
-              const size = borderRadius * 2;
-
-              // Draw rounded rect
-              ctx.roundRect(x - borderRadius, y - borderRadius, size, size, cornerRadius);
-            } else {
-              // Default Circle
-              ctx.arc(x, y, borderRadius, 0, 2 * Math.PI);
-            }
-            ctx.stroke();
-          }
-        }
-      });
-    }
-  };
-
-  const drawForegroundLayers = (ctx: CanvasRenderingContext2D, image: CanvasImageSource, containerWidth: number, containerHeight: number) => {
-    const canvas = ctx.canvas;
-    iconHitRegionsRef.current = [];
-    const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
-    const scaledWidth = imgWidth * scale * zoom;
-    const scaledHeight = imgHeight * scale * zoom;
-
-    const transformPoint = (p: Point): Point => ({
-      x: (p.x / imgWidth) * scaledWidth - offset.x,
-      y: (p.y / imgHeight) * scaledHeight - offset.y,
-    });
-
-    //  Optionnel : Dessiner les cercles de visibilité des joueurs et alliés (pour debug)
-    // En mode Vue Joueur, le MJ ne voit pas les cercles de debug
-    if (isMJ && !playerViewMode && showFogGrid) {
-      characters.forEach(character => {
-        if ((character.type === 'joueurs' || character.visibility === 'ally') && character.visibilityRadius && character.x !== undefined && character.y !== undefined) {
-          const playerScreenX = (character.x / imgWidth) * scaledWidth - offset.x;
-          const playerScreenY = (character.y / imgHeight) * scaledHeight - offset.y;
-          const radiusScreen = ((character.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-
-          // Couleur différente pour les alliés (vert) vs joueurs (jaune)
-          ctx.strokeStyle = character.visibility === 'ally' ? 'rgba(0, 255, 0, 0.3)' : 'rgba(255, 255, 0, 0.3)';
-          ctx.lineWidth = 1;
-          ctx.beginPath();
-          ctx.arc(playerScreenX, playerScreenY, radiusScreen, 0, 2 * Math.PI);
-          ctx.stroke();
-        }
-      });
-    }
-
-    // Draw current path if in drawing mode
-    // Draw current path if in drawing mode
-    if (currentPath.length > 0) {
-      renderCurrentPath(
-        ctx,
-        currentPath,
-        currentTool,
-        drawingColor,
-        drawingSize,
-        zoom,
-        transformPoint
-      );
-    }
-
-    // 🔦 RENDER DYNAMIC LIGHTING FOG OF WAR (with ray-casting)
-    // On dessine le brouillard après le fond et les dessins, mais avant les personnages
-
-    // Déterminer si on utilise la vision dynamique ou le brouillard classique
-    const effectiveIsMJ = isMJ && !playerViewMode;
-
-    // 🔦 SHADOW CASTING pour les obstacles (fonctionne EN PLUS du brouillard)
-    const hasObstacles = obstacles.length > 0;
-
-    // 🌫️ D'abord dessiner le brouillard classique (si actif)
-    if (isLayerVisible('fog')) {
-      renderFogLayer(
-        ctx,
-        offset,
-        scaledWidth,
-        scaledHeight,
-        imgWidth,
-        imgHeight,
-        canvas.width,
-        canvas.height,
-        fogCellSize,
-        scale,
-        zoom,
-        fogMode,
-        showFogGrid,
-        visibilityMode,
-        currentVisibilityTool,
-        fullMapFog,
-        fogGrid,
-        calculateFogOpacity,
-        selectedFogCells // 🆕 Pass selected fog cells for visual rendering
-      );
-    }
-
-
-    if (hasObstacles && !effectiveIsMJ && isLayerVisible('obstacles')) {
-      // Trouver le personnage du joueur
-      let viewerPosition: Point | null = null;
-
-      // [NEW] Use simulated view ID if active (MJ viewing player OR player viewing ally)
-      const effectivePersoId = (playerViewMode && viewAsPersoId)
-        ? viewAsPersoId
-        : (!isMJ && allyViewId)
-          ? allyViewId
-          : persoId;
-
-      for (const character of characters) {
-        if (character.id === effectivePersoId &&
-          character.x !== undefined && character.y !== undefined) {
-          viewerPosition = { x: character.x, y: character.y };
-          break;
-        }
-      }
-
-      if (viewerPosition) {
-        const mapBounds = { width: imgWidth, height: imgHeight };
-
-        // Dessiner les ombres avec l'opacité ajustable par le MJ
-        drawShadows(
-          ctx,
-          viewerPosition,
-          obstacles,
-          mapBounds,
-          shadowOpacity, // Opacité ajustable (10%, 50%, 100%, etc.)
-          transformPoint,
-          {
-            precalculated: precalculatedShadows ?? undefined,
-            tempCanvas: shadowTempCanvas.current ?? undefined,
-            exteriorCanvas: shadowExteriorCanvas.current ?? undefined
-          }
-        );
-      }
-    }
-
-
-    // 🎵 DRAW MUSIC ZONES (Visible if music layer is ON OR if the specific zone belongs to the selected character)
-    if (isMJ && !viewAsPersoId) {
-      effectiveMusicZones.forEach(zone => {
-        // Skip drawing the saved zone for this character if we are currently configuring it (avoid double draw)
-        if (audioCharacterId && zone.id === `char-${audioCharacterId}`) return;
-
-        const isMusicLayerOn = isLayerVisible('music');
-        const isCharSelected = selectedCharacterIndex !== null && zone.id === `char-${characters[selectedCharacterIndex]?.id}`;
-
-        // Only draw if layer is on OR this specific character is selected
-        if (!isMusicLayerOn && !isCharSelected) return;
-
-        const center = transformPoint({ x: zone.x, y: zone.y });
-        const isSelected = selectedMusicZoneIds.includes(zone.id) || isCharSelected;
-        // VISUALISATION RAYON (Gradient) (Toujours visible en mode musique, plus fort si sélectionné)
-        let screenRadius = (zone.radius || 0) * scale * zoom;
-
-        // Safety Check: Ensure everything is finite before drawing
-        if (!Number.isFinite(center.x) || !Number.isFinite(center.y) || !Number.isFinite(screenRadius) || screenRadius <= 0) {
-          return;
-        }
-
-        const gradient = ctx.createRadialGradient(center.x, center.y, 0, center.x, center.y, screenRadius);
-        if (isSelected) {
-          gradient.addColorStop(0, 'rgba(217, 70, 239, 0.4)'); // Centre fort
-          gradient.addColorStop(0.5, 'rgba(217, 70, 239, 0.1)');
-          gradient.addColorStop(1, 'rgba(217, 70, 239, 0)'); // Bord transparent
-        } else {
-          gradient.addColorStop(0, 'rgba(217, 70, 239, 0.15)'); // Centre faible
-          gradient.addColorStop(0.5, 'rgba(217, 70, 239, 0.05)');
-          gradient.addColorStop(1, 'rgba(217, 70, 239, 0)');
-        }
-
-        ctx.beginPath();
-        ctx.arc(center.x, center.y, screenRadius, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
-        ctx.fill();
-
-        // Bordure du rayon (Plus visible si sélectionné)
-        ctx.beginPath();
-        ctx.arc(center.x, center.y, screenRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = isSelected ? 'rgba(217, 70, 239, 0.8)' : 'rgba(217, 70, 239, 0.3)';
-        ctx.lineWidth = isSelected ? 2 : 1;
-        ctx.setLineDash([5, 5]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        //  RESIZE HANDLE (If Selected)
-        if (isSelected) {
-          const handleX = center.x + screenRadius;
-          const handleY = center.y;
-          const handleRadius = 6 * zoom; // Scales with interface zoom? Or keep constant size? Usually UI handles constant or slight scale.
-          // Using zoom makes it easy to grab when zoomed in.
-
-          ctx.beginPath();
-          ctx.arc(handleX, handleY, handleRadius, 0, Math.PI * 2);
-          ctx.fillStyle = '#ffffff';
-          ctx.fill();
-          ctx.strokeStyle = 'rgba(217, 70, 239, 1)';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-        // Music Note Icon - Fixed size like character tokens
-        const baseSize = isSelected ? 20 : 16; // Fixed pixel size
-        const noteSize = baseSize;
-        const padding = 4;
-
-        // Skip Icon and Text for Character Audio Zones (as requested)
-        if (!zone.id.startsWith('char-')) {
-          // Draw background circle for icon
-          ctx.beginPath();
-          ctx.arc(center.x, center.y, noteSize / 2 + padding, 0, Math.PI * 2);
-          ctx.fillStyle = isSelected ? 'rgba(217, 70, 239, 1)' : 'rgba(217, 70, 239, 0.7)'; // Slightly more opaque
-          ctx.fill();
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 1.5;
-          ctx.stroke();
-
-          // Simple music note drawing or text
-          ctx.fillStyle = '#fff';
-          ctx.font = `${noteSize}px Arial`;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText('♫', center.x, center.y + 1);
-
-          // Draw label
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-          ctx.font = isSelected ? `bold ${12 * zoom}px sans-serif` : `${10 * zoom}px sans-serif`; // Scale font too!
-          ctx.textAlign = 'center';
-
-          // Background for label
-          const textWidth = ctx.measureText(zone.name || '').width;
-          const labelPadding = 4 * zoom;
-          const labelHeight = (isSelected ? 16 : 14) * zoom;
-          const labelY = center.y + (noteSize / 2) + padding + (4 * zoom);
-
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-          ctx.beginPath();
-          ctx.roundRect(
-            center.x - textWidth / 2 - labelPadding,
-            labelY,
-            textWidth + (labelPadding * 2),
-            labelHeight,
-            4 * zoom
-          );
-          ctx.fill();
-
-          ctx.fillStyle = '#fff';
-          ctx.textBaseline = 'top';
-          ctx.fillText(zone.name || '', center.x, labelY + (2 * zoom));
-        }
-      });
-    }
-
-    //  DRAW SPAWN POINT (Only visible to MJ)
-    if (isMJ && currentScene && currentScene.spawnX !== undefined && currentScene.spawnY !== undefined) {
-      const spawnPos = transformPoint({ x: currentScene.spawnX, y: currentScene.spawnY });
-      const markerSize = 24 * zoom; // Fixed base size scaled by zoom
-
-      // Draw marker icon (MapPin style)
-      // Background circle
-      ctx.beginPath();
-      ctx.arc(spawnPos.x, spawnPos.y, markerSize / 2, 0, Math.PI * 2);
-      ctx.fillStyle = isDraggingSpawnPoint ? 'rgba(192, 160, 128, 0.9)' : 'rgba(192, 160, 128, 0.7)';
-      ctx.fill();
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      // Pin icon (simplified)
-      ctx.fillStyle = '#fff';
-      ctx.font = `${markerSize * 0.7}px Arial`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('📍', spawnPos.x, spawnPos.y);
-
-      // Label
-      if (!isDraggingSpawnPoint) {
-        const labelText = 'Spawn';
-        ctx.font = `bold ${11 * zoom}px sans-serif`;
-        const textWidth = ctx.measureText(labelText).width;
-        const labelPadding = 4 * zoom;
-        const labelHeight = 16 * zoom;
-        const labelY = spawnPos.y + markerSize / 2 + 6 * zoom;
-
-        // Label background
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.beginPath();
-        ctx.roundRect(
-          spawnPos.x - textWidth / 2 - labelPadding,
-          labelY,
-          textWidth + (labelPadding * 2),
-          labelHeight,
-          4 * zoom
-        );
-        ctx.fill();
-
-        // Label text
-        ctx.fillStyle = '#c0a080';
-        ctx.textBaseline = 'top';
-        ctx.fillText(labelText, spawnPos.x, labelY + (2 * zoom));
-      }
-
-      // Pulsing ring effect when in spawn point mode
-      if (spawnPointMode) {
-        const time = Date.now() / 1000;
-        const pulseRadius = markerSize / 2 + (Math.sin(time * 3) * 5 + 10) * zoom;
-        ctx.beginPath();
-        ctx.arc(spawnPos.x, spawnPos.y, pulseRadius, 0, Math.PI * 2);
-        ctx.strokeStyle = `rgba(192, 160, 128, ${0.3 + Math.sin(time * 3) * 0.2})`;
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-    }
-
-    // 🔦 DESSINER LES OBSTACLES (visible seulement pour le MJ en mode édition)
-    if (isLayerVisible('obstacles') && (isVisActive || (effectiveIsMJ && obstacles.length > 0))) {
-      // 1. Base Layer (Thick Black)
-      drawObstacles(ctx, obstacles, transformPoint, {
-        strokeColor: '#000000',
-        fillColor: isVisActive ? 'rgba(0, 0, 0, 0.2)' : 'rgba(0, 0, 0, 0.5)',
-        strokeWidth: 10,
-        showHandles: false,
-        selectedIds: selectedObstacleIds,
-      });
-
-      // 2. Detail Layer (Inner Grey Line) - Makes it look like a constructed wall
-      drawObstacles(ctx, obstacles, transformPoint, {
-        strokeColor: '#555555',
-        fillColor: 'transparent',
-        strokeWidth: 4,
-        showHandles: isVisActive || selectedObstacleIds.length > 0,
-        selectedIds: selectedObstacleIds,
-      });
-
-      // Dessiner l'obstacle en cours de création (outil unifié)
-      if (isDrawingObstacle && currentObstaclePoints.length > 0) {
-        ctx.lineWidth = 3;
-        ctx.setLineDash([5, 5]);
-
-        // Couleur par type d'arête
-        const getEdgeColor = (edge?: EdgeMeta) => {
-          if (!edge) return '#FFD700'; // default gold
-          if (edge.type === 'one-way-wall') return 'rgba(255, 165, 0, 0.9)'; // orange
-          if (edge.type === 'door') return 'rgba(0, 200, 0, 0.9)'; // vert
-          return 'rgba(255, 100, 100, 0.9)'; // rouge pour mur
-        };
-
-        // Dessiner chaque arête avec sa couleur
-        if (currentObstaclePoints.length >= 2) {
-          for (let i = 0; i < currentObstaclePoints.length - 1; i++) {
-            const p1 = transformPoint(currentObstaclePoints[i]);
-            const p2 = transformPoint(currentObstaclePoints[i + 1]);
-            ctx.beginPath();
-            ctx.strokeStyle = getEdgeColor(pendingEdges[i]);
-            ctx.moveTo(p1.x, p1.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.stroke();
-          }
-
-          // Ligne de fermeture vers le premier point (semi-transparent) si >= 3 points
-          if (currentObstaclePoints.length >= 3) {
-            const lastPoint = transformPoint(currentObstaclePoints[currentObstaclePoints.length - 1]);
-            const firstPoint = transformPoint(currentObstaclePoints[0]);
-            ctx.beginPath();
-            ctx.strokeStyle = 'rgba(255, 215, 0, 0.3)';
-            ctx.moveTo(lastPoint.x, lastPoint.y);
-            ctx.lineTo(firstPoint.x, firstPoint.y);
-            ctx.stroke();
-          }
-        }
-
-        // Indicateur de fermeture (cercle vert quand on est proche du premier point)
-        if (currentObstaclePoints.length >= 3 && snapPoint) {
-          const firstP = currentObstaclePoints[0];
-          const dist = Math.sqrt(
-            Math.pow(snapPoint.x - firstP.x, 2) + Math.pow(snapPoint.y - firstP.y, 2)
-          );
-          if (dist < 1) {
-            const fp = transformPoint(firstP);
-            ctx.setLineDash([]);
-            ctx.beginPath();
-            ctx.strokeStyle = '#00FF00';
-            ctx.lineWidth = 3;
-            ctx.arc(fp.x, fp.y, 12, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-            ctx.fill();
-          }
-        }
-
-        // Indicateur de fermeture implicite via mur partagé existant
-        if (currentObstaclePoints.length >= 2 && snapPoint) {
-          const startPt = currentObstaclePoints[0];
-          const endPt = snapPoint;
-          const d = (a: Point, b: Point) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
-          const hasSharedWall = obstacles.some(obs => {
-            if (obs.points.length < 2) return false;
-            if (obs.type !== 'wall' && obs.type !== 'door' && obs.type !== 'one-way-wall' && obs.type !== 'window') return false;
-            const p1 = obs.points[0];
-            const p2 = obs.points[obs.points.length - 1];
-            return (d(p1, endPt) < 5 && d(p2, startPt) < 5) ||
-              (d(p2, endPt) < 5 && d(p1, startPt) < 5);
-          });
-          if (hasSharedWall) {
-            // Cercle vert sur le snap point pour indiquer la fermeture
-            const sp = transformPoint(endPt);
-            ctx.setLineDash([]);
-            ctx.beginPath();
-            ctx.strokeStyle = '#00FF00';
-            ctx.lineWidth = 3;
-            ctx.arc(sp.x, sp.y, 14, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-            ctx.fill();
-            // Ligne de fermeture en vert semi-transparent vers le start
-            const fp = transformPoint(startPt);
-            ctx.beginPath();
-            ctx.strokeStyle = 'rgba(0, 255, 0, 0.5)';
-            ctx.lineWidth = 2;
-            ctx.setLineDash([6, 4]);
-            ctx.moveTo(sp.x, sp.y);
-            ctx.lineTo(fp.x, fp.y);
-            ctx.stroke();
-          }
-        }
-
-        ctx.setLineDash([]);
-
-        // Dessiner les points (vertices)
-        for (let i = 0; i < currentObstaclePoints.length; i++) {
-          const point = currentObstaclePoints[i];
-          const p = transformPoint(point);
-          ctx.beginPath();
-          ctx.fillStyle = i === 0 ? '#00FF00' : '#FFD700';
-          ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.strokeStyle = '#000';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-        }
-      }
-
-      // 🔗 Dessiner le point d'accroche (snap point) si détecté
-      if (isVisActive && snapPoint && (currentVisibilityTool === 'chain' || (currentVisibilityTool === 'edit' && isDraggingObstaclePoint))) {
-        const sp = transformPoint(snapPoint);
-        ctx.beginPath();
-        ctx.strokeStyle = '#00BFFF';
-        ctx.lineWidth = 3;
-        ctx.arc(sp.x, sp.y, 14, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(0, 191, 255, 0.4)';
-        ctx.fill();
-
-        // Cercle interne
-        ctx.beginPath();
-        ctx.fillStyle = '#00BFFF';
-        ctx.arc(sp.x, sp.y, 5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      // Aperçu drag & drop de porte/mur à sens unique sur un mur
-      if (dragFeaturePreview) {
-        const preview = dragFeaturePreview;
-        const { obstacle: previewObs, segmentIndex: previewSegIdx, projected: previewProj } = preview;
-
-        // Get the segment endpoints
-        const segP1 = previewObs.points[0];
-        const segP2 = previewObs.points[1];
-
-        // Highlight the target segment
-        const tp1 = transformPoint(segP1);
-        const tp2 = transformPoint(segP2);
-        ctx.beginPath();
-        ctx.strokeStyle = 'rgba(0, 255, 100, 0.6)';
-        ctx.lineWidth = 12;
-        ctx.setLineDash([]);
-        ctx.moveTo(tp1.x, tp1.y);
-        ctx.lineTo(tp2.x, tp2.y);
-        ctx.stroke();
-
-        // Draw the split preview (C1-C2 zone)
-        const { c1, c2 } = calculateSplitPoints(segP1, segP2, previewProj);
-        const tc1 = transformPoint(c1);
-        const tc2 = transformPoint(c2);
-        ctx.beginPath();
-        ctx.strokeStyle = preview.featureType === 'door' ? '#00FF88' : preview.featureType === 'window' ? '#66B4FF' : '#FF8800';
-        ctx.lineWidth = 8;
-        ctx.moveTo(tc1.x, tc1.y);
-        ctx.lineTo(tc2.x, tc2.y);
-        ctx.stroke();
-
-        // Projected point indicator
-        const pp = transformPoint(previewProj);
-        ctx.beginPath();
-        ctx.fillStyle = preview.featureType === 'door' ? '#00FF88' : preview.featureType === 'window' ? '#66B4FF' : '#FF8800';
-        ctx.arc(pp.x, pp.y, 8, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-      }
-    }
-
-    // 🚪 DESSINER LES PORTES POUR TOUS (joueurs inclus)
-    // Visibles si pas dans le brouillard et si ligne de vue directe non bloquée par un mur
-    if (!effectiveIsMJ && obstacles.length > 0 && isLayerVisible('obstacles')) {
-      const effectivePersoIdDoor = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
-      const viewerForDoors = characters.find(c => c.id === effectivePersoIdDoor && c.x !== undefined && c.y !== undefined);
-
-      // Raycasting : un mur opaque bloque-t-il la vue directe vers la porte ?
-      const isDoorVisibleFromViewer = (door: Obstacle, vx: number, vy: number): boolean => {
-        const mx = (door.points[0].x + door.points[1].x) / 2;
-        const my = (door.points[0].y + door.points[1].y) / 2;
-        for (const obs of obstacles) {
-          if (obs.id === door.id) continue;
-          if (obs.type === 'door' && obs.isOpen) continue;
-          if (obs.type === 'window') continue;
-          if (obs.type !== 'wall' && obs.type !== 'door' && obs.type !== 'one-way-wall') continue;
-          if (obs.points.length < 2) continue;
-          const cx = obs.points[0].x, cy = obs.points[0].y;
-          const dx = obs.points[1].x, dy = obs.points[1].y;
-          const denom = (mx - vx) * (dy - cy) - (my - vy) * (dx - cx);
-          if (Math.abs(denom) < 1e-10) continue;
-          const t = ((cx - vx) * (dy - cy) - (cy - vy) * (dx - cx)) / denom;
-          const u = ((cx - vx) * (my - vy) - (cy - vy) * (mx - vx)) / denom;
-          if (t > 0.01 && t < 0.99 && u > 0.01 && u < 0.99) return false;
-        }
-        return true;
-      };
-
-      const doors = obstacles.filter(o => o.type === 'door');
-      for (const door of doors) {
-        if (door.points.length < 2) continue;
-
-        const doorMid = {
-          x: (door.points[0].x + door.points[1].x) / 2,
-          y: (door.points[0].y + door.points[1].y) / 2,
-        };
-
-        // Vérifier le brouillard
-        if (fullMapFog || isCellInFog(doorMid.x, doorMid.y, fogGrid, fogCellSize)) continue;
-
-        // Vérifier la ligne de vue directe (raycasting simple)
-        if (viewerForDoors && !isDoorVisibleFromViewer(door, viewerForDoors.x, viewerForDoors.y)) continue;
-        const p1 = transformPoint(door.points[0]);
-        const p2 = transformPoint(door.points[1]);
-
-        // Trait épais pour la porte
-        ctx.save();
-        ctx.lineCap = 'round';
-
-        // Couleur selon l'état
-        if (door.isOpen) {
-          ctx.strokeStyle = 'rgba(0, 220, 0, 0.9)';
-        } else if (door.isLocked) {
-          ctx.strokeStyle = 'rgba(200, 160, 50, 0.9)';
-        } else {
-          ctx.strokeStyle = 'rgba(255, 60, 60, 0.9)';
-        }
-
-        // Trait principal
-        ctx.lineWidth = 8;
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.stroke();
-
-        // Bordure pour contraste
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-        ctx.lineWidth = 10;
-        ctx.globalCompositeOperation = 'destination-over';
-        ctx.beginPath();
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-        ctx.stroke();
-        ctx.globalCompositeOperation = 'source-over';
-
-        // Icône au milieu
-        const midX = (p1.x + p2.x) / 2;
-        const midY = (p1.y + p2.y) / 2;
-        const iconSize = 14;
-
-        // Cercle de fond
-        ctx.beginPath();
-        if (door.isOpen) {
-          ctx.fillStyle = 'rgba(0, 180, 0, 0.95)';
-        } else if (door.isLocked) {
-          ctx.fillStyle = 'rgba(180, 140, 40, 0.95)';
-        } else {
-          ctx.fillStyle = 'rgba(200, 40, 40, 0.95)';
-        }
-        ctx.arc(midX, midY, iconSize, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-
-        // Symbole
-        ctx.strokeStyle = '#fff';
-        ctx.fillStyle = '#fff';
-        ctx.lineWidth = 2;
-        if (door.isOpen) {
-          // Arc pour porte ouverte
-          ctx.beginPath();
-          ctx.arc(midX, midY, iconSize * 0.5, -Math.PI / 4, Math.PI / 4);
-          ctx.stroke();
-        } else if (door.isLocked) {
-          // Cadenas
-          const lockW = iconSize * 0.6;
-          const lockH = iconSize * 0.5;
-          ctx.fillRect(midX - lockW / 2, midY - lockH / 2 + 1, lockW, lockH);
-          ctx.strokeStyle = '#fff';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          ctx.arc(midX, midY - lockH / 2 + 1, lockW * 0.35, Math.PI, 0);
-          ctx.stroke();
-        } else {
-          // Ligne pour porte fermée (non verrouillée)
-          ctx.beginPath();
-          ctx.moveTo(midX, midY - iconSize * 0.5);
-          ctx.lineTo(midX, midY + iconSize * 0.5);
-          ctx.stroke();
-        }
-
-        ctx.restore();
-      }
-    }
-
-    //  CALCUL DES OMBRES POUR MASQUER LES PNJs ET OBJETS (Côté Client seulement)
-    // Si un PNJ ou objet est dans l'ombre du joueur (ou allié), il ne doit pas être affiché
-    let activeShadowsForFiltering: Point[][] | null = null;
-    let polygonsContainingViewerForFiltering: PolygonViewerInfo[] = [];
-
-    if (!effectiveIsMJ && obstacles.length > 0 && isLayerVisible('obstacles') && precalculatedShadows) {
-      // ⚡ OPTIMIZATION: Use precalculated shadows from useMemo!
-      activeShadowsForFiltering = precalculatedShadows.shadows;
-      polygonsContainingViewerForFiltering = precalculatedShadows.polygonsContainingViewer;
-    }
-
-
-
-
-
-
-    //  Dessiner la zone de sélection en cours
-    if (isSelectingArea && selectionStart && selectionEnd) {
-      const startX = (selectionStart.x / imgWidth) * scaledWidth - offset.x;
-      const startY = (selectionStart.y / imgHeight) * scaledHeight - offset.y;
-      const endX = (selectionEnd.x / imgWidth) * scaledWidth - offset.x;
-      const endY = (selectionEnd.y / imgHeight) * scaledHeight - offset.y;
-
-      // Calculer les dimensions du rectangle
-      const rectX = Math.min(startX, endX);
-      const rectY = Math.min(startY, endY);
-      const rectWidth = Math.abs(endX - startX);
-      const rectHeight = Math.abs(endY - startY);
-
-      // Fond semi-transparent d'abord
-      ctx.fillStyle = 'rgba(0, 150, 255, 0.15)';
-      ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
-
-      // Bordure en pointillés plus visible
-      ctx.strokeStyle = '#0096FF';
-      ctx.lineWidth = 3;
-      ctx.setLineDash([10, 5]);
-      ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
-
-      // Bordure solide intérieure pour plus de contraste
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([]);
-      ctx.strokeRect(rectX + 1, rectY + 1, rectWidth - 2, rectHeight - 2);
-
-      // Afficher les dimensions de la zone (même pour les sélections fines car le texte est à l'extérieur)
-      if (rectWidth > 5 || rectHeight > 5) {
-        // Calculate dimensions in map units
-        const mapRectWidth = Math.abs(selectionEnd.x - selectionStart.x);
-        const mapRectHeight = Math.abs(selectionEnd.y - selectionStart.y);
-
-        let widthText = `${Math.round(rectWidth)}`;
-        let heightText = `${Math.round(rectHeight)}`;
-
-        // Use units if available
-        if (pixelsPerUnit > 0) {
-          const wUnits = mapRectWidth / pixelsPerUnit;
-          const hUnits = mapRectHeight / pixelsPerUnit;
-          const unit = unitName || 'u';
-          widthText = `${wUnits.toFixed(1)} ${unit}`;
-          heightText = `${hUnits.toFixed(1)} ${unit}`;
-        }
-
-        const text = `${widthText} × ${heightText}`;
-        ctx.font = `12px Arial`;
-        const metrics = ctx.measureText(text);
-
-        // Position text above the rect, or below if too close to top
-        const padding = 5;
-        const textHeight = 20;
-        let textX = rectX;
-        let textY = rectY - textHeight - padding;
-
-        // If too close to top edge, put it below
-        if (textY < padding) {
-          textY = rectY + rectHeight + padding;
-        }
-
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.fillRect(textX, textY, metrics.width + 10, textHeight);
-        ctx.fillStyle = 'white';
-        // ctx.font is already set
-        ctx.fillText(text, textX + 5, textY + 14);
-      }
-    }
-
-
-    if (isLayerVisible('characters')) {
-      characters.forEach((char, index) => {
-        const x = (char.x / imgWidth) * scaledWidth - offset.x;
-        const y = (char.y / imgHeight) * scaledHeight - offset.y;
-
-        let isVisible = true;
-
-        //  Vérifier si le personnage est masqué par une ombre (uniquement pour les joueurs)
-        if ((activeShadowsForFiltering || polygonsContainingViewerForFiltering.length > 0) &&
-          char.type !== 'joueurs' && char.visibility !== 'ally') {
-          const charPos = { x: char.x, y: char.y };
-
-          // Check shadow polygons (from walls and polygon interiors when outside)
-          if (activeShadowsForFiltering) {
-            for (const shadow of activeShadowsForFiltering) {
-              if (isPointInPolygon(charPos, shadow)) {
-                isVisible = false;
-                break;
-              }
-            }
-          }
-
-          // Check if viewer is inside a polygon but character is outside (hide exterior)
-          if (isVisible && polygonsContainingViewerForFiltering.length > 0) {
-            for (const polyInfo of polygonsContainingViewerForFiltering) {
-              if (!isPointInPolygon(charPos, polyInfo.points)) {
-                // Le personnage est dehors, mais vérifier s'il est visible via une arête transparente
-                if (polyInfo.transparentEdgeIndices.length > 0) {
-                  let visibleThroughEdge = false;
-                  for (const edgeIdx of polyInfo.transparentEdgeIndices) {
-                    const nextIdx = (edgeIdx + 1) % polyInfo.points.length;
-                    const ep1 = polyInfo.points[edgeIdx];
-                    const ep2 = polyInfo.points[nextIdx];
-                    // Vérifier si le personnage est dans le cône de vision
-                    const viewerPos = precalculatedShadows ? { x: characters.find(c => c.type === 'joueurs')?.x || 0, y: characters.find(c => c.type === 'joueurs')?.y || 0 } : { x: 0, y: 0 };
-                    const extDist = Math.max(imgWidth, imgHeight) * 2;
-                    const d1 = { x: ep1.x - viewerPos.x, y: ep1.y - viewerPos.y };
-                    const d2 = { x: ep2.x - viewerPos.x, y: ep2.y - viewerPos.y };
-                    const l1 = Math.sqrt(d1.x * d1.x + d1.y * d1.y);
-                    const l2 = Math.sqrt(d2.x * d2.x + d2.y * d2.y);
-                    if (l1 > 0.001 && l2 > 0.001) {
-                      const ext1 = { x: ep1.x + (d1.x / l1) * extDist, y: ep1.y + (d1.y / l1) * extDist };
-                      const ext2 = { x: ep2.x + (d2.x / l2) * extDist, y: ep2.y + (d2.y / l2) * extDist };
-                      if (isPointInPolygon(charPos, [ep1, ext1, ext2, ep2])) {
-                        visibleThroughEdge = true;
-                        break;
-                      }
-                    }
-                  }
-                  if (!visibleThroughEdge) {
-                    isVisible = false;
-                    break;
-                  }
-                } else {
-                  isVisible = false;
-                  break;
-                }
-              }
-            }
-          }
-
-          if (!isVisible) return; // Ne pas dessiner si dans l'ombre
-        }
-
-        //  Déterminer la visibilité effective du personnage
-        let effectiveVisibility = char.visibility;
-
-        // Utiliser la fonction centralisée qui gère les lumières, le brouillard, etc.
-        if (!isCharacterVisibleToUser(char)) {
-          effectiveVisibility = 'hidden';
-        }
-
-        // Les alliés sont toujours visibles (même dans le brouillard complet)
-        if (char.visibility === 'ally') {
-          isVisible = true;
-        }
-        // Les personnages cachés (ou cachés par le brouillard) ne sont visibles que pour le MJ (en mode normal) ou s'ils sont dans le rayon de vision d'un joueur ou allié
-        else if (effectiveVisibility === 'hidden') {
-          // [NEW] Use simulated view ID if active
-          const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
-
-          // In player view simulation mode, GM should NOT see all hidden characters
-          // They should only see those within the simulated character's visibility radius
-          const isInPlayerViewMode = playerViewMode && viewAsPersoId;
-
-          if (isInPlayerViewMode) {
-            // GM simulating player view - use visibility radius check only
-            const viewer = characters.find(c => c.id === effectivePersoId);
-            if (viewer) {
-              // Use screen coordinates for distance calculation (like line 1276)
-              const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
-              const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
-              const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-              const radiusScreen = ((viewer.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-              isVisible = dist <= radiusScreen;
-            } else {
-              isVisible = false;
-            }
-          } else {
-            // Normal mode - MJ sees all, players check visibility radius
-            isVisible = effectiveIsMJ || (() => {
-              const viewer = characters.find(c => c.id === effectivePersoId);
-              if (!viewer) return false;
-              const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
-              const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
-              const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-              const radiusScreen = ((viewer.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-              return dist <= radiusScreen;
-            })();
-          }
-        }
-
-
-
-        if (isVisible) {
-          //  Couleur spéciale pour les personnages dans la zone de sélection
-          let borderColor;
-          let lineWidth = 3;
-
-          if (selectedCharacters.includes(index)) {
-            // Personnage sélectionné
-            borderColor = 'rgba(0, 255, 0, 1)';  // Vert vif
-            lineWidth = 4;
-          } else if (isSelectingArea && selectionStart && selectionEnd) {
-            // Vérifier si le personnage est dans la zone de sélection en cours
-            const minX = Math.min(selectionStart.x, selectionEnd.x);
-            const maxX = Math.max(selectionStart.x, selectionEnd.x);
-            const minY = Math.min(selectionStart.y, selectionEnd.y);
-            const maxY = Math.max(selectionStart.y, selectionEnd.y);
-
-            if (char.x >= minX && char.x <= maxX && char.y >= minY && char.y <= maxY) {
-              borderColor = 'rgba(0, 150, 255, 1)'; // Bleu pour prévisualisation
-              lineWidth = 4;
-            } else {
-              // Couleur normale selon le type
-              if (isMJ) {
-                // MJ : voit le personnage actif en rouge vif
-                borderColor = char.id === activePlayerId
-                  ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour le personnage actif (dont c'est le tour)
-                  : char.visibility === 'ally'
-                    ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
-                    : char.type === 'joueurs'
-                      ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les personnages joueurs
-                      : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
-              } else {
-                // Joueur : voit SEULEMENT son personnage en rouge
-                borderColor = char.id === persoId
-                  ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour SON personnage
-                  : char.visibility === 'ally'
-                    ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
-                    : char.type === 'joueurs'
-                      ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les autres personnages joueurs
-                      : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
-              }
-            }
-          } else {
-            // Couleur normale selon le type
-            if (isMJ) {
-              // MJ : voit le personnage actif en rouge vif
-              borderColor = char.id === activePlayerId
-                ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour le personnage actif (dont c'est le tour)
-                : char.visibility === 'ally'
-                  ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
-                  : char.type === 'joueurs'
-                    ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les personnages joueurs
-                    : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
-            } else {
-              // Joueur : voit SEULEMENT son personnage en rouge
-              borderColor = char.id === persoId
-                ? 'rgba(255, 0, 0, 1)'             // Rouge vif pour SON personnage
-                : char.visibility === 'ally'
-                  ? 'rgba(0, 255, 0, 0.8)'           // Vert pour les alliés
-                  : char.type === 'joueurs'
-                    ? 'rgba(0, 0, 255, 0.8)'           // Bleu pour les autres personnages joueurs
-                    : 'rgba(255, 165, 0, 0.8)';        // Orange pour les PNJ
-            }
-          }
-
-          ctx.strokeStyle = borderColor;
-          ctx.lineWidth = lineWidth;
-
-          //  Taille différente pour les personnages joueurs (avec imageURLFinal)
-          //  Taille différente pour les personnages joueurs (avec imageURLFinal)
-          const isPlayerCharacter = char.type === 'joueurs';
-          const charScale = char.scale || 1;
-          const finalScale = charScale * globalTokenScale;
-
-          const baseRadius = isPlayerCharacter ? 30 : 20;
-          const baseBorderRadius = isPlayerCharacter ? 32 : 22;
-
-          // const iconRadius = baseRadius * finalScale * zoom; // Not used locally?
-          const borderRadius = baseBorderRadius * finalScale * zoom;
-
-          // ⚠️ Border circle is now drawn on characterBordersCanvasRef (separate layer BEFORE character images)
-          // This allows the circle to appear UNDERNEATH the character image
-
-          // Note: Character image is now rendered as a DOM element (see characters-layer in JSX)
-          // This allows animated GIFs to work properly
-          // The canvas still renders other UI elements
-
-
-
-
-
-
-          // Configuration
-          const uiScale = Math.max(0.6, Math.min(1.5, zoom));
-          const isSelected = index === selectedCharacterIndex;
-          const canSeeHP = (isMJ && !playerViewMode) || char.id === persoId; // Visible MJ or Owner
-
-          // Only render labels if showCharBorders is true
-          //  DRAW NAME/HP BAR ONLY IF BADGE IS VISIBLE (global toggle OR individual selection)
-          if (showAllBadges || visibleBadges.has(char.id)) {
-            // --- DIMENSIONS & POSITIONS ---
-            // On place la pilule en HAUT du cercle ("en dessus")
-            // Centre de la pilule = x, y - borderRadius (moins une petite marge)
-            const pillCenterX = x;
-            const pillCenterY = y + borderRadius + (12 * uiScale); // En dessous du cercle (pillHeight/2 approx)
-
-            const fontSize = 10 * uiScale;
-            const iconSize = 10 * uiScale;
-            const paddingX = 8 * uiScale;
-            const paddingY = 4 * uiScale;
-            const gap = 8 * uiScale; // Espace entre PV et Nom
-            const condGap = 4 * uiScale; // Espace entre Nom et Conditions
-
-            // Pré-calcul des tailles de texte
-            ctx.font = `600 ${fontSize}px "Geist Mono", system-ui, sans-serif`;
-
-            // Partie PV
-            let pvText = "";
-            let pvWidth = 0;
-            if (canSeeHP && char.PV !== undefined) {
-              const current = char.PV || 0;
-              pvText = `${current}`;
-              pvWidth = ctx.measureText(pvText).width + 4; // Text + Gap (no icon)
-            }
-
-            // Partie Nom
-            const nameText = char.name;
-            ctx.font = `500 ${fontSize}px system-ui, -apple-system, sans-serif`;
-            const nameWidth = ctx.measureText(nameText).width;
-
-            // Partie Conditions
-            let condWidth = 0;
-            const activeConditions = char.conditions || [];
-            if (activeConditions.length > 0) {
-              // width = (num * actualImgSize) + ((num-1) * spacing) + margin-left
-              // Actual Img Size used in draw is iconSize + (4 * uiScale)
-              const actualImgSize = iconSize + (4 * uiScale);
-              condWidth = (activeConditions.length * actualImgSize) + ((activeConditions.length - 1) * 2 * uiScale) + condGap;
-            }
-
-            // Largeur totale
-            const separatorWidth = canSeeHP ? (1 * uiScale) + (gap * 2) : 0;
-            const totalContentWidth = (canSeeHP ? pvWidth : 0) + separatorWidth + nameWidth + condWidth;
-            const pillWidth = totalContentWidth + (paddingX * 2);
-            const pillHeight = fontSize + (paddingY * 2) + 2;
-
-            // --- DESSIN DU FOND (PILL) ---
-            const pillX = pillCenterX - (pillWidth / 2);
-            const pillY = pillCenterY - (pillHeight / 2);
-
-            // Ombre portée
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.6)';
-            ctx.shadowBlur = 8;
-            ctx.shadowOffsetY = 3;
-
-            // Fond (Gris foncé/Noir style "Interface")
-            ctx.fillStyle = 'rgba(20, 22, 26, 0.95)';
-            ctx.beginPath();
-            ctx.roundRect(pillX, pillY, pillWidth, pillHeight, pillHeight / 2);
-            ctx.fill();
-
-            // Reset shadow
-            ctx.shadowBlur = 0;
-            ctx.shadowOffsetY = 0;
-
-            // Bordure subtile
-            ctx.strokeStyle = isSelected ? 'rgba(255, 255, 255, 0.4)' : 'rgba(255, 255, 255, 0.15)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-
-            // --- DESSIN DU CONTENU ---
-            let currentCursorX = pillX + paddingX;
-            const textY = pillY + (pillHeight / 2); // Center vertical
-
-            // 1. PV SECTION (Si visible)
-            if (canSeeHP) {
-              const current = char.PV || 0;
-              const max = char.PV_Max || char.PV || 100;
-              const healthPct = Math.max(0, Math.min(100, (current / max) * 100));
-
-              let healthColor = '#ffffff';
-              if (healthPct < 25) healthColor = '#ef4444';
-              else if (healthPct < 50) healthColor = '#fbbf24';
-              else healthColor = '#4ade80';
-
-              ctx.fillStyle = healthColor;
-              ctx.font = `700 ${fontSize}px "Geist Mono", monospace`;
-              ctx.textAlign = 'left';
-              ctx.textBaseline = 'middle';
-              ctx.fillText(pvText, currentCursorX, textY + 1);
-
-              currentCursorX += pvWidth;
-
-              // Séparateur
-              const sepX = currentCursorX + gap;
-              ctx.beginPath();
-              ctx.moveTo(sepX, pillY + 4);
-              ctx.lineTo(sepX, pillY + pillHeight - 4);
-              ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-              ctx.lineWidth = 1;
-              ctx.stroke();
-
-              currentCursorX += separatorWidth;
-            }
-
-            // 2. NOM SECTION
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-            ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
-            ctx.textAlign = 'left';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(nameText, currentCursorX, textY + 0.5);
-
-            currentCursorX += nameWidth;
-
-            // 3. CONDITIONS SECTION
-            if (activeConditions.length > 0) {
-              currentCursorX += condGap;
-
-              activeConditions.forEach((condId: string) => {
-                const iconImg = getConditionIcon(condId);
-
-                if (iconImg) {
-                  // Draw pre-rendered SVG Icon
-                  const imgSize = iconSize + (4 * uiScale);
-                  const imgY = textY - (imgSize / 2);
-
-                  ctx.drawImage(iconImg, currentCursorX, imgY, imgSize, imgSize);
-
-                  // Add Hit Region (World Coordinates)
-                  // We try to resolve a label: Predefined or Custom
-                  const predefined = CONDITIONS.find(c => c.id === condId);
-                  const label = predefined ? predefined.label : condId;
-
-                  iconHitRegionsRef.current.push({
-                    x: currentCursorX,
-                    y: imgY,
-                    w: imgSize,
-                    h: imgSize,
-                    label: label
-                  });
-
-                  currentCursorX += imgSize + (2 * uiScale);
-                } else {
-                  // Loading placeholder
-                  ctx.beginPath();
-                  ctx.arc(currentCursorX + (iconSize / 2), textY, 2 * uiScale, 0, 2 * Math.PI);
-                  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-                  ctx.fill();
-                  currentCursorX += iconSize + (2 * uiScale);
-                }
-              });
-            }
-          }
-        }
-
-        // Draw hidden status badge if character is hidden (soit par défaut, soit par le brouillard) - uniquement en mode MJ normal, pas en vue joueur
-        if ((effectiveVisibility === 'hidden' || effectiveVisibility === 'custom') && effectiveIsMJ && char.type != "joueurs") {
-          const hiddenBadgeOffsetMultiplier = 16;
-          const badgeX = x + hiddenBadgeOffsetMultiplier * zoom;
-          const badgeY = y - hiddenBadgeOffsetMultiplier * zoom;
-          const badgeRadius = 7 * zoom;
-
-          // Shadow for depth
-          ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-          ctx.shadowBlur = 4 * zoom;
-          ctx.shadowOffsetX = 1.5 * zoom;
-          ctx.shadowOffsetY = 1.5 * zoom;
-
-          // Outer ring with gradient
-          const outerGradient = ctx.createRadialGradient(badgeX, badgeY, 0, badgeX, badgeY, badgeRadius);
-          const isPlayerChar = char.id === persoId;
-          const isCustom = effectiveVisibility === 'custom';
-          if (isCustom) {
-            outerGradient.addColorStop(0, 'rgba(90, 80, 234, 1)');
-            outerGradient.addColorStop(1, 'rgba(136, 68, 255, 1)');
-          } else {
-            outerGradient.addColorStop(0, 'rgba(255, 200, 80, 1)');
-            outerGradient.addColorStop(1, 'rgba(255, 140, 0, 1)');
-          }
-
-          ctx.fillStyle = outerGradient;
-          ctx.beginPath();
-          ctx.arc(badgeX, badgeY, badgeRadius, 0, 2 * Math.PI);
-          ctx.fill();
-
-          // Reset shadow for inner elements
-          ctx.shadowColor = 'transparent';
-          ctx.shadowBlur = 0;
-          ctx.shadowOffsetX = 0;
-          ctx.shadowOffsetY = 0;
-
-          // Inner circle (dark background for icon)
-          ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
-          ctx.beginPath();
-          ctx.arc(badgeX, badgeY, badgeRadius * 0.75, 0, 2 * Math.PI);
-          ctx.fill();
-
-          // Draw invisible icon from SVG
-          const invisibleImg = getConditionIcon('invisible');
-          if (invisibleImg) {
-            const iconSize = badgeRadius * 1.3;
-            const iconX = badgeX - (iconSize / 2);
-            const iconY = badgeY - (iconSize / 2);
-            ctx.drawImage(invisibleImg, iconX, iconY, iconSize, iconSize);
-          }
-        }
-
-        // Draw visibility radius outline for selected characters (no more filled semi-transparent disk)
-        if (char.type === 'joueurs' && index === selectedCharacterIndex) {
-          ctx.strokeStyle = 'rgba(0, 0, 255, 0.9)'; // Bright blue outline
-          ctx.lineWidth = 2 * zoom;
-          ctx.beginPath();
-          const radiusScreen = ((char.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-          ctx.arc(x, y, radiusScreen, 0, 2 * Math.PI);
-          ctx.stroke();
-        }
-
-        // Draw visibility radius outline for allies when selected (MJ only)
-        if (char.visibility === 'ally' && index === selectedCharacterIndex && isMJ) {
-          ctx.strokeStyle = 'rgba(0, 255, 0, 0.9)'; // Bright green outline
-          ctx.lineWidth = 2 * zoom;
-          ctx.beginPath();
-          const radiusScreenAlly = ((char.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-          ctx.arc(x, y, radiusScreenAlly, 0, 2 * Math.PI);
-          ctx.stroke();
-        }
-      });
-    }
-
-
-
-
-    // Draw measurements manually here (at end of foreground layers)
-    drawMeasurements(ctx, imgWidth, imgHeight, scaledWidth, scaledHeight);
+    const ctx: VisibilityContext = { isMJ, playerViewMode, persoId, viewAsPersoId };
+    return checkObjectVisibility(obj, ctx);
   };
 
 
@@ -5816,2452 +2263,162 @@ export default function Component() {
     });
   };
 
-  const handleCanvasMouseDown = async (e: React.MouseEvent<Element>) => {
-    const rect = bgCanvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-
-    // Stocker quel bouton de souris est pressé (0 = gauche, 1 = milieu, 2 = droit)
-    setMouseButton(e.button);
-
-    const containerWidth = containerRef.current?.getBoundingClientRect().width || rect.width;
-    const containerHeight = containerRef.current?.getBoundingClientRect().height || rect.height;
-    if (!bgImageObject) return;
-    const image = bgImageObject;
-    if (image) {
-      const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-      const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
-      const scaledWidth = imgWidth * scale * zoom;
-      const scaledHeight = imgHeight * scale * zoom;
-      const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
-      const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
-
-      // 💡 LIGHT SOURCE PLACEMENT
-      if (isLightPlacementMode && isMJ && e.button === 0) {
-        e.preventDefault();
-        console.log("💡 Attempting to place light source at", clickX, clickY);
-        try {
-          const newLight: LightSource = {
-            id: "light_" + Date.now(),
-            x: clickX,
-            y: clickY,
-            name: 'Source de Lumière',
-            radius: 10,
-            visible: true,
-            cityId: selectedCityId
-          };
-          // Save to 'lights' collection, NOT 'characters'
-          await setDoc(doc(db, 'cartes', roomId, 'lights', newLight.id), newLight);
-          toast.success("zone de lumiere créée");
-
-          console.log("💡 Light source created in 'lights' collection:", newLight.id);
-          setIsLightPlacementMode(false);
-        } catch (error) {
-          console.error("❌ Error placing light source:", error);
-        }
-        return;
-      }
-
-
-      //  PORTAL MODE - CREATE PORTAL
-      if (portalMode && isMJ && e.button === 0) {
-        e.preventDefault();
-
-        // Check if a portal type has been selected
-        if (!portalPlacementMode) {
-          toast.error("Choisissez d'abord le type de portail");
-          return;
-        }
-
-        if (portalPlacementMode === 'scene-change') {
-          // Scene-change portal: traditional one-click workflow
-          setNewPortalPos({ x: clickX, y: clickY });
-          setEditingPortal(null);
-          setShowPortalConfig(true);
-        } else if (portalPlacementMode === 'same-map') {
-          // Same-map portal: two-step workflow
-          if (!firstPortalPoint || !firstPortalId) {
-            // First click: Create first portal immediately in Firebase
-            const portalData = {
-              x: clickX,
-              y: clickY,
-              radius: 50,
-              targetX: clickX, // Temporary - will update on second click
-              targetY: clickY,
-              portalType: 'same-map' as const,
-              name: 'Portail (en cours...)',
-              iconType: 'portal' as const,
-              visible: true,
-              color: '#3b82f6',
-              cityId: selectedCityId
-            };
-
-            const docRef = await addDoc(collection(db, 'cartes', roomId, 'portals'), portalData);
-            setFirstPortalPoint({ x: clickX, y: clickY });
-            setFirstPortalId(docRef.id);
-            toast.success("Premier portail placé. Cliquez pour placer le deuxième.");
-          } else {
-            // Second click: Open config with both points
-            setNewPortalPos(firstPortalPoint);
-            setEditingPortal({
-              ...({} as Portal),
-              id: firstPortalId, // Include the ID so we know to update it
-              x: firstPortalPoint.x,
-              y: firstPortalPoint.y,
-              targetX: clickX,
-              targetY: clickY,
-              portalType: 'same-map'
-            });
-            setShowPortalConfig(true);
-          }
-        }
-        return;
-      }
-
-      //  SPAWN POINT MODE - SET SPAWN POINT
-      if (spawnPointMode && isMJ && e.button === 0 && selectedCityId) {
-        e.preventDefault();
-
-        // 🚀 Optimistic update: Update local state immediately so the marker appears instantly
-        if (currentScene) {
-          setCurrentScene({ ...currentScene, spawnX: clickX, spawnY: clickY });
-        } else {
-          // If currentScene is null (rare but possible during load), we can't easily construct a full scene object without more data,
-          // but usually it's loaded if we are clicking. If not, the snapshot will handle it shortly.
-        }
-
-        // Update the current scene's spawn point
-        await updateDoc(doc(db, 'cartes', roomId, 'cities', selectedCityId), {
-          spawnX: clickX,
-          spawnY: clickY
-        });
-        console.log(`✅ [SpawnPoint] Set spawn point for scene ${selectedCityId} at (${clickX}, ${clickY})`);
-        toast.success("Point d'apparition mis à jour")
-        // Deactivate spawn point mode after placement
-        setSpawnPointMode(false);
-        return;
-      }
-
-      // 🎵 MUSIC MODE - CREATE ZONE
-      if (isMusicMode && isMJ && e.button === 0) {
-        e.preventDefault();
-        setNewMusicZonePos({ x: clickX, y: clickY });
-        setShowMusicDialog(true);
-        return;
-      }
-
-      // 🎵 SELECT MUSIC ZONE (when not in creation mode)
-      if (!isMusicMode && isMJ && e.button === 0) {
-
-        // 1. First Check for RESIZE HANDLE on selected zones
-        if (selectedMusicZoneIds.length > 0) {
-          const resizingZoneId = selectedMusicZoneIds.find(id => {
-            const zone = musicZones.find(z => z.id === id);
-            if (!zone) return false;
-
-            // Calculate Handle Position (Screen Coords)
-            // Center:
-            const zoneScreenX = ((zone.x / imgWidth) * scaledWidth) - offset.x + rect.left;
-            const zoneScreenY = ((zone.y / imgHeight) * scaledHeight) - offset.y + rect.top;
-
-            const screenRadius = zone.radius * scale * zoom;
-            const handleX = zoneScreenX + screenRadius;
-            const handleY = zoneScreenY; // 3 o'clock
-
-            const outputDist = Math.sqrt(Math.pow(e.clientX - handleX, 2) + Math.pow(e.clientY - handleY, 2));
-            return outputDist < (10 * zoom); // Hit radius
-          });
-
-          if (resizingZoneId) {
-            e.preventDefault();
-            setIsResizingMusicZone(true);
-            setResizingMusicZoneId(resizingZoneId);
-            return;
-          }
-        }
-
-        // 1b. Check for CHARACTER AUDIO RESIZE HANDLE (if a character is selected)
-        if (selectedCharacterIndex !== null) {
-          const char = characters[selectedCharacterIndex];
-          if (char && char.audio && char.id) {
-            // Calculate Handle Position
-            const charScreenX = ((char.x / imgWidth) * scaledWidth) - offset.x + rect.left;
-            const charScreenY = ((char.y / imgHeight) * scaledHeight) - offset.y + rect.top;
-            const screenRadius = char.audio.radius * scale * zoom;
-
-            const handleX = charScreenX + screenRadius;
-            const handleY = charScreenY;
-
-            const outputDist = Math.sqrt(Math.pow(e.clientX - handleX, 2) + Math.pow(e.clientY - handleY, 2));
-
-            if (outputDist < (10 * zoom)) {
-              e.preventDefault();
-              setIsResizingMusicZone(true);
-              setResizingMusicZoneId(`char-${char.id}`);
-              return;
-            }
-          }
-        }
-
-        // 2. Check if clicked on a zone icon
-        const clickedZone = musicZones.find(z => {
-          const dx = z.x - clickX;
-          const dy = z.y - clickY;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          return dist < (20 / zoom);
-        });
-
-        if (clickedZone) {
-          e.preventDefault();
-
-          // 🎯 Vérifier si un autre élément est actuellement actif
-          if (activeElementType !== null && (activeElementType !== 'musicZone' || activeElementId !== clickedZone.id)) {
-            // Un autre élément est actif, ne rien faire
-            return;
-          }
-
-          // 🎯 Si cet élément est déjà actif, bypasser la détection et continuer
-          if (activeElementType === 'musicZone' && activeElementId === clickedZone.id) {
-            // Élément déjà actif → continuer sans refaire la détection
-            mouseClickStartRef.current = { x: e.clientX, y: e.clientY };
-
-            if (!selectedMusicZoneIds.includes(clickedZone.id)) {
-              setSelectedMusicZoneIds([clickedZone.id]);
-            }
-            setIsDraggingMusicZone(true);
-            setDraggedMusicZoneId(clickedZone.id);
-            setDragStart({ x: e.clientX, y: e.clientY });
-            const originalPositions = (selectedMusicZoneIds.includes(clickedZone.id) ? selectedMusicZoneIds : [clickedZone.id])
-              .map(id => {
-                const zone = musicZones.find(z => z.id === id);
-                return zone ? { id: zone.id, x: zone.x, y: zone.y } : null;
-              })
-              .filter(pos => pos !== null) as { id: string, x: number, y: number }[];
-            setDraggedMusicZonesOriginalPositions(originalPositions);
-            return;
-          }
-
-          // 🎯 Détection d'éléments superposés (seulement si pas encore actif)
-          const elementsAtPosition = detectElementsAtPosition(clickX, clickY);
-
-          if (elementsAtPosition.length > 1) {
-            // Plusieurs éléments détectés → afficher le menu
-            setDetectedElements(elementsAtPosition);
-            setSelectionMenuPosition({ x: e.clientX, y: e.clientY });
-            setShowElementSelectionMenu(true);
-            return;
-          }
-
-          // Un seul élément ou élément déjà actif → continuer avec la sélection
-          // Tracking for click vs drag
-          mouseClickStartRef.current = { x: e.clientX, y: e.clientY };
-
-          // MULTI-SELECTION: Shift/Ctrl + Click
-          if (e.shiftKey || e.ctrlKey) {
-            setSelectedMusicZoneIds(prev => {
-              if (prev.includes(clickedZone.id)) {
-                // Deselect if already selected
-                return prev.filter(id => id !== clickedZone.id);
-              } else {
-                // Add to selection
-                return [...prev, clickedZone.id];
-              }
-            });
-            return;
-          }
-
-          if (!selectedMusicZoneIds.includes(clickedZone.id)) {
-            setSelectedMusicZoneIds([clickedZone.id]);
-          }
-
-          setIsDraggingMusicZone(true);
-          setDraggedMusicZoneId(clickedZone.id); // Reference zone
-          setDragStart({ x: e.clientX, y: e.clientY });
-
-          // Store original positions for all currently selected zones
-          const originalPositions = (selectedMusicZoneIds.includes(clickedZone.id) ? selectedMusicZoneIds : [clickedZone.id])
-            .map(id => {
-              const zone = musicZones.find(z => z.id === id);
-              return zone ? { id: zone.id, x: zone.x, y: zone.y } : null;
-            })
-            .filter(pos => pos !== null) as { id: string, x: number, y: number }[];
-
-          setDraggedMusicZonesOriginalPositions(originalPositions);
-          return;
-        }
-      }
-
-
-      // CLIC MILIEU (button = 1) : DÉPLACEMENT DE LA CARTE
-      if (e.button === 1) {
-        e.preventDefault();
-        setIsDragging(true);
-        setDragStart({ x: e.clientX, y: e.clientY });
-        return;
-      }
-
-      // 🔦 MODE VISIBILITÉ + OUTIL BROUILLARD - Accepte clic gauche ET droit
-      // Placé AVANT le check sur e.button === 0 pour capturer les clics droits aussi
-      if (isVisActive && currentVisibilityTool === 'fog' && (e.button === 0 || e.button === 2)) {
-        e.preventDefault(); // Empêcher le menu contextuel sur clic droit
-        setIsFogDragging(true);
-
-        // Détection intelligente : si la cellule a du brouillard, on retire, sinon on ajoute
-        const firstCellKey = getCellKey(clickX, clickY, fogCellSize);
-        const isCurrentlyFogged = fogGrid.has(firstCellKey);
-        const addMode = !isCurrentlyFogged; // Toggle automatique
-
-        setLastFogCell(null);
-        await addFogCellIfNew(clickX, clickY, addMode);
-        setIsFogAddMode(addMode);
-        return;
-      }
-
-      // CLIC GAUCHE (button = 0) : SÉLECTION ET INTERACTIONS
-      if (e.button === 0) {
-        //  MODE MESURE
-        if (measureMode) {
-
-
-          // If no start point OR both points already set, start new measurement
-          if (!measureStart || (measureStart && measureEnd &&
-            Math.abs(measureStart.x - measureEnd.x) > 1 &&
-            Math.abs(measureStart.y - measureEnd.y) > 1)) {
-            // Start new measurement
-
-            setMeasureStart({ x: clickX, y: clickY });
-            setMeasureEnd(null);
-            setIsMeasurementPanelOpen(false); // 🆕 Auto-close panel on interaction
-
-            // 🆕 CREATE SHARED MEASUREMENT
-            if (roomId) {
-              const measurementsRef = collection(db, 'cartes', roomId, 'measurements');
-
-              // 🆕 CLEANUP OLD MEASUREMENTS (Single Active Measurement per User)
-              measurements.forEach(m => {
-                if (m.ownerId === (userId || 'unknown')) {
-                  deleteDoc(doc(db, 'cartes', roomId, 'measurements', m.id)).catch(console.error);
-                }
-              });
-
-              const newDocRef = doc(measurementsRef); // Generate ID
-              setCurrentMeasurementId(newDocRef.id);
-
-              const newMeasurement: SharedMeasurement = {
-                id: newDocRef.id,
-                type: measurementShape,
-                start: { x: clickX, y: clickY },
-                end: { x: clickX, y: clickY },
-                ownerId: userId || 'unknown',
-                cityId: selectedCityId,
-                color: '#FFD700',
-                unitName: unitName,
-
-                coneWidth: coneWidth ?? null,
-                ...(measurementShape === 'cone' ? { coneAngle, coneShape } : {}),
-                skin: (measurementShape === 'circle' || measurementShape === 'cone') ? selectedSkin : null,
-                timestamp: Date.now(),
-                permanent: isPermanent
-              };
-
-              // Fire and forget (optimistic)
-              setDoc(newDocRef, newMeasurement).catch(console.error);
-            }
-          } else {
-            setMeasureEnd({ x: clickX, y: clickY });
-
-            // 🆕 FINISH SHARED MEASUREMENT
-            if (currentMeasurementId && roomId) {
-              const docRef = doc(db, 'cartes', roomId, 'measurements', currentMeasurementId);
-              updateDoc(docRef, {
-                end: { x: clickX, y: clickY }
-              }).catch(console.error);
-
-              // 🆕 AUTO-DETECT & OPEN MENU
-              // Always open menu to allow Attack or Delete
-              setContextMenuMeasurementId(currentMeasurementId);
-              setContextMenuMeasurementOpen(true);
-
-              setCurrentMeasurementId(null);
-            } else {
-              // This else block was for a debug log, removing it as per instruction.
-            }
-          }
-          return;
-        }
-
-        //  MODE DÉPLACEMENT DE CARTE - Seulement si le mode est explicitement activé (MJ uniquement)
-        // Pour les joueurs, le pan est géré dans la section "clic sur zone vide" plus bas
-        if (panMode && isMJ) {
-          setIsDragging(true);
-          setDragStart({ x: e.clientX, y: e.clientY });
-          return;
-        }
-
-
-        // 🔦 MODE VISIBILITÉ + OUTIL BROUILLARD - Accepte clic gauche ET droit
-        // Placé AVANT le check sur e.button === 0 pour capturer les clics droits aussi
-        if (isVisActive && currentVisibilityTool === 'fog' && (e.button === 0 || e.button === 2)) {
-          e.preventDefault(); // Empêcher le menu contextuel sur clic droit
-          setIsFogDragging(true);
-
-          // Détection intelligente : si la cellule a du brouillard, on retire, sinon on ajoute
-          const firstCellKey = getCellKey(clickX, clickY, fogCellSize);
-          const isCurrentlyFogged = fogGrid.has(firstCellKey);
-          const addMode = !isCurrentlyFogged; // Toggle automatique
-
-          setLastFogCell(null);
-          await addFogCellIfNew(clickX, clickY, addMode);
-          setIsFogAddMode(addMode);
-          return;
-        }
-
-        // 🔦 MODE VISIBILITÉ - MODE EDIT (sélection et manipulation d'obstacles)
-        if (isVisActive && currentVisibilityTool === 'edit' && isLayerVisible('obstacles')) {
-          const handleRadius = 12 / zoom; // Rayon de détection des poignées
-
-          // 1. Si un obstacle est sélectionné, vérifier si on clique sur une poignée
-          if (selectedObstacleIds.length > 0) {
-            // 🔧 FIX: Find WHICH selected obstacle was actually clicked, not just the first one
-            let clickedSelectedObs: Obstacle | null = null;
-
-            // Check each selected obstacle to see if the click is on it
-            for (const obsId of selectedObstacleIds) {
-              const obs = obstacles.find(o => o.id === obsId);
-              if (!obs) continue;
-
-              // Check if click is on this obstacle's body
-              let clickedOnThis = false;
-              if (obs.points.length >= 2) {
-                const p1 = obs.points[0];
-                const p2 = obs.points[1];
-                const A = clickX - p1.x;
-                const B = clickY - p1.y;
-                const C = p2.x - p1.x;
-                const D = p2.y - p1.y;
-                const dot = A * C + B * D;
-                const len_sq = C * C + D * D;
-                let param = -1;
-                if (len_sq !== 0) param = dot / len_sq;
-                let xx, yy;
-                if (param < 0) { xx = p1.x; yy = p1.y; }
-                else if (param > 1) { xx = p2.x; yy = p2.y; }
-                else { xx = p1.x + param * C; yy = p1.y + param * D; }
-                const dist = Math.sqrt(Math.pow(clickX - xx, 2) + Math.pow(clickY - yy, 2));
-                clickedOnThis = dist < 15 / zoom;
-              }
-
-              if (clickedOnThis) {
-                clickedSelectedObs = obs;
-                break; // Found the clicked obstacle
-              }
-            }
-
-            // If we clicked on one of the selected obstacles, check for handle clicks first
-            if (clickedSelectedObs) {
-              // Check if clicking on a handle (vertex point)
-              for (let i = 0; i < clickedSelectedObs.points.length; i++) {
-                const point = clickedSelectedObs.points[i];
-                const dist = Math.sqrt(Math.pow(clickX - point.x, 2) + Math.pow(clickY - point.y, 2));
-                if (dist < handleRadius) {
-                  // Clic sur une poignée → commencer le drag du point
-                  // Identifier TOUS les points connectés (même position) pour les déplacer ensemble
-                  const connected: { obstacleId: string, pointIndex: number }[] = [];
-                  const clickedPoint = clickedSelectedObs.points[i];
-                  const epsilon = 2 / zoom; // Tolérance pour considérer les points comme identiques
-
-                  obstacles.forEach(obs => {
-                    obs.points.forEach((p: Point, idx: number) => {
-                      if (Math.abs(p.x - clickedPoint.x) < epsilon && Math.abs(p.y - clickedPoint.y) < epsilon) {
-                        connected.push({ obstacleId: obs.id, pointIndex: idx });
-                      }
-                    });
-                  });
-
-                  setIsDraggingObstaclePoint(true);
-                  setDraggedPointIndex(i);
-                  setDraggedObstacleOriginalPoints([...clickedSelectedObs.points]);
-                  setConnectedPoints(connected);
-                  setDragStartPos({ x: clickX, y: clickY });
-                  dragStartPosRef.current = { x: clickX, y: clickY };
-                  return;
-                }
-              }
-
-              // Not clicking on a handle, so start dragging the whole obstacle(s)
-              setIsDraggingObstacle(true);
-              setDraggedObstacleId(clickedSelectedObs.id);
-              setDragStartPos({ x: clickX, y: clickY }); // Save click position for delta calc
-
-              // ✅ Store original points for ALL selected obstacles (multi-drag - PNJ pattern)
-              const originalPoints = selectedObstacleIds.map(obsId => {
-                const obs = obstacles.find(o => o.id === obsId);
-                return obs ? { id: obsId, points: [...obs.points] } : null;
-              }).filter((item): item is { id: string, points: Point[] } => item !== null);
-
-              setDraggedObstaclesOriginalPoints(originalPoints);
-              return;
-            }
-          }
-
-          // 3. Vérifier si on clique sur un autre obstacle pour le sélectionner
-          const clickedObstacle = obstacles.find(obstacle => {
-            if (obstacle.points.length < 2) return false;
-            const p1 = obstacle.points[0];
-            const p2 = obstacle.points[1];
-            const A = clickX - p1.x;
-            const B = clickY - p1.y;
-            const C = p2.x - p1.x;
-            const D = p2.y - p1.y;
-            const dot = A * C + B * D;
-            const len_sq = C * C + D * D;
-            let param = -1;
-            if (len_sq !== 0) param = dot / len_sq;
-            let xx, yy;
-            if (param < 0) { xx = p1.x; yy = p1.y; }
-            else if (param > 1) { xx = p2.x; yy = p2.y; }
-            else { xx = p1.x + param * C; yy = p1.y + param * D; }
-            const dist = Math.sqrt(Math.pow(clickX - xx, 2) + Math.pow(clickY - yy, 2));
-            return dist < 15 / zoom;
-          });
-
-          if (clickedObstacle) {
-
-            // ✅ MULTI-SÉLECTION avec Shift (comme pour les objets)
-            if (e.shiftKey) {
-              if (selectedObstacleIds.includes(clickedObstacle.id)) {
-                setSelectedObstacleIds(prev => prev.filter(id => id !== clickedObstacle.id));
-              } else {
-                setSelectedObstacleIds(prev => [...prev, clickedObstacle.id]);
-              }
-            } else {
-              setSelectedObstacleIds([clickedObstacle.id]);
-            }
-
-          } else {
-            // Clic dans le vide : désélectionner tout
-            setSelectedObstacleIds([]);
-          }
-          return;
-        }
-
-        // 🔦 MODE VISIBILITÉ - OUTIL DESSIN UNIFIÉ (chain = murs + fermeture polygon)
-        if (isVisActive && currentVisibilityTool === 'chain') {
-          // Désélectionner tout obstacle si on dessine
-          setSelectedObstacleIds([]);
-
-          if (isDrawingObstacle) {
-            // CONTINUER le dessin en cours
-            const clickPoint = snapPoint || { x: clickX, y: clickY };
-
-            if (currentObstaclePoints.length >= 1) {
-              // Vérifier si on ferme la forme (clic proche du 1er point, >= 3 points)
-              if (currentObstaclePoints.length >= 3) {
-                const startPoint = currentObstaclePoints[0];
-                const distToStart = Math.sqrt(
-                  Math.pow(clickX - startPoint.x, 2) + Math.pow(clickY - startPoint.y, 2)
-                );
-
-                if (distToStart < 20 / zoom) {
-                  // FERMER LA FORME -> sauvegarder comme murs individuels (y compris l'arête de fermeture)
-                  const pointsToSave = [...currentObstaclePoints];
-                  for (let i = 0; i < pointsToSave.length; i++) {
-                    const next = (i + 1) % pointsToSave.length;
-                    await saveObstacle('wall', [pointsToSave[i], pointsToSave[next]]);
-                  }
-                  setIsDrawingObstacle(false);
-                  setCurrentObstaclePoints([]);
-                  setPendingEdges([]);
-                  return;
-                }
-              }
-
-              // Vérifier fermeture implicite via mur partagé existant
-              // (le dernier point snappe sur un endpoint connecté au 1er point par un mur existant)
-              if (snapPoint && currentObstaclePoints.length >= 2) {
-                const startPoint = currentObstaclePoints[0];
-                const endPoint = snapPoint;
-                const closingWall = obstacles.find(obs => {
-                  if (obs.points.length < 2) return false;
-                  if (obs.type !== 'wall' && obs.type !== 'door' && obs.type !== 'one-way-wall' && obs.type !== 'window') return false;
-                  const p1 = obs.points[0];
-                  const p2 = obs.points[obs.points.length - 1];
-                  const d = (a: Point, b: Point) => Math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2);
-                  const snapDist = 5;
-                  return (d(p1, endPoint) < snapDist && d(p2, startPoint) < snapDist) ||
-                    (d(p2, endPoint) < snapDist && d(p1, startPoint) < snapDist);
-                });
-
-                if (closingWall) {
-                  // Fermeture implicite : sauvegarder les murs du chain (sans dupliquer le mur partagé)
-                  const allPoints = [...currentObstaclePoints, endPoint];
-                  for (let i = 0; i < allPoints.length - 1; i++) {
-                    await saveObstacle('wall', [allPoints[i], allPoints[i + 1]]);
-                  }
-                  setIsDrawingObstacle(false);
-                  setCurrentObstaclePoints([]);
-                  setPendingEdges([]);
-                  return;
-                }
-              }
-
-              // Pas de fermeture : enregistrer l'arête (toujours mur) et ajouter le point
-              const edgeMeta: EdgeMeta = { type: 'wall' };
-              setPendingEdges(prev => [...prev, edgeMeta]);
-              setCurrentObstaclePoints(prev => [...prev, clickPoint]);
-            }
-          } else {
-            // COMMENCER un nouveau dessin
-            const startPoint = snapPoint || { x: clickX, y: clickY };
-            setIsDrawingObstacle(true);
-            setCurrentObstaclePoints([startPoint]);
-            setPendingEdges([]);
-          }
-          return;
-        }
-
-        //  NOUVEAU Mode brouillard - priorité élevée (placement continu)
-        if (fogMode && isLayerVisible('fog')) {
-          setIsFogDragging(true);
-          const firstCellKey = getCellKey(clickX, clickY, fogCellSize);
-          const isCurrentlyFogged = fogGrid.has(firstCellKey);
-
-          // Décider si on ajoute ou supprime selon l'état actuel de la première cellule
-          // Si la cellule est dans le brouillard, on supprime (addMode = false)
-          // Si la cellule n'est pas dans le brouillard, on ajoute (addMode = true)
-          const addMode = !isCurrentlyFogged;
-
-          setLastFogCell(null); // Réinitialiser pour permettre la première modification
-          await addFogCellIfNew(clickX, clickY, addMode);
-
-          // Stocker le mode pour le drag (utiliser une variable spécifique)
-          setIsFogAddMode(addMode);
-          return;
-        }
-
-        // Mode dessin - priorité élevée
-        if (drawMode && isLayerVisible('drawings')) {
-          setIsDrawing(true);
-
-          if (currentTool === 'eraser') {
-            // Eraser Logic (Vector Eraser - Delete whole stroke)
-            const eraserRadius = (drawingSize * zoom) / 2 + 5; // A bit of tolerance
-
-            // Check collision with any drawing
-            const drawingIndexToDelete = drawings.findIndex(drawing => isPointOnDrawing(clickX, clickY, drawing, zoom));
-
-            if (drawingIndexToDelete !== -1 && roomId) {
-              const drawingToDelete = drawings[drawingIndexToDelete];
-              // Delete from Firebase
-              deleteFromRtdbWithHistory('drawings', drawingToDelete.id, 'Suppression du tracé');
-              // Optimistic UI update
-              const newDrawings = [...drawings];
-              newDrawings.splice(drawingIndexToDelete, 1);
-              setDrawings(newDrawings);
-            }
-          } else {
-            // Pen Mode
-            setCurrentPath([{ x: clickX, y: clickY }]);
-          }
-          return;
-        }
-
-        //  MODE SÉLECTION PAR DÉFAUT - Nouveau comportement principal
-        // Vérifier si on clique sur un élément existant ET s'il est visible
-        let clickedCharIndex = isLayerVisible('characters') ? characters.findIndex(char => {
-          // 🔒 Vérifier d'abord si le personnage est visible pour le joueur
-          // (pas dans l'ombre ou le brouillard)
-          if (!isMJ && !isCharacterVisibleToUser(char)) {
-            return false; // Ignorer les personnages cachés pour les joueurs
-          }
-
-          const charX = (char.x / imgWidth) * scaledWidth - offset.x;
-          const charY = (char.y / imgHeight) * scaledHeight - offset.y;
-          const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
-          return Math.abs(charX - e.clientX + rect.left) < clickRadius && Math.abs(charY - e.clientY + rect.top) < clickRadius;
-        }) : -1;
-
-        // 🎯 PRIORITÉ AU PERSONNAGE ACTIF
-        // Si un personnage est déjà sélectionné (actif), on vérifie si le clic est sur lui.
-        // Si oui, on force la sélection sur lui, même si un autre perso est "au-dessus" (visuellement ou dans l'array).
-        if (activeElementType === 'character' && activeElementId && isLayerVisible('characters')) {
-          const activeIndex = characters.findIndex(c => c.id === activeElementId);
-          if (activeIndex !== -1) {
-            const char = characters[activeIndex];
-            // Vérifier si le clic est sur ce personnage (copie logique ci-dessus)
-            const charX = (char.x / imgWidth) * scaledWidth - offset.x;
-            const charY = (char.y / imgHeight) * scaledHeight - offset.y;
-            const clickRadius = char.type === 'joueurs' ? 30 * zoom : 20 * zoom;
-
-            const isClickOnActive = Math.abs(charX - e.clientX + rect.left) < clickRadius && Math.abs(charY - e.clientY + rect.top) < clickRadius;
-
-            // Si on clique sur le perso actif, on ignore tout autre perso qui serait "au dessus"
-            if (isClickOnActive) {
-              clickedCharIndex = activeIndex;
-            }
-          }
-        }
-
-        const clickedNoteIndex = isLayerVisible('notes') ? notes.findIndex(note => {
-          const noteX = (note.x / imgWidth) * scaledWidth - offset.x;
-          const noteY = (note.y / imgHeight) * scaledHeight - offset.y;
-
-          const mouseX = e.clientX - rect.left;
-          const mouseY = e.clientY - rect.top;
-
-          const fontSize = (note.fontSize || 16) * zoom;
-          // Estimation de la largeur : 0.6 * fontSize par caractère (moyenne large)
-          const estimatedWidth = (note.text.length * fontSize * 0.7);
-          const estimatedHeight = fontSize;
-
-          // Padding confortable pour faciliter le clic
-          const padding = 15 * zoom;
-
-          // Hitbox alignée avec le rendu du texte (Baseline left)
-          // X: de [x - padding] à [x + width + padding]
-          // Y: de [y - height - padding] à [y + descenders + padding]
-          const isInX = mouseX >= (noteX - padding) && mouseX <= (noteX + estimatedWidth + padding);
-          const isInY = mouseY >= (noteY - estimatedHeight - padding) && mouseY <= (noteY + (estimatedHeight * 0.5) + padding);
-
-          return isInX && isInY;
-        }) : -1;
-
-        //  NOUVEAU : Vérifier si on clique sur un objet
-        // This logic is now handled by the DOM element's onMouseDown, as pointerEvents: 'auto' will prevent this from firing.
-        // So, this block will effectively be skipped for objects.
-        const clickedObjectIndex = -1; // No longer detected here
-
-        //  NOUVEAU : Vérifier si on clique sur une cellule de brouillard
-        const clickedFogIndex = isCellInFog(clickX, clickY, fogGrid, fogCellSize) ? 0 : -1;
-
-        // 🆕 Détecter si on clique sur une case de brouillard (pour sélection multiple)
-        const clickedFogCellKey = (() => {
-          if (!isLayerVisible('fog')) return null;
-          const cellKey = getCellKey(clickX, clickY, fogCellSize);
-
-          // Vérifier si cette cellule contient du brouillard
-          // En mode normal: les cellules dans fogGrid ont du brouillard
-          // En mode fullMapFog: toutes les cellules SAUF celles dans fogGrid ont du brouillard
-          const hasFog = fullMapFog ? !fogGrid.has(cellKey) : fogGrid.has(cellKey);
-
-          return hasFog ? cellKey : null;
-        })();
-
-        //  NOUVEAU : Vérifier si on clique sur un dessin (pour sélection)
-        const clickedDrawingIndex = drawings.findIndex(drawing => isPointOnDrawing(clickX, clickY, drawing, zoom));
-
-        //  NOUVEAU : Vérifier si on clique sur une poignée de redimensionnement
-        let clickedHandleIndex = -1;
-        if (selectedDrawingIndex !== null) {
-          const drawing = drawings[selectedDrawingIndex];
-          const handles = getResizeHandles(drawing);
-
-          clickedHandleIndex = handles.findIndex(handle => {
-            const handleX = (handle.x / imgWidth) * scaledWidth - offset.x;
-            const handleY = (handle.y / imgHeight) * scaledHeight - offset.y;
-            // Mouse check logic (screen coords vs handles)
-            const dist = Math.sqrt(Math.pow(e.clientX - rect.left - handleX, 2) + Math.pow(e.clientY - rect.top - handleY, 2));
-            return dist < 10;
-          });
-
-          if (clickedHandleIndex !== -1) {
-            setIsResizingDrawing(true);
-            setDraggedHandleIndex(clickedHandleIndex);
-            return; // Stop event here, we are resizing
-          }
-        }
-
-        // 🚪 INTERACTION PORTES (joueurs et MJ hors mode visibilité)
-        // Clic sur une porte → sélectionner pour ouvrir le context menu
-        if (!visibilityMode && e.button === 0) {
-          const clickedDoor = obstacles.find(obstacle => {
-            if (obstacle.type !== 'door') return false;
-            if (obstacle.points.length < 2) return false;
-
-            // Joueurs : vérifier que la porte est visible (pas dans brouillard, ligne de vue directe)
-            if (!isMJ) {
-              const doorMidPt = {
-                x: (obstacle.points[0].x + obstacle.points[1].x) / 2,
-                y: (obstacle.points[0].y + obstacle.points[1].y) / 2,
-              };
-              if (fullMapFog || isCellInFog(doorMidPt.x, doorMidPt.y, fogGrid, fogCellSize)) return false;
-              const effPersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
-              const viewer = characters.find(c => c.id === effPersoId && c.x !== undefined && c.y !== undefined);
-              if (viewer) {
-                // Raycasting : un mur opaque bloque-t-il la vue ?
-                const vx = viewer.x, vy = viewer.y;
-                const mx = doorMidPt.x, my = doorMidPt.y;
-                for (const obs of obstacles) {
-                  if (obs.id === obstacle.id) continue;
-                  if (obs.type === 'door' && obs.isOpen) continue;
-                  if (obs.type === 'window') continue;
-                  if (obs.type !== 'wall' && obs.type !== 'door' && obs.type !== 'one-way-wall') continue;
-                  if (obs.points.length < 2) continue;
-                  const cx = obs.points[0].x, cy = obs.points[0].y;
-                  const dx = obs.points[1].x, dy = obs.points[1].y;
-                  const denom = (mx - vx) * (dy - cy) - (my - vy) * (dx - cx);
-                  if (Math.abs(denom) < 1e-10) continue;
-                  const t = ((cx - vx) * (dy - cy) - (cy - vy) * (dx - cx)) / denom;
-                  const u = ((cx - vx) * (my - vy) - (cy - vy) * (mx - vx)) / denom;
-                  if (t > 0.01 && t < 0.99 && u > 0.01 && u < 0.99) return false;
-                }
-              }
-            }
-
-            const p1 = obstacle.points[0];
-            const p2 = obstacle.points[1];
-            const A = clickX - p1.x;
-            const B = clickY - p1.y;
-            const C = p2.x - p1.x;
-            const D = p2.y - p1.y;
-            const dot = A * C + B * D;
-            const len_sq = C * C + D * D;
-            let param = -1;
-            if (len_sq !== 0) param = dot / len_sq;
-            let xx, yy;
-            if (param < 0) { xx = p1.x; yy = p1.y; }
-            else if (param > 1) { xx = p2.x; yy = p2.y; }
-            else { xx = p1.x + param * C; yy = p1.y + param * D; }
-            const dist = Math.sqrt(Math.pow(clickX - xx, 2) + Math.pow(clickY - yy, 2));
-            return dist < 20 / zoom;
-          });
-
-          if (clickedDoor) {
-            setSelectedObstacleIds([clickedDoor.id]);
-            return;
-          }
-        }
-
-        // 🎯 DÉTECTION D'ÉLÉMENTS SUPERPOSÉS - Vérifier AVANT de sélectionner un personnage
-        if (clickedCharIndex !== -1) {
-          // Vérifier si un autre élément est déjà actif et si ce n'est pas ce personnage
-          const clickedChar = characters[clickedCharIndex];
-          if (activeElementType !== null && (activeElementType !== 'character' || activeElementId !== clickedChar.id)) {
-            // Un autre élément est actif, ne rien faire
-            return;
-          }
-
-          // Si ce personnage n'est PAS déjà actif, vérifier s'il y a des éléments superposés
-          if (activeElementType !== 'character' || activeElementId !== clickedChar.id) {
-            const elementsAtPosition = detectElementsAtPosition(clickX, clickY);
-
-            if (elementsAtPosition.length > 1) {
-              // Plusieurs éléments détectés → afficher le menu
-              setDetectedElements(elementsAtPosition);
-              setSelectionMenuPosition({ x: e.clientX, y: e.clientY });
-              setShowElementSelectionMenu(true);
-              return;
-            }
-          }
-
-          // 👇 Logique de sélection (FUSIONNÉE ici au lieu d'être dans un bloc séparé)
-          // Si Ctrl/Cmd est pressé, ajouter à la sélection multiple
-          if (e.ctrlKey || e.metaKey) {
-            if (selectedCharacters.includes(clickedCharIndex)) {
-              setSelectedCharacters(prev => prev.filter(index => index !== clickedCharIndex));
-            } else {
-              setSelectedCharacters(prev => [...prev, clickedCharIndex]);
-            }
-          } else {
-            //  NOUVEAU : Commencer le drag & drop du personnage ou groupe
-            const isAlreadySelected = selectedCharacters.includes(clickedCharIndex);
-            const charactersToMove = isAlreadySelected && selectedCharacters.length > 1
-              ? selectedCharacters
-              : [clickedCharIndex];
-
-            // Vérifier les permissions de déplacement pour tous les personnages à déplacer
-            const canMoveAllCharacters = charactersToMove.every(index => {
-              const character = characters[index];
-              // MJ peut déplacer tous les personnages
-              if (isMJ) return true;
-              // Joueur peut déplacer son propre personnage (type joueurs) ou les alliés
-              return (character.type === 'joueurs' && character.id === persoId) || character.visibility === 'ally';
-            });
-
-            if (!canMoveAllCharacters) {
-              // Si l'utilisateur n'a pas le droit de déplacer au moins un des personnages,
-              // on ne fait que sélectionner sans initier le drag
-              if (!isAlreadySelected) {
-                setSelectedCharacterIndex(clickedCharIndex);
-                setSelectedCharacters([clickedCharIndex]);
-              }
-
-              // For players (non-MJ), open context menu on single click for non-controllable characters
-              if (!isMJ) {
-                const char = characters[clickedCharIndex];
-                if (char && char.id) {
-                  setContextMenuCharacterId(char.id);
-                  setContextMenuOpen(true);
-                }
-              }
-
-              return;
-            }
-
-            if (!isAlreadySelected) {
-              setSelectedCharacterIndex(clickedCharIndex);
-              setSelectedCharacters([clickedCharIndex]);
-
-              //  Show badge visibility (no toggle, only add)
-              const char = characters[clickedCharIndex];
-              if (char && char.id) {
-                setVisibleBadges(prev => {
-                  const newSet = new Set(prev);
-                  newSet.add(char.id); // Always add, never remove on click
-                  return newSet;
-                });
-              }
-            }
-
-
-
-            // Préparer le drag des personnages (seulement si autorisé)
-            setIsDraggingCharacter(true);
-            setDraggedCharacterIndex(clickedCharIndex);
-
-            // Sauvegarder les positions originales de tous les personnages à déplacer
-            const originalPositions = charactersToMove.map(index => ({
-              index,
-              x: characters[index].x,
-              y: characters[index].y
-            }));
-            setDraggedCharactersOriginalPositions(originalPositions);
-          }
-          setSelectedNoteIndex(null);
-          setSelectedFogIndex(null);
-          setSelectedObjectIndices([]);
-        } else if (clickedNoteIndex !== -1) {
-          setSelectedNoteIndex(clickedNoteIndex);
-          setSelectedCharacterIndex(null);
-          setSelectedFogIndex(null);
-          setSelectedCharacters([]);
-
-          //  NOUVEAU : Commencer le drag & drop de la note
-          const note = notes[clickedNoteIndex];
-          setIsDraggingNote(true);
-          setDraggedNoteIndex(clickedNoteIndex);
-          setDraggedNoteOriginalPos({ x: note.x, y: note.y });
-          setSelectedDrawingIndex(null); // Clear drawing selection
-          setSelectedObjectIndices([]);
-        } else if (clickedObjectIndex !== -1) {
-          // This block is now effectively dead code for objects as they are DOM elements.
-          // Object selection and drag start will be handled by the object's onMouseDown.
-          // Keeping it here for now, but it won't be reached.
-        } else if (clickedDrawingIndex !== -1) {
-          //  SELECTION DESSIN
-          setSelectedDrawingIndex(clickedDrawingIndex);
-          setSelectedCharacterIndex(null);
-          setSelectedNoteIndex(null);
-          setSelectedFogIndex(null);
-          setSelectedCharacters([]);
-          setSelectedObjectIndices([]);
-
-          setIsDraggingDrawing(true);
-          setDragStart({ x: e.clientX, y: e.clientY });
-          // Clone points to avoid reference issues
-          const pointsCopy = drawings[clickedDrawingIndex].points.map((p: Point) => ({ ...p }));
-          setDraggedDrawingOriginalPoints(pointsCopy);
-
-        } else if (clickedFogCellKey) {
-          // 🆕 SÉLECTION DE CASE DE BROUILLARD
-          // Toggle selection for this fog cell
-          if (selectedFogCells.includes(clickedFogCellKey)) {
-            // Déjà sélectionnée : désélectionner
-            setSelectedFogCells(prev => prev.filter(k => k !== clickedFogCellKey));
-          } else {
-            // Pas sélectionnée : ajouter à la sélection
-            setSelectedFogCells(prev => [...prev, clickedFogCellKey]);
-          }
-
-          // Clear other selections
-          setSelectedCharacterIndex(null);
-          setSelectedNoteIndex(null);
-          setSelectedFogIndex(null);
-          setSelectedCharacters([]);
-          setSelectedDrawingIndex(null);
-          setSelectedObjectIndices([]);
-
-        } else if (clickedFogIndex !== -1) {
-          setSelectedFogIndex(clickedFogIndex);
-          setSelectedCharacterIndex(null);
-          setSelectedNoteIndex(null);
-          setSelectedCharacters([]);
-          setSelectedDrawingIndex(null);
-          setSelectedObjectIndices([]);
-        } else {
-          //  DETECTION D'OBSTACLE (Polygones / Murs)
-          // On ne peut sélectionner un obstacle que si on est en mode visibilité ou MJ
-          let clickedObstacleId: string | null = null;
-
-          if (isMJ || visibilityMode) {
-            const mouseMapX = (clickX / containerWidth) * image.width; // Approx, clickX/Y are passed from caller but might need adjustment
-            // Actually, clickX and clickY are already in map space (relative to image)
-            // handleCanvasMouseDown receives clickX, clickY which are computed as:
-            // const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * image.width
-
-            // Simple version: iterate obstacles (all are walls with 2 points)
-            for (const obs of obstacles) {
-              if (obs.points.length < 2) continue;
-              const p1 = obs.points[0];
-              const p2 = obs.points[1];
-              const d = pDistance(clickX, clickY, p1.x, p1.y, p2.x, p2.y);
-              if (d < 15) {
-                clickedObstacleId = obs.id;
-                break;
-              }
-            }
-          }
-
-          if (clickedObstacleId) {
-            // Check if clicking on already selected obstacle
-            const isAlreadySelected = selectedObstacleIds.includes(clickedObstacleId);
-            const obstaclesToMove = isAlreadySelected && selectedObstacleIds.length > 1
-              ? selectedObstacleIds
-              : [clickedObstacleId];
-
-            // Update selection if not already selected
-            if (!isAlreadySelected) {
-              setSelectedObstacleIds([clickedObstacleId]);
-            }
-
-            // Clear others
-            setSelectedCharacterIndex(null);
-            setSelectedNoteIndex(null);
-            setSelectedFogIndex(null);
-            setSelectedCharacters([]);
-            setSelectedDrawingIndex(null);
-            setSelectedObjectIndices([]);
-            setContextMenuOpen(false);
-
-            // Start Drag - USING MAP COORDINATES (clickX, clickY)
-            setIsDraggingObstacle(true);
-            setDraggedObstacleId(clickedObstacleId);
-            setDragStartPos({ x: clickX, y: clickY }); // MAP coordinates!
-
-            // Store original points for ALL selected obstacles (multi-drag)
-            const originalPoints = obstaclesToMove.map(obsId => {
-              const obs = obstacles.find(o => o.id === obsId);
-              return obs ? { id: obsId, points: [...obs.points] } : null;
-            }).filter((item): item is { id: string, points: Point[] } => item !== null);
-
-            setDraggedObstaclesOriginalPoints(originalPoints);
-          } else {
-            // Clic sur zone vide
-            setSelectedCharacterIndex(null);
-            setSelectedNoteIndex(null);
-            setSelectedFogIndex(null);
-            setSelectedCharacters([]);
-            setSelectedDrawingIndex(null);
-            setSelectedObjectIndices([]); // Désélectionner l'objet
-            setSelectedObstacleIds([]);
-            //  Clear individual visible badges when clicking on empty area (but keep global toggle)
-            if (!showAllBadges) {
-              setVisibleBadges(new Set());
-            }
-            setContextMenuOpen(false);
-
-            if (isMJ && multiSelectMode) {
-              // MJ : Commencer une sélection par zone UNIQUEMENT si le mode est actif
-              setSelectionStart({ x: clickX, y: clickY });
-              setIsSelectingArea(true);
-            } else {
-              // Sinon : Déplacer la carte (comme le mode pan, comportement par défaut amélioré)
-              clearFocus(); // 🆕 Stop auto-focus when panning manually
-              setIsDragging(true);
-              setDragStart({ x: e.clientX, y: e.clientY });
-            }
-          }
-        }
-      } // Fin du clic gauche
-    };
-  };
-
-  const handleCanvasDoubleClick = (e: React.MouseEvent<Element>) => {
-    if (!bgImageObject) return
-
-    const rect = bgCanvasRef.current?.getBoundingClientRect()
-    if (!rect) return
-
-    const containerWidth = containerRef.current?.clientWidth || rect.width
-    const containerHeight = containerRef.current?.clientHeight || rect.height
-
-    const image = bgImageObject
-    const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-    const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight)
-    const scaledWidth = imgWidth * scale * zoom
-    const scaledHeight = imgHeight * scale * zoom
-    const clickX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth
-    const clickY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight
-
-    // Check if double-clicked on a character
-    const clickedCharIndex = characters.findIndex((char) => {
-      // 🔒 Vérifier d'abord si le personnage est visible pour le joueur
-      if (!isMJ && !isCharacterVisibleToUser(char)) {
-        return false; // Ignorer les personnages cachés pour les joueurs
-      }
-
-      const tokenSize = 50
-      const dx = clickX - char.x
-      const dy = clickY - char.y
-      return Math.sqrt(dx * dx + dy * dy) < tokenSize / 2
-    })
-
-    if (clickedCharIndex !== -1) {
-      const char = characters[clickedCharIndex]
-      if (char && char.id) {
-        setContextMenuCharacterId(char.id)
-        setContextMenuOpen(true)
-      }
-    }
-  }
-
-
-  const handleCanvasMouseMove = (e: React.MouseEvent<Element>) => {
-
-    if (!bgImageObject) return;
-
-    const rect = bgCanvasRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const containerWidth = containerRef.current?.clientWidth || rect.width;
-    const containerHeight = containerRef.current?.clientHeight || rect.height;
-
-    const image = bgImageObject;
-    const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-    const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
-    const scaledWidth = imgWidth * scale * zoom;
-    const scaledHeight = imgHeight * scale * zoom;
-    const currentX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
-    const currentY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
-
-
-    // 🕵️ HOVER DETECTION FOR CONDITIONS (Screen Coordinates)
-    // The icons are drawn using Screen Coordinates (manually transformed in drawMap), so we must compare against Mouse Screen Coords
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    let foundHover = null;
-    for (const region of iconHitRegionsRef.current) {
-      if (mouseX >= region.x && mouseX <= region.x + region.w &&
-        mouseY >= region.y && mouseY <= region.y + region.h) {
-
-        foundHover = {
-          x: e.clientX,
-          y: e.clientY,
-          text: region.label
-        };
-        break;
-      }
-    }
-
-    // ⚡ PERFORMANCE: Only update state if hover changed
-    // Check if new hover is different from current ref
-    const prevHover = hoveredConditionRef.current;
-    const isDifferent = (prevHover === null && foundHover !== null) ||
-      (prevHover !== null && foundHover === null) ||
-      (prevHover && foundHover && prevHover.text !== foundHover.text);
-
-    if (isDifferent) {
-      hoveredConditionRef.current = foundHover;
-      setHoveredCondition(foundHover);
-    } else if (foundHover) {
-      // Update position only, but using Ref to avoid re-renders? 
-      // Actually, if we want the tooltip to follow the mouse, we NEED re-renders or direct DOM manipulation.
-      // For static tooltips that don't follow mouse, strictly check text.
-      // If we want it to follow, we must update state. 
-      // COMPROMISE: Don't update X/Y constanty if text is same. Tooltip stays at first hover point.
-    }
-
-    const x = currentX;
-    const y = currentY;
-
-    //  RESIZING OBJECT
-    if (isResizingObject && resizeStartData && bgImageObject) {
-      const mouseXScreen = e.clientX;
-      const mouseYScreen = e.clientY;
-
-      const currentDist = Math.sqrt(Math.pow(mouseXScreen - resizeStartData.centerX, 2) + Math.pow(mouseYScreen - resizeStartData.centerY, 2));
-      const scaleFactor = currentDist / resizeStartData.initialMouseDist;
-
-      const newWidth = resizeStartData.initialWidth * scaleFactor;
-      const newHeight = resizeStartData.initialHeight * scaleFactor;
-
-      // Update local state implicitly by updating objects array
-      // Only update the specific object
-      setObjects(prev => prev.map((o, i) => {
-        if (i === resizeStartData.index) {
-          return { ...o, width: newWidth, height: newHeight };
-        }
-        return o;
-      }));
-      return;
-    }
-
-    //  PRIORITÉ 0: Placement continu de brouillard pendant le drag
-    if (isFogDragging && (fogMode || (isVisActive && currentVisibilityTool === 'fog'))) {
-      const addMode = isFogAddMode;
-      addFogCellIfNew(currentX, currentY, addMode);
-      return;
-    }
-
-    // 🔗 DÉTECTION SNAP POINT (commun à Draw et Edit)
-    let activeSnapPoint: Point | null = null;
-    if (isVisActive && (currentVisibilityTool === 'chain' || (currentVisibilityTool === 'edit' && isDraggingObstaclePoint))) {
-      const snapDistance = 25 / zoom;
-      let minDist = snapDistance;
-
-      for (const obstacle of obstacles) {
-        // Snap sur tous les types d'obstacles qui ont des points
-        if (obstacle.points.length >= 2) {
-          for (let i = 0; i < obstacle.points.length; i++) {
-            const point = obstacle.points[i];
-            // Ignorer les points qu'on est en train de déplacer
-            if (currentVisibilityTool === 'edit' && isDraggingObstaclePoint) {
-              const isBeingDragged = connectedPoints.some(cp => cp.obstacleId === obstacle.id && cp.pointIndex === i);
-              if (isBeingDragged) continue;
-            }
-
-            const dist = Math.sqrt(Math.pow(currentX - point.x, 2) + Math.pow(currentY - point.y, 2));
-            if (dist < minDist) {
-              minDist = dist;
-              activeSnapPoint = point;
-            }
-          }
-        }
-      }
-      setSnapPoint(activeSnapPoint);
-    } else {
-      setSnapPoint(null);
-    }
-
-    // ✏️ MODE EDIT - Drag d'une arête le long du mur parent
-    if (isVisActive && currentVisibilityTool === 'edit' && isDraggingEdge && draggedEdgeIndex !== null && draggedEdgeObstacleId) {
-      const n = draggedEdgeOriginalPoints.length;
-      const edgeP1Idx = draggedEdgeIndex;
-      const edgeP2Idx = (draggedEdgeIndex + 1) % n;
-
-      // Trouver la ligne parent : le segment "grand" sur lequel l'arête glisse
-      // C'est la ligne entre le coin précédent (non-collinéaire) et le coin suivant (non-collinéaire)
-      // En pratique : le prev du P1 de l'arête et le next du P2 de l'arête
-      const prevCornerIdx = (edgeP1Idx - 1 + n) % n;
-      const nextCornerIdx = (edgeP2Idx + 1) % n;
-      const lineStart = draggedEdgeOriginalPoints[prevCornerIdx];
-      const lineEnd = draggedEdgeOriginalPoints[nextCornerIdx];
-
-      const origP1 = draggedEdgeOriginalPoints[edgeP1Idx];
-      const origP2 = draggedEdgeOriginalPoints[edgeP2Idx];
-
-      // Direction de la ligne parent
-      const dx = lineEnd.x - lineStart.x;
-      const dy = lineEnd.y - lineStart.y;
-      const lineLenSq = dx * dx + dy * dy;
-      if (lineLenSq > 0) {
-        // Projeter le delta de la souris sur la direction de la ligne
-        const mouseDx = currentX - (dragStartPosRef.current?.x ?? currentX);
-        const mouseDy = currentY - (dragStartPosRef.current?.y ?? currentY);
-        const projectedDelta = (mouseDx * dx + mouseDy * dy) / lineLenSq;
-
-        // Calculer les positions originales en paramètre t sur la ligne
-        const t1Orig = ((origP1.x - lineStart.x) * dx + (origP1.y - lineStart.y) * dy) / lineLenSq;
-        const t2Orig = ((origP2.x - lineStart.x) * dx + (origP2.y - lineStart.y) * dy) / lineLenSq;
-
-        // Appliquer le delta projeté
-        let t1New = t1Orig + projectedDelta;
-        let t2New = t2Orig + projectedDelta;
-
-        // Clamper pour rester entre les coins voisins (avec marge minimale de 5px)
-        const lineLen = Math.sqrt(lineLenSq);
-        const minMargin = 5 / lineLen;
-        const edgeLen = t2New - t1New;
-        if (t1New < minMargin) { t1New = minMargin; t2New = t1New + edgeLen; }
-        if (t2New > 1 - minMargin) { t2New = 1 - minMargin; t1New = t2New - edgeLen; }
-
-        const newP1 = { x: lineStart.x + t1New * dx, y: lineStart.y + t1New * dy };
-        const newP2 = { x: lineStart.x + t2New * dx, y: lineStart.y + t2New * dy };
-
-        setObstacles(prev => prev.map(obs => {
-          if (obs.id === draggedEdgeObstacleId) {
-            const newPoints = [...obs.points];
-            newPoints[edgeP1Idx] = newP1;
-            newPoints[edgeP2Idx] = newP2;
-            return { ...obs, points: newPoints };
-          }
-          return obs;
-        }));
-      }
-      return;
-    }
-
-    // ✏️ MODE EDIT - Drag d'un point individuel
-    if (isVisActive && currentVisibilityTool === 'edit' && isDraggingObstaclePoint && dragStartPosRef.current) {
-      // Utiliser le snap point ou la position souris
-      let targetX = activeSnapPoint ? activeSnapPoint.x : currentX;
-      let targetY = activeSnapPoint ? activeSnapPoint.y : currentY;
-
-      // Mettre à jour TOUS les obstacles connectés
-      setObstacles(prev => {
-        return prev.map(obs => {
-          const connectedPoint = connectedPoints.find(cp => cp.obstacleId === obs.id);
-          if (connectedPoint) {
-            const newPoints = [...obs.points];
-            newPoints[connectedPoint.pointIndex] = { x: targetX, y: targetY };
-            return { ...obs, points: newPoints };
-          }
-          return obs;
-        });
-      });
-      return;
-    }
-
-    // ✏️ DRAG OBSTACLES
-    if (isDraggingObstacle && dragStartPos && draggedObstaclesOriginalPoints.length > 0) {
-      const deltaX = currentX - dragStartPos.x;
-      const deltaY = currentY - dragStartPos.y;
-
-      setObstacles(prev => prev.map(obs => {
-        const originalObs = draggedObstaclesOriginalPoints.find(orig => orig.id === obs.id);
-        if (originalObs) {
-          const newPoints = originalObs.points.map(p => ({
-            x: p.x + deltaX,
-            y: p.y + deltaY
-          }));
-          return { ...obs, points: newPoints };
-        }
-        return obs;
-      }));
-      return;
-    }
-
-
-    if (isVisActive && currentVisibilityTool === 'chain') {
-      // Pas de mise à jour en temps réel pendant le dessin
-      // (les points sont fixés au clic, le preview utilise snapPoint)
-      return;
-    }
-
-    //  MEASURE DRAG
-    //  MEASURE DRAG
-    if (measureMode && measureStart && e.buttons === 1) {
-      let targetX = currentX;
-      let targetY = currentY;
-
-      // Cone Length Constraint
-      if (measurementShape === 'cone' && coneMode === 'dimensions' && coneLength && coneLength > 0) {
-        // Calculate constrained point
-        // Target Distance in Image Pixels = Length * PPU * Scale * Zoom?
-        // Wait, render logic uses: unitDist = pixelDist / (PPU * Scale * Zoom).
-        // So pixelDist = unitDist * PPU * Scale * Zoom.
-        const validScale = (globalTokenScale && globalTokenScale > 0) ? globalTokenScale : 1;
-        const requiredPixelDist = coneLength * pixelsPerUnit * validScale * zoom;
-
-        const angle = Math.atan2(currentY - measureStart.y, currentX - measureStart.x);
-        targetX = measureStart.x + Math.cos(angle) * requiredPixelDist;
-        targetY = measureStart.y + Math.sin(angle) * requiredPixelDist;
-      }
-
-      setMeasureEnd({ x: targetX, y: targetY });
-
-      // 🆕 UPDATE SHARED MEASUREMENT (THROTTLED OPTIONALLY, but for now direct)
-      if (currentMeasurementId && roomId) {
-        // We use a ref or just update. Firestore writes can be expensive if 60fps.
-        // For now, let's try direct update. If laggy, we'll throttle.
-        const docRef = doc(db, 'cartes', roomId, 'measurements', currentMeasurementId);
-        updateDoc(docRef, {
-          end: { x: targetX, y: targetY }
-        }).catch(console.error);
-      }
-      return;
-    }
-
-    // 🎵 HANDLE MUSIC ZONE DRAG (MULTI)
-    if (isDraggingMusicZone && draggedMusicZoneId && isMJ && draggedMusicZonesOriginalPositions.length > 0) {
-      // Find reference zone original position
-      const originalRefZone = draggedMusicZonesOriginalPositions.find(pos => pos.id === draggedMusicZoneId);
-      if (originalRefZone) {
-        // Calculate delta from START of drag in screen coordinates
-        const screenDx = e.clientX - dragStart.x;
-        const screenDy = e.clientY - dragStart.y;
-
-        // Convert screen delta to map delta
-        const mapDx = screenDx / (scale * zoom);
-        const mapDy = screenDy / (scale * zoom);
-
-        // Apply delta to ALL selected zones
-        setMusicZones(prev => prev.map(z => {
-          const originalPos = draggedMusicZonesOriginalPositions.find(pos => pos.id === z.id);
-          if (originalPos) {
-            return {
-              ...z,
-              x: originalPos.x + mapDx,
-              y: originalPos.y + mapDy
-            };
-          }
-          return z;
-        }));
-      }
-      return;
-    }
-
-    // 🎵 HANDLE MUSIC ZONE RESIZING (Standard & Character)
-    if (isResizingMusicZone && resizingMusicZoneId && isMJ) {
-
-      // A. Character Audio Zone
-      if (resizingMusicZoneId.startsWith('char-')) {
-        const charId = resizingMusicZoneId.replace('char-', '');
-        setCharacters(prev => prev.map(c => {
-          if (c.id === charId && c.audio) {
-            const dx = currentX - c.x;
-            const dy = currentY - c.y;
-            const newRadius = Math.sqrt(dx * dx + dy * dy);
-            if (newRadius < 10) return c;
-
-            return {
-              ...c,
-              audio: { ...c.audio, radius: newRadius }
-            };
-          }
-          return c;
-        }));
-        return;
-      }
-
-      // B. Standard Music Zone
-      setMusicZones(prev => prev.map(z => {
-        if (z.id === resizingMusicZoneId) {
-          // Calculate distance from center to current mouse (Map Coords)
-          // currentX, currentY are already in Map Coords!
-          const dx = currentX - z.x;
-          const dy = currentY - z.y;
-          const newRadius = Math.sqrt(dx * dx + dy * dy);
-
-          // Minimum radius check
-          if (newRadius < 10) return z;
-
-          return { ...z, radius: newRadius };
-        }
-        return z;
-      }));
-      return;
-    }
-
-
-    //  DRAG OBSTACLE
-    if (isDraggingObstacle && draggedObstacleId) {
-      if (draggedObstacleOriginalPoints.length === 0) {
-        // Prevent disappearance due to race condition or empty state
-        return;
-      }
-      const startMapX = ((dragStart.x - rect.left + offset.x) / scaledWidth) * imgWidth;
-      const startMapY = ((dragStart.y - rect.top + offset.y) / scaledHeight) * imgHeight;
-
-      const deltaX = currentX - startMapX;
-      const deltaY = currentY - startMapY;
-
-      // DEBUG NAN
-      if (isNaN(deltaX) || isNaN(deltaY)) {
-        console.error("NaN detected in obstacle drag:", { startMapX, startMapY, currentX, currentY, dragStart, rect, offset, scaledWidth, imageWidth: imgWidth });
-        return;
-      }
-
-      setObstacles(prev => prev.map(obs => {
-        if (obs.id === draggedObstacleId) {
-          // Create new points based on original points + delta
-          // We rely on draggedObstacleOriginalPoints having the same length and order
-          const newPoints = draggedObstacleOriginalPoints.map(p => ({
-            x: p.x + deltaX,
-            y: p.y + deltaY
-          }));
-          return { ...obs, points: newPoints };
-        }
-        return obs;
-      }));
-      return;
-    }
-
-    //  DÉPLACEMENT DE CARTE
-    // Pour le MJ : clic milieu OU clic gauche en panMode
-    // Pour les joueurs : clic milieu OU clic gauche sur zone vide (isDragging sans autre action en cours)
-    if (isDragging && (mouseButton === 1 || (mouseButton === 0 && (panMode || !isMJ)))) {
-      const dx = e.clientX - dragStart.x;
-      const dy = e.clientY - dragStart.y;
-      setOffset((prev) => ({ x: prev.x - dx, y: prev.y - dy }));
-      setDragStart({ x: e.clientX, y: e.clientY });
-      return;
-    }
-
-    //  RESIZE DESSIN
-    if (isResizingDrawing && selectedDrawingIndex !== null && draggedHandleIndex !== null) {
-      setDrawings(prev => prev.map((drawing, index) => {
-        if (index === selectedDrawingIndex) {
-          const newPoints = [...drawing.points];
-          const p1 = newPoints[0];
-          const p2 = newPoints[1];
-
-          if (drawing.type === 'line') {
-            if (draggedHandleIndex === 0) newPoints[0] = { x: currentX, y: currentY };
-            if (draggedHandleIndex === 1) newPoints[1] = { x: currentX, y: currentY };
-          } else if (drawing.type === 'rectangle') {
-            if (draggedHandleIndex === 0) {
-              newPoints[0] = { x: currentX, y: currentY };
-            } else if (draggedHandleIndex === 1) {
-              newPoints[1] = { ...p2, x: currentX };
-              newPoints[0] = { ...p1, y: currentY };
-            } else if (draggedHandleIndex === 2) {
-              newPoints[1] = { x: currentX, y: currentY };
-            } else if (draggedHandleIndex === 3) {
-              newPoints[0] = { ...p1, x: currentX };
-              newPoints[1] = { ...p2, y: currentY };
-            }
-          } else if (drawing.type === 'circle') {
-            if (draggedHandleIndex === 0) {
-              newPoints[1] = { x: currentX, y: currentY };
-            }
-          }
-          return { ...drawing, points: newPoints };
-        }
-        return drawing;
-      }));
-      return;
-    }
-
-    //  DRAG & DROP DESSIN
-    if (isDraggingDrawing && selectedDrawingIndex !== null) {
-      const startX = (dragStart.x - rect.left + offset.x) / scaledWidth * imgWidth;
-      const startY = (dragStart.y - rect.top + offset.y) / scaledHeight * imgHeight;
-      const deltaX = currentX - startX;
-      const deltaY = currentY - startY;
-
-      setDrawings(prev => prev.map((drawing, index) => {
-        if (index === selectedDrawingIndex) {
-          const newPoints = draggedDrawingOriginalPoints.map(p => ({
-            x: p.x + deltaX,
-            y: p.y + deltaY
-          }));
-          return { ...drawing, points: newPoints };
-        }
-        return drawing;
-      }));
-      return;
-    }
-
-    //  DRAG & DROP NOTE
-    if (isDraggingNote && draggedNoteIndex !== null) {
-      setNotes(prev => prev.map((note, index) => {
-        if (index === draggedNoteIndex) {
-          return { ...note, x: currentX, y: currentY };
-        }
-        return note;
-      }));
-      return;
-    }
-
-    //  DRAG & DROP OBJET
-    //  DRAG & DROP OBJET (MULTI)
-    if (isDraggingObject && draggedObjectIndex !== null && draggedObjectsOriginalPositions.length > 0) {
-      // dragStart now contains MAP coordinates (fixed), not client coordinates
-      // Calculate the movement directly
-      const deltaX = currentX - dragStart.x;
-      const deltaY = currentY - dragStart.y;
-
-      setObjects(prev => prev.map((obj, index) => {
-        const originalPos = draggedObjectsOriginalPositions.find(pos => pos.index === index);
-        if (originalPos) {
-          return {
-            ...obj,
-            x: originalPos.x + deltaX,
-            y: originalPos.y + deltaY
-          };
-        }
-        return obj;
-      }));
-      return; // Return here is correct as we handled the event
-    }
-
-    setDropPosition({ x: currentX, y: currentY })
-
-    // 💡 DRAG LUMIÈRE (LIGHT)
-    if (isDraggingLight && draggedLightId) {
-      if (!dragStart) return;
-
-      const deltaX = currentX - dragStart.x;
-      const deltaY = currentY - dragStart.y;
-
-      // Update local state for smooth drag
-      setLights(prev => prev.map(l => {
-        if (l.id === draggedLightId) {
-          // Use original position + delta (stable drag) 
-          // OR if we update DragStart on each move:
-          // But here we setDragStart in handleMouseMove for continuous updates? 
-          // Actually, let's use the delta logic if we kept original pos.
-          // But we stored draggedLightOriginalPos on mouseDown.
-
-          // Re-calculate based on ORIGINAL pos to avoid drift? 
-          // The current existing logic for objects/chars relies on updating dragStart or just direct delta?
-          // Let's look at characters:
-          // "const deltaX = currentX - dragStart.x... setCharacters(... x: char.x + deltaX ...)"
-          // And then "setDragStart({ x: currentX, y: currentY })" -> Incremental updates.
-          return { ...l, x: l.x + deltaX, y: l.y + deltaY };
-        }
-        return l;
-      }));
-
-      setDragStart({ x: currentX, y: currentY });
-      return;
-    }
-
-    //  DRAG PORTAL
-    if (isDraggingPortal && draggedPortalId) {
-      if (!dragStart) return;
-
-      const deltaX = currentX - dragStart.x;
-      const deltaY = currentY - dragStart.y;
-
-      setPortals(prev => prev.map(p => {
-        if (p.id === draggedPortalId) {
-          return { ...p, x: p.x + deltaX, y: p.y + deltaY };
-        }
-        return p;
-      }));
-
-      setDragStart({ x: currentX, y: currentY });
-      return;
-    }
-
-    //  DRAG & DROP PERSONNAGE
-    if (isDraggingCharacter && draggedCharacterIndex !== null && draggedCharactersOriginalPositions.length > 0) {
-      const originalRefChar = draggedCharactersOriginalPositions.find(pos => pos.index === draggedCharacterIndex);
-      if (originalRefChar) {
-        const deltaX = currentX - originalRefChar.x;
-        const deltaY = currentY - originalRefChar.y;
-
-        setCharacters(prev => prev.map((char, index) => {
-          const originalPos = draggedCharactersOriginalPositions.find(pos => pos.index === index);
-          if (originalPos) {
-            const newX = Math.max(0, Math.min(imgWidth, originalPos.x + deltaX));
-            const newY = Math.max(0, Math.min(imgHeight, originalPos.y + deltaY));
-            // 🚧 Joueurs : bloquer si le déplacement traverse un mur/porte fermée/fenêtre
-            if (!isMJ && obstacles.length > 0 && isMovementBlocked({ x: char.x, y: char.y }, { x: newX, y: newY }, obstacles)) {
-              return char;
-            }
-            return { ...char, x: newX, y: newY };
-          }
-          return char;
-        }));
-      }
-      return;
-    }
-
-    //  SÉLECTION PAR ZONE
-    if (isSelectingArea && selectionStart) {
-      setSelectionEnd({ x: currentX, y: currentY });
-      const selectedChars = characters
-        .map((char, index) => {
-          const minX = Math.min(selectionStart.x, currentX);
-          const maxX = Math.max(selectionStart.x, currentX);
-          const minY = Math.min(selectionStart.y, currentY);
-          const maxY = Math.max(selectionStart.y, currentY);
-          return (char.x >= minX && char.x <= maxX && char.y >= minY && char.y <= maxY) ? index : null;
-        })
-        .filter((index) => index !== null) as number[];
-      setSelectedCharacters(selectedChars);
-      return;
-    }
-
-    //  MODE DESSIN (Drawing Tools)
-    if (isDrawing && drawMode && !fogMode) {
-      if (currentTool === 'eraser') {
-        const drawingIndexToDelete = drawings.findIndex(drawing => isPointOnDrawing(x, y, drawing, zoom));
-        if (drawingIndexToDelete !== -1 && roomId) {
-          const drawingToDelete = drawings[drawingIndexToDelete];
-          deleteFromRtdbWithHistory('drawings', drawingToDelete.id, 'Effacement du tracé');
-          const newDrawings = [...drawings];
-          newDrawings.splice(drawingIndexToDelete, 1);
-          setDrawings(newDrawings);
-          if (selectedDrawingIndex === drawingIndexToDelete) {
-            setSelectedDrawingIndex(null);
-          }
-        }
-      } else {
-        if (currentTool === 'pen') {
-          setCurrentPath((prev) => [...prev, { x, y }]);
-        } else {
-          if (currentPath.length > 0) {
-            setCurrentPath([currentPath[0], { x, y }]);
-          }
-        }
-      }
-    }
-  };
-
-
-  const handleCanvasMouseUp = async (e?: React.MouseEvent | React.TouchEvent | MouseEvent | any) => {
-    const rect = bgCanvasRef.current?.getBoundingClientRect();
-    //  CALIBRATION END (OPEN DIALOG)
-    if (isCalibrating && measureMode && measureStart && measureEnd) {
-      // If dragged distance is significant, open dialog
-      const dist = calculateDistance(measureStart.x, measureStart.y, measureEnd.x, measureEnd.y);
-      if (dist > 10) {
-        setCalibrationDialogOpen(true);
-      }
-    }
-
-    // 🆕 FINISH MEASUREMENT (skip if calibrating to preserve start/end for dialog)
-    if (measureMode && currentMeasurementId && !isCalibrating) {
-      // Always open menu to allow Attack or Delete
-      setContextMenuMeasurementId(currentMeasurementId);
-      setContextMenuMeasurementOpen(true);
-
-      // Just stop tracking it as "current", it remains in Firestore
-      setCurrentMeasurementId(null);
-      setMeasureStart(null);
-      setMeasureEnd(null);
-    }
-
-    setIsDragging(false);
-    setDragStart({ x: 0, y: 0 });
-    // Réinitialiser le bouton de souris
-    const currentMouseButton = mouseButton;
-    setMouseButton(null);
-
-    // ✏️ FIN DU DRAG D'ARÊTE
-    if (isDraggingEdge && draggedEdgeObstacleId) {
-      const obstacle = obstacles.find(o => o.id === draggedEdgeObstacleId);
-      if (obstacle) {
-        await updateObstacle(draggedEdgeObstacleId, obstacle.points);
-      }
-      setIsDraggingEdge(false);
-      setDraggedEdgeIndex(null);
-      setDraggedEdgeObstacleId(null);
-      setDraggedEdgeOriginalPoints([]);
-      setDragStartPos(null);
-      dragStartPosRef.current = null;
-      return;
-    }
-
-    //  FIN RESIZE OBJET
-    if (isResizingObject && resizeStartData && roomId) {
-      const resizedObject = objects[resizeStartData.index];
-      if (resizedObject && resizedObject.id) {
-        try {
-          await updateDoc(doc(db, 'cartes', String(roomId), 'objects', resizedObject.id), {
-            width: resizedObject.width,
-            height: resizedObject.height,
-          });
-        } catch (error) {
-          console.error("Error saving object resize:", error);
-          // Revert to original size on error
-          setObjects(prev => prev.map((o, i) => {
-            if (i === resizeStartData.index) {
-              return { ...o, width: resizeStartData.initialWidth, height: resizeStartData.initialHeight };
-            }
-            return o;
-          }));
-        }
-      }
-      setIsResizingObject(false);
-      setResizeStartData(null);
-      return;
-    }
-
-    // ✏️ FIN DU DRAG POINT D'OBSTACLE
-    if (isDraggingObstaclePoint) {
-      // Sauvegarder TOUS les obstacles modifiés
-      const obstacleIdsToUpdate = new Set<string>();
-      if (selectedObstacleIds.length > 0) selectedObstacleIds.forEach(id => obstacleIdsToUpdate.add(id));
-      connectedPoints.forEach(cp => obstacleIdsToUpdate.add(cp.obstacleId));
-
-      for (const obsId of obstacleIdsToUpdate) {
-        const obstacle = obstacles.find(o => o.id === obsId);
-        if (obstacle) {
-          await updateObstacle(obsId, obstacle.points);
-        }
-      }
-
-      setIsDraggingObstaclePoint(false);
-      setDraggedPointIndex(null);
-      setDraggedObstacleOriginalPoints([]);
-      setConnectedPoints([]);
-      setDragStartPos(null);
-      return;
-    }
-
-    // 🎵 END DRAG MUSIC ZONE (MULTI)
-    if (isDraggingMusicZone && draggedMusicZoneId) {
-      setIsDraggingMusicZone(false);
-
-      // Check if it was a click (distance < 5px)
-      const start = mouseClickStartRef.current;
-      if (isMJ && start) {
-        // rect is top-left of canvas
-        // current mouse clientX/Y
-        // Wait, handleCanvasMouseUp doesn't get "e" passed in usually? 
-        // Ah, it relies on window mouse up listeners or current state?
-        // Actually in this file handleCanvasMouseUp is detached from event object in some versions?
-        // Let's check signature. It is `const handleCanvasMouseUp = async () => {`
-        // So we don't have `e.clientX`.
-        // We need to store `dragStart` which is clientX/Y.
-      }
-
-      // Better approach: Calculate distance moved from dragStart
-      if (dragStart.x !== 0 && dragStart.y !== 0) {
-        // We have mouse tracker?
-        // Actually we rely on `draggedMusicZonesOriginalPositions`.
-        // If no movement happened, we can detect it by comparing current pos with original pos.
-        // But that's hard if we don't have current mouse pos here.
-
-        // Let's use a flag isDragging that is set to true only after moving > threshold in MouseMove?
-        // Or check if positions changed.
-
-        const zone = musicZones.find(z => z.id === draggedMusicZoneId);
-        const originalPos = draggedMusicZonesOriginalPositions.find(p => p.id === draggedMusicZoneId);
-
-        if (zone && originalPos) {
-          const dx = zone.x - originalPos.x;
-          const dy = zone.y - originalPos.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist < 1 && isMJ) {
-            // Considered a CLICK
-            setContextMenuMusicZoneId(zone.id);
-            setContextMenuMusicZoneOpen(true);
-          } else {
-            // Real drag, save positions
-            draggedMusicZonesOriginalPositions.forEach(originalPos => {
-              const z = musicZones.find(zz => zz.id === originalPos.id);
-              if (z) {
-                updateMusicZonePosition(z.id, z.x, z.y);
-              }
-            });
-          }
-        }
-      } else {
-        // If dragStart was 0? Should not happen if isDraggingMusicZone is true.
-      }
-
-      setDraggedMusicZoneId(null);
-      setDraggedMusicZonesOriginalPositions([]);
-      setDragStart({ x: 0, y: 0 }); // Clean up
-
-      // 🎯 Réinitialiser la sélection active après le drag
-      resetActiveElementSelection();
-      return;
-    }
-
-    // 🎵 END RESIZE MUSIC ZONE
-
-
-    // 💡 FIN DRAG LUMIÈRE
-    if (isDraggingLight && draggedLightId) {
-      if (roomId) {
-        const light = lights.find(l => l.id === draggedLightId);
-        if (light) {
-          // Check if changed
-          const hasChanged = light.x !== draggedLightOriginalPos.x || light.y !== draggedLightOriginalPos.y;
-          if (hasChanged) {
-            updateWithHistory(
-              'lights',
-              light.id,
-              {
-                x: light.x,
-                y: light.y
-              },
-              `Déplacement de la source de lumière`
-            ).catch(err => {
-              console.error("Error saving light pos:", err);
-              // Revert
-              setLights(prev => prev.map(l => l.id === draggedLightId ? { ...l, x: draggedLightOriginalPos.x, y: draggedLightOriginalPos.y } : l));
-            });
-          }
-        }
-      }
-      setIsDraggingLight(false);
-      setDraggedLightId(null);
-
-      // 🎯 Réinitialiser la sélection active après le drag
-      resetActiveElementSelection();
-      return;
-    }
-
-    //  FIN DRAG PORTAL
-    if (isDraggingPortal && draggedPortalId) {
-      if (roomId) {
-        const portal = portals.find(p => p.id === draggedPortalId);
-        if (portal) {
-          // Update the dragged portal's position
-          updateDoc(doc(db, 'cartes', roomId, 'portals', portal.id), {
-            x: portal.x,
-            y: portal.y
-          }).catch(err => {
-            console.error("Error saving portal pos:", err);
-          });
-
-          // 🔄 For same-map portals: update the twin portal's targetX/targetY
-          if (portal.portalType === 'same-map' && portal.targetX !== undefined && portal.targetY !== undefined) {
-            // Store in local constants for TypeScript
-            const portalTargetX = portal.targetX;
-            const portalTargetY = portal.targetY;
-
-            // The twin portal is located at (portal.targetX, portal.targetY)
-            // and its targetX/targetY should point to the original position (draggedPortalOriginalPos)
-            const twinPortal = portals.find(p =>
-              p.id !== portal.id &&
-              p.portalType === 'same-map' &&
-              p.targetX !== undefined &&
-              p.targetY !== undefined &&
-              Math.abs(p.x - portalTargetX) < 0.1 &&
-              Math.abs(p.y - portalTargetY) < 0.1 &&
-              Math.abs(p.targetX - draggedPortalOriginalPos.x) < 0.1 &&
-              Math.abs(p.targetY - draggedPortalOriginalPos.y) < 0.1 &&
-              (!p.cityId || p.cityId === selectedCityId)
-            );
-
-            if (twinPortal) {
-              // Update the twin's target to point to the new position of the dragged portal
-              updateDoc(doc(db, 'cartes', roomId, 'portals', twinPortal.id), {
-                targetX: portal.x,
-                targetY: portal.y
-              }).catch(err => {
-                console.error("Error updating twin portal target:", err);
-              });
-            }
-          }
-        }
-      }
-      setIsDraggingPortal(false);
-      setDraggedPortalId(null);
-      setDraggedPortalOriginalPos({ x: 0, y: 0 }); // Reset
-
-      // 🎯 Réinitialiser la sélection active après le drag
-      resetActiveElementSelection();
-      return;
-    }
-
-    if (isResizingMusicZone && resizingMusicZoneId && roomId) {
-      setIsResizingMusicZone(false);
-
-      // A. Character Audio Zone
-      if (resizingMusicZoneId.startsWith('char-')) {
-        const charId = resizingMusicZoneId.replace('char-', '');
-        const char = characters.find(c => c.id === charId);
-        if (char && char.audio) {
-          updateDoc(doc(db, 'cartes', roomId, 'characters', charId), {
-            'audio.radius': char.audio.radius
-          }).catch(err => console.error("Error saving character audio radius:", err));
-        }
-      }
-      // B. Standard Music Zone
-      else {
-        const zone = musicZones.find(z => z.id === resizingMusicZoneId);
-        if (zone) {
-          updateDoc(doc(db, 'cartes', roomId, 'musicZones', resizingMusicZoneId), {
-            radius: zone.radius
-          }).catch(err => console.error("Error saving music zone radius:", err));
-        }
-      }
-
-      setResizingMusicZoneId(null);
-      return;
-    }
-    // ✏️ FIN DU DRAG OBSTACLE ENTIER
-
-
-    //  FIN RESIZE DESSIN
-    if (isResizingDrawing && selectedDrawingIndex !== null) {
-      const drawing = drawings[selectedDrawingIndex];
-      if (roomId) {
-        try {
-          await updateRtdbWithHistory('drawings', drawing.id, { points: drawing.points }, 'Redimensionnement du tracé');
-        } catch (error) {
-          console.error("Error saving resize:", error);
-        }
-      }
-      setIsResizingDrawing(false);
-      setDraggedHandleIndex(null);
-      return;
-    }
-
-    //  FIN DU DRAG & DROP DESSIN
-    if (isDraggingDrawing && selectedDrawingIndex !== null) {
-      const drawing = drawings[selectedDrawingIndex];
-      // Check if actually moved
-      const originalPoints = draggedDrawingOriginalPoints;
-      // Simple check on first point (assuming rigid body)
-      if (drawing.points && originalPoints && drawing.points.length > 0 && originalPoints.length > 0 &&
-        (drawing.points[0].x !== originalPoints[0].x || drawing.points[0].y !== originalPoints[0].y)) {
-
-        if (roomId) {
-          try {
-            await updateRtdbWithHistory('drawings', drawing.id, { points: drawing.points }, 'Déplacement du tracé');
-          } catch (error) {
-            console.error("Error updating drawing position:", error);
-            // Revert ?
-          }
-        }
-      }
-      setIsDraggingDrawing(false);
-      return;
-    }
-
-    //  FIN DU DRAG & DROP OBSTACLE (MULTI)
-    if (isDraggingObstacle && draggedObstaclesOriginalPoints.length > 0 && roomId) {
-      try {
-        // ✅ Update ALL selected obstacles in Firebase
-        const updatePromises = draggedObstaclesOriginalPoints.map(async (originalObs) => {
-          const currentObs = obstacles.find(o => o.id === originalObs.id);
-          if (!currentObs) return;
-
-          // Check if points actually changed
-          const hasChanged = JSON.stringify(currentObs.points) !== JSON.stringify(originalObs.points);
-
-          if (hasChanged) {
-            await updateRtdbWithHistory(
-              'obstacles',
-              currentObs.id,
-              { points: currentObs.points },
-              `Déplacement de l'obstacle${selectedObstacleIds.length > 1 ? ` (${selectedObstacleIds.length} obstacles)` : ''}`
-            );
-          }
-        });
-
-        await Promise.all(updatePromises);
-      } catch (e) {
-        console.error("Error saving obstacles:", e);
-        // Revert to original positions on error
-        setObstacles(prev => prev.map(o => {
-          const originalObs = draggedObstaclesOriginalPoints.find(orig => orig.id === o.id);
-          return originalObs ? { ...o, points: originalObs.points } : o;
-        }));
-      }
-
-      setIsDraggingObstacle(false);
-      setDraggedObstacleId(null);
-      setDraggedObstacleOriginalPoints([]);
-      setDraggedObstaclesOriginalPoints([]);
-      // Clear Refs
-      dragStartPosRef.current = null;
-      draggedObstacleOriginalPointsRef.current = [];
-      return;
-    }
-
-
-    //  FIN DU DRAG BROUILLARD
-    if (isFogDragging) {
-      setIsFogDragging(false);
-      // 🔥 FLUSH UPDATES TO FIREBASE
-      await flushFogUpdates();
-      return;
-    }
-
-    //  FIN DU DRAG & DROP NOTE - Priorité élevée
-    if (isDraggingNote && draggedNoteIndex !== null) {
-      const draggedNote = notes[draggedNoteIndex];
-
-      // Vérifier si la position a vraiment changé
-      const hasChanged = draggedNote.x !== draggedNoteOriginalPos.x ||
-        draggedNote.y !== draggedNoteOriginalPos.y;
-
-      if (hasChanged && roomId && draggedNote?.id) {
-        try {
-          // Sauvegarder la nouvelle position en Firebase
-          await updateRtdbWithHistory(
-            'notes',
-            draggedNote.id,
-            {
-              x: draggedNote.x,
-              y: draggedNote.y
-            },
-            `Déplacement de la note "${draggedNote.text?.substring(0, 30) || 'Sans titre'}${draggedNote.text && draggedNote.text.length > 30 ? '...' : ''}"`
-          );
-        } catch (error) {
-          console.error("Erreur lors de la sauvegarde du déplacement de la note:", error);
-          // Remettre à la position originale en cas d'erreur
-          setNotes(prev => prev.map((note, index) => {
-            if (index === draggedNoteIndex) {
-              return { ...note, x: draggedNoteOriginalPos.x, y: draggedNoteOriginalPos.y };
-            }
-            return note;
-          }));
-        }
-      }
-
-      // Nettoyer les états de drag
-      setIsDraggingNote(false);
-      setDraggedNoteIndex(null);
-      setDraggedNoteOriginalPos({ x: 0, y: 0 });
-      return;
-    }
-
-    if (isDraggingObject && draggedObjectIndex !== null && draggedObjectsOriginalPositions.length > 0) {
-      // Sauvegarder les données nécessaires AVANT de nettoyer l'état du drag
-      const savedOriginalPositions = [...draggedObjectsOriginalPositions];
-      const savedDragStart = { ...dragStart };
-
-      // Nettoyer l'état du drag IMMÉDIATEMENT (avant les opérations async)
-      // Empêche le mousemove de continuer à déplacer l'objet pendant le save Firebase
-      setIsDraggingObject(false);
-      setDraggedObjectIndex(null);
-      setDraggedObjectsOriginalPositions([]);
-      resetActiveElementSelection();
-
-      if (roomId) {
-        try {
-          const updatePromises = savedOriginalPositions.map(async (originalPos) => {
-            const currentObj = objects[originalPos.index];
-
-            let finalX = currentObj.x;
-            let finalY = currentObj.y;
-
-            // Calculate final coordinates accurately using the mouse event to bypass stale React state
-            if (e && bgCanvasRef.current && bgImageObject) {
-              const rect = bgCanvasRef.current.getBoundingClientRect();
-              const containerWidth = containerRef.current?.clientWidth || rect.width;
-              const containerHeight = containerRef.current?.clientHeight || rect.height;
-              const { width: imgWidth, height: imgHeight } = getMediaDimensions(bgImageObject);
-              const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
-              const scaledWidth = imgWidth * scale * zoom;
-              const scaledHeight = imgHeight * scale * zoom;
-
-              const clientX = e.clientX ?? (e.changedTouches ? e.changedTouches[0].clientX : 0);
-              const clientY = e.clientY ?? (e.changedTouches ? e.changedTouches[0].clientY : 0);
-
-              if (clientX && clientY) {
-                const currentX = ((clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
-                const currentY = ((clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
-                const deltaX = currentX - savedDragStart.x;
-                const deltaY = currentY - savedDragStart.y;
-                finalX = originalPos.x + deltaX;
-                finalY = originalPos.y + deltaY;
-              }
-            }
-
-            const hasChanged = finalX !== originalPos.x || finalY !== originalPos.y;
-
-            if (hasChanged && currentObj?.id) {
-              // Passer knownPreviousData pour éviter le getDoc serveur
-              // qui peut déclencher onSnapshot avec les anciennes positions
-              await updateWithHistory(
-                'objects',
-                currentObj.id,
-                {
-                  x: finalX,
-                  y: finalY
-                },
-                `Déplacement de l'objet${currentObj.name ? ` "${currentObj.name}"` : ''}`,
-                { x: originalPos.x, y: originalPos.y }
-              );
-            }
-          });
-
-          await Promise.all(updatePromises);
-        } catch (e) {
-          console.error("Error saving object pos:", e);
-          // Revert on error
-          setObjects(prev => prev.map((obj, index) => {
-            const originalPos = savedOriginalPositions.find(pos => pos.index === index);
-            if (originalPos) {
-              return { ...obj, x: originalPos.x, y: originalPos.y };
-            }
-            return obj;
-          }));
-        }
-      }
-      return;
-    }
-
-    //  FIN DU DRAG & DROP PERSONNAGE(S) - Priorité élevée → RTDB
-    if (isDraggingCharacter && draggedCharacterIndex !== null && draggedCharactersOriginalPositions.length > 0) {
-      try {
-        // Sauvegarder toutes les nouvelles positions en RTDB (au lieu de Firestore)
-        const updatePromises = draggedCharactersOriginalPositions.map(async (originalPos) => {
-          const currentChar = characters[originalPos.index];
-          const hasChanged = currentChar.x !== originalPos.x || currentChar.y !== originalPos.y;
-
-          if (hasChanged && roomId && currentChar?.id) {
-            if (selectedCityId) {
-              // Mode Ville : Sauvegarder dans RTDB positions/{charId}/positions/{cityId}
-              await setCityPositionWithHistory(
-                currentChar.id,
-                selectedCityId,
-                { x: currentChar.x, y: currentChar.y },
-                `Déplacement de "${currentChar.name}"`
-              );
-            } else {
-              // Mode World Map : Sauvegarder dans RTDB positions/{charId}
-              await updatePositionWithHistory(
-                currentChar.id,
-                { x: currentChar.x, y: currentChar.y },
-                `Déplacement de "${currentChar.name}"`
-              );
-            }
-            return `${currentChar.name}: (${Math.round(currentChar.x)}, ${Math.round(currentChar.y)})`;
-          }
-          return null;
-        });
-
-        await Promise.all(updatePromises);
-      } catch (error) {
-        console.error("Erreur lors de la sauvegarde du déplacement:", error);
-        // Remettre aux positions originales en cas d'erreur
-        setCharacters(prev => prev.map((char, index) => {
-          const originalPos = draggedCharactersOriginalPositions.find(pos => pos.index === index);
-          if (originalPos) {
-            return { ...char, x: originalPos.x, y: originalPos.y };
-          }
-          return char;
-        }));
-      }
-
-      // Nettoyer les états de drag
-      setIsDraggingCharacter(false);
-      setDraggedCharacterIndex(null);
-
-      setDraggedCharactersOriginalPositions([]);
-
-      // 🎯 Réinitialiser la sélection active après le drag
-      resetActiveElementSelection();
-      return;
-    }
-
-    //  FIN DE SÉLECTION PAR ZONE
-    if (isSelectingArea && selectionStart && selectionEnd) {
-      const minX = Math.min(selectionStart.x, selectionEnd.x);
-      const maxX = Math.max(selectionStart.x, selectionEnd.x);
-      const minY = Math.min(selectionStart.y, selectionEnd.y);
-      const maxY = Math.max(selectionStart.y, selectionEnd.y);
-
-      // Helper for AABB collision
-      const isInRect = (x: number, y: number) => x >= minX && x <= maxX && y >= minY && y <= maxY;
-
-      // 1. Find Characters
-      const selectedChars = characters
-        .map((char, index) => isInRect(char.x, char.y) ? index : null)
-        .filter((i): i is number => i !== null);
-
-      // 2. Find Objects (Center point)
-      const selectedObjs = objects
-        .map((obj, index) => {
-          if (obj.isBackground && !isBackgroundEditMode) return null;
-          return isInRect(obj.x + obj.width / 2, obj.y + obj.height / 2) ? index : null;
-        })
-        .filter((i): i is number => i !== null);
-
-      // 3. Find Notes
-      const selectedNotes = notes
-        .map((note, index) => isInRect(note.x, note.y) ? index : null)
-        .filter((i): i is number => i !== null);
-
-      // 4. Find Drawings (First point approximation for now)
-      const selectedDrawings = drawings
-        .map((drawing, index) => (drawing.points && drawing.points.length > 0 && isInRect(drawing.points[0].x, drawing.points[0].y)) ? index : null)
-        .filter((i): i is number => i !== null);
-
-      // 5. Find Obstacles (Any point inside)
-      const selectedObstacles = obstacles
-        .map((obs) => {
-          const hasPointInRect = obs.points.some(p => isInRect(p.x, p.y));
-          return hasPointInRect ? obs.id : null;
-        })
-        .filter((id): id is string => id !== null);
-
-      // 6. Find Music Zones (center point)
-      const selectedMusicZonesIds = musicZones
-        .map((zone) => isInRect(zone.x, zone.y) ? zone.id : null)
-        .filter((id): id is string => id !== null);
-
-      // 7. Find Light Sources (center point, current city only)
-      const selectedLightsIds = lights
-        .map((light) => {
-          // Filter by current city/scene
-          if (light.cityId && light.cityId !== selectedCityId) return null;
-          return isInRect(light.x, light.y) ? light.id : null;
-        })
-        .filter((id): id is string => id !== null);
-
-      // 8. Find Portals (center point, current city only)
-      const selectedPortalsIds = portals
-        .map((portal) => {
-          // Filter by current city/scene
-          if (portal.cityId && portal.cityId !== selectedCityId) return null;
-          return isInRect(portal.x, portal.y) ? portal.id : null;
-        })
-        .filter((id): id is string => id !== null);
-
-      // 🆕 9. Find Fog Cells in selection area (MJ only)
-      const selectedFogCellKeys: string[] = [];
-      if (isMJ && (fogGrid.size > 0 || fullMapFog)) { // 🔒 Réservé au MJ
-        // Calculate which fog cells are in the selection rectangle
-        const minCellX = Math.floor(minX / fogCellSize);
-        const maxCellX = Math.ceil(maxX / fogCellSize);
-        const minCellY = Math.floor(minY / fogCellSize);
-        const maxCellY = Math.ceil(maxY / fogCellSize);
-
-        for (let cellX = minCellX; cellX <= maxCellX; cellX++) {
-          for (let cellY = minCellY; cellY <= maxCellY; cellY++) {
-            const cellKey = `${cellX},${cellY}`;
-            // Check if this cell has fog
-            const hasFog = fullMapFog ? !fogGrid.has(cellKey) : fogGrid.has(cellKey);
-
-            if (hasFog) {
-              // Check if cell's center is in the selection rectangle
-              const cellCenterX = cellX * fogCellSize + fogCellSize / 2;
-              const cellCenterY = cellY * fogCellSize + fogCellSize / 2;
-
-              if (isInRect(cellCenterX, cellCenterY)) {
-                selectedFogCellKeys.push(cellKey);
-              }
-            }
-          }
-        }
-      }
-
-      const totalFound =
-        selectedChars.length +
-        selectedObjs.length +
-        selectedNotes.length +
-        selectedDrawings.length +
-        selectedObstacles.length +
-        selectedMusicZonesIds.length +
-        selectedLightsIds.length +
-        selectedPortalsIds.length +
-        selectedFogCellKeys.length;
-
-      if (totalFound === 0) {
-        // Clear all selections
-        setSelectedCharacters([]);
-        setSelectedObjectIndices([]);
-        setSelectedNoteIndex(null);
-        setSelectedDrawingIndex(null);
-        setSelectedObstacleIds([]);
-        setSelectedMusicZoneIds([]);
-        setSelectedLightIds([]);
-        setSelectedPortalIds([]);
-        setSelectedFogCells([]);
-      } else {
-        const candidates: SelectionCandidates = {
-          characters: selectedChars,
-          objects: selectedObjs,
-          notes: selectedNotes,
-          drawings: selectedDrawings,
-          obstacles: selectedObstacles,
-          musicZones: selectedMusicZonesIds,
-          fogCells: selectedFogCellKeys,
-          lights: selectedLightsIds,
-          portals: selectedPortalsIds
-        };
-
-        // Determine if we need to show the menu
-        const typesFound = [
-          selectedChars.length > 0,
-          selectedObjs.length > 0,
-          selectedNotes.length > 0,
-          selectedDrawings.length > 0,
-          selectedObstacles.length > 0,
-          selectedMusicZonesIds.length > 0,
-          selectedFogCellKeys.length > 0,
-          selectedLightsIds.length > 0,
-          selectedPortalsIds.length > 0
-        ].filter(Boolean).length;
-
-        if (typesFound > 1) {
-          // Mixed selection -> Show Menu
-          setSelectionCandidates(candidates);
-          // Calculate screen position for menu
-          if (rect && containerRef.current) {
-            // Assuming last mouse position (currentX, currentY) isn't available here directly without ref checking,
-            // we can use the mouse up event e clientX if available, but here we don't have 'e'.
-            // We'll use the bounds of the selection rectangle center.
-            // Map coords -> Screen coords:
-            // screenX = (mapX / image.width) * scaledWidth + offset.x + rect.left
-            // We need image and container ref here.
-            // Let's just default to a specific position or try to get context.
-            // Actually, we can use the drag end position? selectionEnd is in Map coords.
-            // Warning: We need to convert back to screen for the menu (fixed position).
-            // Since we lack 'e.clientX' here easily, let's just use a center screen approximation.
-            // Better yet, we will just use a fixed state update and let the render handle it if we passed valid screen coords?
-            // No, let's try to recalculate screen coords from map coords roughly.
-
-            // Simplification: We will store the mouseUP event in a ref or just pass it to this function?
-            // changing signature of handleCanvasMouseUp is risky.
-            // Let's just put it in the center of the viewport for now, or use a cached mouse position.
-            setMenuPosition({ x: window.innerWidth / 2 - 100, y: window.innerHeight / 2 });
-            setShowSelectionMenu(true);
-          }
-        } else {
-          // Single type found -> Select immediately
-          if (selectedChars.length > 0) setSelectedCharacters(selectedChars);
-          else setSelectedCharacters([]); // Clear others
-
-          setSelectedObjectIndices(selectedObjs);
-
-          if (selectedNotes.length > 0) setSelectedNoteIndex(selectedNotes[0]);
-          else setSelectedNoteIndex(null);
-
-          if (selectedDrawings.length > 0) setSelectedDrawingIndex(selectedDrawings[0]);
-          else setSelectedDrawingIndex(null);
-
-          if (selectedObstacles.length > 0) setSelectedObstacleIds(selectedObstacles);
-          else setSelectedObstacleIds([]);
-
-          if (selectedMusicZonesIds.length > 0) setSelectedMusicZoneIds(selectedMusicZonesIds);
-          else setSelectedMusicZoneIds([]);
-
-          if (selectedLightsIds.length > 0) setSelectedLightIds(selectedLightsIds);
-          else setSelectedLightIds([]);
-
-          if (selectedPortalsIds.length > 0) setSelectedPortalIds(selectedPortalsIds);
-          else setSelectedPortalIds([]);
-
-          // 🆕 Set selected fog cells
-          if (selectedFogCellKeys.length > 0) setSelectedFogCells(selectedFogCellKeys);
-          else setSelectedFogCells([]);
-        }
-      }
-
-      setIsSelectingArea(false);
-      setSelectionStart(null);
-      setSelectionEnd(null);
-      return;
-    }
-
-    // Fin du déplacement de carte (clic milieu OU mode pan avec clic gauche OU joueur sur zone vide)
-    if (currentMouseButton === 1 || (currentMouseButton === 0 && (panMode || !isMJ))) {
-      setIsDragging(false);
-    }
-
-    //  Fin du placement continu de brouillard (dans fogMode classique ou visibilityMode avec outil fog)
-    if (isFogDragging && (fogMode || (isVisActive && currentVisibilityTool === 'fog'))) {
-      setIsFogDragging(false);
-      setIsFogAddMode(true);
-      setLastFogCell(null);
-      return;
-    }
-
-    //  Fin du mode dessin normal - Sauvegarder le tracé
-    if (isDrawing && !fogMode && drawMode) {
-      setIsDrawing(false);
-
-      if ((typeof roomId === 'string' || typeof roomId === 'number') && String(roomId).trim() && currentPath.length > 0) {
-        try {
-          const newDrawingData = {
-            points: currentPath,
-            color: drawingColor,
-            width: drawingSize,
-            type: currentTool === 'eraser' ? 'pen' : currentTool,
-            // 🆕 AJOUT DU CITY ID
-            cityId: selectedCityId
-          };
-          const newId = await addToRtdbWithHistory('drawings', newDrawingData, 'Ajout d\'un tracé');
-          setDrawings(prev => [...prev, { ...newDrawingData, id: newId }]);
-          setCurrentPath([]);
-        } catch (error) {
-          console.error("Erreur lors de la sauvegarde du tracé:", error);
-          setCurrentPath([]);
-        }
-      } else {
-        console.error("Erreur: roomId n'est pas une chaîne valide ou currentPath est vide.");
-        setCurrentPath([]);
-      }
-      return;
-    }
-  };
+  // handleCanvasMouseDown, handleCanvasDoubleClick
+  // extracted to useCanvasMouseDown hook
+  const { handleCanvasMouseDown, handleCanvasDoubleClick } = useCanvasMouseDown({
+    bgCanvasRef, containerRef, bgImageObject,
+    zoom, offset,
+    roomId, isMJ, persoId, userId, selectedCityId,
+    playerViewMode, viewAsPersoId,
+    characters, notes, drawings, obstacles, musicZones, measurements, lights,
+    fogGrid, fogCellSize, fullMapFog, fogMode,
+    visibilityMode, isVisActive, currentVisibilityTool,
+    isDrawingObstacle, currentObstaclePoints, snapPoint, pendingEdges, selectedObstacleIds,
+    isLightPlacementMode, portalMode, portalPlacementMode,
+    firstPortalPoint, firstPortalId,
+    spawnPointMode, currentScene,
+    isMusicMode, selectedMusicZoneIds,
+    measureMode, measureStart, measureEnd, measurementShape, currentMeasurementId,
+    coneWidth, coneAngle, coneShape,
+    selectedSkin, isPermanent, unitName,
+    panMode, drawMode, currentTool, drawingSize,
+    multiSelectMode, showAllBadges,
+    activeElementType, activeElementId,
+    selectedCharacterIndex, selectedCharacters,
+    selectedNoteIndex, selectedDrawingIndex, selectedObjectIndices, selectedFogCells,
+    mouseClickStartRef, dragStartPosRef,
+    setMouseButton, setIsDragging, setDragStart,
+    setIsLightPlacementMode,
+    setNewPortalPos, setEditingPortal, setShowPortalConfig,
+    setFirstPortalPoint, setFirstPortalId,
+    setSpawnPointMode, setCurrentScene,
+    setNewMusicZonePos, setShowMusicDialog,
+    setIsDraggingMusicZone, setDraggedMusicZoneId, setDraggedMusicZonesOriginalPositions,
+    setIsResizingMusicZone, setResizingMusicZoneId, setSelectedMusicZoneIds,
+    setIsFogDragging, setLastFogCell, setIsFogAddMode, setSelectedFogCells,
+    setMeasureStart, setMeasureEnd, setIsMeasurementPanelOpen,
+    setCurrentMeasurementId, setContextMenuMeasurementId, setContextMenuMeasurementOpen,
+    setSelectedObstacleIds, setIsDrawingObstacle, setCurrentObstaclePoints, setPendingEdges,
+    setIsDraggingObstaclePoint, setDraggedPointIndex, setDraggedObstacleOriginalPoints,
+    setConnectedPoints, setDragStartPos,
+    setIsDraggingObstacle, setDraggedObstacleId, setDraggedObstaclesOriginalPoints,
+    setSelectedCharacterIndex, setSelectedCharacters,
+    setIsDraggingCharacter, setDraggedCharacterIndex, setDraggedCharactersOriginalPositions,
+    setVisibleBadges,
+    setSelectedNoteIndex, setIsDraggingNote, setDraggedNoteIndex, setDraggedNoteOriginalPos,
+    setSelectedDrawingIndex, setIsDraggingDrawing, setDraggedDrawingOriginalPoints,
+    setIsResizingDrawing, setDraggedHandleIndex,
+    setIsDrawing, setCurrentPath, setDrawings,
+    setSelectedObjectIndices,
+    setSelectedFogIndex,
+    setContextMenuOpen, setContextMenuCharacterId,
+    setSelectionStart, setIsSelectingArea,
+    setDetectedElements, setSelectionMenuPosition, setShowElementSelectionMenu,
+    addFogCellIfNew, saveObstacle, deleteFromRtdbWithHistory,
+    isCharacterVisibleToUser, isLayerVisible, detectElementsAtPosition, clearFocus,
+  });
+
+  // handleCanvasMouseMove
+  // extracted to useCanvasMouseMove hook
+  const { handleCanvasMouseMove } = useCanvasMouseMove({
+    bgCanvasRef, containerRef, bgImageObject,
+    zoom, offset,
+    roomId, isMJ,
+    iconHitRegionsRef, hoveredConditionRef, setHoveredCondition,
+    isResizingObject, resizeStartData,
+    isFogDragging, isFogAddMode, fogMode, isVisActive, currentVisibilityTool,
+    addFogCellIfNew,
+    obstacles, setSnapPoint,
+    isDraggingObstaclePoint, connectedPoints, dragStartPosRef,
+    isDraggingEdge, draggedEdgeIndex, draggedEdgeObstacleId, draggedEdgeOriginalPoints,
+    isDraggingObstacle, dragStartPos, draggedObstaclesOriginalPoints,
+    draggedObstacleId, draggedObstacleOriginalPoints,
+    measureMode, measureStart, measurementShape,
+    coneMode, coneLength, globalTokenScale, pixelsPerUnit,
+    currentMeasurementId,
+    isDraggingMusicZone, draggedMusicZoneId, draggedMusicZonesOriginalPositions,
+    isResizingMusicZone, resizingMusicZoneId,
+    isDragging, mouseButton, panMode, dragStart,
+    isResizingDrawing, selectedDrawingIndex, draggedHandleIndex,
+    isDraggingDrawing, draggedDrawingOriginalPoints,
+    isDraggingNote, draggedNoteIndex,
+    isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions,
+    isDraggingLight, draggedLightId,
+    isDraggingPortal, draggedPortalId,
+    isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions,
+    isSelectingArea, selectionStart,
+    isDrawing, drawMode, currentTool, currentPath,
+    characters, drawings,
+    setObjects, setObstacles, setMeasureEnd, setMusicZones,
+    setCharacters, setOffset, setDragStart, setDrawings, setNotes,
+    setDropPosition, setLights, setPortals,
+    setSelectedCharacters, setSelectionEnd, setCurrentPath, setSelectedDrawingIndex,
+    deleteFromRtdbWithHistory,
+  });
+
+  // handleCanvasMouseUp
+  // extracted to useCanvasMouseUp hook
+  const { handleCanvasMouseUp } = useCanvasMouseUp({
+    bgCanvasRef, containerRef, bgImageObject,
+    zoom, offset,
+    roomId, isMJ, selectedCityId,
+    mouseButton, setMouseButton, mouseClickStartRef,
+    isDragging, setIsDragging, dragStart, setDragStart, panMode,
+    isCalibrating, measureMode, measureStart, measureEnd, currentMeasurementId,
+    setCalibrationDialogOpen,
+    setContextMenuMeasurementId, setContextMenuMeasurementOpen,
+    setCurrentMeasurementId, setMeasureStart, setMeasureEnd,
+    isDraggingEdge, draggedEdgeObstacleId,
+    setIsDraggingEdge, setDraggedEdgeIndex, setDraggedEdgeObstacleId, setDraggedEdgeOriginalPoints,
+    isResizingObject, resizeStartData,
+    setIsResizingObject, setResizeStartData,
+    isDraggingObstaclePoint, selectedObstacleIds, connectedPoints,
+    setIsDraggingObstaclePoint, setDraggedPointIndex,
+    setConnectedPoints, setDragStartPos,
+    isDraggingMusicZone, draggedMusicZoneId, draggedMusicZonesOriginalPositions,
+    setIsDraggingMusicZone, setDraggedMusicZoneId, setDraggedMusicZonesOriginalPositions,
+    setContextMenuMusicZoneId, setContextMenuMusicZoneOpen,
+    isDraggingLight, draggedLightId, draggedLightOriginalPos,
+    setIsDraggingLight, setDraggedLightId,
+    isDraggingPortal, draggedPortalId, draggedPortalOriginalPos,
+    setIsDraggingPortal, setDraggedPortalId, setDraggedPortalOriginalPos,
+    isResizingMusicZone, resizingMusicZoneId,
+    setIsResizingMusicZone, setResizingMusicZoneId,
+    isResizingDrawing, selectedDrawingIndex,
+    setIsResizingDrawing, setDraggedHandleIndex,
+    isDraggingDrawing, draggedDrawingOriginalPoints,
+    setIsDraggingDrawing,
+    isDraggingObstacle, draggedObstaclesOriginalPoints,
+    setIsDraggingObstacle, setDraggedObstacleId,
+    setDraggedObstacleOriginalPoints, setDraggedObstaclesOriginalPoints,
+    dragStartPosRef, draggedObstacleOriginalPointsRef,
+    isFogDragging, setIsFogDragging, setIsFogAddMode, setLastFogCell,
+    fogMode, isVisActive, currentVisibilityTool,
+    isDraggingNote, draggedNoteIndex, draggedNoteOriginalPos,
+    setIsDraggingNote, setDraggedNoteIndex, setDraggedNoteOriginalPos,
+    isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions,
+    setIsDraggingObject, setDraggedObjectIndex, setDraggedObjectsOriginalPositions,
+    isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions,
+    setIsDraggingCharacter, setDraggedCharacterIndex, setDraggedCharactersOriginalPositions,
+    isSelectingArea, selectionStart, selectionEnd,
+    setIsSelectingArea, setSelectionStart, setSelectionEnd,
+    isBackgroundEditMode,
+    setSelectedCharacters, setSelectedObjectIndices, setSelectedNoteIndex,
+    setSelectedDrawingIndex, setSelectedObstacleIds, setSelectedMusicZoneIds,
+    setSelectedLightIds, setSelectedPortalIds, setSelectedFogCells,
+    setSelectionCandidates, setMenuPosition, setShowSelectionMenu,
+    fogGrid, fullMapFog, fogCellSize,
+    isDrawing, setIsDrawing, drawMode,
+    currentPath, setCurrentPath,
+    drawingColor, drawingSize, currentTool,
+    obstacles, characters, objects, notes, drawings, musicZones, lights, portals,
+    setObstacles, setCharacters, setObjects, setNotes, setDrawings, setLights,
+    updateObstacle, updateMusicZonePosition,
+    updateWithHistory, updateRtdbWithHistory, addToRtdbWithHistory,
+    updatePositionWithHistory, setCityPositionWithHistory,
+    flushFogUpdates,
+    resetActiveElementSelection,
+  });
 
 
 
@@ -8335,282 +2492,112 @@ export default function Component() {
     }
   };
 
-  //  CENTRALIZED DELETE HANDLER
-  const handleDeleteKeyPress = () => {
-    if (!isMJ) return; // Only MJ can delete
-    // 1. Check for selected characters (multi-select)
-    if (selectedCharacters.length > 0) {
-      const charsToDelete = selectedCharacters
-        .map(index => characters[index])
-        .filter(c => c && c.type !== 'joueurs');
-      if (charsToDelete.length > 0) {
-        setEntityToDelete({
-          type: 'character',
-          ids: charsToDelete.map(c => c.id),
-          count: charsToDelete.length,
-          name: charsToDelete.length === 1 ? charsToDelete[0].name : undefined
-        });
-        setDeleteModalOpen(true);
-        return;
-      }
-    }
+  const toggleDrawMode = () => {
+    setDrawMode(!drawMode)
+    setSelectedCharacterIndex(null)
+    setSelectedNoteIndex(null)
+  }
 
-    // 2. Check for single selected character
-    if (selectedCharacterIndex !== null) {
-      const char = characters[selectedCharacterIndex];
-      if (char && char.type !== 'joueurs') {
-        setEntityToDelete({
-          type: 'character',
-          id: char.id,
-          name: char.name
-        });
-        setDeleteModalOpen(true);
-        return;
-      }
-    }
-
-    // 3. Check for selected objects (multi-select)
-    if (selectedObjectIndices.length > 0) {
-      const objsToDelete = selectedObjectIndices.map(index => objects[index]);
-      setEntityToDelete({
-        type: 'object',
-        ids: objsToDelete.map(o => o.id),
-        count: objsToDelete.length,
-        name: objsToDelete.length === 1 ? objsToDelete[0].name : undefined
-      });
-      setDeleteModalOpen(true);
-      return;
-    }
-
-    // 4. Check for selected note
-    if (selectedNoteIndex !== null) {
-      const note = notes[selectedNoteIndex];
-      setEntityToDelete({
-        type: 'note',
-        id: note.id,
-        name: note.text?.substring(0, 30) + (note.text && note.text.length > 30 ? '...' : '')
-      });
-      setDeleteModalOpen(true);
-      return;
-    }
-
-    // 5. Check for selected music zones (multi-select)
-    if (selectedMusicZoneIds.length > 0) {
-      const zonesToDelete = musicZones.filter(z => selectedMusicZoneIds.includes(z.id));
-      setEntityToDelete({
-        type: 'musicZone',
-        ids: selectedMusicZoneIds,
-        count: zonesToDelete.length,
-        name: zonesToDelete.length === 1 ? zonesToDelete[0].name : undefined
-      });
-      setDeleteModalOpen(true);
-      return;
-    }
-
-    // 6. Check for selected obstacle
-    if (selectedObstacleIds.length > 0 && isVisActive) {
-      const obstacleId = selectedObstacleIds[0];
-      const obstacle = obstacles.find(o => o.id === obstacleId);
-      setEntityToDelete({
-        type: 'obstacle',
-        id: obstacleId,
-        name: `Obstacle`
-      });
-      setDeleteModalOpen(true);
-      return;
-    }
-
-    // 7. Check for selected drawing
-    if (selectedDrawingIndex !== null) {
-      const drawing = drawings[selectedDrawingIndex];
-      setEntityToDelete({
-        type: 'drawing',
-        id: drawing.id,
-        name: `Dessin`
-      });
-      setDeleteModalOpen(true);
-      return;
-    }
-
-    // 8. Check for selected fog cells
-    if (selectedFogCells.length > 0) {
-      setEntityToDelete({
-        type: 'fogCells',
-        ids: selectedFogCells,
-        count: selectedFogCells.length
-      });
-      setDeleteModalOpen(true);
-      return;
-    }
-
-    // 9. Check for context menu light (if open)
-    if (contextMenuLightOpen && contextMenuLightId) {
-      const light = lights.find(l => l.id === contextMenuLightId);
-      setEntityToDelete({
-        type: 'light',
-        id: contextMenuLightId,
-        name: `Lumière`
-      });
-      setDeleteModalOpen(true);
-      return;
-    }
-  };
-
-  //  CONFIRM DELETE HANDLER
-  const handleConfirmDelete = async () => {
-    if (!entityToDelete || !roomId) return;
-
+  const clearDrawings = async () => {
+    if (!roomId) return;
     try {
-      switch (entityToDelete.type) {
-        case 'character':
-          if (entityToDelete.ids && entityToDelete.ids.length > 0) {
-            // Multiple characters
-            const deletePromises = entityToDelete.ids.map(async (id) => {
-              const char = characters.find(c => c.id === id);
-              await deleteWithHistory(
-                'characters',
-                id,
-                `Suppression de "${char?.name || 'Personnage'}"`
-              );
-            });
-            await Promise.all(deletePromises);
-            setCharacters(prev => prev.filter(c => !entityToDelete.ids!.includes(c.id)));
-            setSelectedCharacters([]);
-            if (entityToDelete.count === 1) {
-              toast.success(`Personnage "${entityToDelete.name || 'Inconnu'}" supprimé`);
-            } else {
-              toast.success(`${entityToDelete.ids?.length || 0} personnages supprimés`);
-            }
-          } else if (entityToDelete.id) {
-            // Single character
-            await deleteWithHistory(
-              'characters',
-              entityToDelete.id,
-              `Suppression de "${entityToDelete.name}"`
-            );
-            setCharacters(prev => prev.filter(c => c.id !== entityToDelete.id));
-            setSelectedCharacterIndex(null);
-            toast.success(`Personnage "${entityToDelete.name}" supprimé`);
-          }
-          break;
-
-        case 'object':
-          if (entityToDelete.ids && entityToDelete.ids.length > 0) {
-            // Multiple objects
-            const deletePromises = entityToDelete.ids.map(async (id) => {
-              await deleteDoc(doc(db, 'cartes', String(roomId), 'objects', id));
-            });
-            await Promise.all(deletePromises);
-            setObjects(prev => prev.filter(o => !entityToDelete.ids!.includes(o.id)));
-            setSelectedObjectIndices([]);
-            if (entityToDelete.count === 1) {
-              toast.success(`Objet "${entityToDelete.name || 'Inconnu'}" supprimé`);
-            } else {
-              toast.success(`${entityToDelete.ids?.length || 0} objets supprimés`);
-            }
-          }
-          break;
-
-        case 'light':
-          if (entityToDelete.id) {
-            await deleteWithHistory(
-              'lights',
-              entityToDelete.id,
-              `Suppression de la source de lumière`
-            );
-            setLights(prev => prev.filter(l => l.id !== entityToDelete.id));
-            setContextMenuLightOpen(false);
-            setContextMenuLightId(null);
-            toast.success(`Lumière supprimée`); // Light usually has no name, keep generic or use name if available
-          }
-          break;
-
-        case 'obstacle':
-          if (entityToDelete.id) {
-            await handleObstacleDelete(entityToDelete.id);
-          }
-          break;
-
-        case 'musicZone':
-          if (entityToDelete.ids && entityToDelete.ids.length > 0) {
-            // Multiple zones
-            const deletePromises = entityToDelete.ids.map(async (id) => {
-              const zone = musicZones.find(z => z.id === id);
-              await deleteWithHistory(
-                'musicZones',
-                id,
-                `Suppression de la zone musicale${zone?.name ? ` "${zone.name}"` : ''}`
-              );
-            });
-            await Promise.all(deletePromises);
-            setMusicZones(prev => prev.filter(z => !entityToDelete.ids!.includes(z.id)));
-            setSelectedMusicZoneIds([]);
-            if (entityToDelete.count === 1) {
-              toast.success(`Zone musicale "${entityToDelete.name || 'Inconnue'}" supprimée`);
-            } else {
-              toast.success(`${entityToDelete.ids?.length || 0} zones musicales supprimées`);
-            }
-          }
-          break;
-
-        case 'note':
-          if (entityToDelete.id) {
-            await deleteFromRtdbWithHistory(
-              'notes',
-              entityToDelete.id,
-              `Suppression de la note "${entityToDelete.name}"`
-            );
-            setNotes(prev => prev.filter(n => n.id !== entityToDelete.id));
-            setSelectedNoteIndex(null);
-            toast.success(`Note "${entityToDelete.name}" supprimée`);
-          }
-          break;
-
-        case 'measurement':
-          if (entityToDelete.id) {
-            await deleteWithHistory(
-              'measurements',
-              entityToDelete.id,
-              `Suppression de la mesure`
-            );
-            setMeasurements(prev => prev.filter(m => m.id !== entityToDelete.id));
-          }
-          toast.success("Mesure supprimée");
-          break;
-
-        case 'drawing':
-          if (entityToDelete.id) {
-            await deleteFromRtdbWithHistory('drawings', entityToDelete.id, 'Suppression du dessin');
-            setDrawings(prev => prev.filter(d => d.id !== entityToDelete.id));
-            setSelectedDrawingIndex(null);
-            toast.success(`Dessin supprimé`);
-          }
-          break;
-
-        case 'fogCells':
-          if (entityToDelete.ids && entityToDelete.ids.length > 0) {
-            // Remove fog cells from grid
-            const newFogGrid = new Map(fogGrid);
-            entityToDelete.ids.forEach(cellKey => {
-              newFogGrid.delete(cellKey);
-            });
-            setFogGrid(newFogGrid);
-            setSelectedFogCells([]);
-
-            // Save to Firebase
-            saveFogGridWithHistory(newFogGrid, 'Révélation de toute la carte');
-          }
-          toast.success("Brouillard supprimé");
-          break;
-      }
+      const currentDrawings = drawings;
+      if (currentDrawings.length === 0) return;
+      const deletePromises = currentDrawings.map(d => deleteFromRtdbWithHistory('drawings', d.id, 'Suppression groupée'));
+      await Promise.all(deletePromises);
+      toast.success("les dessin ont bien été éffacés")
     } catch (error) {
-      console.error('Erreur lors de la suppression:', error);
-    } finally {
-      setEntityToDelete(null);
-      setDeleteModalOpen(false);
-      resetActiveElementSelection();
+      console.error('Error clearing drawings:', error);
     }
   };
+
+  // Toolbar actions — delegates to extracted hook
+  const { handleToolbarAction, getActiveToolbarTools, getToolOptionsContent } = useToolbarActions({
+    roomId, isMJ,
+    drawMode, setDrawMode,
+    panMode, setPanMode,
+    measureMode, setMeasureMode,
+    visibilityMode, setVisibilityMode,
+    isMusicMode, setIsMusicMode,
+    multiSelectMode, setMultiSelectMode,
+    portalMode, setPortalMode,
+    spawnPointMode, setSpawnPointMode,
+    isLightPlacementMode, setIsLightPlacementMode,
+    isBackgroundEditMode, setIsBackgroundEditMode,
+    isObjectDrawerOpen, setIsObjectDrawerOpen,
+    isNPCDrawerOpen, setIsNPCDrawerOpen,
+    isSoundDrawerOpen, setIsSoundDrawerOpen,
+    isAudioMixerOpen, setIsAudioMixerOpen,
+    isUnifiedSearchOpen, setIsUnifiedSearchOpen,
+    setIsDrawingObstacle, setCurrentObstaclePoints, setFogMode,
+    viewMode, setViewMode,
+    showGrid, setShowGrid,
+    showCharBorders, setShowCharBorders,
+    showLayerControl, setShowLayerControl,
+    showAllBadges, setShowAllBadges,
+    setShowBackgroundSelector,
+    playerViewMode, setPlayerViewMode,
+    viewAsPersoId, setViewAsPersoId,
+    allyViewMode, setAllyViewMode,
+    allyViewId, setAllyViewId,
+    setZoom,
+    setMeasureStart, setMeasureEnd,
+    isCalibrating, setIsCalibrating,
+    currentTool, setCurrentTool,
+    drawingColor, setDrawingColor,
+    drawingSize, setDrawingSize,
+    selectedDrawingIndex, setSelectedDrawingIndex,
+    selectedNoteIndex, setSelectedNoteIndex,
+    selectedFogCells, setSelectedFogCells,
+    selectedFogIndex,
+    selectedCharacters, setSelectedCharacters,
+    characters, drawings, notes,
+    fogGrid, setFogGrid,
+    fullMapFog, setFullMapFog,
+    portalPlacementMode, setPortalPlacementMode,
+    firstPortalPoint, setFirstPortalPoint,
+    togglePanMode, toggleDrawMode, toggleVisibilityMode,
+    clearDrawings, handleAddNote, handleEditNote, handleDeleteNote,
+    handleDeleteSelectedCharacters, navigateToWorldMap,
+    deleteFromRtdbWithHistory, saveFogGridWithHistory, saveFullMapFog,
+    setDrawings,
+  });
+
+  // Delete actions — delegates to extracted hook
+  const { handleDeleteKeyPress, handleConfirmDelete } = useDeleteActions({
+    roomId, isMJ,
+    selectedCharacters, selectedCharacterIndex, selectedObjectIndices,
+    selectedNoteIndex, selectedMusicZoneIds, selectedObstacleIds,
+    selectedDrawingIndex, selectedFogCells, isVisActive,
+    contextMenuLightOpen, contextMenuLightId,
+    entityToDelete, setEntityToDelete, setDeleteModalOpen,
+    characters, objects, notes, musicZones, obstacles, drawings, lights, fogGrid, measurements,
+    setCharacters, setObjects, setNotes, setMusicZones, setLights, setDrawings,
+    setFogGrid, setMeasurements,
+    setSelectedCharacters, setSelectedCharacterIndex, setSelectedObjectIndices,
+    setSelectedNoteIndex, setSelectedMusicZoneIds, setSelectedObstacleIds,
+    setSelectedDrawingIndex, setSelectedFogCells,
+    setContextMenuLightOpen, setContextMenuLightId,
+    deleteWithHistory, deleteFromRtdbWithHistory, saveFogGridWithHistory,
+    handleObstacleDelete, resetActiveElementSelection,
+  });
+
+  // Keyboard shortcuts — delegates to extracted hook
+  useKeyboardShortcuts({
+    roomId, isMJ, selectedCityId,
+    selectedCharacters, selectedCharacterIndex, selectedObjectIndices,
+    selectedNoteIndex, selectedMusicZoneIds, selectedObstacleIds,
+    selectedDrawingIndex, selectedFogCells, isVisActive,
+    isDrawingObstacle, currentObstaclePoints, pendingEdges, visibilityMode,
+    copiedCharacterTemplate, copiedObjectTemplate,
+    characters, objects,
+    setIsDrawingObstacle, setCurrentObstaclePoints, setPendingEdges,
+    setSelectedFogCells, setVisibilityMode,
+    setCopiedCharacterTemplate, setCopiedObjectTemplate,
+    setIsUnifiedSearchOpen, setShowGlobalSettingsDialog,
+    setMeasureMode, setDrawMode, setPanMode,
+    handleDeleteKeyPress, saveObstacle, handleToolbarAction,
+  });
 
 
   const handleNoteSubmit = async () => {
@@ -8629,26 +2616,6 @@ export default function Component() {
           console.error("Erreur lors de la mise à jour de la note :", error);
         }
       }
-    }
-  };
-
-  const toggleDrawMode = () => {
-    setDrawMode(!drawMode)
-    setSelectedCharacterIndex(null)
-    setSelectedNoteIndex(null)
-  }
-
-  const clearDrawings = async () => {
-    if (!roomId) return;
-    try {
-      // Supprimer tous les dessins de la ville courante depuis RTDB
-      const currentDrawings = drawings; // déjà filtrés par cityId
-      if (currentDrawings.length === 0) return;
-      const deletePromises = currentDrawings.map(d => deleteFromRtdbWithHistory('drawings', d.id, 'Suppression groupée'));
-      await Promise.all(deletePromises);
-      toast.success("les dessin ont bien été éffacés")
-    } catch (error) {
-      console.error('Error clearing drawings:', error);
     }
   };
 
@@ -9030,225 +2997,188 @@ export default function Component() {
         </div>
       )}
 
-      {/*  BULK CHARACTER CONTEXT MENU */}
-      <BulkCharacterContextMenu
-        isOpen={bulkContextMenuOpen}
-        selectedCount={selectedCharacters.length}
-        onClose={() => {
-          setBulkContextMenuOpen(false);
-        }}
-        onVisibilityChange={async (visibility) => {
-          await handleBulkVisibilityChange(visibility);
-          setBulkContextMenuOpen(false);
-        }}
-        onConditionToggle={async (conditionId) => {
-          await handleBulkConditionToggle(conditionId);
-        }}
-        onDelete={() => {
-          handleBulkDelete();
-          setBulkContextMenuOpen(false);
-        }}
-      />
-
-      {/* Obstacle Context Menu */}
-      <ObstacleContextMenu
+      {/* Context Menus (extracted component) */}
+      <MapContextMenus
+        roomId={roomId}
+        isMJ={isMJ}
+        persoId={persoId}
+        activePlayerId={activePlayerId}
+        characters={characters}
+        setCharacters={setCharacters}
+        selectedCharacters={selectedCharacters}
+        bulkContextMenuOpen={bulkContextMenuOpen}
+        setBulkContextMenuOpen={setBulkContextMenuOpen}
+        handleBulkVisibilityChange={handleBulkVisibilityChange}
+        handleBulkConditionToggle={handleBulkConditionToggle}
+        handleBulkDelete={handleBulkDelete}
         obstacles={obstacles}
-        selectedIds={selectedObstacleIds}
-        isOpen={selectedObstacleIds.length > 0 && (isMJ || obstacles.find(o => o.id === selectedObstacleIds[0])?.type === 'door')}
-        isInClosedLoop={selectedObstacleIds.length > 0 && findClosedLoops(obstacles).some(l => l.wallObstacles.some(w => w.id === selectedObstacleIds[0]))}
-        isMJ={isMJ}
-        onClose={() => setSelectedObstacleIds([])}
-        onDelete={handleObstacleDelete}
-        onDeleteConnected={handleObstacleDeleteConnected}
-        onToggleDoor={toggleDoorState}
-        onToggleLock={toggleLockDoor}
-        onInvertDirection={handleObstacleInvertDirection}
-        onConvertTo={handleObstacleConvertTo}
-        onToggleRoomMode={handleToggleRoomMode}
-      />
-
-      {/*  Object Context Menu */}
-      <ObjectContextMenu
-        object={contextMenuObjectId ? objects.find(o => o.id === contextMenuObjectId) || null : null}
-        isOpen={contextMenuObjectOpen}
-        onClose={() => setContextMenuObjectOpen(false)}
-        onAction={handleObjectAction}
-        isMJ={isMJ}
+        selectedObstacleIds={selectedObstacleIds}
+        setSelectedObstacleIds={setSelectedObstacleIds}
+        handleObstacleDelete={handleObstacleDelete}
+        handleObstacleDeleteConnected={handleObstacleDeleteConnected}
+        toggleDoorState={toggleDoorState}
+        toggleLockDoor={toggleLockDoor}
+        handleObstacleInvertDirection={handleObstacleInvertDirection}
+        handleObstacleConvertTo={handleObstacleConvertTo}
+        handleToggleRoomMode={handleToggleRoomMode}
+        findClosedLoops={findClosedLoops}
+        objects={objects}
+        contextMenuObjectOpen={contextMenuObjectOpen}
+        setContextMenuObjectOpen={setContextMenuObjectOpen}
+        contextMenuObjectId={contextMenuObjectId}
+        handleObjectAction={handleObjectAction}
         isBackgroundEditMode={isBackgroundEditMode}
-        players={characters.filter(c => c.type === 'joueurs')} // 🆕 Liste des joueurs pour la sélection custom
+        musicZones={musicZones}
+        contextMenuMusicZoneOpen={contextMenuMusicZoneOpen}
+        setContextMenuMusicZoneOpen={setContextMenuMusicZoneOpen}
+        contextMenuMusicZoneId={contextMenuMusicZoneId}
+        handleMusicZoneAction={handleMusicZoneAction}
+        measurements={measurements}
+        contextMenuMeasurementOpen={contextMenuMeasurementOpen}
+        setContextMenuMeasurementOpen={setContextMenuMeasurementOpen}
+        contextMenuMeasurementId={contextMenuMeasurementId}
+        handleMeasurementAction={handleMeasurementAction}
+        measureMode={measureMode}
+        setMeasureMode={setMeasureMode}
+        isMeasurementPanelOpen={isMeasurementPanelOpen}
+        measurementShape={measurementShape}
+        setMeasurementShape={setMeasurementShape}
+        isCalibrating={isCalibrating}
+        setIsCalibrating={setIsCalibrating}
+        setMeasureStart={setMeasureStart}
+        setMeasureEnd={setMeasureEnd}
+        handleClearMeasurements={handleClearMeasurements}
+        isPermanent={isPermanent}
+        setIsPermanent={setIsPermanent}
+        coneAngle={coneAngle}
+        setConeAngle={setConeAngle}
+        coneShape={coneShape}
+        setConeShape={setConeShape}
+        coneMode={coneMode}
+        setConeMode={setConeMode}
+        coneWidth={coneWidth}
+        setConeWidth={setConeWidth}
+        coneLength={coneLength}
+        setConeLength={setConeLength}
+        lockWidthHeight={lockWidthHeight}
+        setLockWidthHeight={setLockWidthHeight}
+        selectedSkin={selectedSkin}
+        setSelectedSkin={setSelectedSkin}
+        lights={lights}
+        contextMenuLightOpen={contextMenuLightOpen}
+        setContextMenuLightOpen={setContextMenuLightOpen}
+        contextMenuLightId={contextMenuLightId}
+        handleLightAction={handleLightAction}
+        portals={portals}
+        contextMenuPortalOpen={contextMenuPortalOpen}
+        setContextMenuPortalOpen={setContextMenuPortalOpen}
+        contextMenuPortalId={contextMenuPortalId}
+        handlePortalAction={handlePortalAction}
+        mapContextMenu={mapContextMenu}
+        setMapContextMenu={setMapContextMenu}
+        showAllBadges={showAllBadges}
+        setShowAllBadges={setShowAllBadges}
+        contextMenuOpen={contextMenuOpen}
+        setContextMenuOpen={setContextMenuOpen}
+        contextMenuCharacterId={contextMenuCharacterId}
+        setContextMenuCharacterId={setContextMenuCharacterId}
+        setSelectedCharacterIndex={setSelectedCharacterIndex}
+        pixelsPerUnit={pixelsPerUnit}
+        unitName={unitName}
+        setSelectedCharacterForSheet={setSelectedCharacterForSheet}
+        setShowCharacterSheet={setShowCharacterSheet}
+        setAttackerId={setAttackerId}
+        setTargetId={setTargetId}
+        setTargetIds={setTargetIds}
+        setCombatOpen={setCombatOpen}
+        setInteractionConfigTarget={setInteractionConfigTarget}
+        setActiveInteraction={setActiveInteraction}
+        deleteWithHistory={deleteWithHistory}
+        resetActiveElementSelection={resetActiveElementSelection}
       />
 
-      {/* 🎵 Music Zone Context Menu */}
-      <MusicZoneContextMenu
-        zone={contextMenuMusicZoneId ? musicZones.find(z => z.id === contextMenuMusicZoneId) || null : null}
-        isOpen={contextMenuMusicZoneOpen}
-        onClose={() => setContextMenuMusicZoneOpen(false)}
-        onAction={handleMusicZoneAction}
+
+      {/* Dialogs (extracted component) */}
+      <MapDialogs
+        roomId={roomId}
         isMJ={isMJ}
-      />
-
-      <MeasurementContextMenu
-        measurement={contextMenuMeasurementId ? measurements.find(m => m.id === contextMenuMeasurementId) || null : null}
-        isOpen={contextMenuMeasurementOpen}
-        onClose={() => setContextMenuMeasurementOpen(false)}
-        onAction={handleMeasurementAction}
-      />
-
-      {measureMode && isMeasurementPanelOpen && (
-        <MeasurementPanel
-          selectedShape={measurementShape}
-          onShapeChange={setMeasurementShape}
-
-          isCalibrating={isCalibrating}
-          onStartCalibration={() => {
-            setIsCalibrating(true);
-            setMeasurementShape('line'); // Force line shape for calibration
-            setMeasureStart(null);
-            setMeasureEnd(null);
-          }}
-          onCancelCalibration={() => setIsCalibrating(false)}
-
-          onClearMeasurements={handleClearMeasurements}
-
-          isPermanent={isPermanent}
-          onPermanentChange={setIsPermanent}
-
-          coneAngle={coneAngle}
-          setConeAngle={setConeAngle}
-          coneShape={coneShape}
-          setConeShape={setConeShape}
-          coneMode={coneMode}
-          setConeMode={setConeMode}
-          coneWidth={coneWidth}
-          setConeWidth={setConeWidth}
-          coneLength={coneLength}
-          setConeLength={setConeLength}
-          lockWidthHeight={lockWidthHeight}
-          setLockWidthHeight={setLockWidthHeight}
-
-          selectedSkin={selectedSkin}
-          onSkinChange={setSelectedSkin}
-
-          onClose={() => setMeasureMode(false)}
-        />
-      )}
-
-      {/* 💡 LIGHT SOURCE CONTEXT MENU */}
-      <LightContextMenu
-        light={contextMenuLightId ? lights.find(l => l.id === contextMenuLightId) || null : null}
-        isOpen={contextMenuLightOpen}
-        onClose={() => setContextMenuLightOpen(false)}
-        onAction={handleLightAction}
-        isMJ={isMJ}
-      />
-
-      {/*  Portal Context Menu */}
-      <PortalContextMenu
-        portal={contextMenuPortalId ? portals.find(p => p.id === contextMenuPortalId) || null : null}
-        isOpen={contextMenuPortalOpen}
-        onClose={() => setContextMenuPortalOpen(false)}
-        onAction={handlePortalAction}
-        isMJ={isMJ}
-      />
-
-
-
-      <PortalConfigDialog
-        open={showPortalConfig}
-        onOpenChange={(open) => {
-          setShowPortalConfig(open);
-          if (!open) {
-            setFirstPortalPoint(null);
-            setFirstPortalId(null);
-            setNewPortalPos(null);
-            setEditingPortal(null);
-          }
-        }}
-        portal={editingPortal || (newPortalPos ? { x: newPortalPos.x, y: newPortalPos.y, radius: 50, portalType: portalPlacementMode || 'scene-change', targetSceneId: '', name: '', iconType: 'portal', visible: true, color: '#3b82f6' } : null)}
-        onSave={async (portalData) => {
-          if (!roomId) return;
-
-          if (editingPortal && editingPortal.id && editingPortal.portalType === 'same-map') {
-            // Same-map portal: Update first portal + create second
-            await updateDoc(doc(db, 'cartes', roomId, 'portals', editingPortal.id), {
-              ...portalData,
-              x: editingPortal.x,
-              y: editingPortal.y,
-              targetX: portalData.targetX,
-              targetY: portalData.targetY,
-              cityId: selectedCityId,
-              name: portalData.name || 'Portail'
-            });
-
-            // Create Portal 2 (reverse direction)
-            // IMPORTANT: Don't copy the ID from the first portal
-            const { id, ...portalDataWithoutId } = portalData;
-            await addDoc(collection(db, 'cartes', roomId, 'portals'), {
-              ...portalDataWithoutId,
-              x: portalData.targetX,
-              y: portalData.targetY,
-              targetX: editingPortal.x,
-              targetY: editingPortal.y,
-              cityId: selectedCityId,
-              name: portalData.name || 'Portail'
-            });
-
-            toast.success("Portails bidirectionnels créés");
-          } else if (editingPortal && editingPortal.id) {
-            // Update existing scene-change portal
-            await updateDoc(doc(db, 'cartes', roomId, 'portals', editingPortal.id), {
-              ...portalData,
-              cityId: selectedCityId
-            });
-            toast.success("Portail modifié");
-          } else if (newPortalPos) {
-            // Create new portal
-            if (portalData.portalType === 'same-map' && portalData.targetX !== undefined && portalData.targetY !== undefined) {
-              // Same-map portal: create TWO portals for bidirectional teleportation
-
-              // Portal 1: Entrance -> Exit
-              await addDoc(collection(db, 'cartes', roomId, 'portals'), {
-                ...portalData,
-                x: newPortalPos.x,
-                y: newPortalPos.y,
-                targetX: portalData.targetX,
-                targetY: portalData.targetY,
-                cityId: selectedCityId,
-                name: portalData.name || 'Portail'
-              });
-
-              // Portal 2: Exit -> Entrance (reverse)
-              await addDoc(collection(db, 'cartes', roomId, 'portals'), {
-                ...portalData,
-                x: portalData.targetX,
-                y: portalData.targetY,
-                targetX: newPortalPos.x,
-                targetY: newPortalPos.y,
-                cityId: selectedCityId,
-                name: portalData.name || 'Portail'
-              });
-
-              toast.success("Portails bidirectionnels créés");
-            } else {
-              // Scene-change portal: single portal
-              await addDoc(collection(db, 'cartes', roomId, 'portals'), {
-                ...portalData,
-                x: newPortalPos.x,
-                y: newPortalPos.y,
-                cityId: selectedCityId
-              });
-              toast.success("Portail créé");
-            }
-          }
-
-          setShowPortalConfig(false);
-          setNewPortalPos(null);
-          setEditingPortal(null);
-          setFirstPortalPoint(null);
-          setFirstPortalId(null);
-        }}
-        roomId={roomId || ''}
-        currentCityId={selectedCityId}
+        selectedCityId={selectedCityId}
+        showPortalConfig={showPortalConfig}
+        setShowPortalConfig={setShowPortalConfig}
+        editingPortal={editingPortal}
+        setEditingPortal={setEditingPortal}
+        newPortalPos={newPortalPos}
+        setNewPortalPos={setNewPortalPos}
+        firstPortalPoint={firstPortalPoint}
+        setFirstPortalPoint={setFirstPortalPoint}
+        firstPortalId={firstPortalId}
+        setFirstPortalId={setFirstPortalId}
+        portalPlacementMode={portalPlacementMode}
+        showCreateNoteModal={showCreateNoteModal}
+        setShowCreateNoteModal={setShowCreateNoteModal}
+        editingNote={editingNote}
+        setEditingNote={setEditingNote}
+        handleCreateNoteConfirm={handleCreateNoteConfirm}
+        showCharacterSheet={showCharacterSheet}
+        setShowCharacterSheet={setShowCharacterSheet}
+        selectedCharacterForSheet={selectedCharacterForSheet}
+        setSelectedCharacterForSheet={setSelectedCharacterForSheet}
+        calibrationDialogOpen={calibrationDialogOpen}
+        setCalibrationDialogOpen={setCalibrationDialogOpen}
+        tempCalibrationDistance={tempCalibrationDistance}
+        setTempCalibrationDistance={setTempCalibrationDistance}
+        unitName={unitName}
+        setUnitName={setUnitName}
+        handleCalibrationSubmit={handleCalibrationSubmit}
+        performanceMode={performanceMode}
+        showGlobalSettingsDialog={showGlobalSettingsDialog}
+        setShowGlobalSettingsDialog={setShowGlobalSettingsDialog}
+        showMusicDialog={showMusicDialog}
+        setShowMusicDialog={setShowMusicDialog}
+        audioCharacterId={audioCharacterId}
+        setAudioCharacterId={setAudioCharacterId}
+        tempZoneData={tempZoneData}
+        setTempZoneData={setTempZoneData}
+        saveMusicZone={saveMusicZone}
+        isNPCDrawerOpen={isNPCDrawerOpen}
+        setIsNPCDrawerOpen={setIsNPCDrawerOpen}
+        handleTemplateDragStart={handleTemplateDragStart}
+        isObjectDrawerOpen={isObjectDrawerOpen}
+        setIsObjectDrawerOpen={setIsObjectDrawerOpen}
+        handleObjectDragStart={handleObjectDragStart}
+        isSoundDrawerOpen={isSoundDrawerOpen}
+        setIsSoundDrawerOpen={setIsSoundDrawerOpen}
+        handleSoundDragStart={handleSoundDragStart}
+        isUnifiedSearchOpen={isUnifiedSearchOpen}
+        setIsUnifiedSearchOpen={setIsUnifiedSearchOpen}
+        obstacles={obstacles}
+        setObstacles={setObstacles}
+        deleteFromRtdbWithHistory={deleteFromRtdbWithHistory}
+        visibilityMode={visibilityMode}
+        toggleVisibilityMode={toggleVisibilityMode}
+        visibilityState={visibilityState}
+        isAudioMixerOpen={isAudioMixerOpen}
+        setIsAudioMixerOpen={setIsAudioMixerOpen}
+        showPlaceModal={showPlaceModal}
+        setShowPlaceModal={setShowPlaceModal}
+        draggedTemplate={draggedTemplate}
+        setDraggedTemplate={setDraggedTemplate}
+        setDropPosition={setDropPosition}
+        handlePlaceConfirm={handlePlaceConfirm}
+        showPlaceObjectModal={showPlaceObjectModal}
+        setShowPlaceObjectModal={setShowPlaceObjectModal}
+        draggedObjectTemplateForPlace={draggedObjectTemplateForPlace}
+        setDraggedObjectTemplateForPlace={setDraggedObjectTemplateForPlace}
+        setDropObjectPosition={setDropObjectPosition}
+        handlePlaceObjectConfirm={handlePlaceObjectConfirm}
+        characters={characters}
+        deleteModalOpen={deleteModalOpen}
+        setDeleteModalOpen={setDeleteModalOpen}
+        entityToDelete={entityToDelete}
+        handleConfirmDelete={handleConfirmDelete}
+        showBackgroundSelector={showBackgroundSelector}
+        setShowBackgroundSelector={setShowBackgroundSelector}
+        handleBackgroundSelectLocal={handleBackgroundSelectLocal}
       />
       <MapToolbar
         isMJ={isMJ}
@@ -9390,753 +3320,124 @@ export default function Component() {
             onDragLeave={() => { setDragFeaturePreview(null); }}
             onDoubleClick={handleCanvasDoubleClick}
           />
-          <div className="objects-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' }}>
-            {isLayerVisible('objects') && objects.map((obj, index) => {
-              // 🆕 Vérifier la visibilité de l'objet pour l'utilisateur actuel
-              if (!isObjectVisibleToUser(obj)) return null;
-
-              if (!bgImageObject) return null;
-
-              const image = bgImageObject;
-              const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-              const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
-              const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
-              if (cWidth === 0 || cHeight === 0) return null;
-
-              const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
-              const scaledWidth = imgWidth * scale * zoom;
-              const scaledHeight = imgHeight * scale * zoom;
-
-              const x = (obj.x / imgWidth) * scaledWidth - offset.x;
-              const y = (obj.y / imgHeight) * scaledHeight - offset.y;
-              const w = (obj.width / imgWidth) * scaledWidth;
-              const h = (obj.height / imgHeight) * scaledHeight;
-
-              // Skip if any calculated values are invalid
-              if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h)) {
-                return null;
-              }
-
-              const isSelected = selectedObjectIndices.includes(index);
-
-              // Visibility Check (Shadows & Fog) logic
-              //  CALCUL DES OMBRES POUR MASQUER LES PNJs ET OBJETS (Côté Client seulement)
-              let objectIsVisible = true;
-
-              const activeShadows = precalculatedShadows?.shadows;
-              const containingPolygons = precalculatedShadows?.polygonsContainingViewer;
-
-              const objCenter = { x: obj.x + obj.width / 2, y: obj.y + obj.height / 2 };
-
-              // 1. Check Fog of War Grid (if active)
-              // Only apply if not GM (or simulating player) OR if full map fog is on
-              const effectiveIsMJLocal = isMJ && !playerViewMode;
-
-              if (fogMode || fullMapFog || fogGrid.size > 0) {
-                const cellX = Math.floor(objCenter.x / fogCellSize);
-                const cellY = Math.floor(objCenter.y / fogCellSize);
-                const opacity = calculateFogOpacity(cellX, cellY);
-
-                // If fog is opaque (>= 1), hide object completely.
-                // This handles both fullMapFog and manual fog cells, plus character vision revealing it.
-                if (opacity >= 0.99) {
-                  objectIsVisible = false;
-                }
-              }
-
-              // 2. Check Dynamic Shadows (Walls)
-              // Only filter if not GM (or simulating player) and obstacles are active
-              if (objectIsVisible && (!effectiveIsMJLocal) && obstacles.length > 0 && isLayerVisible('obstacles') && activeShadows) {
-                // Check shadow polygons
-                for (const shadow of activeShadows) {
-                  if (isPointInPolygon(objCenter, shadow)) {
-                    objectIsVisible = false;
-                    break;
-                  }
-                }
-
-                // Check if viewer is inside a polygon but object is outside (hide exterior)
-                if (objectIsVisible && containingPolygons && containingPolygons.length > 0) {
-                  for (const polyInfo of containingPolygons) {
-                    if (!isPointInPolygon(objCenter, polyInfo.points)) {
-                      objectIsVisible = false;
-                      break;
-                    }
-                  }
-                }
-              }
-
-              if (!objectIsVisible) return null;
-
-
-              return (
-                <div
-                  key={obj.id}
-                  style={{
-                    position: 'absolute',
-                    left: x,
-                    top: y,
-                    width: w,
-                    height: h,
-                    transform: `rotate(${obj.rotation}deg)`,
-                    pointerEvents: obj.isBackground && !isBackgroundEditMode ? 'none' : (
-                      // 🎯 Désactiver les interactions si un autre élément est actif
-                      activeElementType !== null && (activeElementType !== 'object' || activeElementId !== obj.id) ? 'none' : 'auto'
-                    ),
-                    cursor: isResizingObject ? 'nwse-resize' : (obj.isLocked && !isMJ ? 'default' : 'move'),
-                    zIndex: obj.isBackground ? 1 : 2,
-                    opacity: activeElementType !== null && (activeElementType !== 'object' || activeElementId !== obj.id) ? 0.3 : 1, // Semi-transparent si désactivé
-                    transition: 'opacity 0.2s ease',
-                  }}
-                  onMouseDown={(e) => {
-                    // ✋ Si en mode Pan, laisser l'événement remonter au canvas
-                    if (panMode) return;
-
-                    // Prevent canvas from picking up this click
-                    e.stopPropagation();
-
-                    // 🎯 Vérifier si un autre élément est déjà actif
-                    if (activeElementType !== null && (activeElementType !== 'object' || activeElementId !== obj.id)) {
-                      return; // Ne devrait pas arriver avec pointerEvents: none, mais sécurité
-                    }
-
-                    if (e.button === 0) {
-                      // Tracking for click vs drag - ALWAYS set this even if locked
-                      mouseClickStartRef.current = { x: e.clientX, y: e.clientY };
-
-                      // 🆕 Empêcher le drag si objet verrouillé et utilisateur non-MJ
-                      if (obj.isLocked && !isMJ) {
-                        return;
-                      }
-
-                      // 🎯 Si cet objet est déjà actif, bypasser la détection
-                      const isThisObjectActive = activeElementType === 'object' && activeElementId === obj.id;
-
-                      if (!isThisObjectActive) {
-                        // Calculer coordonnées monde pour la détection
-                        // On utilise les coords existantes du clic si possible, ou on recalcule
-                        const rect = bgCanvasRef.current?.getBoundingClientRect();
-                        if (rect) {
-                          // approximatif car on n'a pas accès facile à scale ici sans recalculer
-                          // Mais on peut utiliser e.clientX directement dans detectElementsAtPosition car il recalcule scale
-                          const cWidth = containerRef.current?.clientWidth || 0;
-                          const cHeight = containerRef.current?.clientHeight || 0;
-                          if (cWidth > 0 && cHeight > 0 && bgImageObject) {
-                            const { width: imgW, height: imgH } = getMediaDimensions(bgImageObject);
-                            const scale = Math.min(cWidth / imgW, cHeight / imgH);
-                            const sWidth = imgW * scale * zoom;
-                            const sHeight = imgH * scale * zoom;
-                            const clickMapX = ((e.clientX - rect.left + offset.x) / sWidth) * imgW;
-                            const clickMapY = ((e.clientY - rect.top + offset.y) / sHeight) * imgH;
-
-                            const elementsAtPosition = detectElementsAtPosition(clickMapX, clickMapY);
-
-                            if (elementsAtPosition.length > 1) {
-                              setDetectedElements(elementsAtPosition);
-                              setSelectionMenuPosition({ x: e.clientX, y: e.clientY });
-                              setShowElementSelectionMenu(true);
-                              return;
-                            }
-                          }
-                        }
-                      }
-
-                      // Select
-                      // Calculate which objects will be dragged BEFORE updating state
-                      // This is critical because React state updates are async
-                      let objectsToDrag: number[];
-                      if (!e.shiftKey) {
-                        // Single selection - will drag only this object
-                        objectsToDrag = [index];
-                        setSelectedObjectIndices([index]);
-                      } else {
-                        // Multi-select with Shift
-                        if (selectedObjectIndices.includes(index)) {
-                          // Already selected, drag all selected
-                          objectsToDrag = selectedObjectIndices;
-                        } else {
-                          // Add to selection and drag all
-                          objectsToDrag = [...selectedObjectIndices, index];
-                          setSelectedObjectIndices(objectsToDrag);
-                        }
-                      }
-
-                      // If clicking on an already selected object (without Shift), drag all selected
-                      if (!e.shiftKey && selectedObjectIndices.includes(index) && selectedObjectIndices.length > 1) {
-                        objectsToDrag = selectedObjectIndices;
-                      }
-
-                      // Initiate Drag - Convert client coords to map coords for consistency
-                      const rect = bgCanvasRef.current?.getBoundingClientRect();
-                      if (!rect) return;
-                      const containerWidth = containerRef.current?.clientWidth || rect.width;
-                      const containerHeight = containerRef.current?.clientHeight || rect.height;
-                      const image = bgImageObject;
-                      const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-                      const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
-                      const scaledWidth = imgWidth * scale * zoom;
-                      const scaledHeight = imgHeight * scale * zoom;
-                      const startMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
-                      const startMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
-                      setDragStart({ x: startMapX, y: startMapY });
-                      setIsDraggingObject(true);
-                      setDraggedObjectIndex(index);
-                      setDraggedObjectOriginalPos({ x: obj.x, y: obj.y });
-
-                      // Store original positions for all objects to drag
-                      const originalPositions = objectsToDrag.map(idx => ({
-                        index: idx,
-                        x: objects[idx].x,
-                        y: objects[idx].y
-                      }));
-                      setDraggedObjectsOriginalPositions(originalPositions);
-                    }
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    const start = mouseClickStartRef.current;
-                    if (start) {
-                      const dist = Math.sqrt(Math.pow(e.clientX - start.x, 2) + Math.pow(e.clientY - start.y, 2));
-                      if (dist < 5) {
-                        // It was a click, not a drag
-                        setContextMenuObjectId(obj.id);
-                        setContextMenuObjectOpen(true);
-                        // Ensure selection if not already (handled in mousedown but good to be safe)
-                        if (!selectedObjectIndices.includes(index) && isMJ) {
-                          setSelectedObjectIndices([index]);
-                        }
-                      }
-                    }
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setContextMenuObjectId(obj.id);
-                    setContextMenuObjectOpen(true);
-                    // Also select it if not selected (MJ only)
-                    if (!selectedObjectIndices.includes(index) && isMJ) {
-                      setSelectedObjectIndices([index]);
-                    }
-                  }}
-                >
-                  <StaticToken
-                    src={obj.imageUrl}
-                    alt="Object"
-                    performanceMode={performanceMode}
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      border: isSelected ? '2px solid #00BFFF' : (obj.isBackground && isBackgroundEditMode ? '2px dashed rgba(255, 255, 255, 0.5)' : 'none'),
-                      opacity: obj.isBackground && isBackgroundEditMode ? 0.8 : 1,
-                      objectFit: 'fill',
-                      display: 'block'
-                    }}
-                  />
-
-                  {/* Resize Handle (Bottom Right) */}
-                  {isSelected && isMJ && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: -6,
-                        right: -6,
-                        width: 12,
-                        height: 12,
-                        backgroundColor: '#00BFFF',
-                        borderRadius: '50%',
-                        cursor: 'nwse-resize',
-                        zIndex: 6 // Resize handles above objects
-                      }}
-                      onMouseDown={(e) => handleResizeStart(e, index)}
-                    />
-                  )}
-                </div>
-              )
-            })}
-
-          </div>
+          <ObjectsLayer
+            objects={objects}
+            isLayerVisible={isLayerVisible}
+            isObjectVisibleToUser={isObjectVisibleToUser}
+            bgImageObject={bgImageObject}
+            containerSize={containerSize}
+            containerRef={containerRef}
+            zoom={zoom}
+            offset={offset}
+            selectedObjectIndices={selectedObjectIndices}
+            precalculatedShadows={precalculatedShadows}
+            isMJ={isMJ}
+            playerViewMode={playerViewMode}
+            fogMode={fogMode}
+            fullMapFog={fullMapFog}
+            fogGrid={fogGrid}
+            fogCellSize={fogCellSize}
+            calculateFogOpacity={calculateFogOpacity}
+            obstacles={obstacles}
+            isBackgroundEditMode={isBackgroundEditMode}
+            activeElementType={activeElementType}
+            activeElementId={activeElementId}
+            isResizingObject={isResizingObject}
+            panMode={panMode}
+            performanceMode={performanceMode}
+            mouseClickStartRef={mouseClickStartRef}
+            bgCanvasRef={bgCanvasRef}
+            setSelectedObjectIndices={setSelectedObjectIndices}
+            setDragStart={setDragStart}
+            setIsDraggingObject={setIsDraggingObject}
+            setDraggedObjectIndex={setDraggedObjectIndex}
+            setDraggedObjectOriginalPos={setDraggedObjectOriginalPos}
+            setDraggedObjectsOriginalPositions={setDraggedObjectsOriginalPositions}
+            setContextMenuObjectId={setContextMenuObjectId}
+            setContextMenuObjectOpen={setContextMenuObjectOpen}
+            handleResizeStart={handleResizeStart}
+            detectElementsAtPosition={detectElementsAtPosition}
+            setDetectedElements={setDetectedElements}
+            setSelectionMenuPosition={setSelectionMenuPosition}
+            setShowElementSelectionMenu={setShowElementSelectionMenu}
+          />
 
           {/* 💡 LAYER LUMIÈRES (LIGHTS) */}
-          <div className="lights-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden', zIndex: 45 }}>
-            {/* Only visible for MJ to edit. Players see the light effect, not the icon. */}
-            {isMJ && lights.map((light) => {
-              if (!bgImageObject) return null;
-              const image = bgImageObject;
-              const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-              const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
-              const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
-              if (cWidth === 0 || cHeight === 0) return null;
-
-              const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
-              const scaledWidth = imgWidth * scale * zoom;
-              const scaledHeight = imgHeight * scale * zoom;
-
-              const lightScreenX = (light.x / imgWidth) * scaledWidth;
-              const lightScreenY = (light.y / imgHeight) * scaledHeight;
-              const size = 40 * zoom;
-
-              // 🎯 Désactiver les interactions si un autre élément est actif
-              const isThisElementActive = activeElementType === 'light' && activeElementId === light.id;
-              const shouldDisableInteraction = activeElementType !== null && !isThisElementActive;
-
-              return (
-                <div
-                  key={light.id}
-                  style={{
-                    position: 'absolute',
-                    left: lightScreenX - offset.x,
-                    top: lightScreenY - offset.y,
-                    width: size + 'px',
-                    height: size + 'px',
-                    transform: 'translate(-50%, -50%)',
-                    pointerEvents: shouldDisableInteraction ? 'none' : 'auto', // Désactiver si un autre élément est actif
-                    cursor: isMJ ? 'move' : 'default',
-                    opacity: shouldDisableInteraction ? 0.3 : 1, // Semi-transparent si désactivé
-                    transition: 'opacity 0.2s ease',
-                    zIndex: 50
-                  }}
-                  onMouseDown={(e) => {
-                    if (!isMJ) return;
-                    if (panMode) return; // ✋ Mode Pan prioritaire
-
-                    // 🎯 Vérifier si un autre élément est actuellement actif
-                    if (activeElementType !== null && (activeElementType !== 'light' || activeElementId !== light.id)) {
-                      // Un autre élément est actif, bloquer cette interaction
-                      e.preventDefault();
-                      e.stopPropagation();
-                      return;
-                    }
-
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    // Calculer les coordonnées monde pour la détection
-                    const rect = bgCanvasRef.current?.getBoundingClientRect();
-                    if (!rect) return;
-
-                    const clickMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
-                    const clickMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
-
-                    // 🎯 Si cet élément est déjà actif, bypasser la détection et commencer le drag directement
-                    if (activeElementType === 'light' && activeElementId === light.id) {
-                      setIsDraggingLight(true);
-                      setDraggedLightId(light.id);
-                      setDraggedLightOriginalPos({ x: light.x, y: light.y });
-                      const startMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
-                      const startMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
-                      setDragStart({ x: startMapX, y: startMapY });
-                      return;
-                    }
-
-                    // 🎯 Détection d'éléments superposés (seulement si pas encore actif)
-                    const elementsAtPosition = detectElementsAtPosition(clickMapX, clickMapY);
-
-                    if (elementsAtPosition.length > 1) {
-                      // Plusieurs éléments détectés → afficher le menu
-                      setDetectedElements(elementsAtPosition);
-                      setSelectionMenuPosition({ x: e.clientX, y: e.clientY });
-                      setShowElementSelectionMenu(true);
-                      return;
-                    }
-
-                    // Un seul élément ou élément déjà actif → commencer le drag
-                    setIsDraggingLight(true);
-                    setDraggedLightId(light.id);
-                    setDraggedLightOriginalPos({ x: light.x, y: light.y });
-
-                    if (rect) {
-                      const startMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
-                      const startMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
-                      setDragStart({ x: startMapX, y: startMapY });
-                    }
-                  }}
-                  onDoubleClick={(e) => {
-                    if (!isMJ) return;
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setContextMenuLightId(light.id);
-                    setContextMenuLightOpen(true);
-                  }}
-                  onContextMenu={(e) => {
-                    if (!isMJ) return;
-                    e.preventDefault();
-                    setContextMenuLightId(light.id);
-                    setContextMenuLightOpen(true);
-                  }}
-                >
-                  <div className={`w-full h-full rounded-full flex items-center justify-center border-2 transition-transform hover:scale-110 ${light.visible ? 'bg-yellow-500/20 border-yellow-400 shadow-[0_0_20px_rgba(255,215,0,0.4)]' : 'bg-gray-500/20 border-gray-400'}`}>
-                    <Lightbulb size={size * 0.6} className={light.visible ? "text-yellow-100 fill-yellow-500/50" : "text-gray-400"} />
-                  </div>
-                  {isMJ && (
-                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-2 py-0.5 rounded text-[10px] text-yellow-500 whitespace-nowrap pointer-events-none opacity-0 hover:opacity-100 transition-opacity">
-                      {light.radius}m
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <LightsLayer
+            lights={lights}
+            isMJ={isMJ}
+            bgImageObject={bgImageObject}
+            containerSize={containerSize}
+            containerRef={containerRef}
+            zoom={zoom}
+            offset={offset}
+            panMode={panMode}
+            activeElementType={activeElementType}
+            activeElementId={activeElementId}
+            bgCanvasRef={bgCanvasRef}
+            setIsDraggingLight={setIsDraggingLight}
+            setDraggedLightId={setDraggedLightId}
+            setDraggedLightOriginalPos={setDraggedLightOriginalPos}
+            setDragStart={setDragStart}
+            setContextMenuLightId={setContextMenuLightId}
+            setContextMenuLightOpen={setContextMenuLightOpen}
+            detectElementsAtPosition={detectElementsAtPosition}
+            setDetectedElements={setDetectedElements}
+            setSelectionMenuPosition={setSelectionMenuPosition}
+            setShowElementSelectionMenu={setShowElementSelectionMenu}
+          />
 
           {/*  PORTALS LAYER - Icons for MJ */}
-          <div className="portals-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden', zIndex: 46 }}>
-            {isMJ && portals.filter(p => !p.cityId || p.cityId === selectedCityId).map((portal, index) => {
-              if (!bgImageObject) return null;
-              const image = bgImageObject;
-              const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-              const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
-              const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
-              if (cWidth === 0 || cHeight === 0) return null;
-
-              const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
-              const scaledWidth = imgWidth * scale * zoom;
-              const scaledHeight = imgHeight * scale * zoom;
-
-              const portalScreenX = (portal.x / imgWidth) * scaledWidth;
-              const portalScreenY = (portal.y / imgHeight) * scaledHeight;
-              const size = 40 * zoom;
-              const isSelected = contextMenuPortalId === portal.id;
-
-              // 🎯 Désactiver les interactions si un autre élément est actif
-              const isThisElementActive = activeElementType === 'portal' && activeElementId === portal.id;
-              const shouldDisableInteraction = activeElementType !== null && !isThisElementActive;
-
-              return (
-                <div
-                  key={`${portal.id}-${index}`}
-                  style={{
-                    position: 'absolute',
-                    left: portalScreenX - offset.x,
-                    top: portalScreenY - offset.y,
-                    width: size + 'px',
-                    height: size + 'px',
-                    transform: 'translate(-50%, -50%)',
-                    pointerEvents: shouldDisableInteraction ? 'none' : 'auto', // Désactiver si un autre élément est actif
-                    cursor: 'move',
-                    opacity: shouldDisableInteraction ? 0.3 : 1, // Semi-transparent si désactivé
-                    transition: 'opacity 0.2s ease',
-                    zIndex: 50
-                  }}
-                  onMouseDown={(e) => {
-                    if (panMode) return; // ✋ Mode Pan prioritaire
-
-                    // 🎯 Vérifier si un autre élément est actuellement actif
-                    if (activeElementType !== null && (activeElementType !== 'portal' || activeElementId !== portal.id)) {
-                      // Un autre élément est actif, bloquer cette interaction
-                      e.preventDefault();
-                      e.stopPropagation();
-                      return;
-                    }
-
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    // Calculer les coordonnées monde pour la détection
-                    const rect = bgCanvasRef.current?.getBoundingClientRect();
-                    if (!rect) return;
-
-
-                    const clickMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
-                    const clickMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
-
-                    // 🎯 Si cet élément est déjà actif, bypasser la détection et commencer le drag directement
-                    if (activeElementType === 'portal' && activeElementId === portal.id) {
-                      setIsDraggingPortal(true);
-                      setDraggedPortalId(portal.id);
-                      setDraggedPortalOriginalPos({ x: portal.x, y: portal.y }); // Store original position for twin portal update
-                      const startMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
-                      const startMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
-                      setDragStart({ x: startMapX, y: startMapY });
-                      return;
-                    }
-
-                    // 🎯 Détection d'éléments superposés (seulement si pas encore actif)
-                    const elementsAtPosition = detectElementsAtPosition(clickMapX, clickMapY);
-
-
-                    if (elementsAtPosition.length > 1) {
-                      // Plusieurs éléments détectés → afficher le menu
-                      setDetectedElements(elementsAtPosition);
-                      setSelectionMenuPosition({ x: e.clientX, y: e.clientY });
-                      setShowElementSelectionMenu(true);
-                      return;
-                    }
-
-                    // Un seul élément ou élément déjà actif → commencer le drag
-                    setIsDraggingPortal(true);
-                    setDraggedPortalId(portal.id);
-                    setDraggedPortalOriginalPos({ x: portal.x, y: portal.y }); // Store original position for twin portal update
-
-                    if (rect) {
-                      const startMapX = ((e.clientX - rect.left + offset.x) / scaledWidth) * imgWidth;
-                      const startMapY = ((e.clientY - rect.top + offset.y) / scaledHeight) * imgHeight;
-                      setDragStart({ x: startMapX, y: startMapY });
-                    }
-                  }}
-                  onDoubleClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setEditingPortal(portal);
-                    setShowPortalConfig(true);
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setContextMenuPortalId(portal.id);
-                    setContextMenuPortalOpen(true);
-                  }}
-                >
-                  <div style={{
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: '50%',
-                    background: portal.color || '#3b82f6',
-                    border: isSelected ? '4px solid #fbbf24' : '3px solid white',
-                    boxShadow: isSelected
-                      ? '0 0 20px rgba(251, 191, 36, 0.8), 0 0 10px rgba(0,0,0,0.3)'
-                      : '0 0 10px rgba(0,0,0,0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    transition: 'all 0.2s ease',
-                    transform: isSelected ? 'scale(1.1)' : 'scale(1)'
-                  }}>
-                    <svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="none">
-                      <circle cx="12" cy="12" r="8" stroke="white" strokeWidth="2" fill="none" />
-                      <path d="M12 4 L12 20 M4 12 L20 12" stroke="white" strokeWidth="2" strokeLinecap="round" />
-                    </svg>
-                  </div>
-                  {portal.name && (
-                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 bg-black/80 px-2 py-0.5 rounded text-[10px] text-white whitespace-nowrap pointer-events-none">
-                      {portal.name}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <PortalsLayer
+            portals={portals}
+            selectedCityId={selectedCityId}
+            isMJ={isMJ}
+            bgImageObject={bgImageObject}
+            containerSize={containerSize}
+            containerRef={containerRef}
+            zoom={zoom}
+            offset={offset}
+            panMode={panMode}
+            contextMenuPortalId={contextMenuPortalId}
+            activeElementType={activeElementType}
+            activeElementId={activeElementId}
+            bgCanvasRef={bgCanvasRef}
+            setIsDraggingPortal={setIsDraggingPortal}
+            setDraggedPortalId={setDraggedPortalId}
+            setDraggedPortalOriginalPos={setDraggedPortalOriginalPos}
+            setDragStart={setDragStart}
+            setEditingPortal={setEditingPortal}
+            setShowPortalConfig={setShowPortalConfig}
+            setContextMenuPortalId={setContextMenuPortalId}
+            setContextMenuPortalOpen={setContextMenuPortalOpen}
+            detectElementsAtPosition={detectElementsAtPosition}
+            setDetectedElements={setDetectedElements}
+            setSelectionMenuPosition={setSelectionMenuPosition}
+            setShowElementSelectionMenu={setShowElementSelectionMenu}
+          />
 
           <canvas
             ref={characterBordersCanvasRef}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 3 }}
           />
-          <div className="characters-layer" style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', overflow: 'hidden' }}>
-            {isLayerVisible('characters') && characters.map((char, index) => {
-              if (!bgImageObject) return null;
-              const image = bgImageObject;
-              const { width: imgWidth, height: imgHeight } = getMediaDimensions(image);
-              const cWidth = containerSize.width || containerRef.current?.clientWidth || 0;
-              const cHeight = containerSize.height || containerRef.current?.clientHeight || 0;
-              if (cWidth === 0 || cHeight === 0) return null;
-
-              // Vérifier que le personnage a des coordonnées valides
-              if (typeof char.x !== 'number' || typeof char.y !== 'number' || isNaN(char.x) || isNaN(char.y)) {
-                console.warn('⚠️ [Character Render] Skipping character with invalid coordinates:', char.id, char.name, 'x:', char.x, 'y:', char.y);
-                return null;
-              }
-
-              const scale = Math.min(cWidth / imgWidth, cHeight / imgHeight);
-              const scaledWidth = imgWidth * scale * zoom;
-              const scaledHeight = imgHeight * scale * zoom;
-
-              // 💡 LIGHT SOURCE RENDER LOOP REMOVED - NOW HANDLED IN SEPARATE LAYER
-
-
-              const x = (char.x / imgWidth) * scaledWidth - offset.x;
-              const y = (char.y / imgHeight) * scaledHeight - offset.y;
-
-              // Vérifier que les positions calculées sont valides
-              if (!isFinite(x) || !isFinite(y)) {
-                console.warn('⚠️ [Character Render] Skipping character with invalid calculated position:', char.id, char.name, 'x:', x, 'y:', y);
-                return null;
-              }
-
-              let isVisible = true;
-              let effectiveVisibility = char.visibility;
-
-              // Utiliser la fonction centralisée qui gère les lumières, le brouillard, etc.
-              if (!isCharacterVisibleToUser(char)) {
-                if (char.visibility === 'invisible') return null;
-                effectiveVisibility = 'hidden';
-              }
-
-              if (char.visibility === 'ally') {
-                isVisible = true;
-              } else if (effectiveVisibility === 'hidden') {
-                const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
-                const isInPlayerViewMode = playerViewMode && viewAsPersoId;
-
-                if (isInPlayerViewMode) {
-                  const viewer = characters.find(c => c.id === effectivePersoId);
-                  if (viewer) {
-                    const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
-                    const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
-                    const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-                    const radiusScreen = ((viewer?.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-                    isVisible = dist <= radiusScreen;
-                  } else {
-                    isVisible = false;
-                  }
-                } else {
-                  isVisible = isMJ || (() => {
-                    const viewer = characters.find(c => c.id === effectivePersoId);
-                    if (!viewer) return false;
-                    const viewerScreenX = (viewer.x / imgWidth) * scaledWidth - offset.x;
-                    const viewerScreenY = (viewer.y / imgHeight) * scaledHeight - offset.y;
-                    const dist = calculateDistance(x, y, viewerScreenX, viewerScreenY);
-                    const radiusScreen = ((viewer.visibilityRadius ?? 100) / imgWidth) * scaledWidth;
-                    return dist <= radiusScreen;
-                  })();
-                }
-              }
-
-              if (!isVisible) return null;
-
-              const isPlayerCharacter = char.type === 'joueurs';
-              const baseRadius = isPlayerCharacter ? 30 : 20;
-              const charScale = char.scale || 1;
-              const iconRadius = baseRadius * charScale * globalTokenScale * zoom;
-
-              // Déterminer si on doit appliquer l'effet d'invisibilité
-              const effectiveIsMJ = (playerViewMode && viewAsPersoId) ? false : isMJ;
-              const shouldApplyInvisibilityEffect = (effectiveVisibility === 'hidden' || effectiveVisibility === 'custom') && effectiveIsMJ && char.type !== 'joueurs';
-
-              // Déterminer le borderRadius en fonction de la forme choisie ou par défaut
-              let borderRadius = isPlayerCharacter ? '0' : '50%';
-              if (char.shape === 'square') borderRadius = '0';
-              if (char.shape === 'circle') borderRadius = '50%';
-
-              // 🎯 Désactiver visuellement si un autre élément est actif
-              const isThisCharacterActive = activeElementType === 'character' && activeElementId === char.id;
-              const shouldDisableCharacter = activeElementType !== null && !isThisCharacterActive;
-
-              return (
-                <div
-                  key={char.id}
-                  style={{
-                    position: 'absolute',
-                    left: x - iconRadius,
-                    top: y - iconRadius,
-                    width: iconRadius * 2,
-                    height: iconRadius * 2,
-                    pointerEvents: 'none',
-                    borderRadius: borderRadius,
-                    overflow: 'hidden',
-                    opacity: shouldDisableCharacter ? 0.3 : 1, // Semi-transparent si désactivé
-                    transition: 'opacity 0.2s ease',
-                    zIndex: 5 // Characters above objects (z=2) and borders (z=3)
-                  }}
-                >
-                  {char.imageUrl && (
-                    <StaticToken
-                      src={typeof char.imageUrl === 'object' ? char.imageUrl.src : char.imageUrl}
-                      alt={char.name}
-                      performanceMode={performanceMode}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        display: 'block',
-                        ...(shouldApplyInvisibilityEffect ? {
-                          opacity: 0.72
-                        } : {})
-                      }}
-                    />
-                  )}
-                  {shouldApplyInvisibilityEffect && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        background: 'radial-gradient(circle, transparent 0%, transparent 30%, rgba(255, 255, 255, 0.6) 65%, rgba(255, 255, 255, 0.95) 100%)',
-                        mixBlendMode: 'screen',
-                        pointerEvents: 'none',
-                        borderRadius: isPlayerCharacter ? '0' : '50%'
-                      }}
-                    />
-                  )}
-                  {/* Status Effect Veils */}
-                  {char.conditions?.includes('poisoned') && char.type !== 'joueurs' && (
-                    <>
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          background: 'radial-gradient(circle, transparent 0%, transparent 30%, rgba(255, 255, 255, 0.6) 65%, rgba(255, 255, 255, 0.95) 100%)',
-                          mixBlendMode: 'screen',
-                          pointerEvents: 'none',
-                          borderRadius: '50%'
-                        }}
-                      />
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          background: 'radial-gradient(circle, transparent 0%, transparent 20%, rgba(0, 255, 100, 0.6) 55%, rgba(0, 255, 100, 0.95) 100%)',
-                          mixBlendMode: 'overlay',
-                          pointerEvents: 'none',
-                          borderRadius: '50%'
-                        }}
-                      />
-                    </>
-                  )}
-                  {char.conditions?.includes('stunned') && char.type !== 'joueurs' && (
-                    <>
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          background: 'radial-gradient(circle, transparent 0%, transparent 30%, rgba(255, 255, 255, 0.6) 65%, rgba(255, 255, 255, 0.95) 100%)',
-                          mixBlendMode: 'screen',
-                          pointerEvents: 'none',
-                          borderRadius: '50%'
-                        }}
-                      />
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          background: 'radial-gradient(circle, transparent 0%, transparent 40%, rgba(255, 200, 0, 1) 90%)',
-                          mixBlendMode: 'overlay',
-                          pointerEvents: 'none',
-                          borderRadius: '50%'
-                        }}
-                      />
-                    </>
-                  )}
-                  {char.conditions?.includes('blinded') && char.type !== 'joueurs' && (
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        width: '100%',
-                        height: '100%',
-                        background: 'radial-gradient(circle, transparent 0%, transparent 20%, rgba(30, 30, 30, 0.7) 55%, rgba(10, 10, 10, 0.95) 100%)',
-                        mixBlendMode: 'multiply',
-                        pointerEvents: 'none',
-                        borderRadius: isPlayerCharacter ? '0' : '50%'
-                      }}
-                    />
-                  )}
-                </div>
-              )
-            })}
-          </div>
+          <CharactersLayer
+            characters={characters}
+            bgImageObject={bgImageObject}
+            containerSize={containerSize}
+            containerRef={containerRef}
+            zoom={zoom}
+            offset={offset}
+            isMJ={isMJ}
+            persoId={persoId}
+            viewAsPersoId={viewAsPersoId}
+            playerViewMode={playerViewMode}
+            globalTokenScale={globalTokenScale}
+            performanceMode={performanceMode}
+            activeElementType={activeElementType}
+            activeElementId={activeElementId}
+            isLayerVisible={isLayerVisible}
+            isCharacterVisibleToUser={isCharacterVisibleToUser}
+          />
           <canvas
             ref={fgCanvasRef}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 10 }}
@@ -10156,35 +3457,6 @@ export default function Component() {
 
 
 
-      {/* Modal moderne pour ajouter/modifier une note */}
-      <CreateNoteModal
-        isOpen={showCreateNoteModal}
-        onClose={() => {
-          setShowCreateNoteModal(false);
-          setEditingNote(null);
-        }}
-        onConfirm={handleCreateNoteConfirm}
-        initialValues={editingNote ? {
-          text: editingNote.text,
-          color: editingNote.color,
-          fontSize: editingNote.fontSize,
-          fontFamily: editingNote.fontFamily
-        } : null}
-      />
-
-
-      {
-        showCharacterSheet && selectedCharacterForSheet && roomId && (
-          <CharacterSheet
-            characterId={selectedCharacterForSheet}
-            roomId={roomId}
-            onClose={() => {
-              setShowCharacterSheet(false);
-              setSelectedCharacterForSheet(null);
-            }}
-          />
-        )
-      }
 
       {/*  PAN MODE OVERLAY */}
       {
@@ -10229,425 +3501,8 @@ export default function Component() {
 
 
 
-      {/*  CALIBRATION DIALOG */}
-      <Dialog open={calibrationDialogOpen} onOpenChange={setCalibrationDialogOpen}>
-        <DialogContent className="bg-[rgb(36,36,36)] text-[#c0a080] border-[#FFD700]">
-          <DialogHeader>
-            <DialogTitle>Étalonnage de la carte</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p className="mb-4 text-sm">Quelle distance représente la ligne que vous venez de tracer ?</p>
-            <div className="flex gap-2 items-end">
-              <div className="flex-1">
-                <Label htmlFor="distVal">Distance</Label>
-                <Input
-                  id="distVal"
-                  type="number"
-                  value={tempCalibrationDistance}
-                  onChange={(e) => setTempCalibrationDistance(e.target.value)}
-                  placeholder="Ex: 1.5"
-                  autoFocus
-                />
-              </div>
-              <div className="w-24">
-                <Label htmlFor="unitVal">Unité</Label>
-                <Input
-                  id="unitVal"
-                  type="text"
-                  value={unitName}
-                  onChange={(e) => setUnitName(e.target.value)}
-                  placeholder="m"
-                />
-              </div>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setCalibrationDialogOpen(false)}>Annuler</Button>
-            <Button onClick={handleCalibrationSubmit} className="bg-[#FFD700] text-black hover:bg-[#e6c200]">Valider</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      {/* ⚠️ Performance CSS Injection */}
-      {performanceMode === 'static' && (
-        <style dangerouslySetInnerHTML={{
-          __html: `
-            * {
-              animation: none !important;
-              transition: none !important;
-            }
-          `
-        }} />
-      )}
 
-      {/*  GLOBAL SETTINGS DIALOG */}
-      <GlobalSettingsDialog
-        isOpen={showGlobalSettingsDialog}
-        onOpenChange={setShowGlobalSettingsDialog}
-        isMJ={isMJ}
-      />
-
-      <MapContextMenu
-        position={mapContextMenu}
-        onClose={() => setMapContextMenu(null)}
-        isMJ={isMJ}
-        showAllBadges={showAllBadges}
-        onToggleBadges={() => setShowAllBadges(!showAllBadges)}
-      />
-
-      <ContextMenuPanel
-        character={contextMenuCharacterId ? characters.find(c => c.id === contextMenuCharacterId) || null : null}
-        isOpen={contextMenuOpen}
-        onClose={() => {
-          setContextMenuOpen(false);
-          setContextMenuCharacterId(null);
-          setSelectedCharacterIndex(null); // Désélectionner aussi sur la map si on ferme le menu
-        }}
-        isMJ={isMJ}
-        players={characters.filter(c => c.type === 'joueurs')}
-        onUploadFile={async (file) => {
-          if (!roomId) throw new Error("No Room ID");
-          const storage = getStorage();
-          const storageRef = ref(storage, `audio/${roomId}/${file.name}-${Date.now()}`);
-          await uploadBytes(storageRef, file);
-          const url = await getDownloadURL(storageRef);
-          return url;
-        }}
-        pixelsPerUnit={pixelsPerUnit}
-        unitName={unitName}
-        onAction={async (action, characterId, value) => {
-          // Gestion des actions du menu contextuel
-          const char = characters.find(c => c.id === characterId);
-          if (!char) return;
-
-          if (action === 'openSheet') {
-            setSelectedCharacterForSheet(characterId);
-            setShowCharacterSheet(true);
-            setContextMenuOpen(false); // Fermer le panel du personnage
-          } else if (action === 'attack') {
-            if (isMJ) {
-              if (activePlayerId) {
-                setAttackerId(activePlayerId);
-                setTargetId(characterId);
-                setTargetIds([]); // 🆕 Reset AoE targets
-                setCombatOpen(true);
-              } else {
-                alert("Aucun personnage actif sélectionné pour attaquer (Tour du joueur)");
-              }
-            } else {
-              // Player attack
-              if (persoId) {
-                setAttackerId(persoId);
-                setTargetId(characterId);
-                setTargetIds([]); // 🆕 Reset AoE targets
-                setCombatOpen(true);
-              }
-            }
-          } else if (action === 'updateCharacterAudio') {
-            // value is audioData
-            await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {
-              audio: value
-            });
-          } else if (action === 'updatePV') {
-            if (roomId) {
-              const newPV = Number(value);
-              await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), { PV: newPV });
-              setCharacters(prev => prev.map(c => c.id === characterId ? { ...c, PV: newPV } : c));
-            }
-          } else if (action === 'updateStat') {
-            if (isMJ && roomId) {
-              const { key, value: newValue } = value as { key: string; value: number };
-              await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), { [key]: newValue });
-              setCharacters(prev => prev.map(c => c.id === characterId ? { ...c, [key]: newValue } : c));
-            }
-          } else if (action === 'updateImage') {
-            if (isMJ && roomId) {
-              try {
-                const img = value as HTMLImageElement;
-                const storage = getStorage();
-                const imageRef = ref(storage, `characters/${char.name}-${Date.now()}`);
-                const response = await fetch(img.src);
-                const blob = await response.blob();
-                await uploadBytes(imageRef, blob);
-                const imageURL = await getDownloadURL(imageRef);
-                await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), { imageURL2: imageURL });
-                setCharacters(prev => prev.map(c => c.id === characterId ? { ...c, image: imageURL } : c));
-                toast.success(`Image de ${char.name} mise à jour`);
-              } catch (error) {
-                console.error("Erreur lors du changement d'image :", error);
-                toast.error("Erreur lors du changement d'image");
-              }
-            }
-          } else if (action === 'updateShape') {
-            await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {
-              shape: value
-            });
-          } else if (action === 'deleteCharacterAudio') {
-            await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {
-              audio: null
-            });
-            // Also stop if playing currently? handled by snapshot listener usually
-          } else if (action === 'toggleAudioPlay') {
-            // Toggle loop or volume or remove?
-            // For now maybe we just toggle loop or volume to 0/1?
-            // Let's assume it means "Stop" if playing, or "Start" if stopped.
-            // But the audio model is state-based.
-            // If volume > 0, mute it?
-            const newVolume = (char.audio?.volume || 0) > 0 ? 0 : 0.5;
-            await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {
-              'audio.volume': newVolume
-            });
-          } else if (action === 'delete') {
-            if (isMJ && roomId) {
-              try {
-                await deleteWithHistory('characters', characterId, `Suppression de "${char.name}"`);
-                setCharacters(characters.filter((c) => c.id !== characterId));
-                setSelectedCharacterIndex(null);
-                resetActiveElementSelection();
-                toast.success(`Personnage "${char.name}" supprimé`);
-                setContextMenuOpen(false);
-                setContextMenuCharacterId(null);
-              } catch (error) {
-                console.error("Erreur lors de la suppression du personnage :", error);
-                toast.error(`Erreur lors de la suppression du personnage "${char.name}"`);
-              }
-            }
-          } else if (action === 'edit') {
-            if (isMJ && roomId) {
-              const editedChar = value as Character;
-              try {
-                const updatedData: any = {
-                  Nomperso: editedChar.name,
-                  niveau: editedChar.niveau,
-                  PV: editedChar.PV,
-                  Defense: editedChar.Defense,
-                  Contact: editedChar.Contact,
-                  Distance: editedChar.Distance,
-                  Magie: editedChar.Magie,
-                  INIT: editedChar.INIT,
-                  FOR: editedChar.FOR,
-                  DEX: editedChar.DEX,
-                  CON: editedChar.CON,
-                  SAG: editedChar.SAG,
-                  INT: editedChar.INT,
-                  CHA: editedChar.CHA,
-                  visibility: editedChar.visibility,
-                  visibilityRadius: editedChar.visibilityRadius,
-                };
-
-                const editingCharImageSrc = editedChar?.image ? (typeof editedChar.image === 'string' ? editedChar.image : editedChar.image.src) : null;
-                const charToUpdateImageSrc = char.image ? (typeof char.image === 'string' ? char.image : char.image.src) : null;
-
-                if (editingCharImageSrc !== charToUpdateImageSrc) {
-                  const storage = getStorage();
-                  const imageRef = ref(storage, `characters/${editedChar.name}-${Date.now()}`);
-                  const response = await fetch(editingCharImageSrc as string);
-                  const blob = await response.blob();
-                  await uploadBytes(imageRef, blob);
-                  const imageURL = await getDownloadURL(imageRef);
-                  updatedData.imageURL2 = imageURL;
-                }
-
-                await updateDoc(doc(db, 'cartes', String(roomId), 'characters', characterId), updatedData);
-                toast.success(`${char.name} a été mis à jour`);
-
-                setCharacters((prevCharacters) =>
-                  prevCharacters.map((c) =>
-                    c.id === characterId ? { ...c, ...updatedData } : c
-                  )
-                );
-                setSelectedCharacterIndex(null);
-              } catch (error) {
-                console.error("Erreur lors de la mise à jour du personnage :", error);
-              }
-            }
-          } else if (action === 'setVisibility') {
-            if (isMJ && roomId) {
-              const newVisibility = value;
-              const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
-              // 🆕 Si on passe en mode custom, initialiser visibleToPlayerIds si non défini
-              if (newVisibility === 'custom') {
-                const currentPlayerIds = char.visibleToPlayerIds || [];
-                updateDoc(charRef, {
-                  visibility: newVisibility,
-                  visibleToPlayerIds: currentPlayerIds
-                });
-              } else {
-                updateDoc(charRef, { visibility: newVisibility });
-              }
-            }
-          } else if (action === 'updateRadius') {
-            if (isMJ && roomId) {
-              const newRadius = value;
-              const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
-              updateDoc(charRef, { visibilityRadius: newRadius });
-            }
-          } else if (action === 'updateScale') {
-            if (isMJ && roomId) {
-              const newScale = value;
-              const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
-              updateDoc(charRef, { scale: newScale });
-            }
-          } else if (action === 'updateVisibilityRadius') {
-            if (isMJ && roomId) {
-              const newRadius = Number(value);
-              console.log('[DEBUG] Updating visibilityRadius:', { characterId, oldValue: char.visibilityRadius, newValue: newRadius, type: typeof newRadius });
-              const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
-              updateDoc(charRef, { visibilityRadius: newRadius }).then(() => {
-                console.log('[DEBUG] visibilityRadius updated in Firebase');
-              }).catch((error) => {
-                console.error('[DEBUG] Error updating visibilityRadius:', error);
-              });
-            }
-          } else if (action === 'toggleCondition') {
-            if (isMJ && roomId) {
-              const condition = value;
-              const currentConditions = char.conditions || [];
-              let newConditions;
-              if (currentConditions.includes(condition)) {
-                newConditions = currentConditions.filter((c: string) => c !== condition);
-              } else {
-                newConditions = [...currentConditions, condition];
-              }
-              const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
-              updateDoc(charRef, { conditions: newConditions });
-            }
-          } else if (action === 'updateVisiblePlayers') {
-            // 🆕 Nouvelle action pour mettre à jour la liste des joueurs autorisés
-            if (isMJ && roomId) {
-              const newPlayerIds = value; // array de player IDs
-              const charRef = doc(db, 'cartes', roomId, 'characters', characterId);
-              updateDoc(charRef, { visibleToPlayerIds: newPlayerIds });
-            }
-          } else if (action === 'updateNotes') {
-            if (roomId) {
-              updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), {
-                notes: value
-              });
-            }
-          } else if (action === 'configureInteraction') {
-            setInteractionConfigTarget(char);
-            setContextMenuOpen(false);
-          } else if (action === 'interact') {
-            const interaction = char.interactions?.find(i => i.id === value);
-            if (interaction) {
-              if (interaction.type === 'vendor') {
-                setActiveInteraction({ interaction: interaction as VendorInteraction, host: char });
-                setContextMenuOpen(false);
-              } else if (interaction.type === 'game') {
-                setActiveInteraction({ interaction: interaction as GameInteraction, host: char });
-                setContextMenuOpen(false);
-              } else if (interaction.type === 'loot') {
-                setActiveInteraction({ interaction: interaction as LootInteraction, host: char });
-                setContextMenuOpen(false);
-              }
-            }
-          }
-        }}
-      />
-
-      {/* GM Templates Provider - centralised data for all drawers */}
-      <GMTemplatesProvider roomId={roomId}>
-        {/* NPC Template Drawer */}
-        <NPCTemplateDrawer
-          roomId={roomId}
-          isOpen={isNPCDrawerOpen}
-          onClose={() => setIsNPCDrawerOpen(false)}
-          onDragStart={handleTemplateDragStart}
-          currentCityId={selectedCityId}
-        />
-
-        <ObjectDrawer
-          roomId={roomId}
-          isOpen={isObjectDrawerOpen}
-          onClose={() => setIsObjectDrawerOpen(false)}
-          onDragStart={handleObjectDragStart}
-          currentCityId={selectedCityId}
-        />
-
-        {/* Sound Drawer */}
-        <SoundDrawer
-          roomId={roomId}
-          isOpen={isSoundDrawerOpen}
-          onClose={() => setIsSoundDrawerOpen(false)}
-          onDragStart={handleSoundDragStart}
-          currentCityId={selectedCityId}
-        />
-
-        {/* Unified Search Drawer */}
-        <UnifiedSearchDrawer
-          roomId={roomId}
-          isOpen={isUnifiedSearchOpen}
-          onClose={() => setIsUnifiedSearchOpen(false)}
-          onDragStart={(item) => {
-            // Handle drag start based on item type
-            if (item.type === 'sound') {
-              handleSoundDragStart(item.data)
-            } else if (item.type === 'object') {
-              handleObjectDragStart(item.data as ObjectTemplate)
-            } else if (item.type === 'npc') {
-              handleTemplateDragStart(item.data as NPC)
-            }
-          }}
-          currentCityId={selectedCityId}
-          vs={visibilityState}
-          onClearAllObstacles={() => {
-            const currentObstacles = [...obstacles];
-            setObstacles([]);
-            Promise.all(currentObstacles.map(o => deleteFromRtdbWithHistory('obstacles', o.id, 'Suppression de tous les obstacles')));
-          }}
-        />
-      </GMTemplatesProvider>
-
-      {/* Visibility Drawer */}
-      <VisibilityDrawer
-        isOpen={visibilityMode}
-        onClose={toggleVisibilityMode}
-        vs={visibilityState}
-        onClearAllObstacles={() => {
-          const currentObstacles = [...obstacles];
-          setObstacles([]);
-          Promise.all(currentObstacles.map(o => deleteFromRtdbWithHistory('obstacles', o.id, 'Suppression de tous les obstacles')));
-        }}
-      />
-
-      {/* Audio Mixer Panel */}
-      <AudioMixerPanel
-        isOpen={isAudioMixerOpen}
-        onClose={() => setIsAudioMixerOpen(false)}
-      />
-
-      {/* Place NPC Modal */}
-      <PlaceNPCModal
-        isOpen={showPlaceModal}
-        template={draggedTemplate}
-        onClose={() => {
-          setShowPlaceModal(false)
-          setDraggedTemplate(null)
-          setDropPosition(null)
-        }}
-        onConfirm={handlePlaceConfirm}
-      />
-
-      <PlaceObjectModal
-        isOpen={showPlaceObjectModal}
-        template={draggedObjectTemplateForPlace}
-        players={characters.filter(c => c.type === 'joueurs')}
-        onClose={() => {
-          setShowPlaceObjectModal(false)
-          setDraggedObjectTemplateForPlace(null)
-          setDropObjectPosition(null)
-        }}
-        onConfirm={handlePlaceObjectConfirm}
-      />
-
-      {/* Centralized Delete Confirmation Modal */}
-      <DeleteConfirmationModal
-        open={deleteModalOpen}
-        onOpenChange={setDeleteModalOpen}
-        entity={entityToDelete}
-        onConfirm={handleConfirmDelete}
-      />
 
 
 
@@ -10687,84 +3542,6 @@ export default function Component() {
         )
       }
 
-      {/* Background Selector */}
-      <BackgroundSelector
-        isOpen={showBackgroundSelector}
-        onClose={() => setShowBackgroundSelector(false)}
-        onSelectLocal={handleBackgroundSelectLocal}
-        roomId={String(roomId)}
-      />
-
-      {/* 🎵 Music Control & Dialog */}
-      {
-        isMJ && (
-          <>
-            <div className="absolute top-24 left-4 z-40 flex flex-col gap-2">
-              {/* Radial Menu replaces this button generally, but we keep it if needed or remove it? User asked to place from Radial Menu */
-                /* Removing the button as requested to use Radial Menu "d'abord les placer depuis la menu radial" implies this is the primary way */
-              }
-            </div>
-
-            <Dialog open={showMusicDialog} onOpenChange={(open) => {
-              setShowMusicDialog(open);
-              if (!open) setAudioCharacterId(null);
-            }}>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>{audioCharacterId ? "Configurer Audio du Personnage" : "Ajouter une zone musicale"}</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="m-name" className="text-right">Nom</Label>
-                    <Input id="m-name" value={tempZoneData.name} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempZoneData({ ...tempZoneData, name: e.target.value })} className="col-span-3" />
-                  </div>
-
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="m-upload" className="text-right">Fichier MP3</Label>
-                    <div className="col-span-3 flex gap-2">
-                      <Input
-                        id="m-upload"
-                        type="file"
-                        accept="audio/*"
-                        onChange={async (e: React.ChangeEvent<HTMLInputElement>) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const storage = getStorage();
-                            const storageRef = ref(storage, `audio / ${roomId}/${Date.now()}_${file.name}`);
-                            try {
-                              const snapshot = await uploadBytes(storageRef, file);
-                              const downloadURL = await getDownloadURL(snapshot.ref);
-                              setTempZoneData(prev => ({ ...prev, url: downloadURL }));
-                            } catch (error) {
-                              console.error("Upload failed", error);
-                              alert("Upload failed!");
-                            }
-                          }
-                        }}
-                      />
-                    </div >
-                  </div >
-
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="m-radius" className="text-right">Rayon</Label>
-                    <Input id="m-radius" type="number" value={tempZoneData.radius} onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTempZoneData({ ...tempZoneData, radius: Number(e.target.value) })} className="col-span-3" />
-                  </div>
-                </div >
-                <DialogFooter>
-                  <Button onClick={saveMusicZone}>{audioCharacterId ? "Enregistrer" : "Créer"}</Button>
-                </DialogFooter>
-              </DialogContent >
-            </Dialog >
-
-
-
-
-
-
-          </>
-        )
-      }
-
       {/* Custom Tooltip for Conditions */}
       {
         hoveredCondition && (
@@ -10783,7 +3560,6 @@ export default function Component() {
         )
       }
 
-      {/* Interaction Components */}
       {/* Interaction Components Layer */}
       <InteractionLayer
         roomId={roomId}
@@ -10878,35 +3654,4 @@ export default function Component() {
   )
 }
 
-function pDistance(x: number, y: number, x1: number, y1: number, x2: number, y2: number) {
-  var A = x - x1;
-  var B = y - y1;
-  var C = x2 - x1;
-  var D = y2 - y1;
-
-  var dot = A * C + B * D;
-  var len_sq = C * C + D * D;
-  var param = -1;
-  if (len_sq != 0) //in case of 0 length line
-    param = dot / len_sq;
-
-  var xx, yy;
-
-  if (param < 0) {
-    xx = x1;
-    yy = y1;
-  }
-  else if (param > 1) {
-    xx = x2;
-    yy = y2;
-  }
-  else {
-    xx = x1 + param * C;
-    yy = y1 + param * D;
-  }
-
-  var dx = x - xx;
-  var dy = y - yy;
-  return Math.sqrt(dx * dx + dy * dy);
-}
 
