@@ -283,10 +283,10 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
               </button>
             )}
 
-            {(competence.isActive && competence.bonuses && Object.entries(competence.bonuses).some(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name')) && (
+            {(competence.isActive && competence.bonuses && Object.entries(competence.bonuses).some(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name' && stat !== 'diceSelection')) && (
               <div className="flex gap-1.5 overflow-hidden mt-2">
                 {Object.entries(competence.bonuses)
-                  .filter(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name')
+                  .filter(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name' && stat !== 'diceSelection')
                   .slice(0, 3)
                   .map(([stat, value], idx) => (
                     <span key={idx} className="text-[10px] font-medium leading-none px-1.5 py-0.5 rounded bg-[var(--bg-dark)] text-[var(--accent-brown)] border border-[var(--border-color)] whitespace-nowrap">
@@ -400,13 +400,13 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
               </div>
 
               {selectedCompetence?.bonuses && Object.entries(selectedCompetence.bonuses)
-                .filter(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name')
+                .filter(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name' && stat !== 'diceSelection')
                 .length > 0 && (
                   <div className="py-4 border-t border-black/5 dark:border-white/5 mt-2">
                     <h4 className="text-sm font-semibold text-[var(--accent-brown)] mb-3">Bonus Actifs</h4>
                     <div className="flex flex-wrap gap-2">
                       {Object.entries(selectedCompetence.bonuses)
-                        .filter(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name')
+                        .filter(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name' && stat !== 'diceSelection')
                         .map(([stat, value], index) => (
                           <span key={index} className="px-3 py-1.5 rounded bg-black/20 text-[var(--accent-brown)] border border-white/10 text-sm font-medium flex items-center gap-1">
                             <Star className="w-3 h-3" />
@@ -468,7 +468,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
             <div className="space-y-4">
               {selectedCompetence?.bonuses &&
                 Object.entries(selectedCompetence.bonuses)
-                  .filter(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name')
+                  .filter(([stat, value]) => stat !== "active" && value !== 0 && stat !== 'category' && stat !== 'name' && stat !== 'diceSelection')
                   .map(([stat, value]) => (
                     <div key={stat} className="flex justify-between items-center bg-black/20 p-3 rounded border border-white/10">
                       <span className="font-bold text-[var(--text-primary)]">{stat}: <span className="text-[var(--accent-brown)]">{Number(value) > 0 ? "+" : ""}{value}</span></span>
