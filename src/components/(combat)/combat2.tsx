@@ -25,6 +25,7 @@ interface Weapon {
   numFaces: number;
   soundId?: string;
   category?: string;
+  source?: 'inventory' | 'competence';
 }
 
 interface CustomRoll {
@@ -110,24 +111,45 @@ const WeaponCard = ({ weapon, onClick, onSoundClick }: { weapon: Weapon, onClick
     whileHover={{ scale: 1.02 }}
     whileTap={{ scale: 0.98 }}
     onClick={onClick}
-    className="w-full flex items-center justify-between p-4 rounded-xl border border-white/5 bg-white/5 hover:bg-white/10 hover:border-[var(--accent-brown)]/50 transition-all duration-200 group relative overflow-hidden"
+    className={`w-full flex items-center justify-between p-4 rounded-xl border bg-white/5 hover:bg-white/10 transition-all duration-200 group relative overflow-hidden ${
+      weapon.source === 'competence'
+        ? 'border-purple-500/20 hover:border-purple-500/50'
+        : 'border-white/5 hover:border-[var(--accent-brown)]/50'
+    }`}
   >
     <div className="flex flex-col items-start gap-1">
-      <span className="text-base font-bold text-gray-200 group-hover:text-white">{weapon.name.replace(/\(.*\)/, '')}</span>
       <div className="flex items-center gap-2">
-        <span className="text-xs font-mono text-[var(--accent-brown)] bg-[var(--accent-brown)]/10 px-1.5 py-0.5 rounded">
+        <span className="text-base font-bold text-gray-200 group-hover:text-white">{weapon.name.replace(/\(.*\)/, '')}</span>
+        {weapon.source === 'competence' && (
+          <span className="text-[9px] font-bold uppercase tracking-wider text-purple-400 bg-purple-500/10 px-1.5 py-0.5 rounded">
+            Comp.
+          </span>
+        )}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className={`text-xs font-mono px-1.5 py-0.5 rounded ${
+          weapon.source === 'competence'
+            ? 'text-purple-400 bg-purple-500/10'
+            : 'text-[var(--accent-brown)] bg-[var(--accent-brown)]/10'
+        }`}>
           {weapon.numDice}d{weapon.numFaces}
         </span>
-        <div
-          role="button"
-          onClick={onSoundClick}
-          className={`p-1 rounded hover:bg-white/20 transition-colors ${weapon.soundId ? 'text-[var(--accent-brown)]' : 'text-gray-600'}`}
-        >
-          <Volume2 className="w-3 h-3" />
-        </div>
+        {weapon.source !== 'competence' && (
+          <div
+            role="button"
+            onClick={onSoundClick}
+            className={`p-1 rounded hover:bg-white/20 transition-colors ${weapon.soundId ? 'text-[var(--accent-brown)]' : 'text-gray-600'}`}
+          >
+            <Volume2 className="w-3 h-3" />
+          </div>
+        )}
       </div>
     </div>
-    <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-500 group-hover:bg-[var(--accent-brown)] group-hover:text-black transition-all">
+    <div className={`w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-gray-500 transition-all ${
+      weapon.source === 'competence'
+        ? 'group-hover:bg-purple-500 group-hover:text-black'
+        : 'group-hover:bg-[var(--accent-brown)] group-hover:text-black'
+    }`}>
       <ArrowRight className="w-4 h-4" />
     </div>
   </motion.button>
@@ -240,9 +262,11 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
     }
 
     const loadWeapons = async (rId: string, nom: string) => {
+      const feats: Weapon[] = []
+
+      // Load inventory weapons
       const inventoryRef = collection(db, `Inventaire/${rId}/${nom}`)
       const snapshot = await getDocs(inventoryRef)
-      const feats: Weapon[] = []
       snapshot.forEach(d => {
         const item = d.data()
         if (item.category === 'armes-contact' || item.category === 'armes-distance') {
@@ -253,10 +277,32 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
             numDice: diceParse ? parseInt(diceParse[1]) : 1,
             numFaces: diceParse ? parseInt(diceParse[2]) : 6,
             soundId: item.soundId,
-            category: item.category
+            category: item.category,
+            source: 'inventory'
           })
         }
       })
+
+      // Load competences with dice
+      const bonusRef = collection(db, `Bonus/${rId}/${nom}`)
+      const bonusSnapshot = await getDocs(bonusRef)
+      bonusSnapshot.forEach(d => {
+        const bonus = d.data()
+        if (bonus.diceSelection) {
+          const diceParse = bonus.diceSelection.match(/^(\d+)d(\d+)$/)
+          if (diceParse) {
+            feats.push({
+              id: d.id,
+              name: bonus.name || d.id,
+              numDice: parseInt(diceParse[1]),
+              numFaces: parseInt(diceParse[2]),
+              category: 'competence',
+              source: 'competence'
+            })
+          }
+        }
+      })
+
       setWeapons(feats)
     }
 

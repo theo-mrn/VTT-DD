@@ -96,6 +96,7 @@ export interface Competence {
   bonuses: Partial<BonusData>;
   isActive: boolean;
   type: "passive" | "limitée" | "other";
+  diceSelection?: string;
 }
 
 export interface BonusData {
@@ -115,6 +116,7 @@ export interface BonusData {
   active: boolean;
   category: string;
   name?: string;
+  diceSelection?: string;
 }
 
 export interface CustomCompetence {
@@ -327,6 +329,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
         SAG: bonusData.SAG || 0,
         active: bonusData.active || false,
         name: bonusData.name,
+        diceSelection: bonusData.diceSelection,
       };
     } else {
       return {};
@@ -420,6 +423,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
                       bonuses: bonusData,
                       isActive: bonusData.active || false,
                       type: skillType as Competence["type"],
+                      diceSelection: bonusData.diceSelection || undefined,
                     });
                   }
                 }
@@ -511,6 +515,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
                     bonuses: bonusData,
                     isActive: bonusData.active || false,
                     type: skillType as Competence["type"],
+                    diceSelection: bonusData.diceSelection || undefined,
                   });
                 }
               }
