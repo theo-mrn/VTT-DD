@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, MinusCircle, Star, RefreshCw, X, BookOpenCheck, Settings, Search } from "lucide-react";
+import { PlusCircle, MinusCircle, Star, RefreshCw, X, BookOpenCheck, Settings, Search, Dice5 } from "lucide-react";
+import { toast } from 'sonner';
 import { db, getDoc, doc, setDoc, updateDoc } from "@/lib/firebase";
 import { useCharacter, Competence, BonusData } from "@/contexts/CharacterContext";
 
@@ -34,6 +35,9 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [isToggling, setIsToggling] = useState(false);
+  const [isDiceDialogOpen, setIsDiceDialogOpen] = useState(false);
+  const [diceCount, setDiceCount] = useState<number>(1);
+  const [diceFaces, setDiceFaces] = useState<number>(6);
   const containerRef = useState<{ current: HTMLDivElement | null }>({ current: null })[0]; // Using a stable ref object
 
   useEffect(() => {
@@ -173,6 +177,43 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
     }
   };
 
+  const handleUpdateDice = async () => {
+    if (selectedCompetence && selectedCharacter) {
+      try {
+        const bonusPath = `Bonus/${roomId}/${selectedCharacter.Nomperso}/${selectedCompetence.id}`;
+        const bonusDoc = await getDoc(doc(db, bonusPath));
+        if (bonusDoc.exists()) {
+          await updateDoc(doc(db, bonusPath), { diceSelection: `${diceCount}d${diceFaces}` });
+        } else {
+          await setDoc(doc(db, bonusPath), { diceSelection: `${diceCount}d${diceFaces}`, active: false, category: "competence" });
+        }
+        toast.success('Dés modifiés', {
+          description: `${selectedCompetence.name} : ${diceCount}d${diceFaces}`,
+          duration: 2000,
+        });
+        setIsDiceDialogOpen(false);
+        await refreshCompetences();
+      } catch (error) {
+        console.error('Erreur lors de la modification des dés:', error);
+        toast.error('Erreur', { description: "Impossible de modifier les dés.", duration: 3000 });
+      }
+    }
+  };
+
+  const handleRemoveDice = async () => {
+    if (selectedCompetence && selectedCharacter) {
+      try {
+        const bonusPath = `Bonus/${roomId}/${selectedCharacter.Nomperso}/${selectedCompetence.id}`;
+        await updateDoc(doc(db, bonusPath), { diceSelection: "" });
+        toast.success('Dés supprimés', { duration: 2000 });
+        setIsDiceDialogOpen(false);
+        await refreshCompetences();
+      } catch (error) {
+        console.error('Erreur lors de la suppression des dés:', error);
+      }
+    }
+  };
+
   const renderCompetences = (type: "all" | "passive" | "limitée") => {
     let filteredCompetences = type === "all" ? competences : competences.filter((comp) => comp.type === type);
 
@@ -222,6 +263,9 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
               </h3>
               {competence.name.startsWith("🔄") && (
                 <RefreshCw className="h-3.5 w-3.5 text-[var(--accent-brown)] shrink-0" />
+              )}
+              {competence.diceSelection && (
+                <span className="text-[10px] font-bold text-green-500 font-mono shrink-0">{competence.diceSelection}</span>
               )}
             </div>
 
@@ -468,6 +512,82 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
                 <PlusCircle className="h-4 w-4 mr-2" />
                 Ajouter le bonus
               </Button>
+
+              {/* Section dés */}
+              <div className="pt-4 border-t border-black/5 dark:border-white/5 mt-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Dice5 className="h-4 w-4 text-[var(--accent-brown)]" />
+                    <span className="text-sm font-medium text-[var(--text-primary)]">
+                      {selectedCompetence?.diceSelection ? selectedCompetence.diceSelection : "Aucun dé"}
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      if (selectedCompetence?.diceSelection) {
+                        const [count, faces] = selectedCompetence.diceSelection.split('d').map(Number);
+                        setDiceCount(count || 1);
+                        setDiceFaces(faces || 6);
+                      }
+                      setIsDiceDialogOpen(true);
+                    }}
+                    className="text-[var(--accent-brown)] hover:bg-[var(--accent-brown)]/10"
+                  >
+                    Modifier les dés
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dice Dialog */}
+      <Dialog open={isDiceDialogOpen} onOpenChange={(open) => {
+        setIsDiceDialogOpen(open);
+        if (!open) {
+          setDiceCount(1);
+          setDiceFaces(6);
+        }
+      }}>
+        <DialogContent className="modal-content max-w-md">
+          <DialogHeader>
+            <DialogTitle className="modal-title">Modifier les dés pour {selectedCompetence?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="compDiceCount" className="text-[var(--text-primary)]">Nombre de dés</Label>
+                <Input
+                  id="compDiceCount"
+                  type="number"
+                  value={diceCount}
+                  onChange={(e) => setDiceCount(parseInt(e.target.value))}
+                  min={1}
+                  className="input-field"
+                />
+              </div>
+              <div>
+                <Label htmlFor="compDiceFaces" className="text-[var(--text-primary)]">Nombre de faces</Label>
+                <Input
+                  id="compDiceFaces"
+                  type="number"
+                  value={diceFaces}
+                  onChange={(e) => setDiceFaces(parseInt(e.target.value))}
+                  min={2}
+                  className="input-field"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleUpdateDice} className="button-primary flex-1">Mettre à jour les dés</Button>
+              {selectedCompetence?.diceSelection && (
+                <Button onClick={handleRemoveDice} variant="ghost" className="text-red-400 hover:text-red-300 hover:bg-red-400/10">
+                  Supprimer
+                </Button>
+              )}
             </div>
           </div>
         </DialogContent>
