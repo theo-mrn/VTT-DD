@@ -45,7 +45,7 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const initialVideoId = useRef<string | null>(null);
-  if (!initialVideoId.current && musicState.videoId) {
+  if (!initialVideoId.current && musicState.videoId && musicState.type !== 'file') {
     initialVideoId.current = musicState.videoId;
   }
   const latestMusicState = useRef(musicState);
@@ -137,6 +137,10 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
           if (playerRef.current && typeof playerRef.current.pauseVideo === 'function') {
             try { playerRef.current.pauseVideo(); } catch (_) { }
           }
+          // Reset YouTube refs pour éviter d'utiliser un player stale au retour
+          playerRef.current = null;
+          hasPlayerSyncedOnce.current = false;
+          currentVideoIdRef.current = null;
           syncFileAudio(data);
           return;
         }
