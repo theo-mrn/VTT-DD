@@ -2,13 +2,15 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import YouTube from 'react-youtube';
-import { Volume2, Search, X, Plus, Trash2, Library, Music, Play, Pause, MapPin, Youtube, FileAudio, ListMusic, GripVertical, Check, StopCircle, PlayCircle, Filter, SkipBack, SkipForward, Repeat, Shuffle } from 'lucide-react'
+import { Volume2, Search, X, Plus, Trash2, Library, Music, Play, Pause, MapPin, Youtube, FileAudio, ListMusic, GripVertical, Check, StopCircle, PlayCircle, Filter, SkipBack, SkipForward, Repeat, Shuffle, ListX } from 'lucide-react'
 import { onSnapshot, setDoc, doc as firestoreDoc } from 'firebase/firestore'
 import { db, realtimeDb, dbRef, update, onValue } from '@/lib/firebase'
-import { useGMTemplates, type SoundTemplate } from '@/contexts/GMTemplatesContext'
+import { useGMTemplates, type SoundTemplate, type MusicPlaylist } from '@/contexts/GMTemplatesContext'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 import { SUGGESTED_SOUNDS, SOUND_CATEGORIES, SUGGESTED_MUSICS, MUSIC_CATEGORIES } from '@/lib/suggested-sounds'
 import { Badge } from "@/components/ui/badge"
@@ -40,6 +42,10 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
         soundTemplates: templates,
         addSoundTemplate,
         deleteSoundTemplate,
+        playlists,
+        addPlaylist,
+        updatePlaylist,
+        deletePlaylist,
     } = useGMTemplates();
 
     // Register dialog state when drawer opens/closes
@@ -52,6 +58,11 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
     const [searchQuery, setSearchQuery] = useState('')
     const [debouncedQuery, setDebouncedQuery] = useState('')
     const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null)
+
+    // --- Playlist States ---
+    const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null)
+    const [showCreatePlaylist, setShowCreatePlaylist] = useState(false)
+    const [newPlaylistName, setNewPlaylistName] = useState('')
 
     // --- Local/Global Playback States ---
     const [isGlobalPlayback, setIsGlobalPlayback] = useState(true) // Default to global
@@ -301,22 +312,19 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
     }
 
     const playNext = () => {
-        // Need to recalculate musicResults here or memoize it outside render
-        const musicResults = filteredTemplates.filter(t => t.category === 'music')
-
-        if (!musicState.videoId || musicResults.length === 0) return
-        const currentIndex = musicResults.findIndex(t => musicState.templateId ? t.id === musicState.templateId : t.soundUrl === musicState.videoId)
-        const nextIndex = (currentIndex + 1) % musicResults.length
-        if (nextIndex >= 0) playMusicTrack(musicResults[nextIndex])
+        const tracks = activePlaylistTracks
+        if (!musicState.videoId || tracks.length === 0) return
+        const currentIndex = tracks.findIndex(t => musicState.templateId ? t.id === musicState.templateId : t.soundUrl === musicState.videoId)
+        const nextIndex = (currentIndex + 1) % tracks.length
+        playMusicTrack(tracks[nextIndex])
     }
 
     const playPrevious = () => {
-        const musicResults = filteredTemplates.filter(t => t.category === 'music')
-
-        if (!musicState.videoId || musicResults.length === 0) return
-        const currentIndex = musicResults.findIndex(t => musicState.templateId ? t.id === musicState.templateId : t.soundUrl === musicState.videoId)
-        const prevIndex = (currentIndex - 1 + musicResults.length) % musicResults.length
-        if (prevIndex >= 0) playMusicTrack(musicResults[prevIndex])
+        const tracks = activePlaylistTracks
+        if (!musicState.videoId || tracks.length === 0) return
+        const currentIndex = tracks.findIndex(t => musicState.templateId ? t.id === musicState.templateId : t.soundUrl === musicState.videoId)
+        const prevIndex = (currentIndex - 1 + tracks.length) % tracks.length
+        playMusicTrack(tracks[prevIndex])
     }
 
     // --- Handlers --- (Adding drag start)
@@ -342,6 +350,16 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
     // Then split by category
     const soundResults = filteredTemplates.filter(t => t.category !== 'music')
     const musicResults = filteredTemplates.filter(t => t.category === 'music')
+
+    // Active playlist tracks (resolved from IDs, filtering deleted templates)
+    const activePlaylistTracks = React.useMemo(() => {
+        if (!activePlaylistId) return musicResults
+        const playlist = playlists.find(p => p.id === activePlaylistId)
+        if (!playlist) return musicResults
+        return playlist.trackIds
+            .map(id => musicResults.find(t => t.id === id))
+            .filter(Boolean) as SoundTemplate[]
+    }, [activePlaylistId, playlists, musicResults])
 
     const RenderIcon = ({ type }: { type: string }) => type === 'youtube'
         ? <Youtube className="w-4 h-4 text-red-500" />
@@ -487,24 +505,85 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                         {/* MUSIC LIBRARY SECTION */}
                         {activeTab === 'music' && (
                             <div className="space-y-4">
-                                <div className="mb-2">
-                                    <div className="flex items-center justify-between px-2 py-2 bg-[#1a1a1a] rounded-lg border border-[#333]">
-                                        <div className="flex items-center gap-2">
-                                            <Library className="w-3.5 h-3.5 text-[#c0a080]" />
-                                            <span className="text-xs font-semibold text-gray-300">Mes Musiques</span>
-                                        </div>
-                                        <span className="text-[10px] text-gray-500">{musicResults.length} titre{musicResults.length !== 1 ? 's' : ''}</span>
+                                {/* Playlist Selector */}
+                                <div className="mb-2 space-y-2">
+                                    <div className="flex items-center gap-2 px-2 py-2 bg-[#1a1a1a] rounded-lg border border-[#333]">
+                                        <ListMusic className="w-3.5 h-3.5 text-[#c0a080] shrink-0" />
+                                        <Select value={activePlaylistId ?? '__all__'} onValueChange={(v) => setActivePlaylistId(v === '__all__' ? null : v)}>
+                                            <SelectTrigger className="h-7 bg-[#252525] border-[#444] text-xs text-gray-300 flex-1">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-[#1a1a1a] border-[#444]">
+                                                <SelectItem value="__all__">Toutes les musiques ({musicResults.length})</SelectItem>
+                                                {playlists.map(p => {
+                                                    const count = p.trackIds.filter(id => musicResults.some(t => t.id === id)).length
+                                                    return <SelectItem key={p.id} value={p.id}>{p.name} ({count})</SelectItem>
+                                                })}
+                                            </SelectContent>
+                                        </Select>
+                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-gray-400 hover:text-[#c0a080]" onClick={() => setShowCreatePlaylist(true)} title="Nouvelle playlist">
+                                            <Plus className="w-3.5 h-3.5" />
+                                        </Button>
+                                        {activePlaylistId && (
+                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-gray-400 hover:text-red-400" onClick={() => { deletePlaylist(activePlaylistId); setActivePlaylistId(null); }} title="Supprimer la playlist">
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </Button>
+                                        )}
                                     </div>
+
+                                    {/* Create Playlist Form */}
+                                    {showCreatePlaylist && (
+                                        <div className="px-2 py-2 bg-[#1e1e1e] border border-[#333] rounded-lg space-y-2 animate-in slide-in-from-top-2">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-semibold text-white">Nouvelle Playlist</span>
+                                                <X className="w-3.5 h-3.5 cursor-pointer text-gray-400" onClick={() => { setShowCreatePlaylist(false); setNewPlaylistName(''); }} />
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Input
+                                                    placeholder="Nom de la playlist..."
+                                                    value={newPlaylistName}
+                                                    onChange={(e) => setNewPlaylistName(e.target.value)}
+                                                    className="h-7 bg-[#252525] border-none text-white text-xs flex-1"
+                                                    autoFocus
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === 'Enter' && newPlaylistName.trim()) {
+                                                            addPlaylist({ name: newPlaylistName.trim(), trackIds: [] })
+                                                            setNewPlaylistName('')
+                                                            setShowCreatePlaylist(false)
+                                                        }
+                                                    }}
+                                                />
+                                                <Button size="sm" className="h-7 bg-[#c0a080] text-black hover:bg-[#d4b494] text-xs"
+                                                    disabled={!newPlaylistName.trim()}
+                                                    onClick={() => {
+                                                        addPlaylist({ name: newPlaylistName.trim(), trackIds: [] })
+                                                        setNewPlaylistName('')
+                                                        setShowCreatePlaylist(false)
+                                                    }}>
+                                                    Créer
+                                                </Button>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
-                                {musicResults.length === 0 ? (
+                                {activePlaylistTracks.length === 0 ? (
                                     <div className="text-center py-8 text-gray-500 text-xs">
-                                        <p>Aucune musique importée.</p>
-                                        <p className="mt-1">Utilisez le bouton "+" pour ajouter des titres.</p>
+                                        {activePlaylistId ? (
+                                            <>
+                                                <p>Cette playlist est vide.</p>
+                                                <p className="mt-1">Sélectionnez &quot;Toutes les musiques&quot; et ajoutez des titres.</p>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <p>Aucune musique importée.</p>
+                                                <p className="mt-1">Utilisez le bouton &quot;+&quot; pour ajouter des titres.</p>
+                                            </>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="space-y-1">
-                                        {musicResults.map(sound => {
+                                        {activePlaylistTracks.map(sound => {
                                             const isCurrentTrack = musicState.templateId
                                                 ? musicState.templateId === sound.id
                                                 : musicState.videoId === sound.soundUrl
@@ -541,7 +620,54 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                                     </div>
 
                                                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                        {deleteConfirmId === sound.id ? (
+                                                        {/* Add to playlist dropdown */}
+                                                        {!activePlaylistId && playlists.length > 0 && (
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-gray-600 hover:text-[#c0a080]" onClick={(e) => e.stopPropagation()}>
+                                                                        <Plus className="w-3.5 h-3.5" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent className="bg-[#1a1a1a] border-[#444]" onClick={(e) => e.stopPropagation()}>
+                                                                    {playlists.map(p => {
+                                                                        const isInPlaylist = p.trackIds.includes(sound.id)
+                                                                        return (
+                                                                            <DropdownMenuItem key={p.id} disabled={isInPlaylist}
+                                                                                className="text-xs text-gray-300 focus:bg-[#252525] focus:text-white"
+                                                                                onClick={() => {
+                                                                                    if (!isInPlaylist) {
+                                                                                        updatePlaylist(p.id, { trackIds: [...p.trackIds, sound.id] })
+                                                                                    }
+                                                                                }}>
+                                                                                {isInPlaylist ? <Check className="w-3 h-3 mr-2 text-green-500" /> : <Plus className="w-3 h-3 mr-2" />}
+                                                                                {p.name}
+                                                                            </DropdownMenuItem>
+                                                                        )
+                                                                    })}
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        )}
+
+                                                        {/* Remove from playlist or delete template */}
+                                                        {activePlaylistId ? (
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="icon"
+                                                                className="h-6 w-6 text-gray-600 hover:text-orange-400"
+                                                                title="Retirer de la playlist"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation()
+                                                                    const playlist = playlists.find(p => p.id === activePlaylistId)
+                                                                    if (playlist) {
+                                                                        updatePlaylist(activePlaylistId, {
+                                                                            trackIds: playlist.trackIds.filter(id => id !== sound.id)
+                                                                        })
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <ListX className="w-3.5 h-3.5" />
+                                                            </Button>
+                                                        ) : deleteConfirmId === sound.id ? (
                                                             <Button
                                                                 size="sm"
                                                                 variant="destructive"

@@ -19,6 +19,13 @@ export interface SoundTemplate {
     createdAt?: Date
 }
 
+export interface MusicPlaylist {
+    id: string
+    name: string
+    trackIds: string[]
+    createdAt?: Date
+}
+
 export interface ExistingNPC {
     id: string
     Nomperso: string
@@ -50,6 +57,7 @@ interface GMTemplatesContextType {
     objectTemplates: ObjectTemplate[]
     existingNPCs: ExistingNPC[]
     cities: { id: string; name: string }[]
+    playlists: MusicPlaylist[]
     loading: boolean
 
     // CRUD NPC Templates
@@ -59,6 +67,11 @@ interface GMTemplatesContextType {
     // CRUD Sound Templates
     addSoundTemplate: (data: Record<string, any>) => Promise<string>
     deleteSoundTemplate: (id: string) => Promise<void>
+
+    // CRUD Playlists
+    addPlaylist: (data: { name: string; trackIds: string[] }) => Promise<string>
+    updatePlaylist: (id: string, data: Partial<Pick<MusicPlaylist, 'name' | 'trackIds'>>) => Promise<void>
+    deletePlaylist: (id: string) => Promise<void>
 
     // CRUD Object Templates
     addObjectTemplate: (data: Record<string, any>) => Promise<string>
@@ -82,6 +95,7 @@ export function GMTemplatesProvider({ roomId, children }: { roomId: string; chil
     const [npcCategories, setNpcCategories] = useState<Category[]>([])
     const [soundTemplates, setSoundTemplates] = useState<SoundTemplate[]>([])
     const [objectTemplates, setObjectTemplates] = useState<ObjectTemplate[]>([])
+    const [playlists, setPlaylists] = useState<MusicPlaylist[]>([])
     const [existingNPCs, setExistingNPCs] = useState<ExistingNPC[]>([])
     const [cities, setCities] = useState<{ id: string; name: string }[]>([])
     const [loading, setLoading] = useState(true)
@@ -98,6 +112,7 @@ export function GMTemplatesProvider({ roomId, children }: { roomId: string; chil
                 catSnap,
                 soundSnap,
                 objSnap,
+                playlistSnap,
                 citiesSnap,
                 charsSnap,
             ] = await Promise.all([
@@ -105,6 +120,7 @@ export function GMTemplatesProvider({ roomId, children }: { roomId: string; chil
                 getDocs(query(collection(db, 'npc_templates', roomId, 'categories'))),
                 getDocs(query(collection(db, 'sound_templates', roomId, 'templates'))),
                 getDocs(query(collection(db, 'object_templates', roomId, 'templates'))),
+                getDocs(query(collection(db, 'sound_templates', roomId, 'playlists'))),
                 getDocs(query(collection(db, 'cartes', roomId, 'cities'))),
                 getDocs(query(collection(db, 'cartes', roomId, 'characters'))),
             ])
@@ -120,6 +136,9 @@ export function GMTemplatesProvider({ roomId, children }: { roomId: string; chil
 
             // Object Templates
             setObjectTemplates(objSnap.docs.map(d => ({ id: d.id, ...d.data() } as ObjectTemplate)))
+
+            // Playlists
+            setPlaylists(playlistSnap.docs.map(d => ({ id: d.id, ...d.data() } as MusicPlaylist)))
 
             // Cities
             const cityNamesMap = new Map<string, string>()
@@ -209,6 +228,28 @@ export function GMTemplatesProvider({ roomId, children }: { roomId: string; chil
         await deleteDoc(doc(db, 'sound_templates', roomId, 'templates', id))
     }, [roomId])
 
+    // --- CRUD: Playlists ---
+
+    const addPlaylist = useCallback(async (data: { name: string; trackIds: string[] }): Promise<string> => {
+        const tempId = `temp-${Date.now()}`
+        const optimistic = { id: tempId, ...data, createdAt: new Date() } as MusicPlaylist
+        setPlaylists(prev => [...prev, optimistic])
+
+        const docRef = await addDoc(collection(db, 'sound_templates', roomId, 'playlists'), { ...data, createdAt: new Date() })
+        setPlaylists(prev => prev.map(p => p.id === tempId ? { ...p, id: docRef.id } : p))
+        return docRef.id
+    }, [roomId])
+
+    const updatePlaylist = useCallback(async (id: string, data: Partial<Pick<MusicPlaylist, 'name' | 'trackIds'>>): Promise<void> => {
+        setPlaylists(prev => prev.map(p => p.id === id ? { ...p, ...data } : p))
+        await updateDoc(doc(db, 'sound_templates', roomId, 'playlists', id), data)
+    }, [roomId])
+
+    const deletePlaylist = useCallback(async (id: string): Promise<void> => {
+        setPlaylists(prev => prev.filter(p => p.id !== id))
+        await deleteDoc(doc(db, 'sound_templates', roomId, 'playlists', id))
+    }, [roomId])
+
     // --- CRUD: Object Templates ---
 
     const addObjectTemplate = useCallback(async (data: Record<string, any>): Promise<string> => {
@@ -282,11 +323,15 @@ export function GMTemplatesProvider({ roomId, children }: { roomId: string; chil
             objectTemplates,
             existingNPCs,
             cities,
+            playlists,
             loading,
             addNPCTemplate,
             updateNPCTemplate,
             addSoundTemplate,
             deleteSoundTemplate,
+            addPlaylist,
+            updatePlaylist,
+            deletePlaylist,
             addObjectTemplate,
             refresh,
             refreshExistingNPCs,
