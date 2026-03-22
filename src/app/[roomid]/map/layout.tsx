@@ -57,7 +57,7 @@ export default function Layout({ children }: LayoutProps) {
 
   // Lazy-mount flags: component is mounted on first open, then stays in DOM
   const [mounted, setMounted] = useState({
-    notes: false,
+    notes: true,
     chat: false,
     gmDashboard: false,
     npcManager: false,
