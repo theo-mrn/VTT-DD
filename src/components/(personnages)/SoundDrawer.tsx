@@ -2,14 +2,13 @@
 
 import React, { useState, useEffect, useRef } from 'react'
 import YouTube from 'react-youtube';
-import { Volume2, Search, X, Plus, Trash2, Library, Music, Play, Pause, MapPin, Youtube, FileAudio, ListMusic, GripVertical, Check, StopCircle, PlayCircle, Filter, SkipBack, SkipForward, Repeat, Shuffle, ListX } from 'lucide-react'
+import { Volume2, Search, X, Plus, Trash2, Library, Music, Play, Pause, MapPin, Youtube, FileAudio, ListMusic, GripVertical, Check, StopCircle, PlayCircle, Filter, SkipBack, SkipForward, Repeat, Shuffle, ListX, MoreVertical, Pencil } from 'lucide-react'
 import { onSnapshot, setDoc, doc as firestoreDoc } from 'firebase/firestore'
 import { db, realtimeDb, dbRef, update, onValue } from '@/lib/firebase'
 import { useGMTemplates, type SoundTemplate, type MusicPlaylist } from '@/contexts/GMTemplatesContext'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 
 import { SUGGESTED_SOUNDS, SOUND_CATEGORIES, SUGGESTED_MUSICS, MUSIC_CATEGORIES } from '@/lib/suggested-sounds'
@@ -63,6 +62,8 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
     const [activePlaylistId, setActivePlaylistId] = useState<string | null>(null)
     const [showCreatePlaylist, setShowCreatePlaylist] = useState(false)
     const [newPlaylistName, setNewPlaylistName] = useState('')
+    const [renamingPlaylistId, setRenamingPlaylistId] = useState<string | null>(null)
+    const [renameValue, setRenameValue] = useState('')
 
     // --- Local/Global Playback States ---
     const [isGlobalPlayback, setIsGlobalPlayback] = useState(true) // Default to global
@@ -493,7 +494,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                         {activeTab === 'music' && (
                             <p className="text-xs text-gray-400 flex items-center gap-2">
                                 <ListMusic className="w-3 h-3 text-[#c0a080]" />
-                                <span>Gérez la musique pour l'ambiance de la session</span>
+                                <span>Mes playlists</span>
                             </p>
                         )}
                     </div>
@@ -505,38 +506,51 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                         {/* MUSIC LIBRARY SECTION */}
                         {activeTab === 'music' && (
                             <div className="space-y-4">
-                                {/* Playlist Selector */}
-                                <div className="mb-2 space-y-2">
-                                    <div className="flex items-center gap-2 px-2 py-2 bg-[#1a1a1a] rounded-lg border border-[#333]">
-                                        <ListMusic className="w-3.5 h-3.5 text-[#c0a080] shrink-0" />
-                                        <Select value={activePlaylistId ?? '__all__'} onValueChange={(v) => setActivePlaylistId(v === '__all__' ? null : v)}>
-                                            <SelectTrigger className="h-7 bg-[#252525] border-[#444] text-xs text-gray-300 flex-1">
-                                                <SelectValue />
-                                            </SelectTrigger>
-                                            <SelectContent className="bg-[#1a1a1a] border-[#444]">
-                                                <SelectItem value="__all__">Toutes les musiques ({musicResults.length})</SelectItem>
-                                                {playlists.map(p => {
-                                                    const count = p.trackIds.filter(id => musicResults.some(t => t.id === id)).length
-                                                    return <SelectItem key={p.id} value={p.id}>{p.name} ({count})</SelectItem>
-                                                })}
-                                            </SelectContent>
-                                        </Select>
-                                        <Button size="icon" variant="ghost" className="h-7 w-7 text-gray-400 hover:text-[#c0a080]" onClick={() => setShowCreatePlaylist(true)} title="Nouvelle playlist">
-                                            <Plus className="w-3.5 h-3.5" />
-                                        </Button>
-                                        {activePlaylistId && (
-                                            <Button size="icon" variant="ghost" className="h-7 w-7 text-gray-400 hover:text-red-400" onClick={() => { deletePlaylist(activePlaylistId); setActivePlaylistId(null); }} title="Supprimer la playlist">
-                                                <Trash2 className="w-3.5 h-3.5" />
-                                            </Button>
-                                        )}
+                                {/* Playlist Tabs */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-[#333]">
+                                        <button
+                                            onClick={() => setActivePlaylistId(null)}
+                                            className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all ${!activePlaylistId
+                                                ? 'bg-[#c0a080] text-black shadow-md shadow-[#c0a080]/20'
+                                                : 'bg-[#252525] text-gray-400 hover:bg-[#333] hover:text-gray-200 border border-[#333]'
+                                                }`}
+                                        >
+                                            Tout ({musicResults.length})
+                                        </button>
+                                        {playlists.map(p => {
+                                            const count = p.trackIds.filter(id => musicResults.some(t => t.id === id)).length
+                                            const isActive = activePlaylistId === p.id
+                                            return (
+                                                <button
+                                                    key={p.id}
+                                                    onClick={() => setActivePlaylistId(p.id)}
+                                                    className={`shrink-0 px-3 py-1.5 rounded-full text-[11px] font-medium transition-all flex items-center gap-1.5 ${isActive
+                                                        ? 'bg-[#c0a080] text-black shadow-md shadow-[#c0a080]/20'
+                                                        : 'bg-[#252525] text-gray-400 hover:bg-[#333] hover:text-gray-200 border border-[#333]'
+                                                        }`}
+                                                >
+                                                    <ListMusic className="w-3 h-3" />
+                                                    {p.name}
+                                                    <span className={`text-[9px] ${isActive ? 'text-black/60' : 'text-gray-600'}`}>{count}</span>
+                                                </button>
+                                            )
+                                        })}
+                                        <button
+                                            onClick={() => setShowCreatePlaylist(true)}
+                                            className="shrink-0 w-7 h-7 rounded-full bg-[#252525] border border-dashed border-[#555] flex items-center justify-center text-gray-500 hover:text-[#c0a080] hover:border-[#c0a080]/50 transition-all"
+                                            title="Nouvelle playlist"
+                                        >
+                                            <Plus className="w-3 h-3" />
+                                        </button>
                                     </div>
 
                                     {/* Create Playlist Form */}
                                     {showCreatePlaylist && (
-                                        <div className="px-2 py-2 bg-[#1e1e1e] border border-[#333] rounded-lg space-y-2 animate-in slide-in-from-top-2">
+                                        <div className="px-3 py-2.5 bg-[#1a1a1a] border border-[#c0a080]/30 rounded-lg space-y-2 animate-in slide-in-from-top-2">
                                             <div className="flex items-center justify-between">
-                                                <span className="text-xs font-semibold text-white">Nouvelle Playlist</span>
-                                                <X className="w-3.5 h-3.5 cursor-pointer text-gray-400" onClick={() => { setShowCreatePlaylist(false); setNewPlaylistName(''); }} />
+                                                <span className="text-[11px] font-semibold text-[#c0a080]">Nouvelle Playlist</span>
+                                                <X className="w-3.5 h-3.5 cursor-pointer text-gray-500 hover:text-gray-300" onClick={() => { setShowCreatePlaylist(false); setNewPlaylistName(''); }} />
                                             </div>
                                             <div className="flex gap-2">
                                                 <Input
@@ -565,19 +579,86 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
                                             </div>
                                         </div>
                                     )}
+
+                                    {/* Active Playlist Header */}
+                                    {activePlaylistId && (() => {
+                                        const playlist = playlists.find(p => p.id === activePlaylistId)
+                                        if (!playlist) return null
+                                        const isRenaming = renamingPlaylistId === activePlaylistId
+                                        return (
+                                            <div className="flex items-center justify-between px-3 py-2 bg-[#1a1a1a] rounded-lg border border-[#333]">
+                                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                    <ListMusic className="w-4 h-4 text-[#c0a080] shrink-0" />
+                                                    <div className="min-w-0 flex-1">
+                                                        {isRenaming ? (
+                                                            <Input
+                                                                value={renameValue}
+                                                                onChange={(e) => setRenameValue(e.target.value)}
+                                                                className="h-6 bg-[#252525] border-none text-white text-xs"
+                                                                autoFocus
+                                                                onKeyDown={(e) => {
+                                                                    if (e.key === 'Enter' && renameValue.trim()) {
+                                                                        updatePlaylist(activePlaylistId, { name: renameValue.trim() })
+                                                                        setRenamingPlaylistId(null)
+                                                                    }
+                                                                    if (e.key === 'Escape') setRenamingPlaylistId(null)
+                                                                }}
+                                                                onBlur={() => {
+                                                                    if (renameValue.trim() && renameValue.trim() !== playlist.name) {
+                                                                        updatePlaylist(activePlaylistId, { name: renameValue.trim() })
+                                                                    }
+                                                                    setRenamingPlaylistId(null)
+                                                                }}
+                                                            />
+                                                        ) : (
+                                                            <span className="text-xs font-semibold text-white truncate block">
+                                                                {playlist.name}
+                                                            </span>
+                                                        )}
+                                                        <span className="text-[10px] text-gray-500">{activePlaylistTracks.length} titre{activePlaylistTracks.length !== 1 ? 's' : ''}</span>
+                                                    </div>
+                                                </div>
+                                                <DropdownMenu>
+                                                    <DropdownMenuTrigger asChild>
+                                                        <Button size="icon" variant="ghost" className="h-6 w-6 text-gray-500 hover:text-gray-300 shrink-0">
+                                                            <MoreVertical className="w-3.5 h-3.5" />
+                                                        </Button>
+                                                    </DropdownMenuTrigger>
+                                                    <DropdownMenuContent className="bg-[#1a1a1a] border-[#444] min-w-[140px]">
+                                                        <DropdownMenuItem
+                                                            className="text-xs text-gray-300 focus:bg-[#252525] focus:text-white gap-2"
+                                                            onClick={() => { setRenamingPlaylistId(activePlaylistId); setRenameValue(playlist.name); }}
+                                                        >
+                                                            <Pencil className="w-3 h-3" />
+                                                            Renommer
+                                                        </DropdownMenuItem>
+                                                        <DropdownMenuItem
+                                                            className="text-xs text-red-400 focus:bg-red-500/10 focus:text-red-400 gap-2"
+                                                            onClick={() => { deletePlaylist(activePlaylistId); setActivePlaylistId(null); }}
+                                                        >
+                                                            <Trash2 className="w-3 h-3" />
+                                                            Supprimer
+                                                        </DropdownMenuItem>
+                                                    </DropdownMenuContent>
+                                                </DropdownMenu>
+                                            </div>
+                                        )
+                                    })()}
                                 </div>
 
                                 {activePlaylistTracks.length === 0 ? (
                                     <div className="text-center py-8 text-gray-500 text-xs">
                                         {activePlaylistId ? (
                                             <>
-                                                <p>Cette playlist est vide.</p>
-                                                <p className="mt-1">Sélectionnez &quot;Toutes les musiques&quot; et ajoutez des titres.</p>
+                                                <ListMusic className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                                <p>Cette playlist est vide</p>
+                                                <p className="mt-1 text-gray-600">Revenez sur &quot;Tout&quot; et utilisez <Plus className="w-3 h-3 inline" /> sur un titre pour l&apos;ajouter ici</p>
                                             </>
                                         ) : (
                                             <>
-                                                <p>Aucune musique importée.</p>
-                                                <p className="mt-1">Utilisez le bouton &quot;+&quot; pour ajouter des titres.</p>
+                                                <Music className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                                                <p>Aucune musique importée</p>
+                                                <p className="mt-1 text-gray-600">Utilisez le bouton &quot;+&quot; pour ajouter des titres</p>
                                             </>
                                         )}
                                     </div>
