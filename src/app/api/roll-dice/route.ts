@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
+import { adminDb } from '@/lib/firebase-admin';
+import { resolveApiUser } from '@/lib/api-auth';
 
 interface RollRequest {
     notation: string;
     roomId?: string;
-    userId?: string;
-    username?: string;
-    userAvatar?: string;
     persoId?: string;
     isPrivate?: boolean;
     isBlind?: boolean;
@@ -20,23 +19,32 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Notation is required' }, { status: 400 });
         }
 
+        // Authenticate user via Bearer token or API Key
+        const apiUser = await resolveApiUser(request, body.roomId);
+
+        if (body.roomId && !apiUser) {
+            return NextResponse.json(
+                { error: 'Authentication required to save a roll. Add -H "Authorization: ApiKey $VTT_API_KEY"' },
+                { status: 401 }
+            );
+        }
+
+        const userName = apiUser?.name ?? 'Anonyme';
+        const userAvatar = apiUser?.avatar;
+        const authenticatedUid = apiUser?.uid;
+
         // Parse notation (simple parser for now: XdY)
         // Matches: 1d20, 2d6, 1d20+5
-        // We only care about generating the DICE values here.
         const diceRegex = /(\d+)d(\d+)(?:k([hl])(\d+))?/gi;
 
-        // We need to preserve the structure to return individual die results
         const rolls: { type: string; value: number }[] = [];
-        let total = 0;
 
-        // We will parse the string to find all dice to roll
         const matches = [...notation.matchAll(diceRegex)];
 
         if (matches.length === 0 && !notation.match(/\d/)) {
             return NextResponse.json({ error: 'Invalid notation' }, { status: 400 });
         }
 
-        // Generate random values for each die match
         for (const match of matches) {
             const count = parseInt(match[1]);
             const faces = parseInt(match[2]);
@@ -48,40 +56,20 @@ export async function POST(request: Request) {
             }
         }
 
-        // We also need to calculate the TOTAL. 
-        // This is tricky without a full expression parser if the notation is complex (e.g. 1d20+1d4+5).
-        // For now, we will emulate the simple processing: replace dice with values and eval.
-        // NOTE: This logic should ideally match `dice-roller.tsx` logic exactly to avoid discrepancies.
-        //
-        // Let's copy the evaluation logic from dice-roller.tsx basically.
-
         let processedNotation = notation;
-        // We need to consume our generated 'rolls' array in order
         const tempRolls = [...rolls];
-
         const detailsParts: string[] = [];
 
-        processedNotation = processedNotation.replace(diceRegex, (match, countStr, facesStr, keepType, keepCountStr) => {
+        processedNotation = processedNotation.replace(diceRegex, (_, countStr, _facesStr, keepType, keepCountStr) => {
             const count = parseInt(countStr);
-            const faces = parseInt(facesStr);
             const keepCount = keepCountStr ? parseInt(keepCountStr) : 0;
 
             const currentDiceValues: number[] = [];
             for (let i = 0; i < count; i++) {
-                // Take the first available roll of this type
-                // In our simple generation above, we pushed them in order of matches, so we can just shift.
-                // But wait, the loop above 'matches' is the same order as replace.
-                // So we can just pop from the front of tempRolls IF the type matches.
-                // Actually, since we iterate in the exact same order, we can just grab the next N items from tempRolls?
-                // Wait, tempRolls has ALL dice flat.
-                // The first match generated 'count' items.
-                // So we just splice 0..count
-
                 const roll = tempRolls.shift();
                 if (roll) currentDiceValues.push(roll.value);
             }
 
-            // Appliquer la logique Keep High / Keep Low (Copied from dice-roller.tsx)
             let subTotal = 0;
             let usedRolls: { val: number, keep: boolean }[] = currentDiceValues.map(r => ({ val: r, keep: true }));
 
@@ -101,7 +89,6 @@ export async function POST(request: Request) {
                 subTotal = currentDiceValues.reduce((a, b) => a + b, 0);
             }
 
-            // Formatting for detail string
             const formattedDice = usedRolls.map(r => r.keep ? `${r.val}` : `r${r.val}`).join(', ');
             detailsParts.push(`[${formattedDice}]`);
 
@@ -110,10 +97,7 @@ export async function POST(request: Request) {
 
         let grandTotal = 0;
         try {
-            // Evaluate the math expression
             const safeExpression = processedNotation.replace(/[^0-9+\-*/().\s]/g, '');
-            // eval is dangerous but standard for these calculator apps. 
-            // In strict server env we might want a library like mathjs, but for now:
             // eslint-disable-next-line no-eval
             grandTotal = eval(safeExpression);
         } catch (e) {
@@ -122,12 +106,42 @@ export async function POST(request: Request) {
 
         const output = `${notation} = ${processedNotation} = ${grandTotal}`;
 
+        let saved = false;
+
+        if (body.roomId && authenticatedUid) {
+            const firstMatch = matches[0];
+            const diceCount = firstMatch ? parseInt(firstMatch[1]) : rolls.length;
+            const diceFaces = firstMatch ? parseInt(firstMatch[2]) : 20;
+
+            const firebaseRoll = {
+                id: crypto.randomUUID(),
+                isPrivate: body.isPrivate ?? false,
+                isBlind: body.isBlind ?? false,
+                diceCount,
+                diceFaces,
+                modifier: 0,
+                results: rolls.map(r => r.value),
+                total: grandTotal,
+                userName,
+                ...(userAvatar ? { userAvatar } : {}),
+                ...(apiUser?.persoId ? { persoId: apiUser.persoId } : {}),
+                type: 'Dice Roller/API',
+                timestamp: Date.now(),
+                notation,
+                output,
+            };
+
+            await adminDb.collection(`rolls/${body.roomId}/rolls`).add(firebaseRoll);
+            saved = true;
+        }
+
         return NextResponse.json({
             total: grandTotal,
-            rolls: rolls, // These are the raw values [ {type:'d20', value: 15}, ... ]
-            output: output,
+            rolls,
+            output,
             timestamp: Date.now(),
-            saved: false // API does not save anymore
+            saved,
+            ...(authenticatedUid ? { user: userName } : {}),
         });
 
     } catch (error) {
