@@ -77,6 +77,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
     "deepl-node": "^1.24.0",
+    "discord-interactions": "^4.4.0",
     "driver.js": "^1.4.0",
     "firebase": "^11.0.1",
     "firebase-admin": "^13.7.0",
