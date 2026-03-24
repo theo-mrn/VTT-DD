@@ -139,7 +139,7 @@ export async function POST(request: Request) {
 
             // Authenticate via Firebase REST API
             const authRes = await fetch(
-                `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyDrc70mfENCh6gCd5uJmeVbWJ98lcD6mQY`,
+                `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`,
                 {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
