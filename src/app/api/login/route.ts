@@ -3,7 +3,7 @@ import { adminDb } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 import { createHash, randomBytes } from 'crypto';
 
-const FIREBASE_API_KEY = 'AIzaSyDrc70mfENCh6gCd5uJmeVbWJ98lcD6mQY';
+const FIREBASE_API_KEY = process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? '';
 
 // POST /api/login — email + password → API key (one step)
 export async function POST(request: Request) {
