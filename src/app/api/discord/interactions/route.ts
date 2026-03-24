@@ -87,6 +87,8 @@ function buildEmbed(notation: string, result: ReturnType<typeof rollDice>, userN
 
 // ── Resolve linked VTT account from Discord user ID ───────────────────────────
 
+const STAT_KEYS = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA', 'Defense', 'Contact', 'Magie', 'Distance', 'INIT'];
+
 async function resolveLinkedUser(discordId: string) {
     const linkDoc = await adminDb.doc(`discordLinks/${discordId}`).get();
     if (!linkDoc.exists) return null;
@@ -100,7 +102,23 @@ async function resolveLinkedUser(discordId: string) {
         ? userData.perso
         : userData.perso === 'MJ' ? 'MJ' : undefined;
 
-    return { uid, persoName: persoName ?? userData.name ?? 'Aventurier', roomId: userData.room_id ?? null };
+    const roomId: string | null = userData.room_id ?? null;
+    const persoId: string | null = userData.persoId ?? null;
+
+    // Fetch character stats (_F = final modifier values)
+    let variables: Record<string, number> = {};
+    if (roomId && persoId) {
+        const charDoc = await adminDb.doc(`cartes/${roomId}/characters/${persoId}`).get();
+        if (charDoc.exists) {
+            const c = charDoc.data()!;
+            for (const key of STAT_KEYS) {
+                const val = c[`${key}_F`] ?? c[key];
+                if (val !== undefined && val !== null) variables[key] = Number(val);
+            }
+        }
+    }
+
+    return { uid, persoName: persoName ?? userData.name ?? 'Aventurier', roomId, variables };
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -218,7 +236,19 @@ export async function POST(request: Request) {
 
         // ── /roll <notation> ──────────────────────────────────────────────────
         if (name === 'roll') {
-            const notation: string = options?.[0]?.value ?? '1d20';
+            const rawNotation: string = options?.[0]?.value ?? '1d20';
+
+            // Try to use linked VTT account
+            const linked = await resolveLinkedUser(discordId);
+
+            // Resolve stat variables (CON, DEX, etc.) from character
+            const notation = linked?.variables
+                ? Object.entries(linked.variables).reduce(
+                    (n, [key, val]) => n.replace(new RegExp(`\\b${key}\\b`, 'gi'), String(val)),
+                    rawNotation
+                  )
+                : rawNotation;
+
             const result = rollDice(notation);
 
             if (!result) {
@@ -227,9 +257,6 @@ export async function POST(request: Request) {
                     data: { content: `❌ Notation invalide : \`${notation}\`` },
                 });
             }
-
-            // Try to use linked VTT account
-            const linked = await resolveLinkedUser(discordId);
 
             // Save to Firebase if linked and has a room
             if (linked?.roomId) {
@@ -251,7 +278,7 @@ export async function POST(request: Request) {
                 });
             }
 
-            const embed = buildEmbed(notation, result, linked?.persoName);
+            const embed = buildEmbed(rawNotation, result, linked?.persoName);
             return NextResponse.json({
                 type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
                 data: { embeds: [embed] },
