@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
 import { resolveApiUser } from '@/lib/api-auth';
+import { buildCharacterVariables, applyVariables } from '@/lib/character-variables';
 
 interface RollRequest {
     notation: string;
@@ -14,22 +15,19 @@ interface RollRequest {
 export async function POST(request: Request) {
     try {
         const body: RollRequest = await request.json();
-        // Replace stat variables (CON, DEX, etc.) with their numeric values
-        const resolvedNotation = body.variables
-            ? Object.entries(body.variables).reduce(
-                (n, [key, val]) => n.replace(new RegExp(`\\b${key}\\b`, 'gi'), String(val)),
-                body.notation
-              )
-            : body.notation;
 
-        const { notation } = { notation: resolvedNotation };
-
-        if (!notation) {
+        if (!body.notation) {
             return NextResponse.json({ error: 'Notation is required' }, { status: 400 });
         }
 
         // Authenticate user via Bearer token or API Key
         const apiUser = await resolveApiUser(request, body.roomId);
+
+        // Build variables: use provided ones, or auto-fetch from character if authenticated
+        const variables = body.variables
+            ?? (apiUser ? await buildCharacterVariables(apiUser.uid) : {});
+
+        const notation = applyVariables(body.notation, variables);
 
         if (body.roomId && !apiUser) {
             return NextResponse.json(
