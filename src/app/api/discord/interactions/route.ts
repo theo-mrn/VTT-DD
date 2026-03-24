@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { InteractionType, InteractionResponseType, verifyKey } from 'discord-interactions';
+import { adminDb } from '@/lib/firebase-admin';
+import { createHash } from 'crypto';
+import { Timestamp } from 'firebase-admin/firestore';
 
-// Dice rolling logic (mirrors roll-dice route)
+// ── Dice rolling logic ────────────────────────────────────────────────────────
+
 function rollDice(notation: string): { total: number; output: string; rolls: { type: string; value: number }[] } | null {
     const diceRegex = /(\d+)d(\d+)(?:k([hl])(\d+))?/gi;
     const rolls: { type: string; value: number }[] = [];
@@ -56,7 +60,9 @@ function rollDice(notation: string): { total: number; output: string; rolls: { t
     return { total, output: `${notation} = ${processedNotation} = ${total}`, rolls };
 }
 
-function buildEmbed(notation: string, result: ReturnType<typeof rollDice>) {
+// ── Discord embed builder ─────────────────────────────────────────────────────
+
+function buildEmbed(notation: string, result: ReturnType<typeof rollDice>, userName?: string) {
     if (!result) return null;
     const { total, output, rolls } = result;
 
@@ -73,10 +79,31 @@ function buildEmbed(notation: string, result: ReturnType<typeof rollDice>) {
         fields: [
             { name: 'Résultat', value: `**${total}**`, inline: true },
             { name: 'Notation', value: `\`${notation}\``, inline: true },
+            ...(userName ? [{ name: 'Personnage', value: userName, inline: true }] : []),
         ],
         footer: { text: 'Yner Bot • VTT' },
     };
 }
+
+// ── Resolve linked VTT account from Discord user ID ───────────────────────────
+
+async function resolveLinkedUser(discordId: string) {
+    const linkDoc = await adminDb.doc(`discordLinks/${discordId}`).get();
+    if (!linkDoc.exists) return null;
+
+    const { uid } = linkDoc.data()!;
+    const userDoc = await adminDb.doc(`users/${uid}`).get();
+    if (!userDoc.exists) return null;
+
+    const userData = userDoc.data()!;
+    const persoName: string | undefined = userData.perso && userData.perso !== 'MJ'
+        ? userData.perso
+        : userData.perso === 'MJ' ? 'MJ' : undefined;
+
+    return { uid, persoName: persoName ?? userData.name ?? 'Aventurier', roomId: userData.room_id ?? null };
+}
+
+// ── Main handler ──────────────────────────────────────────────────────────────
 
 export async function POST(request: Request) {
     const body = await request.text();
@@ -96,10 +123,59 @@ export async function POST(request: Request) {
         return NextResponse.json({ type: InteractionResponseType.PONG });
     }
 
-    // Slash commands
     if (interaction.type === InteractionType.APPLICATION_COMMAND) {
         const { name, options } = interaction.data;
+        const discordId: string = interaction.member?.user?.id ?? interaction.user?.id;
 
+        // ── /link <api_key> ───────────────────────────────────────────────────
+        if (name === 'link') {
+            const rawKey: string = options?.[0]?.value ?? '';
+            if (!rawKey.startsWith('vtt_')) {
+                return NextResponse.json({
+                    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+                    data: { content: '❌ Clé invalide. Génère-la avec `/api/login` sur yner.fr', flags: 64 },
+                });
+            }
+
+            const keyHash = createHash('sha256').update(rawKey).digest('hex');
+            const snapshot = await adminDb.collection('apiKeys')
+                .where('keyHash', '==', keyHash)
+                .limit(1)
+                .get();
+
+            if (snapshot.empty) {
+                return NextResponse.json({
+                    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+                    data: { content: '❌ Clé introuvable ou révoquée.', flags: 64 },
+                });
+            }
+
+            const uid = snapshot.docs[0].data().uid;
+            const userDoc = await adminDb.doc(`users/${uid}`).get();
+            const userData = userDoc.exists ? userDoc.data()! : {};
+            const persoName = userData.perso ?? userData.name ?? 'Aventurier';
+
+            await adminDb.doc(`discordLinks/${discordId}`).set({ uid, linkedAt: Timestamp.now() });
+
+            return NextResponse.json({
+                type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+                data: {
+                    content: `✅ Compte lié ! Tu joues en tant que **${persoName}**.`,
+                    flags: 64, // ephemeral — visible only by the user
+                },
+            });
+        }
+
+        // ── /unlink ───────────────────────────────────────────────────────────
+        if (name === 'unlink') {
+            await adminDb.doc(`discordLinks/${discordId}`).delete();
+            return NextResponse.json({
+                type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+                data: { content: '🔓 Compte délié.', flags: 64 },
+            });
+        }
+
+        // ── /roll <notation> ──────────────────────────────────────────────────
         if (name === 'roll') {
             const notation: string = options?.[0]?.value ?? '1d20';
             const result = rollDice(notation);
@@ -111,7 +187,30 @@ export async function POST(request: Request) {
                 });
             }
 
-            const embed = buildEmbed(notation, result);
+            // Try to use linked VTT account
+            const linked = await resolveLinkedUser(discordId);
+
+            // Save to Firebase if linked and has a room
+            if (linked?.roomId) {
+                const firstMatch = [...notation.matchAll(/(\d+)d(\d+)/gi)][0];
+                await adminDb.collection(`rolls/${linked.roomId}/rolls`).add({
+                    id: crypto.randomUUID(),
+                    isPrivate: false,
+                    isBlind: false,
+                    diceCount: firstMatch ? parseInt(firstMatch[1]) : 1,
+                    diceFaces: firstMatch ? parseInt(firstMatch[2]) : 20,
+                    modifier: 0,
+                    results: result.rolls.map(r => r.value),
+                    total: result.total,
+                    userName: linked.persoName,
+                    type: 'Discord',
+                    timestamp: Date.now(),
+                    notation,
+                    output: result.output,
+                });
+            }
+
+            const embed = buildEmbed(notation, result, linked?.persoName);
             return NextResponse.json({
                 type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
                 data: { embeds: [embed] },

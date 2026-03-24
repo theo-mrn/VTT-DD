@@ -33,6 +33,22 @@ const commands = [
             },
         ],
     },
+    {
+        name: 'link',
+        description: 'Lie ton compte Yner à Discord',
+        options: [
+            {
+                name: 'api_key',
+                description: 'Ta clé API (obtenue sur yner.fr/api/login)',
+                type: 3, // STRING
+                required: true,
+            },
+        ],
+    },
+    {
+        name: 'unlink',
+        description: 'Délie ton compte Yner de Discord',
+    },
 ];
 
 const res = await fetch(
