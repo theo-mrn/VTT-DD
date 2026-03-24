@@ -8,12 +8,21 @@ interface RollRequest {
     persoId?: string;
     isPrivate?: boolean;
     isBlind?: boolean;
+    variables?: Record<string, number>; // e.g. { CON: 3, DEX: -1 }
 }
 
 export async function POST(request: Request) {
     try {
         const body: RollRequest = await request.json();
-        const { notation } = body;
+        // Replace stat variables (CON, DEX, etc.) with their numeric values
+        const resolvedNotation = body.variables
+            ? Object.entries(body.variables).reduce(
+                (n, [key, val]) => n.replace(new RegExp(`\\b${key}\\b`, 'gi'), String(val)),
+                body.notation
+              )
+            : body.notation;
+
+        const { notation } = { notation: resolvedNotation };
 
         if (!notation) {
             return NextResponse.json({ error: 'Notation is required' }, { status: 400 });
