@@ -34,6 +34,24 @@ const commands = [
         ],
     },
     {
+        name: 'login',
+        description: 'Connecte ton compte Yner à Discord',
+        options: [
+            {
+                name: 'email',
+                description: 'Ton email Yner',
+                type: 3, // STRING
+                required: true,
+            },
+            {
+                name: 'password',
+                description: 'Ton mot de passe Yner',
+                type: 3, // STRING
+                required: true,
+            },
+        ],
+    },
+    {
         name: 'link',
         description: 'Lie ton compte Yner à Discord',
         options: [
