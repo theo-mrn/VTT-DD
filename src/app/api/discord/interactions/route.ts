@@ -127,6 +127,47 @@ export async function POST(request: Request) {
         const { name, options } = interaction.data;
         const discordId: string = interaction.member?.user?.id ?? interaction.user?.id;
 
+        // ── /login <email> <password> ────────────────────────────────────────
+        if (name === 'login') {
+            const email: string = options?.find((o: { name: string }) => o.name === 'email')?.value ?? '';
+            const password: string = options?.find((o: { name: string }) => o.name === 'password')?.value ?? '';
+
+            // Authenticate via Firebase REST API
+            const authRes = await fetch(
+                `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyDrc70mfENCh6gCd5uJmeVbWJ98lcD6mQY`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, returnSecureToken: true }),
+                }
+            );
+
+            if (!authRes.ok) {
+                return NextResponse.json({
+                    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+                    data: { content: '❌ Email ou mot de passe incorrect.', flags: 64 },
+                });
+            }
+
+            const { localId: uid } = await authRes.json();
+
+            // Fetch character name
+            const userDoc = await adminDb.doc(`users/${uid}`).get();
+            const userData = userDoc.exists ? userDoc.data()! : {};
+            const persoName = userData.perso ?? userData.name ?? 'Aventurier';
+
+            // Link Discord account directly (no API key needed)
+            await adminDb.doc(`discordLinks/${discordId}`).set({ uid, linkedAt: Timestamp.now() });
+
+            return NextResponse.json({
+                type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+                data: {
+                    content: `✅ Connecté et lié ! Tu joues en tant que **${persoName}**.\nTes lancers seront maintenant sauvegardés dans ta salle.`,
+                    flags: 64,
+                },
+            });
+        }
+
         // ── /link <api_key> ───────────────────────────────────────────────────
         if (name === 'link') {
             const rawKey: string = options?.[0]?.value ?? '';
