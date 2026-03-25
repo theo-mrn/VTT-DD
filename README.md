@@ -275,7 +275,6 @@ curl -s -X POST https://www.yner.fr/api/login \
 The response prints the generated key and the exact commands to export it:
 
 ```
-  Connecté en tant que Theo (you@example.com)
   Clé "cli" générée avec succès [8e932c790348bf32]
 
 ────────────────────────────────────────────────────────────
