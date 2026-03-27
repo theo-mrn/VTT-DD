@@ -4,6 +4,9 @@ import { adminDb } from '@/lib/firebase-admin';
 import { createHash } from 'crypto';
 import { Timestamp } from 'firebase-admin/firestore';
 import { buildCharacterVariables, applyVariables } from '@/lib/character-variables';
+import { waitUntil } from '@vercel/functions';
+
+const DISCORD_API = 'https://discord.com/api/v10';
 
 // ── Dice rolling logic ────────────────────────────────────────────────────────
 
@@ -63,7 +66,7 @@ function rollDice(notation: string): { total: number; output: string; rolls: { t
 
 // ── Discord embed builder ─────────────────────────────────────────────────────
 
-function buildEmbed(notation: string, result: ReturnType<typeof rollDice>, userName?: string) {
+function buildEmbed(_notation: string, result: ReturnType<typeof rollDice>, userName?: string, avatar?: string, isMJ?: boolean) {
     if (!result) return null;
     const { total, output, rolls } = result;
 
@@ -71,23 +74,28 @@ function buildEmbed(notation: string, result: ReturnType<typeof rollDice>, userN
     const isFumble = rolls.some(r => r.type === 'd20' && r.value === 1);
 
     const color = isCrit ? 0xffd700 : isFumble ? 0xff3333 : 0xc0a080;
-    const title = isCrit ? '🎲 Coup Critique !' : isFumble ? '💀 Fumble !' : '🎲 Lancer de dé';
 
     return {
-        title,
-        description: `\`\`\`${output}\`\`\``,
+        author: userName ? {
+            name: userName,
+            icon_url: (!isMJ && avatar) ? avatar : undefined,
+        } : undefined,
+        description: `**${total}** · \`${output}\``,
         color,
-        fields: [
-            { name: 'Résultat', value: `**${total}**`, inline: true },
-            { name: 'Notation', value: `\`${notation}\``, inline: true },
-            ...(userName ? [{ name: 'Personnage', value: userName, inline: true }] : []),
-        ],
-        footer: { text: 'Yner Bot • VTT' },
     };
 }
 
-// ── Resolve linked VTT account from Discord user ID ───────────────────────────
+// ── Follow-up via Discord webhook ─────────────────────────────────────────────
 
+async function editOriginalResponse(appId: string, token: string, data: object) {
+    await fetch(`${DISCORD_API}/webhooks/${appId}/${token}/messages/@original`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+}
+
+// ── Resolve linked VTT account from Discord user ID ───────────────────────────
 
 async function resolveLinkedUser(discordId: string) {
     const linkDoc = await adminDb.doc(`discordLinks/${discordId}`).get();
@@ -98,14 +106,22 @@ async function resolveLinkedUser(discordId: string) {
     if (!userDoc.exists) return null;
 
     const userData = userDoc.data()!;
-    const persoName: string | undefined = userData.perso && userData.perso !== 'MJ'
-        ? userData.perso
-        : userData.perso === 'MJ' ? 'MJ' : undefined;
-
+    const persoName: string | undefined = userData.perso ?? undefined;
+    const isMJ = persoName === 'MJ';
     const roomId: string | null = userData.room_id ?? null;
     const variables = await buildCharacterVariables(uid);
 
-    return { uid, persoName: persoName ?? userData.name ?? 'Aventurier', roomId, variables };
+    // Fetch character avatar (skip for MJ)
+    let avatar: string | undefined;
+    if (!isMJ && roomId && userData.persoId) {
+        const charDoc = await adminDb.doc(`cartes/${roomId}/characters/${userData.persoId}`).get();
+        if (charDoc.exists) {
+            const c = charDoc.data()!;
+            avatar = c.imageURLFinal || c.imageURL || undefined;
+        }
+    }
+
+    return { uid, persoName: persoName ?? userData.name ?? 'Aventurier', isMJ, roomId, variables, avatar };
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -123,7 +139,7 @@ export async function POST(request: Request) {
 
     const interaction = JSON.parse(body);
 
-    // Verification PING
+    // Verification PING — must respond synchronously
     if (interaction.type === InteractionType.PING) {
         return NextResponse.json({ type: InteractionResponseType.PONG });
     }
@@ -131,139 +147,124 @@ export async function POST(request: Request) {
     if (interaction.type === InteractionType.APPLICATION_COMMAND) {
         const { name, options } = interaction.data;
         const discordId: string = interaction.member?.user?.id ?? interaction.user?.id;
+        const appId: string = interaction.application_id;
+        const token: string = interaction.token;
 
-        // ── /login <email> <password> ────────────────────────────────────────
+        // ── /login ────────────────────────────────────────────────────────────
         if (name === 'login') {
-            const email: string = options?.find((o: { name: string }) => o.name === 'email')?.value ?? '';
-            const password: string = options?.find((o: { name: string }) => o.name === 'password')?.value ?? '';
+            // Répondre immédiatement (ephemeral deferred)
+            waitUntil((async () => {
+                const email: string = options?.find((o: { name: string }) => o.name === 'email')?.value ?? '';
+                const password: string = options?.find((o: { name: string }) => o.name === 'password')?.value ?? '';
 
-            // Authenticate via Firebase REST API
-            const authRes = await fetch(
-                `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`,
-                {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password, returnSecureToken: true }),
+                const authRes = await fetch(
+                    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.NEXT_PUBLIC_FIREBASE_API_KEY}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password, returnSecureToken: true }),
+                    }
+                );
+
+                if (!authRes.ok) {
+                    await editOriginalResponse(appId, token, { content: '❌ Email ou mot de passe incorrect.' });
+                    return;
                 }
-            );
 
-            if (!authRes.ok) {
-                return NextResponse.json({
-                    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                    data: { content: '❌ Email ou mot de passe incorrect.', flags: 64 },
+                const { localId: uid } = await authRes.json();
+                const userDoc = await adminDb.doc(`users/${uid}`).get();
+                const userData = userDoc.exists ? userDoc.data()! : {};
+                const persoName = userData.perso ?? userData.name ?? 'Aventurier';
+
+                await adminDb.doc(`discordLinks/${discordId}`).set({ uid, linkedAt: Timestamp.now() });
+
+                await editOriginalResponse(appId, token, {
+                    content: `✅ Connecté ! Tu joues en tant que **${persoName}**.\nTes lancers seront sauvegardés automatiquement.`,
                 });
-            }
+            })());
 
-            const { localId: uid } = await authRes.json();
-
-            // Fetch character name
-            const userDoc = await adminDb.doc(`users/${uid}`).get();
-            const userData = userDoc.exists ? userDoc.data()! : {};
-            const persoName = userData.perso ?? userData.name ?? 'Aventurier';
-
-            // Link Discord account directly (no API key needed)
-            await adminDb.doc(`discordLinks/${discordId}`).set({ uid, linkedAt: Timestamp.now() });
-
-            return NextResponse.json({
-                type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                data: {
-                    content: `✅ Connecté et lié ! Tu joues en tant que **${persoName}**.\nTes lancers seront maintenant sauvegardés dans ta salle.`,
-                    flags: 64,
-                },
-            });
+            return NextResponse.json({ type: 5, data: { flags: 64 } }); // deferred ephemeral
         }
 
-        // ── /link <api_key> ───────────────────────────────────────────────────
+        // ── /link ─────────────────────────────────────────────────────────────
         if (name === 'link') {
-            const rawKey: string = options?.[0]?.value ?? '';
-            if (!rawKey.startsWith('vtt_')) {
-                return NextResponse.json({
-                    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                    data: { content: '❌ Clé invalide. Génère-la avec `/api/login` sur yner.fr', flags: 64 },
-                });
-            }
+            waitUntil((async () => {
+                const rawKey: string = options?.[0]?.value ?? '';
+                if (!rawKey.startsWith('vtt_')) {
+                    await editOriginalResponse(appId, token, { content: '❌ Clé invalide.' });
+                    return;
+                }
 
-            const keyHash = createHash('sha256').update(rawKey).digest('hex');
-            const snapshot = await adminDb.collection('apiKeys')
-                .where('keyHash', '==', keyHash)
-                .limit(1)
-                .get();
+                const keyHash = createHash('sha256').update(rawKey).digest('hex');
+                const snapshot = await adminDb.collection('apiKeys').where('keyHash', '==', keyHash).limit(1).get();
 
-            if (snapshot.empty) {
-                return NextResponse.json({
-                    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                    data: { content: '❌ Clé introuvable ou révoquée.', flags: 64 },
-                });
-            }
+                if (snapshot.empty) {
+                    await editOriginalResponse(appId, token, { content: '❌ Clé introuvable ou révoquée.' });
+                    return;
+                }
 
-            const uid = snapshot.docs[0].data().uid;
-            const userDoc = await adminDb.doc(`users/${uid}`).get();
-            const userData = userDoc.exists ? userDoc.data()! : {};
-            const persoName = userData.perso ?? userData.name ?? 'Aventurier';
+                const uid = snapshot.docs[0].data().uid;
+                const userDoc = await adminDb.doc(`users/${uid}`).get();
+                const userData = userDoc.exists ? userDoc.data()! : {};
+                const persoName = userData.perso ?? userData.name ?? 'Aventurier';
 
-            await adminDb.doc(`discordLinks/${discordId}`).set({ uid, linkedAt: Timestamp.now() });
-
-            return NextResponse.json({
-                type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                data: {
+                await adminDb.doc(`discordLinks/${discordId}`).set({ uid, linkedAt: Timestamp.now() });
+                await editOriginalResponse(appId, token, {
                     content: `✅ Compte lié ! Tu joues en tant que **${persoName}**.`,
-                    flags: 64, // ephemeral — visible only by the user
-                },
-            });
+                });
+            })());
+
+            return NextResponse.json({ type: 5, data: { flags: 64 } }); // deferred ephemeral
         }
 
         // ── /unlink ───────────────────────────────────────────────────────────
         if (name === 'unlink') {
-            await adminDb.doc(`discordLinks/${discordId}`).delete();
-            return NextResponse.json({
-                type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                data: { content: '🔓 Compte délié.', flags: 64 },
-            });
+            waitUntil((async () => {
+                await adminDb.doc(`discordLinks/${discordId}`).delete();
+                await editOriginalResponse(appId, token, { content: '🔓 Compte délié.' });
+            })());
+
+            return NextResponse.json({ type: 5, data: { flags: 64 } }); // deferred ephemeral
         }
 
-        // ── /roll <notation> ──────────────────────────────────────────────────
+        // ── /roll ─────────────────────────────────────────────────────────────
         if (name === 'roll') {
             const rawNotation: string = options?.[0]?.value ?? '1d20';
 
-            // Try to use linked VTT account
-            const linked = await resolveLinkedUser(discordId);
+            waitUntil((async () => {
+                const linked = await resolveLinkedUser(discordId);
+                const notation = applyVariables(rawNotation, linked?.variables ?? {});
+                const result = rollDice(notation);
 
-            const notation = applyVariables(rawNotation, linked?.variables ?? {});
+                if (!result) {
+                    await editOriginalResponse(appId, token, { content: `❌ Notation invalide : \`${rawNotation}\`` });
+                    return;
+                }
 
-            const result = rollDice(notation);
+                if (linked?.roomId) {
+                    const firstMatch = [...notation.matchAll(/(\d+)d(\d+)/gi)][0];
+                    await adminDb.collection(`rolls/${linked.roomId}/rolls`).add({
+                        id: crypto.randomUUID(),
+                        isPrivate: false,
+                        isBlind: false,
+                        diceCount: firstMatch ? parseInt(firstMatch[1]) : 1,
+                        diceFaces: firstMatch ? parseInt(firstMatch[2]) : 20,
+                        modifier: 0,
+                        results: result.rolls.map(r => r.value),
+                        total: result.total,
+                        userName: linked.persoName,
+                        type: 'Discord',
+                        timestamp: Date.now(),
+                        notation,
+                        output: result.output,
+                    });
+                }
 
-            if (!result) {
-                return NextResponse.json({
-                    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                    data: { content: `❌ Notation invalide : \`${notation}\`` },
-                });
-            }
+                const embed = buildEmbed(rawNotation, result, linked?.persoName, linked?.avatar, linked?.isMJ);
+                await editOriginalResponse(appId, token, { embeds: [embed] });
+            })());
 
-            // Save to Firebase if linked and has a room
-            if (linked?.roomId) {
-                const firstMatch = [...notation.matchAll(/(\d+)d(\d+)/gi)][0];
-                await adminDb.collection(`rolls/${linked.roomId}/rolls`).add({
-                    id: crypto.randomUUID(),
-                    isPrivate: false,
-                    isBlind: false,
-                    diceCount: firstMatch ? parseInt(firstMatch[1]) : 1,
-                    diceFaces: firstMatch ? parseInt(firstMatch[2]) : 20,
-                    modifier: 0,
-                    results: result.rolls.map(r => r.value),
-                    total: result.total,
-                    userName: linked.persoName,
-                    type: 'Discord',
-                    timestamp: Date.now(),
-                    notation,
-                    output: result.output,
-                });
-            }
-
-            const embed = buildEmbed(rawNotation, result, linked?.persoName);
-            return NextResponse.json({
-                type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-                data: { embeds: [embed] },
-            });
+            return NextResponse.json({ type: 5 }); // deferred public — affiche "en train de répondre..."
         }
     }
 
