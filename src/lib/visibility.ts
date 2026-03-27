@@ -1276,9 +1276,89 @@ export function isPointInShadows(
     // First check: is the target inside a shadow polygon cast by walls?
     const shadows = calculateShadowPolygons(viewerPos, obstacles, mapBounds);
 
+    // For closed rooms where the viewer is outside but the room has transparent edges
+    // (windows, open doors, passable one-way walls), the room-polygon shadow should NOT
+    // blindly hide targets inside — instead use per-opaque-wall shadows (mirrors drawShadows logic).
+    const loops = findClosedLoops(obstacles);
+
+    // Build overrides: for each transparent room that contains the target, store
+    // the room polygon points (to detect it in the shadows list) and per-wall shadows.
+    type RoomOverride = { roomPoints: Point[]; perWallShadows: Point[][] };
+    const roomOverrides: RoomOverride[] = [];
+
+    for (const loop of loops) {
+        if (loop.points.length < 3) continue;
+        if (loop.wallObstacles.some(w => w.roomMode === 'individual')) continue;
+        if (isPointInPolygon(viewerPos, loop.points)) continue; // viewer inside — handled later
+        if (!isPointInPolygon(targetPoint, loop.points)) continue; // target not in this room
+
+        // Check whether this room has at least one transparent edge visible from the viewer.
+        let hasTransparentEdge = false;
+        for (let i = 0; i < loop.wallObstacles.length; i++) {
+            const wall = loop.wallObstacles[i];
+            if ((wall.type === 'door' && wall.isOpen) || wall.type === 'window') {
+                hasTransparentEdge = true;
+                break;
+            }
+            if (wall.type === 'one-way-wall') {
+                const nextIdx = (i + 1) % loop.points.length;
+                const seg = { p1: loop.points[i], p2: loop.points[nextIdx] };
+                if (!isViewerBlockedByOneWayWall(viewerPos, seg, wall.direction || 'north')) {
+                    hasTransparentEdge = true;
+                    break;
+                }
+            }
+        }
+        if (!hasTransparentEdge) continue;
+
+        // Build per-opaque-wall shadow polygons (same logic as drawShadows section 1b).
+        const perWallShadows: Point[][] = [];
+        for (let i = 0; i < loop.wallObstacles.length; i++) {
+            const wall = loop.wallObstacles[i];
+            const nextIdx = (i + 1) % loop.points.length;
+            const wp1 = loop.points[i];
+            const wp2 = loop.points[nextIdx];
+
+            let isOpaque = true;
+            if ((wall.type === 'door' && wall.isOpen) || wall.type === 'window') {
+                isOpaque = false;
+            } else if (wall.type === 'one-way-wall') {
+                const seg = { p1: wp1, p2: wp2 };
+                if (!isViewerBlockedByOneWayWall(viewerPos, seg, wall.direction || 'north')) {
+                    isOpaque = false;
+                }
+            }
+
+            if (isOpaque) {
+                const s = calculateShadowPolygon(viewerPos, { p1: wp1, p2: wp2 }, mapBounds);
+                if (s.length >= 3) perWallShadows.push(s);
+            }
+        }
+
+        roomOverrides.push({ roomPoints: loop.points, perWallShadows });
+    }
+
     for (const shadow of shadows) {
-        if (isPointInPolygon(targetPoint, shadow)) {
-            return true; // The point is inside a shadow
+        if (!isPointInPolygon(targetPoint, shadow)) continue;
+
+        // Check if this shadow is a room-polygon shadow for a transparent room.
+        // calculateShadowPolygons pushes [...loop.points] whose elements are the same
+        // Point references as loop.points, so coordinate comparison is reliable.
+        const override = roomOverrides.find(o =>
+            o.roomPoints.length === shadow.length &&
+            o.roomPoints[0].x === shadow[0].x &&
+            o.roomPoints[0].y === shadow[0].y
+        );
+
+        if (override) {
+            // Replace room-polygon shadow with per-opaque-wall shadows.
+            for (const wallShadow of override.perWallShadows) {
+                if (isPointInPolygon(targetPoint, wallShadow)) return true;
+            }
+            // Target is inside a room visible through a transparent edge and not blocked
+            // by any opaque wall — it is visible, so don't treat this shadow as blocking.
+        } else {
+            return true; // Regular shadow
         }
     }
 
