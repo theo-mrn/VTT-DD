@@ -3,7 +3,7 @@ import { InteractionType, InteractionResponseType, verifyKey } from 'discord-int
 import { adminDb } from '@/lib/firebase-admin';
 import { createHash } from 'crypto';
 import { Timestamp } from 'firebase-admin/firestore';
-import { buildCharacterVariables, applyVariables } from '@/lib/character-variables';
+import { applyVariables } from '@/lib/character-variables';
 import { waitUntil } from '@vercel/functions';
 
 const DISCORD_API = 'https://discord.com/api/v10';
@@ -80,7 +80,7 @@ function buildEmbed(_notation: string, result: ReturnType<typeof rollDice>, user
             name: userName,
             icon_url: (!isMJ && avatar) ? avatar : undefined,
         } : undefined,
-        description: `**${total}** · \`${output}\``,
+        description: `${output}\``,
         color,
     };
 }
@@ -97,6 +97,27 @@ async function editOriginalResponse(appId: string, token: string, data: object) 
 
 // ── Resolve linked VTT account from Discord user ID ───────────────────────────
 
+const MODIFIER_STATS = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'];
+const DIRECT_STATS = ['Defense', 'Contact', 'Magie', 'Distance', 'INIT'];
+
+function buildVariablesFromChar(c: Record<string, any>): Record<string, number> {
+    const vars: Record<string, number> = {};
+    for (const key of MODIFIER_STATS) {
+        const v = c[`${key}_F`] ?? c[key];
+        if (v !== undefined) vars[key] = c[`${key}_F`] !== undefined ? Number(v) : Math.floor((Number(v) - 10) / 2);
+    }
+    for (const key of DIRECT_STATS) {
+        const v = c[`${key}_F`] ?? c[key];
+        if (v !== undefined) vars[key] = Number(v);
+    }
+    for (const field of (c.customFields ?? [])) {
+        if (!field.isRollable || !field.label) continue;
+        const val = Number(field.value) || 0;
+        vars[field.label] = field.hasModifier ? Math.floor((val - 10) / 2) : val;
+    }
+    return vars;
+}
+
 async function resolveLinkedUser(discordId: string) {
     const linkDoc = await adminDb.doc(`discordLinks/${discordId}`).get();
     if (!linkDoc.exists) return null;
@@ -109,15 +130,17 @@ async function resolveLinkedUser(discordId: string) {
     const persoName: string | undefined = userData.perso ?? undefined;
     const isMJ = persoName === 'MJ';
     const roomId: string | null = userData.room_id ?? null;
-    const variables = await buildCharacterVariables(uid);
+    const persoId: string | null = userData.persoId ?? null;
 
-    // Fetch character avatar (skip for MJ)
+    // Fetch character doc once — avatar + variables en un seul appel
     let avatar: string | undefined;
-    if (!isMJ && roomId && userData.persoId) {
-        const charDoc = await adminDb.doc(`cartes/${roomId}/characters/${userData.persoId}`).get();
+    let variables: Record<string, number> = {};
+    if (!isMJ && roomId && persoId) {
+        const charDoc = await adminDb.doc(`cartes/${roomId}/characters/${persoId}`).get();
         if (charDoc.exists) {
             const c = charDoc.data()!;
             avatar = c.imageURLFinal || c.imageURL || undefined;
+            variables = buildVariablesFromChar(c);
         }
     }
 
