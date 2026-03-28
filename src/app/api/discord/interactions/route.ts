@@ -88,10 +88,20 @@ function buildEmbed(_notation: string, result: ReturnType<typeof rollDice>, user
 // ── Follow-up via Discord webhook ─────────────────────────────────────────────
 
 async function editOriginalResponse(appId: string, token: string, data: object) {
-    await fetch(`${DISCORD_API}/webhooks/${appId}/${token}/messages/@original`, {
+    const res = await fetch(`${DISCORD_API}/webhooks/${appId}/${token}/messages/@original`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
+    });
+    if (!res.ok) {
+        console.error('[Discord] editOriginalResponse failed:', res.status, await res.text());
+    }
+}
+
+function withErrorHandler(appId: string, token: string, fn: () => Promise<void>): Promise<void> {
+    return fn().catch(async (err) => {
+        console.error('[Discord] waitUntil error:', err);
+        await editOriginalResponse(appId, token, { content: `❌ Erreur inattendue : ${err?.message ?? err}` }).catch(() => {});
     });
 }
 
@@ -175,8 +185,7 @@ export async function POST(request: Request) {
 
         // ── /login ────────────────────────────────────────────────────────────
         if (name === 'login') {
-            // Répondre immédiatement (ephemeral deferred)
-            waitUntil((async () => {
+            waitUntil(withErrorHandler(appId, token, async () => {
                 const email: string = options?.find((o: { name: string }) => o.name === 'email')?.value ?? '';
                 const password: string = options?.find((o: { name: string }) => o.name === 'password')?.value ?? '';
 
@@ -204,14 +213,14 @@ export async function POST(request: Request) {
                 await editOriginalResponse(appId, token, {
                     content: `✅ Connecté ! Tu joues en tant que **${persoName}**.\nTes lancers seront sauvegardés automatiquement.`,
                 });
-            })());
+            }));
 
             return NextResponse.json({ type: 5, data: { flags: 64 } }); // deferred ephemeral
         }
 
         // ── /link ─────────────────────────────────────────────────────────────
         if (name === 'link') {
-            waitUntil((async () => {
+            waitUntil(withErrorHandler(appId, token, async () => {
                 const rawKey: string = options?.[0]?.value ?? '';
                 if (!rawKey.startsWith('vtt_')) {
                     await editOriginalResponse(appId, token, { content: '❌ Clé invalide.' });
@@ -235,17 +244,17 @@ export async function POST(request: Request) {
                 await editOriginalResponse(appId, token, {
                     content: `✅ Compte lié ! Tu joues en tant que **${persoName}**.`,
                 });
-            })());
+            }));
 
             return NextResponse.json({ type: 5, data: { flags: 64 } }); // deferred ephemeral
         }
 
         // ── /unlink ───────────────────────────────────────────────────────────
         if (name === 'unlink') {
-            waitUntil((async () => {
+            waitUntil(withErrorHandler(appId, token, async () => {
                 await adminDb.doc(`discordLinks/${discordId}`).delete();
                 await editOriginalResponse(appId, token, { content: '🔓 Compte délié.' });
-            })());
+            }));
 
             return NextResponse.json({ type: 5, data: { flags: 64 } }); // deferred ephemeral
         }
@@ -264,7 +273,7 @@ export async function POST(request: Request) {
             const isBlind   = suffix === 'i' || rollTypeOption === 'aveugle';
             const isEphemeral = isPrivate || isBlind;
 
-            waitUntil((async () => {
+            waitUntil(withErrorHandler(appId, token, async () => {
                 const linked = await resolveLinkedUser(discordId);
                 const notation = applyVariables(rawNotation, linked?.variables ?? {});
                 const result = rollDice(notation);
@@ -305,7 +314,7 @@ export async function POST(request: Request) {
                     embeds: [responseEmbed],
                     ...(isEphemeral ? { flags: 64 } : {}),
                 });
-            })());
+            }));
 
             // Ephemeral deferred pour privé/aveugle, public pour le reste
             return NextResponse.json({ type: 5, ...(isEphemeral ? { data: { flags: 64 } } : {}) });
@@ -313,7 +322,7 @@ export async function POST(request: Request) {
 
         // ── /history ──────────────────────────────────────────────────────────
         if (name === 'history') {
-            waitUntil((async () => {
+            waitUntil(withErrorHandler(appId, token, async () => {
                 const linked = await resolveLinkedUser(discordId);
                 if (!linked?.roomId) {
                     await editOriginalResponse(appId, token, { content: '❌ Connecte-toi d\'abord avec `/login`.', flags: 64 });
@@ -353,7 +362,7 @@ export async function POST(request: Request) {
                         color: 0xc0a080,
                     }],
                 });
-            })());
+            }));
 
             return NextResponse.json({ type: 5 });
         }
