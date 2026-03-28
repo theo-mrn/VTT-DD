@@ -31,17 +31,6 @@ const commands = [
                 type: 3, // STRING
                 required: true,
             },
-            {
-                name: 'type',
-                description: 'Visibilité du lancer (public par défaut)',
-                type: 3, // STRING
-                required: false,
-                choices: [
-                    { name: 'Public — visible par tous', value: 'public' },
-                    { name: 'Privé — visible par toi et le MJ', value: 'prive' },
-                    { name: 'Aveugle — visible par le MJ uniquement', value: 'aveugle' },
-                ],
-            },
         ],
     },
     {
