@@ -3,7 +3,7 @@ import { InteractionType, InteractionResponseType, verifyKey } from 'discord-int
 import { adminDb } from '@/lib/firebase-admin';
 import { createHash } from 'crypto';
 import { Timestamp } from 'firebase-admin/firestore';
-import { applyVariables } from '@/lib/character-variables';
+import { buildCharacterVariables, applyVariables } from '@/lib/character-variables';
 import { waitUntil } from '@vercel/functions';
 
 const DISCORD_API = 'https://discord.com/api/v10';
@@ -80,7 +80,7 @@ function buildEmbed(_notation: string, result: ReturnType<typeof rollDice>, user
             name: userName,
             icon_url: (!isMJ && avatar) ? avatar : undefined,
         } : undefined,
-        description: `${output}\``,
+        description: `${output}`,
         color,
     };
 }
@@ -288,6 +288,56 @@ export async function POST(request: Request) {
             })());
 
             return NextResponse.json({ type: 5 }); // deferred public — affiche "en train de répondre..."
+        }
+
+        // ── /history ──────────────────────────────────────────────────────────
+        if (name === 'history') {
+            waitUntil((async () => {
+                const linked = await resolveLinkedUser(discordId);
+                if (!linked?.roomId) {
+                    await editOriginalResponse(appId, token, { content: '❌ Connecte-toi d\'abord avec `/login`.', flags: 64 });
+                    return;
+                }
+
+                const joueurFilter: string | undefined = options?.find((o: { name: string }) => o.name === 'joueur')?.value;
+
+                let q = adminDb.collection(`rolls/${linked.roomId}/rolls`)
+                    .where('isPrivate', '==', false)
+                    .where('isBlind', '==', false)
+                    .orderBy('timestamp', 'desc')
+                    .limit(10);
+
+                if (joueurFilter) {
+                    q = q.where('userName', '==', joueurFilter) as typeof q;
+                }
+
+                const snapshot = await q.get();
+
+                if (snapshot.empty) {
+                    const msg = joueurFilter
+                        ? `Aucun lancer public pour **${joueurFilter}**.`
+                        : 'Aucun lancer public dans cette salle.';
+                    await editOriginalResponse(appId, token, { content: msg });
+                    return;
+                }
+
+                const lines = snapshot.docs.map(doc => {
+                    const d = doc.data();
+                    const date = new Date(d.timestamp).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                    return `**${d.total}** · \`${d.output}\` — ${d.userName} · ${date}`;
+                });
+
+                const title = joueurFilter ? `Historique de ${joueurFilter}` : 'Derniers lancers publics';
+                await editOriginalResponse(appId, token, {
+                    embeds: [{
+                        title,
+                        description: lines.join('\n'),
+                        color: 0xc0a080,
+                    }],
+                });
+            })());
+
+            return NextResponse.json({ type: 5 });
         }
     }
 
