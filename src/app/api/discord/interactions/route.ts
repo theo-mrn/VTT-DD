@@ -75,10 +75,11 @@ function buildEmbed(_notation: string, result: ReturnType<typeof rollDice>, user
 
     const color = isCrit ? 0xffd700 : isFumble ? 0xff3333 : 0xc0a080;
 
+    const validAvatar = (!isMJ && avatar && avatar.startsWith('http')) ? avatar : undefined;
     return {
         author: userName ? {
             name: userName,
-            icon_url: (!isMJ && avatar) ? avatar : undefined,
+            ...(validAvatar ? { icon_url: validAvatar } : {}),
         } : undefined,
         description: `${output}`,
         color,
