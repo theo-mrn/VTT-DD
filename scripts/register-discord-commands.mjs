@@ -67,6 +67,18 @@ const commands = [
         name: 'unlink',
         description: 'Délie ton compte Yner de Discord',
     },
+    {
+        name: 'history',
+        description: 'Affiche les derniers lancers publics de la salle',
+        options: [
+            {
+                name: 'joueur',
+                description: 'Filtrer par nom de personnage',
+                type: 3, // STRING
+                required: false,
+            },
+        ],
+    },
 ];
 
 const res = await fetch(
