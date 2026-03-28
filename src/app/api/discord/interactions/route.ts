@@ -4,19 +4,6 @@ import { adminDb } from '@/lib/firebase-admin';
 import { createHash } from 'crypto';
 import { Timestamp } from 'firebase-admin/firestore';
 import { applyVariables } from '@/lib/character-variables';
-import { waitUntil } from '@vercel/functions';
-
-const DISCORD_API = 'https://discord.com/api/v10';
-
-// Patch the deferred message — NEVER include flags here
-async function patch(appId: string, token: string, data: object) {
-    const res = await fetch(`${DISCORD_API}/webhooks/${appId}/${token}/messages/@original`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-    });
-    if (!res.ok) console.error('[Discord] patch error', res.status, await res.text());
-}
 
 // ── Dice rolling logic ────────────────────────────────────────────────────────
 
@@ -95,58 +82,73 @@ function buildEmbed(_notation: string, result: ReturnType<typeof rollDice>, user
     };
 }
 
-// ── Follow-up via Discord webhook ─────────────────────────────────────────────
-
-// ── Resolve linked VTT account from Discord user ID ───────────────────────────
+// ── Linked user cache (stocké dans discordLinks au login) ─────────────────────
+// 1 seule lecture Firestore pour /roll — pas de timeout possible
 
 const MODIFIER_STATS = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'];
-const DIRECT_STATS = ['Defense', 'Contact', 'Magie', 'Distance', 'INIT'];
+const DIRECT_STATS   = ['Defense', 'Contact', 'Magie', 'Distance', 'INIT'];
 
-function buildVariablesFromChar(c: Record<string, any>): Record<string, number> {
+export function buildVariablesFromChar(c: Record<string, any>): Record<string, number> {
     const vars: Record<string, number> = {};
     for (const key of MODIFIER_STATS) {
-        const v = c[`${key}_F`] ?? c[key];
-        if (v !== undefined) vars[key] = c[`${key}_F`] !== undefined ? Number(v) : Math.floor((Number(v) - 10) / 2);
+        const fv = c[`${key}_F`]; const rv = c[key];
+        if (fv !== undefined) vars[key] = Number(fv);
+        else if (rv !== undefined) vars[key] = Math.floor((Number(rv) - 10) / 2);
     }
     for (const key of DIRECT_STATS) {
         const v = c[`${key}_F`] ?? c[key];
         if (v !== undefined) vars[key] = Number(v);
     }
-    for (const field of (c.customFields ?? [])) {
-        if (!field.isRollable || !field.label) continue;
-        const val = Number(field.value) || 0;
-        vars[field.label] = field.hasModifier ? Math.floor((val - 10) / 2) : val;
+    for (const f of (c.customFields ?? [])) {
+        if (!f.isRollable || !f.label) continue;
+        vars[f.label] = f.hasModifier ? Math.floor((Number(f.value) - 10) / 2) : Number(f.value) || 0;
     }
     return vars;
 }
 
-async function resolveLinkedUser(discordId: string) {
-    const linkDoc = await adminDb.doc(`discordLinks/${discordId}`).get();
-    if (!linkDoc.exists) return null;
-
-    const { uid } = linkDoc.data()!;
+// Construit et persiste le cache dans discordLinks à partir du uid
+async function buildAndSaveCache(uid: string, discordId: string): Promise<Record<string, any>> {
     const userDoc = await adminDb.doc(`users/${uid}`).get();
-    if (!userDoc.exists) return null;
-
+    if (!userDoc.exists) return {};
     const userData = userDoc.data()!;
-    const persoName: string | undefined = userData.perso ?? undefined;
+    const persoName: string = userData.perso ?? userData.name ?? 'Aventurier';
     const isMJ = persoName === 'MJ';
     const roomId: string | null = userData.room_id ?? null;
     const persoId: string | null = userData.persoId ?? null;
 
-    // Fetch character doc once — avatar + variables en un seul appel
-    let avatar: string | undefined;
+    let avatar: string | null = null;
     let variables: Record<string, number> = {};
     if (!isMJ && roomId && persoId) {
         const charDoc = await adminDb.doc(`cartes/${roomId}/characters/${persoId}`).get();
         if (charDoc.exists) {
             const c = charDoc.data()!;
-            avatar = c.imageURLFinal || c.imageURL || undefined;
+            avatar = c.imageURLFinal || c.imageURL || null;
             variables = buildVariablesFromChar(c);
         }
     }
 
-    return { uid, persoName: persoName ?? userData.name ?? 'Aventurier', isMJ, roomId, variables, avatar };
+    const cache = { uid, persoName, isMJ, roomId, avatar, variables, cachedAt: Date.now() };
+    adminDb.doc(`discordLinks/${discordId}`).set(cache, { merge: true });
+    return cache;
+}
+
+// Lecture unique — tout est déjà dans discordLinks
+async function resolveLinkedUser(discordId: string) {
+    const doc = await adminDb.doc(`discordLinks/${discordId}`).get();
+    if (!doc.exists) return null;
+    const d = doc.data()!;
+    // Si le cache est vieux (>1h) ou incomplet, le reconstruire en background
+    if (!d.cachedAt || Date.now() - d.cachedAt > 3600_000) {
+        buildAndSaveCache(d.uid, discordId).catch(() => {});
+    }
+    return {
+        uid: d.uid as string,
+        persoName: (d.persoName ?? 'Aventurier') as string,
+        isMJ: (d.isMJ ?? false) as boolean,
+        roomId: (d.roomId ?? null) as string | null,
+        avatar: (d.avatar ?? undefined) as string | undefined,
+        variables: (d.variables ?? {}) as Record<string, number>,
+    };
 }
 
 // ── Main handler ──────────────────────────────────────────────────────────────
@@ -172,12 +174,9 @@ export async function POST(request: Request) {
     if (interaction.type === InteractionType.APPLICATION_COMMAND) {
         const { name, options } = interaction.data;
         const discordId: string = interaction.member?.user?.id ?? interaction.user?.id;
-        const appId: string     = interaction.application_id;
-        const token: string     = interaction.token;
 
         const reply = (data: object) => NextResponse.json({ type: 4, data });
         const ephemeral = (content: string) => reply({ content, flags: 64 });
-        const deferred = (flags?: number) => NextResponse.json({ type: 5, ...(flags ? { data: { flags } } : {}) });
 
         // ── /login ────────────────────────────────────────────────────────────
         if (name === 'login') {
@@ -190,10 +189,9 @@ export async function POST(request: Request) {
             );
             if (!authRes.ok) return ephemeral('❌ Email ou mot de passe incorrect.');
             const { localId: uid } = await authRes.json();
-            const userDoc = await adminDb.doc(`users/${uid}`).get();
-            const persoName = userDoc.exists ? (userDoc.data()!.perso ?? userDoc.data()!.name ?? 'Aventurier') : 'Aventurier';
-            adminDb.doc(`discordLinks/${discordId}`).set({ uid, linkedAt: Timestamp.now() }); // fire-and-forget
-            return ephemeral(`✅ Connecté ! Tu joues en tant que **${persoName}**.`);
+            await adminDb.doc(`discordLinks/${discordId}`).set({ uid, linkedAt: Timestamp.now() });
+            const cache = await buildAndSaveCache(uid, discordId);
+            return ephemeral(`✅ Connecté ! Tu joues en tant que **${cache.persoName ?? 'Aventurier'}**.`);
         }
 
         // ── /link ─────────────────────────────────────────────────────────────
@@ -204,10 +202,9 @@ export async function POST(request: Request) {
             const snapshot = await adminDb.collection('apiKeys').where('keyHash', '==', keyHash).limit(1).get();
             if (snapshot.empty) return ephemeral('❌ Clé introuvable ou révoquée.');
             const uid = snapshot.docs[0].data().uid;
-            const userDoc = await adminDb.doc(`users/${uid}`).get();
-            const persoName = userDoc.exists ? (userDoc.data()!.perso ?? 'Aventurier') : 'Aventurier';
-            adminDb.doc(`discordLinks/${discordId}`).set({ uid, linkedAt: Timestamp.now() }); // fire-and-forget
-            return ephemeral(`✅ Compte lié ! Tu joues en tant que **${persoName}**.`);
+            await adminDb.doc(`discordLinks/${discordId}`).set({ uid, linkedAt: Timestamp.now() });
+            const cache = await buildAndSaveCache(uid, discordId);
+            return ephemeral(`✅ Compte lié ! Tu joues en tant que **${cache.persoName ?? 'Aventurier'}**.`);
         }
 
         // ── /unlink ───────────────────────────────────────────────────────────
@@ -226,59 +223,51 @@ export async function POST(request: Request) {
             const isPrivate   = suffix === 'p' || typeOpt === 'prive';
             const isBlind     = suffix === 'i' || typeOpt === 'aveugle';
 
-            waitUntil((async () => {
-                const linked   = await resolveLinkedUser(discordId);
-                const notation = applyVariables(rawNotation, linked?.variables ?? {});
-                const result   = rollDice(notation);
+            const linked   = await resolveLinkedUser(discordId);
+            const notation = applyVariables(rawNotation, linked?.variables ?? {});
+            const result   = rollDice(notation);
 
-                if (!result) { await patch(appId, token, { content: `❌ Notation invalide : \`${rawNotation}\`` }); return; }
+            if (!result) return ephemeral(`❌ Notation invalide : \`${rawNotation}\``);
 
-                if (linked?.roomId) {
-                    const m = [...notation.matchAll(/(\d+)d(\d+)/gi)][0];
-                    adminDb.collection(`rolls/${linked.roomId}/rolls`).add({
-                        id: crypto.randomUUID(), isPrivate, isBlind,
-                        diceCount: m ? parseInt(m[1]) : 1, diceFaces: m ? parseInt(m[2]) : 20,
-                        modifier: 0, results: result.rolls.map(r => r.value),
-                        total: result.total, userName: linked.persoName,
-                        userAvatar: linked.avatar ?? null, type: 'Discord',
-                        timestamp: Date.now(), notation, output: result.output,
-                    });
-                }
+            if (linked?.roomId) {
+                const m = [...notation.matchAll(/(\d+)d(\d+)/gi)][0];
+                adminDb.collection(`rolls/${linked.roomId}/rolls`).add({
+                    id: crypto.randomUUID(), isPrivate, isBlind,
+                    diceCount: m ? parseInt(m[1]) : 1, diceFaces: m ? parseInt(m[2]) : 20,
+                    modifier: 0, results: result.rolls.map(r => r.value),
+                    total: result.total, userName: linked.persoName,
+                    userAvatar: linked.avatar ?? null, type: 'Discord',
+                    timestamp: Date.now(), notation, output: result.output,
+                });
+            }
 
-                const embed = isBlind
-                    ? { author: linked ? { name: linked.persoName } : undefined, description: '*Lancer aveugle envoyé au MJ*', color: 0x555555 }
-                    : buildEmbed(rawNotation, result, linked?.persoName, linked?.avatar, linked?.isMJ);
+            const embed = isBlind
+                ? { author: linked ? { name: linked.persoName } : undefined, description: '*Lancer aveugle envoyé au MJ*', color: 0x555555 }
+                : buildEmbed(rawNotation, result, linked?.persoName, linked?.avatar, linked?.isMJ);
 
-                await patch(appId, token, { embeds: [embed] });
-            })());
-
-            return deferred(isPrivate || isBlind ? 64 : undefined);
+            return reply({ embeds: [embed], ...(isPrivate || isBlind ? { flags: 64 } : {}) });
         }
 
         // ── /history ──────────────────────────────────────────────────────────
         if (name === 'history') {
-            waitUntil((async () => {
-                const linked = await resolveLinkedUser(discordId);
-                if (!linked?.roomId) { await patch(appId, token, { content: '❌ Connecte-toi d\'abord avec `/login`.' }); return; }
+            const linked = await resolveLinkedUser(discordId);
+            if (!linked?.roomId) return ephemeral('❌ Connecte-toi d\'abord avec `/login`.');
 
-                const joueurFilter: string | undefined = options?.find((o: { name: string }) => o.name === 'joueur')?.value;
-                const snapshot = await adminDb.collection(`rolls/${linked.roomId}/rolls`)
-                    .orderBy('timestamp', 'desc').limit(10).get();
+            const joueurFilter: string | undefined = options?.find((o: { name: string }) => o.name === 'joueur')?.value;
+            const snapshot = await adminDb.collection(`rolls/${linked.roomId}/rolls`)
+                .orderBy('timestamp', 'desc').limit(10).get();
 
-                const docs = snapshot.docs.map(d => d.data())
-                    .filter(d => !d.isPrivate && !d.isBlind)
-                    .filter(d => !joueurFilter || d.userName === joueurFilter);
+            const docs = snapshot.docs.map(d => d.data())
+                .filter(d => !d.isPrivate && !d.isBlind)
+                .filter(d => !joueurFilter || d.userName === joueurFilter);
 
-                if (!docs.length) { await patch(appId, token, { content: joueurFilter ? `Aucun lancer public pour **${joueurFilter}**.` : 'Aucun lancer public dans cette salle.' }); return; }
+            if (!docs.length) return reply({ content: joueurFilter ? `Aucun lancer public pour **${joueurFilter}**.` : 'Aucun lancer public dans cette salle.' });
 
-                const lines = docs.map(d => {
-                    const date = new Date(d.timestamp).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-                    return `**${d.total}** · \`${d.output}\` — ${d.userName} · ${date}`;
-                });
-                await patch(appId, token, { embeds: [{ title: joueurFilter ? `Historique de ${joueurFilter}` : 'Derniers lancers publics', description: lines.join('\n'), color: 0xc0a080 }] });
-            })());
-
-            return deferred();
+            const lines = docs.map(d => {
+                const date = new Date(d.timestamp).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                return `**${d.total}** · \`${d.output}\` — ${d.userName} · ${date}`;
+            });
+            return reply({ embeds: [{ title: joueurFilter ? `Historique de ${joueurFilter}` : 'Derniers lancers publics', description: lines.join('\n'), color: 0xc0a080 }] });
         }
     }
 
