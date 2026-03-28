@@ -88,11 +88,15 @@ function buildEmbed(_notation: string, result: ReturnType<typeof rollDice>, user
 // ── Follow-up via Discord webhook ─────────────────────────────────────────────
 
 async function editOriginalResponse(appId: string, token: string, data: object) {
-    await fetch(`${DISCORD_API}/webhooks/${appId}/${token}/messages/@original`, {
+    const res = await fetch(`${DISCORD_API}/webhooks/${appId}/${token}/messages/@original`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
     });
+    if (!res.ok) {
+        const err = await res.text();
+        console.error(`[discord] PATCH failed ${res.status}:`, err, '| payload:', JSON.stringify(data));
+    }
 }
 
 // ── Resolve linked VTT account from Discord user ID ───────────────────────────
