@@ -281,6 +281,7 @@ export async function POST(request: Request) {
                         results: result.rolls.map(r => r.value),
                         total: result.total,
                         userName: linked.persoName,
+                        ...(linked.avatar ? { userAvatar: linked.avatar } : {}),
                         type: 'Discord',
                         timestamp: Date.now(),
                         notation,
