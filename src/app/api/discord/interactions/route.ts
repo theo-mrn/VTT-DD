@@ -74,12 +74,14 @@ function buildEmbed(_notation: string, result: ReturnType<typeof rollDice>, user
     const isFumble = rolls.some(r => r.type === 'd20' && r.value === 1);
 
     const color = isCrit ? 0xffd700 : isFumble ? 0xff3333 : 0xc0a080;
-    const prefix = userName ? `**${userName}** — ` : '';
 
     return {
-        description: `${prefix}**${total}** · \`${output}\``,
+        author: userName ? {
+            name: userName,
+            icon_url: (!isMJ && avatar) ? avatar : undefined,
+        } : undefined,
+        description: `**${total}** · \`${output}\``,
         color,
-        thumbnail: (!isMJ && avatar) ? { url: avatar } : undefined,
     };
 }
 
