@@ -252,11 +252,7 @@ export async function POST(request: Request) {
 
         // ── /roll ─────────────────────────────────────────────────────────────
         if (name === 'roll') {
-            const rawNotation: string = options?.find((o: { name: string }) => o.name === 'notation')?.value ?? '1d20';
-            const rollType: string = options?.find((o: { name: string }) => o.name === 'type')?.value ?? 'public';
-            const isPrivate = rollType === 'prive';
-            const isBlind = rollType === 'aveugle';
-            const isEphemeral = isPrivate || isBlind;
+            const rawNotation: string = options?.[0]?.value ?? '1d20';
 
             waitUntil((async () => {
                 const linked = await resolveLinkedUser(discordId);
@@ -264,7 +260,7 @@ export async function POST(request: Request) {
                 const result = rollDice(notation);
 
                 if (!result) {
-                    await editOriginalResponse(appId, token, { content: `❌ Notation invalide : \`${rawNotation}\``, flags: 64 });
+                    await editOriginalResponse(appId, token, { content: `❌ Notation invalide : \`${rawNotation}\`` });
                     return;
                 }
 
@@ -272,8 +268,8 @@ export async function POST(request: Request) {
                     const firstMatch = [...notation.matchAll(/(\d+)d(\d+)/gi)][0];
                     await adminDb.collection(`rolls/${linked.roomId}/rolls`).add({
                         id: crypto.randomUUID(),
-                        isPrivate,
-                        isBlind,
+                        isPrivate: false,
+                        isBlind: false,
                         diceCount: firstMatch ? parseInt(firstMatch[1]) : 1,
                         diceFaces: firstMatch ? parseInt(firstMatch[2]) : 20,
                         modifier: 0,
@@ -288,20 +284,10 @@ export async function POST(request: Request) {
                 }
 
                 const embed = buildEmbed(rawNotation, result, linked?.persoName, linked?.avatar, linked?.isMJ);
-
-                // Blind : on cache le résultat dans l'embed (le MJ verra dans l'app)
-                const responseEmbed = isBlind
-                    ? { ...embed, description: `*Lancer aveugle envoyé au MJ*`, color: 0x555555 }
-                    : embed;
-
-                await editOriginalResponse(appId, token, {
-                    embeds: [responseEmbed],
-                    ...(isEphemeral ? { flags: 64 } : {}),
-                });
+                await editOriginalResponse(appId, token, { embeds: [embed] });
             })());
 
-            // Ephemeral deferred pour privé/aveugle, public pour le reste
-            return NextResponse.json({ type: 5, ...(isEphemeral ? { data: { flags: 64 } } : {}) });
+            return NextResponse.json({ type: 5 }); // deferred public — affiche "en train de répondre..."
         }
 
         // ── /history ──────────────────────────────────────────────────────────
@@ -315,18 +301,19 @@ export async function POST(request: Request) {
 
                 const joueurFilter: string | undefined = options?.find((o: { name: string }) => o.name === 'joueur')?.value;
 
-                const snapshot = await adminDb.collection(`rolls/${linked.roomId}/rolls`)
+                let q = adminDb.collection(`rolls/${linked.roomId}/rolls`)
+                    .where('isPrivate', '==', false)
+                    .where('isBlind', '==', false)
                     .orderBy('timestamp', 'desc')
-                    .limit(50)
-                    .get();
+                    .limit(10);
 
-                const docs = snapshot.docs
-                    .map(doc => doc.data())
-                    .filter(d => !d.isPrivate && !d.isBlind)
-                    .filter(d => !joueurFilter || d.userName === joueurFilter)
-                    .slice(0, 10);
+                if (joueurFilter) {
+                    q = q.where('userName', '==', joueurFilter) as typeof q;
+                }
 
-                if (!docs.length) {
+                const snapshot = await q.get();
+
+                if (snapshot.empty) {
                     const msg = joueurFilter
                         ? `Aucun lancer public pour **${joueurFilter}**.`
                         : 'Aucun lancer public dans cette salle.';
@@ -334,7 +321,8 @@ export async function POST(request: Request) {
                     return;
                 }
 
-                const lines = docs.map(d => {
+                const lines = snapshot.docs.map(doc => {
+                    const d = doc.data();
                     const date = new Date(d.timestamp).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
                     return `**${d.total}** · \`${d.output}\` — ${d.userName} · ${date}`;
                 });
