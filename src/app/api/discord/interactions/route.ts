@@ -66,7 +66,7 @@ function rollDice(notation: string): { total: number; output: string; rolls: { t
 
 // ── Discord embed builder ─────────────────────────────────────────────────────
 
-function buildEmbed(notation: string, result: ReturnType<typeof rollDice>, userName?: string, avatar?: string, isMJ?: boolean) {
+function buildEmbed(_notation: string, result: ReturnType<typeof rollDice>, userName?: string, avatar?: string, isMJ?: boolean) {
     if (!result) return null;
     const { total, output, rolls } = result;
 
@@ -74,19 +74,12 @@ function buildEmbed(notation: string, result: ReturnType<typeof rollDice>, userN
     const isFumble = rolls.some(r => r.type === 'd20' && r.value === 1);
 
     const color = isCrit ? 0xffd700 : isFumble ? 0xff3333 : 0xc0a080;
-    const title = isCrit ? '🎲 Coup Critique !' : isFumble ? '💀 Fumble !' : '🎲 Lancer de dé';
+    const prefix = userName ? `**${userName}** — ` : '';
 
     return {
-        title,
-        description: `\`\`\`${output}\`\`\``,
+        description: `${prefix}**${total}** · \`${output}\``,
         color,
         thumbnail: (!isMJ && avatar) ? { url: avatar } : undefined,
-        fields: [
-            { name: 'Résultat', value: `**${total}**`, inline: true },
-            { name: 'Notation', value: `\`${notation}\``, inline: true },
-            ...(userName ? [{ name: 'Personnage', value: userName, inline: true }] : []),
-        ],
-        footer: { text: isMJ ? '🎲 Yner Bot • MJ' : 'Yner Bot • VTT' },
     };
 }
 
