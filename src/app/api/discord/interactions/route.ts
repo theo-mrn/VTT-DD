@@ -343,6 +343,81 @@ export async function POST(request: Request) {
 
             return NextResponse.json({ type: 5 });
         }
+
+        // ── /stats ────────────────────────────────────────────────────────────
+        if (name === 'stats') {
+            waitUntil((async () => {
+                const linked = await resolveLinkedUser(discordId);
+                if (!linked?.roomId) {
+                    await editOriginalResponse(appId, token, { content: '❌ Connecte-toi d\'abord avec `/login`.' });
+                    return;
+                }
+
+                const joueurFilter: string | undefined = options?.find((o: { name: string }) => o.name === 'joueur')?.value;
+
+                const snapshot = await adminDb.collection(`rolls/${linked.roomId}/rolls`)
+                    .orderBy('timestamp', 'desc')
+                    .limit(200)
+                    .get();
+
+                const rolls = snapshot.docs
+                    .map(d => d.data())
+                    .filter(d => !d.isPrivate && !d.isBlind)
+                    .filter(d => !joueurFilter || d.userName === joueurFilter);
+
+                if (!rolls.length) {
+                    await editOriginalResponse(appId, token, { content: '📊 Aucun lancer public trouvé.' });
+                    return;
+                }
+
+                // Agréger les stats par joueur
+                const statsMap = new Map<string, {
+                    totalRolls: number; sum: number;
+                    highest: number; lowest: number;
+                    crits: number; failures: number;
+                }>();
+
+                for (const roll of rolls) {
+                    if (!statsMap.has(roll.userName)) {
+                        statsMap.set(roll.userName, { totalRolls: 0, sum: 0, highest: -Infinity, lowest: Infinity, crits: 0, failures: 0 });
+                    }
+                    const s = statsMap.get(roll.userName)!;
+                    const results: number[] = roll.results ?? [roll.total];
+                    for (const r of results) {
+                        s.totalRolls++;
+                        s.sum += r;
+                        if (r > s.highest) s.highest = r;
+                        if (r < s.lowest) s.lowest = r;
+                        if (roll.diceFaces === 20 && roll.diceCount === 1) {
+                            if (r === 20) s.crits++;
+                            if (r === 1) s.failures++;
+                        }
+                    }
+                }
+
+                const players = Array.from(statsMap.entries())
+                    .sort((a, b) => b[1].totalRolls - a[1].totalRolls);
+
+                const lines = players.map(([name, s]) => {
+                    const avg = (s.sum / s.totalRolls).toFixed(1);
+                    const crits  = s.crits    ? ` 🌟×${s.crits}`    : '';
+                    const fails  = s.failures ? ` 💀×${s.failures}` : '';
+                    return `**${name}** — ${s.totalRolls} lancers · moy. **${avg}** · max **${s.highest}** · min **${s.lowest}**${crits}${fails}`;
+                });
+
+                const title = joueurFilter ? `📊 Stats de ${joueurFilter}` : '📊 Stats de la salle';
+                await editOriginalResponse(appId, token, {
+                    embeds: [{
+                        title,
+                        description: lines.join('\n'),
+                        color: 0xc0a080,
+                        footer: { text: `${rolls.length} lancers publics analysés` },
+                    }],
+                });
+            })());
+
+            return NextResponse.json({ type: 5 });
+        }
     }
 
     return new Response('Unknown interaction', { status: 400 });

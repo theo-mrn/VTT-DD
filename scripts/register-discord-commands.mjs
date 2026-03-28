@@ -79,6 +79,18 @@ const commands = [
             },
         ],
     },
+    {
+        name: 'stats',
+        description: 'Statistiques des dés de la salle',
+        options: [
+            {
+                name: 'joueur',
+                description: 'Filtrer par nom de personnage',
+                type: 3, // STRING
+                required: false,
+            },
+        ],
+    },
 ];
 
 const res = await fetch(
