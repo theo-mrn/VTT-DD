@@ -3,7 +3,20 @@ import { InteractionType, InteractionResponseType, verifyKey } from 'discord-int
 import { adminDb } from '@/lib/firebase-admin';
 import { createHash } from 'crypto';
 import { Timestamp } from 'firebase-admin/firestore';
-import { buildCharacterVariables, applyVariables } from '@/lib/character-variables';
+import { applyVariables } from '@/lib/character-variables';
+import { waitUntil } from '@vercel/functions';
+
+const DISCORD_API = 'https://discord.com/api/v10';
+
+// Patch the deferred message — NEVER include flags here
+async function patch(appId: string, token: string, data: object) {
+    const res = await fetch(`${DISCORD_API}/webhooks/${appId}/${token}/messages/@original`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    });
+    if (!res.ok) console.error('[Discord] patch error', res.status, await res.text());
+}
 
 // ── Dice rolling logic ────────────────────────────────────────────────────────
 
@@ -159,9 +172,12 @@ export async function POST(request: Request) {
     if (interaction.type === InteractionType.APPLICATION_COMMAND) {
         const { name, options } = interaction.data;
         const discordId: string = interaction.member?.user?.id ?? interaction.user?.id;
+        const appId: string     = interaction.application_id;
+        const token: string     = interaction.token;
 
         const reply = (data: object) => NextResponse.json({ type: 4, data });
         const ephemeral = (content: string) => reply({ content, flags: 64 });
+        const deferred = (flags?: number) => NextResponse.json({ type: 5, ...(flags ? { data: { flags } } : {}) });
 
         // ── /login ────────────────────────────────────────────────────────────
         if (name === 'login') {
@@ -210,52 +226,59 @@ export async function POST(request: Request) {
             const isPrivate   = suffix === 'p' || typeOpt === 'prive';
             const isBlind     = suffix === 'i' || typeOpt === 'aveugle';
 
-            const linked   = await resolveLinkedUser(discordId);
-            const notation = applyVariables(rawNotation, linked?.variables ?? {});
-            const result   = rollDice(notation);
+            waitUntil((async () => {
+                const linked   = await resolveLinkedUser(discordId);
+                const notation = applyVariables(rawNotation, linked?.variables ?? {});
+                const result   = rollDice(notation);
 
-            if (!result) return ephemeral(`❌ Notation invalide : \`${rawNotation}\``);
+                if (!result) { await patch(appId, token, { content: `❌ Notation invalide : \`${rawNotation}\`` }); return; }
 
-            // Sauvegarder en fire-and-forget (ne bloque pas la réponse Discord)
-            if (linked?.roomId) {
-                const m = [...notation.matchAll(/(\d+)d(\d+)/gi)][0];
-                adminDb.collection(`rolls/${linked.roomId}/rolls`).add({
-                    id: crypto.randomUUID(), isPrivate, isBlind,
-                    diceCount: m ? parseInt(m[1]) : 1, diceFaces: m ? parseInt(m[2]) : 20,
-                    modifier: 0, results: result.rolls.map(r => r.value),
-                    total: result.total, userName: linked.persoName,
-                    userAvatar: linked.avatar ?? null, type: 'Discord',
-                    timestamp: Date.now(), notation, output: result.output,
-                });
-            }
+                if (linked?.roomId) {
+                    const m = [...notation.matchAll(/(\d+)d(\d+)/gi)][0];
+                    adminDb.collection(`rolls/${linked.roomId}/rolls`).add({
+                        id: crypto.randomUUID(), isPrivate, isBlind,
+                        diceCount: m ? parseInt(m[1]) : 1, diceFaces: m ? parseInt(m[2]) : 20,
+                        modifier: 0, results: result.rolls.map(r => r.value),
+                        total: result.total, userName: linked.persoName,
+                        userAvatar: linked.avatar ?? null, type: 'Discord',
+                        timestamp: Date.now(), notation, output: result.output,
+                    });
+                }
 
-            const embed = isBlind
-                ? { author: linked ? { name: linked.persoName } : undefined, description: '*Lancer aveugle envoyé au MJ*', color: 0x555555 }
-                : buildEmbed(rawNotation, result, linked?.persoName, linked?.avatar, linked?.isMJ);
+                const embed = isBlind
+                    ? { author: linked ? { name: linked.persoName } : undefined, description: '*Lancer aveugle envoyé au MJ*', color: 0x555555 }
+                    : buildEmbed(rawNotation, result, linked?.persoName, linked?.avatar, linked?.isMJ);
 
-            return reply({ embeds: [embed], ...(isPrivate || isBlind ? { flags: 64 } : {}) });
+                await patch(appId, token, { embeds: [embed] });
+            })());
+
+            return deferred(isPrivate || isBlind ? 64 : undefined);
         }
 
         // ── /history ──────────────────────────────────────────────────────────
         if (name === 'history') {
-            const linked = await resolveLinkedUser(discordId);
-            if (!linked?.roomId) return ephemeral('❌ Connecte-toi d\'abord avec `/login`.');
+            waitUntil((async () => {
+                const linked = await resolveLinkedUser(discordId);
+                if (!linked?.roomId) { await patch(appId, token, { content: '❌ Connecte-toi d\'abord avec `/login`.' }); return; }
 
-            const joueurFilter: string | undefined = options?.find((o: { name: string }) => o.name === 'joueur')?.value;
-            const snapshot = await adminDb.collection(`rolls/${linked.roomId}/rolls`)
-                .orderBy('timestamp', 'desc').limit(10).get();
+                const joueurFilter: string | undefined = options?.find((o: { name: string }) => o.name === 'joueur')?.value;
+                const snapshot = await adminDb.collection(`rolls/${linked.roomId}/rolls`)
+                    .orderBy('timestamp', 'desc').limit(10).get();
 
-            const docs = snapshot.docs.map(d => d.data())
-                .filter(d => !d.isPrivate && !d.isBlind)
-                .filter(d => !joueurFilter || d.userName === joueurFilter);
+                const docs = snapshot.docs.map(d => d.data())
+                    .filter(d => !d.isPrivate && !d.isBlind)
+                    .filter(d => !joueurFilter || d.userName === joueurFilter);
 
-            if (!docs.length) return reply({ content: joueurFilter ? `Aucun lancer public pour **${joueurFilter}**.` : 'Aucun lancer public dans cette salle.' });
+                if (!docs.length) { await patch(appId, token, { content: joueurFilter ? `Aucun lancer public pour **${joueurFilter}**.` : 'Aucun lancer public dans cette salle.' }); return; }
 
-            const lines = docs.map(d => {
-                const date = new Date(d.timestamp).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-                return `**${d.total}** · \`${d.output}\` — ${d.userName} · ${date}`;
-            });
-            return reply({ embeds: [{ title: joueurFilter ? `Historique de ${joueurFilter}` : 'Derniers lancers publics', description: lines.join('\n'), color: 0xc0a080 }] });
+                const lines = docs.map(d => {
+                    const date = new Date(d.timestamp).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+                    return `**${d.total}** · \`${d.output}\` — ${d.userName} · ${date}`;
+                });
+                await patch(appId, token, { embeds: [{ title: joueurFilter ? `Historique de ${joueurFilter}` : 'Derniers lancers publics', description: lines.join('\n'), color: 0xc0a080 }] });
+            })());
+
+            return deferred();
         }
     }
 
