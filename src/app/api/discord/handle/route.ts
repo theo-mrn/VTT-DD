@@ -11,7 +11,7 @@ const FB_KEY    = process.env.NEXT_PUBLIC_FIREBASE_API_KEY ?? '';
 // ─── Discord helpers ────────────────────────────────────────────────────────
 
 async function patch(token: string, payload: object) {
-    await fetch(
+    const res = await fetch(
         `https://discord.com/api/v10/webhooks/${APP_ID}/${token}/messages/@original`,
         {
             method: 'PATCH',
@@ -19,6 +19,10 @@ async function patch(token: string, payload: object) {
             body: JSON.stringify(payload),
         }
     );
+    if (!res.ok) {
+        const text = await res.text();
+        console.error(`[discord/handle] patch ${res.status}:`, text);
+    }
 }
 
 // ─── discordLinks cache ──────────────────────────────────────────────────────
@@ -348,14 +352,16 @@ async function handleHistory(interaction: any, token: string) {
 export async function POST(request: Request) {
     // Verify internal secret
     const secret = request.headers.get('x-discord-secret');
+    console.log('[discord/handle] called, APP_ID:', APP_ID, 'secret_ok:', !!secret && secret === BOT_TOKEN);
     if (!secret || secret !== BOT_TOKEN) {
+        console.error('[discord/handle] unauthorized — BOT_TOKEN mismatch or missing');
         return new Response('Unauthorized', { status: 401 });
     }
 
-    const interaction = await request.json();
-    const token: string = interaction.token ?? '';
-
+    let token = '';
     try {
+        const interaction = await request.json();
+        token = interaction.token ?? '';
         const name: string = interaction.data?.name ?? '';
 
         if (name === 'roll')    await handleRoll(interaction, token);

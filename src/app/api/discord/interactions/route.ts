@@ -1,5 +1,3 @@
-export const runtime = 'edge';
-
 import { verifyKey } from 'discord-interactions';
 import { waitUntil } from '@vercel/functions';
 
