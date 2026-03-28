@@ -252,10 +252,16 @@ export async function POST(request: Request) {
 
         // ── /roll ─────────────────────────────────────────────────────────────
         if (name === 'roll') {
-            const rawNotation: string = options?.find((o: { name: string }) => o.name === 'notation')?.value ?? '1d20';
-            const rollType: string = options?.find((o: { name: string }) => o.name === 'type')?.value ?? 'public';
-            const isPrivate = rollType === 'prive';
-            const isBlind = rollType === 'aveugle';
+            const rawInput: string = options?.find((o: { name: string }) => o.name === 'notation')?.value ?? '1d20';
+
+            // Suffixes : "1d20+3 p" → privé, "1d20+3 i" → aveugle (invisible)
+            const suffixMatch = rawInput.match(/\s+([pi])$/i);
+            const suffix = suffixMatch?.[1]?.toLowerCase();
+            const rawNotation = suffixMatch ? rawInput.slice(0, -suffixMatch[0].length).trim() : rawInput;
+
+            const rollTypeOption: string = options?.find((o: { name: string }) => o.name === 'type')?.value ?? 'public';
+            const isPrivate = suffix === 'p' || rollTypeOption === 'prive';
+            const isBlind   = suffix === 'i' || rollTypeOption === 'aveugle';
             const isEphemeral = isPrivate || isBlind;
 
             waitUntil((async () => {
