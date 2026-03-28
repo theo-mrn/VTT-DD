@@ -307,19 +307,18 @@ export async function POST(request: Request) {
 
                 const joueurFilter: string | undefined = options?.find((o: { name: string }) => o.name === 'joueur')?.value;
 
-                let q = adminDb.collection(`rolls/${linked.roomId}/rolls`)
-                    .where('isPrivate', '==', false)
-                    .where('isBlind', '==', false)
+                const snapshot = await adminDb.collection(`rolls/${linked.roomId}/rolls`)
                     .orderBy('timestamp', 'desc')
-                    .limit(10);
+                    .limit(50)
+                    .get();
 
-                if (joueurFilter) {
-                    q = q.where('userName', '==', joueurFilter) as typeof q;
-                }
+                const rolls = snapshot.docs
+                    .map(d => d.data())
+                    .filter(d => !d.isPrivate && !d.isBlind)
+                    .filter(d => !joueurFilter || d.userName === joueurFilter)
+                    .slice(0, 10);
 
-                const snapshot = await q.get();
-
-                if (snapshot.empty) {
+                if (!rolls.length) {
                     const msg = joueurFilter
                         ? `Aucun lancer public pour **${joueurFilter}**.`
                         : 'Aucun lancer public dans cette salle.';
@@ -327,8 +326,7 @@ export async function POST(request: Request) {
                     return;
                 }
 
-                const lines = snapshot.docs.map(doc => {
-                    const d = doc.data();
+                const lines = rolls.map(d => {
                     const date = new Date(d.timestamp).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
                     return `**${d.total}** · \`${d.output}\` — ${d.userName} · ${date}`;
                 });
