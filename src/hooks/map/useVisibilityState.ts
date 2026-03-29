@@ -75,7 +75,7 @@ export function useVisibilityState(props: UseVisibilityStateProps) {
   // ===================== OBSTACLE STATE =====================
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [visibilityMode, setVisibilityMode] = useState(false);
-  const [currentVisibilityTool, setCurrentVisibilityTool] = useState<'fog' | 'chain' | 'edit' | 'none'>('chain');
+  const [currentVisibilityTool, setCurrentVisibilityTool] = useState<'fog' | 'chain' | 'edit' | 'none'>('none');
   const [isDrawingObstacle, setIsDrawingObstacle] = useState(false);
   const [currentObstaclePoints, setCurrentObstaclePoints] = useState<Point[]>([]);
   const [selectedObstacleIds, setSelectedObstacleIds] = useState<string[]>([]);

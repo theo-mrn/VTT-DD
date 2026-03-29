@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Search, X, Volume2, Package, Users, Loader2, GripVertical, Pause, Eye } from 'lucide-react'
 import { useGMTemplates, type SoundTemplate } from '@/contexts/GMTemplatesContext'
 import { Input } from '@/components/ui/input'
@@ -86,15 +86,17 @@ export function UnifiedSearchDrawer({ roomId, isOpen, onClose, onDragStart, curr
     const [selectedFilter, setSelectedFilter] = useState<'all' | 'sound' | 'object' | 'npc' | 'visibility'>('all')
 
     // Cleanup visibility tools when switching away from 'visibility' tab or closing the drawer
+    const vsRef = useRef(vs)
+    useEffect(() => { vsRef.current = vs })
     useEffect(() => {
         if (selectedFilter !== 'visibility' || !isOpen) {
             (window as any).__visibilityToolsActive = false
-            if (vs) {
-                vs.setCurrentVisibilityTool('none')
-                vs.setIsLightPlacementMode(false)
+            if (vsRef.current) {
+                vsRef.current.setCurrentVisibilityTool('none')
+                vsRef.current.setIsLightPlacementMode(false)
             }
         }
-    }, [selectedFilter, isOpen, vs])
+    }, [selectedFilter, isOpen])
 
     // Audio preview state
     const [playingAudioId, setPlayingAudioId] = useState<string | null>(null)
