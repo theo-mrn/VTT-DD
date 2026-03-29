@@ -64,7 +64,7 @@ export function useRtdbCollections(
             if (data.cityId !== cityId) continue;
             texts.push({
                 id,
-                text: data.content,
+                text: data.content ?? data.text ?? '',
                 x: data.x || 0,
                 y: data.y || 0,
                 color: data.color || 'yellow',
@@ -117,7 +117,7 @@ export function useRtdbCollections(
                 if (data.cityId !== cityId) continue;
                 texts.push({
                     id,
-                    text: data.content,
+                    text: data.content ?? data.text ?? '',
                     x: data.x || 0,
                     y: data.y || 0,
                     color: data.color || 'yellow',

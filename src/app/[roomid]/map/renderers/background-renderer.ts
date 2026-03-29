@@ -107,7 +107,7 @@ export function drawBackgroundLayers(
       ctx.font = `${fontSize}px ${fontFamily}`;
 
       // Gérer les sauts de ligne (\n ou <br>)
-      const textLines = note.text.replace(/<br\s*\/?>/gi, '\n').split('\n');
+      const textLines = (note.text ?? '').replace(/<br\s*\/?>/gi, '\n').split('\n');
       const lineHeight = fontSize * 1.2; // Espacement entre les lignes
 
       // Afficher chaque ligne séparément

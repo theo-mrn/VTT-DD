@@ -1125,7 +1125,7 @@ export function useCanvasMouseDown(params: UseCanvasMouseDownParams): UseCanvasM
 
           const fontSize = (note.fontSize || 16) * zoom;
           // Estimation de la largeur : 0.6 * fontSize par caractère (moyenne large)
-          const estimatedWidth = (note.text.length * fontSize * 0.7);
+          const estimatedWidth = ((note.text ?? '').length * fontSize * 0.7);
           const estimatedHeight = fontSize;
 
           // Padding confortable pour faciliter le clic
