@@ -163,7 +163,7 @@ const CharacterContext = createContext<CharacterContextType | undefined>(undefin
 // ==================== PROVIDER ====================
 
 export function CharacterProvider({ children }: { children: ReactNode }) {
-  const { user } = useGame();
+  const { user, persoId: userPersoId, isMJ } = useGame();
   const [characters, setCharacters] = useState<Character[]>([]);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
@@ -250,9 +250,14 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
 
       setCharacters(charactersData);
 
-      // Sélectionner automatiquement le premier personnage si aucun n'est sélectionné
+      // Sélectionner le personnage selon le rôle :
+      // - joueur : toujours son persoId assigné
+      // - MJ : garder la sélection courante ou prendre le premier si rien de sélectionné
       setSelectedCharacterId(prevId => {
-        if (!prevId && charactersData.length > 0) {
+        if (!isMJ && userPersoId) {
+          return userPersoId;
+        }
+        if (isMJ && !prevId && charactersData.length > 0) {
           return charactersData[0].id;
         }
         return prevId;
@@ -265,7 +270,16 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
     });
 
     return () => unsubscribe();
-  }, [user?.roomId]);
+  }, [user?.roomId, userPersoId, isMJ]);
+
+  // Quand le persoId de l'utilisateur change (ex: changement de compte), forcer la sélection du bon personnage
+  useEffect(() => {
+    if (!isMJ && userPersoId) {
+      setSelectedCharacterId(userPersoId);
+    } else if (!isMJ && !userPersoId) {
+      setSelectedCharacterId(null);
+    }
+  }, [userPersoId, isMJ]);
 
   // Synchroniser selectedCharacter avec selectedCharacterId
   useEffect(() => {
