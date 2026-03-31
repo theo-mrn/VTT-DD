@@ -254,7 +254,7 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
       // - joueur : toujours son persoId assigné
       // - MJ : garder la sélection courante ou prendre le premier si rien de sélectionné
       setSelectedCharacterId(prevId => {
-        if (!isMJ && userPersoId) {
+        if (!isMJ && userPersoId && !prevId) {
           return userPersoId;
         }
         if (isMJ && !prevId && charactersData.length > 0) {

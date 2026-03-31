@@ -38,14 +38,35 @@ export default function YouTubeSFXPlayer({ roomId, volume = 0.5 }: YouTubeSFXPla
     useEffect(() => {
         if (!roomId) return;
 
+        let isFirst = true;
+
         const unsubscribe = onSnapshot(doc(db, 'global_sounds', roomId), (docSnap) => {
             const data = docSnap.data();
             if (!data) return;
 
-            // Only act if it is a YOUTUBE type sound and it's new
-            if (data.type === 'youtube' && data.soundUrl && data.timestamp > lastPlayedTimestamp.current) {
-                lastPlayedTimestamp.current = data.timestamp;
-                setVideoState({ id: data.soundUrl, timestamp: data.timestamp });
+            const newTimestamp = data.timestamp || 0;
+
+            // Skip initial snapshot(s) to avoid auto-playing on page load
+            if (isFirst) {
+                isFirst = false;
+                lastPlayedTimestamp.current = newTimestamp;
+                return;
+            }
+
+            // Ignore stale events
+            if (newTimestamp <= lastPlayedTimestamp.current) return;
+            lastPlayedTimestamp.current = newTimestamp;
+
+            // Stop if sound was cleared
+            if (!data.soundUrl) {
+                playerRef.current?.stopVideo();
+                setVideoState(null);
+                return;
+            }
+
+            // Play if it's a YouTube type sound
+            if (data.type === 'youtube') {
+                setVideoState({ id: data.soundUrl, timestamp: newTimestamp });
             }
         });
 

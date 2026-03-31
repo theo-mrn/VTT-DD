@@ -107,36 +107,56 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
         isFirstSoundSnapshotRef.current = true
 
         const unsubQuick = onSnapshot(firestoreDoc(db, 'global_sounds', roomId), (docSnap) => {
-            // Skip the first snapshot (initial state) to avoid replaying old sounds
-            if (isFirstSoundSnapshotRef.current) {
-                isFirstSoundSnapshotRef.current = false
-                return
-            }
-
             const data = docSnap.data()
             const newSoundUrl = data?.soundUrl
             const newTimestamp = data?.timestamp || 0
 
+            // On the first snapshot, initialize the timestamp baseline to avoid
+            // replaying old sounds (Firestore can fire twice: cache then server)
+            if (isFirstSoundSnapshotRef.current) {
+                isFirstSoundSnapshotRef.current = false
+                lastPlayedTimestamp.current = newTimestamp
+                return
+            }
+
+            // Ignore stale events from page load (same or older timestamp)
+            if (newTimestamp <= lastPlayedTimestamp.current) return
+
+            lastPlayedTimestamp.current = newTimestamp
+
             // Update UI state
             setGlobalPlayingId(newSoundUrl ? data.soundId : null)
 
-            // Play Sound if new timestamp and we have a URL and it is a file
-            if (newSoundUrl && newTimestamp > lastPlayedTimestamp.current && data?.type === 'file') {
-                lastPlayedTimestamp.current = newTimestamp
+            // Stop current audio if sound was cleared (pause/stop action)
+            if (!newSoundUrl) {
+                if (activeAudioRef.current) {
+                    activeAudioRef.current.pause()
+                    activeAudioRef.current.currentTime = 0
+                    activeAudioRef.current = null
+                }
+                return
+            }
+
+            // Play Sound if it is a file type
+            if (data?.type === 'file') {
                 const currentSoundId = data.soundId
 
-                // Stop previous if exists (optional, maybe we want overlap for attacks? let's stop for now to be clean)
-                // actually for attacks often we want overlap, but for "quick sound" mode it seems like a player
-                // Let's create a new Audio instance for new sound
+                // Stop previous audio if any
+                if (activeAudioRef.current) {
+                    activeAudioRef.current.pause()
+                    activeAudioRef.current.currentTime = 0
+                }
+
                 const audio = new Audio(newSoundUrl)
-                audio.volume = 0.5 // Default volume
+                audio.volume = 0.5
+                activeAudioRef.current = audio
                 audio.play().catch(e => console.error("Error auto-playing sound:", e))
 
                 // Stop after 5 seconds max and reset the playing state
                 setTimeout(() => {
                     audio.pause()
                     audio.currentTime = 0
-                    // Only clear the playing state if this is still the current sound
+                    if (activeAudioRef.current === audio) activeAudioRef.current = null
                     setGlobalPlayingId(prev => prev === currentSoundId ? null : prev)
                 }, 5000)
             }
@@ -252,7 +272,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
     const playQuickSound = async (sound: SoundTemplate) => {
         const isCurrent = globalPlayingId === sound.id
         if (isCurrent) {
-            await setDoc(firestoreDoc(db, 'global_sounds', roomId), { soundUrl: null }, { merge: true })
+            await setDoc(firestoreDoc(db, 'global_sounds', roomId), { soundUrl: null, timestamp: Date.now() }, { merge: true })
         } else {
             await setDoc(firestoreDoc(db, 'global_sounds', roomId), { soundUrl: sound.soundUrl, soundId: sound.id, timestamp: Date.now(), type: sound.type })
         }
@@ -264,7 +284,7 @@ export function SoundDrawer({ roomId, isOpen, onClose, onDragStart, isEmbedded }
             // Global mode: play for everyone via Realtime DB
             const isCurrent = globalPlayingId === sound.id
             if (isCurrent) {
-                await setDoc(firestoreDoc(db, 'global_sounds', roomId), { soundUrl: null }, { merge: true })
+                await setDoc(firestoreDoc(db, 'global_sounds', roomId), { soundUrl: null, timestamp: Date.now() }, { merge: true })
             } else {
                 await setDoc(firestoreDoc(db, 'global_sounds', roomId), { soundUrl: sound.soundUrl, soundId: sound.id, timestamp: Date.now(), type: sound.type })
             }
