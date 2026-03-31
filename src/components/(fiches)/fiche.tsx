@@ -822,7 +822,7 @@ export default function Component() {
         {/* Barre de personnages séparée */}
         <div className="max-w-5xl mx-auto mb-6 bg-[var(--bg-card)] p-2 rounded-lg shadow-md flex items-center justify-between gap-4">
           <div className="flex-1 flex gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-[var(--border-color)] scrollbar-track-transparent">
-            {characters.map((character) => (
+            {!isLayoutEditing && characters.map((character) => (
               <button
                 key={character.id}
                 onClick={() => setSelectedCharacter(character)}
@@ -834,6 +834,11 @@ export default function Component() {
                 {character.Nomperso}
               </button>
             ))}
+            {isLayoutEditing && (
+              <span className="text-xs text-[var(--text-secondary)] italic px-2 py-2 self-center">
+                Mode édition — changer de personnage est désactivé
+              </span>
+            )}
           </div>
 
           {selectedCharacter && (
@@ -1167,13 +1172,14 @@ export default function Component() {
             ) : (
               <ResponsiveGridLayout
                 className="layout"
-                layouts={{ lg: layout }}
+                layouts={{ lg: layout, md: layout, sm: layout, xs: layout, xxs: layout }}
                 breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
                 cols={{ lg: 120, md: 100, sm: 60, xs: 40, xxs: 20 }}
                 rowHeight={40}
                 margin={[20, 20]}
                 containerPadding={[0, 0]}
                 isDraggable={false}
+                isResizable={false}
                 onBreakpointChange={(bp, cols) => setCurrentCols(cols)}
               >
                 <div id="vtt-widget-avatar-view" key="avatar" className="overflow-hidden h-full"><WidgetAvatar style={boxStyle} /></div>
