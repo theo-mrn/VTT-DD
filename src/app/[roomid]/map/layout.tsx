@@ -1,6 +1,7 @@
 "use client";
 
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode, useState, useEffect, useCallback } from "react";
+import { MapReloadContext } from '@/contexts/MapReloadContext';
 import { useParams, useRouter } from "next/navigation";
 import { useGame } from "@/contexts/GameContext";
 import Sidebar from "@/components/(overlays)/Sidebar";
@@ -45,6 +46,9 @@ const PANEL_WIDTHS: Record<string, string> = {
 const PERSISTENT_PANELS = new Set(['Music', 'DiceRoller', 'NewComponent', 'Chat', 'GMDashboard', 'NPCManager', 'Historique']);
 
 export default function Layout({ children }: LayoutProps) {
+  const [mapReloadKey, setMapReloadKey] = useState(0);
+  const reloadMap = useCallback(() => setMapReloadKey(k => k + 1), []);
+
   const params = useParams();
   const roomId = params.roomid as string;
   const router = useRouter();
@@ -252,7 +256,9 @@ export default function Layout({ children }: LayoutProps) {
               />
 
               <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c] -z-10">
-                <div className="w-full h-full">{children}</div>
+                <MapReloadContext.Provider value={reloadMap}>
+                  <div key={mapReloadKey} className="w-full h-full">{children}</div>
+                </MapReloadContext.Provider>
               </main>
 
               {/* 3D Dice Overlay */}

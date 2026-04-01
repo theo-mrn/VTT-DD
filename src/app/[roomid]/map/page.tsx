@@ -71,6 +71,8 @@ import { useDeleteActions } from '@/hooks/map/useDeleteActions';
 import { useDragAndDrop, type DragFeaturePreview } from '@/hooks/map/useDragAndDrop';
 import { useToolbarActions } from '@/hooks/map/useToolbarActions';
 import MapContextMenus from '@/components/(map)/MapContextMenus';
+import MapContextMenuContent from '@/components/(overlays)/MapContextMenuContent';
+import { ContextMenu, ContextMenuTrigger } from '@/components/ui/context-menu';
 import MapDialogs from '@/components/(map)/MapDialogs';
 import { useCanvasMouseDown } from '@/hooks/map/useCanvasMouseDown';
 import { useCanvasMouseMove } from '@/hooks/map/useCanvasMouseMove';
@@ -292,10 +294,6 @@ export default function Component() {
   }, [focusTarget, bgImageObject, zoom]);
 
 
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setMapContextMenu({ x: e.clientX, y: e.clientY });
-  }, []);
 
   const [selectedCharacterIndex, setSelectedCharacterIndex] = useState<number | null>(null);
   const [selectedObjectIndices, setSelectedObjectIndices] = useState<number[]>([]);
@@ -499,8 +497,8 @@ export default function Component() {
   const [isDraggingSpawnPoint, setIsDraggingSpawnPoint] = useState(false);  // Dragging spawn marker
   const [currentScene, setCurrentScene] = useState<Scene | null>(null);  // Current scene data for spawn points
 
-  // Map Context Menu State
-  const [mapContextMenu, setMapContextMenu] = useState<{ x: number, y: number } | null>(null);
+  // Map Context Menu State — tracks last right-click position for module item context
+  const mapContextMenuPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   // 📡 Listeners currentScene et portals → centralisés dans useMapData
 
   //  CHECK FOR PORTAL COLLISIONS (Player characters only)
@@ -3074,8 +3072,6 @@ export default function Component() {
         setContextMenuPortalOpen={setContextMenuPortalOpen}
         contextMenuPortalId={contextMenuPortalId}
         handlePortalAction={handlePortalAction}
-        mapContextMenu={mapContextMenu}
-        setMapContextMenu={setMapContextMenu}
         showAllBadges={showAllBadges}
         setShowAllBadges={setShowAllBadges}
         contextMenuOpen={contextMenuOpen}
@@ -3190,6 +3186,8 @@ export default function Component() {
         allies={playerAllies}
       />
 
+      <ContextMenu>
+      <ContextMenuTrigger asChild>
       <div
         ref={containerRef}
         className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${isDraggingCharacter || isDraggingNote || isDraggingObstacle ? 'cursor-grabbing' :
@@ -3287,9 +3285,8 @@ export default function Component() {
               return;
             }
 
-            // 🆕 If no specific element is hovered, open the General Map Context Menu
-            e.preventDefault();
-            setMapContextMenu({ x: e.clientX, y: e.clientY });
+            // If no specific element is hovered, let Radix ContextMenu handle it
+            mapContextMenuPosRef.current = { x: e.clientX, y: e.clientY };
           }
         }
         }
@@ -3452,6 +3449,14 @@ export default function Component() {
           />
         )}
       </div>
+      </ContextMenuTrigger>
+      <MapContextMenuContent
+        isMJ={isMJ}
+        position={mapContextMenuPosRef.current}
+        showAllBadges={showAllBadges}
+        onToggleBadges={() => setShowAllBadges(!showAllBadges)}
+      />
+      </ContextMenu>
 
 
 
