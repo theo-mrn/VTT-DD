@@ -13,7 +13,6 @@ import MusicZoneContextMenu from '@/components/(overlays)/MusicZoneContextMenu';
 import MeasurementContextMenu from '@/components/(overlays)/MeasurementContextMenu';
 import LightContextMenu from '@/components/(overlays)/LightContextMenu';
 import PortalContextMenu from '@/components/(overlays)/PortalContextMenu';
-import MapContextMenu from '@/components/(overlays)/MapContextMenu';
 import { BulkCharacterContextMenu } from '@/components/(overlays)/BulkCharacterContextMenu';
 import MeasurementPanel from '@/components/(map)/MeasurementPanel';
 
@@ -134,8 +133,6 @@ export interface MapContextMenusProps {
   handlePortalAction: (action: string, portalId: string) => void;
 
   // Map context menu
-  mapContextMenu: { x: number; y: number } | null;
-  setMapContextMenu: (v: { x: number; y: number } | null) => void;
   showAllBadges: boolean;
   setShowAllBadges: (v: boolean) => void;
 
@@ -260,8 +257,6 @@ export default function MapContextMenus(props: MapContextMenusProps) {
     handlePortalAction,
 
     // Map context menu
-    mapContextMenu,
-    setMapContextMenu,
     showAllBadges,
     setShowAllBadges,
 
@@ -648,13 +643,6 @@ export default function MapContextMenus(props: MapContextMenusProps) {
         isMJ={isMJ}
       />
 
-      <MapContextMenu
-        position={mapContextMenu}
-        onClose={() => setMapContextMenu(null)}
-        isMJ={isMJ}
-        showAllBadges={showAllBadges}
-        onToggleBadges={() => setShowAllBadges(!showAllBadges)}
-      />
 
       <ContextMenuPanel
         character={contextMenuCharacterId ? characters.find(c => c.id === contextMenuCharacterId) || null : null}
