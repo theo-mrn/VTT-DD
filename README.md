@@ -20,7 +20,7 @@ VTT-DD provides everything needed to run a complete D&D campaign online — from
 - Fog of war system with customizable visibility radius per character
 - Line-of-sight blocking via obstacles (walls, closed rooms, doors, windows)
 - Light zones that illuminate surrounding fog
-- Free drawing and text annotations (GM only)
+- Free drawing and text annotations 
 - Multiple scenes per campaign — GM navigates freely, players are assigned to scenes
 - Layer system: toggle visibility of objects, obstacles, fog, text, drawings, NPCs, etc.
 - Portal system to link scenes or teleport within a scene
