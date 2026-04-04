@@ -10,6 +10,7 @@
     "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:e2e": "firebase emulators:exec --only firestore 'jest --config jest.config.e2e.ts'",
     "email:dev": "email dev --dir ./src/components --port 4000"
   },
   "dependencies": {
@@ -123,6 +124,7 @@
     "vaul": "^1.1.0"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^4.0.1",
     "@react-email/preview-server": "^5.2.8",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
