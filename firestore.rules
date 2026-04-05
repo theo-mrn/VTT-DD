@@ -1,0 +1,147 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+
+    function userData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isRoomMember(roomId) {
+      return request.auth != null && userData().room_id == roomId;
+    }
+
+    function isRoomMJ(roomId) {
+      return isRoomMember(roomId) && userData().perso == "MJ";
+    }
+
+    function isRoomPlayer(roomId) {
+      return isRoomMember(roomId) && userData().perso != "MJ";
+    }
+
+    // Le joueur est propriétaire du personnage si persoId correspond
+    function ownsCharacter(charId) {
+      return request.auth != null && userData().persoId == charId;
+    }
+
+    // ── Profil utilisateur ─────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── Salles (métadonnées) ───────────────────────────────────────────────────
+    match /Salle/{roomId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null
+        && resource.data.creatorId == request.auth.uid;
+    }
+
+    // ── Personnages ────────────────────────────────────────────────────────────
+    // MJ : accès complet
+    // Joueur : peut lire tous, éditer uniquement son propre perso (pas de création/suppression de PNJ)
+    match /cartes/{roomId}/characters/{charId} {
+      allow read: if isRoomMember(roomId);
+
+      // Création : MJ uniquement (les joueurs ne créent pas de PNJ)
+      allow create: if isRoomMJ(roomId);
+
+      // Mise à jour : MJ ou joueur propriétaire du perso
+      allow update: if isRoomMJ(roomId)
+        || (isRoomPlayer(roomId) && ownsCharacter(charId));
+
+      // Suppression : MJ uniquement
+      allow delete: if isRoomMJ(roomId);
+    }
+
+    // ── Zones réservées au MJ (carte, décor, ambiance) ────────────────────────
+    // cities, fog, musicZones, portals, settings, scenario, objects, lights, measurements
+    match /cartes/{roomId}/cities/{document=**} {
+      allow read: if isRoomMember(roomId);
+      allow write: if isRoomMJ(roomId);
+    }
+
+    match /cartes/{roomId}/fog/{document=**} {
+      allow read: if isRoomMember(roomId);
+      allow write: if isRoomMJ(roomId);
+    }
+
+    match /cartes/{roomId}/musicZones/{document=**} {
+      allow read: if isRoomMember(roomId);
+      allow write: if isRoomMJ(roomId);
+    }
+
+    match /cartes/{roomId}/portals/{document=**} {
+      allow read: if isRoomMember(roomId);
+      allow write: if isRoomMJ(roomId);
+    }
+
+    match /cartes/{roomId}/settings/{document=**} {
+      allow read: if isRoomMember(roomId);
+      allow write: if isRoomMJ(roomId);
+    }
+
+    match /cartes/{roomId}/objects/{document=**} {
+      allow read: if isRoomMember(roomId);
+      allow write: if isRoomMJ(roomId);
+    }
+
+    match /cartes/{roomId}/lights/{document=**} {
+      allow read: if isRoomMember(roomId);
+      allow write: if isRoomMJ(roomId);
+    }
+
+    match /cartes/{roomId}/measurements/{document=**} {
+      allow read: if isRoomMember(roomId);
+      allow write: if isRoomMJ(roomId);
+    }
+
+    match /cartes/{roomId}/fond/{document=**} {
+      allow read: if isRoomMember(roomId);
+      allow write: if isRoomMJ(roomId);
+    }
+
+    // ── Combat (rapports d'attaque) — MJ + joueurs ────────────────────────────
+    match /cartes/{roomId}/combat/{document=**} {
+      allow read: if isRoomMember(roomId);
+      allow write: if isRoomMJ(roomId) || isRoomPlayer(roomId);
+    }
+
+    // ── Document racine de la room (currentMusic, etc.) ───────────────────────
+    match /cartes/{roomId} {
+      allow read: if isRoomMember(roomId);
+      allow write: if isRoomMJ(roomId);
+    }
+
+    // ── Jets de dés ───────────────────────────────────────────────────────────
+    match /rolls/{roomId}/{document=**} {
+      allow read, write: if isRoomMember(roomId);
+    }
+
+    // ── Inventaire ────────────────────────────────────────────────────────────
+    match /Inventaire/{roomId}/{document=**} {
+      allow read, write: if isRoomMember(roomId);
+    }
+
+    // ── Bonus ─────────────────────────────────────────────────────────────────
+    match /Bonus/{roomId}/{document=**} {
+      allow read, write: if isRoomMember(roomId);
+    }
+
+    // ── Historique ────────────────────────────────────────────────────────────
+    match /Historique/{roomId}/{document=**} {
+      allow read, write: if isRoomMember(roomId);
+    }
+
+    // ── Notes ─────────────────────────────────────────────────────────────────
+    match /Notes/{roomId}/{document=**} {
+      allow read, write: if isRoomMember(roomId);
+    }
+
+    match /SharedNotes/{roomId}/{document=**} {
+      allow read, write: if isRoomMember(roomId);
+    }
+  }
+}

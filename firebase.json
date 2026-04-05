@@ -1,4 +1,10 @@
 {
+  "database": {
+    "rules": "database.rules.json"
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "emulators": {
     "auth": {
       "port": 9099
