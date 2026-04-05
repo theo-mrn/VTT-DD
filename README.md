@@ -1,5 +1,7 @@
 # VTT-DD — Virtual Tabletop for Dungeons & Dragons
 
+**[yner.fr](https://www.yner.fr)**
+
 A full-featured, real-time Virtual Tabletop platform built for Dungeons & Dragons campaigns. Designed for Game Masters and players who want a modern, immersive, and highly customizable online tabletop experience.
 
 > Built with Next.js 15, TypeScript, Firebase, and Three.js.
@@ -117,6 +119,67 @@ VTT-DD provides everything needed to run a complete D&D campaign online — from
 - Image library (up to 5 GB per account)
 - Bestiary, item price list, full ability/skill database
 - Encounter generator
+
+---
+
+## Testing
+
+VTT-DD has two test suites: **unit tests** (pure logic, no Firebase) and **E2E tests** (real Firestore via the Firebase Emulator).
+
+### Unit Tests
+
+Pure function tests with Jest + jsdom. No network, no Firebase — fast and isolated.
+
+```bash
+npm test                # run all unit tests
+npm run test:watch      # watch mode
+npm run test:coverage   # with coverage report
+```
+
+| Suite | What is tested |
+|---|---|
+| `character-variables.test.ts` | `applyVariables` — stat variable substitution |
+| `encounter-utils.test.ts` | `getEncounterMultiplier`, `calculateEncounterBudget` |
+| `imageUtils.test.ts` | `getContrastColor` (YIQ formula) |
+| `titles.test.ts` | `generateSlug`, `INITIAL_TITLES` |
+| `inventaire.logic.test.ts` | `filterAndSort`, `canGiveItem`, predefined items |
+| `fiche.logic.test.ts` | `sanitizeLayout`, `updateWidgetDim`, `parseWidgetId` |
+| `competences.logic.test.ts` | Point calculation, unlock logic, dice parsing |
+| `glowing-ai.logic.test.ts` | Roll parsing, stat building, display rules |
+| `mjcombat.logic.test.ts` | Initiative sort, damage calc, condition handling |
+
+### E2E Tests (Firebase Emulator)
+
+Integration tests that run real Firestore operations against the local Firebase Emulator. Requires Java and the Firebase CLI.
+
+**Prerequisites:**
+
+```bash
+# Install Firebase CLI (once)
+npm install -g firebase-tools
+
+# Java is required for the Firestore emulator (JDK 11+)
+# macOS: brew install --cask temurin
+```
+
+**Run:**
+
+```bash
+npm run test:e2e
+```
+
+This command starts the Firestore emulator, runs the full E2E suite, then stops the emulator automatically.
+
+| Suite | Collections tested |
+|---|---|
+| `characters.e2e.test.ts` | `cartes/{roomId}/characters`, `Inventaire`, `Bonus` |
+| `fiche.e2e.test.ts` | Characters stats, layout, theme, customFields, level-up, avatar |
+| `inventaire2.e2e.test.ts` | `Inventaire/{roomId}/{player}`, `Bonus/{roomId}/{player}/{itemId}` |
+| `combat.e2e.test.ts` | Characters (initiative batch), combat rapport, `global_sounds`, `Inventaire` (weapon sounds) |
+| `competences.e2e.test.ts` | `characters` (voies), `customCompetences`, `Bonus` |
+| `rolls.e2e.test.ts` | `rolls/{roomId}/rolls`, `users` (titles nat1/nat20) |
+| `historique.e2e.test.ts` | `Historique/{roomId}/events`, `Notes`, `SharedNotes` |
+| `map.e2e.test.ts` | `cities`, `characters` (tokens), `objects`, `lights`, `measurements`, `musicZones`, `settings`, `fog`, `fond` |
 
 ---
 
