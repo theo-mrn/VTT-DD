@@ -1,0 +1,22 @@
+{
+  "rules": {
+    "rooms": {
+      "$roomId": {
+       
+        "music": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        },
+        "playlist": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        },
+
+        "$other": {
+          ".read": "auth != null",
+          ".write": "auth != null"
+        }
+      }
+    }
+  }
+}
