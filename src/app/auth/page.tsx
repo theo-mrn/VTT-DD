@@ -1,11 +1,12 @@
 'use client'
 
 import Login06 from '@/components/ui/login-3'
+import { AppBackground } from '@/components/ui/background-components'
 
 export default function AuthPage() {
   return (
-    <div className="fixed inset-0 z-50">
+    <AppBackground className="flex items-center justify-center min-h-screen">
       <Login06 />
-    </div>
+    </AppBackground>
   )
 }
