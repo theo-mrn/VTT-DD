@@ -18,6 +18,8 @@ import { AppBackground } from '@/components/ui/background-components'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { Aclonica } from "next/font/google"
+import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot} from "@/components/ui/input-otp"
+import { REGEXP_ONLY_DIGITS } from "input-otp"
 
 const aclonica = Aclonica({ weight: '400', subsets: ['latin'] })
 
@@ -348,20 +350,38 @@ export default function RejoindrePageComponent() {
               </div>
 
               {/* Code input */}
-              <div className="space-y-4">
-                <Input
-                  type="text"
-                  placeholder="Code de campagne"
-                  value={roomCode}
-                  onChange={(e) => setRoomCode(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleJoinRoom(roomCode)}
+              <div className="space-y-6 flex flex-col items-center w-full">
+                <InputOTP
                   maxLength={6}
-                  className="text-xl font-mono tracking-[0.3em] text-center h-14 bg-[var(--bg-card)]/60 backdrop-blur-md border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:shadow-[0_0_30px_rgba(192,160,128,0.15)] transition-all rounded-xl"
-                />
+                  value={roomCode}
+                  onChange={(value) => setRoomCode(value)}
+                  pattern={REGEXP_ONLY_DIGITS}
+                  onComplete={(val) => handleJoinRoom(val)}
+                >
+                  <InputOTPGroup className="gap-2">
+                    {[0, 1, 2].map((index) => (
+                      <InputOTPSlot
+                        key={index}
+                        index={index}
+                        className="w-12 h-14 sm:w-14 sm:h-14 text-xl font-mono bg-[var(--bg-card)]/60 backdrop-blur-md border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:ring-[var(--accent-brown)] focus:shadow-[0_0_30px_rgba(192,160,128,0.15)] transition-all rounded-xl"
+                      />
+                    ))}
+                  </InputOTPGroup>
+                  <InputOTPSeparator className="text-[var(--text-secondary)] mx-1 sm:mx-2" />
+                  <InputOTPGroup className="gap-2">
+                    {[3, 4, 5].map((index) => (
+                      <InputOTPSlot
+                        key={index}
+                        index={index}
+                        className="w-12 h-14 sm:w-14 sm:h-14 text-xl font-mono bg-[var(--bg-card)]/60 backdrop-blur-md border border-[var(--border-color)] text-[var(--text-primary)] focus:border-[var(--accent-brown)] focus:ring-[var(--accent-brown)] focus:shadow-[0_0_30px_rgba(192,160,128,0.15)] transition-all rounded-xl"
+                      />
+                    ))}
+                  </InputOTPGroup>
+                </InputOTP>
                 <Button
                   onClick={() => handleJoinRoom(roomCode)}
                   size="lg"
-                  className="w-full h-13 gap-3 bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:bg-[var(--accent-brown-hover)] text-base font-bold border-none shadow-[0_4px_25px_rgba(192,160,128,0.3)] hover:shadow-[0_4px_35px_rgba(192,160,128,0.5)] transition-all rounded-xl"
+                  className='w-full'
                 >
                   Rejoindre <ArrowRight className="h-4 w-4" />
                 </Button>
