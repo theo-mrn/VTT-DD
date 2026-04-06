@@ -174,7 +174,7 @@ This command starts the Firestore emulator, runs the full E2E suite, then stops 
 |---|---|
 | `characters.e2e.test.ts` | `cartes/{roomId}/characters`, `Inventaire`, `Bonus` |
 | `fiche.e2e.test.ts` | Characters stats, layout, theme, customFields, level-up, avatar |
-| `inventaire2.e2e.test.ts` | `Inventaire/{roomId}/{player}`, `Bonus/{roomId}/{player}/{itemId}` |
+| `inventaire.e2e.test.ts` | `Inventaire/{roomId}/{player}`, `Bonus/{roomId}/{player}/{itemId}` |
 | `combat.e2e.test.ts` | Characters (initiative batch), combat rapport, `global_sounds`, `Inventaire` (weapon sounds) |
 | `competences.e2e.test.ts` | `characters` (voies), `customCompetences`, `Bonus` |
 | `rolls.e2e.test.ts` | `rolls/{roomId}/rolls`, `users` (titles nat1/nat20) |

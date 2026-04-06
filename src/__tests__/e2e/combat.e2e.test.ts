@@ -1,7 +1,7 @@
 /**
  * Tests E2E — Combat
  * Sources : MJcombat.tsx (initiative batch, applyDamage, conditions, nextCharacter, deleteCharacter)
- *           combat2.tsx (sendReport, playWeaponSound, assignSound)
+ *           combat.tsx (sendReport, playWeaponSound, assignSound)
  * Collections : cartes/{roomId}/characters
  *               cartes/{roomId}/combat/{charId}/rapport
  *               cartes/{roomId}/cities/{cityId}/combat/state
@@ -272,9 +272,9 @@ describe("Combat — Conditions", () => {
   });
 });
 
-// ─── Rapport d'attaque (combat2 sendReport + MJcombat nextCharacter) ─────────
+// ─── Rapport d'attaque (combat sendReport + MJcombat nextCharacter) ─────────
 
-describe("Combat — Rapport d'attaque (combat2)", () => {
+describe("Combat — Rapport d'attaque (combat)", () => {
   it("enregistre un rapport d'attaque réussie", async () => {
     const env = await getTestEnv();
     const db = env.unauthenticatedContext().firestore();
@@ -385,7 +385,7 @@ describe("Combat — Rapport d'attaque (combat2)", () => {
   });
 });
 
-// ─── Son d'arme (combat2 playWeaponSound / handleSoundSelect) ────────────────
+// ─── Son d'arme (combat playWeaponSound / handleSoundSelect) ────────────────
 
 describe("Combat — Sons d'armes", () => {
   it("assigne un son à une arme via Inventaire", async () => {

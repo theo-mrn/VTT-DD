@@ -16,7 +16,7 @@ import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, 
 import { toast } from 'sonner';
 import { auth, db, realtimeDb, dbRef, onValue, onAuthStateChanged } from '@/lib/firebase'
 import { doc, collection, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
-import Combat from '@/components/(combat)/combat2';
+import Combat from '@/components/(combat)/combat';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { Component as RadialMenu } from '@/components/ui/radial-menu';

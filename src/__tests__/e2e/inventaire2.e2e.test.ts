@@ -1,5 +1,5 @@
 /**
- * Tests E2E — Inventaire (inventaire2.tsx)
+ * Tests E2E — Inventaire (inventaire.tsx)
  * Collections : Inventaire/{roomId}/{playerName}
  *               Bonus/{roomId}/{playerName}/{itemId}
  */

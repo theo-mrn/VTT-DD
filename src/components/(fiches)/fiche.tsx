@@ -5,7 +5,7 @@ import {
   updateDoc
 } from '@/lib/firebase';
 import { Heart, Shield, Edit, Settings, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Trash2, PlusCircle, Expand, FileEdit, LayoutDashboard, Search, FileDown, UploadCloud, RotateCcw, Droplet, Minus, Plus, Sliders } from 'lucide-react';
-import InventoryManagement2 from '@/components/(inventaire)/inventaire2';
+import InventoryManagement2 from '@/components/(inventaire)/inventaire';
 import CompetencesDisplay from "@/components/(competences)/competencesD";
 import Competences from "@/components/(competences)/competences";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";

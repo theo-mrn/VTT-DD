@@ -1,5 +1,5 @@
 /**
- * Tests sur les logiques pures extraites de inventaire2.tsx
+ * Tests sur les logiques pures extraites de inventaire.tsx
  */
 
 // ─── Données statiques ────────────────────────────────────────────────────────

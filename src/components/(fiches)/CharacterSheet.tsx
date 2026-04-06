@@ -7,7 +7,7 @@ import { useCalculatedBonuses } from '@/hooks/useCharacterData';
 import { useGame } from '@/contexts/GameContext';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import CharacterImage from '@/components/(fiches)/CharacterImage';
-import InventoryManagement2 from '@/components/(inventaire)/inventaire2';
+import InventoryManagement2 from '@/components/(inventaire)/inventaire';
 
 interface Character {
   id: string;

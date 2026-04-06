@@ -15,7 +15,7 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { ref as rtdbRef, update as rtdbUpdate } from 'firebase/database'
 import { onAuthStateChanged } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
-import InventoryManagement from '@/components/(inventaire)/inventaire2'
+import InventoryManagement from '@/components/(inventaire)/inventaire'
 import CompetenceCreator, { Voie, CustomCompetence } from '@/components/(competences)/CompetenceCreator'
 import { toast } from 'sonner'
 

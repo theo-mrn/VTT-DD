@@ -34,7 +34,7 @@ export interface CategorizedBonuses {
 
 /**
  * Hook centralisant l'écoute de l'inventaire d'un personnage.
- * Remplace les onSnapshot éparpillés dans inventaire2.tsx, CharacterSheet.tsx, FicheWidgetsExtra.tsx.
+ * Remplace les onSnapshot éparpillés dans inventaire.tsx, CharacterSheet.tsx, FicheWidgetsExtra.tsx.
  */
 export function useCharacterInventory<T = any>(roomId: string | null, playerName: string | undefined) {
     const [inventory, setInventory] = useState<T[]>([]);
