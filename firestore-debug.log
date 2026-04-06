@@ -2,7 +2,7 @@ WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
 WARNING: sun.misc.Unsafe::allocateMemory has been called by io.netty.util.internal.PlatformDependent0$2 (file:/Users/theo/.cache/firebase/emulators/cloud-firestore-emulator-v1.20.4.jar)
 WARNING: Please consider reporting this to the maintainers of class io.netty.util.internal.PlatformDependent0$2
 WARNING: sun.misc.Unsafe::allocateMemory will be removed in a future release
-Apr 05, 2026 9:20:12 PM com.google.cloud.datastore.emulator.firestore.websocket.WebSocketServer start
+Apr 06, 2026 6:12:18 PM com.google.cloud.datastore.emulator.firestore.websocket.WebSocketServer start
 INFO: Started WebSocket server on ws://127.0.0.1:9150
 
 API endpoint: http://127.0.0.1:8080
@@ -20,71 +20,71 @@ If you are running a Firestore in Datastore Mode project, run:
 Note: Support for Datastore Mode is in preview. If you encounter any bugs please file at https://github.com/firebase/firebase-tools/issues.
 Dev App Server is now running.
 
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:19 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:19 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:19 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:19 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:19 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:19 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:19 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:19 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:19 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:19 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected HTTP/2 connection.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
-Apr 05, 2026 9:20:14 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected non-HTTP/2 connection.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:15 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected HTTP/2 connection.
-Apr 05, 2026 9:20:15 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected HTTP/2 connection.
-Apr 05, 2026 9:20:15 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected HTTP/2 connection.
-Apr 05, 2026 9:20:15 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected HTTP/2 connection.
-Apr 05, 2026 9:20:15 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected HTTP/2 connection.
-Apr 05, 2026 9:20:15 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected HTTP/2 connection.
-Apr 05, 2026 9:20:15 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected HTTP/2 connection.
-Apr 05, 2026 9:20:15 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected HTTP/2 connection.
-Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:15 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
-INFO: Detected HTTP/2 connection.
-Apr 05, 2026 9:20:15 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
 INFO: Detected HTTP/2 connection.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
+Apr 06, 2026 6:12:20 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+INFO: Detected HTTP/2 connection.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:15 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
+Apr 06, 2026 6:12:20 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 false for 'create' @ L49, false for 'update' @ L52
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -119,7 +119,7 @@ Multiple projectIds are not recommended in single project mode. Requested projec
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:15 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:21 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 false for 'update' @ L31
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -151,7 +151,7 @@ false for 'update' @ L31
 	at java.base/java.lang.Thread.run(Thread.java:1474)
 
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:15 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:21 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 false for 'delete' @ L31
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -191,7 +191,7 @@ Multiple projectIds are not recommended in single project mode. Requested projec
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:15 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:21 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 evaluation error at L49:24 for 'create' @ L49, evaluation error at L52:24 for 'update' @ L52, false for 'create' @ L49
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -226,7 +226,7 @@ Multiple projectIds are not recommended in single project mode. Requested projec
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:15 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:21 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 evaluation error at L52:24 for 'update' @ L52, false for 'update' @ L52
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -258,7 +258,7 @@ evaluation error at L52:24 for 'update' @ L52, false for 'update' @ L52
 	at java.base/java.lang.Thread.run(Thread.java:1474)
 
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:16 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:21 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 evaluation error at L49:24 for 'create' @ L49, evaluation error at L52:24 for 'update' @ L52, false for 'create' @ L49
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -290,7 +290,7 @@ evaluation error at L49:24 for 'create' @ L49, evaluation error at L52:24 for 'u
 	at java.base/java.lang.Thread.run(Thread.java:1474)
 
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:16 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:21 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 evaluation error at L56:24 for 'delete' @ L56, false for 'delete' @ L56
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -323,7 +323,7 @@ evaluation error at L56:24 for 'delete' @ L56, false for 'delete' @ L56
 
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:16 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:21 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 evaluation error at L63:23 for 'create' @ L63, evaluation error at L63:23 for 'update' @ L63, false for 'update' @ L63
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -356,7 +356,7 @@ evaluation error at L63:23 for 'create' @ L63, evaluation error at L63:23 for 'u
 
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:16 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:21 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 evaluation error at L68:23 for 'create' @ L68, evaluation error at L68:23 for 'update' @ L68, false for 'update' @ L68
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -389,7 +389,7 @@ evaluation error at L68:23 for 'create' @ L68, evaluation error at L68:23 for 'u
 
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:16 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:21 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 evaluation error at L83:23 for 'create' @ L83, evaluation error at L83:23 for 'update' @ L83, false for 'update' @ L83
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -422,7 +422,7 @@ evaluation error at L83:23 for 'create' @ L83, evaluation error at L83:23 for 'u
 
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:16 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:21 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 evaluation error at L103:23 for 'create' @ L103, evaluation error at L103:23 for 'update' @ L103, false for 'update' @ L103
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -455,7 +455,7 @@ evaluation error at L103:23 for 'create' @ L103, evaluation error at L103:23 for
 
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:16 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:21 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 evaluation error at L73:23 for 'create' @ L73, false for 'create' @ L73
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -488,7 +488,7 @@ evaluation error at L73:23 for 'create' @ L73, false for 'create' @ L73
 
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:16 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:21 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 evaluation error at L88:23 for 'create' @ L88, false for 'create' @ L88
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -521,7 +521,7 @@ evaluation error at L88:23 for 'create' @ L88, false for 'create' @ L88
 
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:16 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:21 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 evaluation error at L93:23 for 'create' @ L93, false for 'create' @ L93
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -554,7 +554,7 @@ evaluation error at L93:23 for 'create' @ L93, false for 'create' @ L93
 
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:16 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:21 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 evaluation error at L98:23 for 'create' @ L98, false for 'create' @ L98
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -587,7 +587,7 @@ evaluation error at L98:23 for 'create' @ L98, false for 'create' @ L98
 
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:16 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:21 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 evaluation error at L78:23 for 'create' @ L78, false for 'create' @ L78
 com.google.cloud.datastore.core.exception.DatastoreException: 
@@ -627,7 +627,7 @@ Multiple projectIds are not recommended in single project mode. Requested projec
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
 Multiple projectIds are not recommended in single project mode. Requested project ID test-security-b4364, but the emulator is configured for test-b4364. To opt-out of single project mode add/set the '"singleProjectMode": false' property in the firebase.json emulators config.
-Apr 05, 2026 9:20:16 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
+Apr 06, 2026 6:12:22 PM com.google.cloud.datastore.emulator.impl.util.WrappedStreamObserver onError
 WARNING: Operation failed: 
 evaluation error at L49:24 for 'create' @ L49, evaluation error at L52:24 for 'update' @ L52, false for 'create' @ L49
 com.google.cloud.datastore.core.exception.DatastoreException: 

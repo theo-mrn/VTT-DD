@@ -1,8 +1,9 @@
 import { Page } from "@playwright/test";
 
-export const TEST_EMAIL = "test123@gmail.com";
-export const TEST_PASSWORD = "test123";
-export const TEST_ROOM_ID = "338753";
+
+export const TEST_EMAIL = process.env.TEST_EMAIL || "";
+export const TEST_PASSWORD = process.env.TEST_PASSWORD ||"";
+export const TEST_ROOM_ID = process.env.TEST_ROOM_ID || "";
 
 /**
  * Connexion manuelle — à utiliser UNIQUEMENT dans les tests qui testent
@@ -12,13 +13,15 @@ export const TEST_ROOM_ID = "338753";
  * (global-setup.ts) — pas besoin d'appeler login().
  */
 export async function login(page: Page) {
+  // Stagger concurrent logins to avoid Firebase Auth rate-limiting (5 workers)
+  await page.waitForTimeout(Math.random() * 2000);
   await page.goto("/auth");
   await page.waitForLoadState("domcontentloaded");
   await page.getByPlaceholder("votre@email.com").fill(TEST_EMAIL);
   await page.getByPlaceholder("Mot de passe").fill(TEST_PASSWORD);
   await page.getByRole("button", { name: /se connecter|connexion/i }).click();
   await page.waitForURL((url) => !url.pathname.includes("/auth"), {
-    timeout: 10000,
+    timeout: 20000,
   });
 }
 

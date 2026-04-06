@@ -1,4 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
+import { config } from "dotenv";
+
+config(); // charge .env
 
 export default defineConfig({
   testDir: "./src/__tests__/playwright",

@@ -10,7 +10,7 @@ const unitConfig: Config = {
   testEnvironment: "jsdom",
   setupFilesAfterEnv: ["<rootDir>/jest.setup.ts"],
   moduleNameMapper: { "^@/(.*)$": "<rootDir>/src/$1" },
-  testPathIgnorePatterns: ["/node_modules/", "/.next/", "/e2e/"],
+  testPathIgnorePatterns: ["/node_modules/", "/.next/", "/e2e/", "/playwright/"],
 };
 
 export default createJestConfig(unitConfig);
