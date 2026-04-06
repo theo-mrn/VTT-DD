@@ -20,6 +20,10 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Notation is required' }, { status: 400 });
         }
 
+        if (body.notation.length > 50) {
+            return NextResponse.json({ error: 'Notation is too long (max 50 characters)' }, { status: 400 });
+        }
+
         // Authenticate user via Bearer token or API Key
         const apiUser = await resolveApiUser(request, body.roomId);
 

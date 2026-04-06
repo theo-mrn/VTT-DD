@@ -500,6 +500,11 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
   const handleRoll = async () => {
     if (!input.trim()) return;
 
+    if (input.length > 50) {
+      toast.error("La notation est trop longue (max 50 caractères)");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const processedNotation = replaceCharacteristics(input);
@@ -934,6 +939,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
                         rows={1}
+                        maxLength={50}
                         className="w-full px-6 py-3 bg-transparent border-none outline-none resize-none text-2xl font-light leading-relaxed min-h-[60px] scrollbar-none font-mono"
                         placeholder="1d20 + 5..."
                         style={{ color: 'var(--text-primary)', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
