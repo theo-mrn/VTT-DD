@@ -21,6 +21,14 @@ export default defineConfig({
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      // fiche.spec.ts exclut ce project — géré par "fiche" ci-dessous
+      testIgnore: ["**/fiche.spec.ts"],
+    },
+    {
+      // Project dédié à la fiche — 1 seul worker pour éviter les logins Firebase concurrents
+      name: "fiche",
+      use: { ...devices["Desktop Chrome"] },
+      testMatch: ["**/fiche.spec.ts"],
     },
   ],
 
