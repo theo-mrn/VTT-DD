@@ -14,7 +14,7 @@ export const TEST_ROOM_ID = process.env.TEST_ROOM_ID || "";
  */
 export async function login(page: Page) {
   // Stagger concurrent logins to avoid Firebase Auth rate-limiting (5 workers)
-  await page.waitForTimeout(Math.random() * 2000);
+  await page.waitForTimeout(1000 + Math.random() * 4000);
   await page.goto("/auth");
   await page.waitForLoadState("domcontentloaded");
   await page.getByPlaceholder("votre@email.com").fill(TEST_EMAIL);
