@@ -1,6 +1,12 @@
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=theo-mrn_VTT-DD&metric=coverage)](https://sonarcloud.io/summary/new_code?id=theo-mrn_VTT-DD)
+
 # VTT-DD — Virtual Tabletop for Dungeons & Dragons
 
-**[yner.fr](https://www.yner.fr)**
+<div align="center">
+
+[![Accéder au site](https://img.shields.io/badge/Acc%C3%A9der%20au%20site-yner.fr-DAA520?style=for-the-badge)](https://www.yner.fr)
+
+</div>
 
 A full-featured, real-time Virtual Tabletop platform built for Dungeons & Dragons campaigns. Designed for Game Masters and players who want a modern, immersive, and highly customizable online tabletop experience.
 
