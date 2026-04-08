@@ -57,4 +57,4 @@ next-env.d.ts
 /public/Photos/
 /public/Token/
 /public/items/
-/public/Musics/
+/public/Musics/firestore-debug.log
