@@ -34,6 +34,8 @@ test.describe("Sidebar — Dés", () => {
     await expect(page.locator("#vtt-sidebar-dice")).toBeVisible({ timeout: 8000 });
     await page.locator("#vtt-sidebar-dice").click();
     await expect(page.getByPlaceholder(/1d20 \+ 5/i)).toBeVisible({ timeout: 8000 });
+    // Disable 3D animations to avoid 10s fallback timeout in CI (no WebGL)
+    await page.locator("#vtt-dice-btn-3d").click();
   });
 
   test.afterAll(async () => {
@@ -50,7 +52,7 @@ test.describe("Sidebar — Dés", () => {
     await input.clear();
     await input.fill(notation);
     await page.locator("#vtt-dice-btn-roll").click();
-    await page.waitForTimeout(1200);
+    await page.waitForTimeout(2500);
   }
 
   test("1d4 apparaît dans l'historique", async () => {
