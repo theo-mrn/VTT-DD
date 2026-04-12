@@ -1,6 +1,7 @@
 pipeline{
     agent any
     stages{
+        // run test
         stage('run test'){
             steps{
                 sh 'npm run test'
