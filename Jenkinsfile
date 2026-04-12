@@ -22,9 +22,9 @@ pipeline{
             }
         }
 
-        stage('test playright'){
+        stage('test playwright'){
             steps{
-                sh 'npm run test:playright'
+                sh 'npm run test:playwright'
             }
         }
     }
