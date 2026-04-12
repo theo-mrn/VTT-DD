@@ -31,6 +31,9 @@ src/__tests__/playwright/helpers/.session.json
 # misc
 .DS_Store
 *.pem
+/document.md
+/documentation.md
+/scripts/
 
 # debug
 npm-debug.log*
@@ -48,11 +51,12 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# Assets migrated to Cloudflare R2 - no need to commit
-# Keep asset-mappings.json as it's needed by the app
+
 /public/Map/
 /public/Cartes/
 /public/Photos/
 /public/Token/
 /public/items/
 /public/Musics/
+
+firestore-debug.log
