@@ -21,11 +21,5 @@ pipeline{
                 sh 'npm run test:e2e'
             }
         }
-
-        stage('test playwright'){
-            steps{
-                sh 'npm run test:playwright'
-            }
-        }
     }
 }

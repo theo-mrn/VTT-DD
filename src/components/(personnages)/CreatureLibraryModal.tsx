@@ -91,7 +91,7 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
     })
 
     // Selection State
-    const [activeTab, setActiveTab] = useState<'bestiary' | 'race' | 'profile'>('bestiary')
+    const [activeTab, setActiveTab] = useState<'bestiary' | 'npc'>('npc')
 
     const [selectedRace, setSelectedRace] = useState<string | null>(null)
     const [selectedProfile, setSelectedProfile] = useState<string | null>(null)
@@ -373,81 +373,8 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
 
     if (!isOpen) return null
 
-    // Determine current grid items based on active tabs
-    // Determine current grid items based on active tabs
+    // Render bestiary grid items (only used in bestiary tab)
     const renderGridItems = () => {
-        if (activeTab === 'profile') {
-            return filteredProfiles.map(([key, data]) => {
-                const isSelected = selectedProfile === key
-                const hasBase = !!(selectedRace || selectedCreature)
-                return (
-                    <Card
-                        key={key}
-                        title={key}
-                        subtitle="Classe"
-                        image={data.image}
-                        isSelected={isSelected}
-                        onClick={() => {
-                            const isSelected = selectedProfile === key
-                            setSelectedProfile(isSelected ? null : key)
-                            setActiveImageSource('profile')
-                        }}
-                        footer={
-                            <div className="flex items-center justify-between w-full">
-                                <span className="text-xs text-red-300">DV: {data.hitDie}</span>
-                                {hasBase && !isSelected && (
-                                    <div className="bg-[#c0a080] text-black rounded-full p-1 shadow-lg animate-in zoom-in-50 duration-300">
-                                        <Plus className="w-3 h-3" strokeWidth={4} />
-                                    </div>
-                                )}
-                            </div>
-                        }
-                    />
-                )
-            })
-        }
-
-        if (activeTab === 'race') {
-            return filteredRaces.map(([key, data]) => {
-                const isSelected = selectedRace === key
-                const hasProfile = !!selectedProfile
-                return (
-                    <Card
-                        key={key}
-                        title={key.replace('_', ' ')}
-                        subtitle="Race"
-                        image={data.image}
-                        isSelected={isSelected}
-                        onClick={() => {
-                            const isSelected = selectedRace === key
-                            if (!isSelected) {
-                                setSelectedRace(key)
-                                setSelectedCreature(null)
-                                setActiveImageSource('race')
-                                setIsImageSelectorOpen(true)
-                            } else {
-                                setSelectedRace(null)
-                            }
-                        }}
-                        footer={
-                            <div className="flex items-center justify-between w-full">
-                                <div className="flex gap-1">
-                                    {Object.entries(data.modificateurs || {}).slice(0, 2).map(([k, v]) => (
-                                        <span key={k} className="text-[10px] bg-white/10 px-1 rounded">{k} {v > 0 ? '+' : ''}{v}</span>
-                                    ))}
-                                </div>
-                                {hasProfile && !isSelected && (
-                                    <div className="bg-[#c0a080] text-black rounded-full p-1 shadow-lg animate-in zoom-in-50 duration-300">
-                                        <Plus className="w-3 h-3" strokeWidth={4} />
-                                    </div>
-                                )}
-                            </div>
-                        }
-                    />
-                )
-            })
-        }
-
         if (activeTab === 'bestiary') {
             return filteredBestiary.map(([key, data]) => {
                 const isSelected = selectedCreature === key
@@ -557,113 +484,37 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                             />
                         </div>
                     </div>
-                    {/* Top Navigation Bar - Contextual styling for composition */}
-                    <div className="flex items-center justify-start mb-6 px-6">
-                        <div className="flex flex-col gap-2 w-full">
-                            <label className="text-[10px] text-zinc-500 font-bold uppercase tracking-[0.2em] ml-1">Composition du PNJ</label>
-                            <div className="flex items-center p-1.5 bg-[#18181b] rounded-2xl border border-[#27272a] shadow-2xl w-fit">
-                                {/* BESTIARY TAB */}
-                                <button
-                                    onClick={() => setActiveTab('bestiary')}
-                                    className={`relative px-6 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center gap-2 group
-                                        ${activeTab === 'bestiary'
-                                            ? 'bg-[#c0a080] text-[#09090b] shadow-[0_0_20px_rgba(192,160,128,0.3)]'
-                                            : 'text-zinc-500 hover:text-zinc-200'
-                                        }
-                                        ${selectedProfile && !selectedCreature && !selectedRace ? 'ring-2 ring-[#c0a080]/50 bg-[#c0a080]/5' : ''}
-                                    `}
-                                >
-                                    <div className="relative">
-                                        <Ghost className={`w-4 h-4 transition-transform group-hover:scale-110 ${activeTab === 'bestiary' ? 'text-black' : 'text-[#c0a080]'}`} />
-                                        {selectedProfile && !selectedCreature && !selectedRace && (
-                                            <span className="absolute -top-3 -right-3 flex h-4 w-4">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#c0a080] opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-4 w-4 bg-[#c0a080] items-center justify-center">
-                                                    <Plus className="w-3 h-3 text-black" strokeWidth={4} />
-                                                </span>
-                                            </span>
-                                        )}
-                                    </div>
-                                    <span className="flex flex-col items-start leading-none gap-0.5">
-                                        <div className="flex items-center gap-1.5">
-                                            <span>Bestiaire</span>
-                                            {selectedCreature && (
-                                                <Check className={`w-3.5 h-3.5 ${activeTab === 'bestiary' ? 'text-black' : 'text-green-500'}`} strokeWidth={4} />
-                                            )}
-                                        </div>
-                                        {selectedProfile && !selectedCreature && !selectedRace && <span className="text-[8px] uppercase opacity-70">Choisir base</span>}
-                                    </span>
-                                </button>
-
-                                <div className="w-px h-6 bg-[#2a2a2a] mx-2" />
-
-                                {/* RACES TAB */}
-                                <button
-                                    onClick={() => setActiveTab('race')}
-                                    className={`relative px-6 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center gap-2 group
-                                        ${activeTab === 'race'
-                                            ? 'bg-[#c0a080] text-[#09090b] shadow-[0_0_20px_rgba(192,160,128,0.3)]'
-                                            : 'text-zinc-500 hover:text-zinc-200'
-                                        }
-                                        ${selectedProfile && !selectedRace && !selectedCreature ? 'ring-2 ring-[#c0a080]/50 bg-[#c0a080]/5' : ''}
-                                    `}
-                                >
-                                    <div className="relative">
-                                        <Dna className={`w-4 h-4 transition-transform group-hover:scale-110 ${activeTab === 'race' ? 'text-black' : 'text-[#c0a080]'}`} />
-                                        {selectedProfile && !selectedRace && !selectedCreature && (
-                                            <span className="absolute -top-3 -right-3 flex h-4 w-4">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#c0a080] opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-4 w-4 bg-[#c0a080] items-center justify-center">
-                                                    <Plus className="w-3 h-3 text-black" strokeWidth={4} />
-                                                </span>
-                                            </span>
-                                        )}
-                                    </div>
-                                    <span className="flex flex-col items-start leading-none gap-0.5">
-                                        <div className="flex items-center gap-1.5">
-                                            <span>Races</span>
-                                            {selectedRace && (
-                                                <Check className={`w-3.5 h-3.5 ${activeTab === 'race' ? 'text-black' : 'text-green-500'}`} strokeWidth={4} />
-                                            )}
-                                        </div>
-                                        {selectedProfile && !selectedRace && !selectedCreature && <span className="text-[8px] uppercase opacity-70">Choisir base</span>}
-                                    </span>
-                                </button>
-
-                                <div className="w-px h-6 bg-[#2a2a2a] mx-2" />
-
-                                {/* CLASSES TAB */}
-                                <button
-                                    onClick={() => setActiveTab('profile')}
-                                    className={`relative px-6 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center gap-2 group
-                                        ${activeTab === 'profile'
-                                            ? 'bg-[#c0a080] text-[#09090b] shadow-[0_0_20px_rgba(192,160,128,0.3)]'
-                                            : 'text-zinc-500 hover:text-zinc-200'
-                                        }
-                                        {(selectedRace || selectedCreature) && !selectedProfile ? 'ring-2 ring-[#c0a080]/50 bg-[#c0a080]/5' : ''}
-                                    `}
-                                >
-                                    <div className="relative">
-                                        <Swords className={`w-4 h-4 transition-transform group-hover:scale-110 ${activeTab === 'profile' ? 'text-black' : 'text-[#c0a080]'}`} />
-                                        {(selectedRace || selectedCreature) && !selectedProfile && (
-                                            <span className="absolute -top-3 -right-3 flex h-4 w-4">
-                                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#c0a080] opacity-75"></span>
-                                                <span className="relative inline-flex rounded-full h-4 w-4 bg-[#c0a080] items-center justify-center">
-                                                    <Plus className="w-3 h-3 text-black" strokeWidth={4} />
-                                                </span>
-                                            </span>
-                                        )}
-                                    </div>
-                                    <span className="flex flex-col items-start leading-none gap-0.5">
-                                        <div className="flex items-center gap-1.5">
-                                            <span>Classes</span>
-                                            {selectedProfile && (
-                                                <Check className={`w-3.5 h-3.5 ${activeTab === 'profile' ? 'text-black' : 'text-green-500'}`} strokeWidth={4} />
-                                            )}
-                                        </div>
-                                    </span>
-                                </button>
-                            </div>
+                    {/* Top Navigation Bar */}
+                    <div className="flex items-center justify-start mb-4 px-6">
+                        <div className="flex items-center p-1.5 bg-[#18181b] rounded-2xl border border-[#27272a] shadow-2xl w-fit">
+                            <button
+                                onClick={() => { setActiveTab('npc'); setSelectedCreature(null) }}
+                                className={`relative px-6 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center gap-2 group
+                                    ${activeTab === 'npc'
+                                        ? 'bg-[#c0a080] text-[#09090b] shadow-[0_0_20px_rgba(192,160,128,0.3)]'
+                                        : 'text-zinc-500 hover:text-zinc-200'
+                                    }`}
+                            >
+                                <User className={`w-4 h-4 ${activeTab === 'npc' ? 'text-black' : 'text-[#c0a080]'}`} />
+                                <span>Nouveau PNJ</span>
+                            </button>
+                            <div className="w-px h-6 bg-[#2a2a2a] mx-2" />
+                            <button
+                                onClick={() => setActiveTab('bestiary')}
+                                className={`relative px-6 py-2.5 text-sm font-bold rounded-xl transition-all flex items-center gap-2 group
+                                    ${activeTab === 'bestiary'
+                                        ? 'bg-[#c0a080] text-[#09090b] shadow-[0_0_20px_rgba(192,160,128,0.3)]'
+                                        : 'text-zinc-500 hover:text-zinc-200'
+                                    }`}
+                            >
+                                <Ghost className={`w-4 h-4 ${activeTab === 'bestiary' ? 'text-black' : 'text-[#c0a080]'}`} />
+                                <span className="flex items-center gap-1.5">
+                                    Bestiaire
+                                    {selectedCreature && (
+                                        <Check className={`w-3.5 h-3.5 ${activeTab === 'bestiary' ? 'text-black' : 'text-green-500'}`} strokeWidth={4} />
+                                    )}
+                                </span>
+                            </button>
                         </div>
                     </div>
 
@@ -696,17 +547,105 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                         </div>
                     )}
                     {/* Content Grid */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar bg-[url('/grid-pattern.svg')] bg-repeat opacity-90 p-6">
-                        {loading ? (
-                            <div className="w-full h-40 flex items-center justify-center">
-                                <div className="w-8 h-8 border-4 border-[#c0a080] border-t-transparent rounded-full animate-spin" />
+                    {loading ? (
+                        <div className="flex-1 flex items-center justify-center">
+                            <div className="w-8 h-8 border-4 border-[#c0a080] border-t-transparent rounded-full animate-spin" />
+                        </div>
+                    ) : activeTab === 'npc' ? (
+                        /* NPC MODE: 2 columns side by side */
+                        <div className="flex-1 flex min-h-0 overflow-hidden">
+                            {/* Races column */}
+                            <div className="flex-1 flex flex-col min-w-0 border-r border-[#2a2a2a]">
+                                <div className="px-4 py-3 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-2 shrink-0">
+                                    <Dna className="w-3.5 h-3.5 text-blue-400" />
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Races</span>
+                                    {selectedRace && (
+                                        <span className="ml-auto flex items-center gap-1 text-[10px] text-blue-300 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">
+                                            {selectedRace.replace('_', ' ')}
+                                            <button onClick={() => setSelectedRace(null)} className="hover:text-white"><X className="w-2.5 h-2.5" /></button>
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex-1 overflow-y-auto custom-scrollbar bg-[url('/grid-pattern.svg')] bg-repeat p-3">
+                                    <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
+                                        {filteredRaces.map(([key, data]) => {
+                                            const isSelected = selectedRace === key
+                                            return (
+                                                <Card
+                                                    key={key}
+                                                    title={key.replace('_', ' ')}
+                                                    subtitle="Race"
+                                                    image={data.image}
+                                                    isSelected={isSelected}
+                                                    onClick={() => {
+                                                        if (!isSelected) {
+                                                            setSelectedRace(key)
+                                                            setSelectedCreature(null)
+                                                            setActiveImageSource('race')
+                                                            setIsImageSelectorOpen(true)
+                                                        } else {
+                                                            setSelectedRace(null)
+                                                        }
+                                                    }}
+                                                    footer={
+                                                        <div className="flex gap-1 flex-wrap">
+                                                            {Object.entries(data.modificateurs || {}).slice(0, 2).map(([k, v]) => (
+                                                                <span key={k} className="text-[9px] bg-white/10 px-1 rounded">{k} {v > 0 ? '+' : ''}{v}</span>
+                                                            ))}
+                                                        </div>
+                                                    }
+                                                />
+                                            )
+                                        })}
+                                    </div>
+                                </div>
                             </div>
-                        ) : (
+
+                            {/* Classes column */}
+                            <div className="flex-1 flex flex-col min-w-0">
+                                <div className="px-4 py-3 border-b border-[#2a2a2a] bg-[#0f0f11] flex items-center gap-2 shrink-0">
+                                    <Swords className="w-3.5 h-3.5 text-purple-400" />
+                                    <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">Classes</span>
+                                    {selectedProfile && (
+                                        <span className="ml-auto flex items-center gap-1 text-[10px] text-purple-300 bg-purple-500/10 border border-purple-500/20 px-2 py-0.5 rounded-full">
+                                            {selectedProfile}
+                                            <button onClick={() => setSelectedProfile(null)} className="hover:text-white"><X className="w-2.5 h-2.5" /></button>
+                                        </span>
+                                    )}
+                                </div>
+                                <div className="flex-1 overflow-y-auto custom-scrollbar bg-[url('/grid-pattern.svg')] bg-repeat p-3">
+                                    <div className="grid grid-cols-[repeat(auto-fill,minmax(130px,1fr))] gap-3">
+                                        {filteredProfiles.map(([key, data]) => {
+                                            const isSelected = selectedProfile === key
+                                            return (
+                                                <Card
+                                                    key={key}
+                                                    title={key}
+                                                    subtitle="Classe"
+                                                    image={data.image}
+                                                    isSelected={isSelected}
+                                                    onClick={() => {
+                                                        setSelectedProfile(isSelected ? null : key)
+                                                        if (!isSelected) setActiveImageSource('profile')
+                                                    }}
+                                                    footer={
+                                                        <span className="text-[9px] text-red-300">DV: {data.hitDie}</span>
+                                                    }
+                                                />
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        /* BESTIARY MODE */
+                        <div className="flex-1 overflow-y-auto custom-scrollbar bg-[url('/grid-pattern.svg')] bg-repeat p-6">
                             <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-5">
                                 {renderGridItems()}
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* --- RIGHT PANEL: INSPECTOR (35%) --- */}
@@ -874,35 +813,11 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                                 </div>
                                 <label className="bg-[#1a1a1a] border border-[#2a2a2a] p-3 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-[#c0a080]/50 transition-colors group">
                                     <Upload className="w-4 h-4 text-zinc-500 group-hover:text-[#c0a080] mb-1" />
-                                    <span className="text-[10px] uppercase text-zinc-500 font-bold tracking-wider group-hover:text-zinc-300">Modifier Image</span>
+                                    <span className="text-[10px] uppercase text-zinc-500 font-bold tracking-wider group-hover:text-zinc-300">Image</span>
                                     <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                                 </label>
                             </div>
-                        </div>
 
-                        {/* 3. Composition Flow Helpers */}
-                        <div className="px-6">
-                            {selectedProfile && !selectedRace && !selectedCreature && (
-                                <div className="space-y-3">
-                                    <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest text-center mb-1">Choisissez une base pour cette classe</p>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <button
-                                            onClick={() => setActiveTab('bestiary')}
-                                            className="py-4 bg-[#c0a080]/10 border border-[#c0a080]/30 rounded-2xl text-[#c0a080] text-[10px] font-black uppercase tracking-widest hover:bg-[#c0a080]/20 transition-all flex flex-col items-center justify-center gap-2"
-                                        >
-                                            <Ghost className="w-5 h-5" />
-                                            Bestiaire
-                                        </button>
-                                        <button
-                                            onClick={() => setActiveTab('race')}
-                                            className="py-4 bg-blue-500/10 border border-blue-500/30 rounded-2xl text-blue-300 text-[10px] font-black uppercase tracking-widest hover:bg-blue-500/20 transition-all flex flex-col items-center justify-center gap-2"
-                                        >
-                                            <Dna className="w-5 h-5" />
-                                            Race
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
                         </div>
 
                         {/* 4. Stats & Info */}
@@ -1018,11 +933,11 @@ export function CreatureLibraryModal({ isOpen, onClose, onImport }: CreatureLibr
                         </button>
                         <button
                             onClick={handleImport}
-                            disabled={!getPreviewImage() || isCreating}
-                            className={`flex-1 flex items-center justify-center gap-2 rounded-xl text-sm font-bold tracking-wide transition-all ${getPreviewImage() && !isCreating
+                            disabled={!(getPreviewImage() || customImage) || isCreating}
+                            className={`flex-1 flex items-center justify-center gap-2 rounded-xl text-sm font-bold tracking-wide transition-all ${(getPreviewImage() || customImage) && !isCreating
                                 ? 'bg-[#c0a080] hover:bg-[#e0c0a0] text-black shadow-lg shadow-[#c0a080]/10'
                                 : 'bg-[#1a1a1a] text-zinc-600 cursor-not-allowed border border-[#2a2a2a]'
-                                }`}
+                            }`}
                         >
                             {isCreating ? (
                                 <>

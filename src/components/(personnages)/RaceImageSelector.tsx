@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, memo } from 'react'
 import { X, ImageIcon, Loader2 } from 'lucide-react'
-import Image from 'next/image'
 
 interface RaceImageSelectorProps {
     isOpen: boolean
@@ -65,16 +64,11 @@ const RaceImageItem = memo(({
                 : 'border-[#2a2a2a] hover:border-[#c0a080]'
                 }`}
         >
-            <Image
+            <img
                 src={asset.path}
                 alt={asset.name}
-                fill
-                quality={1}
-                sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
-                className="object-cover"
+                className="object-cover w-full h-full"
                 loading={priority ? "eager" : "lazy"}
-                priority={priority}
-                onLoad={(e) => console.log('Loaded image src:', e.currentTarget.currentSrc, 'Natural size:', e.currentTarget.naturalWidth, 'x', e.currentTarget.naturalHeight)}
             />
 
             {/* Hover overlay */}
@@ -268,12 +262,10 @@ export function RaceImageSelector({ isOpen, onClose, onSelectImage, raceName, cu
                             {raceDefaultImage ? (
                                 <div className="text-center max-w-md">
                                     <div className="relative w-64 h-64 mx-auto mb-6 rounded-xl overflow-hidden border-2 border-[#2a2a2a]">
-                                        <Image
+                                        <img
                                             src={raceDefaultImage}
                                             alt={raceName}
-                                            fill
-                                            className="object-cover"
-                                            sizes="(max-width: 640px) 100vw, 300px"
+                                            className="object-cover w-full h-full"
                                         />
                                     </div>
                                     <p className="text-zinc-400 text-lg mb-2">Aucune image supplémentaire disponible</p>
