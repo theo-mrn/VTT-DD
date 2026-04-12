@@ -1,0 +1,22 @@
+pipeline{
+    agent any
+    stages{
+        // run test
+        stage('run test'){
+            steps{
+                sh 'npm run test'
+            }
+        }
+        stage('run test:e2e'){
+            steps{
+                sh 'npm run test:e2e'
+            }
+        }
+
+        stage('test playright'){
+            steps{
+                sh 'npm run test:playright'
+            }
+        }
+    }
+}
