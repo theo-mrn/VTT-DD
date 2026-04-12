@@ -11,6 +11,7 @@
     },
     "firestore": {
       "port": 8088
+      "logLevel": "NONE"
     },
     "database": {
       "port": 9000

@@ -8,7 +8,9 @@ pipeline{
         stage('install dependencies'){
             steps{
                 sh 'npm install'
+
                 sh 'npm install -g firebase-tools'
+
             }
         }
         stage('run test'){
