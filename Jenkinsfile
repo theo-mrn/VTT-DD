@@ -1,5 +1,9 @@
 pipeline{
     agent any
+
+    tools {
+  nodejs 'Node_24-14-0'
+}
     stages{
         stage('install dependencies'){
             steps{
