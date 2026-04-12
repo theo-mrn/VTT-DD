@@ -26,7 +26,7 @@ export async function getTestEnv(): Promise<RulesTestEnvironment> {
       projectId: "test-b4364",
       firestore: {
         host: "localhost",
-        port: 8080,
+        port: 8088,
         rules: OPEN_RULES,
       },
     });
@@ -40,7 +40,7 @@ export async function getSecurityTestEnv(): Promise<RulesTestEnvironment> {
       projectId: "test-security-b4364",
       firestore: {
         host: "localhost",
-        port: 8080,
+        port: 8088,
         rules: readFileSync(resolve(process.cwd(), "firestore.rules"), "utf8"),
       },
     });

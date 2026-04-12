@@ -497,6 +497,7 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
     const handleSaveField = async () => {
         if (!fieldDraft.label.trim() || !selectedCharacter) return;
         setIsSavingField(true);
+        setIsFieldDialogOpen(false);
         try {
             if (editingFieldId) {
                 await updateCharacter(selectedCharacter.id, { customFields: customFields.map(f => f.id === editingFieldId ? { ...f, ...fieldDraft } : f) });
@@ -504,7 +505,6 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
                 const newField: CustomField = { id: `cf_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, ...fieldDraft };
                 await updateCharacter(selectedCharacter.id, { customFields: [...customFields, newField] });
             }
-            setIsFieldDialogOpen(false);
         } finally { setIsSavingField(false); }
     };
     const handleDeleteField = async (id: string) => {
