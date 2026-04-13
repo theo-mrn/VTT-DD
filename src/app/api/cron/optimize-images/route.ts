@@ -1,16 +1,16 @@
 import { NextResponse } from 'next/server';
-import { S3Client, GetObjectCommand, PutObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, PutObjectCommand, ListObjectsV2Command, HeadObjectCommand } from '@aws-sdk/client-s3';
 import sharp from 'sharp';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 300; // 5 minutes (max Vercel Pro, 60s sur Hobby)
+export const maxDuration = 60; // max sur Vercel Hobby
 
 const IMAGE_EXTS = new Set(['.jpg', '.jpeg', '.png', '.webp']);
 const QUALITY = 80;
 const MAX_WIDTH = 2048;
 const SKIP_BELOW_KB = 100;
-const BATCH_SIZE = 10; // images traitées en parallèle
+const BATCH_SIZE = 3; // images traitées en parallèle (évite le throttling R2)
 
 const r2 = new S3Client({
     region: 'auto',
@@ -21,7 +21,7 @@ const r2 = new S3Client({
     },
 });
 
-async function listAllKeys(): Promise<string[]> {
+async function listAllKeys(limit?: number): Promise<string[]> {
     const keys: string[] = [];
     let continuationToken: string | undefined;
 
@@ -35,6 +35,7 @@ async function listAllKeys(): Promise<string[]> {
             if (!obj.Key) continue;
             const ext = obj.Key.match(/\.(\w+)$/)?.[0]?.toLowerCase() ?? '';
             if (IMAGE_EXTS.has(ext)) keys.push(obj.Key);
+            if (limit && keys.length >= limit) return keys;
         }
 
         continuationToken = res.NextContinuationToken;
@@ -44,6 +45,13 @@ async function listAllKeys(): Promise<string[]> {
 }
 
 async function optimizeKey(key: string): Promise<{ saved: number; skipped: boolean }> {
+    // Vérifie si l'image a déjà été optimisée (metadata x-optimized présent)
+    const head = await r2.send(new HeadObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME,
+        Key: key,
+    }));
+    if (head.Metadata?.['x-optimized'] === 'true') return { saved: 0, skipped: true };
+
     const getRes = await r2.send(new GetObjectCommand({
         Bucket: process.env.R2_BUCKET_NAME,
         Key: key,
@@ -72,6 +80,7 @@ async function optimizeKey(key: string): Promise<{ saved: number; skipped: boole
         Key: key,
         Body: optimized,
         ContentType: 'image/webp',
+        Metadata: { 'x-optimized': 'true' },
     }));
 
     return { saved, skipped: false };
@@ -90,13 +99,17 @@ export async function GET(request: Request) {
     let totalSavedBytes = 0;
     const errors: string[] = [];
 
+    const url = new URL(request.url);
+    const limitParam = url.searchParams.get('limit');
+    const limit = limitParam ? parseInt(limitParam, 10) : undefined;
+
     try {
-        const keys = await listAllKeys();
+        const keys = await listAllKeys(limit);
 
         // Traitement par batch pour rester dans le timeout Vercel
         for (let i = 0; i < keys.length; i += BATCH_SIZE) {
             // Stop si on approche du timeout (280s)
-            if (Date.now() - startTime > 280_000) break;
+            if (Date.now() - startTime > 55_000) break;
 
             const batch = keys.slice(i, i + BATCH_SIZE);
             await Promise.all(batch.map(async (key) => {
