@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, MinusCircle, Star, RefreshCw, X, BookOpenCheck, Settings, Search, Dice5 } from "lucide-react";
+import { PlusCircle, MinusCircle, Star, RefreshCw, X, BookOpenCheck, Settings, Search, Dice5, Scroll } from "lucide-react";
 import { toast } from 'sonner';
 import { db, getDoc, doc, setDoc, updateDoc } from "@/lib/firebase";
 import { useCharacter, Competence, BonusData } from "@/contexts/CharacterContext";
@@ -25,6 +25,22 @@ interface CompetencesDisplayProps {
 
 export default function CompetencesDisplay({ roomId, characterId, canEdit = false, onOpenFullscreen, onHeightChange, style }: CompetencesDisplayProps) {
   const { competences, refreshCompetences, selectedCharacter, setSelectedCharacter, characters, isLoading } = useCharacter();
+
+  const remainingPoints = (() => {
+    if (!selectedCharacter) return 0;
+    const char = selectedCharacter as unknown as Record<string, unknown>;
+    const pointsFromLevel = 2 * (Number(char.niveau) || 0);
+    const totalPointsLost = Array.from({ length: 10 }, (_, i) => Number(char[`v${i + 1}`]) || 0)
+      .reduce((total, v) => {
+        if (v === 1) return total + 1;
+        if (v === 2) return total + 2;
+        if (v === 3) return total + 4;
+        if (v === 4) return total + 6;
+        if (v === 5) return total + 8;
+        return total;
+      }, 0);
+    return pointsFromLevel - totalPointsLost;
+  })();
   const [selectedCompetence, setSelectedCompetence] = useState<Competence | null>(null);
   const [newBonus, setNewBonus] = useState<{ stat: keyof BonusData | undefined; value: number }>({
     stat: undefined,
@@ -358,10 +374,16 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
               onClick={onOpenFullscreen}
               variant="ghost"
               size="sm"
-              className="h-9 w-9 p-0 hover:bg-[var(--bg-darker)] text-[var(--accent-brown)]"
-              title="Plein écran"
+              className="relative h-9 px-2.5 gap-1.5 hover:bg-[var(--bg-darker)] text-[var(--accent-brown)] flex items-center"
+              title="Gérer les voies & débloquer des compétences"
             >
-              <BookOpenCheck className="h-4 w-4" />
+              {remainingPoints > 0
+                ? <><Scroll className="h-4 w-4" /><span className="text-xs font-bold">{remainingPoints} pt{remainingPoints > 1 ? 's' : ''}</span></>
+                : <BookOpenCheck className="h-4 w-4" />
+              }
+              {remainingPoints > 0 && (
+                <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.8)]" />
+              )}
             </Button>
           </div>
         </div>
