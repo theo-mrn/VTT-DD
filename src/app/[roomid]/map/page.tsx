@@ -151,6 +151,16 @@ export default function Component() {
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null)
   const { bgImageObject, setBgImageObject, isBackgroundLoading, loadingProgress } = useBackgroundLoader({ backgroundImage, performanceMode });
+  const [showRevealAnim, setShowRevealAnim] = useState(false);
+  const prevIsBackgroundLoading = useRef(false);
+  useEffect(() => {
+    if (prevIsBackgroundLoading.current && !isBackgroundLoading && bgImageObject) {
+      setShowRevealAnim(true);
+      const timer = setTimeout(() => setShowRevealAnim(false), 3000);
+      return () => clearTimeout(timer);
+    }
+    prevIsBackgroundLoading.current = isBackgroundLoading;
+  }, [isBackgroundLoading, bgImageObject]);
   const [selectedSkin, setSelectedSkin] = useState<string>('Fireballs/explosion1.webm');
   const [isPermanent, setIsPermanent] = useState(false); // 🆕 Permanent measurement toggle
   const [activeInteraction, setActiveInteraction] = useState<{ interaction: VendorInteraction | GameInteraction | LootInteraction, host: Character | MapObject } | null>(null);
@@ -3511,21 +3521,28 @@ export default function Component() {
 
 
 
-      {/* Background Loader Overlay */}
-      {
-        isBackgroundLoading && (
-          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md">
+      {/* Background Loader Overlay + Reveal Animation */}
+      {(isBackgroundLoading || showRevealAnim) && (
+        <div
+          className="absolute inset-0 z-[55] flex flex-col items-center justify-center bg-black pointer-events-none"
+          style={showRevealAnim ? {
+            maskImage: 'url(/V2.gif)',
+            maskSize: 'cover',
+            maskPosition: 'center',
+            WebkitMaskImage: 'url(/V2.gif)',
+            WebkitMaskSize: 'cover',
+            WebkitMaskPosition: 'center',
+          } : undefined}
+        >
+          {isBackgroundLoading && (
             <div className="flex flex-col items-center gap-4 max-w-sm w-full px-6">
               <Loader2 className="w-12 h-12 text-[#c0a080] animate-spin" />
-
               <div className="text-center space-y-2">
                 <h3 className="text-xl font-bold text-[#c0a080] tracking-wider uppercase">
                   {selectedCityId ? cities.find(c => c.id === selectedCityId)?.name || 'Ville Inconnue' : 'Carte du Monde'}
                 </h3>
                 <p className="text-neutral-400 text-sm">Chargement du fond de carte...</p>
               </div>
-
-              {/* Barre de progression */}
               <div className="w-full h-2 bg-neutral-800 rounded-full overflow-hidden border border-neutral-700">
                 <div
                   className="h-full bg-[#c0a080] transition-all duration-300 ease-out"
@@ -3534,9 +3551,9 @@ export default function Component() {
               </div>
               <span className="text-[#c0a080] font-mono text-sm">{loadingProgress}%</span>
             </div>
-          </div>
-        )
-      }
+          )}
+        </div>
+      )}
 
       {/* Layer Control Panel */}
       {
