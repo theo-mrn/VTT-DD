@@ -23,5 +23,15 @@ pipeline{
                 sh 'npm run test:e2e'
             }
         }
+        stage('OWASP Dependency-Check'){
+            steps{
+                dependencyCheck additionalArguments: '--scan ./ --format HTML --format XML', odcInstallation: 'OWASP-Dependency-Check'
+            }
+            post {
+                always {
+                    dependencyCheckPublisher pattern: 'dependency-check-report.xml'
+                }
+            }
+        }
     }
 }

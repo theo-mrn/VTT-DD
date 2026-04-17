@@ -1,7 +1,7 @@
 [
   {
     "name": "amber_marble.png",
-    "path": "/textures/amber_marble.png",
+    "path": "https://assets.yner.fr/textures/amber_marble.png",
     "localPath": "/textures/amber_marble.png",
     "category": "textures",
     "type": "image",
@@ -10,7 +10,7 @@
   },
   {
     "name": "emerald_marble.png",
-    "path": "/textures/emerald_marble.png",
+    "path": "https://assets.yner.fr/textures/emerald_marble.png",
     "localPath": "/textures/emerald_marble.png",
     "category": "textures",
     "type": "image",
@@ -19,7 +19,7 @@
   },
   {
     "name": "azure_marble.png",
-    "path": "/textures/azure_marble.png",
+    "path": "https://assets.yner.fr/textures/azure_marble.png",
     "localPath": "/textures/azure_marble.png",
     "category": "textures",
     "type": "image",
@@ -28,7 +28,7 @@
   },
   {
     "name": "prism_diffuse.png",
-    "path": "/textures/prism_diffuse.png",
+    "path": "https://assets.yner.fr/textures/prism_diffuse.png",
     "localPath": "/textures/prism_diffuse.png",
     "category": "textures",
     "type": "image",
@@ -37,7 +37,7 @@
   },
   {
     "name": "shroom_diffuse.png",
-    "path": "/textures/shroom_diffuse.png",
+    "path": "https://assets.yner.fr/textures/shroom_diffuse.png",
     "localPath": "/textures/shroom_diffuse.png",
     "category": "textures",
     "type": "image",
@@ -46,7 +46,7 @@
   },
   {
     "name": "void_diffuse.png",
-    "path": "/textures/void_diffuse.png",
+    "path": "https://assets.yner.fr/textures/void_diffuse.png",
     "localPath": "/textures/void_diffuse.png",
     "category": "textures",
     "type": "image",
@@ -55,7 +55,7 @@
   },
   {
     "name": "dawn_diffuse.png",
-    "path": "/textures/dawn_diffuse.png",
+    "path": "https://assets.yner.fr/textures/dawn_diffuse.png",
     "localPath": "/textures/dawn_diffuse.png",
     "category": "textures",
     "type": "image",
