@@ -489,3 +489,45 @@
 .react-resizable-handle:hover {
   background-color: transparent;
 }
+/* TipTap rich text editor */
+.tiptap p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: #3f3f46;
+  pointer-events: none;
+  height: 0;
+}
+
+.tiptap h1 { font-size: 2rem; font-weight: 700; color: #e0e0e0; margin: 1rem 0 0.5rem; font-family: var(--font-serif, serif); }
+.tiptap h2 { font-size: 1.5rem; font-weight: 700; color: #e0e0e0; margin: 0.875rem 0 0.5rem; font-family: var(--font-serif, serif); }
+.tiptap h3 { font-size: 1.25rem; font-weight: 600; color: #d4d4d4; margin: 0.75rem 0 0.25rem; font-family: var(--font-serif, serif); }
+.tiptap p { margin: 0.5rem 0; }
+.tiptap strong { color: #f0e8d4; }
+.tiptap em { color: #d4c9a8; }
+.tiptap u { text-decoration-color: #c0a060; }
+.tiptap s { color: #71717a; }
+.tiptap ul { list-style-type: disc; padding-left: 1.5rem; margin: 0.5rem 0; }
+.tiptap ol { list-style-type: decimal; padding-left: 1.5rem; margin: 0.5rem 0; }
+.tiptap li { margin: 0.25rem 0; }
+.tiptap blockquote {
+  border-left: 3px solid var(--accent-brown, #c0a060);
+  padding-left: 1rem;
+  margin: 0.75rem 0;
+  color: #a0a0a0;
+  font-style: italic;
+}
+.tiptap hr {
+  border: none;
+  border-top: 1px solid #3a3a3a;
+  margin: 1.5rem 0;
+}
+
+/* Note card preview (read-only, compact) */
+.note-preview strong { color: #f0e8d4; }
+.note-preview em { font-style: italic; color: #d4c9a8; }
+.note-preview u { text-decoration: underline; text-decoration-color: #c0a060; }
+.note-preview s { color: #71717a; }
+.note-preview h1, .note-preview h2, .note-preview h3 { font-size: inherit; font-weight: 700; color: inherit; }
+.note-preview ul { list-style: disc inside; }
+.note-preview ol { list-style: decimal inside; }
+.note-preview blockquote { border-left: 2px solid #c0a060; padding-left: 0.5rem; font-style: italic; }
