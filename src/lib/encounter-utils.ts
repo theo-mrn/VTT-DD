@@ -100,35 +100,42 @@ const filterCandidates = (
     bestiary: BestiaryData[],
     targetBudget: number,
     partyLevel: number,
-    monsterTypes?: string[],
+    settings: { monsterTypes?: string[], minPV?: number, maxPV?: number, minDefense?: number, maxDefense?: number, minCR?: number, maxCR?: number },
     maxCRRatio: number = 1.0
 ): BestiaryData[] => {
     return bestiary.filter(monster => {
         const crValue = parseCR(monster.Challenge);
 
-        // Filter by types if specified
-        if (monsterTypes && monsterTypes.length > 0 && !monsterTypes.includes('Any')) {
+        if (!monster.Challenge) return false;
+
+        // Filter by types
+        if (settings.monsterTypes && settings.monsterTypes.length > 0 && !settings.monsterTypes.includes('Any')) {
             const monsterTypeStr = monster.Type.toLowerCase();
-            // Check if ANY selected type matches
-            const hasMatch = monsterTypes.some(t => monsterTypeStr.includes(t.toLowerCase()));
-            if (!hasMatch) return false;
+            if (!settings.monsterTypes.some(t => monsterTypeStr.includes(t.toLowerCase()))) return false;
         }
 
-        // Logic 1: Max CR based on Party Level and Scenario
-        const maxCR = Math.max(0.25, partyLevel * maxCRRatio + (maxCRRatio > 1.2 ? 3 : 0));
+        // Filtres manuels CR
+        if (settings.minCR !== undefined && crValue < settings.minCR) return false;
+        if (settings.maxCR !== undefined && crValue > settings.maxCR) return false;
 
-        if (crValue > maxCR) return false;
+        // Filtres PV
+        if (settings.minPV !== undefined && monster.PV < settings.minPV) return false;
+        if (settings.maxPV !== undefined && monster.PV > settings.maxPV) return false;
 
-        // Logic 2: Min CR to avoid pests at high levels, unless Horde
-        if (maxCRRatio >= 0.9 && crValue < partyLevel * 0.2) return false;
+        // Filtres Défense
+        if (settings.minDefense !== undefined && monster.Defense < settings.minDefense) return false;
+        if (settings.maxDefense !== undefined && monster.Defense > settings.maxDefense) return false;
 
-        // Logic 3: Budget Cap
-        const budgetCapMultiplier = maxCRRatio > 1.2 ? 1.5 : 1.2;
-        const xp = CR_TO_XP[monster.Challenge || "0"] || 10;
-
-        if (xp > targetBudget * budgetCapMultiplier) return false;
-
-        if (!monster.Challenge) return false;
+        // Si des filtres manuels CR sont posés, on saute les filtres auto de CR
+        const hasManualCR = settings.minCR !== undefined || settings.maxCR !== undefined;
+        if (!hasManualCR) {
+            const maxCR = Math.max(0.25, partyLevel * maxCRRatio + (maxCRRatio > 1.2 ? 3 : 0));
+            if (crValue > maxCR) return false;
+            if (maxCRRatio >= 0.9 && crValue < partyLevel * 0.2) return false;
+            const budgetCapMultiplier = maxCRRatio > 1.2 ? 1.5 : 1.2;
+            const xp = CR_TO_XP[monster.Challenge || "0"] || 10;
+            if (xp > targetBudget * budgetCapMultiplier) return false;
+        }
 
         return true;
     });
@@ -235,31 +242,36 @@ const generateSingleEncounter = (
     };
 };
 
+export const PROPOSALS_PER_SCENARIO = 5;
+
 export const generateEncounterScenarios = (
     bestiary: Record<string, BestiaryData>,
     settings: EncounterSettings
-): { [key in EncounterScenarioType]?: GeneratedEncounter } => {
-    // Slight difficulty bump (1.1x)
+): { [key in EncounterScenarioType]?: GeneratedEncounter[] } => {
     const baseBudget = calculateEncounterBudget(settings.partySize, settings.partyLevel, settings.difficulty);
     const budget = baseBudget * 1.1;
 
     const allMonsters = Object.values(bestiary);
-    const scenarios: { [key in EncounterScenarioType]?: GeneratedEncounter } = {};
+    const scenarios: { [key in EncounterScenarioType]?: GeneratedEncounter[] } = {};
 
     (['Balanced', 'Horde', 'Boss'] as EncounterScenarioType[]).forEach(type => {
         const config = SCENARIO_TYPES[type];
 
-        let candidates = filterCandidates(
+        const candidates = filterCandidates(
             allMonsters,
             budget,
             settings.partyLevel,
-            settings.monsterTypes,
+            settings,
             config.maxCRRatio
         );
 
-        if (candidates.length > 0) {
-            scenarios[type] = generateSingleEncounter(candidates, budget, type, settings.difficulty);
+        if (candidates.length === 0) return;
+
+        const proposals: GeneratedEncounter[] = [];
+        for (let i = 0; i < PROPOSALS_PER_SCENARIO; i++) {
+            proposals.push(generateSingleEncounter(candidates, budget, type, settings.difficulty));
         }
+        scenarios[type] = proposals;
     });
 
     return scenarios;

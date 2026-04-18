@@ -17,7 +17,6 @@ import {
     Check
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
     Select,
     SelectContent,
@@ -39,7 +38,6 @@ import {
     CommandList,
 } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -55,8 +53,9 @@ import {
     SCENARIO_TYPES
 } from '@/lib/encounter-utils';
 import { db } from '@/lib/firebase';
-import { collection, addDoc } from 'firebase/firestore';
-import { cn } from '@/lib/utils'; // Assuming you have a utils file, otherwise can remove cn usage
+import { collection, addDoc, onSnapshot } from 'firebase/firestore';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const DIFFICULTIES: EncounterDifficulty[] = ['Easy', 'Medium', 'Hard', 'Deadly'];
 
@@ -69,21 +68,51 @@ export default function EncounterGenerator() {
     const [loading, setLoading] = useState(true);
     const [monsterTypes, setMonsterTypes] = useState<string[]>([]);
 
-    // Search/Gen State
-    const [partySize, setPartySize] = useState(4);
-    const [partyLevel, setPartyLevel] = useState(3);
+    // Players from DB
+    const [players, setPlayers] = useState<{ id: string; name: string; niveau: number }[]>([]);
+
+    // Search/Gen State — derived from real players
+    const partySize = players.length || 1;
+    const partyLevel = players.length > 0
+        ? Math.round(players.reduce((sum, p) => sum + (p.niveau || 1), 0) / players.length)
+        : 1;
     const [difficulty, setDifficulty] = useState<EncounterDifficulty>('Medium');
 
     // Multi-Select State
     const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
     const [openTypeSelect, setOpenTypeSelect] = useState(false);
 
+    // Filtres avancés
+    const [minPV, setMinPV] = useState<string>('');
+    const [maxPV, setMaxPV] = useState<string>('');
+    const [minDefense, setMinDefense] = useState<string>('');
+    const [maxDefense, setMaxDefense] = useState<string>('');
+    const [minCR, setMinCR] = useState<string>('');
+    const [maxCR, setMaxCR] = useState<string>('');
+
     // Result State
-    const [scenarios, setScenarios] = useState<{ [key in EncounterScenarioType]?: GeneratedEncounter }>({});
+    const [scenarios, setScenarios] = useState<{ [key in EncounterScenarioType]?: GeneratedEncounter[] }>({});
     const [activeTab, setActiveTab] = useState<EncounterScenarioType>('Balanced');
 
     const [isGenerating, setIsGenerating] = useState(false);
-    const [isAddingToMap, setIsAddingToMap] = useState(false);
+    const [encounterCount, setEncounterCount] = useState(0);
+
+    // Players listener
+    useEffect(() => {
+        if (!roomId) return;
+        const ref = collection(db, `cartes/${roomId}/characters`);
+        const unsub = onSnapshot(ref, (snap) => {
+            const joueurs = snap.docs
+                .filter(d => d.data().type === 'joueurs')
+                .map(d => ({
+                    id: d.id,
+                    name: d.data().Nomperso || d.data().name || 'Joueur',
+                    niveau: d.data().niveau || 1,
+                }));
+            setPlayers(joueurs);
+        });
+        return () => unsub();
+    }, [roomId]);
 
     // Initial Load
     useEffect(() => {
@@ -119,7 +148,13 @@ export default function EncounterGenerator() {
             partySize,
             partyLevel,
             difficulty,
-            monsterTypes: selectedTypes // Pass array
+            monsterTypes: selectedTypes,
+            minPV: minPV !== '' ? parseInt(minPV) : undefined,
+            maxPV: maxPV !== '' ? parseInt(maxPV) : undefined,
+            minDefense: minDefense !== '' ? parseInt(minDefense) : undefined,
+            maxDefense: maxDefense !== '' ? parseInt(maxDefense) : undefined,
+            minCR: minCR !== '' ? parseFloat(minCR) : undefined,
+            maxCR: maxCR !== '' ? parseFloat(maxCR) : undefined,
         });
 
         setScenarios(newScenarios);
@@ -132,70 +167,60 @@ export default function EncounterGenerator() {
         }
     };
 
-    const handleAddToMap = async () => {
-        const selectedEncounter = scenarios[activeTab];
-        if (!selectedEncounter || !roomId) return;
-        setIsAddingToMap(true);
+    const handleSaveAsTemplates = async (proposalIdx: number) => {
+        const proposals = scenarios[activeTab];
+        const encounter = proposals?.[proposalIdx];
+        if (!encounter || !roomId) return;
 
-        const spacing = 100;
-        const totalMonsters = selectedEncounter.monsters.reduce((a, b) => a + b.count, 0);
-        const cols = Math.ceil(Math.sqrt(totalMonsters));
-        let count = 0;
-
-        const startX = 500;
-        const startY = 500;
+        const uniqueMonsters = encounter.monsters.filter(
+            (item, idx, arr) => arr.findIndex(m => m.creature.Nom === item.creature.Nom) === idx
+        );
 
         try {
-            for (const group of selectedEncounter.monsters) {
-                for (let i = 0; i < group.count; i++) {
-                    const offsetX = (count % cols) * spacing;
-                    const offsetY = Math.floor(count / cols) * spacing;
+            const nextCount = encounterCount + 1;
+            setEncounterCount(nextCount);
 
-                    const monsterData = group.creature;
+            // Créer la catégorie
+            const categoriesRef = collection(db, 'npc_templates', roomId, 'categories');
+            const categoryDoc = await addDoc(categoriesRef, {
+                name: `Rencontre #${nextCount}`,
+                color: '#ef4444',
+                createdAt: new Date(),
+            });
 
-                    const newChar = {
-                        id: `monster-${group.id}-${i}-${Date.now()}`,
-                        type: 'monster',
-                        name: `${monsterData.Nom} ${i + 1}`,
-                        x: startX + offsetX - (cols * spacing / 2),
-                        y: startY + offsetY - (cols * spacing / 2),
-                        scale: 1,
-                        imageUrl: monsterData.image || '',
-                        PV: monsterData.PV,
-                        PV_Max: monsterData.PV_Max,
-                        visible: false,
-                        niveau: monsterData.niveau,
-                        visibility: 'hidden',
-                        visibilityRadius: 0,
-                        rotation: 0,
-                        size: 1,
-                        stats: {
-                            str: monsterData.FOR,
-                            dex: monsterData.DEX,
-                            con: monsterData.CON,
-                            int: monsterData.INT,
-                            wis: monsterData.SAG,
-                            cha: monsterData.CHA
-                        },
-                        initiative: 0,
-                        defense: monsterData.Defense,
-                        Actions: monsterData.Actions || [],
-                        contact: monsterData.Contact,
-                        distance: monsterData.Distance,
-                        magie: monsterData.Magie,
-                        init_bonus: monsterData.INIT
-                    };
-
-                    await addDoc(collection(db, `characters/${roomId}/characters`), newChar);
-                    count++;
-                }
-            }
-        } catch (error) {
-            console.error("Error adding encounter to map:", error);
-        } finally {
-            setIsAddingToMap(false);
+            // Sauvegarder les templates avec la catégorie
+            const templatesRef = collection(db, 'npc_templates', roomId, 'templates');
+            await Promise.all(uniqueMonsters.map(({ creature }) =>
+                addDoc(templatesRef, {
+                    Nomperso: creature.Nom,
+                    categoryId: categoryDoc.id,
+                    imageURL2: creature.image || '',
+                    niveau: creature.niveau || 1,
+                    PV: creature.PV,
+                    PV_F: creature.PV,
+                    PV_Max: creature.PV_Max,
+                    Defense: creature.Defense,
+                    Defense_F: creature.Defense,
+                    Contact: creature.Contact,
+                    Distance: creature.Distance,
+                    Magie: creature.Magie,
+                    INIT: creature.INIT,
+                    FOR: creature.FOR,
+                    DEX: creature.DEX,
+                    CON: creature.CON,
+                    SAG: creature.SAG,
+                    INT: creature.INT,
+                    CHA: creature.CHA,
+                    Actions: creature.Actions || [],
+                })
+            ));
+            toast.success(`Rencontre #${nextCount} sauvegardée (${uniqueMonsters.length} templates)`);
+        } catch (e) {
+            console.error('[SaveTemplates] error', e);
+            toast.error('Erreur lors de la sauvegarde');
         }
     };
+
 
     const budget = calculateEncounterBudget(partySize, partyLevel, difficulty);
 
@@ -235,23 +260,23 @@ export default function EncounterGenerator() {
                             <h3 className="text-sm font-semibold text-gray-300 uppercase tracking-wider flex items-center gap-2">
                                 <Users className="w-4 h-4" /> Groupe
                             </h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label className="text-xs text-gray-400">Joueurs</Label>
-                                    <Input
-                                        type="number" min={1} max={10} value={partySize}
-                                        onChange={(e) => setPartySize(parseInt(e.target.value) || 4)}
-                                        className="bg-[#222] border-[#333] text-white focus:border-[#c0a080]"
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label className="text-xs text-gray-400">Niveau</Label>
-                                    <Input
-                                        type="number" min={1} max={20} value={partyLevel}
-                                        onChange={(e) => setPartyLevel(parseInt(e.target.value) || 1)}
-                                        className="bg-[#222] border-[#333] text-white focus:border-[#c0a080]"
-                                    />
-                                </div>
+                            <div className="space-y-2">
+                                {players.length === 0 ? (
+                                    <p className="text-xs text-gray-500 italic">Aucun joueur trouvé dans la salle.</p>
+                                ) : (
+                                    <div className="space-y-1">
+                                        {players.map(p => (
+                                            <div key={p.id} className="flex items-center justify-between px-3 py-1.5 bg-[#1e1e1e] border border-[#333] rounded text-sm">
+                                                <span className="text-gray-200">{p.name}</span>
+                                                <span className="text-xs text-[#c0a080]">Niv. {p.niveau}</span>
+                                            </div>
+                                        ))}
+                                        <div className="flex justify-between pt-1 text-xs text-gray-500">
+                                            <span>{partySize} joueur{partySize > 1 ? 's' : ''}</span>
+                                            <span>Niveau moyen : {partyLevel}</span>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
@@ -353,6 +378,32 @@ export default function EncounterGenerator() {
                                 )}
                             </div>
 
+                            {/* Filtres avancés */}
+                            <div className="space-y-2 pt-2">
+                                <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Filtres avancés</h4>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { label: 'PV min', value: minPV, set: setMinPV },
+                                        { label: 'PV max', value: maxPV, set: setMaxPV },
+                                        { label: 'Déf min', value: minDefense, set: setMinDefense },
+                                        { label: 'Déf max', value: maxDefense, set: setMaxDefense },
+                                        { label: 'CR min', value: minCR, set: setMinCR },
+                                        { label: 'CR max', value: maxCR, set: setMaxCR },
+                                    ].map(({ label, value, set }) => (
+                                        <div key={label} className="flex items-center gap-1.5 bg-[#1a1a1a] border border-[#333] rounded px-2 py-1 focus-within:border-[#c0a080]/50">
+                                            <span className="text-[10px] text-gray-500 shrink-0 w-12">{label}</span>
+                                            <input
+                                                type="number"
+                                                value={value}
+                                                onChange={e => set(e.target.value)}
+                                                placeholder="—"
+                                                className="w-full bg-transparent text-white text-xs outline-none placeholder:text-gray-600"
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
                             <div className="flex justify-between text-xs text-gray-500 mb-1 pt-2">
                                 <span>Budget XP Base:</span>
                                 <span className="font-mono text-[#c0a080]">{budget} XP</span>
@@ -407,75 +458,61 @@ export default function EncounterGenerator() {
                                 </div>
 
                                 <div className="flex-1 overflow-hidden relative">
-                                    {(Object.keys(SCENARIO_TYPES) as EncounterScenarioType[]).map((type) => (
-                                        <TabsContent key={type} value={type} className="absolute inset-0 m-0 flex flex-col">
-                                            {scenarios[type] && (
-                                                <>
-                                                    {/* Toolbar for active scenario */}
-                                                    <div className="p-4 border-b border-[#333] bg-[#141414] flex justify-between items-center">
-                                                        <div>
-                                                            <div className="flex items-center gap-2">
-                                                                <h3 className="font-bold text-white text-lg">
-                                                                    {SCENARIO_TYPES[type].label}
-                                                                </h3>
-                                                                <Badge variant="outline" className="border-[#c0a080] text-[#c0a080]">
-                                                                    {scenarios[type]?.totalXp} XP
-                                                                </Badge>
-                                                            </div>
-                                                            <p className="text-xs text-gray-400 mt-1">
-                                                                {SCENARIO_TYPES[type].description}
-                                                            </p>
-                                                        </div>
-                                                        <Button
-                                                            size="sm"
-                                                            className="bg-[#c0a080] text-black hover:bg-[#d4b494]"
-                                                            onClick={handleAddToMap}
-                                                            disabled={isAddingToMap}
-                                                        >
-                                                            {isAddingToMap ? (
-                                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                                            ) : (
-                                                                <PlusCircle className="w-4 h-4 mr-2" />
-                                                            )}
-                                                            Ajouter
-                                                        </Button>
-                                                    </div>
-
-                                                    {/* List */}
-                                                    <ScrollArea className="flex-1 p-4">
-                                                        <div className="grid gap-4">
-                                                            {scenarios[type]?.monsters.map((item, idx) => (
-                                                                <div key={idx} className="flex items-start gap-4 p-4 rounded-xl bg-[#1a1a1a] border border-[#333]">
-                                                                    <div className="w-16 h-16 rounded-lg bg-black overflow-hidden border border-[#333] relative shrink-0">
-                                                                        <img
-                                                                            src={item.creature.image || ''}
-                                                                            alt={item.creature.Nom}
-                                                                            className="w-full h-full object-cover"
-                                                                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/64x64/222/666?text=Monster')}
-                                                                        />
-                                                                        <div className="absolute bottom-0 right-0 bg-[#c0a080] text-black text-xs font-bold px-1.5 py-0.5 rounded-tl-md">
-                                                                            x{item.count}
-                                                                        </div>
-                                                                    </div>
-                                                                    <div className="flex-1">
-                                                                        <div className="flex justify-between">
-                                                                            <h4 className="font-bold text-white max-w-[200px] truncate">{item.creature.Nom}</h4>
-                                                                            <Badge variant="secondary" className="text-[10px] bg-[#222] text-gray-400">CR {item.creature.Challenge}</Badge>
-                                                                        </div>
-                                                                        <p className="text-xs text-gray-500">{item.creature.Type}</p>
-                                                                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-400">
-                                                                            <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> {item.creature.PV} PV</span>
-                                                                            <span className="flex items-center gap-1"><Shield className="w-3 h-3" /> AC {item.creature.Defense}</span>
-                                                                        </div>
+                                    {(Object.keys(SCENARIO_TYPES) as EncounterScenarioType[]).map((type) => {
+                                        const proposals = scenarios[type];
+                                        return (
+                                            <TabsContent key={type} value={type} className="absolute inset-0 m-0 overflow-y-auto">
+                                                <div className="p-4">
+                                                    <div className="space-y-6">
+                                                        {proposals?.map((encounter, pi) => (
+                                                            <div key={pi} className="rounded-xl border border-[#333] bg-[#1a1a1a] overflow-hidden">
+                                                                {/* Proposal header */}
+                                                                <div className="flex justify-between items-center px-4 py-2 bg-[#141414] border-b border-[#333]">
+                                                                    <span className="text-xs font-bold text-gray-400">Proposition {pi + 1}</span>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <Button
+                                                                            size="sm"
+                                                                            className="bg-[#c0a080] text-black hover:bg-[#d4b494] h-7 text-xs"
+                                                                            onClick={() => handleSaveAsTemplates(pi)}
+                                                                        >
+                                                                            <PlusCircle className="w-3 h-3 mr-1" />
+                                                                            Ajouter
+                                                                        </Button>
                                                                     </div>
                                                                 </div>
-                                                            ))}
-                                                        </div>
-                                                    </ScrollArea>
-                                                </>
-                                            )}
-                                        </TabsContent>
-                                    ))}
+                                                                {/* Monsters */}
+                                                                <div className="divide-y divide-[#222]">
+                                                                    {encounter.monsters.map((item, idx) => (
+                                                                        <div key={idx} className="flex items-center gap-3 px-4 py-2">
+                                                                            <div className="w-10 h-10 rounded bg-black overflow-hidden border border-[#333] shrink-0">
+                                                                                <img
+                                                                                    src={item.creature.image || ''}
+                                                                                    alt={item.creature.Nom}
+                                                                                    className="w-full h-full object-cover"
+                                                                                    onError={(e) => (e.currentTarget.src = 'https://placehold.co/40x40/222/666?text=M')}
+                                                                                />
+                                                                            </div>
+                                                                            <div className="flex-1 min-w-0">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <span className="font-semibold text-white text-sm truncate">{item.creature.Nom}</span>
+                                                                                    <span className="text-[#c0a080] text-xs font-bold shrink-0">×{item.count}</span>
+                                                                                </div>
+                                                                                <p className="text-xs text-gray-500 truncate">{item.creature.Type}</p>
+                                                                            </div>
+                                                                            <div className="flex items-center gap-3 text-xs text-gray-400 shrink-0">
+                                                                                <span>{item.creature.PV} PV</span>
+                                                                                <Badge variant="secondary" className="text-[10px] bg-[#222] text-gray-400">CR {item.creature.Challenge}</Badge>
+                                                                            </div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </TabsContent>
+                                        );
+                                    })}
                                 </div>
                             </Tabs>
                         </div>
