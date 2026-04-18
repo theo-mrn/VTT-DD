@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react'
 import {
-    Users, Shield, Heart, Zap, UserPlus, Plus,
+    Shield, Heart, Zap, Plus,
     Dices, Image as ImageIcon, User, Check, X, RotateCcw, Trash2, Edit,
     AlertTriangle, Search, BookOpen, Swords, Dna, Pencil, ScanFace
 } from 'lucide-react'
@@ -26,8 +26,7 @@ import { type NewCharacter } from '@/app/[roomid]/map/types'
 import { useParams } from 'next/navigation'
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { collection, addDoc, onSnapshot, query, where, deleteDoc, doc, updateDoc, getDocs } from 'firebase/firestore'
-import { db, realtimeDb } from '@/lib/firebase'
-import { ref as rtdbRef, update as rtdbUpdate } from 'firebase/database'
+import { db } from '@/lib/firebase'
 import { NPCGrid } from './NPCListView'
 import { CreatureLibraryModal } from './CreatureLibraryModal'
 import { CategoryManager } from './CategoryManager'
@@ -387,43 +386,6 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
         }
     }
 
-    const handleMakePlayable = async (npcToExport: NPC) => {
-        if (!roomId) return;
-        try {
-            const playerCharData = {
-                Nomperso: npcToExport.Nomperso,
-                imageURL: (npcToExport.imageURL2 || npcToExport.imageURL) || '',
-                imageURL2: npcToExport.imageURL2 || '',
-                niveau: npcToExport.niveau || 1,
-                PV: npcToExport.PV || 20,
-                PV_F: npcToExport.PV || 20,
-                PV_Max: npcToExport.PV_Max || npcToExport.PV || 20,
-                Defense: npcToExport.Defense || 10,
-                Defense_F: npcToExport.Defense || 10,
-                Contact: npcToExport.Contact || 0,
-                Distance: npcToExport.Distance || 0,
-                Magie: npcToExport.Magie || 0,
-                INIT: npcToExport.INIT || 10,
-                FOR: npcToExport.FOR || 10,
-                DEX: npcToExport.DEX || 10,
-                CON: npcToExport.CON || 10,
-                INT: npcToExport.INT || 10,
-                SAG: npcToExport.SAG || 10,
-                CHA: npcToExport.CHA || 10,
-                type: 'joueurs',
-                visibilityRadius: 150,
-                x: 500,
-                y: 500,
-            };
-            const docRef = await addDoc(collection(db, `cartes/${roomId}/characters`), playerCharData);
-            // Écrire la position initiale en RTDB
-            await rtdbUpdate(rtdbRef(realtimeDb, `rooms/${roomId}/positions/${docRef.id}`), { x: 500, y: 500 });
-            alert(`Le personnage ${npcToExport.Nomperso} a été ajouté à la liste des personnages jouables !`);
-        } catch (error) {
-            console.error("Error making NPC playable:", error);
-            alert("Erreur lors de l'ajout en personnage jouable.");
-        }
-    }
 
     // derived
     const selectedNPC = useMemo(() => npcs.find(n => n.id === selectedNpcId), [npcs, selectedNpcId])
@@ -551,7 +513,6 @@ export function NPCManager({ isOpen, onClose, onSubmit, difficulty = 3 }: NPCMan
                             categories={categories}
                             onEditTrigger={() => selectedNPC && handleEdit(selectedNPC)}
                             onDeleteTrigger={() => selectedNPC && setDeleteConfirmId(selectedNPC.id)}
-                            onMakePlayableTrigger={() => selectedNPC && handleMakePlayable(selectedNPC)}
                             onSave={handleSubmit}
                             onCancel={() => {
                                 setViewMode('view')
@@ -650,7 +611,6 @@ interface InspectorViewProps {
     categories: Category[]
     onEditTrigger: () => void
     onDeleteTrigger: () => void
-    onMakePlayableTrigger?: () => void
     onSave: () => void
     onCancel: () => void
     onChange: (field: keyof NewCharacter, value: any) => void
@@ -660,7 +620,7 @@ interface InspectorViewProps {
 
 function InspectorView({
     mode, npc, char, category, categories,
-    onEditTrigger, onDeleteTrigger, onMakePlayableTrigger, onSave, onCancel,
+    onEditTrigger, onDeleteTrigger, onSave, onCancel,
     onChange, onImageUpload, onCategoryChange
 }: InspectorViewProps) {
 
@@ -774,15 +734,15 @@ function InspectorView({
                         {/* Category Selector/Badge */}
                         {isEditing ? (
                             <Select
-                                value={category?.id || ''}
-                                onValueChange={(val) => onCategoryChange(val === '' ? null : val)}
+                                value={category?.id || '__none__'}
+                                onValueChange={(val) => onCategoryChange(val === '__none__' ? null : val)}
                             >
                                 <SelectTrigger className="w-fit bg-[#c0a080] text-black text-[10px] uppercase font-bold tracking-wider rounded px-2 py-1 outline-none cursor-pointer border-none h-auto data-[placeholder]:text-black/70">
                                     <SelectValue placeholder="Sans catégorie" />
                                 </SelectTrigger>
                                 <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white">
                                     <SelectGroup>
-                                        <SelectItem value="">Sans catégorie</SelectItem>
+                                        <SelectItem value="__none__">Sans catégorie</SelectItem>
                                         {categories.map((cat) => (
                                             <SelectItem key={cat.id} value={cat.id}>
                                                 {cat.name}
@@ -896,17 +856,6 @@ function InspectorView({
                             <Edit className="w-4 h-4 mr-1" />
                             Modifier
                         </Button>
-                        {onMakePlayableTrigger && (
-                            <Button
-                                variant="outline"
-                                onClick={onMakePlayableTrigger}
-                                className="border-[#333] text-[#c0a080] hover:text-[#e0c0a0] hover:bg-[#c0a080]/10 px-2 flex-1"
-                                title="Ajouter aux personnages joueurs"
-                            >
-                                <UserPlus className="w-4 h-4 mr-1" />
-                                Joueur
-                            </Button>
-                        )}
                         <Button
                             variant="outline"
                             onClick={onDeleteTrigger}

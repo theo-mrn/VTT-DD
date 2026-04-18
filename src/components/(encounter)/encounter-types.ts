@@ -31,7 +31,13 @@ export interface EncounterSettings {
     partySize: number;
     partyLevel: number;
     difficulty: EncounterDifficulty;
-    monsterTypes?: string[]; // Optional filter list
+    monsterTypes?: string[];
+    minPV?: number;
+    maxPV?: number;
+    minDefense?: number;
+    maxDefense?: number;
+    minCR?: number;
+    maxCR?: number;
 }
 
 export interface GeneratedEncounter {
