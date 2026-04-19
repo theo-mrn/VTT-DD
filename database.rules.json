@@ -12,7 +12,7 @@
           ".write": "auth != null"
         },
 
-        "$other": {
+"$other": {
           ".read": "auth != null",
           ".write": "auth != null"
         }
