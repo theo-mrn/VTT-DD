@@ -67,6 +67,8 @@ import { useKeyboardShortcuts } from '@/hooks/map/useKeyboardShortcuts';
 import { useMusicZoneActions } from '@/hooks/map/useMusicZoneActions';
 import { useElementDetection } from '@/hooks/map/useElementDetection';
 import { useObstacleActions } from '@/hooks/map/useObstacleActions';
+import ScreenShareProducer from '@/components/(map)/ScreenShareProducer';
+import ScreenShareViewer from '@/components/(map)/ScreenShareViewer';
 import { useDeleteActions } from '@/hooks/map/useDeleteActions';
 import { useDragAndDrop, type DragFeaturePreview } from '@/hooks/map/useDragAndDrop';
 import { useToolbarActions } from '@/hooks/map/useToolbarActions';
@@ -435,6 +437,7 @@ export default function Component() {
   const [panMode, setPanMode] = useState(false); // Mode déplacement de carte
 
   const [playerViewMode, setPlayerViewMode] = useState(false); // Mode "Vue Joueur" pour le MJ
+  const [isStreaming, setIsStreaming] = useState(false);
   const [allyViewMode, setAllyViewMode] = useState(false); // Mode "Vue Allié" pour les joueurs
 
   //  MEASUREMENT & CALIBRATION STATE
@@ -2905,7 +2908,7 @@ export default function Component() {
 
   //  RENDER CITY MAP (existing functionality)
   return (
-    <div className="flex flex-col relative" ref={containerRef}>
+    <div className="flex flex-col relative" ref={containerRef} style={{ paddingTop: isStreaming ? '52px' : undefined }}>
       {/*  SELECTION MENU */}
       {showSelectionMenu && selectionCandidates && (
         <SelectionMenu
@@ -3194,7 +3197,13 @@ export default function Component() {
         showGrid={showGrid}
         activeToolContent={getToolOptionsContent()}
         allies={playerAllies}
+        extraMJTools={isMJ && userId ? (
+          <ScreenShareProducer roomId={roomId} userId={userId} onStreamChange={setIsStreaming} />
+        ) : undefined}
       />
+      {!isMJ && userId && (
+        <ScreenShareViewer roomId={roomId} userId={userId} />
+      )}
 
       <ContextMenu>
       <ContextMenuTrigger asChild>

@@ -62,7 +62,8 @@ interface MapToolbarProps {
     showGrid: boolean;
     activeToolContent?: React.ReactNode;
     className?: string;
-    allies?: Array<{ id: string; name: string; avatar?: string }>; // List of ally NPCs for showing ally view button
+    allies?: Array<{ id: string; name: string; avatar?: string }>;
+    extraMJTools?: React.ReactNode;
 }
 
 export const TOOLS = {
@@ -238,7 +239,8 @@ function MapToolbar({
     showGrid,
     activeToolContent,
     className,
-    allies = []
+    allies = [],
+    extraMJTools,
 }: MapToolbarProps) {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -491,6 +493,14 @@ function MapToolbar({
                             />
 
                         </div>
+
+                        {/* Extra MJ Tools */}
+                        {isMJ && extraMJTools && (
+                            <>
+                                <GroupSeparator />
+                                <div className="flex items-center px-1">{extraMJTools}</div>
+                            </>
+                        )}
 
                         {/* Collapse Button */}
                         <div className="ml-1 pl-2 border-l border-white/10">
