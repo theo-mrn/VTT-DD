@@ -73,10 +73,17 @@ function DiscordActivityContent() {
     e.preventDefault()
     setLoading(true)
     try {
-      await signInWithEmailAndPassword(auth, email, password)
+      const res = await fetch('/api/discord/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const { customToken, error } = await res.json()
+      if (error) { toast.error(error); return }
+      await signInWithCustomToken(auth, customToken)
       setStep('room-choice')
     } catch {
-      toast.error("Email ou mot de passe incorrect")
+      toast.error("Erreur de connexion")
     } finally {
       setLoading(false)
     }

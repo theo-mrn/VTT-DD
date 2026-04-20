@@ -23,15 +23,18 @@ const app = appExists ? getApps()[0] : initializeApp(firebaseConfig);
 
 // Services Firebase
 const auth = getAuth(app);
+const isDiscordEnv = typeof window !== 'undefined' && (new URLSearchParams(window.location.search).has('frame_id') || window.location.hostname.endsWith('.discordsays.com'));
 const db = appExists
   ? getFirestore(app)
-  : initializeFirestore(app, {
-      localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
-    });
+  : isDiscordEnv
+    ? initializeFirestore(app, {})
+    : initializeFirestore(app, {
+        localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+      });
 const storage = getStorage(app);
 const realtimeDb = getDatabase(app);
 
-// Analytics — initialisé uniquement côté client
-const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
+// Analytics — désactivé dans Discord Activity (CSP bloque googleapis)
+const analytics = typeof window !== 'undefined' && !isDiscordEnv ? getAnalytics(app) : null;
 
 export { auth, db, storage, realtimeDb, analytics, setAnalyticsCollectionEnabled, onAuthStateChanged, writeBatch, doc, getAuth, signOut, orderBy, setDoc, getDoc, collection, addDoc, onSnapshot, updateDoc, deleteDoc, query, where, getDocs, ref, uploadBytes, getDownloadURL, dbRef, set, onValue, update, rtdbGet, rtdbPush, rtdbRemove, serverTimestamp, limit, limitToLast, GoogleAuthProvider, Timestamp };
