@@ -41,6 +41,7 @@ function DiscordActivityContent() {
       const { access_token } = await setupDiscord()
       const res = await fetch('/api/discord/auth', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ access_token }),
       })
@@ -62,6 +63,7 @@ function DiscordActivityContent() {
     try {
       const res = await fetch('/api/discord/login', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
@@ -80,7 +82,7 @@ function DiscordActivityContent() {
   const loadRooms = async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/discord/rooms${channelId ? `?channel_id=${channelId}` : ''}`)
+      const res = await fetch(`/api/discord/rooms${channelId ? `?channel_id=${channelId}` : ''}`, { credentials: 'include' })
       const { discordRoom: dr, rooms } = await res.json()
       if (dr) setDiscordRoom(dr)
       setUserRooms(rooms || [])
@@ -96,6 +98,7 @@ function DiscordActivityContent() {
     try {
       const res = await fetch('/api/discord/rooms', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roomId }),
       })
@@ -115,6 +118,7 @@ function DiscordActivityContent() {
     try {
       const res = await fetch('/api/discord/create-room', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: newRoomTitle, maxPlayers: newRoomMax, channelId }),
       })
@@ -133,6 +137,7 @@ function DiscordActivityContent() {
     try {
       const res = await fetch('/api/discord/rooms', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ roomId, linkChannelId: channelId }),
       })
