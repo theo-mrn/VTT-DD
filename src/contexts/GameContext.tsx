@@ -354,15 +354,30 @@ export function GameProvider({ children }: { children: ReactNode }) {
           }
         }
       } else {
-        if (mounted) {
-          setUser(null);
-          setIsAuthenticated(false);
-          // Reset game state when user logs out et clear localStorage
-          setIsMJ(false);
-          setPersoId(null);
-          setPlayerData(null);
-          clearLocalStorage();
-          console.log('User logged out, context and localStorage cleared');
+        // Fallback : vérifier si connecté via Discord Activity (cookie discord_uid)
+        try {
+          const res = await fetch('/api/discord/me', { credentials: 'include' });
+          const { user: discordUser } = await res.json();
+          if (discordUser && mounted) {
+            setUser(discordUser);
+            setIsAuthenticated(true);
+          } else if (mounted) {
+            setUser(null);
+            setIsAuthenticated(false);
+            setIsMJ(false);
+            setPersoId(null);
+            setPlayerData(null);
+            clearLocalStorage();
+          }
+        } catch {
+          if (mounted) {
+            setUser(null);
+            setIsAuthenticated(false);
+            setIsMJ(false);
+            setPersoId(null);
+            setPlayerData(null);
+            clearLocalStorage();
+          }
         }
       }
 
