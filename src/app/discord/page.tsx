@@ -235,7 +235,7 @@ function DiscordActivityContent() {
             {userRooms.map(room => (
               <div key={room.id} className="flex items-center justify-between p-4 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)]/60">
                 <div className="flex items-center gap-3">
-                  {room.imageUrl
+                  {room.imageUrl && !room.imageUrl.includes('firebasestorage.googleapis.com')
                     ? <img src={room.imageUrl} className="w-10 h-10 rounded-lg object-cover" alt="" />
                     : <div className="w-10 h-10 rounded-lg bg-[var(--accent-brown)]/10 flex items-center justify-center"><Gamepad2 className="h-5 w-5 text-[var(--accent-brown)]/40" /></div>
                   }
