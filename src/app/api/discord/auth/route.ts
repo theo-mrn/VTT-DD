@@ -34,6 +34,18 @@ export async function POST(req: NextRequest) {
     provider: "discord",
   }, { merge: true });
 
-  const customToken = await adminAuth.createCustomToken(uid);
-  return NextResponse.json({ customToken, user: { name: discordUser.global_name || discordUser.username, avatar: avatarUrl } });
+  const response = NextResponse.json({
+    uid,
+    user: { name: discordUser.global_name || discordUser.username, avatar: avatarUrl },
+  });
+
+  response.cookies.set("discord_uid", uid, {
+    httpOnly: true,
+    secure: true,
+    maxAge: 60 * 60 * 24 * 5,
+    path: "/",
+    sameSite: "none",
+  });
+
+  return response;
 }
