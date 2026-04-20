@@ -17,13 +17,34 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
+const isDiscordEnv = typeof window !== 'undefined' && (new URLSearchParams(window.location.search).has('frame_id') || window.location.hostname.endsWith('.discordsays.com'));
+
+// Dans Discord, patcher les URLs AVANT d'initialiser Firebase
+if (isDiscordEnv) {
+  try {
+    const { DiscordSDK } = require('@discord/embedded-app-sdk');
+    const sdk = new DiscordSDK("1495752182837018764");
+    if (sdk.patchUrlMappings) {
+      sdk.patchUrlMappings([
+        { prefix: '/firebase-api', target: 'https://firebase.googleapis.com' },
+        { prefix: '/firebase-install', target: 'https://firebaseinstallations.googleapis.com' },
+        { prefix: '/firebase-storage', target: 'https://firebasestorage.googleapis.com' },
+        { prefix: '/firebase-db', target: 'https://firestore.googleapis.com' },
+        { prefix: '/identitytoolkit', target: 'https://identitytoolkit.googleapis.com' },
+        { prefix: '/assets-yner', target: 'https://assets.yner.fr' },
+      ]);
+    }
+  } catch (e) {
+    // pas dans Discord, ignorer
+  }
+}
+
 // Initialisation de Firebase (évite la double initialisation en hot reload)
 const appExists = getApps().length > 0;
 const app = appExists ? getApps()[0] : initializeApp(firebaseConfig);
 
 // Services Firebase
 const auth = getAuth(app);
-const isDiscordEnv = typeof window !== 'undefined' && (new URLSearchParams(window.location.search).has('frame_id') || window.location.hostname.endsWith('.discordsays.com'));
 const db = appExists
   ? getFirestore(app)
   : isDiscordEnv

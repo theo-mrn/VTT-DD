@@ -7,17 +7,6 @@ let authPromise: Promise<{ sdk: DiscordSDK; access_token: string }> | null = nul
 async function _setupDiscord() {
   if (discordSdk && cachedToken) return { sdk: discordSdk, access_token: cachedToken };
   discordSdk = new DiscordSDK("1495752182837018764");
-  // @ts-ignore
-  if (discordSdk.patchUrlMappings) {
-    // @ts-ignore
-    discordSdk.patchUrlMappings([
-      { prefix: '/firebase-api', target: 'https://firebase.googleapis.com' },
-      { prefix: '/firebase-install', target: 'https://firebaseinstallations.googleapis.com' },
-      { prefix: '/firebase-storage', target: 'https://firebasestorage.googleapis.com' },
-      { prefix: '/firebase-db', target: 'https://firestore.googleapis.com' },
-      { prefix: '/assets-yner', target: 'https://assets.yner.fr' },
-    ])
-  }
   await discordSdk.ready();
 
   const { code } = await discordSdk!.commands.authorize({
