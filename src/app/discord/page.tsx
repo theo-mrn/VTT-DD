@@ -3,8 +3,6 @@
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { setupDiscord, isDiscordActivity } from '@/lib/discord'
-import { auth } from '@/lib/firebase'
-import { signInWithCustomToken } from 'firebase/auth'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ArrowRight, Loader2, Link2, Gamepad2 } from 'lucide-react'
@@ -47,9 +45,8 @@ function DiscordActivityContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ access_token }),
       })
-      const { uid, customToken, user } = await res.json()
+      const { uid, user } = await res.json()
       if (!uid) throw new Error('No uid')
-      await signInWithCustomToken(auth, customToken)
       setUserId(uid)
       setUserInfo({ name: user?.name || uid, isDiscord: true })
       setStep('room-choice')
@@ -70,9 +67,8 @@ function DiscordActivityContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       })
-      const { uid, customToken, error } = await res.json()
+      const { uid, error } = await res.json()
       if (error) { toast.error(error); return }
-      await signInWithCustomToken(auth, customToken)
       setUserId(uid)
       setUserInfo({ name: email, isDiscord: false })
       setStep('room-choice')
