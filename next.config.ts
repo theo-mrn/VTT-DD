@@ -1,6 +1,19 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+    async headers() {
+        return [
+            {
+                source: "/(.*)",
+                headers: [
+                    {
+                        key: "Content-Security-Policy",
+                        value: "frame-ancestors https://*.discord.com https://discord.com",
+                    },
+                ],
+            },
+        ];
+    },
     images: {
         qualities: [1, 10, 25, 50, 75, 100],
         remotePatterns: [

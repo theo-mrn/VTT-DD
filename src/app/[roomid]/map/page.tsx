@@ -58,6 +58,7 @@ import { useRtdbCollections } from '@/hooks/map/useRtdbCollections';
 import { useMapData } from '@/hooks/map/useMapData';
 import { getMediaDimensions } from './utils/coordinates';
 import { drawBackgroundLayers } from './renderers/background-renderer';
+import { setupDiscord, isDiscordActivity } from '@/lib/discord';
 import { drawCharacterBorders } from './renderers/character-borders-renderer';
 import { drawMeasurements } from './renderers/measurement-renderer';
 import { drawForegroundLayers } from './renderers/foreground-renderer';
@@ -127,6 +128,12 @@ const useStatusEffectIcons = () => {
 export default function Component() {
   const params = useParams();
   const roomId = params.roomid as string;
+
+  useEffect(() => {
+    if (isDiscordActivity()) {
+      setupDiscord().catch(console.error);
+    }
+  }, []);
   const { isMJ, persoId, viewAsPersoId, setViewAsPersoId } = useGame();
   const { focusTarget, selectedCityId, setSelectedCityId, clearFocus } = useMapControl();
   const { volumes: audioVolumes } = useAudioMixer();
