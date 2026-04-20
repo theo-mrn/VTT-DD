@@ -34,8 +34,11 @@ export async function POST(req: NextRequest) {
     provider: "discord",
   }, { merge: true });
 
+  const customToken = await adminAuth.createCustomToken(uid);
+
   const response = NextResponse.json({
     uid,
+    customToken,
     user: { name: discordUser.global_name || discordUser.username, avatar: avatarUrl },
   });
 

@@ -20,7 +20,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Email ou mot de passe incorrect" }, { status: 401 });
     }
 
-    const response = NextResponse.json({ uid: data.localId });
+    const { adminAuth } = await import('@/lib/firebase-admin');
+    const customToken = await adminAuth.createCustomToken(data.localId);
+    const response = NextResponse.json({ uid: data.localId, customToken });
     response.cookies.set("discord_uid", data.localId, {
       httpOnly: true,
       secure: true,
