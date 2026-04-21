@@ -1,7 +1,7 @@
 "use client"
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react'
-import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query } from 'firebase/firestore'
+import { collection, getDocs, addDoc, updateDoc, deleteDoc, doc, query, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useGame } from '@/contexts/GameContext'
 import { type NPC, type Category } from '@/components/(personnages)/personnages'
@@ -193,6 +193,20 @@ export function GMTemplatesProvider({ roomId, children }: { roomId: string; chil
         loadedRef.current = true
         fetchAll()
     }, [roomId, isMJ, fetchAll])
+
+    // Real-time listener for NPC templates & categories
+    useEffect(() => {
+        if (!roomId || !isMJ) return
+        const unsubTemplates = onSnapshot(
+            collection(db, 'npc_templates', roomId, 'templates'),
+            (snap) => setNpcTemplates(snap.docs.map(d => ({ id: d.id, ...d.data() } as NPC)))
+        )
+        const unsubCategories = onSnapshot(
+            collection(db, 'npc_templates', roomId, 'categories'),
+            (snap) => setNpcCategories(snap.docs.map(d => ({ id: d.id, ...d.data() } as Category)))
+        )
+        return () => { unsubTemplates(); unsubCategories() }
+    }, [roomId, isMJ])
 
     // --- CRUD: NPC Templates ---
 

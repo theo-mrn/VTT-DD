@@ -53,7 +53,7 @@ import {
     SCENARIO_TYPES
 } from '@/lib/encounter-utils';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, onSnapshot } from 'firebase/firestore';
+import { collection, addDoc, onSnapshot, getCountFromServer } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -177,11 +177,12 @@ export default function EncounterGenerator() {
         );
 
         try {
-            const nextCount = encounterCount + 1;
+            const categoriesRef = collection(db, 'npc_templates', roomId, 'categories');
+            const snap = await getCountFromServer(categoriesRef);
+            const nextCount = snap.data().count + 1;
             setEncounterCount(nextCount);
 
             // Créer la catégorie
-            const categoriesRef = collection(db, 'npc_templates', roomId, 'categories');
             const categoryDoc = await addDoc(categoriesRef, {
                 name: `Rencontre #${nextCount}`,
                 color: '#ef4444',
