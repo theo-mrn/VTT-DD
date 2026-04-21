@@ -370,8 +370,9 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
       }
     });
 
-    if (requests3D.length === 0 || !show3DAnimations || isBlind) {
-      // Instant simulation if 3D disabled or blind
+    const total3DDice = requests3D.reduce((sum, r) => sum + r.count, 0);
+
+    if (requests3D.length === 0 || !show3DAnimations || isBlind || total3DDice > 50) {
       const simulatedResults: { type: string, value: number }[] = [];
       requests3D.forEach(req => {
         for (let i = 0; i < req.count; i++) {

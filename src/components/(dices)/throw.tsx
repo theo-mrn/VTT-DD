@@ -21,8 +21,28 @@ const TexturedMaterial = ({ skin }: { skin: DiceSkin }) => {
 
     // useTexture throws if texture fails to load, so we use a safe fallback component
     if (!hasTexture) {
+        const needsPhysical = skin.effectType === 'glass' || skin.effectType === 'gem';
+        if (needsPhysical) {
+            return (
+                <meshPhysicalMaterial
+                    color={skin.bodyColor}
+                    metalness={skin.metalness}
+                    roughness={skin.roughness}
+                    envMapIntensity={skin.envMapIntensity}
+                    emissive={skin.emissive}
+                    emissiveIntensity={skin.emissiveIntensity}
+                    transparent={skin.opacity < 1}
+                    opacity={skin.opacity}
+                    clearcoat={1.0}
+                    clearcoatRoughness={0.05}
+                    ior={1.5}
+                    transmission={0.9}
+                    thickness={2.5}
+                />
+            );
+        }
         return (
-            <meshPhysicalMaterial
+            <meshStandardMaterial
                 color={skin.bodyColor}
                 metalness={skin.metalness}
                 roughness={skin.roughness}
@@ -31,11 +51,6 @@ const TexturedMaterial = ({ skin }: { skin: DiceSkin }) => {
                 emissiveIntensity={skin.emissiveIntensity}
                 transparent={skin.opacity < 1}
                 opacity={skin.opacity}
-                clearcoat={1.0}
-                clearcoatRoughness={0.05}
-                ior={1.5}
-                transmission={skin.effectType === 'glass' || skin.effectType === 'gem' ? 0.9 : 0}
-                thickness={2.5}
             />
         );
     }
@@ -58,7 +73,7 @@ const TextureMaterialLoaderInner = ({ skin }: { skin: DiceSkin }) => {
     }
 
     return (
-        <meshPhysicalMaterial
+        <meshStandardMaterial
             map={texture}
             color={'#ffffff'}
             metalness={skin.metalness}
@@ -68,11 +83,6 @@ const TextureMaterialLoaderInner = ({ skin }: { skin: DiceSkin }) => {
             emissiveIntensity={skin.emissiveIntensity}
             transparent={skin.opacity < 1}
             opacity={skin.opacity}
-            clearcoat={1.0}
-            clearcoatRoughness={0.05}
-            ior={1.5}
-            transmission={skin.effectType === 'glass' || skin.effectType === 'gem' ? 0.9 : 0}
-            thickness={2.5}
         />
     );
 };
@@ -80,19 +90,39 @@ const TextureMaterialLoaderInner = ({ skin }: { skin: DiceSkin }) => {
 const TextureMaterialLoader = ({ skin }: { skin: DiceSkin }) => {
     return (
         <React.Suspense fallback={
-            <meshPhysicalMaterial
+            <meshStandardMaterial
                 color={skin.bodyColor}
                 metalness={skin.metalness}
                 roughness={skin.roughness}
                 transparent={skin.opacity < 1}
                 opacity={skin.opacity}
-                clearcoat={1.0}
-                clearcoatRoughness={0.05}
             />
         }>
             <TextureMaterialLoaderInner skin={skin} />
         </React.Suspense>
     );
+};
+
+// Shared AudioContext singleton — avoids creating a new context per collision
+let sharedAudioContext: AudioContext | null = null;
+export const getAudioContext = (): AudioContext | null => {
+    try {
+        if (!sharedAudioContext || sharedAudioContext.state === 'closed') {
+            sharedAudioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+        }
+        return sharedAudioContext;
+    } catch {
+        return null;
+    }
+};
+
+// Global geometry cache — avoids duplicating identical geometries for same die type
+const geometryCache = new Map<string, ReturnType<typeof createBeveledGeometry>>();
+export const getCachedGeometry = (type: string) => {
+    if (!geometryCache.has(type)) {
+        geometryCache.set(type, createBeveledGeometry(type));
+    }
+    return geometryCache.get(type)!;
 };
 
 // Helper for consistent values
@@ -137,7 +167,9 @@ export const createBeveledGeometry = (type: string) => {
         default: geo = new THREE.BoxGeometry(2.2, 2.2, 2.2, 2, 2, 2);
     }
 
-    geo = geo.toNonIndexed();
+    if (geo.index !== null) {
+        geo = geo.toNonIndexed();
+    }
     geo.computeVertexNormals();
 
     const position = geo.attributes.position;
@@ -691,7 +723,7 @@ const Table = () => {
 
     return (
         <group>
-            <mesh ref={ref as any} receiveShadow visible={false}>
+            <mesh ref={ref as any} visible={false}>
                 <planeGeometry args={[100, 100]} />
                 <meshStandardMaterial color="#1a1b26" roughness={0.5} transparent opacity={0} />
             </mesh>
@@ -795,18 +827,19 @@ export const FaceDecorations = ({ face, borderColor }: {
 // Premium Die component with skin-based appearance
 
 // Visual Die Component (Pure Rendering)
-export const VisualDie = React.forwardRef(({ type, skin, isShattered, critType }: {
+export const VisualDie = React.forwardRef(({ type, skin, isShattered, critType, simple = false }: {
     type: string,
     skin: DiceSkin,
     isShattered: boolean,
-    critType: CriticalType
+    critType: CriticalType,
+    simple?: boolean
 }, ref: any) => {
     // We expect the parent to handle positioning/rotation via a Group or similar
     // This component just renders the mesh + effects relative to 0,0,0 or uses context if needed
     // But wait, the original Die uses specific logic attached to physics body.
     // To make it reusable for Preview (no physics), we should wrap the inner rendering parts.
 
-    const { vertices, faces, trueFaces, geometry } = useMemo(() => createBeveledGeometry(type), [type]);
+    const { vertices, faces, trueFaces, geometry } = getCachedGeometry(type);
 
     // We need a way to pass quaternion for particles if it's moving
     // For preview it might be spinning differently.
@@ -837,13 +870,13 @@ export const VisualDie = React.forwardRef(({ type, skin, isShattered, critType }
 
             {/* Main die body */}
             {!isShattered && (
-                <mesh castShadow receiveShadow geometry={geometry}>
+                <mesh geometry={geometry}>
                     <TexturedMaterial skin={skin} />
                 </mesh>
             )}
 
             {/* Rim lighting effect */}
-            {!isShattered && skin.rimLight && (
+            {!isShattered && !simple && skin.rimLight && (
                 <mesh geometry={geometry} scale={[1.02, 1.02, 1.02]}>
                     <meshStandardMaterial
                         color={skin.rimLightColor}
@@ -858,45 +891,17 @@ export const VisualDie = React.forwardRef(({ type, skin, isShattered, critType }
                 </mesh>
             )}
 
-            {/* Edge highlight mesh */}
-            {!isShattered && (
-                <mesh geometry={geometry} scale={[1.04, 1.04, 1.04]}>
-                    <meshPhysicalMaterial
-                        color={skin.edgeColor}
-                        emissive={skin.emissive}
-                        emissiveIntensity={skin.emissiveIntensity * 0.2}
-                        metalness={1.0}
-                        roughness={0.15}
-                        side={THREE.BackSide}
-                        clearcoat={1.0}
-                        clearcoatRoughness={0.1}
-                    />
-                </mesh>
-            )}
 
             {/* Decorative borders on each face (removed per user request) */}
 
 
-            {/* Face numbers with stylized look */}
-            {!isShattered && trueFaces.map((face, index) => {
+            {/* Face numbers */}
+            {!isShattered && !simple && trueFaces.map((face, index) => {
                 const textPos = face.pos.clone().multiplyScalar(1.01);
                 const displayValue = getDieValue(type, index);
 
                 return (
                     <group key={index} position={textPos} quaternion={new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), face.norm)}>
-                        {/* Shadow/depth effect */}
-                        <Text
-                            scale={type === 'd20' ? [0.45, 0.45, 0.45] : [0.7, 0.7, 0.7]}
-                            color={skin.shadowColor}
-                            fontSize={1}
-                            fontWeight={900}
-                            anchorX="center"
-                            anchorY="middle"
-                            position={[0.02, -0.02, -0.01]}
-                        >
-                            {displayValue}
-                        </Text>
-                        {/* Main number */}
                         <Text
                             scale={type === 'd20' ? [0.45, 0.45, 0.45] : [0.7, 0.7, 0.7]}
                             color={skin.textColor}
@@ -904,6 +909,8 @@ export const VisualDie = React.forwardRef(({ type, skin, isShattered, critType }
                             fontWeight={900}
                             anchorX="center"
                             anchorY="middle"
+                            outlineWidth={0.06}
+                            outlineColor={skin.shadowColor}
                         >
                             {displayValue}
                         </Text>
@@ -924,17 +931,21 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
     onResult: (val: string) => void,
     targetValue?: number
 }, fRef: any) => {
-    const { vertices, faces, trueFaces } = useMemo(() => createBeveledGeometry(type), [type]);
+    const { vertices, faces, trueFaces } = getCachedGeometry(type);
     const [stopped, setStopped] = useState(false);
     const [canCheck, setCanCheck] = useState(false);
     const [critType, setCritType] = useState<CriticalType>(null);
     const [isShattered, setIsShattered] = useState(false);
     const lastImpactTime = useRef(0);
+    const _q = useRef(new THREE.Quaternion());
+    const _up = useRef(new THREE.Vector3(0, 1, 0));
+    const _worldNormal = useRef(new THREE.Vector3());
 
     // Procedural WebAudio heavy dice impact generator
     const playClick = useCallback((velocity: number) => {
         try {
-            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+            const ctx = getAudioContext();
+            if (!ctx) return;
 
             // 1. Low frequency "thud" (the weight of the die)
             const osc = ctx.createOscillator();
@@ -947,7 +958,7 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
             osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.08);
 
             // Lowered overall volume for the thud
-            oscGain.gain.setValueAtTime(Math.min(0.1, velocity / 15), ctx.currentTime);
+            oscGain.gain.setValueAtTime(Math.min(0.4, velocity / 5), ctx.currentTime);
             oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
 
             osc.connect(oscGain);
@@ -970,7 +981,7 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
 
             // Lowered overall volume for the scratch/clack
             const noiseGain = ctx.createGain();
-            noiseGain.gain.setValueAtTime(Math.min(0.1, velocity / 30), ctx.currentTime);
+            noiseGain.gain.setValueAtTime(Math.min(0.4, velocity / 10), ctx.currentTime);
             noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03); // Very short snap
 
             noise.connect(noiseFilter);
@@ -988,10 +999,10 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
         mass: 5,
         position,
         args: [vertices as any, faces],
-        material: { friction: 0.15, restitution: 0.5 }, // Balanced friction/restitution
-        linearDamping: 0.08, // Moderate damping
+        material: { friction: 0.15, restitution: 0.5 },
+        linearDamping: 0.08,
         angularDamping: 0.08,
-        allowSleep: false,
+        allowSleep: true,
         onCollide: (e) => {
             const impactVelocity = e.contact.impactVelocity;
             const now = performance.now();
@@ -1052,8 +1063,8 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
             const spin = Math.abs(av[0]) + Math.abs(av[1]) + Math.abs(av[2]);
 
             // If strict target is set, we might want to intervene earlier or just wait for low speed
-            if (speed < 0.5 && spin < 1.0) { // Increased threshold slightly to catch it settling
-                let q = new THREE.Quaternion(quaternion.current[0], quaternion.current[1], quaternion.current[2], quaternion.current[3]);
+            if (speed < 0.5 && spin < 1.0) {
+                const q = _q.current.set(quaternion.current[0], quaternion.current[1], quaternion.current[2], quaternion.current[3]);
 
                 // --- SNAP TO TARGET LOGIC ---
                 if (targetValue) {
@@ -1099,14 +1110,13 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
                 }
                 // -----------------------------
 
-                const up = new THREE.Vector3(0, 1, 0);
+                const up = _up.current;
 
                 let maxDot = -Infinity;
                 let bestIndex = -1;
 
                 trueFaces.forEach((face, index) => {
-                    const worldNormal = face.norm.clone().applyQuaternion(q);
-                    const dot = worldNormal.dot(up);
+                    const dot = _worldNormal.current.copy(face.norm).applyQuaternion(q).dot(up);
                     if (dot > maxDot) {
                         maxDot = dot;
                         bestIndex = index;
@@ -1122,9 +1132,6 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
                         // Optional: force retry or overwrite?
                         // For now we trust the snap above worked.
                     }
-
-                    console.log(`Die stopped. Face: ${bestIndex}, Native: ${resultValue}`);
-
                     // Check for critical on d20
                     if (type === 'd20') {
                         if (resultValue === '20') {
@@ -1283,7 +1290,7 @@ export const DiceThrower = () => {
                 className="absolute left-0 top-0 z-0 size-full"
                 manualstart
             />
-            <Canvas shadows camera={{ position: [0, 40, 0], fov: 45 }} gl={{ alpha: true }} style={{ pointerEvents: 'none' }}>
+            <Canvas camera={{ position: [0, 40, 0], fov: 45 }} gl={{ alpha: true }} style={{ pointerEvents: 'none' }}>
                 {/* Enhanced lighting for metallic materials */}
                 <ambientLight intensity={0.4} />
                 <spotLight
@@ -1291,8 +1298,6 @@ export const DiceThrower = () => {
                     angle={0.5}
                     penumbra={0.5}
                     intensity={2}
-                    castShadow
-                    shadow-mapSize={[2048, 2048]}
                 />
                 <spotLight
                     position={[-10, 30, -10]}
@@ -1306,7 +1311,7 @@ export const DiceThrower = () => {
                 {/* City environment for high-contrast premium reflections */}
                 <Environment preset="city" />
 
-                <Physics gravity={[0, -60, 0]} defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }} allowSleep={false} iterations={20}>
+                <Physics gravity={[0, -60, 0]} defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }} allowSleep={true} iterations={10}>
                     <Table />
                     {dice.map((d, i) => (
                         <Die

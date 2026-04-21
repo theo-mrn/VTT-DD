@@ -327,8 +327,10 @@ export function DiceRoller() {
       }
     });
 
-    if (requests3D.length === 0 || !show3DAnimations || isBlind) {
-      if ((!show3DAnimations || isBlind) && requests3D.length > 0) {
+    const total3DDice = requests3D.reduce((sum, r) => sum + r.count, 0);
+
+    if (requests3D.length === 0 || !show3DAnimations || isBlind || total3DDice > 50) {
+      if ((!show3DAnimations || isBlind || total3DDice > 50) && requests3D.length > 0) {
         // Return targets directly if available, else random
         const simulatedResults: { type: string, value: number }[] = [];
         requests3D.forEach(req => {

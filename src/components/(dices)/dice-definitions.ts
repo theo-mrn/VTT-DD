@@ -838,7 +838,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         bodyColor: '#5a5a5a', // Fallback grey
         edgeColor: '#4a4a4a',
         borderColor: '#3d5c3d', // Moss green accent
-        textColor: '#494949ff', // Light grey text
+        textColor: '#494949', // Light grey text
         shadowColor: '#2a2a2a',
         metalness: 0,
         roughness: 0.95, // Very rough stone

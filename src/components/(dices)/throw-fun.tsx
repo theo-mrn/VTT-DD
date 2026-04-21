@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Physics, usePlane, useConvexPolyhedron, useBox } from '@react-three/cannon';
 import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { getSkinById, DiceSkin, DICE_SKINS } from './dice-definitions';
-import { VisualDie, createBeveledGeometry } from './throw';
+import { VisualDie, createBeveledGeometry, getCachedGeometry, getAudioContext } from './throw';
 
 // ============================================================================
 // WALL & TABLE
@@ -31,7 +31,7 @@ const Table = () => {
 
     return (
         <group>
-            <mesh ref={ref as any} receiveShadow visible={false}>
+            <mesh ref={ref as any} visible={false}>
                 <planeGeometry args={[100, 100]} />
                 <meshStandardMaterial color="#1a1b26" roughness={0.5} transparent opacity={0} />
             </mesh>
@@ -54,20 +54,20 @@ const FunDie = React.forwardRef(({ type, position, impulse, angularVelocity, ski
     angularVelocity: [number, number, number],
     skin: DiceSkin,
 }, fRef: any) => {
-    const { vertices, faces } = useMemo(() => createBeveledGeometry(type), [type]);
+    const { vertices, faces } = getCachedGeometry(type);
     const lastImpactTime = useRef(0);
 
-    // Simplistic click sound on bounce
     const playClick = useCallback((vel: number) => {
+        const ctx = getAudioContext();
+        if (!ctx) return;
         try {
-            const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
             const osc = ctx.createOscillator();
             const oscGain = ctx.createGain();
             osc.type = 'sine';
             const baseFreq = 120 + Math.random() * 40;
             osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.08);
-            oscGain.gain.setValueAtTime(Math.min(0.05, vel / 30), ctx.currentTime);
+            oscGain.gain.setValueAtTime(Math.min(0.4, vel / 5), ctx.currentTime);
             oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
             osc.connect(oscGain);
             oscGain.connect(ctx.destination);
@@ -174,46 +174,28 @@ export const FunDiceThrower: React.FC<FunDiceProps> = ({
                 🎲 {buttonText}
             </button>
 
-            {dice.length > 0 && (
-                <div className="fixed inset-0 pointer-events-none z-[100]">
-                    <Canvas shadows camera={{ position: [0, 40, 0], fov: 45 }} gl={{ alpha: true }} style={{ pointerEvents: 'none' }}>
-                        <ambientLight intensity={0.4} />
-                        <spotLight
-                            position={[15, 40, 15]}
-                            angle={0.5}
-                            penumbra={0.5}
-                            intensity={2}
-                            castShadow
-                            shadow-mapSize={[1024, 1024]}
-                        />
-                        <spotLight
-                            position={[-10, 30, -10]}
-                            angle={0.4}
-                            penumbra={0.8}
-                            intensity={1}
-                            color="#ffeedd"
-                        />
-                        <pointLight position={[0, 20, 0]} intensity={0.8} color="#fff8e7" />
-                        
-                        <Environment preset="city" />
-
-                        {/* Note: we reduce iterations and physics complexity slightly since it's just for fun */}
-                        <Physics gravity={[0, -60, 0]} defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }} allowSleep={true} iterations={10}>
-                            <Table />
-                            {dice.map((d) => (
-                                <FunDie
-                                    key={d.id}
-                                    type={d.type}
-                                    position={d.pos}
-                                    impulse={d.imp}
-                                    angularVelocity={d.ang}
-                                    skin={getSkinById(d.skinId)}
-                                />
-                            ))}
-                        </Physics>
-                    </Canvas>
-                </div>
-            )}
+            <div className="fixed inset-0 pointer-events-none z-[100]" style={{ display: dice.length > 0 ? 'block' : 'none' }}>
+                <Canvas camera={{ position: [0, 40, 0], fov: 45 }} gl={{ alpha: true }} style={{ pointerEvents: 'none' }}>
+                    <ambientLight intensity={0.4} />
+                    <spotLight position={[15, 40, 15]} angle={0.5} penumbra={0.5} intensity={2} />
+                    <spotLight position={[-10, 30, -10]} angle={0.4} penumbra={0.8} intensity={1} color="#ffeedd" />
+                    <pointLight position={[0, 20, 0]} intensity={0.8} color="#fff8e7" />
+                    <Environment preset="city" />
+                    <Physics gravity={[0, -60, 0]} defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }} allowSleep={true} iterations={10}>
+                        <Table />
+                        {dice.map((d) => (
+                            <FunDie
+                                key={d.id}
+                                type={d.type}
+                                position={d.pos}
+                                impulse={d.imp}
+                                angularVelocity={d.ang}
+                                skin={getSkinById(d.skinId)}
+                            />
+                        ))}
+                    </Physics>
+                </Canvas>
+            </div>
         </div>
     );
 };
