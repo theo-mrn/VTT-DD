@@ -29,7 +29,9 @@ import {
     Sliders,
     Trash2,
     Plus,
-    Box
+    Box,
+    Lock,
+    Eye
 } from 'lucide-react';
 import { ThemeExplorerTab } from './theme-portal/ThemeExplorerTab';
 import { ThemePublishTab } from './theme-portal/ThemePublishTab';
@@ -37,6 +39,26 @@ import { MyThemesTab } from './theme-portal/MyThemesTab';
 import { ThemeConfig } from './theme-portal/types';
 import { useCharacter, CustomField } from '@/contexts/CharacterContext';
 import { WidgetCustomGroup, GroupCreationSection } from './FicheWidgets';
+import { useCharacterInventory } from '@/hooks/useCharacterData';
+import { db, doc, updateDoc } from '@/lib/firebase';
+
+interface InventoryItem {
+    id: string;
+    message: string;
+    category: string;
+    quantity: number;
+    visibility?: string;
+}
+
+const categoryShortLabels: Record<string, string> = {
+    'armes-contact': 'Arme',
+    'armes-distance': 'Arme',
+    'armures': 'Armure',
+    'potions': 'Potion',
+    'bourse': 'Bourse',
+    'nourriture': 'Nourriture',
+    'autre': 'Autre',
+};
 
 interface FloatingEditTabsProps {
     customizationForm: Partial<any>; // Replace 'any' with Character when moved to correct context or imported
@@ -458,9 +480,19 @@ export function FloatingEditTabs({
 // Standalone Attributs Dialog — usable outside FloatingEditTabs
 // ─────────────────────────────────────────────────────────────────────────────
 export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
-    const { selectedCharacter, updateCharacter } = useCharacter();
+    const { selectedCharacter, updateCharacter, roomId } = useCharacter();
     const customFields: CustomField[] = selectedCharacter?.customFields ?? [];
     const statRollable: Record<string, boolean> = selectedCharacter?.statRollable ?? {};
+    const privateFields: string[] = selectedCharacter?.privateFields ?? [];
+    const [activeDialogTab, setActiveDialogTab] = useState<'attributs' | 'inventaire'>('attributs');
+
+    const inventory = useCharacterInventory<InventoryItem>(roomId, selectedCharacter?.Nomperso);
+    const handleToggleItemVisibility = async (item: InventoryItem) => {
+        if (!roomId || !selectedCharacter) return;
+        const newVisibility = item.visibility === 'private' ? 'public' : 'private';
+        const itemRef = doc(db, `Inventaire/${roomId}/${selectedCharacter.Nomperso}`, item.id);
+        await updateDoc(itemRef, { visibility: newVisibility });
+    };
 
     const BUILTIN_STATS = [
         { key: 'FOR', label: 'FOR', hasModifier: true },
@@ -469,17 +501,35 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
         { key: 'SAG', label: 'SAG', hasModifier: true },
         { key: 'INT', label: 'INT', hasModifier: true },
         { key: 'CHA', label: 'CHA', hasModifier: true },
+        { key: 'PV', label: 'PV', hasModifier: false },
         { key: 'Defense', label: 'Défense', hasModifier: false },
         { key: 'Contact', label: 'Contact', hasModifier: false },
         { key: 'Magie', label: 'Magie', hasModifier: false },
         { key: 'Distance', label: 'Distance', hasModifier: false },
         { key: 'INIT', label: 'INIT', hasModifier: false },
     ];
+    const INFO_FIELDS = [
+        { key: 'niveau', label: 'Niveau' },
+        { key: 'Profile', label: 'Profil' },
+        { key: 'Race', label: 'Race' },
+        { key: 'Taille', label: 'Taille' },
+        { key: 'Poids', label: 'Poids' },
+        { key: 'deVie', label: 'Dé de Vie' },
+        { key: 'Background', label: 'Background' },
+        { key: 'Description', label: 'Description' },
+    ];
     const defaultRollable: Record<string, boolean> = { FOR: true, DEX: true, CON: true, SAG: true, INT: true, CHA: true, Defense: false, Contact: false, Magie: false, Distance: false, INIT: false };
     const isStatRollable = (key: string) => key in statRollable ? statRollable[key] : defaultRollable[key] ?? false;
     const handleToggleStatRollable = async (key: string) => {
         if (!selectedCharacter) return;
         await updateCharacter(selectedCharacter.id, { statRollable: { ...statRollable, [key]: !isStatRollable(key) } });
+    };
+
+    const isFieldPrivate = (key: string) => privateFields.includes(key);
+    const handleTogglePrivate = async (key: string) => {
+        if (!selectedCharacter) return;
+        const next = isFieldPrivate(key) ? privateFields.filter(k => k !== key) : [...privateFields, key];
+        await updateCharacter(selectedCharacter.id, { privateFields: next });
     };
 
     const emptyDraft = (): Omit<CustomField, 'id'> => ({ label: '', type: 'number', value: 0, isRollable: false, hasModifier: false });
@@ -521,16 +571,27 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
                             <Sliders size={16} /> Champs &amp; Attributs
                         </DialogTitle>
                     </DialogHeader>
+                    <Tabs value={activeDialogTab} onValueChange={(v) => setActiveDialogTab(v as 'attributs' | 'inventaire')} className="w-full">
+                        <TabsList className="w-full grid grid-cols-2 bg-[var(--bg-darker)] rounded-none border-b border-[var(--border-color)] h-auto p-0">
+                            <TabsTrigger value="attributs" className="rounded-none text-xs font-bold uppercase tracking-wider py-2.5 data-[state=active]:bg-[var(--bg-card)] data-[state=active]:text-[var(--accent-brown)]">
+                                Attributs
+                            </TabsTrigger>
+                            <TabsTrigger value="inventaire" className="rounded-none text-xs font-bold uppercase tracking-wider py-2.5 data-[state=active]:bg-[var(--bg-card)] data-[state=active]:text-[var(--accent-brown)]">
+                                Inventaire
+                            </TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="attributs" className="m-0">
                     <div className="overflow-y-auto" style={{ maxHeight: '70vh' }}>
                         <div className="flex flex-col">
                             <div className="flex items-center justify-between px-4 py-2 bg-[var(--bg-darker)] border-b border-[var(--border-color)]">
                                 <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Attributs de base</span>
-                                <span className="text-[10px] text-[var(--text-secondary)] italic">Valeur · Mod · Dés</span>
+                                <span className="text-[10px] text-[var(--text-secondary)] italic">Valeur · Mod · Dés · Vis.</span>
                             </div>
                             {BUILTIN_STATS.map((stat, i) => {
                                 const val = Number(selectedCharacter?.[stat.key] ?? 10);
                                 const mod = stat.hasModifier ? Math.floor((val - 10) / 2) : null;
                                 const rollable = isStatRollable(stat.key);
+                                const isPrivate = isFieldPrivate(stat.key);
                                 return (
                                     <div key={stat.key} className={`flex items-center gap-3 px-4 py-2.5 ${i < BUILTIN_STATS.length - 1 ? 'border-b border-[var(--border-color)]' : ''} hover:bg-[var(--bg-dark)] transition-colors`}>
                                         <span className="w-20 text-sm font-bold text-[var(--text-primary)]">{stat.label}</span>
@@ -539,8 +600,25 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
                                         <div className="flex-1" />
                                         <div className="flex items-center gap-2">
                                             <button onClick={() => handleToggleStatRollable(stat.key)} className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all ${rollable ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)]' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]'}`}>Dés</button>
-                                            <div className="w-4" />
+                                            <button onClick={() => handleTogglePrivate(stat.key)} title={isPrivate ? 'Visible par vous et le MJ uniquement' : 'Visible par tous'} className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all flex items-center gap-1 ${isPrivate ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)]' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]'}`}>
+                                                {isPrivate ? <Lock size={11} /> : <Eye size={11} />}
+                                            </button>
                                         </div>
+                                    </div>
+                                );
+                            })}
+                            <div className="flex items-center justify-between px-4 py-2 bg-[var(--bg-darker)] border-y border-[var(--border-color)]">
+                                <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Informations générales</span>
+                                <span className="text-[10px] text-[var(--text-secondary)] italic">Vis.</span>
+                            </div>
+                            {INFO_FIELDS.map((info, i) => {
+                                const isPrivate = isFieldPrivate(info.key);
+                                return (
+                                    <div key={info.key} className={`flex items-center gap-3 px-4 py-2.5 ${i < INFO_FIELDS.length - 1 ? 'border-b border-[var(--border-color)]' : ''} hover:bg-[var(--bg-dark)] transition-colors`}>
+                                        <span className="flex-1 text-sm font-bold text-[var(--text-primary)] truncate">{info.label}</span>
+                                        <button onClick={() => handleTogglePrivate(info.key)} title={isPrivate ? 'Visible par vous et le MJ uniquement' : 'Visible par tous'} className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all flex items-center gap-1 ${isPrivate ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)]' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]'}`}>
+                                            {isPrivate ? <Lock size={11} /> : <Eye size={11} />}
+                                        </button>
                                     </div>
                                 );
                             })}
@@ -553,6 +631,7 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
                             ) : (
                                 customFields.map((field, i) => {
                                     const rollable = !!field.isRollable;
+                                    const isPrivate = isFieldPrivate(field.id);
                                     return (
                                         <div key={field.id} className={`flex items-center gap-3 px-4 py-2.5 ${i < customFields.length - 1 ? 'border-b border-[var(--border-color)]' : ''} hover:bg-[var(--bg-dark)] transition-colors cursor-pointer group`} onClick={() => openEditFieldDialog(field)}>
                                             <span className="w-20 text-sm font-bold truncate text-[var(--text-primary)]">{field.label}</span>
@@ -561,6 +640,9 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
                                             <div className="flex-1" />
                                             <div className="flex items-center gap-2">
                                                 <button onClick={(e) => { e.stopPropagation(); if (selectedCharacter) { updateCharacter(selectedCharacter.id, { customFields: customFields.map(f => f.id === field.id ? { ...f, isRollable: !f.isRollable } : f) }); } }} className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all ${rollable ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)]' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]'}`}>Dés</button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleTogglePrivate(field.id); }} title={isPrivate ? 'Visible par vous et le MJ uniquement' : 'Visible par tous'} className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all flex items-center gap-1 ${isPrivate ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)]' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]'}`}>
+                                                    {isPrivate ? <Lock size={11} /> : <Eye size={11} />}
+                                                </button>
                                                 <button onClick={(e) => { e.stopPropagation(); handleDeleteField(field.id); }} className="opacity-0 group-hover:opacity-100 text-[var(--text-secondary)] hover:text-red-400 transition-all w-4 flex justify-center"><Trash2 size={13} /></button>
                                             </div>
                                         </div>
@@ -569,6 +651,35 @@ export function AttributsDialog({ open, onOpenChange }: { open: boolean; onOpenC
                             )}
                         </div>
                     </div>
+                        </TabsContent>
+                        <TabsContent value="inventaire" className="m-0">
+                            <div className="overflow-y-auto" style={{ maxHeight: '70vh' }}>
+                                <div className="flex flex-col">
+                                    <div className="flex items-center justify-between px-4 py-2 bg-[var(--bg-darker)] border-b border-[var(--border-color)]">
+                                        <span className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-wider">Objets</span>
+                                        <span className="text-[10px] text-[var(--text-secondary)] italic">Qté · Vis.</span>
+                                    </div>
+                                    {inventory.length === 0 ? (
+                                        <div className="px-4 py-5 text-sm text-[var(--text-secondary)] italic text-center">Inventaire vide.</div>
+                                    ) : (
+                                        inventory.map((item, i) => {
+                                            const isPrivate = item.visibility === 'private';
+                                            return (
+                                                <div key={item.id} className={`flex items-center gap-3 px-4 py-2.5 ${i < inventory.length - 1 ? 'border-b border-[var(--border-color)]' : ''} hover:bg-[var(--bg-dark)] transition-colors`}>
+                                                    <span className="text-sm font-bold truncate text-[var(--text-primary)] flex-1">{item.message}</span>
+                                                    <span className="text-[10px] text-[var(--text-secondary)] uppercase shrink-0">{categoryShortLabels[item.category] ?? item.category}</span>
+                                                    <span className="w-8 text-sm font-mono text-[var(--text-primary)] text-center shrink-0">×{item.quantity}</span>
+                                                    <button onClick={() => handleToggleItemVisibility(item)} title={isPrivate ? 'Visible par vous et le MJ uniquement' : 'Visible par tous'} className={`text-[10px] font-bold px-2.5 py-1 rounded border transition-all flex items-center gap-1 shrink-0 ${isPrivate ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)]' : 'bg-transparent text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent-brown)]'}`}>
+                                                        {isPrivate ? <Lock size={11} /> : <Eye size={11} />}
+                                                    </button>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+                            </div>
+                        </TabsContent>
+                    </Tabs>
                 </DialogContent>
             </Dialog>
 

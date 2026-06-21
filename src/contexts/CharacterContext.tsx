@@ -62,6 +62,7 @@ export interface Character {
   statRollable?: Record<string, boolean>; // overrides for built-in stat rollability
   Background?: string;
   Description?: string;
+  privateFields?: string[]; // field keys (built-in stat keys, 'Background', 'Description', or customField ids) hidden from other players
   [key: string]: any;
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { Heart, Shield, X, User, Package } from 'lucide-react';
+import { Heart, Shield, X, User, Package, Lock } from 'lucide-react';
 import { db, doc, getDoc } from '@/lib/firebase';
 import { useCalculatedBonuses } from '@/hooks/useCharacterData';
 import { useGame } from '@/contexts/GameContext';
@@ -36,7 +36,10 @@ interface Character {
   CHA?: number;
   type?: string;
   deVie?: string;
+  privateFields?: string[];
 }
+
+const PRIVATE_PLACEHOLDER = '???';
 
 interface CharacterSheetProps {
   characterId: string;
@@ -91,6 +94,10 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
   };
 
   if (!character) return null;
+
+  const canSeePrivate = isMJ || userPersoId === character.id;
+  const isFieldPrivate = (key: string) => !!character.privateFields?.includes(key);
+  const isFieldHidden = (key: string) => isFieldPrivate(key) && !canSeePrivate;
 
   return (
     <TooltipProvider>
@@ -163,32 +170,32 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                       <div className="bg-[#252525] p-4 rounded-xl border border-[#3a3a3a]">
                         <div className="grid grid-cols-2 gap-3 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Niveau</span>
-                            <span className="text-white font-medium">{character.niveau}</span>
+                            <span className="text-gray-400 flex items-center gap-1">Niveau {isFieldPrivate('niveau') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-white font-medium">{isFieldHidden('niveau') ? PRIVATE_PLACEHOLDER : character.niveau}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Initiative</span>
-                            <span className="text-white font-medium">{getDisplayValue("INIT")}</span>
+                            <span className="text-gray-400 flex items-center gap-1">Initiative {isFieldPrivate('INIT') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-white font-medium">{isFieldHidden('INIT') ? PRIVATE_PLACEHOLDER : getDisplayValue("INIT")}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Profil</span>
-                            <span className="text-white font-medium">{character.Profile}</span>
+                            <span className="text-gray-400 flex items-center gap-1">Profil {isFieldPrivate('Profile') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-white font-medium">{isFieldHidden('Profile') ? PRIVATE_PLACEHOLDER : character.Profile}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Race</span>
-                            <span className="text-white font-medium">{character.Race}</span>
+                            <span className="text-gray-400 flex items-center gap-1">Race {isFieldPrivate('Race') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-white font-medium">{isFieldHidden('Race') ? PRIVATE_PLACEHOLDER : character.Race}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Taille</span>
-                            <span className="text-white font-medium">{character.Taille} cm</span>
+                            <span className="text-gray-400 flex items-center gap-1">Taille {isFieldPrivate('Taille') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-white font-medium">{isFieldHidden('Taille') ? PRIVATE_PLACEHOLDER : `${character.Taille} cm`}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-400">Poids</span>
-                            <span className="text-white font-medium">{character.Poids} kg</span>
+                            <span className="text-gray-400 flex items-center gap-1">Poids {isFieldPrivate('Poids') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-white font-medium">{isFieldHidden('Poids') ? PRIVATE_PLACEHOLDER : `${character.Poids} kg`}</span>
                           </div>
                           <div className="flex justify-between col-span-2">
-                            <span className="text-gray-400">Dé de Vie</span>
-                            <span className="text-white font-medium">{character.deVie}</span>
+                            <span className="text-gray-400 flex items-center gap-1">Dé de Vie {isFieldPrivate('deVie') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-white font-medium">{isFieldHidden('deVie') ? PRIVATE_PLACEHOLDER : character.deVie}</span>
                           </div>
                         </div>
                       </div>
@@ -213,17 +220,17 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                       <div className="flex flex-wrap justify-between gap-4 text-sm">
                         {character.Profile && (
                           <div className="flex items-center gap-2">
-                            <span className="text-gray-400">Profil</span>
-                            <span className="text-white font-medium">{character.Profile}</span>
+                            <span className="text-gray-400 flex items-center gap-1">Profil {isFieldPrivate('Profile') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                            <span className="text-white font-medium">{isFieldHidden('Profile') ? PRIVATE_PLACEHOLDER : character.Profile}</span>
                           </div>
                         )}
                         <div className="flex items-center gap-2">
-                          <span className="text-gray-400">Niveau</span>
-                          <span className="text-white font-bold text-lg">{character.niveau}</span>
+                          <span className="text-gray-400 flex items-center gap-1">Niveau {isFieldPrivate('niveau') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                          <span className="text-white font-bold text-lg">{isFieldHidden('niveau') ? PRIVATE_PLACEHOLDER : character.niveau}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className="text-gray-400">Initiative</span>
-                          <span className="text-white font-bold text-lg">{getDisplayValue("INIT")}</span>
+                          <span className="text-gray-400 flex items-center gap-1">Initiative {isFieldPrivate('INIT') && <Lock size={10} className="text-[#c0a080]" />}</span>
+                          <span className="text-white font-bold text-lg">{isFieldHidden('INIT') ? PRIVATE_PLACEHOLDER : getDisplayValue("INIT")}</span>
                         </div>
                       </div>
                     </div>
@@ -237,16 +244,20 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                       <div className="flex items-center justify-center gap-4 px-6 py-4 bg-[#252525] rounded-xl border border-[#3a3a3a] hover:border-[#4a4a4a] transition-colors">
                         <Heart className="text-red-500" size={28} />
                         <div className="text-left">
-                          <div className="text-xs text-gray-400">Points de Vie</div>
+                          <div className="text-xs text-gray-400 flex items-center gap-1">Points de Vie {isFieldPrivate('PV') && <Lock size={10} className="text-[#c0a080]" />}</div>
                           <div className="text-2xl font-bold text-white">
-                            {getDisplayValue("PV")} / {getDisplayValue("PV_Max")}
+                            {(isFieldHidden('PV') || isFieldHidden('PV_Max')) ? PRIVATE_PLACEHOLDER : `${getDisplayValue("PV")} / ${getDisplayValue("PV_Max")}`}
                           </div>
                         </div>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Base: {character.PV} / {character.PV_Max}</p>
-                      <p>Bonus: {bonuses ? bonuses.PV || 0 : 0} / {bonuses ? bonuses.PV_Max || 0 : 0}</p>
+                      {(isFieldHidden('PV') || isFieldHidden('PV_Max')) ? <p>Information privée.</p> : (
+                        <>
+                          <p>Base: {character.PV} / {character.PV_Max}</p>
+                          <p>Bonus: {bonuses ? bonuses.PV || 0 : 0} / {bonuses ? bonuses.PV_Max || 0 : 0}</p>
+                        </>
+                      )}
                     </TooltipContent>
                   </Tooltip>
 
@@ -255,14 +266,18 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                       <div className="flex items-center justify-center gap-4 px-6 py-4 bg-[#252525] rounded-xl border border-[#3a3a3a] hover:border-[#4a4a4a] transition-colors">
                         <Shield className="text-blue-500" size={28} />
                         <div className="text-left">
-                          <div className="text-xs text-gray-400">Défense</div>
-                          <div className="text-2xl font-bold text-white">{getDisplayValue("Defense")}</div>
+                          <div className="text-xs text-gray-400 flex items-center gap-1">Défense {isFieldPrivate('Defense') && <Lock size={10} className="text-[#c0a080]" />}</div>
+                          <div className="text-2xl font-bold text-white">{isFieldHidden('Defense') ? PRIVATE_PLACEHOLDER : getDisplayValue("Defense")}</div>
                         </div>
                       </div>
                     </TooltipTrigger>
                     <TooltipContent>
-                      <p>Base: {character.Defense}</p>
-                      <p>Bonus: {bonuses ? bonuses.Defense || 0 : 0}</p>
+                      {isFieldHidden('Defense') ? <p>Information privée.</p> : (
+                        <>
+                          <p>Base: {character.Defense}</p>
+                          <p>Bonus: {bonuses ? bonuses.Defense || 0 : 0}</p>
+                        </>
+                      )}
                     </TooltipContent>
                   </Tooltip>
                 </div>
@@ -278,24 +293,40 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                       { name: 'INT', fullName: 'Intelligence', value: getModifier(character.INT || 0), base: character.INT },
                       { name: 'SAG', fullName: 'Sagesse', value: getModifier(character.SAG || 0), base: character.SAG },
                       { name: 'CHA', fullName: 'Charisme', value: getModifier(character.CHA || 0), base: character.CHA },
-                    ].map((ability) => (
-                      <Tooltip key={ability.name}>
-                        <TooltipTrigger className="w-full">
-                          <div className="bg-[#252525] p-3 rounded-xl border border-[#3a3a3a] text-center hover:border-[#4a4a4a] transition-colors">
-                            <div className="text-xs font-semibold text-[#c0a080] mb-1">{ability.name}</div>
-                            <div className={`text-2xl font-bold ${ability.value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                              {ability.value >= 0 ? '+' : ''}{ability.value}
+                    ].map((ability) => {
+                      const hidden = isFieldHidden(ability.name);
+                      return (
+                        <Tooltip key={ability.name}>
+                          <TooltipTrigger className="w-full">
+                            <div className="bg-[#252525] p-3 rounded-xl border border-[#3a3a3a] text-center hover:border-[#4a4a4a] transition-colors">
+                              <div className="text-xs font-semibold text-[#c0a080] mb-1 flex items-center justify-center gap-1">
+                                {ability.name}
+                                {isFieldPrivate(ability.name) && <Lock size={9} />}
+                              </div>
+                              {hidden ? (
+                                <div className="text-2xl font-bold text-gray-400">{PRIVATE_PLACEHOLDER}</div>
+                              ) : (
+                                <>
+                                  <div className={`text-2xl font-bold ${ability.value >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                    {ability.value >= 0 ? '+' : ''}{ability.value}
+                                  </div>
+                                  <div className="text-xs text-gray-500 mt-1">{ability.base}</div>
+                                </>
+                              )}
                             </div>
-                            <div className="text-xs text-gray-500 mt-1">{ability.base}</div>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p className="font-medium">{ability.fullName}</p>
-                          <p>Base: {ability.base}</p>
-                          <p>Bonus: {bonuses ? bonuses[ability.name] || 0 : 0}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    ))}
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {hidden ? <p>Information privée.</p> : (
+                              <>
+                                <p className="font-medium">{ability.fullName}</p>
+                                <p>Base: {ability.base}</p>
+                                <p>Bonus: {bonuses ? bonuses[ability.name] || 0 : 0}</p>
+                              </>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -307,20 +338,30 @@ export default function CharacterSheet({ characterId, roomId, onClose }: Charact
                       { name: 'Contact', value: getDisplayValue("Contact"), color: 'text-orange-400' },
                       { name: 'Distance', value: getDisplayValue("Distance"), color: 'text-green-400' },
                       { name: 'Magie', value: getDisplayValue("Magie"), color: 'text-purple-400' }
-                    ].map((stat) => (
-                      <Tooltip key={stat.name}>
-                        <TooltipTrigger className="w-full">
-                          <div className="bg-[#252525] p-4 rounded-xl border border-[#3a3a3a] text-center hover:border-[#4a4a4a] transition-colors">
-                            <h4 className="text-sm font-medium text-gray-300 mb-1">{stat.name}</h4>
-                            <span className={`text-2xl font-bold ${stat.color}`}>{stat.value}</span>
-                          </div>
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Base: {character[stat.name as keyof Character]}</p>
-                          <p>Bonus: {bonuses ? bonuses[stat.name] || 0 : 0}</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    ))}
+                    ].map((stat) => {
+                      const hidden = isFieldHidden(stat.name);
+                      return (
+                        <Tooltip key={stat.name}>
+                          <TooltipTrigger className="w-full">
+                            <div className="bg-[#252525] p-4 rounded-xl border border-[#3a3a3a] text-center hover:border-[#4a4a4a] transition-colors">
+                              <h4 className="text-sm font-medium text-gray-300 mb-1 flex items-center justify-center gap-1">
+                                {stat.name}
+                                {isFieldPrivate(stat.name) && <Lock size={9} />}
+                              </h4>
+                              <span className={`text-2xl font-bold ${hidden ? 'text-gray-400' : stat.color}`}>{hidden ? PRIVATE_PLACEHOLDER : stat.value}</span>
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {hidden ? <p>Information privée.</p> : (
+                              <>
+                                <p>Base: {character[stat.name as keyof Character]}</p>
+                                <p>Bonus: {bonuses ? bonuses[stat.name] || 0 : 0}</p>
+                              </>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
+                      );
+                    })}
                   </div>
                 </div>
               </div>

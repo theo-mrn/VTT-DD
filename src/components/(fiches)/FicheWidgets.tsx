@@ -2,9 +2,10 @@
 
 import React, { useState } from 'react';
 import { useCharacter, Character, CustomField } from '@/contexts/CharacterContext';
+import { useGame } from '@/contexts/GameContext';
 import CharacterImage from '@/components/(fiches)/CharacterImage';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Heart, Shield, Info } from 'lucide-react';
+import { Heart, Shield, Info, Lock } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -17,6 +18,17 @@ import useMeasure from 'react-use-measure';
 interface WidgetProps {
     style?: React.CSSProperties;
     onRaceClick?: (race: string) => void;
+}
+
+const PRIVATE_PLACEHOLDER = '???';
+
+function useFieldVisibility() {
+    const { selectedCharacter } = useCharacter();
+    const { persoId, isMJ } = useGame();
+    const canSeePrivate = isMJ || (!!selectedCharacter && persoId === selectedCharacter.id);
+    const isFieldPrivate = (fieldId: string) => !!selectedCharacter?.privateFields?.includes(fieldId);
+    const isFieldHidden = (fieldId: string) => isFieldPrivate(fieldId) && !canSeePrivate;
+    return { isFieldPrivate, isFieldHidden };
 }
 
 export const WidgetAvatar: React.FC<WidgetProps> = ({ style }) => {
@@ -42,11 +54,18 @@ export const WidgetAvatar: React.FC<WidgetProps> = ({ style }) => {
 
 export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => {
     const { selectedCharacter, getDisplayValue } = useCharacter();
+    const { isFieldPrivate, isFieldHidden } = useFieldVisibility();
     const [ref, bounds] = useMeasure();
 
     if (!selectedCharacter) return null;
 
     const fontSize = bounds.height ? Math.min(Math.max(bounds.height / 15, 10), 100) : 12;
+
+    const renderInfo = (fieldId: string, label: string, value: React.ReactNode) => (
+        <div>
+            {label}: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{isFieldHidden(fieldId) ? PRIVATE_PLACEHOLDER : value}</span>
+        </div>
+    );
 
     return (
         <div className="h-full p-2 overflow-hidden" ref={ref}>
@@ -58,21 +77,25 @@ export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => 
                     {selectedCharacter.Nomperso}
                 </h2>
                 <div className="grid grid-cols-1 xs:grid-cols-2 gap-x-2 gap-y-1 flex-1 content-evenly items-center text-[color:var(--text-primary,#d4d4d4)]">
-                    <div>Niveau: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter.niveau}</span></div>
-                    <div>Initiative: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{getDisplayValue("INIT")}</span></div>
-                    <div>Profil: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter.Profile}</span></div>
-                    <div>Taille: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter.Taille} cm</span></div>
+                    {renderInfo('niveau', 'Niveau', selectedCharacter.niveau)}
+                    {renderInfo('INIT', 'Initiative', getDisplayValue("INIT"))}
+                    {renderInfo('Profile', 'Profil', selectedCharacter.Profile)}
+                    {renderInfo('Taille', 'Taille', `${selectedCharacter.Taille} cm`)}
                     <div>
                         Race:
-                        <span
-                            className="text-[color:var(--text-secondary,#a0a0a0)] underline cursor-pointer ml-1"
-                            onClick={() => onRaceClick && onRaceClick(selectedCharacter.Race || "")}
-                        >
-                            {selectedCharacter.Race}
-                        </span>
+                        {isFieldHidden('Race') ? (
+                            <span className="text-[color:var(--text-secondary,#a0a0a0)] ml-1">{PRIVATE_PLACEHOLDER}</span>
+                        ) : (
+                            <span
+                                className="text-[color:var(--text-secondary,#a0a0a0)] underline cursor-pointer ml-1"
+                                onClick={() => onRaceClick && onRaceClick(selectedCharacter.Race || "")}
+                            >
+                                {selectedCharacter.Race}
+                            </span>
+                        )}
                     </div>
-                    <div>Poids: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter.Poids} Kg</span></div>
-                    <div>Dé de Vie: <span className="text-[color:var(--text-secondary,#a0a0a0)]">{selectedCharacter.deVie}</span></div>
+                    {renderInfo('Poids', 'Poids', `${selectedCharacter.Poids} Kg`)}
+                    {renderInfo('deVie', 'Dé de Vie', selectedCharacter.deVie)}
 
                     <Dialog>
                         <DialogTrigger asChild>
@@ -89,15 +112,25 @@ export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => 
                             </DialogHeader>
                             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
                                 <div className="space-y-1">
-                                    <h3 className="text-sm font-bold text-[color:var(--text-secondary,#c0a0a0)] uppercase tracking-wider">Background</h3>
+                                    <h3 className="text-sm font-bold text-[color:var(--text-secondary,#c0a0a0)] uppercase tracking-wider flex items-center gap-1.5">
+                                        Background
+                                        {isFieldPrivate('Background') && <Lock size={12} className="text-[var(--accent-brown)]" />}
+                                    </h3>
                                     <div className="bg-[var(--bg-dark)] p-3 rounded-lg border border-[var(--border-color)] text-sm whitespace-pre-wrap">
-                                        {selectedCharacter.Background || "Aucun background défini."}
+                                        {isFieldHidden('Background')
+                                            ? "Information privée."
+                                            : (selectedCharacter.Background || "Aucun background défini.")}
                                     </div>
                                 </div>
                                 <div className="space-y-1">
-                                    <h3 className="text-sm font-bold text-[color:var(--text-secondary,#c0a0a0)] uppercase tracking-wider">Description</h3>
+                                    <h3 className="text-sm font-bold text-[color:var(--text-secondary,#c0a0a0)] uppercase tracking-wider flex items-center gap-1.5">
+                                        Description
+                                        {isFieldPrivate('Description') && <Lock size={12} className="text-[var(--accent-brown)]" />}
+                                    </h3>
                                     <div className="bg-[var(--bg-dark)] p-3 rounded-lg border border-[var(--border-color)] text-sm whitespace-pre-wrap">
-                                        {selectedCharacter.Description || "Aucune description définie."}
+                                        {isFieldHidden('Description')
+                                            ? "Information privée."
+                                            : (selectedCharacter.Description || "Aucune description définie.")}
                                     </div>
                                 </div>
                             </div>
@@ -111,6 +144,7 @@ export const WidgetDetails: React.FC<WidgetProps> = ({ style, onRaceClick }) => 
 
 export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?: 'horizontal' | 'vertical' | 'grid', styleOption?: 'separated' | 'unified', justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch' }> = ({ style, fieldIds = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'], layout = 'grid', styleOption = 'separated', justify = 'center' }) => {
     const { selectedCharacter, getDisplayModifier, getModifier, categorizedBonuses } = useCharacter();
+    const { isFieldPrivate, isFieldHidden } = useFieldVisibility();
 
     const isUnified = styleOption === 'unified';
     const gapClass = isUnified ? '' : 'gap-1 md:gap-2';
@@ -174,13 +208,20 @@ export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?:
                     ? "p-1 text-center h-full flex flex-col justify-center min-h-[50px] overflow-hidden"
                     : "bg-[color:var(--bg-secondary,#2a2a2a)] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] text-center h-full flex flex-col justify-center min-h-[50px] overflow-hidden";
 
+                const hidden = isFieldHidden(name);
+
                 return (
                     <Tooltip key={name}>
                         <TooltipTrigger asChild>
                             <div className={childClasses} style={isUnified ? {} : style}>
-                                <div className="text-[color:var(--text-secondary,#c0a0a0)] font-semibold text-xs sm:text-sm truncate" title={label}>{label}</div>
+                                <div className="text-[color:var(--text-secondary,#c0a0a0)] font-semibold text-xs sm:text-sm truncate flex items-center justify-center gap-1" title={label}>
+                                    {label}
+                                    {isFieldPrivate(name) && <Lock size={9} className="text-[var(--accent-brown)] shrink-0" />}
+                                </div>
 
-                                {displayValueStr !== null ? (
+                                {hidden ? (
+                                    <div className="text-lg sm:text-xl md:text-2xl font-bold leading-none text-[color:var(--text-secondary,#a0a0a0)]">{PRIVATE_PLACEHOLDER}</div>
+                                ) : displayValueStr !== null ? (
                                     <div className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] leading-none mt-1">
                                         {displayValueStr}
                                     </div>
@@ -197,7 +238,9 @@ export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?:
                             </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                            {isCustom ? (
+                            {hidden ? (
+                                <p>Information privée.</p>
+                            ) : isCustom ? (
                                 <p>Valeur personnalisée: {String(customField.value)}</p>
                             ) : (
                                 <>
@@ -216,6 +259,7 @@ export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?:
 
 export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?: 'horizontal' | 'vertical' | 'grid', styleOption?: 'separated' | 'unified', justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch' }> = ({ style, fieldIds = ['PV', 'Defense'], layout = 'horizontal', styleOption = 'separated', justify = 'center' }) => {
     const { selectedCharacter, getDisplayValue, categorizedBonuses } = useCharacter();
+    const { isFieldPrivate, isFieldHidden } = useFieldVisibility();
 
     const isUnified = styleOption === 'unified';
     const gapClass = isUnified ? '' : 'gap-1';
@@ -253,6 +297,9 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
                     ? `px-4 py-1 flex flex-row justify-between items-center gap-2 h-full min-h-[50px] ${widthClass}`
                     : `bg-[color:var(--bg-secondary,#2a2a2a)] px-4 py-1 rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] flex flex-row justify-between items-center gap-2 h-full min-h-[50px] ${widthClass}`;
 
+                const hidden = isFieldHidden(name) || (isPV && isFieldHidden('PV_Max'));
+                const isPrivate = isFieldPrivate(name) || (isPV && isFieldPrivate('PV_Max'));
+
                 let displayVal: string | number;
                 if (isCustom) {
                     if (customField.type === 'boolean') displayVal = customField.value ? '✓' : '✗';
@@ -269,12 +316,15 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
                                 <div className="flex items-center space-x-1 cursor-help">
                                     {isPV ? <Heart className="text-red-500" size={16} /> : <Shield className={isCustom ? "text-[color:var(--accent-brown)]" : "text-blue-500"} size={16} />}
                                     <span className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] truncate max-w-[120px] sm:max-w-[200px]" title={isCustom ? label : undefined}>
-                                        {isCustom ? `${label}: ${displayVal}` : displayVal}
+                                        {hidden ? (isCustom ? `${label}: ${PRIVATE_PLACEHOLDER}` : PRIVATE_PLACEHOLDER) : (isCustom ? `${label}: ${displayVal}` : displayVal)}
                                     </span>
+                                    {isPrivate && <Lock size={10} className="text-[var(--accent-brown)] shrink-0" />}
                                 </div>
                             </TooltipTrigger>
                             <TooltipContent>
-                                {isCustom ? (
+                                {hidden ? (
+                                    <p>Information privée.</p>
+                                ) : isCustom ? (
                                     <p>Valeur personnalisée: {String(customField.value)}</p>
                                 ) : (
                                     <>
@@ -294,6 +344,7 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
 
 export const WidgetCombatStats: React.FC<WidgetProps & { fieldIds?: string[], layout?: 'horizontal' | 'vertical' | 'grid', styleOption?: 'separated' | 'unified', justify?: 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch' }> = ({ style, fieldIds = ['Contact', 'Distance', 'Magie'], layout = 'grid', styleOption = 'separated', justify = 'center' }) => {
     const { selectedCharacter, getDisplayValue, categorizedBonuses } = useCharacter();
+    const { isFieldPrivate, isFieldHidden } = useFieldVisibility();
 
     const isUnified = styleOption === 'unified';
     const gapClass = isUnified ? '' : 'gap-1';
@@ -332,6 +383,8 @@ export const WidgetCombatStats: React.FC<WidgetProps & { fieldIds?: string[], la
                     valueStr = getDisplayValue(name as any);
                 }
 
+                const hidden = isFieldHidden(name);
+
                 const childClasses = isUnified
                     ? "p-1 text-center h-full flex flex-col justify-center overflow-hidden min-h-[50px]"
                     : "bg-[color:var(--bg-secondary,#2a2a2a)] p-1 rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] text-center h-full flex flex-col justify-center overflow-hidden min-h-[50px]";
@@ -340,12 +393,17 @@ export const WidgetCombatStats: React.FC<WidgetProps & { fieldIds?: string[], la
                     <Tooltip key={name}>
                         <TooltipTrigger asChild>
                             <div className={childClasses} style={isUnified ? {} : style}>
-                                <h3 className="text-[10px] sm:text-xs md:text-sm font-semibold text-[color:var(--text-secondary,#c0a0a0)] mb-0.5 truncate" title={label}>{label}</h3>
-                                <span className="text-base sm:text-lg md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] leading-none">{valueStr}</span>
+                                <h3 className="text-[10px] sm:text-xs md:text-sm font-semibold text-[color:var(--text-secondary,#c0a0a0)] mb-0.5 truncate flex items-center justify-center gap-1" title={label}>
+                                    {label}
+                                    {isFieldPrivate(name) && <Lock size={9} className="text-[var(--accent-brown)] shrink-0" />}
+                                </h3>
+                                <span className="text-base sm:text-lg md:text-xl font-bold text-[color:var(--text-primary,#d4d4d4)] leading-none">{hidden ? PRIVATE_PLACEHOLDER : valueStr}</span>
                             </div>
                         </TooltipTrigger>
                         <TooltipContent>
-                            {isCustom ? (
+                            {hidden ? (
+                                <p>Information privée.</p>
+                            ) : isCustom ? (
                                 <p>Valeur personnalisée: {String(customField.value)}</p>
                             ) : (
                                 <>
@@ -373,6 +431,7 @@ interface WidgetCustomGroupProps extends WidgetProps {
 
 export const WidgetCustomGroup: React.FC<WidgetCustomGroupProps> = ({ style, label, fieldIds = [], layout = 'horizontal', styleOption = 'separated', justify = 'center' }) => {
     const { selectedCharacter, getDisplayValue, getDisplayModifier } = useCharacter();
+    const { isFieldPrivate, isFieldHidden } = useFieldVisibility();
 
     if (!selectedCharacter) return null;
 
@@ -439,6 +498,7 @@ export const WidgetCustomGroup: React.FC<WidgetCustomGroupProps> = ({ style, lab
                 <div className={containerClassName} style={containerStyle}>
                     {resolvedFields.map((field) => {
                         const isBaseAbility = ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'].includes(field.id);
+                        const hidden = isFieldHidden(field.id) || (field.id === 'PV' && isFieldHidden('PV_Max'));
 
                         let displayValue: string;
                         let mod: number | null = null;
@@ -465,10 +525,13 @@ export const WidgetCustomGroup: React.FC<WidgetCustomGroupProps> = ({ style, lab
                                 className={childClasses}
                                 style={isUnified ? {} : style}
                             >
-                                <span className="text-[9px] sm:text-[10px] uppercase font-bold text-[color:var(--text-secondary,#c0a0a0)] tracking-wider truncate mb-0.5" title={field.label}>
+                                <span className="text-[9px] sm:text-[10px] uppercase font-bold text-[color:var(--text-secondary,#c0a0a0)] tracking-wider truncate mb-0.5 flex items-center justify-center gap-1" title={field.label}>
                                     {field.label}
+                                    {isFieldPrivate(field.id) && <Lock size={8} className="text-[var(--accent-brown)] shrink-0" />}
                                 </span>
-                                {mod !== null ? (
+                                {hidden ? (
+                                    <div className="text-sm sm:text-base md:text-xl font-bold text-[color:var(--text-secondary,#a0a0a0)] leading-none mt-1">{PRIVATE_PLACEHOLDER}</div>
+                                ) : mod !== null ? (
                                     <>
                                         <div className={`text-lg sm:text-xl md:text-2xl font-bold leading-none ${mod >= 0 ? 'text-[color:var(--text-primary,#22c55e)]' : 'text-red-500'}`}>
                                             {fmtMod(mod)}

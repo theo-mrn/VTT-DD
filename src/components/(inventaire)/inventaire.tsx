@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
-import { Search, Plus, Sword, Target, Shield, Beaker, ChevronRight, Coins, Apple, X, MinusCircle, PlusCircle } from 'lucide-react';
+import { Search, Plus, Sword, Target, Shield, Beaker, ChevronRight, Coins, Apple, X, MinusCircle, PlusCircle, Lock, Eye } from 'lucide-react';
 import { db, doc, collection, updateDoc, setDoc, deleteDoc, addDoc, getDoc, getDocs, query, where } from '@/lib/firebase';
 import { toast } from 'sonner';
 import { useCharacterInventory, useCharacterBonuses, useSingleItemBonus } from '@/hooks/useCharacterData';
@@ -65,7 +65,12 @@ const categoryIcons: Record<string, React.ReactNode> = {
   'autre': <ChevronRight className="w-6 h-6 text-[var(--accent-brown)]" />,
 };
 
+const PRIVATE_PLACEHOLDER = '???';
+
 export default function InventoryManagement({ playerName, roomId, canEdit = true, onHeightChange, style }: InventoryManagementProps) {
+  // canEdit ne vaut true que pour le propriétaire du personnage ou le MJ (voir call-sites) :
+  // on le réutilise pour déterminer qui peut voir les objets marqués privés.
+  const canSeePrivate = canEdit;
   const containerRef = useRef<HTMLDivElement>(null);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const inventoryRef = collection(db, `Inventaire/${roomId}/${playerName}`);
@@ -650,6 +655,24 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
     }
   };
 
+  const handleToggleVisibility = async (item: InventoryItem) => {
+    const newVisibility = item.visibility === 'private' ? 'public' : 'private';
+    try {
+      const itemRef = doc(inventoryRef, item.id);
+      await updateDoc(itemRef, { visibility: newVisibility });
+      toast.success(newVisibility === 'private' ? 'Objet rendu privé' : 'Objet rendu public', {
+        description: item.message,
+        duration: 2000,
+      });
+    } catch (error) {
+      console.error('Erreur lors du changement de visibilité:', error);
+      toast.error('Erreur', {
+        description: "Impossible de modifier la visibilité.",
+        duration: 3000,
+      });
+    }
+  };
+
   const handleUpdateDice = async () => {
     if (currentItem) {
       try {
@@ -671,6 +694,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
   };
 
   const filteredInventory = useMemo(() => inventory
+    .filter(item => canSeePrivate || item.visibility !== 'private')
     .filter(item =>
       item.message && item.message.toLowerCase().includes(searchTerm.toLowerCase())
     )
@@ -962,12 +986,20 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                                 <div className="absolute -top-1 -right-1 bg-[var(--accent-brown)] text-white rounded-full min-w-[1.5rem] h-6 flex items-center justify-center px-1.5 border-2 border-[var(--bg-card)] font-bold text-xs shadow-lg">
                                   {item.quantity}
                                 </div>
+                                {item.visibility === 'private' && (
+                                  <div className="absolute -bottom-1 -right-1 bg-[var(--bg-dark)] text-[var(--accent-brown)] rounded-full w-5 h-5 flex items-center justify-center border-2 border-[var(--bg-card)]">
+                                    <Lock size={10} />
+                                  </div>
+                                )}
                               </div>
                             </DropdownMenuTrigger>
                           </TooltipTrigger>
                           <TooltipContent className="bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)]">
                             <div className="space-y-1">
-                              <p className="font-semibold">{item.message}</p>
+                              <p className="font-semibold flex items-center gap-1">
+                                {item.message}
+                                {item.visibility === 'private' && <Lock size={10} className="text-[var(--accent-brown)]" />}
+                              </p>
                               {item.diceSelection && (
                                 <p className="text-xs font-bold text-green-700 font-mono"> {item.diceSelection}</p>
                               )}
@@ -1012,6 +1044,9 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                           )}
                           <DropdownMenuItem onSelect={() => openGiveDialog(item)}>
                             Donner
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleToggleVisibility(item)}>
+                            {item.visibility === 'private' ? 'Rendre public' : 'Rendre privé'}
                           </DropdownMenuItem>
                           <DropdownMenuItem onSelect={() => {
                             setCurrentItem(item);
