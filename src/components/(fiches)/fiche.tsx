@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import {
   updateDoc
 } from '@/lib/firebase';
-import { Heart, Shield, Edit, Settings, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Trash2, PlusCircle, Expand, FileEdit, LayoutDashboard, Search, FileDown, UploadCloud, RotateCcw, Droplet, Minus, Plus, Sliders } from 'lucide-react';
+import { Heart, Shield, Edit, Settings, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Trash2, PlusCircle, Expand, FileEdit, LayoutDashboard, Search, FileDown, UploadCloud, RotateCcw, Droplet, Minus, Plus, Sliders, Download } from 'lucide-react';
 import InventoryManagement2 from '@/components/(inventaire)/inventaire';
 import CompetencesDisplay from "@/components/(competences)/competencesD";
 import Competences from "@/components/(competences)/competences";
@@ -21,6 +21,7 @@ import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { FloatingEditTabs, AttributsDialog } from './FloatingEditTabs';
 import { ThemeConfig } from './theme-portal/types';
+import { buildCharacterExport, downloadCharacterExport, parseCharacterExport, importCharacterExport } from '@/utils/characterTransfer';
 
 import {
   Drawer,
@@ -40,6 +41,13 @@ import {
   DialogTrigger,
   DialogClose
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { toast } from 'sonner';
 
@@ -157,6 +165,23 @@ export default function Component() {
   const [showLevelUpConfirmationModal, setShowLevelUpConfirmationModal] = useState<boolean>(false);
   const [showCompetencesFullscreen, setShowCompetencesFullscreen] = useState<boolean>(false);
   const [showStatistiques, setShowStatistiques] = useState<boolean>(false);
+  const [isExportingCharacter, setIsExportingCharacter] = useState<boolean>(false);
+  const [isImportingCharacter, setIsImportingCharacter] = useState<boolean>(false);
+  const importCharacterInputRef = React.useRef<HTMLInputElement>(null);
+  const [isActionsMenuOpen, setIsActionsMenuOpen] = useState<boolean>(false);
+  const actionsMenuCloseTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const cancelActionsMenuClose = () => {
+    if (actionsMenuCloseTimer.current) {
+      clearTimeout(actionsMenuCloseTimer.current);
+      actionsMenuCloseTimer.current = null;
+    }
+  };
+
+  const scheduleActionsMenuClose = () => {
+    cancelActionsMenuClose();
+    actionsMenuCloseTimer.current = setTimeout(() => setIsActionsMenuOpen(false), 150);
+  };
 
   // Layout State
   const [layout, setLayout] = useState<Layout[]>(DEFAULT_LAYOUT);
@@ -338,6 +363,54 @@ export default function Component() {
     e.target.value = '';
   };
 
+
+  const handleExportCharacter = async () => {
+    if (!selectedCharacter || !roomId) return;
+    setIsExportingCharacter(true);
+    try {
+      const exportData = await buildCharacterExport(roomId, selectedCharacter);
+      downloadCharacterExport(exportData);
+      toast.success('Personnage exporté avec succès !');
+    } catch (error) {
+      console.error('Erreur lors de l\'export du personnage:', error);
+      toast.error('Erreur', {
+        description: "Impossible d'exporter le personnage.",
+        duration: 4000,
+      });
+    } finally {
+      setIsExportingCharacter(false);
+    }
+  };
+
+  const handleImportCharacter = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !roomId) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const exportData = parseCharacterExport(event.target?.result as string);
+        setIsImportingCharacter(true);
+        const newCharacterId = await importCharacterExport(roomId, exportData);
+        toast.success('Personnage importé avec succès !', {
+          description: exportData.character.Nomperso,
+          duration: 3000,
+        });
+        void newCharacterId;
+      } catch (error) {
+        console.error('Erreur lors de l\'import du personnage:', error);
+        toast.error('Erreur', {
+          description: error instanceof Error ? error.message : "Impossible d'importer le personnage.",
+          duration: 4000,
+        });
+      } finally {
+        setIsImportingCharacter(false);
+      }
+    };
+    reader.readAsText(file);
+
+    e.target.value = '';
+  };
 
   const updateWidgetDim = (id: string, type: 'w' | 'h', value: number | 'inc' | 'dec') => {
     setLayout(prevLayout => {
@@ -844,61 +917,86 @@ export default function Component() {
           {selectedCharacter && (
             <div className="flex flex-wrap gap-2 shrink-0">
               {(selectedCharacter.id === userPersoId || isMJ) && (
-                <>
-                  <button
-                    id="vtt-fiche-btn-modifier"
-                    onClick={handleEdit}
-                    className="bg-[var(--bg-darker)] text-[var(--accent-brown)] p-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-200 flex items-center gap-1 text-xs sm:text-sm border border-[var(--border-color)]"
-                    title="Modifier"
-                  >
-                    <Edit size={16} />
-                    <span className="hidden sm:inline">Modifier</span>
-                  </button>
-                  <button
-                    id="vtt-fiche-btn-level-up"
-                    onClick={openLevelUpModal}
-                    className="bg-[var(--bg-darker)] text-[var(--accent-blue)] p-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-200 flex items-center gap-1 text-xs sm:text-sm border border-[var(--border-color)]"
-                    title="Monter de niveau"
-                  >
-                    <TrendingUp size={16} />
-                    <span className="hidden sm:inline">Niveau +</span>
-                  </button>
-                  <button
-                    id="vtt-fiche-btn-champs"
-                    onClick={() => setIsAttributsOpen(true)}
-                    className="bg-[var(--bg-darker)] text-[var(--text-secondary)] p-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-200 flex items-center gap-1 text-xs sm:text-sm border border-[var(--border-color)]"
-                    title="Champs & Attributs"
-                  >
-                    <Sliders size={16} />
-                    <span className="hidden sm:inline">Champs</span>
-                  </button>
-                </>
-              )}
-
-              <button
-                id="vtt-fiche-btn-stats"
-                onClick={() => setShowStatistiques(true)}
-                className="bg-[var(--bg-darker)] text-[var(--accent-brown)] p-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-200 flex items-center gap-1 text-xs sm:text-sm border border-[var(--border-color)]"
-                title="Voir les statistiques"
-              >
-                <ChartColumn size={16} />
-                <span className="hidden sm:inline">Stats</span>
-              </button>
-
-              {(selectedCharacter.id === userPersoId || isMJ) && (
                 <button
-                  id="vtt-fiche-btn-edition"
-                  onClick={handleEditModeToggle}
-                  className={`p-2 rounded-lg transition duration-200 flex items-center gap-1 text-xs sm:text-sm border ${isLayoutEditing
-                    ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]'
-                    : 'bg-[var(--bg-darker)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-[var(--bg-card)]'
-                    }`}
-                  title="Mode Édition (Style & Disposition)"
+                  id="vtt-fiche-btn-modifier"
+                  onClick={handleEdit}
+                  className="bg-[var(--bg-darker)] text-[var(--text-secondary)] p-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-200 flex items-center gap-1 text-xs sm:text-sm border border-[var(--border-color)]"
+                  title="Modifier"
                 >
-                  <Palette size={16} />
-                  <span className="hidden sm:inline">Édition</span>
+                  <Edit size={16} />
+                  <span className="hidden sm:inline">Modifier</span>
                 </button>
               )}
+
+              <input
+                ref={importCharacterInputRef}
+                type="file"
+                accept="application/json"
+                onChange={handleImportCharacter}
+                disabled={isImportingCharacter}
+                className="hidden"
+              />
+
+              <DropdownMenu open={isActionsMenuOpen} onOpenChange={setIsActionsMenuOpen}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    id="vtt-fiche-btn-actions"
+                    onMouseEnter={() => { cancelActionsMenuClose(); setIsActionsMenuOpen(true); }}
+                    onMouseLeave={scheduleActionsMenuClose}
+                    className="bg-[var(--bg-darker)] text-[var(--text-secondary)] p-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-200 flex items-center gap-1 text-xs sm:text-sm border border-[var(--border-color)]"
+                    title="Plus d'actions"
+                  >
+                    <Settings size={16} />
+                    <span className="hidden sm:inline">Actions</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  onMouseEnter={cancelActionsMenuClose}
+                  onMouseLeave={scheduleActionsMenuClose}
+                  className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]"
+                >
+                  {(selectedCharacter.id === userPersoId || isMJ) && (
+                    <>
+                      <DropdownMenuItem onSelect={openLevelUpModal}>
+                        <TrendingUp size={16} className="mr-2" />
+                        Niveau +
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setIsAttributsOpen(true)}>
+                        <Sliders size={16} className="mr-2" />
+                        Champs & Attributs
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={handleEditModeToggle}>
+                        <Palette size={16} className="mr-2" />
+                        {isLayoutEditing ? 'Quitter l\'édition' : 'Mode Édition'}
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+
+                  <DropdownMenuItem onSelect={() => setShowStatistiques(true)}>
+                    <ChartColumn size={16} className="mr-2" />
+                    Statistiques
+                  </DropdownMenuItem>
+
+                  {(selectedCharacter.id === userPersoId || isMJ) && (
+                    <DropdownMenuItem disabled={isExportingCharacter} onSelect={handleExportCharacter}>
+                      <FileDown size={16} className="mr-2" />
+                      Exporter le personnage
+                    </DropdownMenuItem>
+                  )}
+
+                  {isMJ && (
+                    <DropdownMenuItem
+                      disabled={isImportingCharacter}
+                      onSelect={() => importCharacterInputRef.current?.click()}
+                    >
+                      <UploadCloud size={16} className="mr-2" />
+                      Importer un personnage
+                    </DropdownMenuItem>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           )}
         </div>
