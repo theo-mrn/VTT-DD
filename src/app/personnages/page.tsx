@@ -3,14 +3,16 @@
 import * as React from 'react'
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Crown, Loader2, LogIn, CircleCheck, User, RotateCcw } from 'lucide-react'
+import { Plus, Crown, Loader2, LogIn, CircleCheck, User, RotateCcw, Trash2, AlertTriangle } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { db, getDocs, collection, doc, setDoc, getDoc } from '@/lib/firebase'
+import { db, getDocs, collection, doc, setDoc, getDoc, writeBatch, dbRef, rtdbRemove, realtimeDb } from '@/lib/firebase'
 import { useGame } from '@/contexts/GameContext'
 import { cn } from '@/lib/utils'
 import { AppBackground } from '@/components/ui/background-components'
 import { ProfileCard } from '@/components/ui/profile-card'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
 
 interface Character {
   id: string;
@@ -56,6 +58,9 @@ export default function CharacterSelection() {
     showPremiumBadge?: boolean;
   } | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [characterToDelete, setCharacterToDelete] = useState<Character | null>(null)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const loadData = useCallback(async () => {
     if (!user?.uid || !user?.roomId || user.roomId === '0') return;
@@ -143,10 +148,65 @@ export default function CharacterSelection() {
     }
   }, [user?.uid, user?.roomId, loadData]);
 
+  const isRoomCreator = !!user?.uid && !!roomData?.creatorId && user.uid === roomData.creatorId;
+
   const handleManualRefresh = () => {
     setIsRefreshing(true);
     loadData();
   };
+
+  // Delete character and all related data (inventaire, bonus, compétences, position, etc.)
+  const confirmDeleteCharacter = useCallback(async () => {
+    if (!characterToDelete || !user?.roomId) return
+    const roomId = user.roomId
+    const character = characterToDelete
+    setIsDeleting(true)
+
+    try {
+      // 1. Custom competences (subcollection)
+      const customCompetencesSnap = await getDocs(
+        collection(db, `cartes/${roomId}/characters/${character.id}/customCompetences`)
+      )
+
+      // 2. Inventaire (top-level collection keyed by Nomperso)
+      const inventorySnap = await getDocs(collection(db, `Inventaire/${roomId}/${character.Nomperso}`))
+
+      // 3. Bonus (top-level collection keyed by Nomperso)
+      const bonusSnap = await getDocs(collection(db, `Bonus/${roomId}/${character.Nomperso}`))
+
+      // 4. Combat rapport (subcollection)
+      const combatRapportSnap = await getDocs(
+        collection(db, `cartes/${roomId}/combat/${character.id}/rapport`)
+      )
+
+      const batch = writeBatch(db)
+      customCompetencesSnap.docs.forEach(d => batch.delete(d.ref))
+      inventorySnap.docs.forEach(d => batch.delete(d.ref))
+      bonusSnap.docs.forEach(d => batch.delete(d.ref))
+      combatRapportSnap.docs.forEach(d => batch.delete(d.ref))
+      batch.delete(doc(db, `cartes/${roomId}/characters/${character.id}`))
+
+      // 5. If the character is currently taken by a player, free their slot
+      const occupant = takenCharacters[character.Nomperso]
+      if (occupant) {
+        batch.set(doc(db, `salles/${roomId}/Noms/${occupant.uid}`), { nom: null }, { merge: true })
+        batch.set(doc(db, 'users', occupant.uid), { perso: null, persoId: null }, { merge: true })
+      }
+
+      await batch.commit()
+
+      // 6. RTDB position cleanup
+      await rtdbRemove(dbRef(realtimeDb, `rooms/${roomId}/positions/${character.id}`)).catch(() => {})
+
+      setCharacters(prev => prev.filter(c => c.id !== character.id))
+      setCharacterToDelete(null)
+      setDeleteConfirmText('')
+    } catch (error) {
+      console.error('Error deleting character:', error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [characterToDelete, user?.roomId, takenCharacters])
 
   // Select character
   const saveSelectedCharacter = useCallback(async (character: Character) => {
@@ -280,15 +340,32 @@ export default function CharacterSelection() {
 
               return (
                 <div key={character.id} className="flex flex-col items-center gap-6">
-                  <CharacterCard
-                    character={character}
-                    isSelected={selectedCharId === character.id}
-                    isActive={isTakenByMe}
-                    isTaken={isTakenByOther}
-                    occupantName={occupant?.name}
-                    index={i}
-                    onClick={() => !selectedCharId && !isTakenByOther && saveSelectedCharacter(character)}
-                  />
+                  <ContextMenu>
+                    <ContextMenuTrigger asChild disabled={!isRoomCreator}>
+                      <div>
+                        <CharacterCard
+                          character={character}
+                          isSelected={selectedCharId === character.id}
+                          isActive={isTakenByMe}
+                          isTaken={isTakenByOther}
+                          occupantName={occupant?.name}
+                          index={i}
+                          onClick={() => !selectedCharId && !isTakenByOther && saveSelectedCharacter(character)}
+                        />
+                      </div>
+                    </ContextMenuTrigger>
+                    {isRoomCreator && (
+                      <ContextMenuContent className="bg-[#1a1310] border-[#c0a080]/20 text-zinc-200">
+                        <ContextMenuItem
+                          onSelect={() => { setCharacterToDelete(character); setDeleteConfirmText('') }}
+                          className="text-red-400 focus:text-red-300 focus:bg-red-950/40"
+                        >
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Supprimer le personnage
+                        </ContextMenuItem>
+                      </ContextMenuContent>
+                    )}
+                  </ContextMenu>
 
                   {isTakenByOther && occupant && (
                     <motion.div
@@ -398,6 +475,67 @@ export default function CharacterSelection() {
                 isPremium={viewingOccupant.premium && viewingOccupant.showPremiumBadge !== false}
               />
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Character Confirmation Dialog */}
+        <Dialog
+          open={!!characterToDelete}
+          onOpenChange={(open) => {
+            if (!open && !isDeleting) {
+              setCharacterToDelete(null)
+              setDeleteConfirmText('')
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-md border border-red-900/40 bg-[#150d0a]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-300">
+                <AlertTriangle className="w-5 h-5" />
+                Supprimer définitivement ce personnage
+              </DialogTitle>
+              <DialogDescription className="text-zinc-400">
+                Cette action est <span className="text-red-400 font-semibold">irréversible</span>.
+                Le personnage <span className="text-zinc-200 font-semibold">{characterToDelete?.Nomperso}</span>,
+                son inventaire, ses bonus et ses compétences personnalisées seront définitivement effacés.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-2 space-y-2">
+              <p className="text-xs text-zinc-500">
+                Pour confirmer, tapez <span className="text-zinc-300 font-mono">{characterToDelete?.Nomperso}</span> ci-dessous :
+              </p>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder={characterToDelete?.Nomperso}
+                disabled={isDeleting}
+                autoFocus
+                className="bg-black/30 border-red-900/40 text-zinc-100"
+              />
+            </div>
+
+            <DialogFooter className="mt-4">
+              <button
+                onClick={() => { setCharacterToDelete(null); setDeleteConfirmText('') }}
+                disabled={isDeleting}
+                className="px-4 py-2 rounded-lg text-sm text-zinc-400 hover:text-zinc-200 hover:bg-white/5 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={confirmDeleteCharacter}
+                disabled={isDeleting || deleteConfirmText !== characterToDelete?.Nomperso}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition-colors",
+                  "bg-red-900/80 text-red-100 hover:bg-red-800",
+                  "disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-red-900/80"
+                )}
+              >
+                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                Supprimer définitivement
+              </button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
