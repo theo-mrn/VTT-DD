@@ -78,7 +78,7 @@ export default function PortalsLayer({
 
         const portalScreenX = (portal.x / imgWidth) * scaledWidth;
         const portalScreenY = (portal.y / imgHeight) * scaledHeight;
-        const size = 40 * zoom;
+        const size = 40 * zoom * scale;
         const isSelected = contextMenuPortalId === portal.id;
 
         // Desactiver les interactions si un autre element est actif

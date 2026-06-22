@@ -1070,7 +1070,7 @@ export function drawForegroundLayers(
         const baseBorderRadius = isPlayerCharacter ? 32 : 22;
 
         // const iconRadius = baseRadius * finalScale * zoom; // Not used locally?
-        const borderRadius = baseBorderRadius * finalScale * zoom;
+        const borderRadius = baseBorderRadius * finalScale * zoom * scale;
 
         // Border circle is now drawn on characterBordersCanvasRef (separate layer BEFORE character images)
         // This allows the circle to appear UNDERNEATH the character image
@@ -1083,7 +1083,7 @@ export function drawForegroundLayers(
 
 
         // Configuration
-        const uiScale = Math.max(0.6, Math.min(1.5, zoom));
+        const uiScale = Math.max(0.6, Math.min(1.5, zoom)) * scale;
         const isSelected = index === selectedCharacterIndex;
         const canSeeHP = (isMJ && !playerViewMode) || char.id === persoId; // Visible MJ or Owner
 
@@ -1248,15 +1248,15 @@ export function drawForegroundLayers(
       // Draw hidden status badge if character is hidden (soit par defaut, soit par le brouillard) - uniquement en mode MJ normal, pas en vue joueur
       if ((effectiveVisibility === 'hidden' || effectiveVisibility === 'custom') && effectiveIsMJ && char.type != "joueurs") {
         const hiddenBadgeOffsetMultiplier = 16;
-        const badgeX = x + hiddenBadgeOffsetMultiplier * zoom;
-        const badgeY = y - hiddenBadgeOffsetMultiplier * zoom;
-        const badgeRadius = 7 * zoom;
+        const badgeX = x + hiddenBadgeOffsetMultiplier * zoom * scale;
+        const badgeY = y - hiddenBadgeOffsetMultiplier * zoom * scale;
+        const badgeRadius = 7 * zoom * scale;
 
         // Shadow for depth
         ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-        ctx.shadowBlur = 4 * zoom;
-        ctx.shadowOffsetX = 1.5 * zoom;
-        ctx.shadowOffsetY = 1.5 * zoom;
+        ctx.shadowBlur = 4 * zoom * scale;
+        ctx.shadowOffsetX = 1.5 * zoom * scale;
+        ctx.shadowOffsetY = 1.5 * zoom * scale;
 
         // Outer ring with gradient
         const outerGradient = ctx.createRadialGradient(badgeX, badgeY, 0, badgeX, badgeY, badgeRadius);

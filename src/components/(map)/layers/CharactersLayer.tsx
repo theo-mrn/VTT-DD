@@ -117,9 +117,9 @@ const CharactersLayer: React.FC<CharactersLayerProps> = ({
         if (!isVisible) return null;
 
         const isPlayerCharacter = char.type === 'joueurs';
-        const baseRadius = isPlayerCharacter ? 30 : 20;
+        const baseRadius = isPlayerCharacter ? 54 : 36;
         const charScale = char.scale || 1;
-        const iconRadius = baseRadius * charScale * globalTokenScale * zoom;
+        const iconRadius = baseRadius * charScale * globalTokenScale * zoom * scale;
 
         // Déterminer si on doit appliquer l'effet d'invisibilité
         const effectiveIsMJ = (playerViewMode && viewAsPersoId) ? false : isMJ;

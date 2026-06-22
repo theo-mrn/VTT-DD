@@ -172,8 +172,8 @@ export const drawCharacterBorders = (
         const charScale = char.scale || 1;
         const finalScale = charScale * globalTokenScale;
 
-        const baseBorderRadius = isPlayerCharacter ? 32 : 22;
-        const borderRadius = baseBorderRadius * finalScale * zoom;
+        const baseBorderRadius = isPlayerCharacter ? 58 : 40;
+        const borderRadius = baseBorderRadius * finalScale * zoom * scale;
 
         //  FILTER VISIBILITY OF BORDER CIRCLES
         const isSelected = selectedCharacters.includes(index);
