@@ -1290,23 +1290,35 @@ export default function Component() {
 
 
   // 🔄 Update Container Size on Resize
-  useEffect(() => {
-    if (!containerRef.current) return;
+  // A plain `useEffect(() => {...}, [])` reading containerRef.current was
+  // observed to run with containerRef.current still null on first mount
+  // (confirmed via logging), so the ResizeObserver was never attached and
+  // containerSize stayed frozen at {0,0} for the whole session — the canvas
+  // then kept whatever raster size it got from the one-off clientWidth
+  // fallback at first paint, permanently desyncing from the real container
+  // size after any later resize. Fix: a callback ref attaches the observer
+  // the instant React actually sets the DOM node, instead of relying on a
+  // mount-effect that can run before the ref is populated.
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const setContainerRefAndObserve = useCallback((node: HTMLDivElement | null) => {
+    containerRef.current = node;
+    resizeObserverRef.current?.disconnect();
+    resizeObserverRef.current = null;
+    if (!node) return;
 
     const updateSize = () => {
-      if (containerRef.current) {
-        setContainerSize({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight
-        });
-      }
+      setContainerSize(prev => {
+        const width = node.clientWidth;
+        const height = node.clientHeight;
+        if (prev.width === width && prev.height === height) return prev;
+        return { width, height };
+      });
     };
 
     updateSize();
     const resizeObserver = new ResizeObserver(updateSize);
-    resizeObserver.observe(containerRef.current);
-
-    return () => resizeObserver.disconnect();
+    resizeObserver.observe(node);
+    resizeObserverRef.current = resizeObserver;
   }, []);
 
   // 🔦 OPTIMIZATION: Memoize active viewer to avoid re-finding it constantly
@@ -2915,7 +2927,7 @@ export default function Component() {
 
   //  RENDER CITY MAP (existing functionality)
   return (
-    <div className="flex flex-col relative" ref={containerRef} style={{ paddingTop: isStreaming ? '52px' : undefined }}>
+    <div className="flex flex-col relative" style={{ paddingTop: isStreaming ? '52px' : undefined }}>
       {/*  SELECTION MENU */}
       {showSelectionMenu && selectionCandidates && (
         <SelectionMenu
@@ -3212,10 +3224,10 @@ export default function Component() {
         <ScreenShareViewer roomId={roomId} userId={userId} />
       )}
 
+      <div ref={setContainerRefAndObserve} style={{ height: '100vh' }}>
       <ContextMenu>
       <ContextMenuTrigger asChild>
       <div
-        ref={containerRef}
         className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${isDraggingCharacter || isDraggingNote || isDraggingObstacle ? 'cursor-grabbing' :
           isDragging || isDraggingObject ? 'cursor-move' :
             panMode ? 'cursor-grab' :
@@ -3483,6 +3495,7 @@ export default function Component() {
         onToggleBadges={() => setShowAllBadges(!showAllBadges)}
       />
       </ContextMenu>
+      </div>
 
 
 

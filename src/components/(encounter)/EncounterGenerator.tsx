@@ -30,6 +30,11 @@ import {
     PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+    HoverCard,
+    HoverCardContent,
+    HoverCardTrigger,
+} from "@/components/ui/hover-card";
+import {
     Command,
     CommandEmpty,
     CommandGroup,
@@ -484,27 +489,101 @@ export default function EncounterGenerator() {
                                                                 {/* Monsters */}
                                                                 <div className="divide-y divide-[#222]">
                                                                     {encounter.monsters.map((item, idx) => (
-                                                                        <div key={idx} className="flex items-center gap-3 px-4 py-2">
-                                                                            <div className="w-10 h-10 rounded bg-black overflow-hidden border border-[#333] shrink-0">
-                                                                                <img
-                                                                                    src={item.creature.image || ''}
-                                                                                    alt={item.creature.Nom}
-                                                                                    className="w-full h-full object-cover"
-                                                                                    onError={(e) => (e.currentTarget.src = 'https://placehold.co/40x40/222/666?text=M')}
-                                                                                />
-                                                                            </div>
-                                                                            <div className="flex-1 min-w-0">
-                                                                                <div className="flex items-center gap-2">
-                                                                                    <span className="font-semibold text-white text-sm truncate">{item.creature.Nom}</span>
-                                                                                    <span className="text-[#c0a080] text-xs font-bold shrink-0">×{item.count}</span>
+                                                                        <HoverCard key={idx} openDelay={150} closeDelay={50}>
+                                                                            <HoverCardTrigger asChild>
+                                                                                <div className="flex items-center gap-3 px-4 py-2 hover:bg-[#222] cursor-default transition-colors">
+                                                                                    <div className="w-10 h-10 rounded bg-black overflow-hidden border border-[#333] shrink-0">
+                                                                                        <img
+                                                                                            src={item.creature.image || ''}
+                                                                                            alt={item.creature.Nom}
+                                                                                            className="w-full h-full object-cover"
+                                                                                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/40x40/222/666?text=M')}
+                                                                                        />
+                                                                                    </div>
+                                                                                    <div className="flex-1 min-w-0">
+                                                                                        <div className="flex items-center gap-2">
+                                                                                            <span className="font-semibold text-white text-sm truncate">{item.creature.Nom}</span>
+                                                                                            <span className="text-[#c0a080] text-xs font-bold shrink-0">×{item.count}</span>
+                                                                                        </div>
+                                                                                        <p className="text-xs text-gray-500 truncate">{item.creature.Type}</p>
+                                                                                    </div>
+                                                                                    <div className="flex items-center gap-3 text-xs text-gray-400 shrink-0">
+                                                                                        <span>{item.creature.PV} PV</span>
+                                                                                        <Badge variant="secondary" className="text-[10px] bg-[#222] text-gray-400">CR {item.creature.Challenge}</Badge>
+                                                                                    </div>
                                                                                 </div>
-                                                                                <p className="text-xs text-gray-500 truncate">{item.creature.Type}</p>
-                                                                            </div>
-                                                                            <div className="flex items-center gap-3 text-xs text-gray-400 shrink-0">
-                                                                                <span>{item.creature.PV} PV</span>
-                                                                                <Badge variant="secondary" className="text-[10px] bg-[#222] text-gray-400">CR {item.creature.Challenge}</Badge>
-                                                                            </div>
-                                                                        </div>
+                                                                            </HoverCardTrigger>
+                                                                            <HoverCardContent
+                                                                                side="left"
+                                                                                align="start"
+                                                                                className="w-80 bg-[#1a1a1a] border-[#333] text-gray-200"
+                                                                            >
+                                                                                <div className="flex gap-3">
+                                                                                    <div className="w-16 h-16 rounded bg-black overflow-hidden border border-[#333] shrink-0">
+                                                                                        <img
+                                                                                            src={item.creature.image || ''}
+                                                                                            alt={item.creature.Nom}
+                                                                                            className="w-full h-full object-cover"
+                                                                                            onError={(e) => (e.currentTarget.src = 'https://placehold.co/64x64/222/666?text=M')}
+                                                                                        />
+                                                                                    </div>
+                                                                                    <div className="flex-1 min-w-0">
+                                                                                        <p className="font-bold text-white text-sm">{item.creature.Nom}</p>
+                                                                                        <p className="text-xs text-gray-500">{item.creature.Type} — Niv. {item.creature.niveau}</p>
+                                                                                        <Badge variant="secondary" className="text-[10px] bg-[#222] text-gray-400 mt-1">CR {item.creature.Challenge}</Badge>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                {item.creature.description && (
+                                                                                    <p className="text-xs text-gray-400 mt-3 line-clamp-4">{item.creature.description}</p>
+                                                                                )}
+
+                                                                                <div className="grid grid-cols-3 gap-2 mt-3 text-center">
+                                                                                    <div className="bg-[#111] rounded px-2 py-1 border border-[#333]">
+                                                                                        <p className="text-[10px] text-gray-500">PV</p>
+                                                                                        <p className="text-sm font-bold text-white">{item.creature.PV}/{item.creature.PV_Max}</p>
+                                                                                    </div>
+                                                                                    <div className="bg-[#111] rounded px-2 py-1 border border-[#333]">
+                                                                                        <p className="text-[10px] text-gray-500">Défense</p>
+                                                                                        <p className="text-sm font-bold text-white">{item.creature.Defense}</p>
+                                                                                    </div>
+                                                                                    <div className="bg-[#111] rounded px-2 py-1 border border-[#333]">
+                                                                                        <p className="text-[10px] text-gray-500">Init</p>
+                                                                                        <p className="text-sm font-bold text-white">{item.creature.INIT}</p>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div className="grid grid-cols-6 gap-1 mt-2 text-center">
+                                                                                    {[
+                                                                                        { label: 'FOR', value: item.creature.FOR },
+                                                                                        { label: 'DEX', value: item.creature.DEX },
+                                                                                        { label: 'CON', value: item.creature.CON },
+                                                                                        { label: 'INT', value: item.creature.INT },
+                                                                                        { label: 'SAG', value: item.creature.SAG },
+                                                                                        { label: 'CHA', value: item.creature.CHA },
+                                                                                    ].map(({ label, value }) => (
+                                                                                        <div key={label}>
+                                                                                            <p className="text-[9px] text-gray-500">{label}</p>
+                                                                                            <p className="text-xs font-semibold text-[#c0a080]">{value}</p>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+
+                                                                                {item.creature.Actions && item.creature.Actions.length > 0 && (
+                                                                                    <div className="mt-3 pt-2 border-t border-[#333] space-y-1.5">
+                                                                                        {item.creature.Actions.map((action, ai) => (
+                                                                                            <div key={ai} className="text-xs">
+                                                                                                <span className="font-semibold text-white">{action.Nom}</span>
+                                                                                                {typeof action.Toucher === 'number' && (
+                                                                                                    <span className="text-[#c0a080]"> (+{action.Toucher})</span>
+                                                                                                )}
+                                                                                                <p className="text-gray-400 line-clamp-2">{action.Description}</p>
+                                                                                            </div>
+                                                                                        ))}
+                                                                                    </div>
+                                                                                )}
+                                                                            </HoverCardContent>
+                                                                        </HoverCard>
                                                                     ))}
                                                                 </div>
                                                             </div>
