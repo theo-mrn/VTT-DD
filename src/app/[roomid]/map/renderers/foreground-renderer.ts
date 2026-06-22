@@ -1066,8 +1066,8 @@ export function drawForegroundLayers(
         const charScale = char.scale || 1;
         const finalScale = charScale * globalTokenScale;
 
-        const baseRadius = isPlayerCharacter ? 30 : 20;
-        const baseBorderRadius = isPlayerCharacter ? 32 : 22;
+        const baseRadius = isPlayerCharacter ? 54 : 36;
+        const baseBorderRadius = isPlayerCharacter ? 58 : 40;
 
         // const iconRadius = baseRadius * finalScale * zoom; // Not used locally?
         const borderRadius = baseBorderRadius * finalScale * zoom * scale;
@@ -1083,7 +1083,7 @@ export function drawForegroundLayers(
 
 
         // Configuration
-        const uiScale = Math.max(0.6, Math.min(1.5, zoom)) * scale;
+        const uiScale = Math.max(0.6, Math.min(1.5, zoom)) * scale * 1.8;
         const isSelected = index === selectedCharacterIndex;
         const canSeeHP = (isMJ && !playerViewMode) || char.id === persoId; // Visible MJ or Owner
 
