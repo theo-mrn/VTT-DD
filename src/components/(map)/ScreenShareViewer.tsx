@@ -46,9 +46,7 @@ export default function ScreenShareViewer({ roomId, userId }: Props) {
 
     const unsubOffer = onValue(offerRef, async snap => {
       const offer = snap.val();
-      console.log('[ScreenShareViewer] offer snapshot:', offer);
       if (!offer) {
-        console.log('[ScreenShareViewer] no offer -> closing, setHasTrack(false)');
         closeConnection();
         if (videoRef.current) videoRef.current.srcObject = null;
         setHasTrack(false);
@@ -68,19 +66,20 @@ export default function ScreenShareViewer({ roomId, userId }: Props) {
       pcRef.current = pc;
 
       pc.ontrack = (e) => {
-        console.log('[ScreenShareViewer] ontrack fired', {
-          streams: e.streams.length,
-          trackState: e.track.readyState,
-          trackEnabled: e.track.enabled,
-          trackMuted: e.track.muted,
-        });
         const el = videoRef.current;
         if (!el) return;
         el.srcObject = e.streams[0];
-        el.play().then(() => {
-          console.log('[ScreenShareViewer] video.play() succeeded', { videoWidth: el.videoWidth, videoHeight: el.videoHeight });
-        }).catch(err => console.error('[ScreenShareViewer] video.play() failed', err));
+        el.play().catch(() => {});
         setHasTrack(true);
+      };
+
+      // Si la connexion échoue ou se coupe (ex: offre périmée, MJ déjà parti), on revient à l'état "pas de stream"
+      pc.onconnectionstatechange = () => {
+        if (pc?.connectionState === 'failed' || pc?.connectionState === 'disconnected' || pc?.connectionState === 'closed') {
+          if (videoRef.current) videoRef.current.srcObject = null;
+          setHasTrack(false);
+          setExpanded(false);
+        }
       };
 
       pc.onicecandidate = async ({ candidate }) => {
