@@ -6,10 +6,18 @@ import { Monitor, Square, Pause, Play } from 'lucide-react';
 import { realtimeDb } from '@/lib/firebase.js';
 import { ref as dbRef, set, onValue, remove } from 'firebase/database';
 
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'turn:76.13.44.160:3478', username: 'vtt', credential: 'vttpass' },
-];
+const FALLBACK_ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+
+async function getIceServers(): Promise<RTCIceServer[]> {
+  try {
+    const res = await fetch('/api/turn-credentials');
+    if (!res.ok) return FALLBACK_ICE_SERVERS;
+    const { iceServers } = await res.json();
+    return iceServers ?? FALLBACK_ICE_SERVERS;
+  } catch {
+    return FALLBACK_ICE_SERVERS;
+  }
+}
 
 export default function StreamViewPage() {
   const params = useParams();
@@ -59,7 +67,7 @@ export default function StreamViewPage() {
         previewRef.current.play().catch(() => {});
       }
 
-      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      const pc = new RTCPeerConnection({ iceServers: await getIceServers() });
       pcRef.current = pc;
       stream.getTracks().forEach(t => pc.addTrack(t, stream));
 

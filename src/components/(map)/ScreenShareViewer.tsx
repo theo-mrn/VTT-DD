@@ -10,10 +10,18 @@ interface Props {
   userId: string;
 }
 
-const ICE_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'turn:76.13.44.160:3478', username: 'vtt', credential: 'vttpass' },
-];
+const FALLBACK_ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }];
+
+async function getIceServers(): Promise<RTCIceServer[]> {
+  try {
+    const res = await fetch('/api/turn-credentials');
+    if (!res.ok) return FALLBACK_ICE_SERVERS;
+    const { iceServers } = await res.json();
+    return iceServers ?? FALLBACK_ICE_SERVERS;
+  } catch {
+    return FALLBACK_ICE_SERVERS;
+  }
+}
 
 export default function ScreenShareViewer({ roomId, userId }: Props) {
   const [hasTrack, setHasTrack] = useState(false);
@@ -42,7 +50,10 @@ export default function ScreenShareViewer({ roomId, userId }: Props) {
       // Nettoie l'ancienne connexion si nouvelle offre
       if (pc) { pc.close(); pc = null; setHasTrack(false); }
 
-      pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+      const iceServers = await getIceServers();
+      if (destroyed) return;
+
+      pc = new RTCPeerConnection({ iceServers });
       pcRef.current = pc;
 
       pc.ontrack = (e) => {
