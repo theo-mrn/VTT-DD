@@ -29,6 +29,8 @@ export interface VisibilityContext {
 export interface CharacterVisibilityContext extends VisibilityContext {
   /** All obstacles on the current map. */
   obstacles: Obstacle[];
+  /** Whether the "obstacles" layer is currently shown (its eye toggle). Shadow/line-of-sight occlusion only applies while obstacles are visible. */
+  obstaclesLayerVisible: boolean;
   /** The loaded background image/video (null if not loaded yet). */
   bgImage: HTMLImageElement | HTMLVideoElement | null;
   /** All characters currently on the map. */
@@ -84,6 +86,7 @@ export function isCharacterVisibleToUser(
     persoId,
     viewAsPersoId,
     obstacles,
+    obstaclesLayerVisible,
     bgImage,
     characters,
     lights,
@@ -120,7 +123,9 @@ export function isCharacterVisibleToUser(
   }
 
   // Shadow / obstacle occlusion check.
-  if (obstacles.length > 0 && bgImage) {
+  // Only applies while the obstacles layer is shown — hiding obstacles also
+  // disables the line-of-sight occlusion they would otherwise cast.
+  if (obstaclesLayerVisible && obstacles.length > 0 && bgImage) {
     const effectivePersoId = (playerViewMode && viewAsPersoId) ? viewAsPersoId : persoId;
     const viewer = characters.find(c => c.id === effectivePersoId);
 

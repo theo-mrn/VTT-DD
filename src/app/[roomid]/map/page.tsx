@@ -1954,7 +1954,8 @@ export default function Component() {
   const isCharacterVisibleToUser = (char: Character): boolean => {
     const ctx: CharacterVisibilityContext = {
       isMJ, playerViewMode, persoId, viewAsPersoId,
-      obstacles, bgImage: bgImageObject, characters, lights, pixelsPerUnit,
+      obstacles, obstaclesLayerVisible: isLayerVisible('obstacles'),
+      bgImage: bgImageObject, characters, lights, pixelsPerUnit,
       fullMapFog, fogGrid, fogCellSize, zoom, offset,
       containerSize: containerRef.current
         ? { width: containerRef.current.clientWidth, height: containerRef.current.clientHeight }
