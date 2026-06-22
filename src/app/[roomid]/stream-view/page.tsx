@@ -29,6 +29,7 @@ export default function StreamViewPage() {
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const previewRef = useRef<HTMLVideoElement>(null);
+  const unsubsRef = useRef<Array<() => void>>([]);
 
   useEffect(() => {
     const channel = new BroadcastChannel(`vtt-stream-${roomId}`);
@@ -40,6 +41,8 @@ export default function StreamViewPage() {
   }, [roomId]);
 
   const stopSharing = useCallback(async () => {
+    unsubsRef.current.forEach(unsub => unsub());
+    unsubsRef.current = [];
     streamRef.current?.getTracks().forEach(t => t.stop());
     streamRef.current = null;
     pcRef.current?.close();
@@ -78,14 +81,14 @@ export default function StreamViewPage() {
         }
       };
 
-      onValue(dbRef(realtimeDb, `rooms/${roomId}/stream/answer`), async snap => {
+      const unsubAnswer = onValue(dbRef(realtimeDb, `rooms/${roomId}/stream/answer`), async snap => {
         const answer = snap.val();
         if (answer && pc.signalingState === 'have-local-offer') {
           await pc.setRemoteDescription(new RTCSessionDescription(answer));
         }
       });
 
-      onValue(dbRef(realtimeDb, `rooms/${roomId}/stream/viewer_ice`), snap => {
+      const unsubViewerIce = onValue(dbRef(realtimeDb, `rooms/${roomId}/stream/viewer_ice`), snap => {
         snap.forEach(child => {
           const c = child.val();
           if (c?.candidate && pc.remoteDescription) {
@@ -93,6 +96,8 @@ export default function StreamViewPage() {
           }
         });
       });
+
+      unsubsRef.current.push(unsubAnswer, unsubViewerIce);
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);

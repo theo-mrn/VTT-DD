@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Maximize2, Minimize2, PauseCircle } from 'lucide-react';
 import { realtimeDb } from '@/lib/firebase.js';
-import { ref as dbRef, set, onValue, off, remove } from 'firebase/database';
+import { ref as dbRef, set, onValue } from 'firebase/database';
 
 interface Props {
   roomId: string;
@@ -32,14 +32,24 @@ export default function ScreenShareViewer({ roomId, userId }: Props) {
 
   useEffect(() => {
     let pc: RTCPeerConnection | null = null;
+    let unsubMjIce: (() => void) | null = null;
     let destroyed = false;
 
     const offerRef = dbRef(realtimeDb, `rooms/${roomId}/stream/offer`);
 
+    const closeConnection = () => {
+      unsubMjIce?.();
+      unsubMjIce = null;
+      pc?.close();
+      pc = null;
+    };
+
     const unsubOffer = onValue(offerRef, async snap => {
       const offer = snap.val();
+      console.log('[ScreenShareViewer] offer snapshot:', offer);
       if (!offer) {
-        pc?.close(); pc = null;
+        console.log('[ScreenShareViewer] no offer -> closing, setHasTrack(false)');
+        closeConnection();
         if (videoRef.current) videoRef.current.srcObject = null;
         setHasTrack(false);
         setExpanded(false);
@@ -48,7 +58,8 @@ export default function ScreenShareViewer({ roomId, userId }: Props) {
       if (destroyed) return;
 
       // Nettoie l'ancienne connexion si nouvelle offre
-      if (pc) { pc.close(); pc = null; setHasTrack(false); }
+      closeConnection();
+      setHasTrack(false);
 
       const iceServers = await getIceServers();
       if (destroyed) return;
@@ -57,6 +68,7 @@ export default function ScreenShareViewer({ roomId, userId }: Props) {
       pcRef.current = pc;
 
       pc.ontrack = (e) => {
+        console.log('[ScreenShareViewer] ontrack fired, setHasTrack(true)');
         const el = videoRef.current;
         if (!el) return;
         el.srcObject = e.streams[0];
@@ -73,7 +85,7 @@ export default function ScreenShareViewer({ roomId, userId }: Props) {
 
       // Écoute les ICE du MJ
       const mjIceRef = dbRef(realtimeDb, `rooms/${roomId}/stream/mj_ice`);
-      onValue(mjIceRef, snap => {
+      unsubMjIce = onValue(mjIceRef, snap => {
         snap.forEach(child => {
           const c = child.val();
           if (c?.candidate && pc?.remoteDescription) {
@@ -96,8 +108,7 @@ export default function ScreenShareViewer({ roomId, userId }: Props) {
       destroyed = true;
       unsubOffer();
       unsubPaused();
-      off(dbRef(realtimeDb, `rooms/${roomId}/stream/mj_ice`));
-      pc?.close();
+      closeConnection();
       pcRef.current = null;
       setHasTrack(false);
     };
