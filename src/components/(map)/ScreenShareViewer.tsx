@@ -68,11 +68,18 @@ export default function ScreenShareViewer({ roomId, userId }: Props) {
       pcRef.current = pc;
 
       pc.ontrack = (e) => {
-        console.log('[ScreenShareViewer] ontrack fired, setHasTrack(true)');
+        console.log('[ScreenShareViewer] ontrack fired', {
+          streams: e.streams.length,
+          trackState: e.track.readyState,
+          trackEnabled: e.track.enabled,
+          trackMuted: e.track.muted,
+        });
         const el = videoRef.current;
         if (!el) return;
         el.srcObject = e.streams[0];
-        el.play().catch(() => {});
+        el.play().then(() => {
+          console.log('[ScreenShareViewer] video.play() succeeded', { videoWidth: el.videoWidth, videoHeight: el.videoHeight });
+        }).catch(err => console.error('[ScreenShareViewer] video.play() failed', err));
         setHasTrack(true);
       };
 
