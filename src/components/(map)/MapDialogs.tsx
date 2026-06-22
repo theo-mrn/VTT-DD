@@ -289,8 +289,8 @@ export default function MapDialogs(props: MapDialogsProps) {
         onSave={async (portalData) => {
           if (!roomId) return
 
-          if (editingPortal && editingPortal.id && editingPortal.portalType === 'same-map') {
-            // Same-map portal: Update first portal + create second
+          if (editingPortal && editingPortal.id && editingPortal.portalType === 'same-map' && firstPortalId === editingPortal.id) {
+            // Same-map portal creation (2nd click of the workflow): Update first portal + create second
             await updateDoc(doc(db, 'cartes', roomId, 'portals', editingPortal.id), {
               ...portalData,
               x: editingPortal.x,

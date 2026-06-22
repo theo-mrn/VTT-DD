@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { db, collection, onSnapshot, query } from '@/lib/firebase';
 import type { Portal, Scene } from '@/app/[roomid]/map/types';
 import { ArrowUpDown, DoorOpen, Hexagon, ArrowDownUp } from 'lucide-react';
@@ -114,13 +115,6 @@ export default function PortalConfigDialog({
             return;
         }
 
-        if (formData.portalType === 'same-map') {
-            if (formData.targetX === undefined || formData.targetY === undefined) {
-                toast.error("Les coordonnées de destination sont requises");
-                return;
-            }
-        }
-
         onSave(formData);
         onOpenChange(false);
         toast.success("Portail posé")
@@ -196,51 +190,18 @@ export default function PortalConfigDialog({
                         </div>
                     )}
 
-                    {/* Target Coordinates */}
-                    <div className="space-y-2">
-                        <Label className="text-white">
-                            Coordonnées de destination
-                            {formData.portalType === 'same-map' && <span className="text-red-400 ml-1">*</span>}
-                        </Label>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <Label className="text-xs text-gray-400">X</Label>
-                                <Input
-                                    type="number"
-                                    value={formData.targetX || 0}
-                                    onChange={(e) => setFormData({ ...formData, targetX: parseInt(e.target.value) || 0 })}
-                                    className="bg-white/5 border-white/10 text-white"
-                                    placeholder="X"
-                                />
-                            </div>
-                            <div>
-                                <Label className="text-xs text-gray-400">Y</Label>
-                                <Input
-                                    type="number"
-                                    value={formData.targetY || 0}
-                                    onChange={(e) => setFormData({ ...formData, targetY: parseInt(e.target.value) || 0 })}
-                                    className="bg-white/5 border-white/10 text-white"
-                                    placeholder="Y"
-                                />
-                            </div>
-                        </div>
-                        <p className="text-xs text-gray-400">
-                            {formData.portalType === 'same-map'
-                                ? 'Position de téléportation sur la carte actuelle'
-                                : 'Position d\'apparition dans la scène de destination (optionnel)'}
-                        </p>
-                    </div>
-
                     {/* Radius */}
                     <div className="space-y-2">
-                        <Label className="text-white">Rayon (pixels)</Label>
-                        <Input
-                            type="number"
-                            value={formData.radius}
-                            onChange={(e) => setFormData({ ...formData, radius: parseInt(e.target.value) || 50 })}
-                            className="bg-white/5 border-white/10 text-white"
+                        <div className="flex items-center justify-between">
+                            <Label className="text-white">Rayon</Label>
+                            <span className="text-sm text-gray-400">{formData.radius}px</span>
+                        </div>
+                        <Slider
+                            value={[formData.radius ?? 50]}
+                            onValueChange={([value]) => setFormData({ ...formData, radius: value })}
                             min={20}
                             max={200}
+                            step={1}
                         />
                         <p className="text-xs text-gray-400">Zone d'activation du portail (20-200px)</p>
                     </div>
@@ -269,8 +230,7 @@ export default function PortalConfigDialog({
                         className="bg-[#c0a080] text-black hover:bg-[#d4b594] font-bold"
                         disabled={
                             !formData.name ||
-                            (formData.portalType === 'scene-change' && !formData.targetSceneId) ||
-                            (formData.portalType === 'same-map' && (formData.targetX === undefined || formData.targetY === undefined))
+                            (formData.portalType === 'scene-change' && !formData.targetSceneId)
                         }
                     >
                         {portal?.id ? 'Enregistrer' : 'Créer'}
