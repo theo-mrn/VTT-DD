@@ -30,11 +30,13 @@ export default function StreamViewPage() {
   const streamRef = useRef<MediaStream | null>(null);
   const previewRef = useRef<HTMLVideoElement>(null);
   const unsubsRef = useRef<Array<() => void>>([]);
+  const stopSharingRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     const channel = new BroadcastChannel(`vtt-stream-${roomId}`);
     channel.onmessage = (e) => {
       if (e.data.type === 'init') setUserId(e.data.userId);
+      if (e.data.type === 'stop') stopSharingRef.current();
     };
     channel.postMessage({ type: 'ready' });
     return () => channel.close();
@@ -48,15 +50,14 @@ export default function StreamViewPage() {
     pcRef.current?.close();
     pcRef.current = null;
     if (previewRef.current) previewRef.current.srcObject = null;
-    try {
-      await remove(dbRef(realtimeDb, `rooms/${roomId}/stream`));
-      console.log('[Stream] rooms/' + roomId + '/stream removed successfully');
-    } catch (e) {
-      console.error('[Stream] failed to remove rooms/' + roomId + '/stream', e);
-    }
+    await remove(dbRef(realtimeDb, `rooms/${roomId}/stream`));
     setIsSharing(false);
     setIsPaused(false);
   }, [roomId]);
+
+  useEffect(() => {
+    stopSharingRef.current = stopSharing;
+  }, [stopSharing]);
 
   const startSharing = useCallback(async () => {
     if (!userId) return;

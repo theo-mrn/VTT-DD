@@ -41,7 +41,8 @@ export default function ScreenShareProducer({ roomId, userId, onStreamChange }: 
   }, [roomId, userId, onStreamChange]);
 
   const closePopup = useCallback(() => {
-    popupRef.current?.close();
+    channelRef.current?.postMessage({ type: 'stop' });
+    setTimeout(() => popupRef.current?.close(), 300);
     channelRef.current?.close();
     setIsOpen(false);
     onStreamChange?.(false);
