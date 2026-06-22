@@ -34,7 +34,7 @@ export default function ScreenShareViewer({ roomId, userId }: Props) {
     let pc: RTCPeerConnection | null = null;
     let destroyed = false;
 
-    const offerRef = dbRef(realtimeDb, `stream/${roomId}/offer`);
+    const offerRef = dbRef(realtimeDb, `rooms/${roomId}/stream/offer`);
 
     const unsubOffer = onValue(offerRef, async snap => {
       const offer = snap.val();
@@ -67,12 +67,12 @@ export default function ScreenShareViewer({ roomId, userId }: Props) {
       pc.onicecandidate = async ({ candidate }) => {
         if (candidate) {
           const key = candidate.candidate.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
-          await set(dbRef(realtimeDb, `stream/${roomId}/viewer_ice/${key}`), candidate.toJSON());
+          await set(dbRef(realtimeDb, `rooms/${roomId}/stream/viewer_ice/${key}`), candidate.toJSON());
         }
       };
 
       // Écoute les ICE du MJ
-      const mjIceRef = dbRef(realtimeDb, `stream/${roomId}/mj_ice`);
+      const mjIceRef = dbRef(realtimeDb, `rooms/${roomId}/stream/mj_ice`);
       onValue(mjIceRef, snap => {
         snap.forEach(child => {
           const c = child.val();
@@ -85,10 +85,10 @@ export default function ScreenShareViewer({ roomId, userId }: Props) {
       await pc.setRemoteDescription(new RTCSessionDescription(offer));
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
-      await set(dbRef(realtimeDb, `stream/${roomId}/answer`), { type: answer.type, sdp: answer.sdp });
+      await set(dbRef(realtimeDb, `rooms/${roomId}/stream/answer`), { type: answer.type, sdp: answer.sdp });
     });
 
-    const unsubPaused = onValue(dbRef(realtimeDb, `stream/${roomId}/paused`), snap => {
+    const unsubPaused = onValue(dbRef(realtimeDb, `rooms/${roomId}/stream/paused`), snap => {
       setPaused(snap.val() === true);
     });
 
@@ -96,7 +96,7 @@ export default function ScreenShareViewer({ roomId, userId }: Props) {
       destroyed = true;
       unsubOffer();
       unsubPaused();
-      off(dbRef(realtimeDb, `stream/${roomId}/mj_ice`));
+      off(dbRef(realtimeDb, `rooms/${roomId}/stream/mj_ice`));
       pc?.close();
       pcRef.current = null;
       setHasTrack(false);

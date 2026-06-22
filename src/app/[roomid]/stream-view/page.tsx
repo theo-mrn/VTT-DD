@@ -45,7 +45,7 @@ export default function StreamViewPage() {
     pcRef.current?.close();
     pcRef.current = null;
     if (previewRef.current) previewRef.current.srcObject = null;
-    await remove(dbRef(realtimeDb, `stream/${roomId}`));
+    await remove(dbRef(realtimeDb, `rooms/${roomId}/stream`));
     setIsSharing(false);
     setIsPaused(false);
   }, [roomId]);
@@ -74,18 +74,18 @@ export default function StreamViewPage() {
       pc.onicecandidate = async ({ candidate }) => {
         if (candidate) {
           const key = candidate.candidate.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20);
-          await set(dbRef(realtimeDb, `stream/${roomId}/mj_ice/${key}`), candidate.toJSON());
+          await set(dbRef(realtimeDb, `rooms/${roomId}/stream/mj_ice/${key}`), candidate.toJSON());
         }
       };
 
-      onValue(dbRef(realtimeDb, `stream/${roomId}/answer`), async snap => {
+      onValue(dbRef(realtimeDb, `rooms/${roomId}/stream/answer`), async snap => {
         const answer = snap.val();
         if (answer && pc.signalingState === 'have-local-offer') {
           await pc.setRemoteDescription(new RTCSessionDescription(answer));
         }
       });
 
-      onValue(dbRef(realtimeDb, `stream/${roomId}/viewer_ice`), snap => {
+      onValue(dbRef(realtimeDb, `rooms/${roomId}/stream/viewer_ice`), snap => {
         snap.forEach(child => {
           const c = child.val();
           if (c?.candidate && pc.remoteDescription) {
@@ -96,7 +96,7 @@ export default function StreamViewPage() {
 
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      await set(dbRef(realtimeDb, `stream/${roomId}/offer`), { type: offer.type, sdp: offer.sdp });
+      await set(dbRef(realtimeDb, `rooms/${roomId}/stream/offer`), { type: offer.type, sdp: offer.sdp });
 
       setIsSharing(true);
     } catch (e) {
@@ -150,7 +150,7 @@ export default function StreamViewPage() {
                 if (!track) return;
                 track.enabled = !track.enabled;
                 setIsPaused(!track.enabled);
-                await set(dbRef(realtimeDb, `stream/${roomId}/paused`), !track.enabled);
+                await set(dbRef(realtimeDb, `rooms/${roomId}/stream/paused`), !track.enabled);
               }}
               className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-sm font-medium transition-colors"
             >
