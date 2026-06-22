@@ -48,7 +48,12 @@ export default function StreamViewPage() {
     pcRef.current?.close();
     pcRef.current = null;
     if (previewRef.current) previewRef.current.srcObject = null;
-    await remove(dbRef(realtimeDb, `rooms/${roomId}/stream`));
+    try {
+      await remove(dbRef(realtimeDb, `rooms/${roomId}/stream`));
+      console.log('[Stream] rooms/' + roomId + '/stream removed successfully');
+    } catch (e) {
+      console.error('[Stream] failed to remove rooms/' + roomId + '/stream', e);
+    }
     setIsSharing(false);
     setIsPaused(false);
   }, [roomId]);
