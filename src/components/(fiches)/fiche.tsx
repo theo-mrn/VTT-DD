@@ -382,6 +382,12 @@ export default function Component() {
     }
   };
 
+  const handleExportPdf = async () => {
+    if (!selectedCharacter) return;
+    const { exportCharacterToPdf } = await import('@/utils/characterPdfExport');
+    await exportCharacterToPdf(selectedCharacter, { getDisplayValue, getDisplayModifier });
+  };
+
   const handleImportCharacter = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !roomId) return;
@@ -985,6 +991,11 @@ export default function Component() {
                       Exporter le personnage
                     </DropdownMenuItem>
                   )}
+
+                  <DropdownMenuItem onSelect={handleExportPdf}>
+                    <Download size={16} className="mr-2" />
+                    Exporter en PDF
+                  </DropdownMenuItem>
 
                   {isMJ && (
                     <DropdownMenuItem
