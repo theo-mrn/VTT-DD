@@ -16,6 +16,7 @@
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",
     "test:playwright:headed": "playwright test --headed",
+    "extract-sheet": "node scripts/extract-sheet.mjs",
     "prepare": "husky"
   },
   "dependencies": {

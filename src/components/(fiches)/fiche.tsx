@@ -168,6 +168,9 @@ export default function Component() {
   const [isExportingCharacter, setIsExportingCharacter] = useState<boolean>(false);
   const [isImportingCharacter, setIsImportingCharacter] = useState<boolean>(false);
   const importCharacterInputRef = React.useRef<HTMLInputElement>(null);
+  const [isNooblesImportOpen, setIsNooblesImportOpen] = useState<boolean>(false);
+  const [nooblesUrl, setNooblesUrl] = useState<string>('');
+  const [isImportingNoobles, setIsImportingNoobles] = useState<boolean>(false);
   const [isActionsMenuOpen, setIsActionsMenuOpen] = useState<boolean>(false);
   const actionsMenuCloseTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -402,6 +405,7 @@ export default function Component() {
           description: exportData.character.Nomperso,
           duration: 3000,
         });
+        setIsNooblesImportOpen(false);
         void newCharacterId;
       } catch (error) {
         console.error('Erreur lors de l\'import du personnage:', error);
@@ -416,6 +420,43 @@ export default function Component() {
     reader.readAsText(file);
 
     e.target.value = '';
+  };
+
+  const handleImportNoobles = async () => {
+    if (!roomId || isImportingNoobles) return;
+    const url = nooblesUrl.trim();
+    if (!url) {
+      toast.error('Veuillez coller le lien de la fiche.');
+      return;
+    }
+    setIsImportingNoobles(true);
+    try {
+      const res = await fetch('/api/import-noobles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.error || 'Import impossible.');
+      }
+      const exportData = parseCharacterExport(JSON.stringify(json.exportData));
+      await importCharacterExport(roomId, exportData);
+      toast.success('Fiche importée avec succès !', {
+        description: exportData.character.Nomperso,
+        duration: 3000,
+      });
+      setIsNooblesImportOpen(false);
+      setNooblesUrl('');
+    } catch (error) {
+      console.error('Erreur lors de l\'import Noobliés:', error);
+      toast.error('Erreur', {
+        description: error instanceof Error ? error.message : "Impossible d'importer la fiche.",
+        duration: 4000,
+      });
+    } finally {
+      setIsImportingNoobles(false);
+    }
   };
 
   const updateWidgetDim = (id: string, type: 'w' | 'h', value: number | 'inc' | 'dec') => {
@@ -999,8 +1040,8 @@ export default function Component() {
 
                   {isMJ && (
                     <DropdownMenuItem
-                      disabled={isImportingCharacter}
-                      onSelect={() => importCharacterInputRef.current?.click()}
+                      disabled={isImportingCharacter || isImportingNoobles}
+                      onSelect={() => setIsNooblesImportOpen(true)}
                     >
                       <UploadCloud size={16} className="mr-2" />
                       Importer un personnage
@@ -1049,6 +1090,59 @@ export default function Component() {
         )}
 
         <AttributsDialog open={isAttributsOpen} onOpenChange={setIsAttributsOpen} />
+
+        <Dialog open={isNooblesImportOpen} onOpenChange={setIsNooblesImportOpen}>
+          <DialogContent className="bg-[var(--bg-card)] border-[var(--border-color)] text-[var(--text-primary)]">
+            <DialogHeader>
+              <DialogTitle>Importer un personnage</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-5">
+              {/* Depuis Noobliés Chroniques */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">Depuis Noobliés Chroniques</h3>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Collez le lien de la fiche pour créer un nouveau personnage dans cette campagne.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={nooblesUrl}
+                    onChange={(e) => setNooblesUrl(e.target.value)}
+                    placeholder="https://nooblieeschroniques.fr/index.php?sheet=..."
+                    className="flex-1 px-3 py-2 rounded-lg bg-[var(--bg-darker)] border border-[var(--border-color)] text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--accent-brown)]"
+                    disabled={isImportingNoobles}
+                  />
+                  <Button onClick={handleImportNoobles} disabled={isImportingNoobles || !nooblesUrl.trim()}>
+                    {isImportingNoobles ? 'Import…' : 'Importer'}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
+                <div className="flex-1 h-px bg-[var(--border-color)]" />
+                ou
+                <div className="flex-1 h-px bg-[var(--border-color)]" />
+              </div>
+
+              {/* Depuis un fichier exporté */}
+              <div className="space-y-2">
+                <h3 className="text-sm font-semibold text-[var(--text-primary)]">Depuis un fichier exporté</h3>
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Importez un personnage précédemment exporté depuis ce site (fichier .json).
+                </p>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  disabled={isImportingCharacter}
+                  onClick={() => importCharacterInputRef.current?.click()}
+                >
+                  <FileDown size={16} className="mr-2" />
+                  {isImportingCharacter ? 'Import en cours…' : 'Choisir un fichier .json'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <div className="relative max-w-5xl mx-auto bg-[#242424] rounded-[length:var(--block-radius,0.5rem)] shadow-2xl p-6 sm:p-8 md:p-10 space-y-4 md:space-y-6" style={mainStyle}>
           {/* Gold Border with Corner Ornaments */}

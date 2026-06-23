@@ -1,0 +1,319 @@
+{
+  "fiche": "fiche-noob",
+  "rendu": "full",
+  "pname": "Théo",
+  "cname": "Cruder Ravowarum (Takahiro)",
+  "race": "Drakonide",
+  "taille": "1,74 m",
+  "poids": "122 Kg",
+  "age": "19 ans",
+  "sexe": "M",
+  "raciale": "Voie raciale de base : le personnage remplace une Voie de son profil par sa Voie raciale dès le premier niveau.\n\n",
+  "niveau": "4",
+  "profil": "Samouraï",
+  "type": "hybride",
+  "illu": "https://i.pinimg.com/originals/41/1e/dc/411edc7e3a2a577da1a42063eb6feb0d.jpg",
+  "dice": "d8",
+  "etat": "normal",
+  "carac": {
+    "FOR": 15,
+    "DEX": 6,
+    "CON": 16,
+    "INT": 11,
+    "SAG": 16,
+    "CHA": 11
+  },
+  "mod": {
+    "FOR": "+2",
+    "DEX": "-2",
+    "CON": "+3",
+    "INT": "+0",
+    "SAG": "+3",
+    "CHA": "+0"
+  },
+  "bonus": {
+    "FOR": "",
+    "DEX": "+2",
+    "CON": "",
+    "INT": "",
+    "SAG": "",
+    "CHA": "",
+    "contact": "",
+    "distance": "",
+    "magique": "",
+    "initiative": "",
+    "defense": "",
+    "PV": ""
+  },
+  "contact": 6,
+  "distance": 3,
+  "magique": 4,
+  "initiative": 6,
+  "defense": "8",
+  "PC": {
+    "max": "3",
+    "left": "3"
+  },
+  "PR": {
+    "max": "5",
+    "left": "3"
+  },
+  "PV": {
+    "max": "39",
+    "left": "11"
+  },
+  "mana": {
+    "max": "5",
+    "left": "3"
+  },
+  "epuisement": "0",
+  "manarule": "standard",
+  "armes": {
+    "0": {
+      "nom": "Mains nues",
+      "dm": "1d4",
+      "effet": {}
+    },
+    "1": {
+      "nom": "Mains nues",
+      "dm": "1d4",
+      "effet": {}
+    }
+  },
+  "armures": {
+    "0": {
+      "nom": "Vêtement en tissu",
+      "mod": "0",
+      "effet": {}
+    }
+  },
+  "besace": {},
+  "bourse": {
+    "pp": "0",
+    "po": "0",
+    "pa": "0",
+    "pc": "0"
+  },
+  "rangin": "",
+  "rangout": "",
+  "SP": {
+    "max": 8,
+    "left": 2
+  },
+  "notes": "takahiro = novle prospère+\n+2 DEXT\n",
+  "fonts": {
+    "fiche": "chn1_regular.ttf",
+    "voies": "FeroxAlternates.ttf",
+    "rangs": "Blackmoor_LET_Plain_2.0.ttf",
+    "desc": "georgia.ttf"
+  },
+  "print": {
+    "cname": false,
+    "pname": false,
+    "desc": false,
+    "raciale": false,
+    "carac": false,
+    "PV": false,
+    "besace": false,
+    "level": false,
+    "dice": false,
+    "atk": false,
+    "def": false,
+    "mana": false,
+    "PC": false,
+    "armes": false,
+    "armures": false,
+    "notes": false,
+    "bourse": false
+  },
+  "RD": "",
+  "voies": {
+    "0": {
+      "rangs": {
+        "0": {
+          "n": 1,
+          "nom": "Chef né",
+          "checked": false
+        },
+        "1": {
+          "n": 2,
+          "nom": "Défi (L)",
+          "checked": false
+        },
+        "2": {
+          "n": 3,
+          "nom": "Honorable",
+          "checked": false
+        },
+        "3": {
+          "n": 4,
+          "nom": "Seuls au monde",
+          "checked": false
+        },
+        "4": {
+          "n": 5,
+          "nom": "Surmonter la douleur",
+          "checked": false
+        }
+      },
+      "prestige": "false",
+      "nom": "Voie de l’honneur "
+    },
+    "1": {
+      "rangs": {
+        "0": {
+          "n": 1,
+          "nom": "Eduqué",
+          "checked": false
+        },
+        "1": {
+          "n": 2,
+          "nom": "Homme de cour",
+          "checked": false
+        },
+        "2": {
+          "n": 3,
+          "nom": "Lame de lignée",
+          "checked": false
+        },
+        "3": {
+          "n": 4,
+          "nom": "Moment zen",
+          "checked": false
+        },
+        "4": {
+          "n": 5,
+          "nom": "Homme complet",
+          "checked": false
+        }
+      },
+      "prestige": "false",
+      "nom": "Voie du dirigeant "
+    },
+    "2": {
+      "rangs": {
+        "0": {
+          "n": 1,
+          "nom": "Esprit vide",
+          "checked": false
+        },
+        "1": {
+          "n": 2,
+          "nom": "Main vide",
+          "checked": false
+        },
+        "2": {
+          "n": 3,
+          "nom": "Kiai",
+          "checked": false
+        },
+        "3": {
+          "n": 4,
+          "nom": "Course mortelle (L)",
+          "checked": false
+        },
+        "4": {
+          "n": 5,
+          "nom": "Puissance du ki",
+          "checked": false
+        }
+      },
+      "prestige": "false",
+      "nom": "Voie du Ki"
+    },
+    "3": {
+      "rangs": {
+        "0": {
+          "n": 1,
+          "nom": "Technique du sabre",
+          "checked": true
+        },
+        "1": {
+          "n": 2,
+          "nom": "Frappe du vide",
+          "checked": true
+        },
+        "2": {
+          "n": 3,
+          "nom": "Lames jumelles (L)",
+          "checked": true
+        },
+        "3": {
+          "n": 4,
+          "nom": "Attaque en rotation (L)",
+          "checked": false
+        },
+        "4": {
+          "n": 5,
+          "nom": "Dextérité héroïque",
+          "checked": false
+        }
+      },
+      "prestige": "false",
+      "nom": "Voie du sabre "
+    },
+    "4": {
+      "rangs": {
+        "0": {
+          "n": 1,
+          "nom": "Bénédiction (L)*",
+          "checked": false
+        },
+        "1": {
+          "n": 2,
+          "nom": "Destruction des morts-vivants (L)*",
+          "checked": false
+        },
+        "2": {
+          "n": 3,
+          "nom": "Sanctuaire (L)*",
+          "checked": false
+        },
+        "3": {
+          "n": 4,
+          "nom": "Intervention divine",
+          "checked": false
+        },
+        "4": {
+          "n": 5,
+          "nom": "Sagesse héroïque",
+          "checked": false
+        }
+      },
+      "prestige": "false",
+      "nom": "Voie de la prière"
+    },
+    "5": {
+      "rangs": {
+        "0": {
+          "n": 1,
+          "nom": "Souffle",
+          "checked": true
+        },
+        "1": {
+          "n": 2,
+          "nom": "Intimidant",
+          "checked": true
+        },
+        "2": {
+          "n": 3,
+          "nom": "Ecailles robustes",
+          "checked": false
+        },
+        "3": {
+          "n": 4,
+          "nom": "Fureur drakonide",
+          "checked": false
+        },
+        "4": {
+          "n": 5,
+          "nom": "Héritage draconique",
+          "checked": false
+        }
+      },
+      "prestige": "true",
+      "nom": "Voie du drakonide"
+    }
+  }
+
+}
