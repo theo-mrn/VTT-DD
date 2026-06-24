@@ -2451,6 +2451,104 @@ export default function Component() {
     resetActiveElementSelection,
   });
 
+  // 📱 Touch support: single-finger pan/tap reuses the mouse handlers via a
+  // synthesized mouse-like event (they only read clientX/clientY/button/buttons),
+  // two-finger pinch drives zoom + offset directly so it zooms around the pinch midpoint.
+  const pinchStateRef = useRef<{ distance: number; zoom: number; midX: number; midY: number } | null>(null);
+
+  const getTouchPoint = (touch: React.Touch) => ({ clientX: touch.clientX, clientY: touch.clientY });
+
+  const handleCanvasTouchStart = useCallback((e: React.TouchEvent<Element>) => {
+    if (e.touches.length === 2) {
+      const [t1, t2] = [e.touches[0], e.touches[1]];
+      const distance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      pinchStateRef.current = {
+        distance,
+        zoom,
+        midX: (t1.clientX + t2.clientX) / 2,
+        midY: (t1.clientY + t2.clientY) / 2,
+      };
+      return;
+    }
+
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      handleCanvasMouseDown({
+        ...getTouchPoint(touch),
+        button: 0,
+        buttons: 1,
+        preventDefault: () => e.preventDefault(),
+        stopPropagation: () => e.stopPropagation(),
+        target: e.target,
+        currentTarget: e.currentTarget,
+      } as unknown as React.MouseEvent<Element>);
+    }
+  }, [zoom, handleCanvasMouseDown]);
+
+  const handleCanvasTouchMove = useCallback((e: React.TouchEvent<Element>) => {
+    if (e.touches.length === 2 && pinchStateRef.current) {
+      e.preventDefault();
+      const [t1, t2] = [e.touches[0], e.touches[1]];
+      const distance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      const midX = (t1.clientX + t2.clientX) / 2;
+      const midY = (t1.clientY + t2.clientY) / 2;
+      const { distance: startDistance, zoom: startZoom } = pinchStateRef.current;
+
+      const newZoom = Math.min(5, Math.max(0.1, startZoom * (distance / startDistance)));
+
+      const rect = bgCanvasRef.current?.getBoundingClientRect();
+      if (rect && bgImageObject) {
+        const { width: imgWidth, height: imgHeight } = getMediaDimensions(bgImageObject);
+        const containerWidth = containerRef.current?.getBoundingClientRect().width || rect.width;
+        const containerHeight = containerRef.current?.getBoundingClientRect().height || rect.height;
+        const fitScale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+
+        // Keep the point under the pinch midpoint stable while zooming
+        const pointerX = midX - rect.left;
+        const pointerY = midY - rect.top;
+        setOffset(prev => {
+          const worldX = (pointerX + prev.x) / (fitScale * startZoom);
+          const worldY = (pointerY + prev.y) / (fitScale * startZoom);
+          return {
+            x: worldX * fitScale * newZoom - pointerX,
+            y: worldY * fitScale * newZoom - pointerY,
+          };
+        });
+      }
+
+      setZoom(newZoom);
+      return;
+    }
+
+    if (e.touches.length === 1 && !pinchStateRef.current) {
+      const touch = e.touches[0];
+      handleCanvasMouseMove({
+        ...getTouchPoint(touch),
+        buttons: 1,
+        preventDefault: () => e.preventDefault(),
+        stopPropagation: () => e.stopPropagation(),
+        target: e.target,
+        currentTarget: e.currentTarget,
+      } as unknown as React.MouseEvent<Element>);
+    }
+  }, [bgImageObject, handleCanvasMouseMove, setOffset, setZoom]);
+
+  const handleCanvasTouchEnd = useCallback((e: React.TouchEvent<Element>) => {
+    if (e.touches.length < 2) {
+      pinchStateRef.current = null;
+    }
+    if (e.touches.length === 0) {
+      const touch = e.changedTouches[0];
+      handleCanvasMouseUp({
+        ...(touch ? getTouchPoint(touch) : {}),
+        button: 0,
+        preventDefault: () => e.preventDefault(),
+        stopPropagation: () => e.stopPropagation(),
+        target: e.target,
+        currentTarget: e.currentTarget,
+      } as unknown as React.MouseEvent<Element>);
+    }
+  }, [handleCanvasMouseUp]);
 
 
 
@@ -3244,6 +3342,10 @@ export default function Component() {
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
         onMouseLeave={handleCanvasMouseUp}
+        onTouchStart={handleCanvasTouchStart}
+        onTouchMove={handleCanvasTouchMove}
+        onTouchEnd={handleCanvasTouchEnd}
+        onTouchCancel={handleCanvasTouchEnd}
         onContextMenu={(e) => {
           if (isVisActive && currentVisibilityTool === 'fog') {
             e.preventDefault();

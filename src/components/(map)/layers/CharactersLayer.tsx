@@ -117,7 +117,9 @@ const CharactersLayer: React.FC<CharactersLayerProps> = ({
         if (!isVisible) return null;
 
         const isPlayerCharacter = char.type === 'joueurs';
-        const baseRadius = isPlayerCharacter ? 54 : 36;
+        // Base radius is a fraction of the image width (calibrated on a 3148px-wide reference image)
+        // so token size stays visually consistent regardless of the source image resolution.
+        const baseRadius = (isPlayerCharacter ? 0.027 : 0.018) * imgWidth;
         const charScale = char.scale || 1;
         const iconRadius = baseRadius * charScale * globalTokenScale * zoom * scale;
 

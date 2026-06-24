@@ -172,7 +172,9 @@ export const drawCharacterBorders = (
         const charScale = char.scale || 1;
         const finalScale = charScale * globalTokenScale;
 
-        const baseBorderRadius = isPlayerCharacter ? 58 : 40;
+        // Base radius is a fraction of the image width (calibrated on a 3148px-wide reference image)
+        // so border size stays visually consistent regardless of the source image resolution.
+        const baseBorderRadius = (isPlayerCharacter ? 0.029 : 0.02) * imgWidth;
         const borderRadius = baseBorderRadius * finalScale * zoom * scale;
 
         //  FILTER VISIBILITY OF BORDER CIRCLES

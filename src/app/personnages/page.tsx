@@ -13,6 +13,7 @@ import { ProfileCard } from '@/components/ui/profile-card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem } from "@/components/ui/context-menu"
+import { Card } from "@/components/ui/card"
 
 interface Character {
   id: string;
@@ -21,6 +22,19 @@ interface Character {
   type?: string;
   Race?: string;
   Profile?: string;
+  level?: number;
+  PV?: number;
+  Defense?: number;
+  INIT?: number;
+  Contact?: number;
+  Distance?: number;
+  Magie?: number;
+  FOR?: number;
+  DEX?: number;
+  CON?: number;
+  INT?: number;
+  SAG?: number;
+  CHA?: number;
 }
 
 interface RoomData {
@@ -561,7 +575,7 @@ function CharacterCard({ character, isSelected, isActive, isTaken, occupantName,
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: index * 0.06 }}
-      className={cn("flex flex-col items-center gap-3 group", isTaken && "opacity-40 grayscale-[0.8]")}
+      className={cn("relative flex flex-col items-center gap-3 group", isTaken && "opacity-40 grayscale-[0.8]")}
     >
       <button
         onClick={onClick}
@@ -643,6 +657,43 @@ function CharacterCard({ character, isSelected, isActive, isTaken, occupantName,
         </AnimatePresence>
       </button>
 
+      {/* Hover stats panel */}
+      {!isTaken && (
+        <div
+          className={cn(
+            "pointer-events-none absolute bottom-full mb-3 left-1/2 -translate-x-1/2 z-30 w-64",
+            "opacity-0 translate-y-2",
+            "group-hover:opacity-100 group-hover:translate-y-0",
+            "transition-all duration-200 ease-out"
+          )}
+        >
+          <Card className="card border-[var(--border-color)] p-3">
+            <p className="text-sm font-semibold text-[var(--text-primary)] text-center truncate">
+              {character.Nomperso}
+            </p>
+            <p className="text-[10px] text-[var(--text-secondary)] text-center mb-2 truncate">
+              {[character.Race?.replace('_', ' '), character.Profile].filter(Boolean).join(' • ') || 'Aventurier'}
+              {character.level ? ` • Niv. ${character.level}` : ''}
+            </p>
+
+            <div className="grid grid-cols-3 gap-1.5">
+              <HoverStat label="PV" value={character.PV} />
+              <HoverStat label="Déf." value={character.Defense} />
+              <HoverStat label="Init." value={character.INIT} />
+            </div>
+
+            <div className="grid grid-cols-6 gap-1 mt-1.5">
+              <HoverStat label="FOR" value={character.FOR} compact />
+              <HoverStat label="DEX" value={character.DEX} compact />
+              <HoverStat label="CON" value={character.CON} compact />
+              <HoverStat label="INT" value={character.INT} compact />
+              <HoverStat label="SAG" value={character.SAG} compact />
+              <HoverStat label="CHA" value={character.CHA} compact />
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Name */}
       <div className="text-center">
         <p className="text-sm md:text-base font-medium text-zinc-400 group-hover:text-white transition-colors duration-200 truncate max-w-[120px] md:max-w-[140px]">
@@ -655,5 +706,20 @@ function CharacterCard({ character, isSelected, isActive, isTaken, occupantName,
         )}
       </div>
     </motion.div>
+  )
+}
+
+// ── Hover stat cell ──────────────────────────────────────────────────────────
+
+function HoverStat({ label, value, compact }: { label: string; value?: number; compact?: boolean }) {
+  return (
+    <div className="flex flex-col items-center rounded-md bg-[var(--bg-darker)] border border-[var(--border-color)] py-1">
+      <span className={cn("uppercase tracking-wide text-[var(--text-secondary)]", compact ? "text-[8px]" : "text-[9px]")}>
+        {label}
+      </span>
+      <span className={cn("font-bold text-[var(--accent-brown)] leading-tight", compact ? "text-xs" : "text-sm")}>
+        {value ?? '—'}
+      </span>
+    </div>
   )
 }

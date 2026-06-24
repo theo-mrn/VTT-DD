@@ -70,7 +70,9 @@ export default function LightsLayer({
 
         const lightScreenX = (light.x / imgWidth) * scaledWidth;
         const lightScreenY = (light.y / imgHeight) * scaledHeight;
-        const size = 40 * zoom * scale;
+        // Size is a fraction of imgWidth (calibrated on a 3148px-wide reference image)
+        // so it stays visually consistent regardless of the source image resolution.
+        const size = 0.02 * imgWidth * zoom * scale;
 
         // Desactiver les interactions si un autre element est actif
         const isThisElementActive = activeElementType === 'light' && activeElementId === light.id;

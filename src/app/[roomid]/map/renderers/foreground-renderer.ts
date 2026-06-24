@@ -1066,8 +1066,10 @@ export function drawForegroundLayers(
         const charScale = char.scale || 1;
         const finalScale = charScale * globalTokenScale;
 
-        const baseRadius = isPlayerCharacter ? 54 : 36;
-        const baseBorderRadius = isPlayerCharacter ? 58 : 40;
+        // Base radius is a fraction of the image width (calibrated on a 3148px-wide reference image)
+        // so size stays visually consistent regardless of the source image resolution.
+        const baseRadius = (isPlayerCharacter ? 0.027 : 0.018) * imgWidth;
+        const baseBorderRadius = (isPlayerCharacter ? 0.029 : 0.02) * imgWidth;
 
         // const iconRadius = baseRadius * finalScale * zoom; // Not used locally?
         const borderRadius = baseBorderRadius * finalScale * zoom * scale;
@@ -1083,7 +1085,9 @@ export function drawForegroundLayers(
 
 
         // Configuration
-        const uiScale = Math.max(0.6, Math.min(1.5, zoom)) * scale * 1.8;
+        // Normalize by imgWidth (relative to the 3148px-wide reference image) so pill/text size
+        // stays visually consistent regardless of the source image resolution.
+        const uiScale = Math.max(0.6, Math.min(1.5, zoom)) * scale * (imgWidth / 3148) * 1.8;
         const isSelected = index === selectedCharacterIndex;
         const canSeeHP = (isMJ && !playerViewMode) || char.id === persoId; // Visible MJ or Owner
 
@@ -1247,16 +1251,18 @@ export function drawForegroundLayers(
 
       // Draw hidden status badge if character is hidden (soit par defaut, soit par le brouillard) - uniquement en mode MJ normal, pas en vue joueur
       if ((effectiveVisibility === 'hidden' || effectiveVisibility === 'custom') && effectiveIsMJ && char.type != "joueurs") {
-        const hiddenBadgeOffsetMultiplier = 16;
+        // Offsets/radius are fractions of the image width (calibrated on a 3148px-wide reference image)
+        // so the badge stays visually consistent regardless of the source image resolution.
+        const hiddenBadgeOffsetMultiplier = 0.00508 * imgWidth;
         const badgeX = x + hiddenBadgeOffsetMultiplier * zoom * scale;
         const badgeY = y - hiddenBadgeOffsetMultiplier * zoom * scale;
-        const badgeRadius = 7 * zoom * scale;
+        const badgeRadius = 0.00222 * imgWidth * zoom * scale;
 
         // Shadow for depth
         ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-        ctx.shadowBlur = 4 * zoom * scale;
-        ctx.shadowOffsetX = 1.5 * zoom * scale;
-        ctx.shadowOffsetY = 1.5 * zoom * scale;
+        ctx.shadowBlur = 0.00127 * imgWidth * zoom * scale;
+        ctx.shadowOffsetX = 0.00048 * imgWidth * zoom * scale;
+        ctx.shadowOffsetY = 0.00048 * imgWidth * zoom * scale;
 
         // Outer ring with gradient
         const outerGradient = ctx.createRadialGradient(badgeX, badgeY, 0, badgeX, badgeY, badgeRadius);
