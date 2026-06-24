@@ -2454,7 +2454,7 @@ export default function Component() {
   // 📱 Touch support: single-finger pan/tap reuses the mouse handlers via a
   // synthesized mouse-like event (they only read clientX/clientY/button/buttons),
   // two-finger pinch drives zoom + offset directly so it zooms around the pinch midpoint.
-  const pinchStateRef = useRef<{ distance: number; zoom: number; midX: number; midY: number } | null>(null);
+  const pinchStateRef = useRef<{ distance: number; zoom: number; offset: { x: number; y: number }; worldX: number; worldY: number } | null>(null);
 
   const getTouchPoint = (touch: React.Touch) => ({ clientX: touch.clientX, clientY: touch.clientY });
 
@@ -2462,12 +2462,24 @@ export default function Component() {
     if (e.touches.length === 2) {
       const [t1, t2] = [e.touches[0], e.touches[1]];
       const distance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
-      pinchStateRef.current = {
-        distance,
-        zoom,
-        midX: (t1.clientX + t2.clientX) / 2,
-        midY: (t1.clientY + t2.clientY) / 2,
-      };
+      const midX = (t1.clientX + t2.clientX) / 2;
+      const midY = (t1.clientY + t2.clientY) / 2;
+
+      const rect = bgCanvasRef.current?.getBoundingClientRect();
+      let worldX = 0;
+      let worldY = 0;
+      if (rect && bgImageObject) {
+        const { width: imgWidth, height: imgHeight } = getMediaDimensions(bgImageObject);
+        const containerWidth = containerRef.current?.getBoundingClientRect().width || rect.width;
+        const containerHeight = containerRef.current?.getBoundingClientRect().height || rect.height;
+        const fitScale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
+        const pointerX = midX - rect.left;
+        const pointerY = midY - rect.top;
+        worldX = (pointerX + offset.x) / (fitScale * zoom);
+        worldY = (pointerY + offset.y) / (fitScale * zoom);
+      }
+
+      pinchStateRef.current = { distance, zoom, offset, worldX, worldY };
       return;
     }
 
@@ -2483,7 +2495,7 @@ export default function Component() {
         currentTarget: e.currentTarget,
       } as unknown as React.MouseEvent<Element>);
     }
-  }, [zoom, handleCanvasMouseDown]);
+  }, [zoom, offset, bgImageObject, handleCanvasMouseDown]);
 
   const handleCanvasTouchMove = useCallback((e: React.TouchEvent<Element>) => {
     if (e.touches.length === 2 && pinchStateRef.current) {
@@ -2492,7 +2504,7 @@ export default function Component() {
       const distance = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
       const midX = (t1.clientX + t2.clientX) / 2;
       const midY = (t1.clientY + t2.clientY) / 2;
-      const { distance: startDistance, zoom: startZoom } = pinchStateRef.current;
+      const { distance: startDistance, zoom: startZoom, worldX, worldY } = pinchStateRef.current;
 
       const newZoom = Math.min(5, Math.max(0.1, startZoom * (distance / startDistance)));
 
@@ -2503,16 +2515,12 @@ export default function Component() {
         const containerHeight = containerRef.current?.getBoundingClientRect().height || rect.height;
         const fitScale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
 
-        // Keep the point under the pinch midpoint stable while zooming
+        // Keep the same world point (fixed at pinch start) under the current pinch midpoint
         const pointerX = midX - rect.left;
         const pointerY = midY - rect.top;
-        setOffset(prev => {
-          const worldX = (pointerX + prev.x) / (fitScale * startZoom);
-          const worldY = (pointerY + prev.y) / (fitScale * startZoom);
-          return {
-            x: worldX * fitScale * newZoom - pointerX,
-            y: worldY * fitScale * newZoom - pointerY,
-          };
+        setOffset({
+          x: worldX * fitScale * newZoom - pointerX,
+          y: worldY * fitScale * newZoom - pointerY,
         });
       }
 
@@ -2521,6 +2529,9 @@ export default function Component() {
     }
 
     if (e.touches.length === 1 && !pinchStateRef.current) {
+      // Block native page scroll/refresh-gesture while interacting with the map
+      // (panning or dragging a character/object) with a single finger.
+      e.preventDefault();
       const touch = e.touches[0];
       handleCanvasMouseMove({
         ...getTouchPoint(touch),
@@ -3336,7 +3347,8 @@ export default function Component() {
           } relative`}
         style={{
           height: '100vh',
-          userSelect: isDraggingCharacter || isDraggingNote || isDraggingObject || isDraggingObstacle ? 'none' : 'auto'
+          userSelect: isDraggingCharacter || isDraggingNote || isDraggingObject || isDraggingObstacle ? 'none' : 'auto',
+          touchAction: 'none'
         }}
         onMouseDown={handleCanvasMouseDown}
         onMouseMove={handleCanvasMouseMove}
