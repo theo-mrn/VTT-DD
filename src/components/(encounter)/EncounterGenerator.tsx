@@ -14,8 +14,11 @@ import {
     Crown,
     Rat,
     X,
-    Check
+    Check,
+    Settings,
+    SlidersHorizontal
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
     Select,
@@ -101,6 +104,7 @@ export default function EncounterGenerator() {
 
     const [isGenerating, setIsGenerating] = useState(false);
     const [encounterCount, setEncounterCount] = useState(0);
+    const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
 
     // Players listener
     useEffect(() => {
@@ -238,28 +242,8 @@ export default function EncounterGenerator() {
         }
     };
 
-    return (
-        <div className="h-full flex flex-col bg-[#141414] text-gray-200">
-            {/* Header */}
-            <div className="p-6 border-b border-[#333] bg-gradient-to-r from-[#1a1a1a] to-[#252525]">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-[#c0a080]/10 rounded-lg border border-[#c0a080]/20">
-                        <Swords className="w-6 h-6 text-[#c0a080]" />
-                    </div>
-                    <div>
-                        <h2 className="text-xl font-bold text-white tracking-tight">
-                            Générateur de Rencontre v2
-                        </h2>
-                        <p className="text-sm text-gray-400">
-                            Scénarios : Horde, Équilibré ou Boss
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
-                {/* Left Panel: Settings */}
-                <div className="w-full md:w-1/3 p-6 border-r border-[#333] bg-[#141414] overflow-y-auto">
+    // Settings form (shared between desktop sidebar and mobile dialog)
+    const settingsContent = (
                     <div className="space-y-6">
                         {/* Party Settings */}
                         <div className="space-y-4">
@@ -415,24 +399,26 @@ export default function EncounterGenerator() {
                                 <span className="font-mono text-[#c0a080]">{budget} XP</span>
                             </div>
                         </div>
-
-                        <Button
-                            className="w-full bg-[#c0a080] text-black hover:bg-[#d4b494] font-bold py-6"
-                            onClick={handleGenerate}
-                            disabled={loading || isGenerating}
-                        >
-                            {isGenerating ? (
-                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> ...</>
-                            ) : (
-                                <><RefreshCw className="w-4 h-4 mr-2" /> Générer Scénarios</>
-                            )}
-                        </Button>
                     </div>
-                </div>
+    );
 
-                {/* Right Panel: Results */}
-                <div className="w-full md:w-2/3 flex flex-col bg-[#0a0a0a]">
-                    {Object.keys(scenarios).length === 0 ? (
+    const generateButton = (
+        <Button
+            className="w-full bg-[#c0a080] text-black hover:bg-[#d4b494] font-bold py-6"
+            onClick={handleGenerate}
+            disabled={loading || isGenerating}
+        >
+            {isGenerating ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> ...</>
+            ) : (
+                <><RefreshCw className="w-4 h-4 mr-2" /> Générer Scénarios</>
+            )}
+        </Button>
+    );
+
+    // Results panel (shared)
+    const resultsPanel = (
+                    <>{Object.keys(scenarios).length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-gray-500 gap-4">
                             <div className="w-20 h-20 rounded-full bg-[#1a1a1a] flex items-center justify-center border border-[#333]">
                                 <Skull className="w-10 h-10 opacity-50" />
@@ -455,7 +441,7 @@ export default function EncounterGenerator() {
                                                 >
                                                     <div className="flex items-center gap-2">
                                                         {getIconForScenario(type)}
-                                                        {SCENARIO_TYPES[type].label}
+                                                        <span className="hidden sm:inline">{SCENARIO_TYPES[type].label}</span>
                                                     </div>
                                                 </TabsTrigger>
                                             );
@@ -463,12 +449,12 @@ export default function EncounterGenerator() {
                                     </TabsList>
                                 </div>
 
-                                <div className="flex-1 overflow-hidden relative">
+                                <div className="flex-1 md:overflow-hidden md:relative">
                                     {(Object.keys(SCENARIO_TYPES) as EncounterScenarioType[]).map((type) => {
                                         const proposals = scenarios[type];
                                         return (
-                                            <TabsContent key={type} value={type} className="absolute inset-0 m-0 overflow-y-auto">
-                                                <div className="p-4">
+                                            <TabsContent key={type} value={type} className="m-0 md:absolute md:inset-0 md:overflow-y-auto">
+                                                <div className="p-3 sm:p-4">
                                                     <div className="space-y-6">
                                                         {proposals?.map((encounter, pi) => (
                                                             <div key={pi} className="rounded-xl border border-[#333] bg-[#1a1a1a] overflow-hidden">
@@ -596,9 +582,80 @@ export default function EncounterGenerator() {
                                 </div>
                             </Tabs>
                         </div>
-                    )}
+                    )}</>
+    );
+
+    const header = (
+        <div className="p-3 sm:p-6 border-b border-[#333] bg-gradient-to-r from-[#1a1a1a] to-[#252525] shrink-0">
+            <div className="flex items-center gap-3">
+                <div className="p-2 bg-[#c0a080]/10 rounded-lg border border-[#c0a080]/20 shrink-0">
+                    <Swords className="w-5 h-5 sm:w-6 sm:h-6 text-[#c0a080]" />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <h2 className="text-base sm:text-xl font-bold text-white tracking-tight truncate">
+                        Générateur de Rencontre
+                    </h2>
+                    <p className="text-xs sm:text-sm text-gray-400">Scénarios : Horde, Équilibré ou Boss</p>
                 </div>
             </div>
+        </div>
+    );
+
+    return (
+        <div className="h-full flex flex-col bg-[#141414] text-gray-200">
+            {header}
+
+            {/* ───────── DESKTOP ───────── */}
+            <div className="hidden md:flex flex-1 overflow-hidden flex-row">
+                <div className="w-1/3 p-6 border-r border-[#333] bg-[#141414] overflow-y-auto shrink-0">
+                    {settingsContent}
+                    <div className="mt-6">{generateButton}</div>
+                </div>
+                <div className="w-2/3 flex flex-col bg-[#0a0a0a] min-h-0">
+                    {resultsPanel}
+                </div>
+            </div>
+
+            {/* ───────── MOBILE ───────── */}
+            <div className="md:hidden flex-1 min-h-0 flex flex-col">
+                {/* Results take all available space */}
+                <div className="flex-1 min-h-0 overflow-y-auto bg-[#0a0a0a]" style={{ touchAction: 'pan-y' }}>
+                    {resultsPanel}
+                </div>
+                {/* Sticky action bar: Settings (icon) + Generate (icon) — always visible */}
+                <div className="shrink-0 flex items-center gap-2 p-3 border-t border-[#333] bg-[#141414]">
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => setMobileSettingsOpen(true)}
+                        className="h-12 w-12 shrink-0 border-[#333] bg-[#1e1e1e] text-gray-200"
+                        title="Options"
+                    >
+                        <SlidersHorizontal className="w-5 h-5" />
+                    </Button>
+                    <Button
+                        className="flex-1 h-12 bg-[#c0a080] text-black hover:bg-[#d4b494] font-bold"
+                        onClick={handleGenerate}
+                        disabled={loading || isGenerating}
+                        title="Générer les scénarios"
+                    >
+                        {isGenerating ? <Loader2 className="w-5 h-5 mr-2 animate-spin" /> : <RefreshCw className="w-5 h-5 mr-2" />}
+                        Générer
+                    </Button>
+                </div>
+            </div>
+
+            {/* Mobile settings dialog — parameters only, no generate button */}
+            <Dialog open={mobileSettingsOpen} onOpenChange={setMobileSettingsOpen}>
+                <DialogContent className="bg-[#141414] border-[#333] text-gray-200 max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-white flex items-center gap-2">
+                            <SlidersHorizontal className="w-5 h-5 text-[#c0a080]" /> Options de rencontre
+                        </DialogTitle>
+                    </DialogHeader>
+                    {settingsContent}
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

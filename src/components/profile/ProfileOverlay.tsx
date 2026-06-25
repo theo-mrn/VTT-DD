@@ -155,9 +155,9 @@ export default function ProfileOverlay({ onClose }: ProfileOverlayProps) {
                 onClick={onClose}
             />
 
-            <div className="fixed inset-0 z-[201] flex items-center justify-center p-4 py-8 md:py-12 pointer-events-none">
+            <div className="fixed inset-0 z-[201] flex items-center justify-center p-2 sm:p-4 sm:py-8 md:py-12 pointer-events-none">
                 <div
-                    className="w-full max-w-3xl h-[85vh] md:h-full bg-[var(--bg-card)] rounded-xl shadow-2xl overflow-hidden pointer-events-auto flex flex-col border border-[var(--border-color)] animate-in fade-in zoom-in-95 duration-200"
+                    className="w-full max-w-3xl h-[92vh] sm:h-[85vh] md:h-full bg-[var(--bg-card)] rounded-xl shadow-2xl overflow-hidden pointer-events-auto flex flex-col border border-[var(--border-color)] animate-in fade-in zoom-in-95 duration-200"
                     onClick={(e) => e.stopPropagation()}
                 >
                     {loading ? (
@@ -186,8 +186,8 @@ export default function ProfileOverlay({ onClose }: ProfileOverlayProps) {
                                     <XIcon className="w-5 h-5" />
                                 </button>
 
-                                <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[var(--bg-card)] via-[var(--bg-card)]/80 to-transparent flex items-end gap-5 translate-y-px z-0">
-                                    <Avatar className="h-24 w-24 sm:h-28 sm:w-28 border-4 border-[var(--bg-card)] shadow-lg bg-[var(--bg-card)] translate-y-4">
+                                <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6 bg-gradient-to-t from-[var(--bg-card)] via-[var(--bg-card)]/80 to-transparent flex items-end gap-3 sm:gap-5 translate-y-px z-0">
+                                    <Avatar className="h-20 w-20 sm:h-28 sm:w-28 border-4 border-[var(--bg-card)] shadow-lg bg-[var(--bg-card)] translate-y-4">
                                         <AvatarImage src={userData.pp} alt={userData.name} className="object-cover" />
                                         <AvatarFallback className="bg-[var(--accent-brown)] text-white text-3xl font-bold">
                                             {userData.name.charAt(0).toUpperCase()}
@@ -214,7 +214,7 @@ export default function ProfileOverlay({ onClose }: ProfileOverlayProps) {
                             </div>
 
                             {/* Tabs Area */}
-                            <div className="flex-1 overflow-y-auto px-4 md:px-6 pt-10 pb-6 scrollbar-thin bg-[var(--bg-card)] shadow-inner">
+                            <div className="flex-1 overflow-y-auto px-3 sm:px-4 md:px-6 pt-8 sm:pt-10 pb-6 scrollbar-thin bg-[var(--bg-card)] shadow-inner">
                                 <CustomTabs
                                     defaultTab="profile_edit"
                                     tabs={[

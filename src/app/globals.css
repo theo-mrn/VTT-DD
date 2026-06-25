@@ -279,6 +279,15 @@
   @apply w-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded px-3 py-2 text-[var(--text-primary)];
 }
 
+/* Prevent iOS Safari from auto-zooming when focusing a field with font-size < 16px */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
 .stat-card {
   @apply bg-[var(--bg-card)] p-4 rounded-lg border border-[var(--border-color)] text-center;
 }

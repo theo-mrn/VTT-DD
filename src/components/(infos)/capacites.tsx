@@ -350,25 +350,25 @@ export default function Capacites() {
         setGlobalSearch("");
       }}>
         {/* ── Toolbar: Tabs + Search + Select on one line ── */}
-        <div className="shrink-0 px-4 md:px-8 pt-4 pb-4">
-          <div className="flex items-center gap-3">
+        <div className="shrink-0 px-3 sm:px-4 md:px-8 pt-3 sm:pt-4 pb-3 sm:pb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
             {/* Tabs */}
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border border-[var(--border-color)] shrink-0">
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border border-[var(--border-color)] shrink-0 overflow-x-auto no-scrollbar">
               <TabsList className="bg-transparent border-none gap-1 p-0">
-                <TabsTrigger value="races" className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all data-[state=active]:bg-[var(--accent-brown)] data-[state=active]:text-[var(--bg-dark)] data-[state=active]:shadow-[0_2px_10px_rgba(192,160,128,0.3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                <TabsTrigger value="races" className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap transition-all data-[state=active]:bg-[var(--accent-brown)] data-[state=active]:text-[var(--bg-dark)] data-[state=active]:shadow-[0_2px_10px_rgba(192,160,128,0.3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                   <Scroll className="h-4 w-4" /> Races
                 </TabsTrigger>
-                <TabsTrigger value="profiles" className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all data-[state=active]:bg-[var(--accent-brown)] data-[state=active]:text-[var(--bg-dark)] data-[state=active]:shadow-[0_2px_10px_rgba(192,160,128,0.3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                <TabsTrigger value="profiles" className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap transition-all data-[state=active]:bg-[var(--accent-brown)] data-[state=active]:text-[var(--bg-dark)] data-[state=active]:shadow-[0_2px_10px_rgba(192,160,128,0.3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                   <Swords className="h-4 w-4" /> Profils
                 </TabsTrigger>
-                <TabsTrigger value="prestiges" className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all data-[state=active]:bg-[var(--accent-brown)] data-[state=active]:text-[var(--bg-dark)] data-[state=active]:shadow-[0_2px_10px_rgba(192,160,128,0.3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                <TabsTrigger value="prestiges" className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap transition-all data-[state=active]:bg-[var(--accent-brown)] data-[state=active]:text-[var(--bg-dark)] data-[state=active]:shadow-[0_2px_10px_rgba(192,160,128,0.3)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                   <Crown className="h-4 w-4" /> Prestiges
                 </TabsTrigger>
               </TabsList>
             </div>
 
             {/* Search */}
-            <div className="relative flex-1 max-w-sm">
+            <div className="relative w-full sm:flex-1 sm:max-w-sm">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[var(--text-secondary)]" />
               <input
                 type="text"
@@ -390,7 +390,7 @@ export default function Capacites() {
             {/* Select */}
             {activeTab === 'races' && (
               <Select value={selectedRace} onValueChange={setSelectedRace}>
-                <SelectTrigger className="w-[200px] h-10 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:border-[var(--accent-brown)]">
+                <SelectTrigger className="w-full sm:w-[200px] h-10 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:border-[var(--accent-brown)]">
                   <SelectValue placeholder="Toutes les races" />
                 </SelectTrigger>
                 <SelectContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] rounded-xl">
@@ -408,7 +408,7 @@ export default function Capacites() {
 
             {activeTab === 'profiles' && (
               <Select value={selectedProfile} onValueChange={setSelectedProfile}>
-                <SelectTrigger className="w-[200px] h-10 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:border-[var(--accent-brown)]">
+                <SelectTrigger className="w-full sm:w-[200px] h-10 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:border-[var(--accent-brown)]">
                   <SelectValue placeholder="Tous les profils" />
                 </SelectTrigger>
                 <SelectContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] rounded-xl">
@@ -426,7 +426,7 @@ export default function Capacites() {
 
             {activeTab === 'prestiges' && (
               <Select value={selectedPrestige} onValueChange={setSelectedPrestige}>
-                <SelectTrigger className="w-[200px] h-10 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:border-[var(--accent-brown)]">
+                <SelectTrigger className="w-full sm:w-[200px] h-10 rounded-xl bg-[var(--bg-card)]/60 backdrop-blur-sm border-[var(--border-color)] text-sm text-[var(--text-primary)] focus:border-[var(--accent-brown)]">
                   <SelectValue placeholder="Toutes les classes" />
                 </SelectTrigger>
                 <SelectContent className="bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] rounded-xl">

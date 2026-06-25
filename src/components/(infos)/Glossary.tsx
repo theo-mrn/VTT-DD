@@ -183,6 +183,9 @@ export default function Glossary() {
     const [currentPage, setCurrentPage] = useState<number>(0);
     const bookRef = useRef<any>(null);
 
+    // Mobile: selected item shown in a detail modal
+    const [mobileDetail, setMobileDetail] = useState<{ type: TabType; data: any } | null>(null);
+
     useEffect(() => {
         const fetchAllData = async () => {
             try {
@@ -325,6 +328,148 @@ export default function Glossary() {
         setCurrentPage(e.data);
     };
 
+    // --- Mobile card renderers (vertical scrollable list instead of the flipbook) ---
+    const MobileImage = ({ src, alt }: { src?: string; alt: string }) => (
+        src && src !== "/placeholder.png" ? (
+            <div className="relative w-full h-44 rounded-lg overflow-hidden mb-3 bg-amber-900/10">
+                <img src={src} alt={alt} loading="lazy" className="w-full h-full object-contain mix-blend-multiply" />
+            </div>
+        ) : null
+    );
+
+    const MobileStat = ({ label, value, icon }: { label: string; value: React.ReactNode; icon?: React.ReactNode }) => (
+        <div className="text-center">
+            <span className="block text-[10px] font-bold text-amber-900 uppercase">{label}</span>
+            <span className="text-base font-bold text-amber-950 flex items-center justify-center gap-1">{icon}{value}</span>
+        </div>
+    );
+
+    // Compact thumbnail (image + name) — opens the detail modal on tap
+    const MobileThumb = ({ type, data, name, image }: { type: TabType; data: any; name: string; image?: string }) => (
+        <button
+            type="button"
+            onClick={() => setMobileDetail({ type, data })}
+            className="group flex flex-col rounded-xl overflow-hidden border border-[#c0a080]/20 bg-black/40 active:scale-[0.98] transition-transform text-left"
+        >
+            <div className="relative w-full aspect-square bg-amber-900/10 overflow-hidden">
+                {image && image !== "/placeholder.png" ? (
+                    <img src={image} alt={name} loading="lazy" className="w-full h-full object-cover" />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                        <Sparkles className="w-8 h-8 text-[#c0a080]/40" />
+                    </div>
+                )}
+            </div>
+            <div className="px-2 py-2">
+                <span className="block text-sm font-bold text-[#c0a080] font-papyrus leading-tight line-clamp-2">{name}</span>
+            </div>
+        </button>
+    );
+
+    const renderMobileGrid = () => {
+        if (activeTab === 'bestiaire') {
+            return filteredMonsters.map(m => <MobileThumb key={m.id} type="bestiaire" data={m} name={m.Nom} image={m.image} />);
+        }
+        if (activeTab === 'classes') {
+            return filteredProfiles.map(p => <MobileThumb key={p.id} type="classes" data={p} name={p.id} image={p.image} />);
+        }
+        return filteredRaces.map(r => <MobileThumb key={r.id} type="races" data={r} name={r.id} image={r.image} />);
+    };
+
+    // Full detail content for the mobile modal
+    const renderMobileDetail = () => {
+        if (!mobileDetail) return null;
+        const { type, data } = mobileDetail;
+        if (type === 'bestiaire') {
+            const monster = data as Monster;
+            return (
+                <div className="bestiary-page rounded-xl p-4">
+                    <h2 className="text-2xl font-serif font-bold text-amber-950 border-b-2 border-amber-900/30 pb-2 mb-2">{monster.Nom}</h2>
+                    <div className="text-amber-800/80 italic font-serif flex justify-between text-sm mb-3">
+                        <span>{monster.Type}</span>
+                        {monster.Challenge && <span>FP {monster.Challenge}</span>}
+                    </div>
+                    <MobileImage src={monster.image} alt={monster.Nom} />
+                    <p className="text-amber-950 leading-relaxed font-serif text-justify text-sm mb-4">{monster.description || "Une créature mystérieuse."}</p>
+                    <div className="border-t border-b border-amber-900/30 py-3 mb-4 flex justify-around bg-amber-900/5">
+                        <MobileStat label="Défense" value={monster.Defense || 10} icon={<Shield className="w-4 h-4 text-amber-800" />} />
+                        <div className="w-px h-8 bg-amber-900/20" />
+                        <MobileStat label="PV" value={monster.PV_Max || 10} icon={<Heart className="w-4 h-4 text-red-800" />} />
+                    </div>
+                    <div className="grid grid-cols-6 gap-1 mb-3 text-center">
+                        {[{ l: 'FOR', v: monster.FOR }, { l: 'DEX', v: monster.DEX }, { l: 'CON', v: monster.CON }, { l: 'INT', v: monster.INT }, { l: 'SAG', v: monster.SAG }, { l: 'CHA', v: monster.CHA }].map(s => (
+                            <div key={s.l}>
+                                <div className="text-[10px] font-bold text-amber-900">{s.l}</div>
+                                <div className="text-sm text-amber-950 font-serif">{s.v || 10}</div>
+                            </div>
+                        ))}
+                    </div>
+                    {monster.Actions && monster.Actions.length > 0 && (
+                        <div>
+                            <h3 className="font-serif font-bold text-lg text-amber-900 border-b border-amber-900/20 pb-1 mb-2">Actions</h3>
+                            <div className="space-y-2">
+                                {monster.Actions.map((action, idx) => (
+                                    <div key={idx} className="text-sm font-serif">
+                                        <span className="font-bold text-amber-950 italic">{action.Nom}.</span>{" "}
+                                        <span className="text-amber-900">{action.Description}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+        if (type === 'classes') {
+            const profile = data as Profile;
+            return (
+                <div className="bestiary-page rounded-xl p-4">
+                    <h2 className="text-2xl font-serif font-bold text-amber-950 border-b-2 border-amber-900/30 pb-2 mb-3">{profile.id}</h2>
+                    <MobileImage src={profile.image} alt={profile.id} />
+                    <p className="text-amber-950 leading-relaxed font-serif text-justify text-sm mb-4">{profile.description || "Une classe légendaire."}</p>
+                    <div className="border-t border-b border-amber-900/30 py-3 flex justify-around bg-amber-900/5">
+                        <MobileStat label="Dé de Vie" value={profile.hitDie} icon={<Heart className="w-4 h-4 text-red-800" />} />
+                    </div>
+                </div>
+            );
+        }
+        const race = data as Race;
+        const caps = capabilities[race.id];
+        return (
+            <div className="bestiary-page rounded-xl p-4">
+                <h2 className="text-2xl font-serif font-bold text-amber-950 border-b-2 border-amber-900/30 pb-2 mb-3">{race.id}</h2>
+                <MobileImage src={race.image} alt={race.id} />
+                <p className="text-amber-950 leading-relaxed font-serif text-justify text-sm mb-4">{race.description || "Une race ancestrale."}</p>
+                {race.modificateurs && Object.keys(race.modificateurs).length > 0 && (
+                    <div className="border-t border-b border-amber-900/30 py-3 mb-4 bg-amber-900/5">
+                        <span className="block text-[10px] font-bold text-amber-900 uppercase text-center mb-2">Modificateurs</span>
+                        <div className="flex justify-center flex-wrap gap-3">
+                            {Object.entries(race.modificateurs).map(([stat, val]) => (
+                                <div key={stat} className="text-center">
+                                    <span className="text-xs font-bold text-amber-900 mr-1">{stat}</span>
+                                    <span className={`text-base font-bold font-serif ${val > 0 ? 'text-green-800' : 'text-red-800'}`}>{val > 0 ? '+' : ''}{val}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                {caps && Object.keys(caps).length > 0 && (
+                    <div>
+                        <h3 className="font-serif font-bold text-lg text-amber-900 border-b border-amber-900/20 pb-1 mb-2">Capacités raciales</h3>
+                        <div className="space-y-2">
+                            {Object.entries(caps).map(([key, value]) => (
+                                <div key={key} className="text-sm font-serif">
+                                    <span className="font-bold text-amber-950 italic">{key}.</span>{" "}
+                                    <span className="text-amber-900">{value}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
@@ -338,12 +483,12 @@ export default function Glossary() {
             <style dangerouslySetInnerHTML={{ __html: flipbookStyles }} />
 
             {/* Top Minimal Controls */}
-            <div className="relative z-20 pb-8 shrink-0 w-full max-w-5xl mx-auto flex flex-col md:flex-row items-center gap-6">
-                <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 gap-1 shrink-0">
+            <div className="relative z-20 pb-4 md:pb-8 shrink-0 w-full max-w-5xl mx-auto flex flex-col md:flex-row items-stretch md:items-center gap-3 md:gap-6">
+                <div className="flex bg-black/40 p-1 rounded-xl border border-white/10 gap-1 shrink-0 overflow-x-auto no-scrollbar">
                     <button
                         onClick={() => setActiveTab('bestiaire')}
                         className={cn(
-                            "flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-all",
+                            "flex items-center gap-2 px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider whitespace-nowrap transition-all",
                             activeTab === 'bestiaire'
                                 ? "bg-[#c0a080] text-[#1c1c1c] shadow-lg shadow-[#c0a080]/20"
                                 : "text-[#c0a080]/60 hover:text-[#c0a080] hover:bg-white/5"
@@ -355,7 +500,7 @@ export default function Glossary() {
                     <button
                         onClick={() => setActiveTab('classes')}
                         className={cn(
-                            "flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-all",
+                            "flex items-center gap-2 px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider whitespace-nowrap transition-all",
                             activeTab === 'classes'
                                 ? "bg-[#c0a080] text-[#1c1c1c] shadow-lg shadow-[#c0a080]/20"
                                 : "text-[#c0a080]/60 hover:text-[#c0a080] hover:bg-white/5"
@@ -367,7 +512,7 @@ export default function Glossary() {
                     <button
                         onClick={() => setActiveTab('races')}
                         className={cn(
-                            "flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold uppercase tracking-wider transition-all",
+                            "flex items-center gap-2 px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-bold uppercase tracking-wider whitespace-nowrap transition-all",
                             activeTab === 'races'
                                 ? "bg-[#c0a080] text-[#1c1c1c] shadow-lg shadow-[#c0a080]/20"
                                 : "text-[#c0a080]/60 hover:text-[#c0a080] hover:bg-white/5"
@@ -379,7 +524,7 @@ export default function Glossary() {
                 </div>
 
                 {/* Search Bar & Filters Layout */}
-                <div className="flex-1 w-full flex gap-4">
+                <div className="flex-1 w-full flex flex-col sm:flex-row gap-2 sm:gap-4">
                     <div className="relative flex-1 group">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#c0a080]/40 group-focus-within:text-[#c0a080] w-4 h-4 transition-colors" />
                         <input
@@ -396,7 +541,7 @@ export default function Glossary() {
                             value={selectedCategory || "all"}
                             onValueChange={(val) => setSelectedCategory(val === "all" ? null : val)}
                         >
-                            <SelectTrigger className="w-48 bg-black/60 border-[#c0a080]/20 rounded-xl text-white font-papyrus">
+                            <SelectTrigger className="w-full sm:w-48 bg-black/60 border-[#c0a080]/20 rounded-xl text-white font-papyrus">
                                 <SelectValue placeholder="Tous les types" />
                             </SelectTrigger>
                             <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white font-papyrus">
@@ -414,22 +559,60 @@ export default function Glossary() {
                 </div>
             </div>
 
-            {/* Book Container */}
-            <div className="flex-1 w-full relative z-10 flex items-start justify-center px-4 md:px-16 pt-12 pb-0">
+            {/* Mobile: compact grid of thumbnails (tap to open details). Flipbook is desktop-only. */}
+            <div className="lg:hidden flex-1 w-full overflow-y-auto styled-scrollbar px-2 pb-8">
+                {(() => {
+                    const len = activeTab === 'bestiaire' ? filteredMonsters.length : activeTab === 'classes' ? filteredProfiles.length : filteredRaces.length;
+                    return len > 0 ? (
+                        <div className="grid grid-cols-3 xs:grid-cols-3 gap-2">
+                            {renderMobileGrid()}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center text-amber-900/50 pt-20">
+                            <Sparkles className="w-12 h-12 mb-3" />
+                            <p className="text-lg font-serif text-center px-6">Aucun résultat ne correspond à votre recherche...</p>
+                        </div>
+                    );
+                })()}
+            </div>
+
+            {/* Mobile detail modal */}
+            {mobileDetail && (
+                <div className="lg:hidden fixed inset-0 z-[300] flex items-end sm:items-center justify-center" onClick={() => setMobileDetail(null)}>
+                    <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+                    <div
+                        className="relative w-full sm:max-w-lg max-h-[88vh] overflow-y-auto styled-scrollbar rounded-t-2xl sm:rounded-2xl"
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ touchAction: 'pan-y' }}
+                    >
+                        <button
+                            onClick={() => setMobileDetail(null)}
+                            className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-black/50 text-white flex items-center justify-center text-lg"
+                            aria-label="Fermer"
+                        >
+                            ✕
+                        </button>
+                        {renderMobileDetail()}
+                    </div>
+                </div>
+            )}
+
+            {/* Book Container (desktop only) */}
+            <div className="hidden lg:flex flex-1 w-full relative z-10 items-start justify-center px-2 sm:px-4 md:px-16 pt-6 sm:pt-12 pb-0">
                 {/* Navigation Arrows */}
                 <Button
                     variant="ghost"
-                    className="absolute left-4 md:left-12 top-1/2 -translate-y-1/2 text-[var(--accent-brown)] hover:text-[var(--accent-brown-hover)] hover:bg-[var(--bg-dark)] h-16 w-16 rounded-full z-30"
+                    className="absolute left-0 sm:left-4 md:left-12 top-1/2 -translate-y-1/2 text-[var(--accent-brown)] hover:text-[var(--accent-brown-hover)] hover:bg-[var(--bg-dark)] h-12 w-12 sm:h-16 sm:w-16 rounded-full z-30"
                     onClick={prevPage}
                 >
-                    <ChevronLeft className="w-10 h-10" />
+                    <ChevronLeft className="w-7 h-7 sm:w-10 sm:h-10" />
                 </Button>
                 <Button
                     variant="ghost"
-                    className="absolute right-4 md:right-12 top-1/2 -translate-y-1/2 text-[var(--accent-brown)] hover:text-[var(--accent-brown-hover)] hover:bg-[var(--bg-dark)] h-16 w-16 rounded-full z-30"
+                    className="absolute right-0 sm:right-4 md:right-12 top-1/2 -translate-y-1/2 text-[var(--accent-brown)] hover:text-[var(--accent-brown-hover)] hover:bg-[var(--bg-dark)] h-12 w-12 sm:h-16 sm:w-16 rounded-full z-30"
                     onClick={nextPage}
                 >
-                    <ChevronRight className="w-10 h-10" />
+                    <ChevronRight className="w-7 h-7 sm:w-10 sm:h-10" />
                 </Button>
                 
                 {(() => {

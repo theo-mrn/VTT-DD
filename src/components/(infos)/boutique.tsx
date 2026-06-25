@@ -136,7 +136,7 @@ export default function Boutique() {
     };
 
     return (
-        <div className="min-h-screen p-6 font-papyrus flex items-center justify-center">
+        <div className="min-h-screen p-3 sm:p-6 font-papyrus flex items-center justify-center">
             <div className="max-w-lg mx-auto w-full">
                 <motion.div
                     initial={{ opacity: 0, y: 30 }}
@@ -150,7 +150,7 @@ export default function Boutique() {
                 >
                     {/* Header avec gradient */}
                     <div
-                        className="relative px-8 pt-10 pb-8 text-center overflow-hidden"
+                        className="relative px-5 sm:px-8 pt-8 sm:pt-10 pb-6 sm:pb-8 text-center overflow-hidden"
                         style={{
                             borderBottom: "1px solid var(--border-color)",
                             background: "linear-gradient(135deg, var(--bg-darker) 0%, var(--bg-dark) 100%)",
@@ -183,24 +183,24 @@ export default function Boutique() {
                         </motion.div>
 
                         <h1
-                            className="text-3xl font-bold mb-2 relative"
+                            className="text-2xl sm:text-3xl font-bold mb-2 relative"
                             style={{ color: "var(--accent-brown)" }}
                         >
                             Soutenir le Projet
                         </h1>
-                        <p className="relative text-base opacity-80" style={{ color: "var(--text-primary)" }}>
+                        <p className="relative text-sm sm:text-base opacity-80" style={{ color: "var(--text-primary)" }}>
                             Devenez membre Premium et aidez à faire évoluer l'application.
                         </p>
                     </div>
 
                     {/* Prix */}
-                    <div className="text-center py-6 px-8">
+                    <div className="text-center py-6 px-5 sm:px-8">
                         <div className="flex items-baseline justify-center gap-1">
                             <motion.span
                                 initial={{ opacity: 0, scale: 0.5 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 transition={{ delay: 0.3, type: "spring" }}
-                                className="text-6xl font-bold"
+                                className="text-5xl sm:text-6xl font-bold"
                                 style={{ color: "var(--text-primary)" }}
                             >
                                 4,99
@@ -214,7 +214,7 @@ export default function Boutique() {
                     </div>
 
                     {/* Features */}
-                    <div className="px-8 pb-6 space-y-3">
+                    <div className="px-5 sm:px-8 pb-6 space-y-3">
                         {FEATURES.map((feature, i) => (
                             <motion.div
                                 key={i}
@@ -246,7 +246,7 @@ export default function Boutique() {
                     </div>
 
                     {/* Footer actions */}
-                    <div className="px-8 pb-8 flex flex-col gap-3">
+                    <div className="px-5 sm:px-8 pb-6 sm:pb-8 flex flex-col gap-3">
                         {loading ? (
                             /* Skeleton loader */
                             <div

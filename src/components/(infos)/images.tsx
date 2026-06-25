@@ -251,17 +251,17 @@ export default function ImageGalleryTabs() {
 
   return (
     <Tabs value={activeMainTab} onValueChange={setActiveMainTab} className="w-full h-full flex flex-col">
-      <div className="flex items-center justify-between mb-6 bg-black/40 border border-white/10 p-1 rounded-xl">
-        <TabsList className="bg-transparent border-none">
-          <TabsTrigger value="assets" className="flex items-center gap-2 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70">Personnages</TabsTrigger>
-          <TabsTrigger value="maps" className="flex items-center gap-2 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70">Cartes</TabsTrigger>
-          <TabsTrigger value="photos" className="flex items-center gap-2 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70">Photos</TabsTrigger>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-6 bg-black/40 border border-white/10 p-1 rounded-xl">
+        <TabsList className="bg-transparent border-none w-full sm:w-auto">
+          <TabsTrigger value="assets" className="flex-1 sm:flex-none flex items-center gap-2 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70">Personnages</TabsTrigger>
+          <TabsTrigger value="maps" className="flex-1 sm:flex-none flex items-center gap-2 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70">Cartes</TabsTrigger>
+          <TabsTrigger value="photos" className="flex-1 sm:flex-none flex items-center gap-2 data-[state=active]:bg-[#c0a080] data-[state=active]:text-[#1c1c1c] text-[#c0a080]/70">Photos</TabsTrigger>
         </TabsList>
 
-        <div className="flex items-center gap-4 px-2">
+        <div className="flex items-center gap-4 px-2 pb-1 sm:pb-0">
           {activeMainTab === 'assets' && (
             <Select value={assetCategory} onValueChange={setAssetCategory}>
-              <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+              <SelectTrigger className="w-full sm:w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
                 <SelectValue placeholder="Catégorie..." />
               </SelectTrigger>
               <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white">
@@ -275,7 +275,7 @@ export default function ImageGalleryTabs() {
 
           {activeMainTab === 'maps' && (
             <Select value={mapCategory} onValueChange={setMapCategory}>
-              <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+              <SelectTrigger className="w-full sm:w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
                 <SelectValue placeholder="Carte..." />
               </SelectTrigger>
               <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white">
@@ -289,7 +289,7 @@ export default function ImageGalleryTabs() {
 
           {activeMainTab === 'photos' && (
             <Select value={photoCategory} onValueChange={setPhotoCategory}>
-              <SelectTrigger className="w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
+              <SelectTrigger className="w-full sm:w-[180px] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)]">
                 <SelectValue placeholder="Catégorie..." />
               </SelectTrigger>
               <SelectContent className="bg-zinc-900 border-[#c0a080]/30 text-white">

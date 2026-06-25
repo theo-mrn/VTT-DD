@@ -128,6 +128,8 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
   // History State
   const [showHistory, setShowHistory] = useState(false);
   const [showStats, setShowStats] = useState(false);
+  // Mobile-only sub-view: roll keypad vs. history vs. stats
+  const [mobileView, setMobileView] = useState<'roll' | 'history' | 'stats'>('roll');
   const [firebaseRolls, setFirebaseRolls] = useState<FirebaseRoll[]>([]);
   const [selectedPlayerFilter, setSelectedPlayerFilter] = useState<string | null>(null);
 
@@ -728,6 +730,176 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
             animation: 'popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
           }}
         >
+          {/* ───────── MOBILE VIEW (matches the keypad mockup) ───────── */}
+          <div className="lg:hidden flex flex-col h-full min-h-0">
+            {/* Result / notation area */}
+            <div className="flex-1 min-h-0 rounded-2xl border mb-3 flex flex-col overflow-hidden" style={{ borderColor: 'var(--border-color)', background: 'var(--bg-darker)' }}>
+              {/* Top bar: notation input + history/stats icons */}
+              <div className="flex items-start gap-2 px-4 pt-3">
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  rows={1}
+                  maxLength={50}
+                  placeholder="1d20 + 5..."
+                  className="flex-1 bg-transparent border-none outline-none resize-none text-2xl font-light font-mono leading-relaxed pt-1"
+                  style={{ color: 'var(--text-primary)', fontSize: '20px' }}
+                />
+                <div className="flex items-center gap-1 shrink-0 pt-1">
+                  <button
+                    onClick={() => setMobileView(v => v === 'history' ? 'roll' : 'history')}
+                    className="p-2 rounded-lg transition-colors"
+                    style={{ color: mobileView === 'history' ? 'var(--accent-brown)' : 'var(--text-secondary)', background: mobileView === 'history' ? 'color-mix(in srgb, var(--accent-brown) 12%, transparent)' : 'transparent' }}
+                    aria-label="Historique"
+                  >
+                    <History className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setMobileView(v => v === 'stats' ? 'roll' : 'stats')}
+                    className="p-2 rounded-lg transition-colors"
+                    style={{ color: mobileView === 'stats' ? 'var(--accent-brown)' : 'var(--text-secondary)', background: mobileView === 'stats' ? 'color-mix(in srgb, var(--accent-brown) 12%, transparent)' : 'transparent' }}
+                    aria-label="Statistiques"
+                  >
+                    <BarChart2 className="w-5 h-5" />
+                  </button>
+                  <button onClick={() => onClose?.()} className="p-2 rounded-lg" style={{ color: 'var(--text-secondary)' }} aria-label="Fermer">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+              <div className="mx-4 border-t" style={{ borderColor: 'var(--border-color)' }} />
+
+              {/* Center content */}
+              <div className="flex-1 min-h-0 overflow-y-auto" style={{ touchAction: 'pan-y' }}>
+                {mobileView === 'roll' && (
+                  <div className="h-full flex flex-col items-center justify-center text-center px-4 py-6">
+                    {(isLoading || latestResult) ? (
+                      <>
+                        {!latestResult?.isBlind && (
+                          <span className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>{userName} a lancé</span>
+                        )}
+                        <div className={`text-7xl font-bold font-serif leading-none ${latestResult?.isBlind ? 'blur-md opacity-40' : ''}`} style={{ color: 'var(--accent-brown)' }}>
+                          {scrambledValue}
+                        </div>
+                        {!isLoading && latestResult && !latestResult.isBlind && (
+                          <>
+                            <div className="text-sm font-mono mt-4" style={{ color: 'var(--text-secondary)' }}>{latestResult.notation}</div>
+                            <div className="text-xs font-mono opacity-60 mt-1 px-4" style={{ color: 'var(--text-secondary)' }}>{latestResult.output}</div>
+                          </>
+                        )}
+                        {latestResult?.isBlind && !isLoading && (
+                          <div className="flex items-center gap-2 text-zinc-500 mt-3"><EyeOff className="w-4 h-4" /><span className="text-xs uppercase tracking-widest">Résultat masqué</span></div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-zinc-600 text-sm">Composez votre lancer puis appuyez sur ROLL</div>
+                    )}
+                  </div>
+                )}
+
+                {mobileView === 'history' && (
+                  <div className="p-3 space-y-2">
+                    {firebaseRolls.filter(canDisplayRoll).length === 0 ? (
+                      <div className="text-center text-zinc-500 py-10 text-sm italic">Aucun lancer récent...</div>
+                    ) : firebaseRolls.filter(canDisplayRoll).map((roll) => (
+                      <div key={roll.id} className="p-3 rounded-xl bg-white/5 border border-white/5">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs font-bold text-zinc-300 truncate">{roll.userName}</span>
+                          <span className="text-[10px] text-zinc-600">{new Date(roll.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div className="text-[11px] font-mono text-zinc-500 truncate">{roll.notation}</div>
+                        <div className={`text-sm font-bold text-zinc-200 ${roll.isBlind && userName !== 'MJ' ? 'blur-sm opacity-50' : ''}`}>Total: {roll.total}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {mobileView === 'stats' && (
+                  <div className="p-3">
+                    <DiceStats rolls={getFilteredRolls()} currentUserName={userName} isMJ={userName === 'MJ'} />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Keypad (only on roll view) */}
+            {mobileView === 'roll' && (
+              <div className="shrink-0 space-y-2">
+                {/* Dice grid */}
+                <div className="grid grid-cols-3 gap-2">
+                  {[4, 6, 8, 10, 12, 20].map((d) => (
+                    <button
+                      key={`m-d${d}`}
+                      onClick={() => addToInput(`1d${d}`)}
+                      className="h-12 flex items-center justify-center rounded-xl border font-mono font-bold text-base active:scale-95 transition-transform"
+                      style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+                    >
+                      d{d}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Stats row */}
+                {!isMJ && rollableStats.length > 0 && (
+                  <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                    {rollableStats.map(stat => (
+                      <button
+                        key={`m-${stat.key}`}
+                        onClick={() => addToInput(`+ ${stat.key}`)}
+                        className="shrink-0 px-4 py-1.5 rounded-full border text-xs font-mono font-bold uppercase"
+                        style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+                      >
+                        {stat.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Modifiers row */}
+                <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                  {['+1', '+2', '+3', '+5', '+10', '-1', '-2'].map(mod => (
+                    <button
+                      key={`m-mod-${mod}`}
+                      onClick={() => addToInput(mod.startsWith('-') ? mod : `+ ${mod.replace('+', '')}`)}
+                      className="shrink-0 px-4 py-1.5 rounded-full border text-xs font-mono font-bold"
+                      style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+                    >
+                      {mod}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Action bar */}
+                <div className="flex items-center gap-2 pt-1">
+                  <button onClick={() => setIsSkinDialogOpen(true)} className="h-12 w-12 shrink-0 flex items-center justify-center rounded-xl border" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }} aria-label="Boutique">
+                    <Store className="w-5 h-5" />
+                  </button>
+                  <button onClick={() => setShow3DAnimations(!show3DAnimations)} className="h-12 w-12 shrink-0 flex items-center justify-center rounded-xl border" style={show3DAnimations ? { borderColor: 'var(--accent-blue,#5c6bc0)', color: 'var(--accent-blue,#5c6bc0)', background: 'color-mix(in srgb, var(--accent-blue,#5c6bc0) 15%, transparent)' } : { borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }} aria-label="3D">
+                    <Box className="w-5 h-5" />
+                  </button>
+                  <button onClick={() => setIsPrivate(!isPrivate)} className="h-12 w-12 shrink-0 flex items-center justify-center rounded-xl border" style={isPrivate ? { borderColor: 'var(--accent-brown)', color: 'var(--accent-brown)', background: 'color-mix(in srgb, var(--accent-brown) 15%, transparent)' } : { borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }} aria-label="Privé">
+                    <Shield className="w-5 h-5" />
+                  </button>
+                  {userName !== 'MJ' && (
+                    <button onClick={() => setIsBlind(!isBlind)} className="h-12 w-12 shrink-0 flex items-center justify-center rounded-xl border" style={isBlind ? { borderColor: 'rgba(239,68,68,0.5)', color: '#f87171', background: 'rgba(239,68,68,0.15)' } : { borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }} aria-label="Blind">
+                      <EyeOff className="w-5 h-5" />
+                    </button>
+                  )}
+                  <button onClick={() => { setInput(''); setLatestResult(null); }} className="h-12 px-3 shrink-0 flex items-center justify-center rounded-xl border text-xs font-bold" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}>
+                    CLR
+                  </button>
+                  <button onClick={handleRoll} disabled={isLoading} className="flex-1 h-12 flex items-center justify-center gap-2 rounded-xl font-bold uppercase text-sm text-black" style={{ background: 'var(--accent-brown)' }}>
+                    Roll <Send className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ───────── DESKTOP VIEW (unchanged) ───────── */}
+          <div className="hidden lg:flex lg:flex-col gap-3 w-full">
           <div className="w-full rounded-xl relative isolate overflow-hidden border shadow-lg backdrop-blur-xl" style={{ background: 'linear-gradient(135deg, var(--bg-card) 0%, var(--bg-darker) 100%)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}>
             {/* Subtle white shimmer overlay — preserves the original glassmorphism feel */}
             <div className="absolute inset-0 pointer-events-none rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)' }} />
@@ -1184,6 +1356,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
               </div> {/* end inner div */}
             </div> {/* end rounded-xl card 2 */}
           </div> {/* end rounded-2xl card 2 */}
+          </div> {/* end desktop view wrapper */}
         </div>
       )}
 

@@ -597,31 +597,161 @@ export function GMDashboard() {
   const activeCharacter = characters[0]
 
   return (
-    <div className="h-full flex flex-col gap-6 p-6 bg-[var(--bg-dark)] text-[var(--text-primary)] overflow-hidden">
+    <div className="h-full flex flex-col gap-4 sm:gap-6 p-3 sm:p-6 bg-[var(--bg-dark)] text-[var(--text-primary)] overflow-hidden">
       {/* Header */}
-      <div className="flex justify-between items-center bg-[var(--bg-card)] p-4 rounded-xl border border-[var(--border-color)] shadow-sm">
-        <div className="flex items-center gap-3">
-          <Sword className="h-6 w-6 text-[var(--accent-brown)]" />
-          <h1 className="text-2xl font-bold tracking-tight">Combat </h1>
+      <div className="flex items-center justify-between gap-2 bg-[var(--bg-card)] p-3 sm:p-4 rounded-xl border border-[var(--border-color)] shadow-sm shrink-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <Sword className="h-5 w-5 sm:h-6 sm:w-6 text-[var(--accent-brown)] shrink-0" />
+          <h1 className="text-lg sm:text-2xl font-bold tracking-tight">Combat</h1>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={rerollInitiative} disabled={isRollingInitiative} className="border-[var(--border-color)] hover:bg-[var(--bg-darker)]">
-            <Dice1 className="mr-2 h-4 w-4" />
-            Relancer Init
+        <div className="flex items-center gap-2 shrink-0">
+          {/* Mobile: icon-only buttons */}
+          <Button variant="outline" size="icon" onClick={rerollInitiative} disabled={isRollingInitiative} className="lg:hidden h-9 w-9 border-[var(--border-color)]" title="Relancer l'initiative">
+            <Dice1 className="h-4 w-4" />
           </Button>
-          <Button variant="outline" onClick={previousCharacter} className="border-[var(--border-color)] hover:bg-[var(--bg-darker)]">
-            <ChevronLeft className="mr-2 h-4 w-4" />
-            Précédent
+          <Button variant="outline" size="icon" onClick={previousCharacter} className="lg:hidden h-9 w-9 border-[var(--border-color)]" title="Précédent">
+            <ChevronLeft className="h-4 w-4" />
           </Button>
-          <Button className="button-primary" onClick={nextCharacter}>
-            <ChevronRight className="mr-2 h-4 w-4" />
-            Suivant
+          <Button size="icon" onClick={nextCharacter} className="lg:hidden button-primary h-9 w-9" title="Suivant">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+
+          {/* Desktop: full buttons */}
+          <Button variant="outline" onClick={rerollInitiative} disabled={isRollingInitiative} className="hidden lg:inline-flex border-[var(--border-color)] hover:bg-[var(--bg-darker)]">
+            <Dice1 className="mr-2 h-4 w-4" /> Relancer Init
+          </Button>
+          <Button variant="outline" onClick={previousCharacter} className="hidden lg:inline-flex border-[var(--border-color)] hover:bg-[var(--bg-darker)]">
+            <ChevronLeft className="mr-2 h-4 w-4" /> Précédent
+          </Button>
+          <Button className="hidden lg:inline-flex button-primary" onClick={nextCharacter}>
+            <ChevronRight className="mr-2 h-4 w-4" /> Suivant
           </Button>
         </div>
       </div>
 
-      {/* Main Content Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full min-h-0">
+      {/* ───────── MOBILE LAYOUT ───────── */}
+      <div className="lg:hidden flex-1 min-h-0 overflow-y-auto space-y-4 pb-4" style={{ touchAction: 'pan-y' }}>
+        {/* Active character card */}
+        {activeCharacter ? (
+          <div className="rounded-2xl border-2 border-[var(--accent-brown)] bg-[var(--bg-card)] overflow-hidden">
+            <div className="p-4 bg-[var(--accent-brown)]/5">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-16 w-16 shrink-0 border-2 border-[var(--accent-brown)]">
+                  <AvatarImage src={activeCharacter.avatar} alt={activeCharacter.name} className="object-cover" />
+                  <AvatarFallback className="text-xl bg-[var(--bg-darker)]">{activeCharacter.name[0]}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <Sword className="h-4 w-4 text-[var(--accent-brown)] shrink-0" />
+                    <h2 className="text-lg font-bold truncate">{activeCharacter.name}</h2>
+                  </div>
+                  <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                    <Badge variant="outline" className="text-[var(--text-secondary)] border-[var(--border-color)] text-[10px] px-1.5">{activeCharacter.type.toUpperCase()}</Badge>
+                    <Badge className="bg-[var(--accent-brown)] text-[10px] px-1.5">INIT {activeCharacter.currentInit}</Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* DEF / PV row */}
+              <div className="flex items-stretch gap-2 mt-3">
+                <div className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] py-2">
+                  <Shield className="h-4 w-4 text-[var(--text-secondary)]" />
+                  <span className="text-xs text-[var(--text-secondary)] uppercase font-bold">DEF</span>
+                  <span className="text-lg font-bold">{activeCharacter.Defense}</span>
+                </div>
+                <button onClick={() => openDrawer(activeCharacter)} className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] py-2 active:scale-95 transition-transform">
+                  <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+                  <span className="text-lg font-bold">{activeCharacter.pv}</span>
+                  <Pencil className="h-3 w-3 text-[var(--text-secondary)] opacity-60" />
+                </button>
+              </div>
+
+              {/* Conditions */}
+              <div className="mt-3">
+                <ConditionManager character={activeCharacter} onToggle={toggleCondition} />
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="px-3 py-3 border-t border-[var(--border-color)]">
+              <div className="grid grid-cols-6 gap-1.5">
+                {activeCharacter.stats && Object.entries(activeCharacter.stats).map(([stat, value]) => {
+                  const mod = Math.floor(((value as number) - 10) / 2)
+                  return (
+                    <div key={stat} className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded p-1 text-center">
+                      <div className="text-[8px] uppercase text-[var(--text-secondary)] font-bold">{stat}</div>
+                      <div className="font-mono font-bold text-xs">{value as number}</div>
+                      <div className="text-[8px] text-[var(--text-secondary)]">{mod >= 0 ? `+${mod}` : mod}</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Attack reports */}
+            <div className="px-3 pb-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)] mb-2 flex items-center gap-1.5"><Sword className="h-3.5 w-3.5" /> Rapports d'attaque</h3>
+              {attackReports.length > 0 ? (
+                <div className="space-y-2">
+                  {attackReports.map(report => (
+                    <div key={report.reportId} className="rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] p-2.5">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-sm font-medium truncate">{report.arme_utilisée}</span>
+                        <Badge variant={report.réussite ? "default" : "destructive"} className="text-[10px] px-1.5 shrink-0">{report.réussite ? "Touché" : "Manqué"}</Badge>
+                      </div>
+                      <div className="text-xs text-[var(--text-secondary)] truncate mb-1.5">Cible : <span className="text-[var(--text-primary)]">{report.cible_nom}</span></div>
+                      <div className="flex items-center justify-between text-xs mb-2">
+                        <span className="text-[var(--text-secondary)]">Jet <b className="text-[var(--text-primary)] font-mono">{report.attaque_result}</b></span>
+                        <span className="text-[var(--text-secondary)]">Dégâts <b className="text-red-400 font-mono">{report.degat_result}</b></span>
+                      </div>
+                      <Button size="sm" className="w-full h-8 text-xs button-secondary" onClick={() => openOtherDrawer(report)}>Appliquer</Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 text-[var(--text-secondary)] text-xs border border-dashed border-[var(--border-color)] rounded-lg">Aucune attaque enregistrée.</div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-2xl border-2 border-dashed border-[var(--border-color)] py-10 text-center text-[var(--text-secondary)] text-sm">Aucun personnage actif</div>
+        )}
+
+        {/* Turn order list */}
+        <div className="rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] overflow-hidden">
+          <div className="px-4 py-3 border-b border-[var(--border-color)] flex items-center gap-2">
+            <Dice1 className="h-4 w-4 text-[var(--text-secondary)]" />
+            <span className="font-bold text-sm">Ordre du tour</span>
+          </div>
+          <div className="p-3 space-y-2">
+            {characters.slice(1).map((char, index) => (
+              <div key={char.id} className="flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)]" onClick={() => setViewedCharacter(char)}>
+                <span className="font-mono text-base font-bold text-[var(--text-secondary)] w-5 text-center shrink-0">{index + 2}</span>
+                <Avatar className="h-9 w-9 shrink-0 border border-[var(--border-color)]">
+                  <AvatarImage src={char.avatar} />
+                  <AvatarFallback>{char.name[0]}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate text-sm">{char.name}</div>
+                  <div className="text-xs text-[var(--text-secondary)] flex items-center gap-2">
+                    <span className="flex items-center gap-1"><Heart className="h-3 w-3" /> {char.pv}</span>
+                    <span className="flex items-center gap-1"><Dice1 className="h-3 w-3" /> {char.initDetails}</span>
+                  </div>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={(e) => { e.stopPropagation(); openDrawer(char); }}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            {characters.length <= 1 && (
+              <div className="text-center py-3 text-[var(--text-secondary)] text-sm">Aucun autre personnage en attente.</div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ───────── DESKTOP LAYOUT ───────── */}
+      <div className="hidden lg:grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 h-full min-h-0 overflow-hidden">
         <LightRays />
         {/* Turn Order Panel (List - Left, slightly larger) */}
         <div className="lg:col-span-5 flex flex-col min-h-0">
@@ -697,16 +827,16 @@ export function GMDashboard() {
                 <X className="h-4 w-4" />
               </Button>
               <CardHeader className="pb-2 bg-blue-950/10">
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-16 w-16 border-2 border-blue-500/50 shadow-md">
+                <div className="flex items-center gap-3 sm:gap-4 pr-8">
+                  <Avatar className="h-12 w-12 sm:h-16 sm:w-16 shrink-0 border-2 border-blue-500/50 shadow-md">
                     <AvatarImage src={viewedCharacter.avatar} alt={viewedCharacter.name} className="object-cover" />
                     <AvatarFallback className="text-xl bg-[var(--bg-darker)]">{viewedCharacter.name[0]}</AvatarFallback>
                   </Avatar>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                      <div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <h2 className="text-xl font-bold text-[var(--text-primary)]">{viewedCharacter.name}</h2>
+                          <h2 className="text-base sm:text-xl font-bold text-[var(--text-primary)] truncate">{viewedCharacter.name}</h2>
                         </div>
                         <div className="flex gap-2 mt-1">
                           <Badge variant="outline" className="text-[var(--text-secondary)] border-blue-500/30">
@@ -720,7 +850,7 @@ export function GMDashboard() {
                           <ConditionManager character={viewedCharacter} onToggle={toggleCondition} />
                         </div>
                       </div>
-                      <div className="text-right pr-8">
+                      <div className="text-right shrink-0">
                         <div className="flex items-center justify-end gap-3">
                           <div className="flex flex-col items-center">
                             <span className="text-xs text-[var(--text-secondary)] font-bold uppercase">DEF</span>
@@ -771,17 +901,17 @@ export function GMDashboard() {
             return (
               <Card className="h-fit flex flex-col border-red-900/30 border-2 bg-[var(--bg-card)] shadow-lg overflow-hidden">
                 <CardHeader className="pb-2 bg-red-950/10">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-16 w-16 border-2 border-red-900/30 shadow-md">
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    <Avatar className="h-12 w-12 sm:h-16 sm:w-16 shrink-0 border-2 border-red-900/30 shadow-md">
                       <AvatarImage src={targetCharacter.avatar} alt={targetCharacter.name} className="object-cover" />
                       <AvatarFallback className="text-xl bg-[var(--bg-darker)]">{targetCharacter.name[0]}</AvatarFallback>
                     </Avatar>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start">
-                        <div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                        <div className="min-w-0">
                           <div className="flex items-center gap-2">
-                            <Skull className="h-4 w-4 text-red-500" />
-                            <h2 className="text-xl font-bold text-[var(--text-primary)]">Cible: {targetCharacter.name}</h2>
+                            <Skull className="h-4 w-4 text-red-500 shrink-0" />
+                            <h2 className="text-base sm:text-xl font-bold text-[var(--text-primary)] truncate">Cible: {targetCharacter.name}</h2>
                           </div>
                           <div className="flex flex-col gap-2 mt-1">
                             <Badge variant="outline" className="text-[var(--text-secondary)] border-red-900/30 w-fit">
@@ -839,17 +969,17 @@ export function GMDashboard() {
           {activeCharacter ? (
             <Card className="flex-1 min-h-0 flex flex-col border-[var(--accent-brown)] border-2 bg-[var(--bg-card)] shadow-lg overflow-hidden">
               <CardHeader className="pb-2 bg-[var(--accent-brown)]/5">
-                <div className="flex items-center gap-4">
-                  <Avatar className="h-20 w-20 border-2 border-[var(--accent-brown)] shadow-md">
+                <div className="flex items-center gap-3 sm:gap-4">
+                  <Avatar className="h-14 w-14 sm:h-20 sm:w-20 shrink-0 border-2 border-[var(--accent-brown)] shadow-md">
                     <AvatarImage src={activeCharacter.avatar} alt={activeCharacter.name} className="object-cover" />
                     <AvatarFallback className="text-2xl bg-[var(--bg-darker)]">{activeCharacter.name[0]}</AvatarFallback>
                   </Avatar>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start">
-                      <div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                      <div className="min-w-0">
                         <div className="flex items-center gap-2">
-                          <Sword className="h-5 w-5 text-[var(--accent-brown)]" />
-                          <h2 className="text-2xl font-bold text-[var(--text-primary)]">{activeCharacter.name}</h2>
+                          <Sword className="h-5 w-5 text-[var(--accent-brown)] shrink-0" />
+                          <h2 className="text-lg sm:text-2xl font-bold text-[var(--text-primary)] truncate">{activeCharacter.name}</h2>
                         </div>
                         <div className="flex flex-col gap-2 mt-1">
                           <div className="flex gap-2">
@@ -888,7 +1018,7 @@ export function GMDashboard() {
                 </div>
               </CardHeader>
 
-              <CardContent className="pt-4 px-6 flex-1 flex flex-col gap-4 overflow-y-auto">
+              <CardContent className="pt-4 px-3 sm:px-6 flex-1 flex flex-col gap-4 overflow-y-auto">
                 {/* Active Stats Section */}
                 <div className="grid grid-cols-6 gap-2">
                   {activeCharacter.stats && Object.entries(activeCharacter.stats).map(([stat, value]) => {

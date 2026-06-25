@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { DICE_SKINS, DiceSkin } from '../(dices)/dice-definitions';
 import { DiceCard } from '../(dices)/dice-card';
 import { TOKEN_DEFINITIONS, DEFAULT_TOKEN_INVENTORY, TokenSkin, getTokenDefinition } from '../(fiches)/token-definitions';
@@ -297,16 +296,12 @@ export function StoreModal({
 
     useEffect(() => {
         setCurrentPage(1);
-        const scrollArea = document.getElementById('store-modal-scroll-area');
-        const viewport = scrollArea?.querySelector('[data-radix-scroll-area-viewport]');
-        if (viewport) viewport.scrollTo({ top: 0, behavior: 'smooth' });
+        document.getElementById('store-modal-scroll-area')?.scrollTo({ top: 0, behavior: 'smooth' });
     }, [activeTab, filter]);
 
     const handlePageChange = (newPage: number) => {
         setCurrentPage(newPage);
-        const scrollArea = document.getElementById('store-modal-scroll-area');
-        const viewport = scrollArea?.querySelector('[data-radix-scroll-area-viewport]');
-        if (viewport) viewport.scrollTo({ top: 0, behavior: 'smooth' });
+        document.getElementById('store-modal-scroll-area')?.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     if (!mounted || !shouldRender) return null;
@@ -327,64 +322,52 @@ export function StoreModal({
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* --- HEADER --- */}
-                <div className="px-8 py-6 flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--bg-darker)]/40">
-                    <div className="flex items-center gap-5">
-                        <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[var(--text-primary)]/10 to-transparent border border-[var(--border-color)] flex items-center justify-center shadow-inner">
-                            <Store className="w-6 h-6 text-[var(--accent-brown)]" />
+                <div className="px-4 sm:px-8 py-3 sm:py-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border-b border-[var(--border-color)] bg-[var(--bg-darker)]/40">
+                    {/* Title row + close */}
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-gradient-to-br from-[var(--text-primary)]/10 to-transparent border border-[var(--border-color)] flex items-center justify-center shadow-inner">
+                                <Store className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--accent-brown)]" />
+                            </div>
+                            <div className="min-w-0">
+                                <h2 className="text-base sm:text-xl font-black tracking-tight text-[var(--text-primary)] uppercase italic truncate">La Boutique du MJ</h2>
+                                <p className="hidden sm:block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest">Épique & Légendaire</p>
+                            </div>
                         </div>
-                        <div>
-                            <h2 className="text-xl font-black tracking-tight text-[var(--text-primary)] uppercase italic">La Boutique du MJ</h2>
-                            <p className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest">Épique & Légendaire</p>
-                        </div>
-                    </div>
-
-                    <div className="flex bg-[var(--bg-darker)]/60 p-1.5 rounded-2xl border border-[var(--border-color)] backdrop-blur-md">
-                        <button
-                            onClick={() => setActiveTab('home')}
-                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-tighter transition-all duration-300 ${activeTab === 'home'
-                                ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] shadow-[0_0_20px_rgba(var(--accent-brown-rgb),0.3)] scale-105'
-                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-                        >
-                            <LayoutGrid className="w-4 h-4" />
-                            Accueil
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('store')}
-                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-tighter transition-all duration-300 ${activeTab === 'store'
-                                ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] shadow-[0_0_20px_rgba(var(--accent-brown-rgb),0.3)] scale-105'
-                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-                        >
-                            <Store className="w-4 h-4" />
-                            Boutique
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('inventory')}
-                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-tighter transition-all duration-300 ${activeTab === 'inventory'
-                                ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] shadow-[0_0_20px_rgba(var(--accent-brown-rgb),0.3)] scale-105'
-                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-                        >
-                            <Backpack className="w-4 h-4" />
-                            Mon Sac
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('premium')}
-                            className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-black uppercase tracking-tighter transition-all duration-300 ${activeTab === 'premium'
-                                ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] shadow-[0_0_20px_rgba(var(--accent-brown-rgb),0.3)] scale-105'
-                                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
-                        >
-                            <Crown className="w-4 h-4" />
-                            Premium
+                        <button onClick={onClose} className="lg:hidden w-10 h-10 shrink-0 rounded-full hover:bg-[var(--text-primary)]/10 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">
+                            <X className="w-6 h-6" />
                         </button>
                     </div>
 
-                    <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-[var(--text-primary)]/10 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">
+                    {/* Tabs — scrollable on mobile */}
+                    <div className="flex bg-[var(--bg-darker)]/60 p-1 sm:p-1.5 rounded-2xl border border-[var(--border-color)] backdrop-blur-md overflow-x-auto no-scrollbar">
+                        {([
+                            { id: 'home', label: 'Accueil', Icon: LayoutGrid },
+                            { id: 'store', label: 'Boutique', Icon: Store },
+                            { id: 'inventory', label: 'Mon Sac', Icon: Backpack },
+                            { id: 'premium', label: 'Premium', Icon: Crown },
+                        ] as const).map(({ id, label, Icon }) => (
+                            <button
+                                key={id}
+                                onClick={() => setActiveTab(id)}
+                                className={`flex items-center gap-2 px-3 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase tracking-tighter whitespace-nowrap transition-all duration-300 ${activeTab === id
+                                    ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] shadow-[0_0_20px_rgba(var(--accent-brown-rgb),0.3)]'
+                                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                            >
+                                <Icon className="w-4 h-4 shrink-0" />
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <button onClick={onClose} className="hidden lg:flex w-10 h-10 rounded-full hover:bg-[var(--text-primary)]/10 items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">
                         <X className="w-6 h-6" />
                     </button>
                 </div>
 
                 {/* --- FILTERS (Only for Store and Inventory) --- */}
                 {(activeTab === 'store' || activeTab === 'inventory') && (
-                    <div className="flex items-center gap-3 px-8 py-4 bg-[var(--bg-darker)]/50 border-b border-[var(--border-color)] overflow-x-auto no-scrollbar">
+                    <div className="flex items-center gap-2 sm:gap-3 px-4 sm:px-8 py-3 sm:py-4 bg-[var(--bg-darker)]/50 border-b border-[var(--border-color)] overflow-x-auto no-scrollbar">
                         <button
                             onClick={() => setFilter('all')}
                             className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${filter === 'all'
@@ -426,9 +409,9 @@ export function StoreModal({
                             <span className="text-xs font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">Chargement...</span>
                         </div>
                     ) : (
-                        <ScrollArea className="h-full" id="store-modal-scroll-area">
-                            <div className="p-8">
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                        <div className="h-full overflow-y-auto custom-scrollbar" id="store-modal-scroll-area" style={{ touchAction: 'pan-y' }}>
+                            <div className="p-4 sm:p-8">
+                                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
                                     {/* Homepage Content */}
                                     {activeTab === 'home' && (
                                         <div className="col-span-full space-y-12">
@@ -533,7 +516,7 @@ export function StoreModal({
                                     {activeTab === 'premium' && (
                                         <div className="col-span-full">
                                             <div className={cn(
-                                                "relative flex flex-col items-center justify-center rounded-3xl overflow-hidden border transition-all duration-500 min-h-[500px] p-12 text-center",
+                                                "relative flex flex-col items-center justify-center rounded-3xl overflow-hidden border transition-all duration-500 min-h-[400px] sm:min-h-[500px] p-6 sm:p-12 text-center",
                                                 "bg-gradient-to-br from-[var(--accent-brown)]/20 via-[var(--bg-dark)] to-[var(--bg-darker)] border-[var(--accent-brown)]/30",
                                                 "hover:border-[var(--accent-brown)] hover:shadow-[0_0_50px_rgba(var(--accent-brown-rgb),0.1)]"
                                             )}>
@@ -547,7 +530,7 @@ export function StoreModal({
                                                     </div>
 
                                                     <div className="space-y-2">
-                                                        <h3 className="text-4xl font-black text-[var(--text-primary)] italic uppercase tracking-tighter">Abonnement Premium</h3>
+                                                        <h3 className="text-2xl sm:text-4xl font-black text-[var(--text-primary)] italic uppercase tracking-tighter">Abonnement Premium</h3>
                                                         <p className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">L'expérience Ultime du MJ</p>
                                                     </div>
 
@@ -633,22 +616,23 @@ export function StoreModal({
 
                                                 {/* Pagination Controls */}
                                                 {totalPages > 1 && (
-                                                    <div className="col-span-full flex items-center justify-center gap-4 py-8 border-t border-[var(--border-color)]/30 mt-8">
+                                                    <div className="col-span-full flex items-center justify-center gap-2 sm:gap-4 py-6 sm:py-8 border-t border-[var(--border-color)]/30 mt-8">
                                                         <button
                                                             onClick={() => handlePageChange(currentPage - 1)}
                                                             disabled={currentPage === 1}
-                                                            className="px-4 py-2 text-xs font-bold uppercase tracking-widest bg-[var(--bg-canvas)] rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors border border-[var(--border-color)]/50"
+                                                            className="shrink-0 px-3 sm:px-4 py-2 text-xs font-bold uppercase tracking-widest bg-[var(--bg-canvas)] rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors border border-[var(--border-color)]/50"
                                                         >
-                                                            Précédent
+                                                            <span className="hidden sm:inline">Précédent</span>
+                                                            <span className="sm:hidden">‹</span>
                                                         </button>
 
-                                                        <div className="flex items-center gap-2">
+                                                        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar max-w-[40vw] sm:max-w-none">
                                                             {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                                                                 <button
                                                                     key={page}
                                                                     onClick={() => handlePageChange(page)}
                                                                     className={cn(
-                                                                        "w-8 h-8 text-xs font-bold rounded-lg transition-all border",
+                                                                        "shrink-0 w-8 h-8 text-xs font-bold rounded-lg transition-all border",
                                                                         currentPage === page
                                                                             ? "bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)] shadow-[0_0_10px_var(--accent-brown)]"
                                                                             : "bg-[var(--bg-canvas)] text-[var(--text-secondary)] border-[var(--border-color)]/50 hover:bg-white/5"
@@ -662,9 +646,10 @@ export function StoreModal({
                                                         <button
                                                             onClick={() => handlePageChange(currentPage + 1)}
                                                             disabled={currentPage === totalPages}
-                                                            className="px-4 py-2 text-xs font-bold uppercase tracking-widest bg-[var(--bg-canvas)] rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors border border-[var(--border-color)]/50"
+                                                            className="shrink-0 px-3 sm:px-4 py-2 text-xs font-bold uppercase tracking-widest bg-[var(--bg-canvas)] rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors border border-[var(--border-color)]/50"
                                                         >
-                                                            Suivant
+                                                            <span className="hidden sm:inline">Suivant</span>
+                                                            <span className="sm:hidden">›</span>
                                                         </button>
                                                     </div>
                                                 )}
@@ -673,7 +658,7 @@ export function StoreModal({
                                     )}
                                 </div>
                             </div>
-                        </ScrollArea>
+                        </div>
                     )}
                 </div>
             </div>

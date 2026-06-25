@@ -177,10 +177,11 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                     variant="ghost"
                     size="sm"
                     onClick={() => setIsPreviewOpen(true)}
-                    className="text-xs flex items-center gap-2 text-[var(--accent-brown)] hover:text-[var(--accent-brown-dark)] hover:bg-[var(--accent-brown)]/10"
+                    className="text-xs flex items-center gap-2 shrink-0 text-[var(--accent-brown)] hover:text-[var(--accent-brown-dark)] hover:bg-[var(--accent-brown)]/10"
                 >
                     <Eye className="w-4 h-4" />
-                    Aperçu du profil
+                    <span className="hidden sm:inline">Aperçu du profil</span>
+                    <span className="sm:hidden">Aperçu</span>
                 </Button>
             </div>
 
@@ -232,7 +233,7 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                 </div>
 
                 {/* Info Section */}
-                <div className="grid grid-cols-1 gap-4 p-5 rounded-2xl bg-[var(--bg-darker)] border border-[var(--border-color)]">
+                <div className="grid grid-cols-1 gap-4 p-3 sm:p-5 rounded-2xl bg-[var(--bg-darker)] border border-[var(--border-color)]">
                     <div className="space-y-2">
                         <Label htmlFor="edit-name">Votre nom</Label>
                         <Input
@@ -350,15 +351,15 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                     <div className="space-y-3">
                         <Label className="text-[var(--text-primary)] font-semibold">Style de bordure</Label>
 
-                        {/* Selector Categories */}
-                        <div className="flex gap-2 p-1 bg-[var(--bg-canvas)] rounded-lg w-fit border border-[var(--border-color)]">
+                        {/* Selector Categories — scrollable on mobile */}
+                        <div className="flex gap-1 sm:gap-2 p-1 bg-[var(--bg-canvas)] rounded-lg w-full sm:w-fit border border-[var(--border-color)] overflow-x-auto no-scrollbar">
                             <button
                                 type="button"
                                 onClick={() => {
                                     setBorderCategory("none");
                                     setBorderType("none");
                                 }}
-                                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${borderCategory === "none" ? "bg-[var(--accent-brown)] text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)]"
+                                className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap transition-all ${borderCategory === "none" ? "bg-[var(--accent-brown)] text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)]"
                                     }`}
                             >
                                 Sans effet
@@ -373,7 +374,7 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                                     setBorderCategory("classique");
                                     if (!["blue", "orange"].includes(borderType)) setBorderType("blue");
                                 }}
-                                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${borderCategory === "classique" ? "bg-[var(--accent-brown)] text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)]"
+                                className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap transition-all ${borderCategory === "classique" ? "bg-[var(--accent-brown)] text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)]"
                                     }`}
                             >
                                 <div className="flex items-center gap-1.5">
@@ -391,7 +392,7 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                                     setBorderCategory("beam");
                                     if (!borderType.startsWith("magic") || borderType.startsWith("magic_shine")) setBorderType("magic");
                                 }}
-                                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${borderCategory === "beam" ? "bg-[var(--accent-brown)] text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)]"
+                                className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap transition-all ${borderCategory === "beam" ? "bg-[var(--accent-brown)] text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)]"
                                     }`}
                             >
                                 <div className="flex items-center gap-1.5">
@@ -409,7 +410,7 @@ export default function ProfileTab({ uid, userData }: ProfileTabProps) {
                                     setBorderCategory("shine");
                                     if (!borderType.startsWith("magic_shine")) setBorderType("magic_shine");
                                 }}
-                                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-all ${borderCategory === "shine" ? "bg-[var(--accent-brown)] text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)]"
+                                className={`shrink-0 px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium whitespace-nowrap transition-all ${borderCategory === "shine" ? "bg-[var(--accent-brown)] text-white shadow-sm" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--border-color)]"
                                     }`}
                             >
                                 <div className="flex items-center gap-1.5">

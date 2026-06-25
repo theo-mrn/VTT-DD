@@ -200,20 +200,20 @@ export default function RejoindrePageComponent() {
 
           {/* Sticky header */}
           <div className="border-b border-[var(--border-color)] bg-[var(--bg-card)]/80 backdrop-blur-md sticky top-0 z-50 mt-16 shadow-lg">
-            <div className="container mx-auto px-6 py-4">
-              <div className="flex items-center gap-4">
-                <Button variant="ghost" size="sm" onClick={() => setSelectedRoom(null)} className="gap-2 text-[var(--text-primary)] hover:bg-white/10">
+            <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                <Button variant="ghost" size="sm" onClick={() => setSelectedRoom(null)} className="gap-2 shrink-0 text-[var(--text-primary)] hover:bg-white/10">
                   <ArrowLeft className="h-4 w-4" /> Retour
                 </Button>
-                <div className="h-6 w-px bg-[var(--border-color)]" />
-                <h1 className={`text-2xl font-bold text-[var(--accent-brown)] ${aclonica.className}`}>{selectedRoom.title}</h1>
+                <div className="h-6 w-px bg-[var(--border-color)] shrink-0" />
+                <h1 className={`text-lg sm:text-2xl font-bold text-[var(--accent-brown)] truncate ${aclonica.className}`}>{selectedRoom.title}</h1>
               </div>
             </div>
           </div>
 
-          <div className="container mx-auto px-6 py-8">
-            <div className="grid lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-8">
+          <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
+            <div className="grid lg:grid-cols-3 gap-6 lg:gap-8">
+              <div className="lg:col-span-2 space-y-6 lg:space-y-8">
                 <div className="relative group">
                   <div className="absolute -inset-1 bg-gradient-to-r from-[var(--accent-brown)]/20 via-[var(--accent-brown)]/40 to-[var(--accent-brown)]/20 rounded-2xl opacity-0 group-hover:opacity-100 transition duration-500 blur-sm" />
                   <div className="relative aspect-video rounded-xl overflow-hidden border border-[var(--border-color)] shadow-2xl bg-[var(--bg-dark)]">
@@ -221,9 +221,9 @@ export default function RejoindrePageComponent() {
                   </div>
                 </div>
                 <Card className="border-[var(--border-color)] bg-[var(--bg-card)] shadow-xl">
-                  <CardContent className="p-8">
-                    <h3 className={`text-xl font-bold mb-4 text-[var(--accent-brown)] ${aclonica.className}`}>Description</h3>
-                    <p className="text-[var(--text-secondary)] leading-relaxed text-lg">{selectedRoom.description}</p>
+                  <CardContent className="p-5 sm:p-8">
+                    <h3 className={`text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-[var(--accent-brown)] ${aclonica.className}`}>Description</h3>
+                    <p className="text-[var(--text-secondary)] leading-relaxed text-base sm:text-lg">{selectedRoom.description}</p>
                   </CardContent>
                 </Card>
                 <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-xl overflow-hidden">
@@ -332,8 +332,8 @@ export default function RejoindrePageComponent() {
         <StoreModal isOpen={isStoreOpen} onClose={() => setIsStoreOpen(false)} />
 
         {/* ── Split layout: Code left / Campaigns right ── */}
-        <div className="container mx-auto px-6 pt-28 pb-24 min-h-[calc(100vh-4rem)]">
-          <div className="max-w-7xl mx-auto grid lg:grid-cols-[380px_1fr] gap-10 items-start">
+        <div className="container mx-auto px-4 sm:px-6 pt-24 sm:pt-28 pb-16 sm:pb-24 min-h-[calc(100vh-4rem)]">
+          <div className="max-w-7xl mx-auto grid lg:grid-cols-[380px_1fr] gap-8 lg:gap-10 items-start">
 
             {/* ── Left panel: Join with code ── */}
             <div className="lg:sticky lg:top-28 space-y-10">
@@ -341,7 +341,7 @@ export default function RejoindrePageComponent() {
                 <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--accent-brown)]/70">
                   Rejoindre une aventure
                 </p>
-                <h1 className={`text-4xl lg:text-5xl font-bold gold-text-gradient leading-tight ${aclonica.className}`}>
+                <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-bold gold-text-gradient leading-tight ${aclonica.className}`}>
                   Entrez dans<br />l&apos;arène
                 </h1>
                 <p className="text-[var(--text-secondary)] text-base leading-relaxed">

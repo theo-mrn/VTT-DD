@@ -166,16 +166,16 @@ export default function CreerPageComponent() {
         <StoreModal isOpen={isStoreOpen} onClose={() => setIsStoreOpen(false)} />
 
         {/* ── Split layout: Info left / Form right ── */}
-        <div className="container mx-auto px-6 pt-28 pb-24 min-h-[calc(100vh-4rem)]">
-          <div className="max-w-7xl mx-auto grid lg:grid-cols-[380px_1fr] gap-10 items-start">
+        <div className="container mx-auto px-4 sm:px-6 pt-24 sm:pt-28 pb-16 sm:pb-24 min-h-[calc(100vh-4rem)]">
+          <div className="max-w-7xl mx-auto grid lg:grid-cols-[380px_1fr] gap-8 lg:gap-10 items-start">
 
             {/* ── Left panel: Title + Preview ── */}
-            <div className="lg:sticky lg:top-28 space-y-10">
-              <div className="space-y-6">
+            <div className="lg:sticky lg:top-28 space-y-6 lg:space-y-10">
+              <div className="space-y-4 sm:space-y-6">
                 <p className="text-sm font-bold uppercase tracking-[0.2em] text-[var(--accent-brown)]/70">
                   Nouvelle campagne
                 </p>
-                <h1 className={`text-4xl lg:text-5xl font-bold gold-text-gradient leading-tight ${aclonica.className}`}>
+                <h1 className={`text-3xl sm:text-4xl lg:text-5xl font-bold gold-text-gradient leading-tight ${aclonica.className}`}>
                   Forgez votre<br />aventure
                 </h1>
                 <p className="text-[var(--text-secondary)] text-base leading-relaxed">

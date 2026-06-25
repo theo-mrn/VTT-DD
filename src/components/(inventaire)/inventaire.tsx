@@ -722,9 +722,9 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
       <Card className="card w-full max-w-7xl mx-auto h-full !bg-transparent flex flex-col border-none shadow-none">
 
         {/* Header fixe avec recherche et tri */}
-        <div className="p-6 pb-2 flex-shrink-0">
+        <div className="p-3 sm:p-6 pb-2 flex-shrink-0">
           <div className="flex items-center gap-3">
-            <InputGroup className="max-w-xs">
+            <InputGroup className="w-full sm:max-w-xs">
               <InputGroupAddon>
                 <Search />
               </InputGroupAddon>
@@ -733,15 +733,16 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                 placeholder="Rechercher"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                style={{ fontSize: '16px' }}
               />
             </InputGroup>
           </div>
         </div>
 
-        <CardContent className="flex-1 overflow-y-auto min-h-0 p-6 pt-2 custom-scrollbar">
+        <CardContent className="flex-1 overflow-y-auto min-h-0 p-3 sm:p-6 pt-2 custom-scrollbar">
           {/* Grille unifiée d'objets */}
           <TooltipProvider delayDuration={100}>
-            <div className="grid grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-4">
+            <div className="grid grid-cols-3 sm:grid-cols-[repeat(auto-fill,minmax(90px,1fr))] gap-3 sm:gap-4">
               {/* Case Ajouter - affichée seulement si canEdit est true */}
               {canEdit && (<>
                 <Dialog open={isAddItemDialogOpen} onOpenChange={setIsAddItemDialogOpen}>
@@ -749,7 +750,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                     <TooltipTrigger asChild>
                       <DialogTrigger asChild>
                         <div id="vtt-inventory-btn-add" className="aspect-square flex items-center justify-center">
-                          <div className="w-16 h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all cursor-pointer hover:scale-110">
+                          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 border-dashed border-[var(--border-color)] hover:border-[var(--accent-brown)] transition-all cursor-pointer hover:scale-110">
                             <Plus className="w-8 h-8 text-[var(--accent-brown)]" />
                           </div>
                         </div>
@@ -769,11 +770,11 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                     <div className="flex-1 overflow-hidden flex flex-col min-h-0">
 
                       {/* LEFT: Browse predefined items */}
-                      <div className="flex-1 flex flex-col min-h-0 min-w-0 pr-6">
+                      <div className="flex-1 flex flex-col min-h-0 min-w-0 sm:pr-6">
                         {/* Search + filters header */}
-                        <div className="flex-shrink-0 py-4 ml-2 space-y-4">
-                          <div className="flex items-center gap-4">
-                            <InputGroup className="max-w-md">
+                        <div className="flex-shrink-0 py-4 sm:ml-2 space-y-4">
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+                            <InputGroup className="w-full sm:max-w-md">
                               <InputGroupAddon>
                                 <Search />
                               </InputGroupAddon>
@@ -781,6 +782,7 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                                 placeholder="Rechercher..."
                                 value={dialogSearchTerm}
                                 onChange={(e) => setDialogSearchTerm(e.target.value)}
+                                style={{ fontSize: '16px' }}
                               />
                             </InputGroup>
                             <Button
@@ -975,8 +977,8 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                           <TooltipTrigger asChild>
                             <DropdownMenuTrigger asChild>
                               {/* Icône de la catégorie avec badge de quantité - cliquable */}
-                              <div className="relative w-16 h-16 cursor-pointer">
-                                <div className={`w-16 h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 transition-all ${bonusesMap[item.id] && bonusesMap[item.id].length > 0
+                              <div className="relative w-14 h-14 sm:w-16 sm:h-16 cursor-pointer">
+                                <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 transition-all ${bonusesMap[item.id] && bonusesMap[item.id].length > 0
                                   ? 'border-[var(--accent-brown)] shadow-lg shadow-[var(--accent-brown)]/50'
                                   : 'border-[var(--border-color)] hover:border-[var(--accent-brown)]'
                                   }`}>
@@ -1079,8 +1081,8 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
                       <Tooltip>
                         <TooltipTrigger asChild>
                           {/* Vue en lecture seule - juste l'icône avec le tooltip */}
-                          <div className="relative w-16 h-16">
-                            <div className={`w-16 h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 transition-all ${bonusesMap[item.id] && bonusesMap[item.id].length > 0
+                          <div className="relative w-14 h-14 sm:w-16 sm:h-16">
+                            <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-[var(--bg-dark)] flex items-center justify-center border-2 transition-all ${bonusesMap[item.id] && bonusesMap[item.id].length > 0
                               ? 'border-[var(--accent-brown)] shadow-lg shadow-[var(--accent-brown)]/50'
                               : 'border-[var(--border-color)] hover:border-[var(--accent-brown)]'
                               }`}>
