@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,7 +13,6 @@ import { db, doc, getDoc, collection, getDocs, setDoc, onSnapshot, query } from 
 import { useGame } from '@/contexts/GameContext'
 import { SUGGESTED_SOUNDS, SOUND_CATEGORIES } from '@/lib/suggested-sounds'
 import { Badge } from "@/components/ui/badge"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { useDialogVisibility } from '@/contexts/DialogVisibilityContext'
 import { useCalculatedBonuses } from '@/hooks/useCharacterData'
 
@@ -60,58 +60,53 @@ type AttackType = 'contact' | 'distance' | 'magic' | 'custom'
 
 // --- Components ---
 
-const ActionCard = ({ title, icon: Icon, value, color, onClick, delay }: any) => (
-  <motion.button
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay, type: "spring", stiffness: 200, damping: 20 }}
-    whileHover={{ scale: 1.02, y: -5 }}
-    whileTap={{ scale: 0.98 }}
+const ActionCard = ({ title, icon: Icon, value, color, onClick }: any) => (
+  <button
+    type="button"
+    onPointerUp={(e) => { if (e.pointerType !== 'mouse') onClick() }}
     onClick={onClick}
-    className="group relative w-full h-64 rounded-3xl overflow-hidden border border-white/5 bg-[#0a0a0a] shadow-2xl transition-all duration-500"
+    className="group relative w-full h-32 sm:h-64 rounded-2xl sm:rounded-3xl overflow-hidden border border-white/5 bg-[#0a0a0a] shadow-2xl transition-all duration-300 sm:hover:scale-[1.02] sm:hover:-translate-y-1"
   >
     {/* Dynamic Background Gradient */}
-    <div className={`absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-t ${color.replace('to-', 'from-black/0 via-black/0 to-')}`} />
+    <div className={`pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-700 bg-gradient-to-t ${color.replace('to-', 'from-black/0 via-black/0 to-')}`} />
 
     {/* Glow Effect */}
-    <div className={`absolute -inset-1 opacity-0 group-hover:opacity-20 transition-all duration-500 bg-gradient-to-b ${color} blur-xl`} />
+    <div className={`pointer-events-none absolute -inset-1 opacity-0 group-hover:opacity-20 transition-all duration-500 bg-gradient-to-b ${color} blur-xl`} />
 
     {/* Large Watermark Icon */}
-    <Icon className={`absolute -bottom-8 -right-8 w-48 h-48 opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-500 rotate-12 group-hover:rotate-0 scale-100 group-hover:scale-110 ${color.replace('from-', 'text-').split(' ')[0]}`} />
+    <Icon className={`pointer-events-none absolute -bottom-8 -right-8 w-32 h-32 sm:w-48 sm:h-48 opacity-[0.03] group-hover:opacity-[0.08] transition-all duration-500 rotate-12 group-hover:rotate-0 scale-100 group-hover:scale-110 ${color.replace('from-', 'text-').split(' ')[0]}`} />
 
-    <div className="relative h-full flex flex-col items-center justify-center z-10 p-6 space-y-6">
+    <div className="relative h-full flex flex-col items-center justify-center z-10 p-3 sm:p-6 gap-2 sm:gap-6">
       {/* Icon Ring */}
-      <div className={`relative p-5 rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 group-hover:border-white/20 shadow-lg backdrop-blur-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_30px_-5px_currentColor] ${color.replace('from-', 'text-').split(' ')[0]}`}>
-        <Icon className="w-10 h-10" />
+      <div className={`relative p-2.5 sm:p-5 rounded-xl sm:rounded-2xl bg-gradient-to-br from-white/5 to-white/[0.02] border border-white/10 group-hover:border-white/20 shadow-lg sm:backdrop-blur-sm transition-all duration-300 group-hover:scale-110 group-hover:shadow-[0_0_30px_-5px_currentColor] ${color.replace('from-', 'text-').split(' ')[0]}`}>
+        <Icon className="w-6 h-6 sm:w-10 sm:h-10" />
       </div>
 
       {/* Text Content */}
-      <div className="text-center space-y-2">
-        <h3 className="text-xl font-bold uppercase tracking-widest text-white/90 group-hover:text-white transition-colors">
+      <div className="text-center space-y-1 sm:space-y-2">
+        <h3 className="text-xs sm:text-xl font-bold uppercase tracking-widest text-white/90 group-hover:text-white transition-colors">
           {title}
         </h3>
         {value !== null && (
-          <div className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-white/5 rounded-full border border-white/5 group-hover:border-white/10 group-hover:bg-white/10 transition-colors">
-            <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">Bonus</span>
-            <span className="font-mono text-lg font-bold text-white">+{value}</span>
+          <div className="inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-4 py-0.5 sm:py-1.5 bg-white/5 rounded-full border border-white/5 group-hover:border-white/10 group-hover:bg-white/10 transition-colors">
+            <span className="hidden sm:inline text-[10px] uppercase tracking-wider text-gray-500 font-bold">Bonus</span>
+            <span className="font-mono text-sm sm:text-lg font-bold text-white">+{value}</span>
           </div>
         )}
       </div>
     </div>
 
     {/* Bottom Highlight Line */}
-    <div className={`absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r ${color} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-  </motion.button>
+    <div className={`pointer-events-none absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r ${color} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
+  </button>
 )
 
 const WeaponCard = ({ weapon, onClick, onSoundClick }: { weapon: Weapon, onClick: () => void, onSoundClick: (e: any) => void }) => (
-  <motion.button
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    whileHover={{ scale: 1.02 }}
-    whileTap={{ scale: 0.98 }}
+  <button
+    type="button"
+    onPointerUp={(e) => { if (e.pointerType !== 'mouse') onClick() }}
     onClick={onClick}
-    className={`w-full flex items-center justify-between p-4 rounded-xl border bg-white/5 hover:bg-white/10 transition-all duration-200 group relative overflow-hidden ${
+    className={`w-full flex items-center justify-between p-4 rounded-xl border bg-white/5 hover:bg-white/10 transition-all duration-200 group relative overflow-hidden sm:hover:scale-[1.02] ${
       weapon.source === 'competence'
         ? 'border-purple-500/20 hover:border-purple-500/50'
         : 'border-white/5 hover:border-[var(--accent-brown)]/50'
@@ -137,6 +132,7 @@ const WeaponCard = ({ weapon, onClick, onSoundClick }: { weapon: Weapon, onClick
         {weapon.source !== 'competence' && (
           <div
             role="button"
+            onPointerUp={(e) => { if (e.pointerType !== 'mouse') { e.stopPropagation(); onSoundClick(e) } }}
             onClick={onSoundClick}
             className={`p-1 rounded hover:bg-white/20 transition-colors ${weapon.soundId ? 'text-[var(--accent-brown)]' : 'text-gray-600'}`}
           >
@@ -152,7 +148,7 @@ const WeaponCard = ({ weapon, onClick, onSoundClick }: { weapon: Weapon, onClick
     }`}>
       <ArrowRight className="w-4 h-4" />
     </div>
-  </motion.button>
+  </button>
 )
 
 const LoadingSpinner = () => (
@@ -170,6 +166,36 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
     setDialogOpen(true);
     return () => setDialogOpen(false);
   }, [setDialogOpen]);
+
+  // Lock body scroll while the combat modal is open. On iOS this removes the
+  // ambiguity between scrolling the page vs. scrolling an inner container, which
+  // otherwise swallows the first touch gesture inside the modal.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev };
+  }, []);
+
+
+  // iOS Safari (inside Framer's AnimatePresence here) often swallows the synthetic
+  // `click` after a touch — pointerdown/up reach the element but no click fires.
+  // This helper fires on pointerup for touch/pen and on click for mouse, so a single
+  // tap always works without double-firing on desktop. It tracks the pointer start
+  // position and ignores the "tap" if the finger moved (i.e. it was a scroll/drag).
+  const tapStart = useRef<{ x: number; y: number } | null>(null)
+  const soundJustClosedRef = useRef<number>(0)
+  const tap = (handler: (e?: any) => void) => ({
+    onPointerDown: (e: React.PointerEvent) => { e.stopPropagation(); tapStart.current = { x: e.clientX, y: e.clientY } },
+    onPointerUp: (e: React.PointerEvent) => {
+      e.stopPropagation() // never let a tap bubble up to a parent's tap handler
+      if (e.pointerType === 'mouse') return // mouse handled by onClick
+      const s = tapStart.current
+      tapStart.current = null
+      if (s && (Math.abs(e.clientX - s.x) > 10 || Math.abs(e.clientY - s.y) > 10)) return // it was a scroll/drag
+      handler(e)
+    },
+    onClick: (e: React.MouseEvent) => { e.stopPropagation(); handler(e) },
+  })
 
   // Navigation State
   const [step, setStep] = useState<CombatStep>('ATTACK_CHOICE')
@@ -208,6 +234,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   const [isSoundSelectorOpen, setIsSoundSelectorOpen] = useState(false)
   const [soundSearchQuery, setSoundSearchQuery] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("all")
+  const [catMenuOpen, setCatMenuOpen] = useState(false)
   const [playingPreviewUrl, setPlayingPreviewUrl] = useState<string | null>(null)
   const [previewAudio, setPreviewAudio] = useState<HTMLAudioElement | null>(null)
 
@@ -364,6 +391,9 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
   }
 
   const handleDamage = (weapon: Weapon | null) => {
+    // Ignore a damage roll triggered by the trailing event right after the sound
+    // selector closed over a weapon card.
+    if (Date.now() - soundJustClosedRef.current < 600) return
     setStep('DAMAGE_ROLLING')
 
     setTimeout(() => {
@@ -437,6 +467,9 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
     if (updated.id && roomId && attackerName) {
       await setDoc(doc(db, `Inventaire/${roomId}/${attackerName}/${updated.id}`), { soundId }, { merge: true })
     }
+    // Guard: closing the selector must not let the trailing tap/click fall through
+    // to the weapon card underneath (which would trigger an attack).
+    soundJustClosedRef.current = Date.now()
     setIsSoundSelectorOpen(false)
   }
 
@@ -474,72 +507,76 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
 
   // --- Render ---
 
-  return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300">
+  // Render in a portal on document.body so the modal is NOT a child of the map
+  // container (which sets touch-action:none + onTouchStart and wraps everything in a
+  // Radix ContextMenuTrigger) — that was swallowing taps and making touch unreliable.
+  if (typeof document === 'undefined') return null
 
-      <motion.div
-        layout
-        className="relative w-full max-w-5xl bg-[#0b0b0b] rounded-[2rem] border border-white/5 shadow-2xl flex flex-col overflow-hidden text-white"
-        style={{ height: '700px', boxShadow: '0 0 100px rgba(0,0,0,0.8)' }}
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/95 sm:bg-black/80 sm:backdrop-blur-md p-0 sm:p-4">
+
+      <div
+        className="relative w-full h-full sm:h-[700px] sm:max-w-5xl bg-[#0b0b0b] sm:rounded-[2rem] border border-white/5 shadow-2xl flex flex-col overflow-hidden text-white"
+        style={{ boxShadow: '0 0 100px rgba(0,0,0,0.8)' }}
       >
-        {/* Background Effects */}
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-b from-[var(--accent-brown)]/10 to-transparent rounded-full blur-[100px] pointer-events-none opacity-40" />
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-t from-red-600/5 to-transparent rounded-full blur-[100px] pointer-events-none opacity-40" />
+        {/* Background Effects — desktop only (heavy blurs crash mobile Safari) */}
+        <div className="hidden sm:block absolute top-0 right-0 w-[600px] h-[600px] bg-gradient-to-b from-[var(--accent-brown)]/10 to-transparent rounded-full blur-[100px] pointer-events-none opacity-40" />
+        <div className="hidden sm:block absolute bottom-0 left-0 w-[600px] h-[600px] bg-gradient-to-t from-red-600/5 to-transparent rounded-full blur-[100px] pointer-events-none opacity-40" />
 
-        {/* --- 1. THE VERSUS HEADER (Massive) --- */}
-        <div className="h-[200px] border-b border-white/5 relative flex items-center justify-between px-16 bg-[#0a0a0a]/50">
+        {/* --- 1. THE VERSUS HEADER --- */}
+        <div className="h-[120px] sm:h-[200px] border-b border-white/5 relative flex items-center justify-between px-4 sm:px-16 bg-[#0a0a0a]/50">
           {/* Attacker */}
-          <div className="flex items-center gap-8 relative z-10">
-            <div className="relative group">
-              <div className="w-32 h-32 rounded-full border-4 border-[var(--accent-brown)] shadow-[0_0_30px_rgba(192,160,128,0.2)] overflow-hidden bg-gray-800 transition-transform group-hover:scale-105">
-                {attackerImage ? <img src={attackerImage} className="w-full h-full object-cover" /> : <div className="flex h-full items-center justify-center text-4xl font-bold">{attackerName[0]}</div>}
+          <div className="flex items-center gap-3 sm:gap-8 relative z-10 min-w-0">
+            <div className="relative group shrink-0">
+              <div className="w-16 h-16 sm:w-32 sm:h-32 rounded-full border-2 sm:border-4 border-[var(--accent-brown)] shadow-[0_0_30px_rgba(192,160,128,0.2)] overflow-hidden bg-gray-800 transition-transform group-hover:scale-105">
+                {attackerImage ? <img src={attackerImage} className="w-full h-full object-cover" /> : <div className="flex h-full items-center justify-center text-2xl sm:text-4xl font-bold">{attackerName[0]}</div>}
               </div>
-              <div className="absolute -bottom-2 relative left-1/2 -translate-x-1/2 bg-[var(--accent-brown)] text-black font-bold uppercase text-xs px-3 py-1 rounded-full shadow-lg">Attaquant</div>
+              <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[var(--accent-brown)] text-black font-bold uppercase text-[8px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-lg whitespace-nowrap">Attaquant</div>
             </div>
-            <div className="flex flex-col gap-3">
-              <div>
-                <h2 className="text-3xl font-black uppercase tracking-tight text-white leading-none">{attackerName}</h2>
-                <span className="text-xs text-[var(--accent-brown)] font-bold tracking-[0.2em] opacity-60">COMBAT PHASE</span>
+            <div className="flex flex-col gap-1.5 sm:gap-3 min-w-0">
+              <div className="min-w-0">
+                <h2 className="text-base sm:text-3xl font-black uppercase tracking-tight text-white leading-none truncate">{attackerName}</h2>
+                <span className="hidden sm:inline text-xs text-[var(--accent-brown)] font-bold tracking-[0.2em] opacity-60">COMBAT PHASE</span>
               </div>
 
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-white/5 border border-white/5 hover:bg-white/10 transition-colors" title="Contact">
+              <div className="flex items-center gap-1 sm:gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-white/5 border border-white/5" title="Contact">
                   <Sword className="w-3 h-3 text-orange-400" />
-                  <span className="font-mono font-bold text-white text-xs">+{attacks.contact || 0}</span>
+                  <span className="font-mono font-bold text-white text-[10px] sm:text-xs">+{attacks.contact || 0}</span>
                 </div>
 
-                <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-white/5 border border-white/5 hover:bg-white/10 transition-colors" title="Distance">
+                <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-white/5 border border-white/5" title="Distance">
                   <Target className="w-3 h-3 text-emerald-400" />
-                  <span className="font-mono font-bold text-white text-xs">+{attacks.distance || 0}</span>
+                  <span className="font-mono font-bold text-white text-[10px] sm:text-xs">+{attacks.distance || 0}</span>
                 </div>
 
-                <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-white/5 border border-white/5 hover:bg-white/10 transition-colors" title="Magie">
+                <div className="flex items-center gap-1 sm:gap-2 px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md bg-white/5 border border-white/5" title="Magie">
                   <Wand2 className="w-3 h-3 text-purple-400" />
-                  <span className="font-mono font-bold text-white text-xs">+{attacks.magie || 0}</span>
+                  <span className="font-mono font-bold text-white text-[10px] sm:text-xs">+{attacks.magie || 0}</span>
                 </div>
               </div>
             </div>
           </div>
 
           {/* VS */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <span className="text-8xl font-black text-white/5 italic select-none">VS</span>
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 pointer-events-none">
+            <span className="text-4xl sm:text-8xl font-black text-white/5 italic select-none">VS</span>
           </div>
 
           {/* Target */}
-          <div className="flex items-center gap-8 text-right relative z-10">
-            <div className="flex flex-col items-end">
-              <h2 className="text-3xl font-black uppercase tracking-tight text-white">
+          <div className="flex items-center gap-3 sm:gap-8 text-right relative z-10 min-w-0">
+            <div className="hidden sm:flex flex-col items-end min-w-0">
+              <h2 className="text-3xl font-black uppercase tracking-tight text-white truncate">
                 {targets.length > 1 ? `${targets.length} Cibles` : (targets[0]?.name || "Cible")}
               </h2>
             </div>
-            <div className="flex -space-x-4">
+            <div className="flex -space-x-3 sm:-space-x-4 shrink-0">
               {targets.map((target, index) => (
                 <div key={target.id} className="relative group" style={{ zIndex: targets.length - index }}>
-                  <div className="w-32 h-32 rounded-full border-4 border-red-900 shadow-[0_0_30px_rgba(153,27,27,0.2)] overflow-hidden bg-gray-800 transition-transform group-hover:scale-105">
-                    {target.image ? <img src={target.image} className="opacity-90 w-full h-full object-cover" /> : <div className="flex h-full items-center justify-center text-4xl font-bold text-red-500">?</div>}
+                  <div className="w-16 h-16 sm:w-32 sm:h-32 rounded-full border-2 sm:border-4 border-red-900 shadow-[0_0_30px_rgba(153,27,27,0.2)] overflow-hidden bg-gray-800 transition-transform group-hover:scale-105">
+                    {target.image ? <img src={target.image} className="opacity-90 w-full h-full object-cover" /> : <div className="flex h-full items-center justify-center text-2xl sm:text-4xl font-bold text-red-500">?</div>}
                   </div>
-                  <div className="absolute -bottom-2 relative left-1/2 -translate-x-1/2 bg-red-900 text-white font-bold uppercase text-xs px-3 py-1 rounded-full shadow-lg whitespace-nowrap">
+                  <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-red-900 text-white font-bold uppercase text-[8px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 rounded-full shadow-lg whitespace-nowrap max-w-[80px] sm:max-w-none truncate">
                     {target.name}
                   </div>
                 </div>
@@ -547,13 +584,13 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
             </div>
           </div>
 
-          <Button onClick={onClose} variant="ghost" className="absolute top-6 right-6 rounded-full hover:bg-white/10 text-gray-500 hover:text-white z-50">
+          <Button {...tap(onClose)} variant="ghost" className="absolute top-3 right-3 sm:top-6 sm:right-6 rounded-full hover:bg-white/10 text-gray-500 hover:text-white z-50">
             <X className="w-6 h-6" />
           </Button>
         </div>
 
         {/* --- 2. MAIN BATTLEFIELD (Content) --- */}
-        <div className="flex-1 p-12 relative flex flex-col justify-center">
+        <div className="flex-1 p-4 sm:p-12 relative flex flex-col justify-center overflow-y-auto custom-scrollbar">
 
           <AnimatePresence mode="wait">
 
@@ -573,20 +610,16 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       {actions.map((action, index) => (
-                        <motion.button
+                        <button
+                          type="button"
                           key={index}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.1 }}
-                          whileHover={{ scale: 1.02, y: -3 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => {
+                          {...tap(() => {
                             setSelectedAction(action)
                             setActiveActionIndex(index)
                             setActionDice({ numDice: 1, numFaces: 20, modifier: 0 })
                             setStep('ACTION_CONFIG')
-                          }}
-                          className="group relative min-h-[12rem] p-4 rounded-2xl border border-white/5 bg-[#0a0a0a] overflow-hidden shadow-2xl transition-all duration-300 text-left flex flex-col justify-between"
+                          })}
+                          className="group relative min-h-[12rem] p-4 rounded-2xl border border-white/5 bg-[#0a0a0a] overflow-hidden shadow-2xl transition-all duration-300 text-left flex flex-col justify-between sm:hover:scale-[1.02] sm:hover:-translate-y-1"
                         >
                           {/* Background Gradients */}
                           <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-500" />
@@ -631,13 +664,13 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
 
                           {/* Hover Border Highlight */}
                           <div className="absolute inset-0 rounded-2xl border border-yellow-500/0 group-hover:border-yellow-500/30 transition-colors duration-300 pointer-events-none" />
-                        </motion.button>
+                        </button>
                       ))}
                     </div>
                   </div>
                 ) : (
                   /* No Actions: Show standard attack buttons */
-                  <div className="grid grid-cols-4 gap-6">
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
                     <ActionCard
                       title="Contact"
                       icon={Sword}
@@ -679,12 +712,12 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                           initial={{ opacity: 0, height: 0 }}
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
-                          className="col-span-4 mt-6 flex justify-center overflow-hidden"
+                          className="col-span-2 lg:col-span-4 mt-6 flex justify-center overflow-hidden"
                         >
-                          <div className="bg-[#111] border border-white/5 rounded-xl p-4 flex items-center gap-4 shadow-2xl ring-1 ring-blue-500/30 mb-2">
+                          <div className="bg-[#111] border border-white/5 rounded-xl p-4 flex flex-col sm:flex-row items-center gap-4 shadow-2xl ring-1 ring-blue-500/30 mb-2">
                             <span className="text-xs font-bold uppercase text-blue-400 tracking-wider">Config Dé Custom</span>
 
-                            <div className="h-6 w-px bg-white/10 mx-2" />
+                            <div className="hidden sm:block h-6 w-px bg-white/10 mx-2" />
 
                             <div className="flex items-center gap-2">
                               <div className="flex flex-col items-center">
@@ -719,8 +752,8 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                             </div>
 
                             <Button
-                              onClick={() => handleAttack('custom')}
-                              className="ml-4 bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 h-10 shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_rgba(37,99,235,0.5)] transition-all"
+                              {...tap(() => handleAttack('custom'))}
+                              className="sm:ml-4 bg-blue-600 hover:bg-blue-500 text-white font-bold px-6 h-10 shadow-[0_0_15px_rgba(37,99,235,0.3)] hover:shadow-[0_0_25px_rgba(37,99,235,0.5)] transition-all"
                             >
                               LANCER
                               <ArrowRight className="w-4 h-4 ml-2" />
@@ -767,7 +800,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                         <Input
                           type="number"
                           min={1}
-                          className="h-14 w-18 text-center bg-black/40 border-white/10 text-white font-mono text-xl"
+                          className="h-12 sm:h-14 w-16 text-center bg-black/40 border-white/10 text-white font-mono text-xl"
                           value={actionDice.numDice}
                           onChange={(e) => setActionDice({ ...actionDice, numDice: parseInt(e.target.value) || 1 })}
                         />
@@ -778,7 +811,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                         <Input
                           type="number"
                           min={1}
-                          className="h-14 w-18 text-center bg-black/40 border-white/10 text-white font-mono text-xl"
+                          className="h-12 sm:h-14 w-16 text-center bg-black/40 border-white/10 text-white font-mono text-xl"
                           value={actionDice.numFaces}
                           onChange={(e) => setActionDice({ ...actionDice, numFaces: parseInt(e.target.value) || 20 })}
                         />
@@ -788,7 +821,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                         <span className="text-xs text-gray-500 uppercase mb-1">Modificateur</span>
                         <Input
                           type="number"
-                          className="h-14 w-18 text-center bg-black/40 border-white/10 text-white font-mono text-xl"
+                          className="h-12 sm:h-14 w-16 text-center bg-black/40 border-white/10 text-white font-mono text-xl"
                           value={actionDice.modifier}
                           onChange={(e) => setActionDice({ ...actionDice, modifier: parseInt(e.target.value) || 0 })}
                         />
@@ -798,21 +831,21 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                     {/* Roll Button */}
                     <div className="flex justify-center gap-3">
                       <Button
-                        onClick={() => setStep('ATTACK_CHOICE')}
+                        {...tap(() => setStep('ATTACK_CHOICE'))}
                         variant="outline"
                         className="h-12 px-6 border-white/10 text-gray-400 hover:text-white"
                       >
                         Retour
                       </Button>
                       <Button
-                        onClick={() => {
+                        {...tap(() => {
                           setStep('ATTACK_ROLLING')
                           setTimeout(() => {
                             const total = rollDice(actionDice.numDice, actionDice.numFaces, actionDice.modifier)
                             setAttackResult(total)
                             setStep('ATTACK_RESULT')
                           }, 600)
-                        }}
+                        })}
                         className="h-12 px-10 bg-yellow-600 hover:bg-yellow-500 text-black font-bold shadow-[0_0_20px_rgba(202,138,4,0.3)] hover:shadow-[0_0_30px_rgba(202,138,4,0.5)] transition-all"
                       >
                         <Zap className="w-4 h-4 mr-2" />
@@ -843,7 +876,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                           animate={{ scale: 1, opacity: 1 }}
                           className="relative"
                         >
-                          <div className="text-[12rem] leading-none font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400 drop-shadow-2xl">
+                          <div className="text-7xl sm:text-[12rem] leading-none font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400 drop-shadow-2xl">
                             {attackResult}
                           </div>
                         </motion.div>
@@ -880,7 +913,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                           animate={{ scale: 1, opacity: 1 }}
                           className="relative"
                         >
-                          <div className="text-[12rem] leading-none font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400 drop-shadow-2xl">
+                          <div className="text-7xl sm:text-[12rem] leading-none font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-gray-400 drop-shadow-2xl">
                             {attackResult}
                           </div>
                         </motion.div>
@@ -955,7 +988,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                         {actions.map((_, index) => (
                           <button
                             key={index}
-                            onClick={() => setActiveActionIndex(index)}
+                            {...tap(() => setActiveActionIndex(index))}
                             className={`h-1.5 w-8 rounded-full transition-all ${activeActionIndex === index
                               ? 'bg-yellow-500 shadow-[0_0_10px_rgba(234,179,8,0.5)]'
                               : 'bg-white/10 hover:bg-white/20'
@@ -1027,7 +1060,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                         </div>
 
                         <Button
-                          onClick={() => handleDamage(null)}
+                          {...tap(() => handleDamage(null))}
                           className="w-full bg-yellow-600 hover:bg-yellow-500 text-black font-bold h-12 text-base shadow-lg hover:shadow-yellow-500/20 transition-all"
                         >
                           <Zap className="w-4 h-4 mr-2" />
@@ -1049,27 +1082,27 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                       </div>
 
                       {/* Custom Input */}
-                      <div className="p-4 rounded-xl border border-white/5 bg-white/[0.02] flex items-center justify-between gap-4">
-                        <span className="font-bold text-gray-400 pl-2">Custom Damage</span>
-                        <div className="flex items-center gap-2">
+                      <div className="p-4 rounded-xl border border-white/5 bg-white/[0.02] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+                        <span className="font-bold text-gray-400 sm:pl-2">Custom Damage</span>
+                        <div className="flex items-center justify-center gap-2">
                           <Input
                             type="number"
-                            className="h-9 w-16 text-center bg-black/40 border-white/10 text-white"
+                            className="h-9 w-14 sm:w-16 text-center bg-black/40 border-white/10 text-white"
                             value={customDamage.numDice} onChange={e => setCustomDamage({ ...customDamage, numDice: parseInt(e.target.value) || 1 })}
                           />
                           <span className="text-gray-500">d</span>
                           <Input
                             type="number"
-                            className="h-9 w-16 text-center bg-black/40 border-white/10 text-white"
+                            className="h-9 w-14 sm:w-16 text-center bg-black/40 border-white/10 text-white"
                             value={customDamage.numFaces} onChange={e => setCustomDamage({ ...customDamage, numFaces: parseInt(e.target.value) || 6 })}
                           />
                           <span className="text-gray-500">+</span>
                           <Input
                             type="number"
-                            className="h-9 w-16 text-center bg-black/40 border-white/10 text-white"
+                            className="h-9 w-14 sm:w-16 text-center bg-black/40 border-white/10 text-white"
                             value={customDamage.modifier} onChange={e => setCustomDamage({ ...customDamage, modifier: parseInt(e.target.value) || 0 })}
                           />
-                          <Button onClick={() => handleDamage(null)} className="bg-white/10 hover:bg-white/20">Roll</Button>
+                          <Button {...tap(() => handleDamage(null))} className="bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)] text-black font-bold shrink-0">Roll</Button>
                         </div>
                       </div>
                     </div>
@@ -1113,7 +1146,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
 
                     <motion.div
                       initial={{ scale: 2, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-                      className="text-[10rem] leading-none font-black text-red-500 drop-shadow-[0_0_60px_rgba(239,68,68,0.5)]"
+                      className="text-7xl sm:text-[10rem] leading-none font-black text-red-500 drop-shadow-[0_0_60px_rgba(239,68,68,0.5)]"
                     >
                       {damageResult}
                     </motion.div>
@@ -1122,10 +1155,10 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                     </div>
 
                     <div className="mt-12 flex items-center gap-6 justify-center">
-                      <Button onClick={reset} variant="outline" className="h-12 border-white/10 text-gray-400 hover:text-white">
+                      <Button {...tap(reset)} variant="outline" className="h-12 border-white/10 text-gray-400 hover:text-white">
                         Nouvelle Attaque
                       </Button>
-                      <Button onClick={onClose} className="h-12 bg-white text-black hover:bg-gray-200 font-bold px-8">
+                      <Button {...tap(onClose)} className="h-12 bg-white text-black hover:bg-gray-200 font-bold px-8">
                         Terminer
                       </Button>
                     </div>
@@ -1137,84 +1170,112 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
           </AnimatePresence>
         </div>
 
-        {/* Sound Selector Modal Overlay (Advanced) */}
-        <AnimatePresence>
-          {isSoundSelectorOpen && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 z-[200] bg-[#0a0a0a] flex flex-col"
+        {/* Sound Selector — its own portal on document.body so it's truly full-screen
+            and not affected by the combat modal's flex-centering/stacking context. */}
+        {isSoundSelectorOpen && createPortal(
+            <div
+              className="fixed inset-0 z-[10001] bg-[#0a0a0a] flex flex-col"
             >
               {/* HEADER */}
-              <div className="p-5 border-b border-[#222] bg-[#111] flex flex-col gap-4 shrink-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-[#1e1e1e] flex items-center justify-center border border-[#333]">
+              <div className="p-3 sm:p-5 border-b border-[#222] bg-[#111] flex flex-col gap-3 sm:gap-4 shrink-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-[#1e1e1e] flex items-center justify-center border border-[#333]">
                       <Library className="w-5 h-5 text-[var(--accent-brown)]" />
                     </div>
-                    <div>
-                      <h2 className="text-lg font-bold text-white">Sélectionner un Son</h2>
-                      <p className="text-xs text-gray-500">Choisissez le son d'impact pour {selectedWeaponForSound?.name}</p>
+                    <div className="min-w-0">
+                      <h2 className="text-base sm:text-lg font-bold text-white">Sélectionner un Son</h2>
+                      <p className="text-xs text-gray-500 truncate">Son d'impact pour {selectedWeaponForSound?.name}</p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => setIsSoundSelectorOpen(false)} className="text-gray-400 hover:text-white">
+                  <Button variant="ghost" size="icon" {...tap(() => setIsSoundSelectorOpen(false))} className="shrink-0 text-gray-400 hover:text-white">
                     <X className="w-6 h-6" />
                   </Button>
                 </div>
 
-                {/* Search Bar */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                  <Input
-                    value={soundSearchQuery}
-                    onChange={(e) => setSoundSearchQuery(e.target.value)}
-                    className="bg-[#1a1a1a] border-[#333] h-10 pl-10 text-sm focus:border-[var(--accent-brown)] placeholder:text-gray-600 text-white"
-                    placeholder="Rechercher un son (ex: épée, feu, impact...)"
-                    autoFocus
-                  />
+                {/* Search Bar + category dropdown (mobile) */}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1 min-w-0">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                    <Input
+                      value={soundSearchQuery}
+                      onChange={(e) => setSoundSearchQuery(e.target.value)}
+                      onPointerUp={(e) => { if (e.pointerType !== 'mouse') (e.currentTarget as HTMLInputElement).focus() }}
+                      style={{ fontSize: '16px' }}
+                      className="bg-[#1a1a1a] border-[#333] h-10 pl-10 focus:border-[var(--accent-brown)] placeholder:text-gray-600 text-white"
+                      placeholder="Rechercher un son..."
+                    />
+                  </div>
+                  {/* Category dropdown (custom) — mobile only; native <select> needs a
+                      double tap to open on iOS here, so we use a tap()-driven menu. */}
+                  <div className="sm:hidden relative shrink-0">
+                    <button
+                      type="button"
+                      {...tap(() => setCatMenuOpen(o => !o))}
+                      className="h-10 px-3 flex items-center gap-1.5 bg-[#1a1a1a] border border-[#333] rounded-md text-sm text-gray-200 whitespace-nowrap max-w-[45vw]"
+                    >
+                      <span className="truncate">
+                        {selectedCategory === 'all' ? 'Tout voir' : (SOUND_CATEGORIES.find(c => c.id === selectedCategory)?.label ?? 'Catégorie')}
+                      </span>
+                      <ArrowRight className={`w-3.5 h-3.5 shrink-0 transition-transform ${catMenuOpen ? '-rotate-90' : 'rotate-90'}`} />
+                    </button>
+                    {catMenuOpen && (
+                      <div className="absolute right-0 top-full mt-1 z-10 w-48 max-h-64 overflow-y-auto bg-[#161616] border border-[#333] rounded-lg shadow-xl py-1" style={{ touchAction: 'pan-y' }}>
+                        {[{ id: 'all', label: 'Tout voir' }, ...SOUND_CATEGORIES.filter(c => c.id !== 'all')].map(cat => (
+                          <button
+                            key={cat.id}
+                            type="button"
+                            {...tap(() => { setSelectedCategory(cat.id); setCatMenuOpen(false) })}
+                            className={`w-full text-left px-3 py-2 text-sm ${selectedCategory === cat.id ? 'text-[var(--accent-brown)] bg-[var(--accent-brown)]/10' : 'text-gray-300'}`}
+                          >
+                            {cat.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
               {/* BODY: SIDEBAR + GRID */}
-              <div className="flex-1 flex overflow-hidden">
+              <div className="flex-1 min-h-0 flex flex-col sm:flex-row overflow-hidden w-full max-w-full min-w-0">
 
-                {/* SIDEBAR: CATEGORIES */}
-                <div className="w-48 bg-[#111] border-r border-[#222] flex flex-col shrink-0">
-                  <ScrollArea className="flex-1 py-3 px-2">
-                    <div className="space-y-1">
+                {/* CATEGORIES — sidebar on desktop only (mobile uses the header dropdown) */}
+                <div className="hidden sm:flex sm:w-48 bg-[#111] sm:border-r border-[#222] shrink-0">
+                  <div className="flex flex-col gap-1 overflow-y-auto no-scrollbar py-3 px-2 w-full">
+                    <Button
+                      variant="ghost"
+                      {...tap(() => setSelectedCategory('all'))}
+                      className={`shrink-0 justify-start text-xs h-8 sm:w-full whitespace-nowrap ${selectedCategory === 'all' ? 'bg-[var(--accent-brown)]/10 text-[var(--accent-brown)]' : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'}`}
+                    >
+                      <Volume2 className="w-3 h-3 mr-2" /> Tout voir
+                    </Button>
+                    <div className="hidden sm:block h-px bg-[#222] my-2 mx-1" />
+                    {SOUND_CATEGORIES.filter(cat => cat.id !== 'all').map(cat => (
                       <Button
+                        key={cat.id}
                         variant="ghost"
-                        onClick={() => setSelectedCategory('all')}
-                        className={`w-full justify-start text-xs h-8 ${selectedCategory === 'all' ? 'bg-[var(--accent-brown)]/10 text-[var(--accent-brown)]' : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'}`}
+                        {...tap(() => setSelectedCategory(cat.id))}
+                        className={`shrink-0 justify-start text-xs h-8 sm:w-full whitespace-nowrap ${selectedCategory === cat.id ? 'bg-[var(--accent-brown)]/10 text-[var(--accent-brown)]' : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'}`}
                       >
-                        <Volume2 className="w-3 h-3 mr-2" /> Tout voir
+                        <span className="w-1.5 h-1.5 rounded-full bg-current mr-2.5 opacity-50" />
+                        {cat.label}
                       </Button>
-                      <div className="h-px bg-[#222] my-2 mx-1" />
-                      <div className="px-2 pb-1 text-[9px] font-semibold text-gray-600 uppercase">Catégories</div>
-                      {SOUND_CATEGORIES.map(cat => (
-                        <Button
-                          key={cat.id}
-                          variant="ghost"
-                          onClick={() => setSelectedCategory(cat.id)}
-                          className={`w-full justify-start text-xs h-8 ${selectedCategory === cat.id ? 'bg-[var(--accent-brown)]/10 text-[var(--accent-brown)]' : 'text-gray-400 hover:text-white hover:bg-[#1a1a1a]'}`}
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full bg-current mr-2.5 opacity-50" />
-                          {cat.label}
-                        </Button>
-                      ))}
-                    </div>
-                  </ScrollArea>
+                    ))}
+                  </div>
                 </div>
 
                 {/* MAIN: GRID */}
-                <div className="flex-1 bg-[#0a0a0a] flex flex-col min-w-0">
-                  <ScrollArea className="flex-1 p-5">
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="flex-1 min-h-0 bg-[#0a0a0a] flex flex-col min-w-0 overflow-hidden">
+                  <div
+                    className="flex-1 min-h-0 overflow-y-auto custom-scrollbar p-3 sm:p-5"
+                    style={{ touchAction: 'pan-y', overscrollBehavior: 'contain' }}
+                  >
+                    <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3">
 
                       {/* Option: Silent */}
                       <div
-                        onClick={() => handleSoundSelect("none")}
+                        {...tap(() => handleSoundSelect("none"))}
                         className="group p-3 rounded-xl border border-white/5 bg-[#161616] hover:bg-[#1a1a1a] flex items-center gap-3 cursor-pointer hover:border-white/20 transition-all"
                       >
                         <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-500 group-hover:text-white"><Volume2 className="w-5 h-5" /></div>
@@ -1252,7 +1313,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                               <Button
                                 size="sm"
                                 variant="ghost"
-                                onClick={(e) => { e.stopPropagation(); togglePreview(sound.soundUrl); }}
+                                {...tap((e) => { e?.stopPropagation?.(); togglePreview(sound.soundUrl); })}
                                 className={`flex-1 h-8 rounded-lg text-xs font-medium border transition-colors ${isPlaying
                                   ? 'bg-[var(--accent-brown)] text-black border-[var(--accent-brown)] hover:bg-[#d4b494]'
                                   : 'bg-[#111] border-[#333] text-gray-300 hover:bg-[#222] hover:border-[#555]'
@@ -1268,7 +1329,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                               {/* Select Button */}
                               <Button
                                 size="icon"
-                                onClick={(e) => { e.stopPropagation(); handleSoundSelect(sound.id); }}
+                                {...tap((e) => { e?.stopPropagation?.(); handleSoundSelect(sound.id); })}
                                 className={`h-8 w-8 rounded-lg shrink-0 transition-all ${isSelected
                                   ? 'bg-[var(--accent-brown)] text-black'
                                   : 'bg-[#111] border border-[#333] text-gray-400 hover:text-white hover:border-[var(--accent-brown)] hover:bg-[var(--accent-brown)]/10'
@@ -1281,15 +1342,16 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                         )
                       })}
                     </div>
-                  </ScrollArea>
+                  </div>
                 </div>
               </div>
 
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>,
+            document.body
+        )}
 
-      </motion.div>
-    </div>
+      </div>
+    </div>,
+    document.body
   )
 }

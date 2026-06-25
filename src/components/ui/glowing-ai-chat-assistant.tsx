@@ -291,6 +291,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
         !selectedUserId && // ← don't close while user profile dialog is open
         !selectedCharacterName && // ← don't close while user profile dialog is open
         !(event.target as Element).closest('#vtt-sidebar-dice') &&
+        !(event.target as Element).closest('#vtt-dock-dice') &&
         !(event.target as Element).closest('[data-dice-store-portal]')
       ) {
         onClose?.();
@@ -717,12 +718,12 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
 
 
   return (
-    <div className="fixed top-1/2 left-20 z-50 pointer-events-none -translate-y-1/2 ml-2">
+    <div className={`fixed inset-x-0 bottom-[var(--dock-h)] top-0 lg:inset-auto lg:top-1/2 lg:left-20 z-50 pointer-events-none lg:-translate-y-1/2 lg:ml-2 ${isOpen ? 'bg-[#1c1c1c] lg:bg-transparent' : ''}`}>
       {/* Interface */}
       {isOpen && (
         <div
           ref={containerRef}
-          className="w-[500px] flex flex-col gap-3 transition-all duration-300 origin-left pointer-events-auto"
+          className="w-full h-full overflow-y-auto lg:h-auto lg:overflow-visible lg:w-[500px] flex flex-col gap-3 p-3 lg:p-0 transition-all duration-300 origin-left pointer-events-auto"
           style={{
             animation: 'popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
           }}
@@ -879,7 +880,7 @@ export const FloatingAiAssistant = ({ isOpen = false, onClose }: FloatingAiAssis
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => onClose?.()}
-                        className="p-1.5 rounded-full transition-colors"
+                        className="hidden lg:block p-1.5 rounded-full transition-colors"
                         style={{ color: 'var(--text-secondary)' }}
                       >
                         <X className="w-4 h-4" />

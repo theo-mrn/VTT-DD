@@ -64,6 +64,18 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
+  // On mobile the panel takes most of the width, so submenus must open downward,
+  // not to the right (where there's no room and they'd overflow off-screen).
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 1023px)');
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+  const submenuSide = isMobile ? 'bottom' : 'right';
+
   const currentTheme = (mounted ? (resolvedTheme ?? theme) : 'dark') as ThemeName;
 
   const THEMES: { key: ThemeName; label: string; accent: string; bg: string; text: string }[] = [
@@ -164,7 +176,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   }
 
   return (
-    <div className="fixed left-0 top-0 w-80 z-[1000] bg-[var(--bg-card)] shadow-lg flex text-[var(--text-primary)] flex-col h-screen animate-slideInFromLeft">
+    <div className="fixed left-0 top-0 w-80 max-w-[85vw] z-[1000] bg-[var(--bg-card)] shadow-lg flex text-[var(--text-primary)] flex-col h-screen animate-slideInFromLeft">
       <button
         className="absolute top-3 right-3 p-1 text-[var(--text-primary)] hover:text-[var(--accent-brown)] transition-colors"
         onClick={onClose}
@@ -200,8 +212,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
             </div>
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="font-semibold text-[var(--accent-brown)] truncate max-w-[180px] drop-shadow-sm">{userName || "Utilisateur"}</h2>
-            <p className="text-sm text-[var(--text-primary)] truncate max-w-[180px] drop-shadow-sm">{userTitle || "Aucun titre"}</p>
+            <h2 className="font-semibold text-[var(--accent-brown)] truncate drop-shadow-sm">{userName || "Utilisateur"}</h2>
+            <p className="text-sm text-[var(--text-primary)] truncate drop-shadow-sm">{userTitle || "Aucun titre"}</p>
             {/* Experience bar */}
             <div className="mt-1.5 cursor-help" title={`Encore ${120 - (userTimeSpent % 120)} minutes de jeu pour atteindre le niveau ${Math.floor(userTimeSpent / 120) + 2}`}>
               <div className="flex items-center justify-between mb-1 px-0.5">
@@ -219,7 +231,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
         </div>
       </div>
 
-      <nav className="flex-grow p-2">
+      <nav className="flex-grow p-2 overflow-y-auto scrollbar-thin">
         <button
           className="w-full flex items-center gap-3 p-2 hover:bg-[var(--bg-canvas)] rounded-lg transition-colors"
           onClick={handleVoirProfil}
@@ -259,11 +271,12 @@ export default function Sidebar({ onClose }: SidebarProps) {
               <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 transition-all group-hover:translate-x-0.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent 
-            side="right" 
-            align="start" 
+          <DropdownMenuContent
+            side={submenuSide}
+            align="start"
             sideOffset={10}
-            className="w-56 bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] z-[1050] p-1 shadow-xl"
+            collisionPadding={12}
+            className="w-56 max-w-[calc(100vw-2rem)] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] z-[1050] p-1 shadow-xl"
             onMouseEnter={() => setIsRessourcesOpen(true)}
             onMouseLeave={() => setIsRessourcesOpen(false)}
           >
@@ -342,13 +355,13 @@ export default function Sidebar({ onClose }: SidebarProps) {
               <ChevronRight className="w-4 h-4 text-[var(--text-secondary)] opacity-50 group-hover:opacity-100 transition-all group-hover:translate-x-0.5" />
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent className="w-auto min-w-[380px] max-w-[90vw] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] z-[1050] p-4 shadow-xl" side="right" align="start" sideOffset={10}>
+          <DropdownMenuContent className="w-[calc(100vw-2rem)] sm:w-auto sm:min-w-[380px] max-w-[90vw] bg-[var(--bg-dark)] border-[var(--border-color)] text-[var(--text-primary)] z-[1050] p-4 shadow-xl" side={submenuSide} align="start" sideOffset={10} collisionPadding={12}>
             <div className="flex items-center gap-1.5 mb-4 opacity-70">
               <Palette className="h-4 w-4" />
               <span className="text-xs font-semibold uppercase tracking-wider">Thème de l'interface</span>
             </div>
 
-            <div className="flex flex-row overflow-x-auto gap-1 p-3 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+            <div className="grid grid-cols-3 sm:flex sm:flex-row sm:overflow-x-auto gap-1 p-3 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
               {THEMES.map((t) => {
                 const isActive = currentTheme === t.key;
                 return (
@@ -359,7 +372,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                       handleThemeChange(t.key);
                     }}
                     className={cn(
-                      "group relative flex flex-col items-center gap-2 rounded-xl p-2.5 transition-all shrink-0 w-[96px] cursor-pointer",
+                      "group relative flex flex-col items-center gap-2 rounded-xl p-2.5 transition-all cursor-pointer w-full sm:shrink-0 sm:w-[96px]",
                       "hover:bg-[var(--border-color)] focus:bg-[var(--border-color)] focus:text-current focus-visible:outline-none",
                       isActive && "bg-[var(--border-color)]"
                     )}
@@ -445,7 +458,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
         </div>
       </nav>
 
-      <div className="p-4 border-t border-[var(--border-color)]">
+      <div className="shrink-0 p-2 border-t border-[var(--border-color)] space-y-1">
         <button
           className="w-full flex items-center justify-center gap-3 p-2 text-[var(--text-primary)] hover:bg-[var(--bg-canvas)] rounded-lg transition-colors group"
           onClick={handleSignOut}
@@ -453,8 +466,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <LogOut className="w-5 h-5 text-[var(--text-primary)] group-hover:text-white" />
           <span className="text-[var(--text-primary)] group-hover:text-white transition-colors">Se déconnecter</span>
         </button>
-      </div>
-      <div className="p-4 border-t border-[var(--border-color)]">
         <button
           className="w-full flex items-center justify-center gap-3 p-2 hover:bg-red-500/10 rounded-lg transition-colors group"
           onClick={handleQuitterLaPartie}

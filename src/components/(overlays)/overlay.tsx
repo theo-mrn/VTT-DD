@@ -91,6 +91,15 @@ export default function Component({ onPanelToggle }: OverlayProps) {
     setShowCharacterSheet(true);
   };
 
+  // Allow opening the panel from elsewhere (e.g. the mobile dock) via a window event,
+  // since the top bar that hosts the ☰ button is hidden on mobile.
+  useEffect(() => {
+    const open = () => setIsSidebarOpen(true);
+    window.addEventListener('vtt-open-map-panel', open);
+    return () => window.removeEventListener('vtt-open-map-panel', open);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const visibleList = mode === 'joueurs'
     ? players.filter(player => {
       // 1. Explicitly assigned to this scene
@@ -129,7 +138,8 @@ export default function Component({ onPanelToggle }: OverlayProps) {
         />
       )}
 
-      <div className="fixed top-4 flex gap-2 p-2 bg-black/70 backdrop-blur-sm rounded-lg border border-white/10 items-center max-w-[90vw] overflow-x-auto z-[90]">
+      {/* Top bar — hidden on mobile (use the dock to open the panel instead) */}
+      <div className="hidden lg:flex fixed top-4 gap-2 p-2 bg-black/70 backdrop-blur-sm rounded-lg border border-white/10 items-center max-w-[90vw] overflow-x-auto z-[90]">
         {/* Bouton pour ouvrir la sidebar */}
         <button
           onClick={() => setIsSidebarOpen(true)}

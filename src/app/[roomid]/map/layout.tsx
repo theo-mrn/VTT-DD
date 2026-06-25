@@ -16,7 +16,6 @@ import { NPCManager } from '@/components/(personnages)/personnages'
 import Chat from "@/components/(chat)/Chat";
 import Historique from "@/components/(historique)/Historique";
 import EncounterGenerator from "@/components/(encounter)/EncounterGenerator";
-import { X } from "lucide-react";
 import { FloatingAiAssistant } from "@/components/ui/glowing-ai-chat-assistant";
 import { toast } from "sonner";
 
@@ -132,40 +131,32 @@ export default function Layout({ children }: LayoutProps) {
   const freshPanelWidth = PANEL_WIDTHS[activeTab] ?? "w-full sm:w-[90vw] md:w-[80vw] lg:w-[700px]";
   const showFreshPanel = activeTab && !PERSISTENT_PANELS.has(activeTab);
 
-  // Shared close button (mobile)
-  const CloseBtn = () => (
-    <button
-      onClick={() => setActiveTab("")}
-      className="lg:hidden fixed top-3 right-3 z-10 rounded-full p-2 transition-colors shadow-lg bg-[#1c1c1c] text-white hover:bg-[#333]"
-      aria-label="Fermer le panneau"
-    >
-      <X className="h-5 w-5" />
-    </button>
-  );
-
-  // Shared aside class builder
+  // Shared aside class builder.
+  // Mobile/tablet (<lg): full-screen page (opaque bg) that stops above the dock,
+  // which sits in the reserved --dock-h band at the bottom.
+  // Desktop (lg): offset by the vertical rail on the left, full height.
   const asideClass = (width: string, isVisible: boolean, extra = "") =>
-    `fixed left-0 sm:left-16 md:left-20 top-0 h-full ${width} text-black shadow-lg z-20 ${isVisible ? "" : "hidden"} ${extra}`.trim();
+    `fixed left-0 lg:left-20 top-0 bottom-[var(--dock-h)] lg:bottom-0 ${width} bg-[#1c1c1c] lg:bg-transparent text-black shadow-lg z-20 ${isVisible ? "" : "hidden"} ${extra}`.trim();
 
   return (
     <ShortcutsProvider>
       <DialogVisibilityProvider>
         <MapControlProvider>
           <ChatNotificationProvider>
-            <div className="relative h-screen bg-[#1c1c1c] text-[#d4d4d4] flex z-30">
-              <div className="z-10">
-                {!isPanelOpen && (
-                  <Sidebar activeTab={activeTab} handleIconClick={handleIconClick} isMJ={isMJ} />
-                )}
-              </div>
+            <div
+              className="relative h-screen bg-[#1c1c1c] text-[#d4d4d4] flex"
+              style={{ '--dock-h': 'calc(56px + env(safe-area-inset-bottom))' } as React.CSSProperties}
+            >
+              {!isPanelOpen && (
+                <Sidebar activeTab={activeTab} handleIconClick={handleIconClick} isMJ={isMJ} />
+              )}
 
-              <div className="absolute left-5 z-0">
+              <div className="absolute left-5 z-10">
                 <OverlayComponent onPanelToggle={setIsPanelOpen} />
               </div>
 
               {/* ── MUSIC (persistent, always in DOM) ── */}
-              <aside className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#242424] h-auto max-h-[85vh] rounded-xl border border-[#333] w-full sm:w-[95vw] md:w-[90vw] lg:w-[900px] text-black shadow-lg z-20 overflow-y-auto ${activeTab === 'Music' ? 'block' : 'hidden'}`}>
-                <CloseBtn />
+              <aside className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#242424] h-auto max-h-[80vh] lg:max-h-[85vh] rounded-xl border border-[#333] w-full sm:w-[95vw] md:w-[90vw] lg:w-[900px] text-black shadow-lg z-20 overflow-y-auto ${activeTab === 'Music' ? 'block' : 'hidden'}`}>
                 <div>
                   {isMJ
                     ? <MJMusicPlayer roomId={roomId} masterVolume={audioVolumes.backgroundMusic} />
@@ -176,8 +167,7 @@ export default function Layout({ children }: LayoutProps) {
 
               {/* ── FRESH panels (Fiche, EncounterGenerator, Compétences) ── */}
               {showFreshPanel && (
-                <aside id="vtt-side-panel" className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${freshPanelWidth} text-black shadow-lg z-20 overflow-y-auto`}>
-                  <CloseBtn />
+                <aside id="vtt-side-panel" className={`fixed left-0 lg:left-20 top-0 bottom-[var(--dock-h)] lg:bottom-0 ${freshPanelWidth} bg-[#1c1c1c] lg:bg-transparent text-black shadow-lg z-20 overflow-y-auto`}>
                   {renderFreshPanel()}
                 </aside>
               )}
@@ -185,7 +175,6 @@ export default function Layout({ children }: LayoutProps) {
               {/* ── NOTES (lazy-persistent, all users) ── */}
               {mounted.notes && (
                 <aside className={asideClass("w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1100px]", activeTab === 'NewComponent', "overflow-y-auto")}>
-                  <CloseBtn />
                   <div className="h-full"><MedievalNotes /></div>
                 </aside>
               )}
@@ -193,7 +182,6 @@ export default function Layout({ children }: LayoutProps) {
               {/* ── CHAT (lazy-persistent, all users) ── */}
               {mounted.chat && (
                 <aside className={asideClass("w-full sm:w-[500px] md:w-[600px] lg:w-[400px]", activeTab === 'Chat', "overflow-hidden")}>
-                  <CloseBtn />
                   <div className="h-full"><Chat /></div>
                 </aside>
               )}
@@ -204,15 +192,13 @@ export default function Layout({ children }: LayoutProps) {
                   {/* GMDashboard */}
                   {mounted.gmDashboard && (
                     <aside className={asideClass("w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw]", activeTab === 'GMDashboard', "overflow-y-auto")}>
-                      <CloseBtn />
                       <GMDashboard />
                     </aside>
                   )}
 
                   {/* NPCManager */}
                   {mounted.npcManager && (
-                    <aside className={asideClass("w-full sm:w-[95vw] md:w-[90vw] lg:w-[1200px]", activeTab === 'NPCManager', "overflow-y-auto h-full")}>
-                      <CloseBtn />
+                    <aside className={asideClass("w-full sm:w-[95vw] md:w-[90vw] lg:w-[1200px]", activeTab === 'NPCManager', "overflow-y-auto")}>
                       <div className="h-full"><NPCManager /></div>
                     </aside>
                   )}
@@ -220,7 +206,6 @@ export default function Layout({ children }: LayoutProps) {
                   {/* Historique */}
                   {mounted.historique && (
                     <aside className={asideClass("w-full sm:w-[500px] md:w-[600px] lg:w-[400px]", activeTab === 'Historique', "overflow-hidden")}>
-                      <CloseBtn />
                       <div className="h-full"><Historique roomId={roomId} /></div>
                     </aside>
                   )}
@@ -234,15 +219,13 @@ export default function Layout({ children }: LayoutProps) {
                   if (!mountedModules.has(tab.id)) return null;
                   return (
                     <aside key={tabKey} className={asideClass(tab.width || "w-full sm:w-[700px]", activeTab === tabKey, "overflow-y-auto")}>
-                      <CloseBtn />
                       <tab.component />
                     </aside>
                   );
                 } else {
                   if (activeTab !== tabKey) return null;
                   return (
-                    <aside key={tabKey} className={`fixed left-0 sm:left-16 md:left-20 top-0 h-full ${tab.width || freshPanelWidth} text-black shadow-lg z-20 overflow-y-auto`}>
-                      <CloseBtn />
+                    <aside key={tabKey} className={`fixed left-0 lg:left-20 top-0 bottom-[var(--dock-h)] lg:bottom-0 ${tab.width || freshPanelWidth} bg-[#1c1c1c] lg:bg-transparent text-black shadow-lg z-20 overflow-y-auto`}>
                       <tab.component />
                     </aside>
                   );
@@ -255,7 +238,7 @@ export default function Layout({ children }: LayoutProps) {
                 onClose={() => setActiveTab("")}
               />
 
-              <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c] -z-10">
+              <main className="flex-1 h-full flex justify-center items-center bg-[#1c1c1c] relative z-0">
                 <MapReloadContext.Provider value={reloadMap}>
                   <div key={mapReloadKey} className="w-full h-full">{children}</div>
                 </MapReloadContext.Provider>

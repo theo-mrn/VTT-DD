@@ -427,6 +427,15 @@
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
+/* Fully hidden scrollbar (e.g. mobile bottom dock) */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 @theme inline {
   @keyframes shine {
     0% {

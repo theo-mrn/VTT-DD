@@ -3335,8 +3335,8 @@ export default function Component() {
       )}
 
       <div ref={setContainerRefAndObserve} style={{ height: '100vh' }}>
-      <ContextMenu>
-      <ContextMenuTrigger asChild>
+      <ContextMenu modal={false}>
+      <ContextMenuTrigger asChild disabled={combatOpen}>
       <div
         className={`w-full h-full flex-1 overflow-hidden border border-gray-300 ${isDraggingCharacter || isDraggingNote || isDraggingObstacle ? 'cursor-grabbing' :
           isDragging || isDraggingObject ? 'cursor-move' :
@@ -3359,6 +3359,12 @@ export default function Component() {
         onTouchEnd={handleCanvasTouchEnd}
         onTouchCancel={handleCanvasTouchEnd}
         onContextMenu={(e) => {
+          // Don't open the map context menu while a full-screen dialog (e.g. combat)
+          // is open — its Radix overlay would otherwise intercept taps inside the dialog.
+          if (combatOpen) {
+            e.preventDefault();
+            return;
+          }
           if (isVisActive && currentVisibilityTool === 'fog') {
             e.preventDefault();
             return;

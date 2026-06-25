@@ -5,9 +5,10 @@ import {
   Search, Plus, Book, X, Trash2, Edit, Save,
   MapPin, User, Scroll, Tag, Image as ImageIcon,
   Calendar, CheckCircle2, AlertTriangle, GripVertical,
-  Maximize2, Minimize2, MoreVertical, LayoutGrid, List as ListIcon, Users, RotateCcw,
+  Maximize2, Minimize2, MoreVertical, Users, RotateCcw,
   Bold, Italic, Underline as UnderlineIcon, Strikethrough, List, ListOrdered,
-  AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Heading3, Quote, Minus
+  AlignLeft, AlignCenter, AlignRight, Heading1, Heading2, Heading3, Quote, Minus,
+  ChevronDown
 } from 'lucide-react'
 import Image from "next/image"
 import { useEditor, EditorContent } from '@tiptap/react'
@@ -93,7 +94,6 @@ export default function Notes() {
   const [searchQuery, setSearchQuery] = useState('')
   const [activeFilter, setActiveFilter] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'all' | 'mine' | 'shared'>('all')
-  const [viewLayout, setViewLayout] = useState<'grid' | 'list'>('grid')
 
   // Editor (Custom Modal)
   const [editorOpen, setEditorOpen] = useState(false)
@@ -446,66 +446,70 @@ export default function Notes() {
     <div className="h-full flex flex-col bg-[var(--bg-canvas)] text-[#e0e0e0] font-sans relative overflow-hidden">
 
       {/* TOP BAR */}
-      <div className="px-8 py-6 border-b border-[var(--border-color)] bg-[var(--bg-darker)] flex flex-col gap-6 z-10 shrink-0">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-serif font-bold text-[var(--accent-header)] tracking-tight">Grimoire</h1>
-            <div className="flex items-center gap-4">
-              <p className="text-sm text-zinc-500 font-medium">Archives & Connaissances</p>
-              <button
-                onClick={handleManualRefresh}
-                disabled={isRefreshing || loading}
-                className="text-[10px] uppercase font-bold text-zinc-600 hover:text-[var(--accent-brown)] transition-colors flex items-center gap-1.5"
-              >
-                <RotateCcw className={cn("w-3 h-3", (isRefreshing || loading) && "animate-spin")} />
-                Actualiser
-              </button>
-            </div>
+      <div className="px-4 sm:px-6 py-3 border-b border-[var(--border-color)] bg-[var(--bg-darker)] flex flex-col gap-3 z-10 shrink-0">
+        {/* Row 1: title + actions */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <h1 className="text-xl font-serif font-bold text-[var(--accent-header)] tracking-tight">Grimoire</h1>
+            <button
+              onClick={handleManualRefresh}
+              disabled={isRefreshing || loading}
+              className="text-zinc-600 hover:text-[var(--accent-brown)] transition-colors shrink-0"
+              title="Actualiser"
+            >
+              <RotateCcw className={cn("w-3.5 h-3.5", (isRefreshing || loading) && "animate-spin")} />
+            </button>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 shrink-0">
             {isMJ && roomId && (
               <a
                 href={`/${roomId}/scenario`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group relative px-6 py-2.5 border border-[var(--accent-brown)] text-[var(--accent-brown)] font-bold uppercase tracking-widest text-xs rounded hover:bg-[var(--accent-brown)] hover:text-black transition-all overflow-hidden flex items-center"
+                className="px-3 py-2 border border-[var(--accent-brown)] text-[var(--accent-brown)] font-bold uppercase tracking-widest text-xs rounded hover:bg-[var(--accent-brown)] hover:text-black transition-all flex items-center gap-2"
               >
-                <span className="relative z-10 flex items-center gap-2"><Book className="w-4 h-4" /> Scénario</span>
+                <Book className="w-4 h-4" /> <span className="hidden sm:inline">Scénario</span>
               </a>
             )}
             <button
               onClick={handleNew}
-              className="group relative px-6 py-2.5 bg-[var(--accent-brown)] text-black font-bold uppercase tracking-widest text-xs rounded shadow-[0_0_20px_rgba(192,160,128,0.2)] hover:shadow-[0_0_30px_rgba(192,160,128,0.4)] hover:bg-[var(--accent-brown-hover)] transition-all overflow-hidden"
+              className="px-3 py-2 bg-[var(--accent-brown)] text-black font-bold uppercase tracking-widest text-xs rounded hover:bg-[var(--accent-brown-hover)] transition-all flex items-center gap-2"
             >
-              <span className="relative z-10 flex items-center gap-2"><Plus className="w-4 h-4" /> Nouvelle entrée</span>
-              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+              <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Nouvelle entrée</span>
             </button>
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row items-center gap-4">
-          <div className="relative flex-1 w-full group">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[var(--accent-brown)] transition-colors" />
+        {/* Row 2: search + type dropdown */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1 min-w-0 group">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500 group-focus-within:text-[var(--accent-brown)] transition-colors" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Rechercher dans les archives..."
-              className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[var(--radius-xl)] py-3 pl-11 pr-4 text-zinc-200 focus:outline-none focus:border-[var(--accent-brown)] focus:ring-1 focus:ring-[var(--accent-brown)]/20 transition-all font-medium placeholder:text-zinc-600"
+              placeholder="Rechercher..."
+              className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg py-2 pl-10 pr-4 text-sm text-zinc-200 focus:outline-none focus:border-[var(--accent-brown)] transition-all placeholder:text-zinc-600"
             />
           </div>
 
-          <div className="flex items-center gap-2 bg-[var(--bg-card)] p-1 rounded-[var(--radius-xl)] border border-[var(--border-color)]">
-            <button onClick={() => setViewLayout('grid')} className={cn("p-2 rounded-lg transition-all", viewLayout === 'grid' ? "bg-[var(--accent-brown)]/20 text-[var(--accent-brown)]" : "text-zinc-500 hover:text-zinc-300")}><LayoutGrid className="w-4 h-4" /></button>
-            <button onClick={() => setViewLayout('list')} className={cn("p-2 rounded-lg transition-all", viewLayout === 'list' ? "bg-[var(--accent-brown)]/20 text-[var(--accent-brown)]" : "text-zinc-500 hover:text-zinc-300")}><ListIcon className="w-4 h-4" /></button>
-          </div>
+          <select
+            value={activeFilter ?? ''}
+            onChange={(e) => setActiveFilter(e.target.value || null)}
+            className="shrink-0 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg py-2 px-3 text-sm text-zinc-300 focus:outline-none focus:border-[var(--accent-brown)] transition-all cursor-pointer"
+          >
+            <option value="">Tous les types</option>
+            {NOTE_TYPES.map(t => (
+              <option key={t.id} value={t.id}>{t.label}</option>
+            ))}
+          </select>
         </div>
 
-        {/* TABS */}
-        <div className="flex gap-2 bg-[var(--bg-card)] p-1 rounded-[var(--radius-xl)] border border-[var(--border-color)] w-fit">
+        {/* Row 3: tabs */}
+        <div className="flex gap-1 bg-[var(--bg-card)] p-1 rounded-lg border border-[var(--border-color)] w-fit max-w-full overflow-x-auto custom-scrollbar">
           <button
             onClick={() => setActiveTab('all')}
             className={cn(
-              "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all",
+              "px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap",
               activeTab === 'all' ? "bg-[var(--accent-brown)] text-black" : "text-zinc-500 hover:text-zinc-300"
             )}
           >
@@ -514,7 +518,7 @@ export default function Notes() {
           <button
             onClick={() => setActiveTab('mine')}
             className={cn(
-              "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+              "px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap",
               activeTab === 'mine' ? "bg-[var(--accent-brown)] text-black" : "text-zinc-500 hover:text-zinc-300"
             )}
           >
@@ -523,43 +527,30 @@ export default function Notes() {
           <button
             onClick={() => setActiveTab('shared')}
             className={cn(
-              "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2",
+              "px-3 py-1.5 rounded text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 whitespace-nowrap",
               activeTab === 'shared' ? "bg-[var(--accent-brown)] text-black" : "text-zinc-500 hover:text-zinc-300"
             )}
           >
-            <Users className="w-3 h-3" /> Partagées avec moi
+            <Users className="w-3 h-3" /> <span className="hidden xs:inline">Partagées</span>
           </button>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <button onClick={() => setActiveFilter(null)} className={cn("px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border", activeFilter === null ? "bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]" : "bg-transparent border-[var(--border-color)] text-zinc-500 hover:border-zinc-500")}>Tout</button>
-          {NOTE_TYPES.map(t => (
-            <button key={t.id} onClick={() => setActiveFilter(t.id)} className={cn("px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider transition-all border flex items-center gap-2", activeFilter === t.id ? "bg-[var(--accent-brown)] text-black border-[var(--accent-brown)]" : "bg-transparent border-[var(--border-color)] text-zinc-500 hover:border-zinc-500")}>
-              <t.icon className="w-3 h-3" /> {t.label}
-            </button>
-          ))}
         </div>
       </div>
 
       {/* CONTENT GRID */}
-      <div className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-[url('/grid-pattern.svg')] opacity-95">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-8 custom-scrollbar bg-[url('/grid-pattern.svg')] opacity-95">
         {notes.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-zinc-600 opacity-50">
             <Book className="w-16 h-16 mb-4" strokeWidth={1} />
             <p className="font-serif italic text-lg">Le grimoire est vide...</p>
           </div>
         ) : (
-          <div className={cn(
-            "grid gap-6 pb-20",
-            viewLayout === 'grid' ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" : "grid-cols-1 max-w-4xl mx-auto"
-          )}>
+          <div className="grid gap-4 sm:gap-6 pb-20 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
             {filtered.map(note => (
               <NoteCard
                 key={note.id}
                 note={note}
                 onClick={() => handleEdit(note)}
                 onQuickShare={handleQuickShare}
-                layout={viewLayout}
               />
             ))}
           </div>
@@ -599,7 +590,7 @@ export default function Notes() {
 
 // --- SUB-COMPONENTS ---
 
-function NoteCard({ note, onClick, onQuickShare, layout }: { note: Note, onClick: () => void, onQuickShare: (note: Note) => void, layout: 'grid' | 'list' }) {
+function NoteCard({ note, onClick, onQuickShare }: { note: Note, onClick: () => void, onQuickShare: (note: Note) => void }) {
   const TypeIcon = NOTE_TYPES.find(t => t.id === note.type)?.icon || Tag
   const firstInlineImage = useMemo(() => {
     if (note.image || !note.content || typeof document === 'undefined') return null
@@ -615,7 +606,7 @@ function NoteCard({ note, onClick, onQuickShare, layout }: { note: Note, onClick
       layoutId={`card-${note.id}`}
       className={cn(
         "group relative bg-[var(--bg-card)] border border-[var(--border-color)] rounded-[var(--radius-xl)] overflow-hidden hover:border-[var(--accent-brown)] hover:shadow-[0_0_20px_rgba(192,160,128,0.2)] transition-all duration-300 flex",
-        layout === 'list' ? "h-24 flex-row" : (hasImage ? "flex-col aspect-[3/4]" : "flex-col h-auto")
+        hasImage ? "flex-col aspect-[3/4]" : "flex-col h-auto"
       )}
     >
       {/* Quick Share Button - Only for private notes */}
@@ -642,7 +633,7 @@ function NoteCard({ note, onClick, onQuickShare, layout }: { note: Note, onClick
               fill
               className="object-cover transition-transform duration-700 group-hover:scale-110 opacity-60 group-hover:opacity-100"
             />
-            <div className={cn("absolute inset-0 bg-gradient-to-t from-black via-[#09090b]/80 to-transparent", layout === 'list' ? "via-[#09090b]/90" : "")} />
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-[#09090b]/80 to-transparent" />
           </div>
         ) : (
           <div className="absolute inset-0 pointer-events-none">
@@ -710,7 +701,7 @@ function NoteCard({ note, onClick, onQuickShare, layout }: { note: Note, onClick
             </div>
 
             {/* Tags */}
-            {note.tags && note.tags.length > 0 && layout !== 'list' && (
+            {note.tags && note.tags.length > 0 && (
               <div className={cn(
                 "flex flex-wrap gap-1 mt-3 transition-opacity duration-300",
                 hasImage ? "opacity-0 group-hover:opacity-100" : "pt-3 border-t border-[#2a2a2a]"
@@ -748,7 +739,7 @@ function RichTextEditor({ content, onChange, roomId }: { content: string, onChan
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
     editorProps: {
       attributes: {
-        class: 'min-h-[400px] outline-none text-base text-zinc-300 font-serif leading-loose prose prose-invert max-w-none focus:outline-none',
+        class: 'min-h-[200px] sm:min-h-[400px] outline-none text-base text-zinc-300 font-serif leading-loose prose prose-invert max-w-none focus:outline-none',
       },
       handlePaste(view, event) {
         const items = event.clipboardData?.items
@@ -830,7 +821,7 @@ function RichTextEditor({ content, onChange, roomId }: { content: string, onChan
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 bg-[#1a1a1a] border border-[var(--border-color)] rounded-lg sticky top-12 z-10">
+      <div className="flex flex-wrap items-center gap-0.5 px-2 py-1.5 bg-[#1a1a1a] border border-[var(--border-color)] rounded-lg sticky top-14 sm:top-12 z-10">
         <ToolbarBtn onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive('bold')} title="Gras"><Bold className="w-4 h-4" /></ToolbarBtn>
         <ToolbarBtn onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive('italic')} title="Italique"><Italic className="w-4 h-4" /></ToolbarBtn>
         <ToolbarBtn onClick={() => editor.chain().focus().toggleUnderline().run()} active={editor.isActive('underline')} title="Souligné"><UnderlineIcon className="w-4 h-4" /></ToolbarBtn>
@@ -864,6 +855,7 @@ function RichTextEditor({ content, onChange, roomId }: { content: string, onChan
 function CustomEditorModal({ data, roomId, roomCharacters, onClose, onSave, onDelete }: { data: Partial<Note>, roomId: string | null, roomCharacters: { id: string; name: string; avatar: string | null }[], onClose: () => void, onSave: (d: Partial<Note>) => void, onDelete: (id: string) => void }) {
   const [note, setNote] = useState(data)
   const [scrolled, setScrolled] = useState(false)
+  const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false)
   const contentRef = useRef<HTMLDivElement>(null)
 
   const handleScroll = () => {
@@ -895,14 +887,46 @@ function CustomEditorModal({ data, roomId, roomCharacters, onClose, onSave, onDe
         initial={{ scale: 0.97, opacity: 0, y: 16 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
         exit={{ scale: 0.97, opacity: 0, y: 16 }}
-        className="relative w-full max-w-5xl h-[90vh] bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-2xl shadow-2xl overflow-hidden flex flex-row"
+        className="relative w-full h-full sm:max-w-5xl sm:h-[90vh] bg-[var(--bg-dark)] border border-[var(--border-color)] sm:rounded-2xl shadow-2xl overflow-y-auto sm:overflow-hidden flex flex-col sm:flex-row"
       >
-        {/* --- LEFT SIDEBAR --- */}
-        <div className="w-56 shrink-0 bg-[var(--bg-darker)] border-r border-[var(--border-color)] flex flex-col overflow-y-auto custom-scrollbar">
-          {/* Type selector */}
-          <div className="p-4 border-b border-[var(--border-color)]">
-            <p className="text-[9px] uppercase font-black tracking-widest text-zinc-600 mb-3">Type</p>
-            <div className="space-y-0.5">
+        {/* --- MOBILE ACTION BAR (sticky top, mobile only) --- */}
+        <div className="sm:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-[var(--bg-dark)]/95 backdrop-blur border-b border-[var(--border-color)]">
+          <button onClick={onClose} className="w-9 h-9 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
+            <X className="w-4 h-4 text-zinc-400" />
+          </button>
+          <button onClick={() => onSave(note)} className="bg-[var(--accent-brown)] hover:bg-[var(--accent-brown-hover)] text-black font-bold uppercase tracking-widest text-[10px] px-4 py-2.5 rounded-lg transition-all flex items-center gap-1.5">
+            <Save className="w-3.5 h-3.5" /> Enregistrer
+          </button>
+        </div>
+
+        {/* --- SETTINGS (sidebar on desktop, collapsible panel ABOVE editor on mobile) --- */}
+        <div className="order-1 sm:order-none w-full sm:w-56 shrink-0 bg-[var(--bg-darker)] border-b sm:border-b-0 sm:border-r border-[var(--border-color)] flex flex-col sm:overflow-y-auto custom-scrollbar">
+          {/* Mobile collapse toggle */}
+          <button
+            onClick={() => setMobileSettingsOpen(o => !o)}
+            className="sm:hidden flex items-center justify-between px-4 py-3 text-xs font-bold uppercase tracking-widest text-zinc-400"
+          >
+            <span className="flex items-center gap-2"><Tag className="w-3.5 h-3.5" /> Réglages (type, visibilité, tags)</span>
+            <ChevronDown className={cn("w-4 h-4 transition-transform", mobileSettingsOpen && "rotate-180")} />
+          </button>
+
+          {/* Collapsible body: open via toggle on mobile, always visible on desktop */}
+          <div className={cn("flex-col", mobileSettingsOpen ? "flex" : "hidden", "sm:flex")}>
+          {/* Type selector — dropdown on mobile, list on desktop */}
+          <div className="px-4 pb-4 sm:pt-4 border-b border-[var(--border-color)]">
+            <p className="hidden sm:block text-[9px] uppercase font-black tracking-widest text-zinc-600 mb-3">Type</p>
+            {/* Mobile: compact dropdown */}
+            <select
+              value={note.type ?? 'other'}
+              onChange={(e) => setNote(prev => ({ ...prev, type: e.target.value as any }))}
+              className="sm:hidden w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-sm text-zinc-200 focus:border-[var(--accent-brown)] outline-none"
+            >
+              {NOTE_TYPES.map(t => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+            </select>
+            {/* Desktop: vertical list */}
+            <div className="hidden sm:block space-y-0.5">
               {NOTE_TYPES.map(t => (
                 <button
                   key={t.id}
@@ -1066,13 +1090,14 @@ function CustomEditorModal({ data, roomId, roomCharacters, onClose, onSave, onDe
               </button>
             </div>
           )}
+          </div> {/* end collapsible body */}
         </div>
 
         {/* --- RIGHT CONTENT: CANVAS --- */}
-        <div className="flex-1 flex flex-col relative bg-[#121212] min-w-0">
+        <div className="order-2 sm:order-none sm:flex-1 flex flex-col relative bg-[#121212] min-w-0">
 
-          {/* Top bar */}
-          <div className={cn("shrink-0 px-5 py-3 flex justify-between items-center z-20 transition-all border-b", scrolled ? "bg-[#121212]/95 backdrop-blur border-[var(--border-color)]" : "border-transparent")}>
+          {/* Top bar — desktop only (mobile uses the sticky action bar above) */}
+          <div className={cn("hidden sm:flex shrink-0 px-5 py-3 justify-between items-center z-20 transition-all border-b", scrolled ? "bg-[#121212]/95 backdrop-blur border-[var(--border-color)]" : "border-transparent")}>
             <button onClick={onClose} className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:bg-white/10 transition-colors">
               <X className="w-4 h-4 text-zinc-400" />
             </button>
@@ -1081,16 +1106,16 @@ function CustomEditorModal({ data, roomId, roomCharacters, onClose, onSave, onDe
             </button>
           </div>
 
-          {/* Scrollable Canvas */}
-          <div ref={contentRef} onScroll={handleScroll} className="flex-1 overflow-y-auto custom-scrollbar">
+          {/* Canvas — scrolls itself on desktop; flows in the modal scroll on mobile */}
+          <div ref={contentRef} onScroll={handleScroll} className="sm:flex-1 sm:overflow-y-auto custom-scrollbar">
 
             {/* Editor Body */}
-            <div className="max-w-2xl mx-auto px-8 py-8">
+            <div className="max-w-2xl mx-auto px-4 sm:px-8 py-5 sm:py-8">
               <input
                 value={note.title}
                 onChange={e => setNote(p => ({ ...p, title: e.target.value }))}
                 placeholder="Titre du document..."
-                className="w-full bg-transparent text-3xl font-serif font-bold text-[#e0e0e0] placeholder:text-zinc-700 outline-none mb-6"
+                className="w-full bg-transparent text-2xl sm:text-3xl font-serif font-bold text-[#e0e0e0] placeholder:text-zinc-700 outline-none mb-6"
               />
 
               <RichTextEditor
