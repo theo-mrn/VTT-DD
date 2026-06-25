@@ -121,6 +121,63 @@ export default function ContextMenuPanel({
         return (
             <AnimatePresence>
                 {isOpen && (
+                    <>
+                    {/* ── DESKTOP: compact pill (top-right) ── */}
+                    <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                        className="hidden lg:flex fixed top-20 right-6 z-50 items-stretch gap-2 max-w-[calc(100vw-3rem)]"
+                    >
+                        {/* Identity chip */}
+                        <div className="flex items-center gap-2.5 pl-1.5 pr-3 py-1.5 rounded-full bg-[#1a1a1a]/95 backdrop-blur-xl border border-[#333] shadow-2xl ring-1 ring-white/5">
+                            <Avatar className="h-9 w-9 border-2 border-[#c0a080]/60 shrink-0">
+                                <AvatarImage src={typeof character.image === 'object' ? character.image.src : character.image} className="object-cover" />
+                                <AvatarFallback className="bg-[#2a2a2a] text-sm">{character.name[0]}</AvatarFallback>
+                            </Avatar>
+                            <span className="font-bold text-white text-sm font-serif truncate max-w-[140px]">{character.name}</span>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-white hover:bg-white/10 rounded-full shrink-0" onClick={onClose}>
+                                <X size={14} />
+                            </Button>
+                        </div>
+
+                        {/* Attack */}
+                        <Button
+                            className="h-auto px-5 rounded-full font-bold bg-gradient-to-r from-red-900 via-red-800 to-red-900 border border-red-700/50 hover:border-red-500 text-red-100 shadow-lg shadow-red-900/20 transition-all hover:scale-105"
+                            onClick={() => onAction('attack', character.id)}
+                        >
+                            <Sword className="mr-2 h-4 w-4" /> Attaquer
+                        </Button>
+
+                        {/* Interactions */}
+                        {character.interactions?.map((interaction) => {
+                            const isVendor = interaction.type === 'vendor';
+                            const isGame = interaction.type === 'game';
+                            const isLoot = interaction.type === 'loot';
+                            return (
+                                <Button
+                                    key={interaction.id}
+                                    className={`h-auto px-4 rounded-full font-bold border shadow-lg transition-all hover:scale-105 text-white ${isVendor ? 'bg-amber-700 border-amber-500/50 hover:border-amber-400' : isGame ? 'bg-purple-700 border-purple-500/50 hover:border-purple-400' : isLoot ? 'bg-emerald-700 border-emerald-500/50 hover:border-emerald-400' : 'bg-blue-700 border-blue-500/50 hover:border-blue-400'}`}
+                                    onClick={() => onAction('interact', character.id, interaction.id)}
+                                >
+                                    {isVendor && <Store className="mr-2 h-4 w-4" />}
+                                    {isGame && <Dices className="mr-2 h-4 w-4" />}
+                                    {isLoot && <Package className="mr-2 h-4 w-4" />}
+                                    {interaction.name || "Interagir"}
+                                </Button>
+                            );
+                        })}
+
+                        {/* Sheet */}
+                        {canViewDetails && (
+                            <Button variant="outline" size="icon" className="h-auto w-11 rounded-full bg-[#1a1a1a]/95 border-[#333] text-gray-300 hover:text-[#c0a080] hover:bg-[#252525]" title="Voir la fiche" onClick={() => onAction('openSheet', character.id)}>
+                                <FileText size={16} />
+                            </Button>
+                        )}
+                    </motion.div>
+
+                    {/* ── MOBILE: bottom sheet (full card) ── */}
                     <motion.div
                         drag
                         dragControls={dragControls}
@@ -130,12 +187,13 @@ export default function ContextMenuPanel({
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0.9, opacity: 0, y: 20 }}
                         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                        className="fixed right-20 top-20 w-[280px] bg-[#1a1a1a]/95 backdrop-blur-xl border border-[#333] rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden ring-1 ring-white/5"
+                        className="lg:hidden fixed z-50 flex flex-col overflow-hidden bg-[#1a1a1a]/95 backdrop-blur-xl border border-[#333] shadow-2xl ring-1 ring-white/5
+                            inset-x-2 bottom-[64px] max-h-[80vh] rounded-2xl overflow-y-auto"
                     >
-                        {/* Draggable Header with Large Image */}
+                        {/* Header with Large Image (drag on desktop only) */}
                         <div
-                            className="relative h-80 w-full cursor-move group"
-                            onPointerDown={(e) => dragControls.start(e)}
+                            className="relative h-48 lg:h-80 w-full lg:cursor-move group shrink-0"
+                            onPointerDown={(e) => { if (window.matchMedia('(min-width: 1024px)').matches) dragControls.start(e); }}
                         >
                             <div className="absolute inset-0 bg-gradient-to-t from-[#1a1a1a] via-transparent to-transparent z-10" />
                             {character.image && (
@@ -259,6 +317,7 @@ export default function ContextMenuPanel({
                             )}
                         </div>
                     </motion.div>
+                    </>
                 )}
             </AnimatePresence>
         );
@@ -278,12 +337,14 @@ export default function ContextMenuPanel({
                         animate={{ scale: 1, opacity: 1, y: 0 }}
                         exit={{ scale: 0.95, opacity: 0, y: 10 }}
                         transition={{ type: "spring", stiffness: 350, damping: 25 }}
-                        className="fixed right-20 top-20 max-h-[85vh] w-[340px] bg-[#1a1a1a]/90 backdrop-blur-xl border border-[#333] rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden ring-1 ring-white/5"
+                        className="fixed z-50 flex flex-col overflow-hidden bg-[#1a1a1a]/90 backdrop-blur-xl border border-[#333] shadow-2xl ring-1 ring-white/5
+                            inset-x-2 bottom-[64px] max-h-[80vh] rounded-2xl
+                            lg:inset-x-auto lg:bottom-auto lg:right-20 lg:top-20 lg:w-[340px] lg:max-h-[85vh]"
                     >
-                        {/* Header avec Image et Nom - Draggable Zone */}
+                        {/* Header avec Image et Nom - Draggable Zone (desktop only) */}
                         <div
-                            className="relative cursor-move shrink-0"
-                            onPointerDown={(e) => dragControls.start(e)}
+                            className="relative lg:cursor-move shrink-0"
+                            onPointerDown={(e) => { if (window.matchMedia('(min-width: 1024px)').matches) dragControls.start(e); }}
                         >
                             {/* Background Image Floutée avec Gradient */}
                             <div className="absolute inset-0 z-0 overflow-hidden h-32">

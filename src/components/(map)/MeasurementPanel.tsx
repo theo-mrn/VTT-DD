@@ -109,7 +109,9 @@ export default function MeasurementPanel({
     const currentShape = shapes.find(s => s.id === selectedShape);
 
     return (
-        <div className="fixed top-24 right-4 z-[50] w-[320px] max-h-[calc(100vh-8rem)] flex flex-col bg-[#0a0a0a]/95 backdrop-blur-xl border border-[#333] rounded-xl shadow-2xl font-sans animate-in slide-in-from-right-4 duration-300">
+        <div className="fixed z-[50] flex flex-col bg-[#0a0a0a]/95 backdrop-blur-xl border border-[#333] rounded-xl shadow-2xl font-sans animate-in duration-300
+            bottom-[64px] left-2 right-2 max-h-[55vh] slide-in-from-bottom-4
+            lg:bottom-auto lg:left-auto lg:top-24 lg:right-4 lg:w-[320px] lg:max-h-[calc(100vh-8rem)] lg:slide-in-from-right-4">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-white/5">
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">

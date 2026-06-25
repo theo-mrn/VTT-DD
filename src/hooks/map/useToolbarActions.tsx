@@ -321,7 +321,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     //  SELECTION : Dessin
     if (selectedDrawingIndex !== null) {
       return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+        <div className="w-fit max-w-[calc(100vw-1.5rem)] mx-auto flex flex-wrap items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
           <span className="text-white text-sm font-medium pr-2">Dessin sélectionné</span>
           <Button
             variant="destructive"
@@ -352,7 +352,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     //  SELECTION : Note
     if (selectedNoteIndex !== null) {
       return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+        <div className="w-fit max-w-[calc(100vw-1.5rem)] mx-auto flex flex-wrap items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
           <Button variant="ghost" size="sm" onClick={handleEditNote} className="text-[#c0a080] hover:text-[#d4b494] hover:bg-white/10">
             <Edit className="w-4 h-4 mr-2" /> Modifier
           </Button>
@@ -381,7 +381,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     // SELECTION : Cases de brouillard (MJ seulement)
     if (selectedFogCells.length > 0 && isMJ) { // Réservé au MJ
       return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+        <div className="w-fit max-w-[calc(100vw-1.5rem)] mx-auto flex flex-wrap items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
           <span className="text-white text-sm font-medium pr-2">{selectedFogCells.length} case{selectedFogCells.length > 1 ? 's' : ''} de brouillard sélectionnée{selectedFogCells.length > 1 ? 's' : ''}</span>
           <Button
             variant="destructive"
@@ -423,7 +423,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
       );
       if (hasNonPlayerCharacter) {
         return (
-          <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+          <div className="w-fit max-w-[calc(100vw-1.5rem)] mx-auto flex flex-wrap items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
             <Button variant="destructive" size="sm" onClick={handleDeleteSelectedCharacters}>
               <X className="w-4 h-4 mr-2" /> Supprimer la sélection ({selectedCharacters.length})
             </Button>
@@ -443,7 +443,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     //  SELECTION : Brouillard (MJ)
     if (isMJ && selectedFogIndex !== null) {
       return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+        <div className="w-fit max-w-[calc(100vw-1.5rem)] mx-auto flex flex-wrap items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
           <span className="text-white text-sm font-medium pr-2">Brouillard global</span>
           <Button
             variant="destructive"
@@ -462,12 +462,12 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
 
     if (drawMode) {
       return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+        <div className="w-fit max-w-[calc(100vw-1.5rem)] mx-auto flex flex-wrap items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
           <div className="flex items-center gap-1">
             <Button
               variant="ghost"
               size="icon"
-              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentTool === 'pen' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              className={`h-9 w-9 sm:h-10 sm:w-10 rounded-lg transition-all duration-200 ${currentTool === 'pen' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
               onClick={() => setCurrentTool('pen')}
               title="Crayon"
             >
@@ -476,7 +476,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
             <Button
               variant="ghost"
               size="icon"
-              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentTool === 'line' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              className={`h-9 w-9 sm:h-10 sm:w-10 rounded-lg transition-all duration-200 ${currentTool === 'line' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
               onClick={() => setCurrentTool('line')}
               title="Ligne"
             >
@@ -485,7 +485,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
             <Button
               variant="ghost"
               size="icon"
-              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentTool === 'rectangle' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              className={`h-9 w-9 sm:h-10 sm:w-10 rounded-lg transition-all duration-200 ${currentTool === 'rectangle' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
               onClick={() => setCurrentTool('rectangle')}
               title="Rectangle"
             >
@@ -494,7 +494,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
             <Button
               variant="ghost"
               size="icon"
-              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentTool === 'circle' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+              className={`h-9 w-9 sm:h-10 sm:w-10 rounded-lg transition-all duration-200 ${currentTool === 'circle' ? 'bg-[#c0a080] text-black hover:bg-[#d4b494]' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
               onClick={() => setCurrentTool('circle')}
               title="Cercle"
             >
@@ -503,7 +503,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
             <Button
               variant="ghost"
               size="icon"
-              className={`h-10 w-10 rounded-lg transition-all duration-200 ${currentTool === 'eraser' ? 'bg-red-500/20 text-red-400 hover:bg-red-500/40' : 'text-gray-400 hover:text-red-400 hover:bg-red-900/20'}`}
+              className={`h-9 w-9 sm:h-10 sm:w-10 rounded-lg transition-all duration-200 ${currentTool === 'eraser' ? 'bg-red-500/20 text-red-400 hover:bg-red-500/40' : 'text-gray-400 hover:text-red-400 hover:bg-red-900/20'}`}
               onClick={() => setCurrentTool('eraser')}
               title="Gomme (supprime le trait entier)"
             >
@@ -518,7 +518,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 rounded-lg transition-all duration-200 text-gray-400 hover:text-red-400 hover:bg-red-900/20"
+            className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg transition-all duration-200 text-gray-400 hover:text-red-400 hover:bg-red-900/20"
             onClick={() => clearDrawings()}
             title="Tout effacer"
           >
@@ -575,7 +575,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     //  MODE : Mesure
     if (measureMode) {
       return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+        <div className="w-fit max-w-[calc(100vw-1.5rem)] mx-auto flex flex-wrap items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
           <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
             <Ruler className="w-4 h-4 text-[#c0a080]" />
             <span className="text-[#c0a080] font-medium text-xs tracking-wide uppercase">Mode Mesure</span>
@@ -619,7 +619,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
 
     if (playerViewMode) {
       return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+        <div className="w-fit max-w-[calc(100vw-1.5rem)] mx-auto flex flex-wrap items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
           <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
             <Eye className="w-4 h-4 text-red-400" />
             <span className="text-red-400 font-medium text-xs tracking-wide uppercase">VUE JOUEUR</span>
@@ -654,7 +654,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 rounded-lg transition-all duration-200 text-gray-400 hover:text-red-400 hover:bg-red-900/20"
+            className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg transition-all duration-200 text-gray-400 hover:text-red-400 hover:bg-red-900/20"
             onClick={() => {
               setPlayerViewMode(false);
               setViewAsPersoId(null);
@@ -670,7 +670,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     // Vue Allié pour les joueurs (même UI que Vue Joueur)
     if (allyViewMode && !isMJ) {
       return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+        <div className="w-fit max-w-[calc(100vw-1.5rem)] mx-auto flex flex-wrap items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
           <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
             <Eye className="w-4 h-4 text-green-400" />
             <span className="text-green-400 font-medium text-xs tracking-wide uppercase">VUE ALLIÉ</span>
@@ -705,7 +705,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
           <Button
             variant="ghost"
             size="icon"
-            className="h-10 w-10 rounded-lg transition-all duration-200 text-gray-400 hover:text-green-400 hover:bg-green-900/20"
+            className="h-9 w-9 sm:h-10 sm:w-10 rounded-lg transition-all duration-200 text-gray-400 hover:text-green-400 hover:bg-green-900/20"
             onClick={() => {
               setAllyViewMode(false);
               setAllyViewId(null);
@@ -719,7 +719,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     }
     if (isMusicMode) {
       return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+        <div className="w-fit max-w-[calc(100vw-1.5rem)] mx-auto flex flex-wrap items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
           <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
             <Music className="w-4 h-4 text-fuchsia-400" />
             <span className="text-fuchsia-400 font-medium text-xs tracking-wide uppercase">Mode Musique</span>
@@ -739,7 +739,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     //  PORTAL MODE
     if (portalMode && isMJ) {
       return (
-        <div className="w-fit mx-auto flex items-center gap-2 px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+        <div className="w-fit max-w-[calc(100vw-1.5rem)] mx-auto flex flex-wrap items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-[#0a0a0a]/80 backdrop-blur-xl border border-[#333] rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
           <div className="flex items-center gap-2 px-2 py-1 bg-white/5 rounded-lg border border-white/10">
             <Hexagon className="w-4 h-4 text-[#c0a080]" />
             <span className="text-[#c0a080] font-medium text-xs tracking-wide uppercase">Mode Portail</span>

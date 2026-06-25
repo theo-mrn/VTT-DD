@@ -3327,7 +3327,10 @@ export default function Component() {
         activeToolContent={getToolOptionsContent()}
         allies={playerAllies}
         extraMJTools={isMJ && userId ? (
-          <ScreenShareProducer roomId={roomId} userId={userId} onStreamChange={setIsStreaming} />
+          // Streaming is desktop-only (screen-share producer isn't relevant on mobile)
+          <span className="hidden lg:inline-flex">
+            <ScreenShareProducer roomId={roomId} userId={userId} onStreamChange={setIsStreaming} />
+          </span>
         ) : undefined}
       />
       {!isMJ && userId && (

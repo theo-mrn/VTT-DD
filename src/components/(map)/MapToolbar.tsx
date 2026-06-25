@@ -269,7 +269,7 @@ function MapToolbar({
                     variant={isActive ? "secondary" : "ghost"}
                     size="icon"
                     className={cn(
-                        "h-9 w-9 transition-all duration-200",
+                        "h-8 w-8 sm:h-9 sm:w-9 shrink-0 transition-all duration-200",
                         isActive
                             ? "bg-[#c0a080] text-black hover:bg-[#d4b494] shadow-[0_0_10px_rgba(192,160,128,0.3)]"
                             : "text-gray-400 hover:text-white hover:bg-white/10",
@@ -289,34 +289,36 @@ function MapToolbar({
 
     ToolButton.displayName = 'ToolButton';
 
-    // Helper for separators
+    // Helper for separators (hidden on mobile to keep the bar compact)
     const GroupSeparator = () => (
-        <div className="h-6 w-[1px] bg-white/10 mx-1.5 self-center" />
+        <div className="hidden sm:block h-6 w-[1px] bg-white/10 mx-1.5 self-center" />
     );
 
     return (
         <TooltipProvider delayDuration={300}>
             <div className={cn(
-                "fixed bottom-6 left-1/2 -translate-x-1/2 z-[50] transition-all duration-300 ease-in-out font-sans",
-                isCollapsed ? "translate-y-[calc(100%+24px)]" : "translate-y-0",
+                // Mobile: top of screen, single scrollable row. Desktop: bottom-centered.
+                "fixed z-[50] transition-all duration-300 ease-in-out font-sans flex flex-col",
+                "top-2 left-0 right-0 px-2 lg:top-auto lg:bottom-6 lg:left-1/2 lg:right-auto lg:px-0 lg:-translate-x-1/2",
+                isCollapsed ? "lg:translate-y-[calc(100%+24px)]" : "translate-y-0",
                 className || ""
             )}>
-                {/* Active Tool Content (Sub-Menu) */}
+                {/* Active Tool Content (Sub-Menu) — below the bar on mobile, above on desktop */}
                 {activeToolContent && (
-                    <div className="mb-3 animate-in slide-in-from-bottom-2 fade-in duration-300 relative z-[110] pointer-events-auto flex justify-center">
-                        <div className="bg-[#0a0a0a]/90 backdrop-blur-xl border border-[#333] rounded-xl p-2 shadow-2xl">
+                    <div className="order-2 lg:order-1 mt-1.5 lg:mt-0 lg:mb-3 animate-in slide-in-from-bottom-2 fade-in duration-300 relative z-[110] pointer-events-auto flex justify-center">
+                        <div className="bg-[#0a0a0a]/90 backdrop-blur-xl border border-[#333] rounded-xl p-1.5 sm:p-2 shadow-2xl max-w-[calc(100vw-1rem)]">
                             {activeToolContent}
                         </div>
                     </div>
                 )}
 
                 {/* Main Toolbar Container */}
-                <div className="flex flex-col items-center gap-2 pointer-events-auto">
+                <div className="order-1 lg:order-2 flex flex-col items-center gap-1.5 sm:gap-2 pointer-events-auto">
 
-                    {/* Expand Toggle (Visible when collapsed) */}
+                    {/* Expand Toggle (Visible when collapsed) — desktop only */}
                     <div
                         className={cn(
-                            "absolute -top-12 left-1/2 -translate-x-1/2 transition-opacity duration-300",
+                            "hidden lg:block absolute -top-12 left-1/2 -translate-x-1/2 transition-opacity duration-300",
                             isCollapsed ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
                         )}
                     >
@@ -330,29 +332,36 @@ function MapToolbar({
                         </Button>
                     </div>
 
-                    {/* Toolbar Body */}
-                    <div className="flex flex-wrap justify-center items-center gap-y-1.5 p-1.5 bg-[#0a0a0a]/90 backdrop-blur-2xl border border-[#333] rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.7)] ring-1 ring-white/5 w-max max-w-[calc(100vw-1rem)] sm:max-w-[calc(100vw-2rem)]">
+                    {/* Toolbar Body — single scrollable row on mobile, wrapping centered bar on desktop */}
+                    <div className="flex flex-nowrap lg:flex-wrap justify-start lg:justify-center items-center gap-y-0.5 lg:gap-y-1.5 p-1 sm:p-1.5 bg-[#0a0a0a]/90 backdrop-blur-2xl border border-[#333] rounded-2xl shadow-[0_10px_50px_rgba(0,0,0,0.7)] ring-1 ring-white/5 w-full lg:w-max max-w-full lg:max-w-[calc(100vw-2rem)] overflow-x-auto lg:overflow-visible no-scrollbar">
 
                         {/* --- GROUP 1: NAVIGATION & VIEW --- */}
-                        <div id="vtt-toolbar-group-nav" className="flex items-center px-1">
-                            <ToolButton onAction={onAction}
-                                id={TOOLS.ZOOM_IN}
-                                icon={Plus}
-                                label="Zoomer"
-                                isActive={false}
-                            />
-                            <ToolButton onAction={onAction}
-                                id={TOOLS.ZOOM_OUT}
-                                icon={Minus}
-                                label="Dézoomer"
-                                isActive={false}
-                            />
-                            <ToolButton onAction={onAction}
-                                id={TOOLS.PAN}
-                                icon={Move}
-                                label="Déplacer la carte"
-                                isActive={activeTools.includes(TOOLS.PAN)}
-                            />
+                        {/* Zoom +/- and Pan are hidden on mobile (native pinch/drag gestures handle it) */}
+                        <div id="vtt-toolbar-group-nav" className="flex items-center px-0.5 sm:px-1 shrink-0">
+                            <span className="hidden sm:inline-flex">
+                                <ToolButton onAction={onAction}
+                                    id={TOOLS.ZOOM_IN}
+                                    icon={Plus}
+                                    label="Zoomer"
+                                    isActive={false}
+                                />
+                            </span>
+                            <span className="hidden sm:inline-flex">
+                                <ToolButton onAction={onAction}
+                                    id={TOOLS.ZOOM_OUT}
+                                    icon={Minus}
+                                    label="Dézoomer"
+                                    isActive={false}
+                                />
+                            </span>
+                            <span className="hidden sm:inline-flex">
+                                <ToolButton onAction={onAction}
+                                    id={TOOLS.PAN}
+                                    icon={Move}
+                                    label="Déplacer la carte"
+                                    isActive={activeTools.includes(TOOLS.PAN)}
+                                />
+                            </span>
                             {isMJ && (
                                 <>
                                     <ToolButton onAction={onAction}
@@ -383,14 +392,17 @@ function MapToolbar({
                         <GroupSeparator />
 
                         {/* --- GROUP 2: PRIMARY INTERACTION --- */}
-                        <div id="vtt-toolbar-group-interaction" className="flex items-center px-1">
+                        <div id="vtt-toolbar-group-interaction" className="flex items-center px-0.5 sm:px-1 shrink-0">
+                            {/* Multi-select hidden on mobile (drag-rectangle selection isn't touch-friendly) */}
                             {isMJ && (
-                                <ToolButton onAction={onAction}
-                                    id={TOOLS.MULTI_SELECT}
-                                    icon={SquareDashedMousePointer}
-                                    label="Sélection Multiple"
-                                    isActive={activeTools.includes(TOOLS.MULTI_SELECT)}
-                                />
+                                <span className="hidden sm:inline-flex">
+                                    <ToolButton onAction={onAction}
+                                        id={TOOLS.MULTI_SELECT}
+                                        icon={SquareDashedMousePointer}
+                                        label="Sélection Multiple"
+                                        isActive={activeTools.includes(TOOLS.MULTI_SELECT)}
+                                    />
+                                </span>
                             )}
                             <ToolButton onAction={onAction}
                                 id={TOOLS.MEASURE}
@@ -415,7 +427,7 @@ function MapToolbar({
                         <GroupSeparator />
 
                         {/* --- GROUP 3: MAP MANAGEMENT --- */}
-                        <div id="vtt-toolbar-group-map" className="flex items-center px-1">
+                        <div id="vtt-toolbar-group-map" className="flex items-center px-0.5 sm:px-1 shrink-0">
                             <ToolButton onAction={onAction}
                                 id={TOOLS.GRID}
                                 icon={Grid}
@@ -452,7 +464,7 @@ function MapToolbar({
                         {isMJ && (
                             <>
                                 <GroupSeparator />
-                                <div id="vtt-toolbar-group-content" className="flex items-center px-1">
+                                <div id="vtt-toolbar-group-content" className="flex items-center px-0.5 sm:px-1 shrink-0">
                                     <ToolButton onAction={onAction}
                                         id={TOOLS.UNIFIED_SEARCH}
                                         icon={CirclePlus}
@@ -477,7 +489,7 @@ function MapToolbar({
 
                         {/* --- GROUP 5: SYSTEM & AUDIO --- */}
                         <GroupSeparator />
-                        <div id="vtt-toolbar-group-system" className="flex items-center px-1">
+                        <div id="vtt-toolbar-group-system" className="flex items-center px-0.5 sm:px-1 shrink-0">
                             <ToolButton onAction={onAction}
                                 id={TOOLS.AUDIO_MIXER}
                                 icon={Sliders}
@@ -498,12 +510,12 @@ function MapToolbar({
                         {isMJ && extraMJTools && (
                             <>
                                 <GroupSeparator />
-                                <div className="flex items-center px-1">{extraMJTools}</div>
+                                <div className="flex items-center px-0.5 sm:px-1 shrink-0">{extraMJTools}</div>
                             </>
                         )}
 
-                        {/* Collapse Button */}
-                        <div className="ml-1 pl-2 border-l border-white/10">
+                        {/* Collapse Button — desktop only (mobile bar stays at top) */}
+                        <div className="hidden lg:block ml-1 pl-2 border-l border-white/10 shrink-0">
                             <Button
                                 variant="ghost"
                                 size="icon"
