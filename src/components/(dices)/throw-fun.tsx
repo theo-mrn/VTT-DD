@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useImperativeHandle, forwardRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Physics, usePlane, useConvexPolyhedron, useBox } from '@react-three/cannon';
 import { Environment } from '@react-three/drei';
@@ -118,17 +118,28 @@ interface FunDiceProps {
     buttonText?: string;
     defaultDiceType?: string;
     defaultSkinId?: string;
+    /** Hide the built-in button — control rolls imperatively via ref instead */
+    hideButton?: boolean;
+    /** z-index of the physics canvas overlay */
+    overlayZIndex?: number;
 }
 
-export const FunDiceThrower: React.FC<FunDiceProps> = ({
+export interface FunDiceHandle {
+    /** Roll a die with a specific skin (falls back to defaultSkinId) */
+    roll: (skinId?: string, diceType?: string) => void;
+}
+
+export const FunDiceThrower = forwardRef<FunDiceHandle, FunDiceProps>(({
     className = "",
     buttonText = "Lancer pour le fun",
     defaultDiceType = "d20",
-    defaultSkinId = "amethyst"
-}) => {
+    defaultSkinId = "amethyst",
+    hideButton = false,
+    overlayZIndex = 100,
+}, ref) => {
     const [dice, setDice] = useState<{ id: string, type: string, pos: [number, number, number], imp: [number, number, number], ang: [number, number, number], skinId: string }[]>([]);
 
-    const rollDie = () => {
+    const rollDie = useCallback((skinId?: string, diceType?: string) => {
         // Random start position
         const startX = (Math.random() - 0.5) * 10;
         const startZ = 10 + (Math.random() * 5);
@@ -144,37 +155,37 @@ export const FunDiceThrower: React.FC<FunDiceProps> = ({
         const angY = (Math.random() - 0.5) * 60;
         const angZ = (Math.random() - 0.5) * 60;
 
-        const skinKeys = Object.keys(DICE_SKINS);
-        const randomSkinId = skinKeys[Math.floor(Math.random() * skinKeys.length)];
-
         const newDie = {
             id: crypto.randomUUID(),
-            type: defaultDiceType,
+            type: diceType || defaultDiceType,
             pos: [startX, startY, startZ] as [number, number, number],
             imp: [forceX, forceY, forceZ] as [number, number, number],
             ang: [angX, angY, angZ] as [number, number, number],
-            skinId: randomSkinId
+            skinId: skinId || defaultSkinId,
         };
 
         setDice(prev => [...prev, newDie]);
 
-        // Cleanup after 7 seconds (die has stopped and we don't need it lingering forever, or maybe leave it?)
-        // Let's clear it automatically so it doesn't clutter.
+        // Auto-cleanup so the die doesn't linger forever
         setTimeout(() => {
             setDice(prev => prev.filter(d => d.id !== newDie.id));
         }, 7000);
-    };
+    }, [defaultDiceType, defaultSkinId]);
+
+    useImperativeHandle(ref, () => ({ roll: rollDie }), [rollDie]);
 
     return (
         <div className={`relative ${className}`}>
-            <button
-                onClick={rollDie}
-                className="px-4 py-2 bg-[var(--bg-canvas)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] hover:bg-[var(--bg-panel)] hover:border-[var(--accent-brown)] transition-colors shadow-sm font-medium z-10 relative"
-            >
-                🎲 {buttonText}
-            </button>
+            {!hideButton && (
+                <button
+                    onClick={() => rollDie()}
+                    className="px-4 py-2 bg-[var(--bg-canvas)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] hover:bg-[var(--bg-panel)] hover:border-[var(--accent-brown)] transition-colors shadow-sm font-medium z-10 relative"
+                >
+                    🎲 {buttonText}
+                </button>
+            )}
 
-            <div className="fixed inset-0 pointer-events-none z-[100]" style={{ display: dice.length > 0 ? 'block' : 'none' }}>
+            <div className="fixed inset-0 pointer-events-none" style={{ display: dice.length > 0 ? 'block' : 'none', zIndex: overlayZIndex }}>
                 <Canvas camera={{ position: [0, 40, 0], fov: 45 }} gl={{ alpha: true }} style={{ pointerEvents: 'none' }}>
                     <ambientLight intensity={0.4} />
                     <spotLight position={[15, 40, 15]} angle={0.5} penumbra={0.5} intensity={2} />
@@ -198,6 +209,7 @@ export const FunDiceThrower: React.FC<FunDiceProps> = ({
             </div>
         </div>
     );
-};
+});
+FunDiceThrower.displayName = 'FunDiceThrower';
 
 export default FunDiceThrower;

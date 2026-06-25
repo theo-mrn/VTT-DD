@@ -4,7 +4,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { DiceSkin } from './dice-definitions';
 import { DicePreviewCard } from './dice-preview';
 import { cn } from '@/lib/utils';
-import { Check, ShoppingCart, Lock } from 'lucide-react';
+import { Check, ShoppingCart, Lock, Dices } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 interface DiceCardProps {
@@ -14,9 +14,10 @@ interface DiceCardProps {
     canAfford: boolean;
     onBuy: () => void;
     onEquip: () => void;
+    onTry?: () => void;
 }
 
-export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip }: DiceCardProps) {
+export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip, onTry }: DiceCardProps) {
     const cardRef = useRef<HTMLDivElement>(null);
     const [isVisible, setIsVisible] = useState(false);
 
@@ -79,13 +80,13 @@ export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip 
                     {skin.description}
                 </p>
 
-                <div className="mt-4 pt-4 border-t border-[var(--border-color)]">
+                <div className="mt-4 pt-4 border-t border-[var(--border-color)] flex items-stretch gap-2">
                     {isOwned ? (
                         <button
                             onClick={onEquip}
                             disabled={isEquipped}
                             className={cn(
-                                "w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                                "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
                                 isEquipped
                                     ? "bg-[var(--text-primary)]/5 text-[var(--text-secondary)] cursor-not-allowed border border-transparent"
                                     : "bg-[var(--accent-brown)] text-[var(--bg-dark)] hover:scale-[1.02] active:scale-95 shadow-lg shadow-[var(--accent-brown)]/5"
@@ -98,13 +99,24 @@ export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip 
                             onClick={onBuy}
                             disabled={!canAfford}
                             className={cn(
-                                "w-full py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
+                                "flex-1 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300",
                                 "flex items-center justify-center gap-2",
                                 "border border-[var(--border-color)] bg-[var(--bg-darker)] text-[var(--text-primary)] hover:bg-[var(--bg-dark)] hover:border-[var(--text-primary)]/20 active:scale-95 disabled:opacity-50"
                             )}
                         >
                             <ShoppingCart className="w-3.5 h-3.5" />
                             {skin.price === 0 ? 'Gratuit' : `${(skin.price / 100).toFixed(2)} €`}
+                        </button>
+                    )}
+
+                    {/* Try it — icon button next to the price/equip button */}
+                    {onTry && (
+                        <button
+                            onClick={onTry}
+                            title="Essayer ce dé"
+                            className="shrink-0 px-3 rounded-xl flex items-center justify-center border border-[var(--border-color)] text-[var(--text-secondary)] hover:text-[var(--accent-brown)] hover:border-[var(--accent-brown)]/40 hover:bg-[var(--bg-darker)] active:scale-95 transition-all duration-300"
+                        >
+                            <Dices className="w-4 h-4" />
                         </button>
                     )}
                 </div>

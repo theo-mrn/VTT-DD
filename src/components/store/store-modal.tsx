@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { DICE_SKINS, DiceSkin } from '../(dices)/dice-definitions';
 import { DiceCard } from '../(dices)/dice-card';
+import { FunDiceThrower, FunDiceHandle } from '../(dices)/throw-fun';
 import { TOKEN_DEFINITIONS, DEFAULT_TOKEN_INVENTORY, TokenSkin, getTokenDefinition } from '../(fiches)/token-definitions';
 import { TokenCard } from '../(fiches)/token-card';
 import { Store, Backpack, Gem, X, Loader2, Crown, LayoutGrid, Dice5, Package, Settings, Sparkles } from 'lucide-react';
@@ -57,6 +58,10 @@ export function StoreModal({
     const [isManagingPortal, setIsManagingPortal] = useState(false);
     const [shouldRender, setShouldRender] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
+
+    // Imperative dice thrower used by the "Essayer" buttons
+    const funDiceRef = useRef<FunDiceHandle>(null);
+    const tryDice = (skinId: string) => funDiceRef.current?.roll(skinId, 'd20');
 
     // Sync filter prop on open
     useEffect(() => {
@@ -471,6 +476,7 @@ export function StoreModal({
                                                                     canAfford={!isCheckingOut}
                                                                     onBuy={() => handleBuyItem(skin.id, 'dice', skin.price, skin.name)}
                                                                     onEquip={() => handleEquipDice(skin.id)}
+                                                                    onTry={() => tryDice(skin.id)}
                                                                 />
                                                             </div>
                                                         ))
@@ -599,6 +605,7 @@ export function StoreModal({
                                                                 canAfford={!isCheckingOut}
                                                                 onBuy={() => handleBuyItem(item.data.id, 'dice', item.data.price, item.data.name)}
                                                                 onEquip={() => handleEquipDice(item.data.id)}
+                                                                onTry={() => tryDice(item.data.id)}
                                                             />
                                                         ) : (
                                                             <TokenCard
@@ -662,6 +669,9 @@ export function StoreModal({
                     )}
                 </div>
             </div>
+
+            {/* Headless physics dice thrower — rolled by the "Essayer" buttons, renders above the modal */}
+            <FunDiceThrower ref={funDiceRef} hideButton overlayZIndex={10010} />
         </div>
         , document.body);
 }
