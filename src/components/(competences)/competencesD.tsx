@@ -115,6 +115,9 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
     if (selectedCompetence && selectedCharacter) {
       try {
         const bonusPath = `Bonus/${roomId}/${selectedCharacter.Nomperso}/${selectedCompetence.id}`;
+        const bonusDoc = await getDoc(doc(db, bonusPath));
+        // Si le document de bonus n'existe pas, il n'y a aucun bonus à retirer.
+        if (!bonusDoc.exists()) return;
         await updateDoc(doc(db, bonusPath), { [stat]: 0 });
         await refreshCompetences();
         const updatedComp = competences.find(c => c.id === selectedCompetence.id);
@@ -220,6 +223,12 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
     if (selectedCompetence && selectedCharacter) {
       try {
         const bonusPath = `Bonus/${roomId}/${selectedCharacter.Nomperso}/${selectedCompetence.id}`;
+        const bonusDoc = await getDoc(doc(db, bonusPath));
+        // Si le document de bonus n'existe pas, il n'y a aucun dé à retirer.
+        if (!bonusDoc.exists()) {
+          setIsDiceDialogOpen(false);
+          return;
+        }
         await updateDoc(doc(db, bonusPath), { diceSelection: "" });
         toast.success('Dés supprimés', { duration: 2000 });
         setIsDiceDialogOpen(false);

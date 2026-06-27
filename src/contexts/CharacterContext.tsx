@@ -424,8 +424,10 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
                     // Récupérer les bonus associés depuis Firestore
                     const bonusData = await fetchBonusData(roomId, characterData.Nomperso, skillId);
 
-                    // Sync name if missing or different (Auto-fix for widget display)
-                    if (bonusData && (!bonusData.name || bonusData.name !== skillName)) {
+                    // Sync name if missing or different (Auto-fix for widget display).
+                    // fetchBonusData retourne {} quand le doc n'existe pas : on ne tente
+                    // l'updateDoc que sur un doc EXISTANT (sinon "No document to update").
+                    if (Object.keys(bonusData).length > 0 && bonusData.name !== skillName) {
                       const bonusRef = doc(db, `Bonus/${roomId}/${characterData.Nomperso}/${skillId}`);
                       // Fire and forget update
                       updateDoc(bonusRef, { name: skillName }).catch(err => console.error("Error syncing bonus name", err));
@@ -517,8 +519,10 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
                   const skillId = `${voieFile}-${j}`;
                   const bonusData = await fetchBonusData(roomId, characterData.Nomperso, skillId);
 
-                  // Sync name if missing or different (Auto-fix for widget display)
-                  if (bonusData && (!bonusData.name || bonusData.name !== skillName)) {
+                  // Sync name if missing or different (Auto-fix for widget display).
+                  // fetchBonusData retourne {} quand le doc n'existe pas : on ne tente
+                  // l'updateDoc que sur un doc EXISTANT (sinon "No document to update").
+                  if (Object.keys(bonusData).length > 0 && bonusData.name !== skillName) {
                     const bonusRef = doc(db, `Bonus/${roomId}/${characterData.Nomperso}/${skillId}`);
                     updateDoc(bonusRef, { name: skillName }).catch(err => console.error("Error syncing bonus name", err));
                   }
