@@ -1,43 +1,31 @@
-"use client";
-
-import React, { useState, useEffect, useRef } from "react";
-// import { DiceRoll } from "@dice-roller/rpg-dice-roller"; // Removed unused import
-import { motion, AnimatePresence } from "framer-motion";
-import { Dice1, RotateCcw, History, Trash2, Shield, BarChart3, Store, Check, EyeOff, Box } from "lucide-react";
-import { auth, db, addDoc, collection, getDocs, getDoc, doc, deleteDoc, query, orderBy, serverTimestamp, limit, updateDoc } from "@/lib/firebase";
-import { trackDiceRoll } from '@/lib/challenge-tracker';
-import { useGame } from '@/contexts/GameContext';
-import { Avatar, AvatarImage } from "@/components/ui/avatar";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { DiceStats } from "./dice-stats";
-import { DICE_SKINS, DiceSkin } from "./dice-definitions";
-import { DicePreview } from "./dice-preview";
-import { StoreModal } from "../store/store-modal";
-import { getAssetUrl } from "@/lib/asset-loader";
-import { InteractiveHoverButton } from "@/components/ui/interactive-hover-button";
-import { generateSlug } from "@/lib/titles";
-// Types
-interface RollResult {
-  id: string;
-  notation: string;
-  result: string;
-  total: number;
-  timestamp: Date;
-  output: string;
-}
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { X, Send, Info, Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, ChevronRight, Box, Shield, EyeOff, History, RotateCcw, BarChart2, Store, SwitchCamera, Keyboard, Filter } from 'lucide-react';
+import { doc, getDoc, auth, db, addDoc, collection, updateDoc, query, orderBy, limit, onSnapshot } from "@/lib/firebase";
 import { toast } from 'sonner';
+import { generateSlug } from "@/lib/titles";
+import { getAssetUrl } from "@/lib/asset-loader";
+import { trackDiceRoll } from '@/lib/challenge-tracker';
+import { DiceStats } from "./dice-stats";
+import { StoreModal } from "../store/store-modal";
+import { DICE_SKINS } from "./dice-definitions";
+import { UserProfileDialog } from "@/components/profile/UserProfileDialog";
+import { useCalculatedBonuses } from '@/hooks/useCharacterData';
+import { useCharacter } from '@/contexts/CharacterContext';
+import { useGame } from '@/contexts/GameContext';
+import { useShortcuts, SHORTCUT_ACTIONS } from '@/contexts/ShortcutsContext';
 
+interface RollableStat {
+  key: string;
+  label: string;
+  rawValue: number;
+  hasModifier: boolean;
+}
 
-// Type compatible avec campagne.tsx
+interface CharacterModifiers {
+  [key: string]: number;
+}
+
 interface FirebaseRoll {
   id: string;
   isPrivate: boolean;
@@ -54,49 +42,121 @@ interface FirebaseRoll {
   notation?: string;
   output?: string;
   persoId?: string;
+  uid?: string;
 }
 
+interface DiceRollerProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
 
-
-import { useShortcuts, SHORTCUT_ACTIONS } from "@/contexts/ShortcutsContext";
-
-export function DiceRoller() {
+export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
+  const { selectedCharacter, roomId: contextRoomId } = useCharacter();
+  const { isMJ, persoId, user: gameUser } = useGame();
   const { isShortcutPressed, customShortcuts, checkKeyCombination } = useShortcuts();
-  const [input, setInput] = useState("");
-  const [result, setResult] = useState<RollResult | null>(null);
-  const [showDetails, setShowDetails] = useState(false);
-  const [firebaseRolls, setFirebaseRolls] = useState<FirebaseRoll[]>([]);
+  const roomId = contextRoomId;
+
+  const [input, setInput] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [show3DAnimations, setShow3DAnimations] = useState(true);
   const [isPrivate, setIsPrivate] = useState(false);
   const [isBlind, setIsBlind] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [showHistory] = useState(true);
-  const [showStats, setShowStats] = useState(false);
-  const [show3DAnimations, setShow3DAnimations] = useState(true);
 
-  // États utilisateur - récupérés du contexte
-  const { user: gameUser, persoId, isMJ } = useGame();
-  const roomId = gameUser?.roomId ?? null;
-  const [userName, setUserName] = useState("Utilisateur");
+  const userName = isMJ ? "MJ" : (selectedCharacter?.Nomperso || "Utilisateur");
+  const userAvatar = isMJ ? undefined : (selectedCharacter?.imageURLFinal || selectedCharacter?.imageURL || undefined);
+
+  const rollableStats = useMemo(() => {
+    if (!selectedCharacter) return [];
+
+    const defaultRollable: Record<string, boolean> = {
+      FOR: true, DEX: true, CON: true, SAG: true, INT: true, CHA: true,
+      Defense: false, Contact: false, Magie: false, Distance: false, INIT: false,
+    };
+    const statRollableOverrides: Record<string, boolean> = selectedCharacter.statRollable ?? {};
+
+    const builtinDefs = [
+      { key: 'FOR', label: 'FOR', hasModifier: true },
+      { key: 'DEX', label: 'DEX', hasModifier: true },
+      { key: 'CON', label: 'CON', hasModifier: true },
+      { key: 'SAG', label: 'SAG', hasModifier: true },
+      { key: 'INT', label: 'INT', hasModifier: true },
+      { key: 'CHA', label: 'CHA', hasModifier: true },
+      { key: 'Defense', label: 'Déf', hasModifier: false },
+      { key: 'Contact', label: 'Ctt', hasModifier: false },
+      { key: 'Magie', label: 'Mag', hasModifier: false },
+      { key: 'Distance', label: 'Dst', hasModifier: false },
+      { key: 'INIT', label: 'INIT', hasModifier: false },
+    ];
+
+    const rollables: RollableStat[] = builtinDefs
+      .filter((s) => (s.key in statRollableOverrides ? statRollableOverrides[s.key] : defaultRollable[s.key] ?? false))
+      .map((s) => ({
+        key: s.key,
+        label: s.label,
+        rawValue: Number(selectedCharacter[s.key as keyof typeof selectedCharacter] ?? (s.hasModifier ? 10 : 0)),
+        hasModifier: s.hasModifier,
+      }));
+
+    const customFields = (selectedCharacter.customFields as any[]) ?? [];
+    customFields
+      .filter((f) => f.isRollable && (f.type === 'number' || f.type === 'percent'))
+      .forEach((f) => {
+        rollables.push({
+          key: f.label,
+          label: f.label.length > 5 ? f.label.substring(0, 5) : f.label,
+          rawValue: Number(f.value) || 0,
+          hasModifier: !!(f.hasModifier && f.type === 'number'),
+        });
+      });
+
+    return rollables;
+  }, [selectedCharacter]);
+
+  const characterModifiers = useMemo(() => {
+    const modifiersMap: CharacterModifiers = {};
+    rollableStats.forEach((s: RollableStat) => {
+      modifiersMap[s.key] = s.rawValue;
+    });
+    return modifiersMap;
+  }, [rollableStats]);
+
+  const { totalBonuses } = useCalculatedBonuses(roomId, userName !== "MJ" && userName !== "Utilisateur" ? userName : undefined);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [userAvatar, setUserAvatar] = useState<string | undefined>(undefined);
-  const [characterName, setCharacterName] = useState("Utilisateur");
-  const [characterModifiers, setCharacterModifiers] = useState<{ [key: string]: number }>({});
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const pendingRollsRef = useRef<Map<string, (results: { type: string, value: number }[]) => void>>(new Map());
 
+  // History State
+  const [showHistory, setShowHistory] = useState(false);
+  const [showStats, setShowStats] = useState(false);
+  // Mobile-only sub-view: roll keypad vs. history vs. stats
+  const [mobileView, setMobileView] = useState<'roll' | 'history' | 'stats'>('roll');
+  const [firebaseRolls, setFirebaseRolls] = useState<FirebaseRoll[]>([]);
+  const [selectedPlayerFilter, setSelectedPlayerFilter] = useState<string | null>(null);
+
+  // Skin State
   const [selectedSkinId, setSelectedSkinId] = useState("gold");
   const [isSkinDialogOpen, setIsSkinDialogOpen] = useState(false);
 
-  // Charger le skin depuis Firestore et les préférences 3D depuis localStorage
-  useEffect(() => {
-    const saved3D = localStorage.getItem("vtt_3d_enabled");
-    if (saved3D !== null) {
-      setShow3DAnimations(saved3D === "true");
-    }
+  // New state for displaying the latest result in the header
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [selectedCharacterName, setSelectedCharacterName] = useState<string | null>(null);
+  const [latestResult, setLatestResult] = useState<{
+    result: string;
+    total: number;
+    notation: string;
+    output: string;
+    isBlind?: boolean;
+  } | null>(null);
 
+  // Scramble effect for the result display when it's "..."
+  const [scrambledValue, setScrambledValue] = useState("...");
+
+  // Load skin from Firestore
+  useEffect(() => {
     const uid = gameUser?.uid;
     if (!uid) return;
-
     const loadSkin = async () => {
       try {
         const userRef = doc(db, 'users', uid);
@@ -114,180 +174,99 @@ export function DiceRoller() {
     loadSkin();
   }, [gameUser?.uid]);
 
-
-
-  // Effet pour afficher les détails 1 seconde après le résultat
   useEffect(() => {
-    if (result) {
-      setShowDetails(false);
-      const timer = setTimeout(() => {
-        setShowDetails(true);
-        // Afficher le toast avec le résultat
-        if (result.result !== "?" && result.result !== "...") {
-          let message = `${result.notation} : ${result.total}`;
-          // Try to extract detailed view from output: "notation = details = total"
-          if (result.output && result.output.includes('=')) {
-            const parts = result.output.split('=');
-            if (parts.length >= 3) {
-              const details = parts.slice(1, parts.length - 1).join('=').trim();
-              const total = parts[parts.length - 1].trim();
-              message = `${details} = ${total}`;
-            }
-          }
-
-          toast.success(message, {
-            duration: 4000,
-          });
-        }
-      }, 1100);
-      return () => clearTimeout(timer);
-    } else {
-      setShowDetails(false);
+    let interval: NodeJS.Timeout;
+    if (isLoading) {
+      const chars = "0123456789";
+      interval = setInterval(() => {
+        setScrambledValue(
+          Array(2).fill(0).map(() => chars[Math.floor(Math.random() * chars.length)]).join("")
+        );
+      }, 50);
+    } else if (latestResult) {
+      setScrambledValue(latestResult.total.toString());
     }
-  }, [result]);
+    return () => clearInterval(interval);
+  }, [isLoading, latestResult]);
 
-  // Calculer les modificateurs depuis les données Firebase
-  const getCharacterModifiers = () => {
-    return characterModifiers;
-  };
-
-
-
-  // Fonction pour charger les données du personnage depuis Firebase
-  const fetchCharacterInfo = async (roomId: string, persoId: string) => {
-    try {
-      const charRef = doc(db, `cartes/${roomId}/characters/${persoId}`);
-      const charSnap = await getDoc(charRef);
-
-      if (charSnap.exists()) {
-        const charData = charSnap.data();
-        setCharacterName(charData.Nomperso || "Utilisateur");
-        setUserName(charData.Nomperso || "Utilisateur");
-        setUserAvatar(charData.imageURLFinal || charData.imageURL || undefined);
-
-        // Set the raw values directly without calculating modifiers again (exactement comme campagne.tsx)
-        setCharacterModifiers({
-          CON: charData.CON_F || charData.CON || 0,
-          DEX: charData.DEX_F || charData.DEX || 0,
-          FOR: charData.FOR_F || charData.FOR || 0,
-          SAG: charData.SAG_F || charData.SAG || 0,
-          INT: charData.INT_F || charData.INT || 0,
-          CHA: charData.CHA_F || charData.CHA || 0,
-          Contact: charData.Contact_F || charData.Contact || 0,
-          Distance: charData.Distance_F || charData.Distance || 0,
-          Magie: charData.Magie_F || charData.Magie || 0,
-          Defense: charData.Defense_F || charData.Defense || 0,
-        });
-
-        console.log("Fetched character info:", charData);
-        return charData;
-      } else {
-        console.log("No character document found!");
-      }
-    } catch (error) {
-      console.error("Error fetching character info:", error);
-    }
-    return null;
-  };
-
-  // Récupération des données utilisateur et personnage depuis le contexte
+  // History Logic from dice-roller.tsx
   useEffect(() => {
-    console.log("window.CHEAT_DICE=20;");
     if (!roomId) return;
 
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      setUserEmail(currentUser.email || null);
-    }
+    const q = query(
+      collection(db, `rolls/${roomId}/rolls`),
+      orderBy("timestamp", "desc"),
+      limit(50)
+    );
 
-    if (isMJ) {
-      setUserName("MJ");
-      setUserAvatar(undefined);
-    } else if (persoId) {
-      fetchCharacterInfo(roomId, persoId);
-    }
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const rolls: FirebaseRoll[] = [];
+      const now = Date.now();
 
-    fetchFirebaseRolls(roomId);
-  }, [roomId, persoId, isMJ]);
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === "added") {
+          const rollData = { id: change.doc.id, ...change.doc.data() } as FirebaseRoll;
 
-  const fetchFirebaseRolls = async (roomId: string) => {
+          // Check if it's a NEW roll (within last 5 seconds) and NOT from the current user
+          // userName check might be tricky if two people have same name, but UID is safer
+          const isMe = (auth.currentUser && rollData.uid === auth.currentUser.uid) || rollData.userName === userName;
 
-    try {
-      const rollsRef = collection(db, `rolls/${roomId}/rolls`);
-      const rollsQuery = query(rollsRef, orderBy("timestamp", "desc"), limit(50));
-      const snapshot = await getDocs(rollsQuery);
+          if (!isMe && (now - rollData.timestamp < 5000)) {
+            // Trigger Sonner Toast for other players
+            const totalDisplay = rollData.isBlind ? "???" : rollData.total;
+            const details = rollData.output?.split('=')[1]?.trim() || "";
 
-      const fetchedRolls = snapshot.docs.map(doc => doc.data() as FirebaseRoll);
-      setFirebaseRolls(fetchedRolls);
-    } catch (error) {
-      console.error("Error loading rolls:", error);
-    }
-  };
+            toast.info(`${rollData.userName} : ${totalDisplay}`, {
+              description: `${rollData.notation} : ${details}=${rollData.total}`,
+              duration: 5000
+            });
+          }
+        }
+      });
 
-  // Helper function exactement comme dans campagne.tsx
-  const calculateModifier = (value: number) => Math.floor(value);
-
-  // Remplacer les caractéristiques dans une notation
-  const replaceCharacteristics = (notation: string): string => {
-    const modifiers = getCharacterModifiers();
-    if (!modifiers || Object.keys(modifiers).length === 0) {
-      return notation;
-    }
-
-    let processedNotation = notation;
-
-    // Remplacer chaque caractéristique trouvée
-    const characteristicsRegex = /(CON|FOR|DEX|CHA|INT|SAG|Contact|Distance|Magie|Defense)/gi;
-
-    processedNotation = processedNotation.replace(characteristicsRegex, (match) => {
-      const key = match.toUpperCase();
-      let value = 0;
-
-      if (["CON", "FOR", "DEX", "CHA", "INT", "SAG"].includes(key)) {
-        // Calculate modifier here instead of using pre-calculated value (exactement comme campagne.tsx)
-        const rawValue = characterModifiers[key] || 0;
-        value = calculateModifier(rawValue);
-      } else if (key === "CONTACT") {
-        value = characterModifiers.Contact || 0;
-      } else if (key === "DISTANCE") {
-        value = characterModifiers.Distance || 0;
-      } else if (key === "MAGIE") {
-        value = characterModifiers.Magie || 0;
-      } else if (key === "DEFENSE") {
-        value = characterModifiers.Defense || 0;
-      }
-
-      console.log(`Replaced ${match} with ${value}`);
-      return value.toString();
+      snapshot.forEach((doc) => {
+        rolls.push({ id: doc.id, ...doc.data() } as FirebaseRoll);
+      });
+      setFirebaseRolls(rolls);
     });
 
-    console.log("Original notation:", notation);
-    console.log("Final processed notation:", processedNotation);
-    return processedNotation;
+    return () => {
+      unsubscribe();
+    };
+  }, [roomId, userName]);
+
+  const canDisplayRoll = (roll: FirebaseRoll) => {
+    // As a floating widget, we might not know if WE are MJ easily without prop drilling.
+    // However, we fetched user data in useEffect including "perso === 'MJ'".
+    const isMJ = userName === "MJ";
+
+    if (isMJ) return true;
+    if (roll.isBlind) return roll.userName === userName;
+    if (!roll.isPrivate) return true;
+    return roll.userName === userName;
   };
 
-  // Parser une notation pour extraire les dés nécessaires
-  // Supports: XdY, XdYkhN, XdYklN
-  const parseDiceRequests = (notation: string) => {
-    const diceRegex = /(\d+)d(\d+)(?:k([hl])(\d+))?/gi;
-    const requests: { type: string, count: number }[] = [];
-    let match;
+  const getFilteredRolls = () => {
+    return firebaseRolls.filter(canDisplayRoll);
+  };
 
-    // We need to clone the regex or reset lastIndex if we were reusing it, but here it's new
-    while ((match = diceRegex.exec(notation)) !== null) {
-      const count = parseInt(match[1]);
-      const faces = parseInt(match[2]);
-      requests.push({ type: `d${faces}`, count });
+  const rerollFromFirebase = (roll: FirebaseRoll) => {
+    if (roll.notation) {
+      setInput(roll.notation);
+      setShowHistory(false);
+      // Optional: auto-roll? Let's just fill input for now
     }
-
-    return requests;
   };
 
-  // Référence pour stocker les promesses de roll en attente
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pendingRollsRef = React.useRef<Map<string, (results: { type: string, value: number }[]) => void>>(new Map());
 
-  // Écouter les résultats des dés 3D
+
+  useEffect(() => {
+    const uid = gameUser?.uid;
+    if (!uid) return;
+    setUserEmail(auth.currentUser?.email || null);
+  }, [gameUser?.uid]);
+
+  // Listen for 3D roll completion
   useEffect(() => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleRollComplete = (e: any) => {
@@ -303,23 +282,92 @@ export function DiceRoller() {
     return () => window.removeEventListener('vtt-3d-roll-complete', handleRollComplete);
   }, []);
 
+  // Close when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      // Check if click is outside the content AND not on the sidebar toggle button
+      // Also exclude clicks inside the DiceStoreModal portal (data-dice-store-portal)
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node) &&
+        isOpen &&
+        !isSkinDialogOpen && // ← don't close while dice store is open
+        !selectedUserId && // ← don't close while user profile dialog is open
+        !selectedCharacterName && // ← don't close while user profile dialog is open
+        !(event.target as Element).closest('#vtt-sidebar-dice') &&
+        !(event.target as Element).closest('#vtt-dock-dice') &&
+        !(event.target as Element).closest('[data-dice-store-portal]')
+      ) {
+        onClose?.();
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen, onClose, isSkinDialogOpen, selectedUserId, selectedCharacterName]);
+
+
+
+  const replaceCharacteristics = (notation: string): string => {
+    if (!rollableStats.length && !characterModifiers || Object.keys(characterModifiers).length === 0) {
+      return notation;
+    }
+
+    let processedNotation = notation;
+
+    // Build a sorted list of keys (longest first to avoid partial matches)
+    const allKeys = rollableStats.length > 0
+      ? rollableStats.map(s => s.key)
+      : Object.keys(characterModifiers);
+
+    const sortedKeys = [...allKeys].sort((a, b) => b.length - a.length);
+    const escapedKeys = sortedKeys.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+    const regex = new RegExp(`\\b(${escapedKeys.join('|')})\\b`, 'gi');
+
+    processedNotation = processedNotation.replace(regex, (match) => {
+      // Find matching stat (case-insensitive)
+      const stat = rollableStats.find(s => s.key.toLowerCase() === match.toLowerCase());
+      if (stat) {
+        let baseValue = stat.rawValue;
+        if (totalBonuses && stat.key in totalBonuses) {
+          baseValue += totalBonuses[stat.key as keyof typeof totalBonuses] || 0;
+        }
+
+        const val = stat.hasModifier
+          ? Math.floor((baseValue - 10) / 2)
+          : baseValue;
+        return val.toString();
+      }
+      // Fallback to old map
+      const raw = characterModifiers[match] ?? characterModifiers[match.toUpperCase()] ?? 0;
+      return raw.toString();
+    });
+
+    return processedNotation;
+  };
+
+  const parseDiceRequests = (notation: string) => {
+    const diceRegex = /(\d+)d(\d+)(?:k([hl])(\d+))?/gi;
+    const requests: { type: string, count: number }[] = [];
+    let match;
+    while ((match = diceRegex.exec(notation)) !== null) {
+      const count = parseInt(match[1]);
+      const faces = parseInt(match[2]);
+      requests.push({ type: `d${faces}`, count });
+    }
+    return requests;
+  };
+
   const perform3DRoll = async (requests: { type: string, count: number }[], targets?: { type: string, value: number }[]): Promise<{ type: string, value: number }[]> => {
     if (typeof window === 'undefined' || requests.length === 0) return Promise.resolve([]);
 
-    // Filtrer les dés supportés par la 3D (d6, d10, d12, d20 comme demandé)
     const SUPPORTED_3D_DICE = ['d4', 'd6', 'd8', 'd10', 'd12', 'd20'];
     const requests3D = requests.filter(req => SUPPORTED_3D_DICE.includes(req.type));
     const requestsInstant = requests.filter(req => !SUPPORTED_3D_DICE.includes(req.type));
 
-    // Générer immédiatement les résultats pour les dés non-3D
     const instantResults: { type: string, value: number }[] = [];
     requestsInstant.forEach(req => {
-      // Check if we have a target for this
-      // Logic complex for instant dice if targets are mixed, but generally targets will cover all if from API
       const faces = parseInt(req.type.substring(1));
       for (let i = 0; i < req.count; i++) {
-        // Simple random fallback or try to find in targets?
-        // For now fallback random
         instantResults.push({
           type: req.type,
           value: Math.floor(Math.random() * faces) + 1
@@ -330,89 +378,58 @@ export function DiceRoller() {
     const total3DDice = requests3D.reduce((sum, r) => sum + r.count, 0);
 
     if (requests3D.length === 0 || !show3DAnimations || isBlind || total3DDice > 50) {
-      if ((!show3DAnimations || isBlind || total3DDice > 50) && requests3D.length > 0) {
-        // Return targets directly if available, else random
-        const simulatedResults: { type: string, value: number }[] = [];
-        requests3D.forEach(req => {
-          for (let i = 0; i < req.count; i++) {
-            // Try to grab from targets
-            let val = Math.floor(Math.random() * parseInt(req.type.substring(1))) + 1;
-            if (targets) {
-              const tIdx = targets.findIndex(t => t.type === req.type);
-              if (tIdx !== -1) {
-                val = targets[tIdx].value;
-                targets.splice(tIdx, 1);
-              }
-            }
-            simulatedResults.push({ type: req.type, value: val });
-          }
-        });
-        return Promise.resolve([...simulatedResults, ...instantResults]);
-      }
-      return Promise.resolve([...instantResults]);
+      const simulatedResults: { type: string, value: number }[] = [];
+      requests3D.forEach(req => {
+        for (let i = 0; i < req.count; i++) {
+          simulatedResults.push({
+            type: req.type,
+            value: Math.floor(Math.random() * parseInt(req.type.substring(1))) + 1
+          });
+        }
+      });
+      return Promise.resolve([...simulatedResults, ...instantResults]);
     }
-
     const rollId = crypto.randomUUID();
     return new Promise((resolve) => {
-      // Set timeout de sécurité (si jamais la 3D plante ou n'est pas chargée)
       const timeoutId = setTimeout(() => {
         if (pendingRollsRef.current.has(rollId)) {
           console.warn("Roll timed out, generating fallback values");
-          // Fallback: générer des valeurs aléatoires locales pour les dés 3D manquants
-          // OR use targets if available!
           const fallbackResults: { type: string, value: number }[] = [];
-
-          // Use targets copy to consume
-          const fallbackTargets = targets ? [...targets] : [];
 
           requests3D.forEach(req => {
             const faces = parseInt(req.type.substring(1));
             for (let i = 0; i < req.count; i++) {
-              let val = Math.floor(Math.random() * faces) + 1;
-              if (fallbackTargets.length > 0) {
-                const tIdx = fallbackTargets.findIndex(t => t.type === req.type);
-                if (tIdx !== -1) {
-                  val = fallbackTargets[tIdx].value;
-                  fallbackTargets.splice(tIdx, 1);
-                }
-              }
               fallbackResults.push({
                 type: req.type,
-                value: val
+                value: Math.floor(Math.random() * faces) + 1
               });
             }
           });
           pendingRollsRef.current.delete(rollId);
-          // On retourne tout
           resolve([...fallbackResults, ...instantResults]);
         }
-      }, 10000); // 10 secondes max
+      }, 10000);
 
       pendingRollsRef.current.set(rollId, (results3D) => {
         clearTimeout(timeoutId);
-        // On fusionne les résultats 3D reçus avec les résultats instantanés
         resolve([...results3D, ...instantResults]);
       });
 
-      // Déclencher l'animation avec les targets !
       window.dispatchEvent(new CustomEvent('vtt-trigger-3d-roll', {
         detail: {
           rollId,
           requests: requests3D,
           skinId: selectedSkinId,
-          targets: targets ? [...targets] : undefined // Pass copy of targets
+          targets: targets ? [...targets] : undefined
         }
       }));
     });
   };
 
-  // Calculer le résultat final à partir de la notation et des résultats physiques
   const calculateFinalResult = (notation: string, physicalResults: { type: string, value: number }[]) => {
-    // Copie mutable des résultats pour les consommer
     const availableResults = [...physicalResults];
     const detailsParts: string[] = [];
 
-    // 1. Remplacer les dés par leurs valeurs
     const diceRegex = /(\d+)d(\d+)(?:k([hl])(\d+))?/gi;
 
     const processedMathString = notation.replace(diceRegex, (match, countStr, facesStr, keepType, keepCountStr) => {
@@ -421,35 +438,26 @@ export function DiceRoller() {
       const dieType = `d${faces}`;
       const keepCount = keepCountStr ? parseInt(keepCountStr) : 0;
 
-      // Récupérer les N prochains résultats de ce type
       const rollsForMatches: number[] = [];
-      // On cherche dans availableResults les premiers qui correspondent
-      // Note: availableResults est mélangé temporellement, mais on suppose que DiceThrower a empilé les résultats
-      // Le mieux est de les filtrer et de les enlever
-      // Pour être robuste: on prend les premiers 'count' résultats du type correspondant
 
       let foundCount = 0;
       for (let i = 0; i < availableResults.length && foundCount < count; i++) {
         if (availableResults[i].type === dieType) {
           rollsForMatches.push(availableResults[i].value);
-          availableResults.splice(i, 1); // Remove used result
-          i--; // Adjust index
+          availableResults.splice(i, 1);
+          i--;
           foundCount++;
         }
       }
 
-      // Si on a pas assez de résultats (fallback), on génère
       while (rollsForMatches.length < count) {
         rollsForMatches.push(Math.floor(Math.random() * faces) + 1);
       }
 
-      // Appliquer la logique Keep High / Keep Low
       let total = 0;
       let usedRolls: { val: number, keep: boolean }[] = rollsForMatches.map(r => ({ val: r, keep: true }));
 
       if (keepType) {
-        // Trier pour déterminer qui garder
-        // kh = keep high (descending), kl = keep low (ascending)
         const sortedIndices = rollsForMatches.map((val, idx) => ({ val, idx }))
           .sort((a, b) => keepType === 'h' ? b.val - a.val : a.val - b.val);
 
@@ -462,21 +470,17 @@ export function DiceRoller() {
 
         total = usedRolls.filter(r => r.keep).reduce((sum, r) => sum + r.val, 0);
       } else {
-        // Somme simple
         total = rollsForMatches.reduce((a, b) => a + b, 0);
       }
 
-      // Formatter l'affichage: [17, r1]
       const formattedDice = usedRolls.map(r => r.keep ? `${r.val}` : `r${r.val}`).join(', ');
       detailsParts.push(`[${formattedDice}]`);
 
       return total.toString();
     });
 
-    // 2. Évaluer l'expression mathématique finale (ex: "12 + 5")
     let grandTotal = 0;
     try {
-      // Sécurisation basique: on ne garde que chiffres et opérateurs
       const safeExpression = processedMathString.replace(/[^0-9+\-*/().\s]/g, '');
       // eslint-disable-next-line no-eval
       grandTotal = eval(safeExpression);
@@ -485,12 +489,6 @@ export function DiceRoller() {
       grandTotal = 0;
     }
 
-    // 3. Construire la string de détail
-    // On essaie de reconstruire quelque chose qui ressemble à l'input original mais avec les détails
-    // Notation originale -> Processed (vars replaced) -> Output
-    // Ex: 1d6+CON -> 1d6+3 -> [4]+3 = 7
-
-    // Reconstruisons une string de détails 'riche' en remplaçant dans la notation
     let detailString = notation;
     let matchIndex = 0;
     detailString = detailString.replace(diceRegex, () => {
@@ -500,140 +498,44 @@ export function DiceRoller() {
     });
 
     return {
-      total: Math.floor(grandTotal), // Arrondi par sécurité
+      total: Math.floor(grandTotal),
       output: `${notation} = ${detailString} = ${grandTotal}`
     };
   };
 
-  // Fonction principale de lancer de dés
-  const rollDice = async (diceNotation?: string) => {
-    const originalNotation = diceNotation || input;
-    if (!originalNotation.trim()) {
-      setError("Veuillez entrer une notation de dés");
+  const handleRoll = async (notationOverride?: string) => {
+    const notation = (notationOverride ?? input).trim();
+    if (!notation) return;
+
+    if (notation.length > 50) {
+      toast.error("La notation est trop longue (max 50 caractères)");
       return;
     }
 
-    // Afficher une carte provisoire immédiatement
-    // Si blind (caché), on affiche un placeholder
-    setResult(isBlind ? {
-      id: "pending",
-      notation: originalNotation,
-      result: "?",
-      total: 0,
-      timestamp: new Date(),
-      output: "Lancement caché..."
-    } : {
-      id: "pending",
-      notation: originalNotation,
-      result: "...",
-      total: 0, // Placeholder
-      timestamp: new Date(),
-      output: "Lancement des dés..."
-    });
     setIsLoading(true);
-    setError("");
-
     try {
-      // Remplacer les caractéristiques dans la notation
-      const processedNotation = replaceCharacteristics(originalNotation);
-
-      // Vérifier si des caractéristiques n'ont pas pu être remplacées
-      if (processedNotation === originalNotation && originalNotation.match(/\b(CON|DEX|FOR|SAG|INT|CHA|Defense|Contact|Distance|Magie|INIT)\b/i)) {
-        setError("Caractéristiques non trouvées. Assurez-vous d'être connecté et d'avoir un personnage.");
-        setIsLoading(false);
-        return;
-      }
-
-      // 1. Identifier les dés à lancer
+      const processedNotation = replaceCharacteristics(notation);
       const requests = parseDiceRequests(processedNotation);
+
       let physicalResults: { type: string, value: number }[] = [];
       let total = 0;
       let output = "";
-      let savedByApi = false;
-      let timestamp = Date.now();
 
-      if (show3DAnimations && !isBlind) {
-        // --- 3D MODE (PHYSICS) ---
-        // On n'utilise PAS l'API pour générer les résultats ici, on laisse la physique faire.
-        // On sauvegarde ensuite via le client.
+      // Calculate
+      physicalResults = await perform3DRoll(requests);
+      const calculated = calculateFinalResult(processedNotation, physicalResults);
+      total = calculated.total;
+      output = calculated.output;
 
-        // Lancer les dés 3D et attendre le résultat physique
-        physicalResults = await perform3DRoll(requests);
-
-        // Cheat code via console
-        // @ts-ignore
-        if (typeof window !== "undefined" && window.CHEAT_DICE !== undefined) {
-          // @ts-ignore
-          const cheat = window.CHEAT_DICE;
-          console.log("CHEAT MODE:", cheat);
-          physicalResults = physicalResults.map((r) => {
-            let newVal = r.value;
-            if (typeof cheat === "number") newVal = cheat;
-            else if (typeof cheat === "object" && cheat[r.type]) newVal = cheat[r.type];
-            return { ...r, value: newVal };
-          });
-        }
-
-        // Calculer le résultat logique BASÉ sur le résultat physique
-        const calculated = calculateFinalResult(processedNotation, physicalResults);
-        total = calculated.total;
-        output = calculated.output;
-
-      } else {
-        // --- API MODE (INSTANT / NO ANIMATION) ---
-        // Utiliser l'API pour générer et enregistrer
-
-        const apiResponse = await fetch('/api/roll-dice', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            notation: processedNotation
-          })
-        });
-
-        if (!apiResponse.ok) {
-          throw new Error("Erreur API : " + apiResponse.statusText);
-        }
-
-        const apiData = await apiResponse.json();
-        physicalResults = apiData.rolls as { type: string, value: number }[];
-        total = apiData.total;
-        output = apiData.output;
-        savedByApi = apiData.saved;
-        timestamp = apiData.timestamp;
-      }
-
-      // Créer le résultat pour l'affichage
-      const result: RollResult = {
-        id: Date.now().toString(),
-        notation: originalNotation,
-        result: total.toString(),
-        total: total,
-        timestamp: new Date(timestamp),
-        output: output
-      };
-
-      // Créer le résultat pour l'affichage local
-      // Si blind, on montre un résultat masqué, MEME pour le lanceur
+      // Notifications
       if (isBlind) {
-        setResult({
-          id: Date.now().toString(),
-          notation: originalNotation,
-          result: "?",
-          total: 0,
-          timestamp: new Date(),
-          output: "Résultat caché (envoyé au MJ)"
-        });
+        toast.info("Résultat caché (envoyé au MJ)");
       } else {
-        setResult(result);
+        toast(output, { duration: 5000 });
       }
 
+      // Save to Firebase
       if (roomId && userName) {
-        // Prepare FirebaseRoll for state update
-
-        // Note: parseNotation était utilisé pour extraire diceFaces pour les stats firebase
-        // On peut essayer de deviner le "dé principal" pour les stats
-        // Prenons le premier dé de la notation
         let mainDieFaces = 20;
         let mainDieCount = 1;
         if (requests.length > 0) {
@@ -641,33 +543,26 @@ export function DiceRoller() {
           mainDieCount = requests[0].count;
         }
 
-        const flatResults = physicalResults.map(r => r.value);
-
         const firebaseRoll: FirebaseRoll = {
-          id: crypto.randomUUID(), // Local ID
+          id: crypto.randomUUID(),
           isPrivate,
           isBlind,
           diceCount: mainDieCount,
           diceFaces: mainDieFaces,
           modifier: 0,
-          results: flatResults,
+          results: physicalResults.map(r => r.value),
           total: total,
           userName,
           ...(userAvatar ? { userAvatar } : {}),
           type: show3DAnimations ? "Dice Roller" : "Dice Roller/API",
-          timestamp: timestamp,
-          notation: originalNotation,
+          timestamp: Date.now(),
+          notation: notation,
           output: output,
-          ...(persoId ? { persoId } : {})
+          ...(persoId ? { persoId } : {}),
+          ...(auth.currentUser ? { uid: auth.currentUser.uid } : {})
         };
 
-        // If NOT saved by API (either because we are in 3D mode, or API failed to save), save it here.
-        if (!savedByApi) {
-          await addDoc(collection(db, `rolls/${roomId}/rolls`), firebaseRoll);
-        }
-
-        // Update local state so we see it immediately
-        setFirebaseRolls((prevRolls) => [firebaseRoll, ...prevRolls]);
+        await addDoc(collection(db, `rolls/${roomId}/rolls`), firebaseRoll);
 
         // === CHALLENGE TRACKING: Dice Roll ===
         if (auth.currentUser) {
@@ -682,7 +577,7 @@ export function DiceRoller() {
           ).catch(error => console.error('Challenge tracking error:', error));
         }
 
-        // === Détection échec critique (nat 1 sur d20) ===
+        // Critical Checks Logic (Titles & Emails)
         const hasD20 = requests.some(r => r.type === 'd20');
         const d20Results = physicalResults.filter(r => r.type === 'd20');
         const hasNat1 = d20Results.some(r => r.value === 1);
@@ -693,45 +588,19 @@ export function DiceRoller() {
           const slug = generateSlug(titleLabel);
           const userRef = doc(db, "users", auth.currentUser.uid);
 
-          // Check if title is already unlocked
           getDoc(userRef).then((snap) => {
             if (snap.exists()) {
               const data = snap.data();
-              const isUnlocked = data.titles && data.titles[slug] === "unlocked";
+              if (!data.titles || data.titles[slug] !== "unlocked") {
+                updateDoc(userRef, { [`titles.${slug}`]: "unlocked" }).then(() => {
+                  toast.success(`Nouveau titre débloqué : ${titleLabel} !`, { icon: '🔓' });
+                });
 
-              if (!isUnlocked) {
-                // Unlock title
-                updateDoc(userRef, {
-                  [`titles.${slug}`]: "unlocked"
-                }).then(() => {
-                  toast.success(`Nouveau titre débloqué : ${titleLabel} !`, {
-                    icon: '🔓',
-                    duration: 5000
-                  });
-                }).catch(e => console.error("Error unlocking title:", e));
-
-                // Send Email (ONLY if unlocking title)
                 fetch('/api/send-critical-fail', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    to: userEmail,
-                    firstName: userName,
-                    rollDetails: output,
-                    campaignName: undefined, // optionnel
-                  }),
-                })
-                  .then(res => {
-                    if (res.ok) {
-                      toast.error('💀 Échec critique ! Un email de honte vous a été envoyé...', { duration: 6000 });
-                    } else {
-                      console.error('Failed to send critical fail email:', res.statusText);
-                    }
-                  })
-                  .catch(err => console.error('Error sending critical fail email:', err));
-
-              } else {
-                console.log("Title 'Maudit des dés' already unlocked, skipping email.");
+                  body: JSON.stringify({ to: userEmail, firstName: userName, rollDetails: output }),
+                });
               }
             }
           });
@@ -742,116 +611,61 @@ export function DiceRoller() {
           const slug = generateSlug(titleLabel);
           const userRef = doc(db, "users", auth.currentUser.uid);
 
-          // Check if title is already unlocked
           getDoc(userRef).then((snap) => {
             if (snap.exists()) {
               const data = snap.data();
-              const isUnlocked = data.titles && data.titles[slug] === "unlocked";
+              if (!data.titles || data.titles[slug] !== "unlocked") {
+                updateDoc(userRef, { [`titles.${slug}`]: "unlocked" }).then(() => {
+                  toast.success(`Nouveau titre débloqué : ${titleLabel} !`, { icon: '🏆' });
+                });
 
-              if (!isUnlocked) {
-                // Unlock title
-                updateDoc(userRef, {
-                  [`titles.${slug}`]: "unlocked"
-                }).then(() => {
-                  toast.success(`Nouveau titre débloqué : ${titleLabel} !`, {
-                    icon: '🏆',
-                    duration: 5000
-                  });
-                }).catch(e => console.error("Error unlocking title:", e));
-
-                // Send Email (ONLY if unlocking title)
                 fetch('/api/send-critical-success', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    to: userEmail,
-                    firstName: userName,
-                    rollDetails: output,
-                    campaignName: undefined, // optionnel
-                  }),
-                })
-                  .then(res => {
-                    if (res.ok) {
-                      toast.success('🏆 Succès critique ! Votre gloire a été immortalisée par email !', { duration: 6000 });
-                    } else {
-                      console.error('Failed to send critical success email:', res.statusText);
-                    }
-                  })
-                  .catch(err => console.error('Error sending critical success email:', err));
-
-              } else {
-                console.log("Title 'Béni des Dieux' already unlocked, skipping email.");
+                  body: JSON.stringify({ to: userEmail, firstName: userName, rollDetails: output }),
+                });
               }
             }
           });
         }
       }
 
-    } catch (err) {
-      setError("Erreur lors du lancer ou de l'API.");
-      console.error("Erreur de lancer de dés:", err);
+      setLatestResult({
+        result: total.toString(),
+        total: total,
+        notation: notation,
+        output: output,
+        isBlind: isBlind
+      });
+
+      setInput('');
+    } catch (e) {
+      console.error(e);
+      toast.error("Erreur lors du lancer");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Effacer les lancers Firebase
-  const clearFirebaseRolls = async () => {
-    if (roomId) {
-      try {
-        const rollsRef = collection(db, `rolls/${roomId}/rolls`);
-        const snapshot = await getDocs(rollsRef);
-
-        snapshot.forEach((doc) => {
-          deleteDoc(doc.ref);
-        });
-        setFirebaseRolls([]);
-      } catch (error) {
-        console.error("Error deleting rolls:", error);
-      }
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleRoll();
     }
   };
 
-  // Reprendre un lancer depuis Firebase
-  const rerollFromFirebase = (firebaseRoll: FirebaseRoll) => {
-    if (firebaseRoll.notation) {
-      setInput(firebaseRoll.notation);
-      rollDice(firebaseRoll.notation);
-    }
-  };
+  // Garder une référence stable vers handleRoll pour le listener global de raccourcis
+  const handleRollRef = useRef(handleRoll);
+  handleRollRef.current = handleRoll;
 
-  // Vérifier si un lancer peut être affiché
-  const canDisplayRoll = (roll: FirebaseRoll) => {
-    if (isMJ) return true; // Le MJ voit TOUT
-    if (roll.isBlind) return false; // Si c'est blind, PERSONNE d'autre ne voit (même pas le lanceur dans l'historique)
-    if (!roll.isPrivate) return true;
-    return roll.userName === characterName;
-  };
-
-  // Récupérer seulement les lancers Firebase filtrés
-  const getFilteredRolls = () => {
-    return firebaseRolls.filter(canDisplayRoll).sort((a, b) => b.timestamp - a.timestamp);
-  };
-
-  const RollingNumber = () => {
-    const [num, setNum] = useState(0);
-    useEffect(() => {
-      const interval = setInterval(() => {
-        setNum(Math.floor(Math.random() * 20) + 1);
-      }, 100);
-      return () => clearInterval(interval);
-    }, []);
-    return <span>{num}</span>;
-  };
-
-  // Refs for debouncing roll shortcuts
+  // Raccourcis clavier globaux pour lancer les dés (d4, d6, d8, d10, d12, d20, d100
+  // + raccourcis personnalisés). Actif en permanence, même panneau fermé.
   const pendingDiceRef = useRef<string[]>([]);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Effet pour les raccourcis clavier
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Ignorer si on écrit dans un input
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Ignorer si on écrit dans un input/textarea
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
 
@@ -864,7 +678,7 @@ export function DiceRoller() {
       else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D20)) rollCmd = "1d20";
       else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D100)) rollCmd = "1d100";
 
-      // check for custom shortcuts
+      // Raccourcis personnalisés
       if (!rollCmd) {
         for (const shortcut of customShortcuts) {
           if (checkKeyCombination(e, shortcut.keyString)) {
@@ -874,359 +688,766 @@ export function DiceRoller() {
         }
       }
 
-      if (rollCmd) {
-        // Add to pending rolls
-        pendingDiceRef.current.push(rollCmd);
+      if (!rollCmd) return;
 
-        // Clear existing timer
-        if (debounceTimerRef.current) {
-          clearTimeout(debounceTimerRef.current);
+      // Accumule les dés pressés rapidement et les combine en un seul lancer
+      pendingDiceRef.current.push(rollCmd);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        if (pendingDiceRef.current.length > 0) {
+          const combinedNotation = pendingDiceRef.current.join("+");
+          pendingDiceRef.current = [];
+          debounceTimerRef.current = null;
+          handleRollRef.current(combinedNotation);
         }
-
-        // Set new timer
-        debounceTimerRef.current = setTimeout(() => {
-          if (pendingDiceRef.current.length > 0) {
-            // Combine all dice
-            const combinedNotation = pendingDiceRef.current.join("+");
-
-            toast.info("Lancer en cours...", { duration: 1000 });
-            rollDice(combinedNotation);
-
-            // Clear pending
-            pendingDiceRef.current = [];
-            debounceTimerRef.current = null;
-          }
-        }, 300); // 300ms delay to allow multiple key presses
-      }
+      }, 300);
     };
 
-    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keydown', handleGlobalKeyDown);
     return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      window.removeEventListener('keydown', handleGlobalKeyDown);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [isShortcutPressed, rollDice]);
+  }, [isShortcutPressed, customShortcuts, checkKeyCombination]);
+
+  const addToInput = (str: string) => {
+    setInput(prev => {
+      // 1. Check if we are adding a dice notated as "1dX"
+      const diceMatch = str.match(/^1d(\d+)$/);
+      if (diceMatch) {
+        const faces = diceMatch[1];
+        const diceType = `d${faces}`;
+
+        // Regex to find the LAST occurrence of this die type at the end of the string, 
+        // possibly followed by whitespace.
+        // We look for patterns like "1d6", "2d6", "10d6"
+        // The regex captures (count)d(faces)
+        const lastDiceRegex = new RegExp(`(\\d+)d${faces}\\s*$`);
+        const match = prev.match(lastDiceRegex);
+
+        if (match) {
+          // If the previous input ended with this die type, increment the count
+          const currentCount = parseInt(match[1]);
+          const newCount = currentCount + 1;
+          // Replace the last occurrence with the new count
+          return prev.replace(lastDiceRegex, `${newCount}d${faces}`);
+        }
+      }
+
+      // 2. Standard addition logic for other inputs (modifiers, or different dice)
+      // Check if the input is empty
+      if (prev.length === 0) {
+        // If adding a modifier to empty string, assume "1d20" context or just start with modifier? 
+        // Usually modifiers like "+ FOR" need something before.
+        // But if str is "1d20", just return it.
+        if (str.startsWith('+')) return str.substring(2); // Remove "+ "
+        return str;
+      }
+
+      // Check for trailing operators or spaces to avoid "++"
+      const trimmedPrev = prev.trim();
+      const needsSeparator = !trimmedPrev.endsWith('+') && !trimmedPrev.endsWith('-');
+
+      if (needsSeparator) {
+        if (str.startsWith('+') || str.startsWith('-')) {
+          return `${trimmedPrev} ${str}`;
+        }
+        return `${trimmedPrev} + ${str}`;
+      }
+
+      return `${trimmedPrev} ${str}`;
+    });
+
+    // Focus back to textarea
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        // Move cursor to end
+        textareaRef.current.setSelectionRange(textareaRef.current.value.length, textareaRef.current.value.length);
+      }
+    }, 0);
+  };
+
+
+
+
 
   return (
-    <div className="mx-auto p-3 space-y-4 bg-[var(--bg-dark)] min-h-screen relative">
-      {/* En-tête */}
-
-
-      {/* Contrôles de confidentialité */}
-      {roomId && (
-        <Card className="card">
-          <CardContent className="p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-1 bg-black/20 p-1 rounded-lg">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsPrivate(!isPrivate)}
-                  className={`h-8 px-2 gap-2 transition-all duration-200 ${isPrivate ? "bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-                  title="Mode Privé : visible uniquement par vous et le MJ"
-                >
-                  <Shield className="h-4 w-4" />
-                  <span className="text-xs font-medium hidden sm:inline">Privé</span>
-                </Button>
-
-                <div className="w-px h-4 bg-white/10 mx-1" />
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsBlind(!isBlind)}
-                  className={`h-8 px-2 gap-2 transition-all duration-200 ${isBlind ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-                  title="Mode Caché : résultat invisible pour vous (visible MJ)"
-                >
-                  <EyeOff className="h-4 w-4" />
-                  <span className="text-xs font-medium hidden sm:inline">Caché</span>
-                </Button>
-
-                <div className="w-px h-4 bg-white/10 mx-1" />
-
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const newVal = !show3DAnimations;
-                    setShow3DAnimations(newVal);
-                    localStorage.setItem("vtt_3d_enabled", String(newVal));
-                  }}
-                  className={`h-8 px-2 gap-2 transition-all duration-200 ${show3DAnimations ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"}`}
-                  title="Animation 3D"
-                >
-                  <Box className="h-4 w-4" />
-                  <span className="text-xs font-medium hidden sm:inline">3D</span>
-                </Button>
-              </div>
-
-
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Input principal */}
-      <Card className="card">
-        <CardContent className="p-3 space-y-3">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && rollDice()}
-              placeholder="Ex: 1d20+5, 3d6, 2d20kh1, 1d20+CON..."
-              className="input-field flex-1"
-              disabled={isLoading}
-            />
-            <InteractiveHoverButton
-              onClick={() => rollDice()}
-              disabled={isLoading}
-              className=""
-            >
-              <span className="flex items-center gap-2">
-                {isLoading ? (
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 0.5, repeat: Infinity, ease: "linear" }}
+    <div className={`fixed inset-x-0 bottom-[var(--dock-h)] top-0 lg:inset-auto lg:top-1/2 lg:left-20 z-50 pointer-events-none lg:-translate-y-1/2 lg:ml-2 ${isOpen ? 'bg-[#1c1c1c] lg:bg-transparent' : ''}`}>
+      {/* Interface */}
+      {isOpen && (
+        <div
+          ref={containerRef}
+          className="w-full h-full overflow-y-auto lg:h-auto lg:overflow-visible lg:w-[500px] flex flex-col gap-3 p-3 lg:p-0 transition-all duration-300 origin-left pointer-events-auto"
+          style={{
+            animation: 'popIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+          }}
+        >
+          {/* ───────── MOBILE VIEW (matches the keypad mockup) ───────── */}
+          <div className="lg:hidden flex flex-col h-full min-h-0">
+            {/* Result / notation area */}
+            <div className="flex-1 min-h-0 rounded-2xl border mb-3 flex flex-col overflow-hidden" style={{ borderColor: 'var(--border-color)', background: 'var(--bg-darker)' }}>
+              {/* Top bar: notation input + history/stats icons */}
+              <div className="flex items-start gap-2 px-4 pt-3">
+                <textarea
+                  ref={textareaRef}
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  rows={1}
+                  maxLength={50}
+                  placeholder="1d20 + 5..."
+                  className="flex-1 bg-transparent border-none outline-none resize-none text-2xl font-light font-mono leading-relaxed pt-1"
+                  style={{ color: 'var(--text-primary)', fontSize: '20px' }}
+                />
+                <div className="flex items-center gap-1 shrink-0 pt-1">
+                  <button
+                    onClick={() => setMobileView(v => v === 'history' ? 'roll' : 'history')}
+                    className="p-2 rounded-lg transition-colors"
+                    style={{ color: mobileView === 'history' ? 'var(--accent-brown)' : 'var(--text-secondary)', background: mobileView === 'history' ? 'color-mix(in srgb, var(--accent-brown) 12%, transparent)' : 'transparent' }}
+                    aria-label="Historique"
                   >
-                    <Dice1 className="h-5 w-5" />
-                  </motion.div>
-                ) : (
-                  <Dice1 className="h-5 w-5" />
-                )}
-                <span>{isLoading ? "Lancement..." : "Lancer"}</span>
-              </span>
-            </InteractiveHoverButton>
-          </div>
-
-          <div className="pt-2 flex justify-between items-center">
-            <div className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
-              <span
-                className="w-3 h-3 rounded-full border border-white/20"
-                style={{ backgroundColor: DICE_SKINS[selectedSkinId]?.bodyColor || '#f59e0b' }}
-              />
-              <span className="opacity-80">Skin: {DICE_SKINS[selectedSkinId]?.name || "Classique"}</span>
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 text-xs gap-1.5 bg-transparent border-white/10 hover:bg-white/5"
-              onClick={() => setIsSkinDialogOpen(true)}
-            >
-              <Store className="h-3.5 w-3.5" />
-              Boutique
-            </Button>
-
-            <StoreModal
-              isOpen={isSkinDialogOpen}
-              onClose={() => setIsSkinDialogOpen(false)}
-              initialCategory="dice"
-              currentDiceSkinId={selectedSkinId}
-              onSelectDiceSkin={(skinId) => {
-                setSelectedSkinId(skinId);
-              }}
-            />
-          </div>
-
-          {error && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="p-3 bg-red-900/20 border border-red-500/30 rounded-lg text-red-400 text-sm"
-            >
-              {error}
-            </motion.div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Résultat actuel */}
-      <AnimatePresence>
-        {result && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: -20 }}
-          >
-            <Card className="card bg-gradient-to-r from-[var(--accent-brown)]/5 to-[var(--accent-brown)]/10 border-[var(--accent-brown)]/20">
-              <CardContent className="p-6">
-                <div className="text-center space-y-4">
-                  <div className="flex items-center justify-center gap-2">
-                    <Dice1 className="h-6 w-6 text-[var(--accent-brown)]" />
-                    <span className="text-lg font-medium text-[var(--text-secondary)]">
-                      {result.notation}
-                    </span>
-                    {isPrivate && <Shield className="h-5 w-5 text-[var(--accent-brown)]" />}
-                  </div>
-
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.2, type: "spring" }}
-                    className="text-6xl font-bold text-[var(--accent-brown)]"
+                    <History className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setMobileView(v => v === 'stats' ? 'roll' : 'stats')}
+                    className="p-2 rounded-lg transition-colors"
+                    style={{ color: mobileView === 'stats' ? 'var(--accent-brown)' : 'var(--text-secondary)', background: mobileView === 'stats' ? 'color-mix(in srgb, var(--accent-brown) 12%, transparent)' : 'transparent' }}
+                    aria-label="Statistiques"
                   >
-                    {isLoading ? (
-                      <RollingNumber />
-                    ) : (
-                      <span className="text-6xl font-bold text-[var(--accent-brown)]">
-                        {result.total}
-                      </span>
-                    )}
-                  </motion.div>
-
-                  <AnimatePresence>
-                    {showDetails && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ duration: 0.5 }}
-                        className="text-sm text-[var(--text-secondary)] font-mono"
-                      >
-                        {result.output}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-
-                  <div className="flex justify-center gap-2">
-                    <Button
-                      onClick={() => rollDice(result.notation)}
-                      className="button-secondary flex items-center gap-1"
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                      Relancer
-                    </Button>
-                  </div>
+                    <BarChart2 className="w-5 h-5" />
+                  </button>
+                  <button onClick={() => onClose?.()} className="p-2 rounded-lg" style={{ color: 'var(--text-secondary)' }} aria-label="Fermer">
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              </div>
+              <div className="mx-4 border-t" style={{ borderColor: 'var(--border-color)' }} />
 
-      {/* Onglets Historique / Statistiques */}
-      <div className="space-y-2">
-        <div className="flex gap-2 w-full">
-          <Button
-            onClick={() => setShowStats(false)}
-            className={`flex-1 flex items-center justify-center gap-2 px-2 py-1.5 text-xs ${!showStats ? "button-primary" : "button-cancel"
-              }`}
-            size="sm"
-          >
-            <History className="h-4 w-4" />
-            <span className="truncate">Historique ({getFilteredRolls().length})</span>
-          </Button>
-          <Button
-            onClick={() => setShowStats(true)}
-            className={`flex-1 flex items-center justify-center gap-2 px-2 py-1.5 text-xs ${showStats ? "button-primary" : "button-cancel"
-              }`}
-            size="sm"
-          >
-            <BarChart3 className="h-4 w-4" />
-            <span>Stats</span>
-          </Button>
-        </div>
+              {/* Center content */}
+              <div className="flex-1 min-h-0 overflow-y-auto" style={{ touchAction: 'pan-y' }}>
+                {mobileView === 'roll' && (
+                  <div className="h-full flex flex-col items-center justify-center text-center px-4 py-6">
+                    {(isLoading || latestResult) ? (
+                      <>
+                        {!latestResult?.isBlind && (
+                          <span className="text-sm mb-1" style={{ color: 'var(--text-secondary)' }}>{userName} a lancé</span>
+                        )}
+                        <div className={`text-7xl font-bold font-serif leading-none ${latestResult?.isBlind ? 'blur-md opacity-40' : ''}`} style={{ color: 'var(--accent-brown)' }}>
+                          {scrambledValue}
+                        </div>
+                        {!isLoading && latestResult && !latestResult.isBlind && (
+                          <>
+                            <div className="text-sm font-mono mt-4" style={{ color: 'var(--text-secondary)' }}>{latestResult.notation}</div>
+                            <div className="text-xs font-mono opacity-60 mt-1 px-4" style={{ color: 'var(--text-secondary)' }}>{latestResult.output}</div>
+                          </>
+                        )}
+                        {latestResult?.isBlind && !isLoading && (
+                          <div className="flex items-center gap-2 text-zinc-500 mt-3"><EyeOff className="w-4 h-4" /><span className="text-xs uppercase tracking-widest">Résultat masqué</span></div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-zinc-600 text-sm">Composez votre lancer puis appuyez sur ROLL</div>
+                    )}
+                  </div>
+                )}
 
-        {firebaseRolls.length > 0 && isMJ && !showStats && (
-          <Button
-            onClick={clearFirebaseRolls}
-            className="w-full button-cancel flex items-center justify-center gap-2 px-2 py-1.5 text-xs"
-            size="sm"
-          >
-            <Trash2 className="h-3 w-3" />
-            Effacer tout l'historique
-          </Button>
-        )}
-      </div>
+                {mobileView === 'history' && (
+                  <div className="p-3 space-y-2">
+                    {firebaseRolls.filter(canDisplayRoll).length === 0 ? (
+                      <div className="text-center text-zinc-500 py-10 text-sm italic">Aucun lancer récent...</div>
+                    ) : firebaseRolls.filter(canDisplayRoll).map((roll) => (
+                      <div key={roll.id} className="p-3 rounded-xl bg-white/5 border border-white/5">
+                        <div className="flex items-center justify-between mb-0.5">
+                          <span className="text-xs font-bold text-zinc-300 truncate">{roll.userName}</span>
+                          <span className="text-[10px] text-zinc-600">{new Date(roll.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div className="text-[11px] font-mono text-zinc-500 truncate">{roll.notation}</div>
+                        <div className={`text-sm font-bold text-zinc-200 ${roll.isBlind && userName !== 'MJ' ? 'blur-sm opacity-50' : ''}`}>Total: {roll.total}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
 
-      <AnimatePresence mode="wait">
-        {showStats ? (
-          <motion.div
-            key="stats"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            <DiceStats
-              rolls={getFilteredRolls()}
-              currentUserName={characterName}
-              isMJ={isMJ}
-            />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="history"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-          >
-            {showHistory && (
-              <div className="overflow-y-auto">
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="space-y-2"
-                >
-                  {getFilteredRolls().length === 0 ? (
-                    <div className="text-center text-[var(--text-secondary)] py-8">
-                      Aucun lancer dans l&apos;historique
-                    </div>
-                  ) : (
-                    getFilteredRolls().map((roll, index) => (
-                      <motion.div
-                        key={roll.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: index * 0.05 }}
+                {mobileView === 'stats' && (
+                  <div className="p-3">
+                    <DiceStats rolls={getFilteredRolls()} currentUserName={userName} isMJ={userName === 'MJ'} />
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Keypad (only on roll view) */}
+            {mobileView === 'roll' && (
+              <div className="shrink-0 space-y-2">
+                {/* Dice grid */}
+                <div className="grid grid-cols-3 gap-2">
+                  {[4, 6, 8, 10, 12, 20].map((d) => (
+                    <button
+                      key={`m-d${d}`}
+                      onClick={() => addToInput(`1d${d}`)}
+                      className="h-12 flex items-center justify-center rounded-xl border font-mono font-bold text-base active:scale-95 transition-transform"
+                      style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+                    >
+                      d{d}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Stats row */}
+                {!isMJ && rollableStats.length > 0 && (
+                  <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                    {rollableStats.map(stat => (
+                      <button
+                        key={`m-${stat.key}`}
+                        onClick={() => addToInput(`+ ${stat.key}`)}
+                        className="shrink-0 px-4 py-1.5 rounded-full border text-xs font-mono font-bold uppercase"
+                        style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
                       >
-                        <Card className="card">
-                          <CardContent className="p-3 flex items-center space-x-3">
-                            {roll.userAvatar && (
-                              <Avatar className="h-16 w-16">
-                                <AvatarImage src={roll.userAvatar} alt="Avatar" className="object-contain" />
-                              </Avatar>
-                            )}
-                            <div className="flex-grow">
-                              <div className="flex justify-between items-center">
-                                <span className="text-sm font-medieval text-[var(--text-primary)]">{roll.userName}</span>
-                                {roll.isPrivate && <Shield className="h-4 w-4 text-[var(--accent-brown)]" />}
-                              </div>
-                              <span className="text-sm font-medium text-[var(--text-primary)]">
-                                {roll.notation}
-                              </span>
-                              <div className="flex items-center gap-1">
-                                <span className="text-lg font-bold text-[var(--text-primary)]">Total: {roll.total}</span>
-                              </div>
-                              <div className="text-xs text-[var(--text-secondary)] font-mono mt-1">
-                                {roll.output}
-                              </div>
-                            </div>
-                            <Button
-                              onClick={() => rerollFromFirebase(roll)}
-                              className="button-secondary opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all"
-                              size="sm"
-                            >
-                              <RotateCcw className="h-3 w-3" />
-                              Relancer
-                            </Button>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    ))
+                        {stat.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Modifiers row */}
+                <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-0.5">
+                  {['+1', '+2', '+3', '+5', '+10', '-1', '-2'].map(mod => (
+                    <button
+                      key={`m-mod-${mod}`}
+                      onClick={() => addToInput(mod.startsWith('-') ? mod : `+ ${mod.replace('+', '')}`)}
+                      className="shrink-0 px-4 py-1.5 rounded-full border text-xs font-mono font-bold"
+                      style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+                    >
+                      {mod}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Action bar */}
+                <div className="flex items-center gap-2 pt-1">
+                  <button onClick={() => setIsSkinDialogOpen(true)} className="h-12 w-12 shrink-0 flex items-center justify-center rounded-xl border" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }} aria-label="Boutique">
+                    <Store className="w-5 h-5" />
+                  </button>
+                  <button onClick={() => setShow3DAnimations(!show3DAnimations)} className="h-12 w-12 shrink-0 flex items-center justify-center rounded-xl border" style={show3DAnimations ? { borderColor: 'var(--accent-blue,#5c6bc0)', color: 'var(--accent-blue,#5c6bc0)', background: 'color-mix(in srgb, var(--accent-blue,#5c6bc0) 15%, transparent)' } : { borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }} aria-label="3D">
+                    <Box className="w-5 h-5" />
+                  </button>
+                  <button onClick={() => setIsPrivate(!isPrivate)} className="h-12 w-12 shrink-0 flex items-center justify-center rounded-xl border" style={isPrivate ? { borderColor: 'var(--accent-brown)', color: 'var(--accent-brown)', background: 'color-mix(in srgb, var(--accent-brown) 15%, transparent)' } : { borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }} aria-label="Privé">
+                    <Shield className="w-5 h-5" />
+                  </button>
+                  {userName !== 'MJ' && (
+                    <button onClick={() => setIsBlind(!isBlind)} className="h-12 w-12 shrink-0 flex items-center justify-center rounded-xl border" style={isBlind ? { borderColor: 'rgba(239,68,68,0.5)', color: '#f87171', background: 'rgba(239,68,68,0.15)' } : { borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }} aria-label="Blind">
+                      <EyeOff className="w-5 h-5" />
+                    </button>
                   )}
-                </motion.div>
+                  <button onClick={() => { setInput(''); setLatestResult(null); }} className="h-12 px-3 shrink-0 flex items-center justify-center rounded-xl border text-xs font-bold" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}>
+                    CLR
+                  </button>
+                  <button onClick={() => handleRoll()} disabled={isLoading} className="flex-1 h-12 flex items-center justify-center gap-2 rounded-xl font-bold uppercase text-sm text-black" style={{ background: 'var(--accent-brown)' }}>
+                    Roll <Send className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
             )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+          </div>
+
+          {/* ───────── DESKTOP VIEW (unchanged) ───────── */}
+          <div className="hidden lg:flex lg:flex-col gap-3 w-full">
+          <div className="w-full rounded-xl relative isolate overflow-hidden border shadow-lg backdrop-blur-xl" style={{ background: 'linear-gradient(135deg, var(--bg-card) 0%, var(--bg-darker) 100%)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}>
+            {/* Subtle white shimmer overlay — preserves the original glassmorphism feel */}
+            <div className="absolute inset-0 pointer-events-none rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)' }} />
+            <div className="w-full rounded-xl relative">
+              {/* TOP ROW: dice sidebar + right controls */}
+              <div className="w-full flex items-stretch">
+
+                {/* Left Sidebar - Dice (Always visible) */}
+                <div className="w-[120px] flex-shrink-0 p-2" style={{ borderRight: '1px solid var(--border-color)' }}>
+                  <div className="grid grid-cols-2 gap-2 h-full content-center">
+                    {[4, 6, 8, 10, 12, 20].map((d) => (
+                      <button
+                        key={`d${d}`}
+                        id={`vtt-dice-btn-d${d}`}
+                        onClick={() => addToInput(`1d${d}`)}
+                        className="group relative w-full aspect-square flex items-center justify-center rounded-lg cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95"
+                        style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+                        onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'color-mix(in srgb, var(--accent-brown) 10%, transparent)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-brown)'; (e.currentTarget as HTMLElement).style.color = 'var(--accent-brown)'; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}
+                      >
+                        <span className="text-xs font-mono font-bold">d{d}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right Content */}
+                <div className="flex-1 flex flex-col min-w-0">
+
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-6 pt-3 pb-0">
+                    <div className="flex items-center gap-1.5 min-w-0 flex-1 mr-4">
+                      <div className="w-2 h-2 rounded-full flex-shrink-0 animate-pulse" style={{ background: 'var(--accent-brown)' }}></div>
+                      <span className="text-xs font-medium" style={{ color: 'var(--text-secondary)' }}>Dice Roller</span>
+
+                      <TooltipProvider>
+                        <Tooltip delayDuration={300}>
+                          <TooltipTrigger asChild>
+                            <button className="p-1 rounded-full transition-colors" style={{ color: 'var(--text-secondary)' }}>
+                              <Info className="w-3 h-3" />
+                            </button>
+                          </TooltipTrigger>
+                          <TooltipContent className="bg-gradient-to-b from-zinc-900 to-black border border-white/10 text-zinc-300 p-4 w-[380px] space-y-4 text-xs shadow-2xl z-50 animate-in fade-in slide-in-from-bottom-2 max-h-[80vh] overflow-y-auto scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent" side="top" align="start">
+
+                            {/* Section: Actions */}
+                            <div>
+                              <h4 className="font-medium text-zinc-100 text-xs mb-2 flex items-center gap-2">
+                                <Dice5 className="w-3.5 h-3.5 text-zinc-500" />
+                                Contrôles Rapides
+                              </h4>
+                              <ul className="space-y-2 text-zinc-400">
+                                <li className="flex items-start gap-3">
+                                  <div className="mt-1.5 w-1 h-1 rounded-full bg-zinc-600 flex-shrink-0"></div>
+                                  <span>
+                                    <strong className="text-zinc-200 font-medium">Clic sur les dés</strong> : Ajoute à la main.<br />
+                                    <span className="text-[10px] opacity-70">
+                                      • Plusieurs clics = augmente le nombre (ex: 3 clics d6 = 3d6).<br />
+                                      • Dés différents = combinaison (ex: 1d6 + 1d20).
+                                    </span>
+                                  </span>
+                                </li>
+                                <li className="flex items-start gap-3">
+                                  <div className="mt-1.5 w-1 h-1 rounded-full bg-zinc-600 flex-shrink-0"></div>
+                                  <span><strong className="text-zinc-200 font-medium">Clic sur une stat</strong> : Ajoute votre modificateur (FOR, DEX, etc.) au calcul.</span>
+                                </li>
+                                <li className="flex items-start gap-3">
+                                  <div className="mt-1.5 w-1 h-1 rounded-full bg-zinc-600 flex-shrink-0"></div>
+                                  <span><strong className="text-zinc-200 font-medium">Entrée</strong> : Lance les dés immédiatement.</span>
+                                </li>
+                              </ul>
+                            </div>
+
+                            {/* Section: Interface */}
+                            <div>
+                              <h4 className="font-medium text-zinc-100 text-xs mb-2 flex items-center gap-2">
+                                <SwitchCamera className="w-3.5 h-3.5 text-zinc-500" />
+                                Interface & Options
+                              </h4>
+                              <div className="grid grid-cols-2 gap-2 text-[10px] text-zinc-400">
+                                <div className="flex items-center gap-2.5 bg-white/[0.03] p-2 rounded-md border border-white/5">
+                                  <Shield className="w-4 h-4 text-zinc-300 flex-shrink-0" />
+                                  <div className="flex flex-col gap-0.5">
+                                    <strong className="text-zinc-200 font-medium">Privé</strong>
+                                    <span className="text-[9px] opacity-60">Visible par vous & MJ</span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2.5 bg-white/[0.03] p-2 rounded-md border border-white/5">
+                                  <Box className="w-4 h-4 text-zinc-300 flex-shrink-0" />
+                                  <div className="flex flex-col gap-0.5">
+                                    <strong className="text-zinc-200 font-medium">3D</strong>
+                                    <span className="text-[9px] opacity-60">Animation des dés</span>
+                                  </div>
+                                </div>
+                                {userName !== "MJ" && (
+                                  <div className="flex items-center gap-2.5 bg-white/[0.03] p-2 rounded-md border border-white/5">
+                                    <EyeOff className="w-4 h-4 text-zinc-300 flex-shrink-0" />
+                                    <div className="flex flex-col gap-0.5">
+                                      <strong className="text-zinc-200 font-medium">Blind</strong>
+                                      <span className="text-[9px] opacity-60">Caché (sauf pour MJ)</span>
+                                    </div>
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-2.5 bg-white/[0.03] p-2 rounded-md border border-white/5">
+                                  <Store className="w-4 h-4 text-zinc-300 flex-shrink-0" />
+                                  <div className="flex flex-col gap-0.5">
+                                    <strong className="text-zinc-200 font-medium">Boutique</strong>
+                                    <span className="text-[9px] opacity-60">Skins de dés</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Section: Commandes Manuelles */}
+                            <div>
+                              <h4 className="font-medium text-zinc-100 text-xs mb-2 flex items-center gap-2">
+                                <Keyboard className="w-3.5 h-3.5 text-zinc-500" />
+                                Syntaxe Manuelle
+                              </h4>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="flex flex-col gap-1 p-2 rounded bg-black/20 border border-white/5">
+                                  <code className="text-zinc-300 font-mono text-[10px]">1d20</code>
+                                  <span className="text-zinc-500 text-[10px]">Lancer simple</span>
+                                </div>
+                                <div className="flex flex-col gap-1 p-2 rounded bg-black/20 border border-white/5">
+                                  <code className="text-zinc-300 font-mono text-[10px]">1d20 + 5</code>
+                                  <span className="text-zinc-500 text-[10px]">Modificateur</span>
+                                </div>
+                                <div className="flex flex-col gap-1 p-2 rounded bg-black/20 border border-white/5">
+                                  <code className="text-zinc-300 font-mono text-[10px]">2d6 + 1d4</code>
+                                  <span className="text-zinc-500 text-[10px]">Combinaison</span>
+                                </div>
+                                <div className="flex flex-col gap-1 p-2 rounded bg-black/20 border border-white/5">
+                                  <code className="text-zinc-300 font-mono text-[10px]">2d20kh1</code>
+                                  <span className="text-zinc-500 text-[10px]">Avantage</span>
+                                </div>
+                                <div className="flex flex-col gap-1 p-2 rounded bg-black/20 border border-white/5">
+                                  <code className="text-zinc-300 font-mono text-[10px]">2d20kl1</code>
+                                  <span className="text-zinc-500 text-[10px]">Désavantage</span>
+                                </div>
+                                <div className="flex flex-col gap-1 p-2 rounded bg-black/20 border border-white/5">
+                                  <code className="text-zinc-300 font-mono text-[10px]">(1d8+2)*2</code>
+                                  <span className="text-zinc-500 text-[10px]">Calculs</span>
+                                </div>
+                              </div>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => onClose?.()}
+                        className="hidden lg:block p-1.5 rounded-full transition-colors"
+                        style={{ color: 'var(--text-secondary)' }}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Dice Roller Content (always visible) */}
+                  <>
+                    {/* Result Display Area (Above Input) */}
+                    <div id="vtt-dice-result" className="px-6 pt-4 pb-0 min-h-[3.5rem] flex flex-col justify-end">
+                      {(isLoading || latestResult) && (
+                        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300 relative group">
+
+                          {/* Blur effect container for Blind Rolls */}
+                          <div className={`flex items-baseline gap-2 w-full overflow-hidden transition-all duration-500 ${latestResult?.isBlind ? 'blur-md opacity-40 select-none' : ''}`}>
+                            <span className="text-3xl font-bold font-mono tabular-nums tracking-tight flex-shrink-0" style={{ color: 'var(--text-primary)' }}>
+                              {scrambledValue}
+                            </span>
+
+                            <div className="flex items-baseline gap-2 overflow-hidden truncate min-w-0 flex-1">
+                              {!isLoading && latestResult && (
+                                <>
+                                  <span className="text-sm font-mono flex-shrink-0" style={{ color: 'var(--text-secondary)' }}>
+                                    = {latestResult.output.split('=')[1] || ""}
+                                  </span>
+                                  <span className="text-xs font-mono opacity-50 truncate flex-shrink" style={{ color: 'var(--text-secondary)' }}>
+                                    ({latestResult.notation})
+                                  </span>
+                                </>
+                              )}
+                              {isLoading && (
+                                <span className="text-xs text-zinc-500 font-mono animate-pulse">
+                                  Lancement...
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Overlay for Blind Rolls */}
+                          {latestResult?.isBlind && !isLoading && (
+                            <div className="absolute inset-0 flex items-center justify-start gap-2 text-zinc-500">
+                              <EyeOff className="w-5 h-5 animate-pulse" />
+                              <span className="text-xs font-medium tracking-widest uppercase opacity-80">Résultat Masqué</span>
+                            </div>
+                          )}
+
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Input Section */}
+                    <div className="relative overflow-hidden">
+                      <textarea
+                        ref={textareaRef}
+                        id="vtt-dice-input"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        rows={1}
+                        maxLength={50}
+                        className="w-full px-6 py-3 bg-transparent border-none outline-none resize-none text-2xl font-light leading-relaxed min-h-[60px] scrollbar-none font-mono"
+                        placeholder="1d20 + 5..."
+                        style={{ color: 'var(--text-primary)', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+                      />
+                      <div
+                        className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"
+                      ></div>
+                    </div>
+
+                    {/* Controls Section */}
+                    <div className="px-4 pb-4 space-y-3">
+                      <div className="space-y-3">
+                        {/* Modifiers Grid - Hidden for MJ */}
+                        {!isMJ && rollableStats.length > 0 && (
+                          <div id="vtt-dice-modifiers" className="flex flex-wrap gap-1.5">
+                            {rollableStats.map(stat => {
+                              const effectiveValue = stat.hasModifier
+                                ? Math.floor((stat.rawValue - 10) / 2)
+                                : stat.rawValue;
+                              const sign = effectiveValue >= 0 ? '+' : '';
+                              return (
+                                <button
+                                  key={stat.key}
+                                  onClick={() => addToInput(`+ ${stat.key}`)}
+                                  className="group relative py-1 px-2 rounded-lg cursor-pointer transition-all duration-300 text-[10px] font-mono font-bold flex items-center gap-1"
+                                  style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+                                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-brown)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-brown)'; }}
+                                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; }}
+                                  title={`${stat.label}: ${sign}${effectiveValue}${stat.hasModifier ? ` (base ${stat.rawValue})` : ''}`}
+                                >
+                                  <span className="uppercase tracking-wider">{stat.label}</span>
+                                  <span className="opacity-60 text-[9px]">{sign}{effectiveValue}</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between pt-1">
+                          {/* Toggles */}
+                          <div className="flex items-center gap-2">
+                            <button
+                              id="vtt-dice-btn-store"
+                              onClick={() => setIsSkinDialogOpen(true)}
+                              className="p-2 rounded-lg transition-all duration-300 border"
+                              style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = 'var(--accent-brown)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--accent-brown)'; }}
+                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-color)'; }}
+                              title="Boutique de dés"
+                            >
+                              <Store className="w-4 h-4" />
+                            </button>
+                            <button
+                              id="vtt-dice-btn-3d"
+                              onClick={() => setShow3DAnimations(!show3DAnimations)}
+                              className="p-2 rounded-lg transition-all duration-300 border"
+                              style={show3DAnimations ? { background: 'color-mix(in srgb, var(--accent-blue,#5c6bc0) 20%, transparent)', borderColor: 'var(--accent-blue,#5c6bc0)', color: 'var(--accent-blue,#5c6bc0)' } : { border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+                              title="3D Rolling"
+                            >
+                              <Box className="w-4 h-4" />
+                            </button>
+
+                            <button
+                              id="vtt-dice-btn-private"
+                              onClick={() => setIsPrivate(!isPrivate)}
+                              className="p-2 rounded-lg transition-all duration-300 border"
+                              style={isPrivate ? { background: 'color-mix(in srgb, var(--accent-brown) 20%, transparent)', borderColor: 'var(--accent-brown)', color: 'var(--accent-brown)' } : { border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+                              title="Privé"
+                            >
+                              <Shield className="w-4 h-4" />
+                            </button>
+                            {userName !== "MJ" && (
+                              <button
+                                id="vtt-dice-btn-blind"
+                                onClick={() => setIsBlind(!isBlind)}
+                                className="p-2 rounded-lg transition-all duration-300 border"
+                                style={isBlind ? { background: 'rgba(239,68,68,0.15)', borderColor: 'rgba(239,68,68,0.5)', color: '#f87171' } : { border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}
+                                title="Blind Roll (Caché)"
+                              >
+                                <EyeOff className="w-4 h-4" />
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setInput('');
+                                setLatestResult(null);
+                              }}
+                              className="px-3 py-2 text-[10px] font-bold rounded-xl transition-colors"
+                              style={{ color: 'var(--text-secondary)', background: 'var(--bg-darker, rgba(0,0,0,0.3))', border: '1px solid var(--border-color)' }}
+                            >
+                              CLR
+                            </button>
+
+                            {/* Send Button */}
+                            <button
+                              id="vtt-dice-btn-roll"
+                              onClick={() => handleRoll()}
+                              className="group relative p-2.5 pl-4 pr-3 bg-[var(--accent-brown)] border-none rounded-xl cursor-pointer transition-all duration-300 text-black shadow-lg hover:opacity-90 hover:scale-105 active:scale-95 transform flex items-center gap-2"
+                              style={{
+                                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 0 0 0 rgba(239, 68, 68, 0.4)',
+                              }}
+                            >
+                              <span className="text-xs font-bold uppercase tracking-wide opacity-90">Roll</span>
+                              <Send className="w-4 h-4 transition-all duration-300 group-hover:translate-x-1" />
+
+                              {/* Animated background glow */}
+                              <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-[var(--accent-brown)] to-[var(--accent-brown-hover)] opacity-0 group-hover:opacity-50 transition-opacity duration-300 blur-lg transform scale-110"></div>
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </>
+                </div>
+              </div> {/* end flex items-stretch top row */}
+            </div> {/* end rounded-xl inner */}
+          </div> {/* end card 1: dice roller */}
+
+          {/* CARD 2: History - separate floating card */}
+          <div
+            className="w-full rounded-xl relative isolate overflow-hidden border shadow-lg backdrop-blur-xl"
+            style={{ background: 'linear-gradient(135deg, var(--bg-card) 0%, var(--bg-darker) 100%)', borderColor: 'var(--border-color)', color: 'var(--text-primary)', animation: 'popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) 0.05s both' }}
+          >
+            <div className="absolute inset-0 pointer-events-none rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0.01) 100%)' }} />
+            <div className="w-full rounded-xl relative">
+              <div>
+                {/* Tabs */}
+                <div className="flex px-2 pt-2" style={{ borderBottom: '1px solid var(--border-color)' }}>
+                  <button
+                    id="vtt-dice-tab-history"
+                    onClick={() => setShowStats(false)}
+                    className={`flex-1 pb-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-300 ${!showStats ? 'border-[var(--accent-brown)] text-zinc-100' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <History className="w-3.5 h-3.5" />
+                      Historique
+                    </div>
+                  </button>
+                  <button
+                    id="vtt-dice-tab-stats"
+                    onClick={() => setShowStats(true)}
+                    className={`flex-1 pb-2 text-xs font-bold uppercase tracking-wider border-b-2 transition-all duration-300 ${showStats ? 'border-[var(--accent-brown)] text-zinc-100' : 'border-transparent text-zinc-500 hover:text-zinc-300'}`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <BarChart2 className="w-3.5 h-3.5" />
+                      Statistiques
+                    </div>
+                  </button>
+                </div>
+
+                <div className="max-h-[300px] overflow-y-auto p-4 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                  {!showStats ? (
+                    <div className="space-y-2">
+                      {/* Filter UI */}
+                      <div className="flex items-center gap-2 pb-2 mb-1 border-b border-white/5 overflow-x-auto scrollbar-none">
+                        <Filter className="w-3 h-3 text-zinc-500 flex-shrink-0" />
+                        <button
+                          onClick={() => setSelectedPlayerFilter(null)}
+                          className={`text-[10px] px-2 py-0.5 rounded-md transition-colors whitespace-nowrap ${!selectedPlayerFilter ? 'bg-white/10 text-white font-medium' : 'text-zinc-500 hover:text-zinc-300'}`}
+                        >
+                          Tous
+                        </button>
+                        {Array.from(new Set(firebaseRolls.map(r => r.userName))).sort().map(player => (
+                          <button
+                            key={player}
+                            onClick={() => setSelectedPlayerFilter(player)}
+                            className={`text-[10px] px-2 py-0.5 rounded-md transition-colors whitespace-nowrap ${selectedPlayerFilter === player ? 'bg-white/10 text-white font-medium' : 'text-zinc-500 hover:text-zinc-300'}`}
+                          >
+                            {player}
+                          </button>
+                        ))}
+                      </div>
+
+                      {firebaseRolls.filter(canDisplayRoll).filter(r => !selectedPlayerFilter || r.userName === selectedPlayerFilter).length === 0 ? (
+                        <div className="text-center text-zinc-500 py-6 text-xs italic">
+                          Aucun lancer récent...
+                        </div>
+                      ) : (
+                        firebaseRolls.filter(canDisplayRoll).filter(r => !selectedPlayerFilter || r.userName === selectedPlayerFilter).map((roll) => (
+                          <div key={roll.id} className="group relative p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all">
+                            <div className="flex items-start gap-3">
+                              <div
+                                className={`flex-shrink-0 mt-0.5 cursor-pointer hover:ring-2 hover:ring-white/20 rounded-full transition-all`}
+                                onClick={() => {
+                                  setSelectedUserId(roll.uid || null);
+                                  setSelectedCharacterName(roll.userName || null);
+                                }}
+                              >
+                                {roll.userAvatar ? (
+                                  <img src={roll.userAvatar} alt="" className="w-8 h-8 rounded-full object-cover border border-white/10" />
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center border border-white/10">
+                                    <span className="text-xs font-bold text-zinc-400">{roll.userName.substring(0, 2)}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between mb-0.5">
+                                  <span className="text-xs font-bold text-zinc-300 truncate">{roll.userName}</span>
+                                  <div className="flex items-center gap-1">
+                                    {roll.isPrivate && <Shield className="w-3 h-3 text-amber-500/70" />}
+                                    {roll.isBlind && <EyeOff className="w-3 h-3 text-red-500/70" />}
+                                    <span className="text-[10px] text-zinc-600">{new Date(roll.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                  </div>
+                                </div>
+                                <div className="text-[11px] font-mono text-zinc-500 truncate mb-1">{roll.notation}</div>
+                                <div className={`text-[10px] font-mono text-zinc-400/70 mb-1 transition-all duration-300 ${roll.isBlind && userName !== "MJ" ? 'blur-sm opacity-30 select-none' : ''}`}>
+                                  {roll.output}
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <div className={`text-sm font-bold text-zinc-200 transition-all duration-300 ${roll.isBlind && userName !== "MJ" ? 'blur-sm opacity-50 select-none' : ''}`}>
+                                    Total: {roll.total}
+                                  </div>
+                                  <button
+                                    onClick={() => rerollFromFirebase(roll)}
+                                    className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg bg-white/5 hover:bg-white/10 transition-all text-zinc-400 hover:text-zinc-200"
+                                    title="Relancer"
+                                  >
+                                    <RotateCcw className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  ) : (
+                    <DiceStats
+                      rolls={getFilteredRolls()}
+                      currentUserName={userName}
+                      isMJ={userName === "MJ"}
+                    />
+                  )}
+                </div>
+              </div> {/* end inner div */}
+            </div> {/* end rounded-xl card 2 */}
+          </div> {/* end rounded-2xl card 2 */}
+          </div> {/* end desktop view wrapper */}
+        </div>
+      )}
+
+      {/* Dice Store Modal */}
+      <StoreModal
+        isOpen={isSkinDialogOpen}
+        onClose={() => setIsSkinDialogOpen(false)}
+        initialCategory="dice"
+        currentDiceSkinId={selectedSkinId}
+        onSelectDiceSkin={(skinId) => {
+          setSelectedSkinId(skinId);
+          setIsSkinDialogOpen(false);
+        }}
+      />
+      <UserProfileDialog
+        userId={selectedUserId}
+        characterName={selectedCharacterName}
+        roomId={roomId}
+        isOpen={!!selectedUserId || !!selectedCharacterName}
+        onClose={() => { setSelectedUserId(null); setSelectedCharacterName(null); }}
+      />
+
+      <style jsx>{`
+        @keyframes popIn {
+          0% {
+            opacity: 0;
+            transform: scale(0.9) translateX(-20px);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) translateX(0);
+          }
+        }
+        
+        .floating-dice-button:hover {
+          transform: scale(1.1);
+        }
+      `}</style>
+    </div >
   );
-}
+};

@@ -8,7 +8,6 @@ import Sidebar from "@/components/(overlays)/Sidebar";
 import GMDashboard from "@/components/(combat)/MJcombat";
 import Component from "@/components/(fiches)/fiche";
 import MedievalNotes from "@/components/Notes";
-import { DiceRoller } from "@/components/(dices)/dice-roller";
 import Competences from "@/components/(competences)/competences";
 import OverlayComponent from "@/components/(overlays)/overlay";
 import { DiceThrower } from "@/components/(dices)/throw";
@@ -16,7 +15,7 @@ import { NPCManager } from '@/components/(personnages)/personnages'
 import Chat from "@/components/(chat)/Chat";
 import Historique from "@/components/(historique)/Historique";
 import EncounterGenerator from "@/components/(encounter)/EncounterGenerator";
-import { FloatingAiAssistant } from "@/components/ui/glowing-ai-chat-assistant";
+import { DiceRoller } from "@/components/(dices)/dice-roller";
 import { toast } from "sonner";
 
 import MJMusicPlayer from "@/components/(music)/MJMusicPlayer";
@@ -232,8 +231,10 @@ export default function Layout({ children }: LayoutProps) {
                 }
               })}
 
-              {/* ── DICE ROLLER (persistent, all users) ── */}
-              <FloatingAiAssistant
+              {/* ── DICE ROLLER (panneau de dés, persistant, tous utilisateurs) ──
+                   Toujours monté : gère aussi les raccourcis clavier de lancer de
+                   dés, même panneau fermé. */}
+              <DiceRoller
                 isOpen={activeTab === 'DiceRoller'}
                 onClose={() => setActiveTab("")}
               />

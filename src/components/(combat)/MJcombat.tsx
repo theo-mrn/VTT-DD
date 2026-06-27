@@ -7,6 +7,7 @@ import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, Dr
 import { Plus, Minus, Dice1, ChevronRight, ChevronLeft, Sword, Skull, Shield, Heart, X, Pencil, Zap, EyeOff, Ghost, Anchor, Flame, Snowflake, Sparkles } from "lucide-react"
 import { db, doc, getDoc, onSnapshot, updateDoc, setDoc, deleteDoc, collection, writeBatch } from "@/lib/firebase"
 import { useGame } from '@/contexts/GameContext'
+import { trackDamageDealtByCharacter } from '@/lib/challenge-tracker'
 import { Dialog, DialogTrigger, DialogPortal, DialogOverlay, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
@@ -352,7 +353,7 @@ export function GMDashboard() {
     fetchAttackReports()
   }, [roomId, characters])
 
-  const applyDamage = async (targetId: string, damage: number) => {
+  const applyDamage = async (targetId: string, damage: number, attackerPersoId?: string) => {
     const targetCharacter = characters.find(char => char.id === targetId)
     if (!targetCharacter || !roomId) return
 
@@ -364,6 +365,14 @@ export function GMDashboard() {
       setCharacters(prevChars =>
         prevChars.map(char => char.id === targetId ? { ...char, pv: newPv } : char)
       )
+
+      // Crédite les dégâts RÉELLEMENT appliqués (validés par le MJ) au joueur
+      // propriétaire du personnage attaquant.
+      if (attackerPersoId && damage > 0) {
+        trackDamageDealtByCharacter(roomId, attackerPersoId, damage).catch(e =>
+          console.error('Error tracking damage dealt:', e)
+        )
+      }
 
       toast.success('Dégâts appliqués', {
         description: `${targetCharacter.name} : -${damage} PV (${newPv} PV restants)`,
@@ -553,7 +562,7 @@ export function GMDashboard() {
 
   const applyManualDamage = async () => {
     if (selectedAttack && selectedTarget && roomId) {
-      await applyDamage(selectedTarget, damageChange)
+      await applyDamage(selectedTarget, damageChange, selectedAttack.attaquant)
       setIsOtherDrawerOpen(false)
     }
   }

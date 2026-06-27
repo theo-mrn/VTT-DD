@@ -2,9 +2,12 @@ import {
   db,
   doc,
   getDoc,
+  setDoc,
   updateDoc,
   collection,
   getDocs,
+  query,
+  where,
   Timestamp
 } from '@/lib/firebase';
 import {
@@ -81,8 +84,21 @@ export async function trackEvent(eventData: EventData): Promise<void> {
 
     // Met à jour chaque défi concerné
     for (const challenge of relevantChallenges) {
-      const currentProgress = progressMap[challenge.id];
-      if (!currentProgress || currentProgress.status === "completed") continue;
+      let currentProgress = progressMap[challenge.id];
+
+      // Si le doc n'existe pas encore (joueur qui n'a jamais ouvert la modale),
+      // on part d'une progression vierge plutôt que d'ignorer l'événement.
+      if (!currentProgress) {
+        currentProgress = {
+          challengeId: challenge.id,
+          status: "in_progress",
+          progress: 0,
+          attempts: 0,
+          lastUpdated: new Date(),
+        };
+      }
+
+      if (currentProgress.status === "completed") continue;
 
       await updateChallengeForEvent(uid, challenge, currentProgress, event, value, metadata);
     }
@@ -181,7 +197,9 @@ async function updateChallengeForEvent(
     updateData.completedAt = Timestamp.now();
   }
 
-  await updateDoc(progressRef, updateData);
+  // setDoc + merge : crée le doc si le joueur n'a jamais ouvert la modale des défis.
+  updateData.challengeId = challenge.id;
+  await setDoc(progressRef, updateData, { merge: true });
 
   // Si complété, attribue la récompense et notifie
   if (isCompleted) {
@@ -349,6 +367,43 @@ export async function trackCombatWon(
 export async function trackDamageDealt(uid: string, damage: number): Promise<void> {
   gameEventBus.emit({ type: 'combat:damage', payload: { attackerId: uid, targetId: '', amount: damage } });
   await trackEvent({ uid, event: "damage_dealt", value: damage });
+}
+
+/**
+ * Crédite des dégâts réellement infligés au joueur propriétaire du personnage
+ * attaquant. Appelé côté MJ (qui valide les dégâts dans MJcombat) : on doit donc
+ * retrouver l'uid du JOUEUR à partir du persoId de l'attaquant, et non créditer le MJ.
+ *
+ * Ne crédite rien si l'attaquant n'est pas un personnage joueur (PNJ, monstre…)
+ * ou si aucun utilisateur ne possède ce personnage dans la salle.
+ */
+export async function trackDamageDealtByCharacter(
+  roomId: string,
+  attackerPersoId: string,
+  damage: number
+): Promise<void> {
+  if (!roomId || !attackerPersoId || !damage || damage <= 0) return;
+
+  try {
+    // 1. L'attaquant doit être un personnage de type "joueurs"
+    const charSnap = await getDoc(doc(db, `cartes/${roomId}/characters/${attackerPersoId}`));
+    if (!charSnap.exists()) return;
+    if (charSnap.data().type !== 'joueurs') return;
+
+    // 2. Retrouver l'uid du joueur qui possède ce personnage dans cette salle
+    const usersQuery = query(
+      collection(db, 'users'),
+      where('room_id', '==', roomId),
+      where('persoId', '==', attackerPersoId)
+    );
+    const usersSnap = await getDocs(usersQuery);
+    if (usersSnap.empty) return;
+
+    const ownerUid = usersSnap.docs[0].id;
+    await trackDamageDealt(ownerUid, damage);
+  } catch (error) {
+    console.error('Error tracking damage by character:', error);
+  }
 }
 
 /**
@@ -592,5 +647,179 @@ export async function checkThresholdChallenges(
         lastUpdated: Timestamp.now()
       });
     }
+  }
+}
+
+// ============================================
+// RECALCUL COMPLET DEPUIS L'ÉTAT RÉEL
+// ============================================
+
+/**
+ * Agrège l'état réel du joueur depuis Firestore (perso, inventaire, combats).
+ * Sert de source de vérité pour recalculer la progression des défis count/threshold.
+ */
+interface PlayerStateSnapshot {
+  niveau: number;
+  maxAttribute: number;
+  skillsLearned: number;
+  itemCount: number;
+  distinctWeapons: number;
+}
+
+async function aggregatePlayerState(uid: string): Promise<PlayerStateSnapshot | null> {
+  const userSnap = await getDoc(doc(db, 'users', uid));
+  if (!userSnap.exists()) return null;
+
+  const userData = userSnap.data();
+  const roomId: string | undefined = userData.room_id;
+  const persoId: string | undefined = userData.persoId;
+
+  const state: PlayerStateSnapshot = {
+    niveau: 0,
+    maxAttribute: 0,
+    skillsLearned: 0,
+    itemCount: 0,
+    distinctWeapons: 0,
+  };
+
+  if (!roomId || !persoId) return state;
+
+  // 1. Personnage : niveau, caractéristiques, compétences apprises (rangs de voies v1..v10)
+  const charSnap = await getDoc(doc(db, `cartes/${roomId}/characters/${persoId}`));
+  let nomperso: string | undefined;
+
+  if (charSnap.exists()) {
+    const c = charSnap.data();
+    nomperso = c.Nomperso;
+    state.niveau = Number(c.niveau) || 0;
+
+    // Caractéristiques : on prend la valeur finale (_F) si disponible, sinon la base
+    const attrKeys = ['FOR', 'DEX', 'CON', 'SAG', 'INT', 'CHA'] as const;
+    state.maxAttribute = Math.max(
+      0,
+      ...attrKeys.map(k => Number(c[`${k}_F`] ?? c[k]) || 0)
+    );
+
+    // Compétences apprises = somme des rangs des voies (chaque rang = 1 compétence débloquée)
+    let skills = 0;
+    for (let i = 1; i <= 10; i++) {
+      skills += Number(c[`v${i}`]) || 0;
+    }
+    state.skillsLearned = skills;
+  }
+
+  // 2. Inventaire : nombre total d'objets + nombre d'armes distinctes
+  if (nomperso) {
+    const invSnap = await getDocs(collection(db, `Inventaire/${roomId}/${nomperso}`));
+    const weaponNames = new Set<string>();
+    invSnap.forEach(d => {
+      const item = d.data();
+      state.itemCount += Number(item.quantity) || 1;
+      const cat: string = item.category || '';
+      if (cat === 'armes-contact' || cat === 'armes-distance') {
+        weaponNames.add(item.message);
+      }
+    });
+    state.distinctWeapons = weaponNames.size;
+  }
+
+  // Note : les dégâts totaux ne sont PAS recalculés ici. Les rapports de combat
+  // sont supprimés au fil de l'eau, donc ils ne sont pas une source fiable.
+  // Le défi "dégâts infligés" (type accumulate) est alimenté en direct par
+  // trackDamageDealt() depuis le module de combat.
+
+  return state;
+}
+
+/**
+ * Associe chaque défi à la valeur réelle calculée depuis l'état du joueur.
+ */
+function resolveChallengeValue(challenge: Challenge, state: PlayerStateSnapshot): number | null {
+  const ctx = challenge.condition.context || {};
+
+  // Défis de seuil (stat)
+  switch (ctx.stat) {
+    case 'niveau':
+      return state.niveau;
+    case 'any_attribute':
+      return state.maxAttribute;
+    case 'inventory_count':
+      return state.itemCount;
+  }
+
+  // Défis basés sur un événement (count / accumulate)
+  switch (ctx.event) {
+    case 'skill_learned':
+      return state.skillsLearned;
+    case 'item_acquired':
+      return state.itemCount;
+    case 'weapon_acquired':
+      return state.distinctWeapons;
+  }
+
+  return null; // Géré par un autre mécanisme (dés, chat, temps, dégâts en direct…)
+}
+
+/**
+ * Recalcule la progression de tous les défis dérivables de l'état du joueur.
+ * Idempotent : à appeler à l'ouverture de la modale des défis. Rattrape toute
+ * la progression existante sans dépendre d'événements émis au fil de l'eau.
+ */
+export async function recalculateChallengesFromState(uid: string): Promise<void> {
+  if (!uid) return;
+
+  try {
+    const state = await aggregatePlayerState(uid);
+    if (!state) return;
+
+    const challenges = getAllChallenges();
+
+    for (const challenge of challenges) {
+      const currentValue = resolveChallengeValue(challenge, state);
+      if (currentValue === null) continue;
+
+      const progressRef = doc(db, `users/${uid}/challenge_progress/${challenge.id}`);
+      const progressSnap = await getDoc(progressRef);
+      const progress = progressSnap.exists()
+        ? (progressSnap.data() as ChallengeProgress)
+        : null;
+
+      if (progress?.status === 'completed') continue;
+
+      const target = challenge.condition.target;
+      const isCompleted = currentValue >= target;
+      const oldProgress = progress?.progress || 0;
+      const oldStatus = progress?.status || 'locked';
+      const newStatus = isCompleted ? 'completed' : 'in_progress';
+
+      // Rien n'a changé → pas d'écriture
+      if (progress && oldProgress === currentValue && oldStatus === newStatus) {
+        continue;
+      }
+
+      const updateData: any = {
+        challengeId: challenge.id,
+        progress: currentValue,
+        status: newStatus,
+        attempts: progress?.attempts || 0,
+        lastUpdated: Timestamp.now(),
+      };
+      if (!progress?.startedAt && currentValue > 0) {
+        updateData.startedAt = Timestamp.now();
+      }
+      if (isCompleted) {
+        updateData.completedAt = Timestamp.now();
+      }
+
+      // setDoc avec merge : crée le doc s'il n'existe pas encore
+      await setDoc(progressRef, updateData, { merge: true });
+
+      if (isCompleted) {
+        await awardChallengeReward(uid, challenge);
+        notifyChallengeLive(challenge);
+      }
+    }
+  } catch (error) {
+    console.error('Error recalculating challenges from state:', error);
   }
 }

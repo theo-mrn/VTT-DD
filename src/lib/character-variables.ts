@@ -7,7 +7,7 @@ const DIRECT_STATS = ['Defense', 'Contact', 'Magie', 'Distance', 'INIT'];
 
 /**
  * Build a variables map from a character document.
- * Mirrors the replaceCharacteristics() logic in glowing-ai-chat-assistant.tsx.
+ * Mirrors the replaceCharacteristics() logic in (dices)/dice-roller.tsx.
  * Uses _F (final) fields when available (already include bonuses).
  */
 export async function buildCharacterVariables(uid: string): Promise<Record<string, number>> {

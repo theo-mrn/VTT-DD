@@ -73,6 +73,11 @@ export function ChallengesModal({ isOpen, onClose }: ChallengesModalProps) {
       try {
         await initializeUserChallenges(uid);
 
+        // Recalcule la progression réelle depuis l'état du joueur
+        // (niveau, caractéristiques, inventaire, armes, compétences, dégâts).
+        const { recalculateChallengesFromState } = await import('@/lib/challenge-tracker');
+        await recalculateChallengesFromState(uid);
+
         const { collection } = await import('@/lib/firebase');
 
         // Récupère l'état initial

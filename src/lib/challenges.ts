@@ -424,7 +424,7 @@ export const CHALLENGES: Record<string, Challenge> = {
     condition: { type: "threshold", target: 5, context: { stat: "hp_percentage" } },
     reward: { type: "dice_skin", value: "blood_pact" },
     icon: "❤️",
-    active: true,
+    active: false, // DÉSACTIVÉ
     order: 27
   },
 

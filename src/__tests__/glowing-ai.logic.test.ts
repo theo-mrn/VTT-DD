@@ -1,5 +1,5 @@
 /**
- * Tests sur les logiques pures extraites de glowing-ai-chat-assistant.tsx
+ * Tests sur les logiques pures extraites de (dices)/dice-roller.tsx
  */
 
 // ─── Types ────────────────────────────────────────────────────────────────────

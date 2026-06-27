@@ -1,7 +1,7 @@
 /**
  * Tests E2E — Jets de dés
  * Collections : rolls/{roomId}/rolls
- * Sources : glowing-ai-chat-assistant.tsx (addDoc rolls), titres nat1/nat20
+ * Sources : (dices)/dice-roller.tsx (addDoc rolls), titres nat1/nat20
  */
 
 import { getTestEnv, cleanupTestEnv } from "./setup";
