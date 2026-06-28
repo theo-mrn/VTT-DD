@@ -404,7 +404,7 @@ export default function CompetencesDisplay({ roomId, characterId, canEdit = fals
 
       {/* Details Dialog */}
       <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
-        <DialogContent className="bg-transparent border-none shadow-none p-0 max-w-lg">
+        <DialogContent borderTrail className="bg-transparent border-none shadow-none p-0 max-w-lg">
           <DialogTitle className="sr-only">
             {selectedCompetence?.name}
           </DialogTitle>

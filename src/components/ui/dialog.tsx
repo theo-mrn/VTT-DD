@@ -5,6 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { XIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import { BorderTrail } from "@/components/motion-primitives/border-trail"
 
 function Dialog({
   ...props
@@ -51,10 +52,13 @@ function DialogContent({
   children,
   showCloseButton = true,
   unstyled = false,
+  borderTrail = false,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
   unstyled?: boolean
+  /** Affiche un BorderTrail animé (accent doré) tout autour du modal. */
+  borderTrail?: boolean
 }) {
   return (
     <DialogPortal>
@@ -81,8 +85,19 @@ function DialogContent({
             )}
           </>
         ) : (
-          <div className="w-full rounded-2xl relative isolate overflow-hidden bg-white/5 dark:bg-black/90 bg-gradient-to-br from-black/5 to-black/[0.02] dark:from-white/5 dark:to-white/[0.02] backdrop-blur-xl backdrop-saturate-[180%] border border-black/10 dark:border-white/10 shadow-[0_8px_16px_rgb(0_0_0_/_0.15)] dark:shadow-[0_8px_16px_rgb(0_0_0_/_0.25)]">
-            <div className="w-full p-6 rounded-xl relative bg-gradient-to-br from-black/[0.05] to-transparent dark:from-white/[0.08] dark:to-transparent backdrop-blur-md backdrop-saturate-150 border border-black/[0.05] dark:border-white/[0.08] text-black/90 dark:text-white shadow-sm">
+          <div className="w-full rounded-2xl relative isolate bg-white/5 dark:bg-black/90 bg-gradient-to-br from-black/5 to-black/[0.02] dark:from-white/5 dark:to-white/[0.02] backdrop-blur-xl backdrop-saturate-[180%] border border-black/10 dark:border-white/10 shadow-[0_8px_16px_rgb(0_0_0_/_0.15)] dark:shadow-[0_8px_16px_rgb(0_0_0_/_0.25)]">
+            {borderTrail && (
+              <BorderTrail
+                className="bg-[#f5d491]"
+                size={260}
+                transition={{ repeat: Infinity, duration: 9, ease: "linear" }}
+                style={{
+                  boxShadow:
+                    "0 0 12px 4px #f5d491, 0 0 28px 10px #e0b765, 0 0 55px 18px color-mix(in srgb, #e0b765 70%, transparent)",
+                }}
+              />
+            )}
+            <div className="w-full p-6 rounded-2xl relative overflow-hidden bg-gradient-to-br from-black/[0.05] to-transparent dark:from-white/[0.08] dark:to-transparent backdrop-blur-md backdrop-saturate-150 border border-black/[0.05] dark:border-white/[0.08] text-black/90 dark:text-white shadow-sm">
               {children}
               {showCloseButton && (
                 <DialogPrimitive.Close

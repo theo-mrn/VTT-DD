@@ -462,7 +462,7 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
             )}
             <div className='max-w-3xl'>
                 <Dialog open={isModalVisible} onOpenChange={setModalVisible}>
-                    <DialogContent className="bg-transparent border-none shadow-none p-0 max-w-lg">
+                    <DialogContent borderTrail className="bg-transparent border-none shadow-none p-0 max-w-lg">
                         <DialogTitle className="sr-only">
                             {selectedSkill?.name}
                         </DialogTitle>
