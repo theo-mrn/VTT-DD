@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { cn } from "@/lib/utils";
+import CustomCompetenceForm, { CustomCompetenceFormValue } from './CustomCompetenceForm';
 import {
   DndContext,
   closestCenter,
@@ -158,7 +159,9 @@ function SortableVoieCard({
                   </span>
                   {competence.isCustom && competence.originalVoie && (
                     <div className="text-xs text-[var(--text-secondary)] mt-1">
-                      Depuis: {competence.originalVoie} (rang {competence.originalRank})
+                      {competence.originalVoie === 'manual'
+                        ? '✏️ Compétence personnalisée'
+                        : `Depuis: ${competence.originalVoie} (rang ${competence.originalRank})`}
                     </div>
                   )}
                 </div>
@@ -243,6 +246,7 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
   const [activeId, setActiveId] = useState<string | null>(null);
   const [activeTabMain, setActiveTabMain] = useState<string>('profiles');
   const [activeTabComp, setActiveTabComp] = useState<string>('profiles');
+  const [customVoieName, setCustomVoieName] = useState<string>('');
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -401,6 +405,20 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
     return updatedVoies;
   };
 
+  // Construit une voie personnalisée vide (5 slots) à partir d'un identifiant "custom:<nom>"
+  const createCustomVoie = (fichier: string): Voie => {
+    const nom = fichier.startsWith('custom:') ? fichier.slice('custom:'.length) : fichier;
+    return {
+      nom: nom || 'Voie personnalisée',
+      fichier,
+      competences: Array.from({ length: 5 }, (_, i) => ({
+        titre: `Compétence ${i + 1}`,
+        description: 'Cliquez pour personnaliser cette compétence.',
+        type: 'other',
+      })),
+    };
+  };
+
   const loadCurrentVoies = async (characterData: Record<string, string | number>, customComps: CustomCompetence[] = []) => {
     const loadedVoies: Voie[] = [];
 
@@ -409,6 +427,12 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
       const voieFile = characterData[`Voie${i}`];
 
       if (voieFile) {
+        // Voie personnalisée : pas de fichier JSON, on génère un squelette vide
+        // que les customCompetences viendront remplir.
+        if (typeof voieFile === 'string' && voieFile.startsWith('custom:')) {
+          loadedVoies.push(createCustomVoie(voieFile));
+          continue;
+        }
         try {
           const response = await fetch(`/tabs/${voieFile}`);
           if (response.ok) {
@@ -532,6 +556,7 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
 
   const openDialog = () => {
     setIsPanelOpen(false);
+    setActiveTabMain('profiles');
     setIsDialogOpen(true);
     fetchReplacementVoies('profiles');
   };
@@ -659,6 +684,7 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
 
   const addNewVoie = () => {
     setSelectedVoieIndex(null);
+    setActiveTabMain('profiles');
     setIsDialogOpen(true);
     fetchReplacementVoies('profiles');
   };
@@ -671,6 +697,17 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
       setIsDetailsPanelOpen(false);
       setSelectedReplacement(null);
     }
+  };
+
+  const addCustomVoie = () => {
+    const name = customVoieName.trim();
+    if (!name) return;
+    const newVoie = createCustomVoie(`custom:${name}`);
+    setVoies([...voies, newVoie]);
+    setCustomVoieName('');
+    setIsDialogOpen(false);
+    setActiveTabMain('profiles');
+    toast.success('Voie personnalisée ajoutée. Cliquez sur ses compétences pour les définir.');
   };
 
   const removeVoie = (index: number) => {
@@ -848,6 +885,48 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
     setIsCompetenceDialogOpen(true);
     // Load all voies by default (profils)
     fetchCompetenceReplacementVoies('profiles');
+  };
+
+  const createCustomCompetence = async (value: CustomCompetenceFormValue) => {
+    if (!selectedCompetenceSlot || !roomId || !persoId) return;
+
+    const customCompetence: CustomCompetence = {
+      slotIndex: selectedCompetenceSlot.competenceIndex,
+      voieIndex: selectedCompetenceSlot.voieIndex,
+      sourceVoie: 'manual',
+      sourceRank: selectedCompetenceSlot.competenceIndex + 1,
+      competenceName: value.name,
+      competenceDescription: value.description,
+      competenceType: value.type,
+    };
+
+    try {
+      const customCompRef = doc(db, `cartes/${roomId}/characters/${persoId}/customCompetences`,
+        `${selectedCompetenceSlot.voieIndex}-${selectedCompetenceSlot.competenceIndex}`);
+      await setDoc(customCompRef, customCompetence);
+
+      const updatedCustomCompetences = customCompetences.filter(
+        cc => !(cc.voieIndex === selectedCompetenceSlot.voieIndex && cc.slotIndex === selectedCompetenceSlot.competenceIndex)
+      );
+      updatedCustomCompetences.push(customCompetence);
+      setCustomCompetences(updatedCustomCompetences);
+
+      const voiesCopy = voies.map(voie => ({
+        ...voie,
+        competences: voie.competences.map(comp => ({ ...comp }))
+      }));
+
+      const finalVoies = applyCustomCompetences(voiesCopy, updatedCustomCompetences);
+
+      setVoies(finalVoies);
+      setIsCompetenceDialogOpen(false);
+      setSelectedCompetenceSlot(null);
+      setActiveTabComp('profiles');
+      toast.success('Compétence personnalisée créée.');
+    } catch (error) {
+      console.error('Error saving custom competence:', error);
+      toast.error('Erreur lors de la création de la compétence.');
+    }
   };
 
   const fetchCompetenceReplacementVoies = async (type: string, profileName?: string, raceName?: string, prestigeClassName?: string) => {
@@ -1147,13 +1226,16 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
 
           <Tabs value={activeTabMain} onValueChange={(type) => {
             setActiveTabMain(type);
-            fetchReplacementVoies(type);
+            if (type !== 'custom') fetchReplacementVoies(type);
           }}>
             <div className="flex items-center justify-between mb-6 bg-black/20 p-2 rounded-lg border border-white/5">
               <TabsList className="bg-transparent border-none">
                 <TabsTrigger value="profiles" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Profils</TabsTrigger>
                 <TabsTrigger value="races" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Races</TabsTrigger>
                 <TabsTrigger value="prestiges" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Prestiges</TabsTrigger>
+                {selectedVoieIndex === null && (
+                  <TabsTrigger value="custom" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">✏️ Voie personnalisée</TabsTrigger>
+                )}
               </TabsList>
 
               <div className="flex items-center gap-4">
@@ -1344,6 +1426,29 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
                 ))}
               </div>
             </TabsContent>
+
+            <TabsContent value="custom">
+              <div className="max-w-xl mx-auto w-full space-y-5 bg-[var(--bg-card)] p-6 rounded-xl border border-[var(--border-color)]">
+                <p className="text-sm text-[var(--text-secondary)]">
+                  Créez une voie entièrement personnalisée. Elle démarre avec 5 compétences vides
+                  que vous pourrez définir une par une (nom, description, type) en cliquant dessus.
+                </p>
+                <div className="space-y-2">
+                  <label className="block font-semibold text-[var(--text-primary)] text-xs uppercase tracking-wider">Nom de la voie</label>
+                  <input
+                    value={customVoieName}
+                    onChange={(e) => setCustomVoieName(e.target.value)}
+                    placeholder="Ex: Voie du chasseur d'ombres"
+                    className="w-full p-3 rounded-md bg-[var(--bg-dark)] border border-[var(--border-color)] text-[var(--text-primary)] outline-none focus:border-[var(--accent-brown)] transition-all text-sm"
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <Button onClick={addCustomVoie} disabled={!customVoieName.trim()} className="button-primary">
+                    Créer la voie
+                  </Button>
+                </div>
+              </div>
+            </TabsContent>
           </Tabs>
 
         </DialogContent>
@@ -1421,13 +1526,14 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
 
           <Tabs value={activeTabComp} onValueChange={(type) => {
             setActiveTabComp(type);
-            fetchCompetenceReplacementVoies(type);
+            if (type !== 'custom') fetchCompetenceReplacementVoies(type);
           }}>
             <div className="flex items-center justify-between mb-6 bg-black/20 p-2 rounded-lg border border-white/5">
               <TabsList className="bg-transparent border-none">
                 <TabsTrigger value="profiles" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Profils</TabsTrigger>
                 <TabsTrigger value="races" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Races</TabsTrigger>
                 <TabsTrigger value="prestiges" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Prestiges</TabsTrigger>
+                <TabsTrigger value="custom" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">✏️ Personnalisée</TabsTrigger>
               </TabsList>
 
               <div className="flex items-center gap-4">
@@ -1611,6 +1717,14 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
                   </Card>
                 ))}
               </div>
+            </TabsContent>
+
+            <TabsContent value="custom">
+              <CustomCompetenceForm
+                resetKey={`${selectedCompetenceSlot?.voieIndex}-${selectedCompetenceSlot?.competenceIndex}`}
+                onCreate={createCustomCompetence}
+                onCancel={() => setIsCompetenceDialogOpen(false)}
+              />
             </TabsContent>
           </Tabs>
 

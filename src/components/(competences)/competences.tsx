@@ -147,6 +147,17 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
         }
     }
 
+    // Construit un VoieData vide (5 slots) pour une voie personnalisée "custom:<nom>"
+    const createEmptyVoieData = (voieFile: string): VoieData => {
+        const nom = voieFile.startsWith('custom:') ? voieFile.slice('custom:'.length) : voieFile
+        return {
+            Voie: nom || 'Voie personnalisée',
+            Affichage1: 'Compétence 1', Affichage2: 'Compétence 2', Affichage3: 'Compétence 3',
+            Affichage4: 'Compétence 4', Affichage5: 'Compétence 5',
+            rang1: '', rang2: '', rang3: '', rang4: '', rang5: '',
+        }
+    }
+
     const applyCustomCompetences = (voieData: Record<string, VoieData>, customComps: CustomCompetence[]) => {
         const updatedVoieData = { ...voieData }
 
@@ -156,10 +167,14 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
                 const affichageKey = `Affichage${customComp.slotIndex + 1}` as keyof VoieData
                 const rangKey = `rang${customComp.slotIndex + 1}` as keyof VoieData
 
+                const sourceLabel = customComp.sourceVoie === 'manual'
+                    ? '✏️ Compétence personnalisée'
+                    : `📍 Depuis: ${customComp.sourceVoie} (rang ${customComp.sourceRank})`
+
                 updatedVoieData[voieKey] = {
                     ...updatedVoieData[voieKey],
                     [affichageKey]: `🔄 ${customComp.competenceName}`,
-                    [rangKey]: `${customComp.competenceDescription}<br><br><em>📍 Depuis: ${customComp.sourceVoie} (rang ${customComp.sourceRank})</em>`
+                    [rangKey]: `${customComp.competenceDescription}<br><br><em>${sourceLabel}</em>`
                 }
             }
         })
@@ -179,6 +194,15 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
         for (let j = 1; j <= 10; j++) { // Support up to 10 voies
             const voieFile = character[`Voie${j}` as keyof Character] as string
             if (voieFile && voieFile.trim() !== '') {
+                // Voie personnalisée : pas de fichier JSON, on construit un squelette vide
+                // (les customCompetences viendront le remplir via applyCustomCompetences).
+                if (voieFile.startsWith('custom:')) {
+                    voiePromises.push(Promise.resolve({
+                        key: `Voie${j}`,
+                        data: createEmptyVoieData(voieFile)
+                    }))
+                    continue
+                }
                 voiePromises.push(
                     fetch(`/tabs/${voieFile}`)
                         .then(response => {
@@ -260,7 +284,7 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
         const canUnlock = (rank === 1 || currentRank >= rank - 1) && !isAlreadyUnlocked
         const isOwnCharacter = selectedCharacter?.id === userPersoId
 
-        setSelectedSkill({ name, description: description.replace(/<br>/g, '\n'), rank, voie })
+        setSelectedSkill({ name, description, rank, voie })
         setIsUnlockable(canUnlock && isOwnCharacter)
         setModalVisible(true)
     }
@@ -480,9 +504,10 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
                                     </div>
                                 </div>
 
-                                <div className="my-6 text-[var(--text-primary)] leading-relaxed whitespace-pre-line">
-                                    {selectedSkill.description}
-                                </div>
+                                <div
+                                    className="my-6 text-[var(--text-primary)] leading-relaxed"
+                                    dangerouslySetInnerHTML={{ __html: selectedSkill.description }}
+                                />
 
                                 <div className="flex items-center justify-between mt-8 pt-4 border-t border-black/5 dark:border-white/5">
                                     <div className="text-sm text-[var(--text-secondary)]">

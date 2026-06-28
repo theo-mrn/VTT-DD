@@ -66,127 +66,72 @@ export default function Capacites() {
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
+
+      // Charge un fichier de voie et en extrait les compétences (null si absent/erreur).
+      // `sourcePrefix` préfixe la source ; si `appendVoieName`, on suffixe " - <nom de la voie>".
+      const loadVoie = async (path: string, sourcePrefix: string, appendVoieName = false): Promise<Voie | null> => {
+        try {
+          const response = await fetch(path);
+          if (!response.ok) return null;
+          const data = await response.json();
+
+          const source = appendVoieName && data.Voie ? `${sourcePrefix} - ${data.Voie}` : sourcePrefix;
+
+          const competences: Competence[] = [];
+          for (let j = 1; j <= 20; j++) {
+            if (data[`Affichage${j}`] && data[`rang${j}`]) {
+              competences.push({
+                titre: data[`Affichage${j}`],
+                description: data[`rang${j}`],
+                type: data[`type${j}`] || '',
+                source,
+              });
+            }
+          }
+
+          if (competences.length === 0) return null;
+          return { nom: data.Voie || sourcePrefix, competences };
+        } catch {
+          return null;
+        }
+      };
+
       try {
-        // Fetch profiles
         const profileNames = ["Barbare", "Barde", "Chevalier", "Druide", "Samourai", "Ensorceleur", "Forgesort", "Guerrier", "Invocateur", "Magicien", "Moine", "Necromancien", "Pretre", "Psionique", "Rodeur", "Voleur"];
-        const profileData: Profile[] = [];
-
-        for (const name of profileNames) {
-          const voies = [];
-          for (let i = 1; i <= 5; i++) {
-            try {
-              const response = await fetch(`/tabs/${name}${i}.json`);
-              if (response.ok) {
-                const data = await response.json();
-
-                const competences: Competence[] = [];
-                for (let j = 1; j <= 20; j++) {
-                  const affichageKey = `Affichage${j}`;
-                  const rangKey = `rang${j}`;
-                  const typeKey = `type${j}`;
-
-                  if (data[affichageKey] && data[rangKey]) {
-                    competences.push({
-                      titre: data[affichageKey],
-                      description: data[rangKey],
-                      type: data[typeKey] || '',
-                      source: `${name} - ${data.Voie}`
-                    });
-                  }
-                }
-
-                if (competences.length > 0) {
-                  voies.push({ nom: data.Voie, competences });
-                }
-              }
-            } catch (error) {
-              console.error(`Error fetching ${name}${i}.json:`, error);
-            }
-          }
-          if (voies.length > 0) {
-            profileData.push({ nom: name, voies });
-          }
-        }
-        setProfiles(profileData);
-
-        // Fetch races
         const raceNames = ["Ame-forgee", "Drakonide", "Elfe", "Elfesylvain", "Elfenoir", "Frouin", "Halfelin", "Humain", "Minotaure", "Ogre", "Orque", "Nain", "Wolfer"];
-        const raceData: Voie[] = [];
-
-        for (const name of raceNames) {
-          try {
-            const response = await fetch(`/tabs/${name}.json`);
-            if (response.ok) {
-              const data = await response.json();
-              const competences: Competence[] = [];
-
-              for (let j = 1; j <= 20; j++) {
-                const affichageKey = `Affichage${j}`;
-                const rangKey = `rang${j}`;
-                const typeKey = `type${j}`;
-
-                if (data[affichageKey] && data[rangKey]) {
-                  competences.push({
-                    titre: data[affichageKey],
-                    description: data[rangKey],
-                    type: data[typeKey] || '',
-                    source: `Race: ${name}`
-                  });
-                }
-              }
-
-              if (competences.length > 0) {
-                raceData.push({ nom: data.Voie || name, competences });
-              }
-            }
-          } catch (error) {
-            console.error(`Error fetching ${name}.json:`, error);
-          }
-        }
-        setRaces(raceData);
-
-        // Fetch prestiges
         const prestigeNames = ["arquebusier", "barbare", "barde", "chevalier", "druide", "ensorceleur", "forgesort", "guerrier", "moine", "necromancien", "pretre", "rodeur", "voleur"];
-        const prestigeData: Profile[] = [];
 
-        for (const name of prestigeNames) {
-          const voies = [];
-          for (let i = 1; i <= 5; i++) {
-            try {
-              const response = await fetch(`/tabs/prestige_${name}${i}.json`);
-              if (response.ok) {
-                const data = await response.json();
-                const competences: Competence[] = [];
+        // Tous les fetchs sont lancés en parallèle (fichiers statiques).
+        const [profileData, raceData, prestigeData] = await Promise.all([
+          // Profils : 5 voies par profil
+          Promise.all(
+            profileNames.map(async (name): Promise<Profile> => {
+              const voies = (await Promise.all(
+                Array.from({ length: 5 }, (_, i) => loadVoie(`/tabs/${name}${i + 1}.json`, name, true))
+              )).filter((v): v is Voie => v !== null);
+              return { nom: name, voies };
+            })
+          ).then(list => list.filter(p => p.voies.length > 0)),
 
-                for (let j = 1; j <= 20; j++) {
-                  const affichageKey = `Affichage${j}`;
-                  const rangKey = `rang${j}`;
-                  const typeKey = `type${j}`;
+          // Races : 1 voie par race
+          Promise.all(
+            raceNames.map(name => loadVoie(`/tabs/${name}.json`, `Race: ${name}`))
+          ).then(list => list.filter((v): v is Voie => v !== null)),
 
-                  if (data[affichageKey] && data[rangKey]) {
-                    competences.push({
-                      titre: data[affichageKey],
-                      description: data[rangKey],
-                      type: data[typeKey] || '',
-                      source: `Prestige: ${name} - ${data.Voie}`
-                    });
-                  }
-                }
+          // Prestiges : jusqu'à 5 voies par classe
+          Promise.all(
+            prestigeNames.map(async (name): Promise<Profile> => {
+              const voies = (await Promise.all(
+                Array.from({ length: 5 }, (_, i) => loadVoie(`/tabs/prestige_${name}${i + 1}.json`, `Prestige: ${name}`, true))
+              )).filter((v): v is Voie => v !== null);
+              return { nom: name, voies };
+            })
+          ).then(list => list.filter(p => p.voies.length > 0)),
+        ]);
 
-                if (competences.length > 0) {
-                  voies.push({ nom: data.Voie, competences });
-                }
-              }
-            } catch (error) {
-              // Ignore errors for non-existent prestige files
-            }
-          }
-          if (voies.length > 0) {
-            prestigeData.push({ nom: name, voies });
-          }
-        }
+        setProfiles(profileData);
+        setRaces(raceData);
         setPrestiges(prestigeData);
-
       } catch (error) {
         console.error('Error fetching data:', error);
       } finally {

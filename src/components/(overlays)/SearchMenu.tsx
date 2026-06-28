@@ -3,12 +3,12 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useCompetences, Competence } from "@/contexts/CompetencesContext";
 import debounce from "lodash/debounce";
-import { FileText, Search, X, Layers, Users, Crown, Sparkles, Sword, Heart, Ruler, Weight, BookOpen } from "lucide-react";
+import { FileText, Search, X, Layers, Users, Crown, Sparkles, Sword, Heart, Ruler, Weight, BookOpen, Package, Skull } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { useShortcuts, SHORTCUT_ACTIONS } from "@/contexts/ShortcutsContext";
 
-type TabId = "all" | "races" | "classes" | "prestiges" | "regles";
+type TabId = "all" | "races" | "classes" | "prestiges" | "regles" | "objets" | "bestiaire";
 
 const TABS = [
     { id: "all", label: "Tout", icon: Layers },
@@ -16,7 +16,43 @@ const TABS = [
     { id: "classes", label: "Classes", icon: Sword },
     { id: "prestiges", label: "Prestiges", icon: Crown },
     { id: "regles", label: "Règles", icon: BookOpen },
+    { id: "objets", label: "Objets", icon: Package },
+    { id: "bestiaire", label: "Bestiaire", icon: Skull },
 ] as const;
+
+// Item d'équipement issu de /tabs/data.json
+type EquipmentItem = {
+    nom: string;
+    type?: string;
+    portée?: string;
+    dégâts?: string;
+    prix?: string;
+    DEF?: string;
+    commentaires?: string;
+    effet?: string;
+    utilisation?: string;
+};
+type EquipmentData = Record<string, EquipmentItem[]>;
+
+// Monstre issu de /tabs/bestiairy.json
+type MonsterAction = { Nom: string; Description: string; Toucher?: number };
+type BestiaryMonster = {
+    Nom: string;
+    Category?: string;
+    Type?: string;
+    description?: string;
+    image?: string;
+    Challenge?: string;
+    PV_Max?: number;
+    Defense?: number;
+    FOR?: number; DEX?: number; CON?: number; INT?: number; SAG?: number; CHA?: number;
+    Actions?: MonsterAction[];
+};
+type BestiaryData = Record<string, BestiaryMonster>;
+
+// Marqueurs de source pour reconnaître objets et monstres dans la liste fusionnée
+const ITEM_SOURCE_PREFIX = "Objet:";
+const MONSTER_SOURCE_PREFIX = "Créature:";
 
 export default function SearchMenu() {
     const [open, setOpen] = useState(false);
@@ -27,7 +63,77 @@ export default function SearchMenu() {
     const [searchTerm, setSearchTerm] = useState("");
     const [activeTab, setActiveTab] = useState<TabId>("all");
     const [selectedCompetence, setSelectedCompetence] = useState<Competence | null>(null);
+    const [items, setItems] = useState<Competence[]>([]);
+    const [monsters, setMonsters] = useState<Competence[]>([]);
     const inputRef = useRef<HTMLInputElement>(null);
+
+    // Charge la liste des objets (/tabs/data.json) et la transforme en Competence[]
+    useEffect(() => {
+        fetch('/tabs/data.json')
+            .then(res => res.json())
+            .then((data: EquipmentData) => {
+                const mapped: Competence[] = [];
+                for (const [category, list] of Object.entries(data)) {
+                    if (!Array.isArray(list)) continue;
+                    for (const item of list) {
+                        // Construit une description lisible à partir des champs présents
+                        const lines = [
+                            item.type && `Type : ${item.type}`,
+                            item.portée && `Portée : ${item.portée}`,
+                            item.dégâts && `Dégâts : ${item.dégâts}`,
+                            item.DEF && `DEF : ${item.DEF}`,
+                            item.effet && item.effet,
+                            item.utilisation && item.utilisation,
+                            item.commentaires && item.commentaires,
+                            item.prix && `Prix : ${item.prix}`,
+                        ].filter(Boolean);
+                        mapped.push({
+                            titre: item.nom,
+                            description: lines.join('\n'),
+                            type: item.type || category.replace(/_/g, ' '),
+                            source: `${ITEM_SOURCE_PREFIX} ${category.replace(/_/g, ' ')}`,
+                        });
+                    }
+                }
+                setItems(mapped);
+            })
+            .catch(err => console.error('Error loading data.json:', err));
+    }, []);
+
+    // Charge le bestiaire (/tabs/bestiairy.json) et le transforme en Competence[]
+    useEffect(() => {
+        fetch('/tabs/bestiairy.json')
+            .then(res => res.json())
+            .then((data: BestiaryData) => {
+                const mapped: Competence[] = Object.values(data).map((m) => {
+                    const stats = [
+                        m.Defense != null && `DEF : ${m.Defense}`,
+                        m.PV_Max != null && `PV : ${m.PV_Max}`,
+                        m.FOR != null && `FOR ${m.FOR} · DEX ${m.DEX} · CON ${m.CON} · INT ${m.INT} · SAG ${m.SAG} · CHA ${m.CHA}`,
+                    ].filter(Boolean).join('\n');
+
+                    const actions = (m.Actions || [])
+                        .map(a => `• ${a.Nom} : ${a.Description}`)
+                        .join('\n\n');
+
+                    const description = [
+                        m.description,
+                        stats && `\n${stats}`,
+                        actions && `\nActions :\n${actions}`,
+                    ].filter(Boolean).join('\n');
+
+                    return {
+                        titre: m.Nom,
+                        description,
+                        type: m.Type || m.Category || 'Créature',
+                        source: m.Challenge ? `${MONSTER_SOURCE_PREFIX} FP ${m.Challenge}` : MONSTER_SOURCE_PREFIX,
+                        image: m.image && m.image.trim() !== '' ? m.image : undefined,
+                    };
+                });
+                setMonsters(mapped);
+            })
+            .catch(err => console.error('Error loading bestiairy.json:', err));
+    }, []);
 
     // Use ref to ensure we always have the latest state setters
     // Note: In this full rewrite, we might simplify this if we just filter locally,
@@ -67,14 +173,19 @@ export default function SearchMenu() {
         }
     }, [searchResults, activeTab]);
 
-    const filterByTab = useCallback((items: Competence[], tab: TabId) => {
-        if (tab === "all") return items;
-        return items.filter(item => {
+    const filterByTab = useCallback((list: Competence[], tab: TabId) => {
+        if (tab === "all") return list;
+        return list.filter(item => {
             const source = item.source || "";
+            const isItem = source.startsWith(ITEM_SOURCE_PREFIX);
+            const isMonster = source.startsWith(MONSTER_SOURCE_PREFIX);
             const isRuleType = item.type === "Règle";
             const isRaceType = item.type === "Race" || source.startsWith("Race:");
             const isPrestigeType = source.startsWith("Prestige:");
 
+            if (tab === "objets") return isItem;
+            if (tab === "bestiaire") return isMonster;
+            if (isItem || isMonster) return false; // objets/créatures : seulement dans leur onglet dédié
             if (tab === "regles") return isRuleType;
             if (tab === "races") return isRaceType;
             if (tab === "prestiges") return isPrestigeType;
@@ -121,15 +232,29 @@ export default function SearchMenu() {
         }
     };
 
+    // Recherche locale dans les données non gérées par le contexte (objets + bestiaire)
+    const searchLocal = useCallback((term: string) => {
+        const q = term.toLowerCase();
+        const match = (c: Competence) =>
+            c.titre.toLowerCase().includes(q) ||
+            c.description.toLowerCase().includes(q) ||
+            (c.type || "").toLowerCase().includes(q);
+        return [...items.filter(match), ...monsters.filter(match)];
+    }, [items, monsters]);
+
     // Derived state for display
     const visibleResults = useMemo(() => {
         if (!searchTerm.trim()) {
             // By default, only show results for specific categories, not for "all"
             if (activeTab === "all") return [];
+            if (activeTab === "objets") return items;
+            if (activeTab === "bestiaire") return monsters;
             return filterByTab(allCompetences, activeTab);
         }
-        return filterByTab(searchResults, activeTab);
-    }, [searchResults, allCompetences, activeTab, searchTerm, filterByTab]);
+        // Fusionne résultats de compétences (contexte) + objets + bestiaire (local)
+        const merged = [...searchResults, ...searchLocal(searchTerm)];
+        return filterByTab(merged, activeTab);
+    }, [searchResults, allCompetences, activeTab, searchTerm, filterByTab, items, monsters, searchLocal]);
 
     if (!open) return null;
 

@@ -400,7 +400,9 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
 
             if (voieFile && voieFile.trim() !== '' && voieLevel > 0) {
               try {
-                const skillData = await fetch(`/tabs/${voieFile}`).then((res) => res.json());
+                // Voie personnalisée : pas de fichier JSON, les compétences viennent des customComps.
+                const isCustomVoie = voieFile.startsWith('custom:');
+                const skillData = isCustomVoie ? {} : await fetch(`/tabs/${voieFile}`).then((res) => res.json());
 
                 for (let j = 1; j <= voieLevel; j++) {
                   let skillName = skillData[`Affichage${j}`];
@@ -413,8 +415,11 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
                   );
 
                   if (customComp) {
+                    const sourceLabel = customComp.sourceVoie === 'manual'
+                      ? '✏️ Compétence personnalisée'
+                      : `📍 Depuis: ${customComp.sourceVoie} (rang ${customComp.sourceRank})`;
                     skillName = `🔄 ${customComp.competenceName}`;
-                    skillDescription = `${customComp.competenceDescription}<br><br><em>📍 Depuis: ${customComp.sourceVoie} (rang ${customComp.sourceRank})</em>`;
+                    skillDescription = `${customComp.competenceDescription}<br><br><em>${sourceLabel}</em>`;
                     skillType = customComp.competenceType;
                   }
 
@@ -498,7 +503,9 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
 
           if (voieFile && voieFile.trim() !== '' && voieLevel > 0) {
             try {
-              const skillData = await fetch(`/tabs/${voieFile}`).then((res) => res.json());
+              // Voie personnalisée : pas de fichier JSON, les compétences viennent des customComps.
+              const isCustomVoie = voieFile.startsWith('custom:');
+              const skillData = isCustomVoie ? {} : await fetch(`/tabs/${voieFile}`).then((res) => res.json());
 
               for (let j = 1; j <= voieLevel; j++) {
                 let skillName = skillData[`Affichage${j}`];
@@ -510,8 +517,11 @@ export function CharacterProvider({ children }: { children: ReactNode }) {
                 );
 
                 if (customComp) {
+                  const sourceLabel = customComp.sourceVoie === 'manual'
+                    ? '✏️ Compétence personnalisée'
+                    : `📍 Depuis: ${customComp.sourceVoie} (rang ${customComp.sourceRank})`;
                   skillName = `🔄 ${customComp.competenceName}`;
-                  skillDescription = `${customComp.competenceDescription}<br><br><em>📍 Depuis: ${customComp.sourceVoie} (rang ${customComp.sourceRank})</em>`;
+                  skillDescription = `${customComp.competenceDescription}<br><br><em>${sourceLabel}</em>`;
                   skillType = customComp.competenceType;
                 }
 
