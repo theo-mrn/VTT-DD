@@ -346,16 +346,30 @@ export const DiceThrower = () => {
         return () => window.removeEventListener('vtt-trigger-3d-roll', handleRoll);
     }, []);
 
-    if (dice.length === 0) return null;
+    const hasDice = dice.length > 0;
 
+    // The canvas stays mounted even with no dice so the WebGL context, the
+    // (heavy) "city" environment map and the compiled skin shaders persist
+    // between rolls instead of being recreated/recompiled on every throw.
+    // When idle it's hidden and switched to on-demand rendering (no render
+    // loop, ~0 cost).
     return (
-        <div className="fixed inset-0 pointer-events-none z-[5]">
+        <div
+            className="fixed inset-0 pointer-events-none z-[5]"
+            style={{ visibility: hasDice ? 'visible' : 'hidden' }}
+        >
             <Confetti
                 ref={confettiRef}
                 className="absolute left-0 top-0 z-0 size-full"
                 manualstart
             />
-            <Canvas camera={{ position: [0, 40, 0], fov: 45 }} gl={{ alpha: true }} style={{ pointerEvents: 'none' }}>
+            <Canvas
+                camera={{ position: [0, 40, 0], fov: 45 }}
+                gl={{ alpha: true }}
+                dpr={[1, 1.5]}
+                frameloop={hasDice ? 'always' : 'demand'}
+                style={{ pointerEvents: 'none' }}
+            >
                 {/* Softer lighting: higher ambient + gentler key lights so solid
                     dice don't get blown-out white highlights. */}
                 <ambientLight intensity={0.7} />

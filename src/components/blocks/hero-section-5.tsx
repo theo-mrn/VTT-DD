@@ -2,8 +2,9 @@
 import React from 'react'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
+import { InteractiveHoverButton } from '@/components/ui/interactive-hover-button'
 import { cn } from '@/lib/utils'
-import { Menu, X, ChevronRight, Mail, ChevronDown, Send } from 'lucide-react'
+import { Menu, X, Mail, ChevronDown, Send } from 'lucide-react'
 import { useScroll, motion, useTransform } from 'framer-motion'
 import { Aclonica } from "next/font/google"
 import Login06 from '@/components/ui/login-3'
@@ -176,15 +177,14 @@ const HeroHeader = ({ onOpenAuth, isUserLoggedIn, userData, onOpenProfile, route
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 ) : (
-                                    <Button
+                                    <InteractiveHoverButton
                                         onClick={onOpenAuth}
-                                        size="sm"
                                         className={cn(
-                                            "bg-[#c9a965] text-[#0c0c0e] hover:bg-[#f7d96d] rounded-full px-6",
+                                            "text-sm",
                                             aclonica.className
                                         )}>
-                                        <span>S&apos;identifier</span>
-                                    </Button>
+                                        S&apos;identifier
+                                    </InteractiveHoverButton>
                                 )}
                             </div>
                         </div>
@@ -302,22 +302,15 @@ export function HeroSection() {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.6, delay: 0.8 }}
                         >
-                            <Button
+                            <InteractiveHoverButton
                                 onClick={handleStartAdventure}
                                 disabled={isUserLoggedIn === null}
-                                size="lg"
                                 className={cn(
-                                    "h-14 rounded-full pl-8 pr-5 text-lg",
-                                    "bg-[#c9a965] text-[#0c0c0e] hover:bg-[#f7d96d]",
-                                    "shadow-[0_0_40px_rgba(201,169,101,0.3)] hover:shadow-[0_0_60px_rgba(201,169,101,0.4)]",
-                                    "transition-all duration-300",
+                                    "h-14 px-8 text-lg",
                                     aclonica.className
                                 )}>
-                                <span className="text-nowrap">
-                                    {isUserLoggedIn === null ? 'Chargement...' : "Commencer l'aventure"}
-                                </span>
-                                <ChevronRight className="ml-2" />
-                            </Button>
+                                {isUserLoggedIn === null ? 'Chargement...' : "Commencer l'aventure"}
+                            </InteractiveHoverButton>
                         </motion.div>
                     </div>
 
@@ -516,8 +509,6 @@ const FeedbackDialog = ({ userData }: { userData: any }) => {
             <DialogTrigger asChild>
                 <Button className={cn(
                     "rounded-full h-12 px-8",
-                    "bg-[#c9a965] text-[#0c0c0e] hover:bg-[#f7d96d]",
-                    "shadow-[0_0_20px_rgba(201,169,101,0.2)]",
                     aclonica.className
                 )}>
                     <Mail className="mr-2 h-5 w-5" />
@@ -550,13 +541,12 @@ const FeedbackDialog = ({ userData }: { userData: any }) => {
                             disabled={isSending}
                             className={cn(
                                 "w-full h-12 rounded-xl group",
-                                "bg-[#c9a965] text-[#0c0c0e] hover:bg-[#f7d96d]",
                                 aclonica.className
                             )}
                         >
                             {isSending ? (
                                 <span className="flex items-center">
-                                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-[#0c0c0e]/20 border-t-[#0c0c0e]" />
+                                    <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-current/20 border-t-current" />
                                     Envoi en cours...
                                 </span>
                             ) : (

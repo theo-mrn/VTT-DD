@@ -1,11 +1,31 @@
 "use client";
 
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, OrbitControls } from '@react-three/drei';
 import { VisualDie } from './visual-die';
 import { getSkinById, DICE_SKINS } from './dice-definitions';
 import * as THREE from 'three';
+
+// Pauses rendering while the element is off-screen so the WebGL context isn't
+// burning CPU/GPU when the user has scrolled away.
+function useInView<T extends HTMLElement>(rootMargin = '200px') {
+    const ref = useRef<T>(null);
+    const [inView, setInView] = useState(false);
+
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => setInView(entry.isIntersecting),
+            { rootMargin }
+        );
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [rootMargin]);
+
+    return [ref, inView] as const;
+}
 
 export const AutoRotatingDie = ({ type, skinId }: { type: string, skinId: string }) => {
     const groupRef = useRef<THREE.Group>(null);
@@ -37,6 +57,7 @@ export function DicePreview({ skinId, type = "d20", className = "" }: { skinId: 
                 shadows
                 camera={{ position: [0, 0, 8], fov: 45 }}
                 gl={{ alpha: true, antialias: true }}
+                dpr={[1, 1.5]}
             >
                 <ambientLight intensity={0.9} />
                 <spotLight
@@ -64,21 +85,28 @@ export function DicePreview({ skinId, type = "d20", className = "" }: { skinId: 
  * - pointer-events: none sur le wrapper
  */
 export function DicePreviewCard({ skinId, type = "d20" }: { skinId: string; type?: string }) {
+    const [ref, inView] = useInView<HTMLDivElement>();
+
     return (
         <div
+            ref={ref}
             className="absolute inset-0 w-full h-full"
             style={{ pointerEvents: 'none' }}
         >
-            <Canvas
-                camera={{ position: [0, 0, 8], fov: 45 }}
-                gl={{ alpha: true, antialias: true, powerPreference: 'low-power' }}
-                style={{ pointerEvents: 'none' }}
-            >
-                <ambientLight intensity={0.8} />
-                <spotLight position={[10, 10, 10]} angle={0.5} penumbra={1} intensity={2} />
-                <pointLight position={[-10, -10, -10]} intensity={0.5} />                <Environment preset="city" />
-                <AutoRotatingDie type={type} skinId={skinId} />
-            </Canvas>
+            {inView && (
+                <Canvas
+                    camera={{ position: [0, 0, 8], fov: 45 }}
+                    gl={{ alpha: true, antialias: true, powerPreference: 'low-power' }}
+                    dpr={[1, 1.5]}
+                    style={{ pointerEvents: 'none' }}
+                >
+                    <ambientLight intensity={0.8} />
+                    <spotLight position={[10, 10, 10]} angle={0.5} penumbra={1} intensity={2} />
+                    <pointLight position={[-10, -10, -10]} intensity={0.5} />
+                    <Environment preset="city" />
+                    <AutoRotatingDie type={type} skinId={skinId} />
+                </Canvas>
+            )}
         </div>
     );
 }
