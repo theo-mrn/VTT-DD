@@ -16,7 +16,11 @@ import {
     X,
     Check,
     Settings,
-    SlidersHorizontal
+    SlidersHorizontal,
+    Coins as CoinsIcon,
+    Gem,
+    Dices,
+    Package
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -64,6 +68,7 @@ import { db } from '@/lib/firebase';
 import { collection, addDoc, onSnapshot, getCountFromServer } from 'firebase/firestore';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { generateTreasure, Treasure, EquipmentData } from '@/lib/treasure-utils';
 
 const DIFFICULTIES: EncounterDifficulty[] = ['Easy', 'Medium', 'Hard', 'Deadly'];
 
@@ -106,6 +111,13 @@ export default function EncounterGenerator() {
     const [encounterCount, setEncounterCount] = useState(0);
     const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
 
+    // Trésor (optionnel) — catalogue d'objets + popup de butin
+    const [equipmentData, setEquipmentData] = useState<EquipmentData>({});
+    const [treasure, setTreasure] = useState<Treasure | null>(null);
+    const [treasureSource, setTreasureSource] = useState<string>('');
+    const [treasureOpen, setTreasureOpen] = useState(false);
+    const lastTreasureEncounter = React.useRef<GeneratedEncounter | null>(null);
+
     // Players listener
     useEffect(() => {
         if (!roomId) return;
@@ -140,6 +152,27 @@ export default function EncounterGenerator() {
             setLoading(false);
         });
     }, []);
+
+    // Charge le catalogue d'objets pour la génération de trésor
+    useEffect(() => {
+        fetch('/tabs/data.json')
+            .then(res => res.json())
+            .then((data: EquipmentData) => setEquipmentData(data))
+            .catch(err => console.error('Error loading data.json:', err));
+    }, []);
+
+    const openTreasure = (encounter: GeneratedEncounter, label: string) => {
+        lastTreasureEncounter.current = encounter;
+        setTreasureSource(label);
+        setTreasure(generateTreasure(encounter, equipmentData));
+        setTreasureOpen(true);
+    };
+
+    const rerollTreasure = () => {
+        if (lastTreasureEncounter.current) {
+            setTreasure(generateTreasure(lastTreasureEncounter.current, equipmentData));
+        }
+    };
 
     const toggleType = (type: string) => {
         setSelectedTypes(prev => {
@@ -464,6 +497,16 @@ export default function EncounterGenerator() {
                                                                     <div className="flex items-center gap-2">
                                                                         <Button
                                                                             size="sm"
+                                                                            variant="outline"
+                                                                            className="border-[#c0a080]/40 bg-transparent text-[#c0a080] hover:bg-[#c0a080]/10 hover:text-[#c0a080] h-7 text-xs"
+                                                                            onClick={() => openTreasure(encounter, `Proposition ${pi + 1}`)}
+                                                                            title="Générer un trésor pour cette rencontre"
+                                                                        >
+                                                                            <Gem className="w-3 h-3 mr-1" />
+                                                                            Trésor
+                                                                        </Button>
+                                                                        <Button
+                                                                            size="sm"
                                                                             className="bg-[#c0a080] text-black hover:bg-[#d4b494] h-7 text-xs"
                                                                             onClick={() => handleSaveAsTemplates(pi)}
                                                                         >
@@ -644,6 +687,75 @@ export default function EncounterGenerator() {
                     </Button>
                 </div>
             </div>
+
+            {/* Treasure dialog */}
+            <Dialog open={treasureOpen} onOpenChange={setTreasureOpen}>
+                <DialogContent className="bg-[#141414] border-[#333] text-gray-200 max-h-[85vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle className="text-white flex items-center gap-2">
+                            <Gem className="w-5 h-5 text-[#c0a080]" /> Trésor
+                            {treasureSource && <span className="text-xs font-normal text-gray-500">— {treasureSource}</span>}
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {treasure && (
+                        <div className="space-y-5">
+                            {/* Pièces */}
+                            <div>
+                                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-2">
+                                    <CoinsIcon className="w-4 h-4" /> Pièces
+                                </h3>
+                                <div className="grid grid-cols-4 gap-2">
+                                    {([
+                                        { key: 'pp', label: 'Platine', color: 'text-slate-200' },
+                                        { key: 'po', label: 'Or', color: 'text-yellow-400' },
+                                        { key: 'pa', label: 'Argent', color: 'text-gray-300' },
+                                        { key: 'pc', label: 'Cuivre', color: 'text-amber-600' },
+                                    ] as const).map(({ key, label, color }) => (
+                                        <div key={key} className="bg-[#1a1a1a] border border-[#333] rounded-lg px-2 py-2 text-center">
+                                            <p className={cn("text-lg font-bold", color)}>{treasure.coins[key]}</p>
+                                            <p className="text-[10px] text-gray-500 uppercase">{key} · {label}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Objets */}
+                            <div>
+                                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-2">
+                                    <Package className="w-4 h-4" /> Objets ({treasure.items.length})
+                                </h3>
+                                {treasure.items.length === 0 ? (
+                                    <p className="text-xs text-gray-500 italic px-1 py-2">Aucun objet cette fois — la chance n'était pas au rendez-vous.</p>
+                                ) : (
+                                    <div className="space-y-1">
+                                        {treasure.items.map((item, i) => (
+                                            <div key={i} className="flex items-center justify-between bg-[#1a1a1a] border border-[#333] rounded px-3 py-1.5">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <span className="text-sm text-gray-200 truncate">{item.nom}</span>
+                                                    {item.quantity > 1 && <span className="text-[#c0a080] text-xs font-bold shrink-0">×{item.quantity}</span>}
+                                                </div>
+                                                <span className="text-[10px] text-gray-500 capitalize shrink-0">{item.category.replace(/_/g, ' ')}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex justify-end pt-2">
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={rerollTreasure}
+                                    className="border-[#333] bg-transparent text-gray-300 hover:bg-[#222] hover:text-white"
+                                >
+                                    <Dices className="w-4 h-4 mr-2" /> Re-tirer
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
 
             {/* Mobile settings dialog — parameters only, no generate button */}
             <Dialog open={mobileSettingsOpen} onOpenChange={setMobileSettingsOpen}>
