@@ -3,7 +3,7 @@
 import React, { useRef, useState } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { Environment, OrbitControls } from '@react-three/drei';
-import { VisualDie } from './throw';
+import { VisualDie } from './visual-die';
 import { getSkinById, DICE_SKINS } from './dice-definitions';
 import * as THREE from 'three';
 
@@ -38,16 +38,16 @@ export function DicePreview({ skinId, type = "d20", className = "" }: { skinId: 
                 camera={{ position: [0, 0, 8], fov: 45 }}
                 gl={{ alpha: true, antialias: true }}
             >
-                <ambientLight intensity={0.6} />
+                <ambientLight intensity={0.9} />
                 <spotLight
                     position={[10, 10, 10]}
-                    angle={0.5}
+                    angle={0.6}
                     penumbra={1}
-                    intensity={2}
+                    intensity={1.1}
                     castShadow
                 />
-                <pointLight position={[-10, -10, -10]} intensity={0.5} />
-                <Environment preset="city" />
+                <pointLight position={[-10, -10, -10]} intensity={0.4} />
+                <Environment preset="city" environmentIntensity={0.6} />
 
                 <AutoRotatingDie type={type} skinId={skinId} />
 

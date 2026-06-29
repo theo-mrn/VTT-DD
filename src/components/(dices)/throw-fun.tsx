@@ -6,7 +6,9 @@ import { Physics, usePlane, useConvexPolyhedron, useBox } from '@react-three/can
 import { Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { getSkinById, DiceSkin, DICE_SKINS } from './dice-definitions';
-import { VisualDie, createBeveledGeometry, getCachedGeometry, getAudioContext } from './throw';
+import { VisualDie } from './visual-die';
+import { createBeveledGeometry, getCachedGeometry } from './geometry';
+import { getAudioContext } from './audio';
 
 // ============================================================================
 // WALL & TABLE

@@ -1,6 +1,8 @@
 import { getAssetUrl } from '@/lib/asset-loader';
 
-export type SkinEffectType = 'metallic' | 'gem' | 'glass' | 'stone' | 'magic' | 'dark' | 'cyber' | 'organic' | 'celestial' | 'cursed';
+export type SkinEffectType = 'metallic' | 'gem' | 'glass' | 'stone' | 'magic' | 'dark' | 'cyber' | 'organic' | 'celestial' | 'cursed' | 'orb';
+// Core element rendered at the center of an 'orb' die (always billboarded toward the camera)
+export type CoreType = 'glow' | 'eye' | 'model';
 export type ParticleType = 'none' | 'fire' | 'ice' | 'sparkle' | 'smoke' | 'gold_dust' | 'silver_dust' | 'magic' | 'electric' | 'void' | 'nebula' | 'blood';
 export type CriticalType = 'success' | 'fail' | null;
 
@@ -29,12 +31,501 @@ export interface DiceSkin {
     particleColor2?: string;
     // Textures (optional)
     textureMap?: string;
+    tintTexture?: boolean;        // multiply the texture by bodyColor (e.g. tint a white marble green/amber)
+    // Signature procedural look, overrides the default style from effectType.
+    procStyle?: 'metallic' | 'stone' | 'magic' | 'gem' | 'dark' | 'cyber' | 'spectre' | 'poison';
+    // ── ORB SKINS ──────────────────────────────────────────────
+    // Only used when effectType === 'orb'. The outer shell stays transparent/glassy
+    // and rolls with the physics body, while a "core" element is rendered at the
+    // center and billboarded (always facing the camera, never rotating with the die).
+    coreType?: CoreType;          // 'glow' = procedural glowing element, 'model' = loaded .glb/.gltf
+    coreColor?: string;           // tint of the procedural glow core / emissive
+    coreColor2?: string;          // secondary accent color for the core
+    coreScale?: number;           // size multiplier for the core element (default 1)
+    coreModelUrl?: string;        // model URL when coreType === 'model'
+    coreRotation?: [number, number, number]; // presentation rotation (radians) for the model, applied after billboard
+    coreSpin?: number;            // idle spin speed (rad/s) around the model's own up axis; 0 = steady
+    shellColor?: string;          // outer glass shell tint (defaults to bodyColor)
+    shellOpacity?: number;        // outer glass shell opacity (default 0.25)
+    shellTintDistance?: number;   // attenuationDistance: higher = less tint, clearer core (default 2.5)
+    shellThickness?: number;      // glass thickness: lower = less tint (default 1.8)
     price: number;
     description?: string;
     rarity?: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 }
 
 export const DICE_SKINS: Record<string, DiceSkin> = {
+    // ── ORB SKINS (transparent shell + billboarded core) ────────
+    aqua_orb: {
+        id: 'aqua_orb',
+        name: 'Orbe Aquatique',
+        bodyColor: '#1565c0',
+        edgeColor: '#7ec8ff',
+        borderColor: '#ffffff',
+        textColor: '#ffffff',
+        shadowColor: '#021a3a',
+        metalness: 0,
+        roughness: 0.05,
+        envMapIntensity: 2.5,
+        effectType: 'orb',
+        emissive: '#000000',
+        emissiveIntensity: 0,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#7ec8ff',
+        innerGlowIntensity: 0,
+        rimLight: false,
+        rimLightColor: '#ffffff',
+        particleType: 'none',
+        particleColor: '#7ec8ff',
+        particleColor2: '#ffffff',
+        // Orb-specific config: deep blue glass shell + dense luminous core
+        coreType: 'glow',
+        coreColor: '#2b9bff',
+        coreColor2: '#0a2a6a',
+        coreScale: 1,
+        shellColor: '#0d63d6',
+        shellOpacity: 0.22,
+        price: 500,
+        description: "Une coque de verre vivante avec un cœur de lumière flottant.",
+        rarity: 'epic'
+    },
+    eye_orb: {
+        id: 'eye_orb',
+        name: 'Œil du Gardien',
+        bodyColor: '#5b2d8a',
+        edgeColor: '#c9a0ff',
+        borderColor: '#ffffff',
+        textColor: '#ffffff',
+        shadowColor: '#180531',
+        metalness: 0,
+        roughness: 0.05,
+        envMapIntensity: 2.5,
+        effectType: 'orb',
+        emissive: '#000000',
+        emissiveIntensity: 0,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#c9a0ff',
+        innerGlowIntensity: 0,
+        rimLight: false,
+        rimLightColor: '#ffffff',
+        particleType: 'none',
+        particleColor: '#c9a0ff',
+        particleColor2: '#ffffff',
+        // A living procedural eye that watches you, behind light violet glass.
+        // Amber iris on cool violet glass = strong warm/cool contrast so it pops.
+        coreType: 'eye',
+        coreColor: '#ffae1f',   // amber/gold iris
+        coreColor2: '#fff4e0',  // warm ivory sclera
+        coreScale: 1.05,
+        shellColor: '#9b6fd4',  // lighter violet
+        shellOpacity: 0.22,
+        shellTintDistance: 6,   // much clearer glass so the eye reads through
+        shellThickness: 1.0,
+        price: 750,
+        description: "Un œil ancien scellé dans le verre. Il vous observe.",
+        rarity: 'legendary'
+    },
+    shield_orb: {
+        id: 'shield_orb',
+        name: 'Égide du Gardien',
+        bodyColor: '#2a3a5a',
+        edgeColor: '#9cc4ff',
+        borderColor: '#ffffff',
+        textColor: '#ffffff',
+        shadowColor: '#0a1424',
+        metalness: 0,
+        roughness: 0.05,
+        envMapIntensity: 2.5,
+        effectType: 'orb',
+        emissive: '#000000',
+        emissiveIntensity: 0,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#9cc4ff',
+        innerGlowIntensity: 0,
+        rimLight: false,
+        rimLightColor: '#ffffff',
+        particleType: 'none',
+        particleColor: '#9cc4ff',
+        particleColor2: '#ffffff',
+        // A real 3D shield model floating inside clear steel-blue glass.
+        // Flat like the ring — keep it facing the camera (no spin) so we see
+        // the face, not the edge.
+        coreType: 'model',
+        coreModelUrl: getAssetUrl('/3d/shield.glb'),
+        coreColor: '#aed2ff',   // inner light tint
+        coreScale: 1.0,
+        shellColor: '#9cbce0',  // very light steel glass
+        shellOpacity: 0.03,
+        shellTintDistance: 1000, // essentially clear glass
+        shellThickness: 0.05,
+        price: 1500,
+        description: "Aucune lame n'a jamais franchi cette protection.",
+        rarity: 'legendary'
+    },
+    book_orb: {
+        id: 'book_orb',
+        name: 'Grimoire Ancien',
+        bodyColor: '#3a2a5a',
+        edgeColor: '#c9a0ff',
+        borderColor: '#ffffff',
+        textColor: '#ffffff',
+        shadowColor: '#120a24',
+        metalness: 0,
+        roughness: 0.05,
+        envMapIntensity: 2.5,
+        effectType: 'orb',
+        emissive: '#000000',
+        emissiveIntensity: 0,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#c9a0ff',
+        innerGlowIntensity: 0,
+        rimLight: false,
+        rimLightColor: '#ffffff',
+        particleType: 'none',
+        particleColor: '#c9a0ff',
+        particleColor2: '#ffffff',
+        // A real 3D book model floating inside clear violet glass
+        coreType: 'model',
+        coreModelUrl: getAssetUrl('/3d/book.glb'),
+        coreColor: '#d4b0ff',   // inner light tint
+        coreScale: 1.0,
+        coreSpin: 0.8,          // slow idle spin
+        shellColor: '#b89cdc',  // very light violet glass
+        shellOpacity: 0.03,
+        shellTintDistance: 1000, // essentially clear glass
+        shellThickness: 0.05,
+        price: 1500,
+        description: "Un savoir interdit, scellé pour le bien de tous.",
+        rarity: 'legendary'
+    },
+    potion_orb: {
+        id: 'potion_orb',
+        name: 'Élixir Mystique',
+        bodyColor: '#1f5a3a',
+        edgeColor: '#7affc0',
+        borderColor: '#ffffff',
+        textColor: '#ffffff',
+        shadowColor: '#05140d',
+        metalness: 0,
+        roughness: 0.05,
+        envMapIntensity: 2.5,
+        effectType: 'orb',
+        emissive: '#000000',
+        emissiveIntensity: 0,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#7affc0',
+        innerGlowIntensity: 0,
+        rimLight: false,
+        rimLightColor: '#ffffff',
+        particleType: 'none',
+        particleColor: '#7affc0',
+        particleColor2: '#ffffff',
+        // A real 3D potion model floating inside clear green glass
+        coreType: 'model',
+        coreModelUrl: getAssetUrl('/3d/potion.glb'),
+        coreColor: '#8affc8',   // inner light tint
+        coreScale: 1.0,
+        coreSpin: 0.8,          // slow idle spin
+        shellColor: '#8fe0b4',  // very light green glass
+        shellOpacity: 0.03,
+        shellTintDistance: 1000, // essentially clear glass
+        shellThickness: 0.05,
+        price: 1500,
+        description: "Un breuvage chatoyant dont nul ne connaît l'effet.",
+        rarity: 'legendary'
+    },
+    mug_orb: {
+        id: 'mug_orb',
+        name: 'Chope du Tavernier',
+        bodyColor: '#6b4a1f',
+        edgeColor: '#ffcf6e',
+        borderColor: '#ffffff',
+        textColor: '#ffffff',
+        shadowColor: '#1f1405',
+        metalness: 0,
+        roughness: 0.05,
+        envMapIntensity: 2.5,
+        effectType: 'orb',
+        emissive: '#000000',
+        emissiveIntensity: 0,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#ffcf6e',
+        innerGlowIntensity: 0,
+        rimLight: false,
+        rimLightColor: '#ffffff',
+        particleType: 'none',
+        particleColor: '#ffcf6e',
+        particleColor2: '#ffffff',
+        // A real 3D mug model floating inside clear amber glass
+        coreType: 'model',
+        coreModelUrl: getAssetUrl('/3d/mug.glb'),
+        coreColor: '#ffd98a',   // inner light tint
+        coreScale: 1.0,
+        coreSpin: 0.8,          // slow idle spin
+        shellColor: '#e0b48f',  // very light warm glass
+        shellOpacity: 0.03,
+        shellTintDistance: 1000, // essentially clear glass
+        shellThickness: 0.05,
+        price: 1500,
+        description: "Toujours pleine, jamais vide. Le rêve de tout aventurier.",
+        rarity: 'legendary'
+    },
+    mimique_orb: {
+        id: 'mimique_orb',
+        name: 'Mimique Captive',
+        bodyColor: '#5a2f1a',
+        edgeColor: '#ff8a5c',
+        borderColor: '#ffffff',
+        textColor: '#ffffff',
+        shadowColor: '#1a0d05',
+        metalness: 0,
+        roughness: 0.05,
+        envMapIntensity: 2.5,
+        effectType: 'orb',
+        emissive: '#000000',
+        emissiveIntensity: 0,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#ff8a5c',
+        innerGlowIntensity: 0,
+        rimLight: false,
+        rimLightColor: '#ffffff',
+        particleType: 'none',
+        particleColor: '#ff8a5c',
+        particleColor2: '#ffffff',
+        // A real 3D mimic model floating inside warm glass
+        coreType: 'model',
+        coreModelUrl: getAssetUrl('/3d/mimique.glb'),
+        coreColor: '#ffb27a',   // inner light tint
+        coreScale: 1.0,         // slightly smaller
+        coreSpin: 0.8,          // slow idle spin like the ring
+        shellColor: '#e0b48f',  // very light warm glass
+        shellOpacity: 0.03,
+        shellTintDistance: 1000, // essentially clear glass
+        shellThickness: 0.05,
+        price: 1500,
+        description: "Un coffre qui mord, prisonnier de sa propre cupidité.",
+        rarity: 'legendary'
+    },
+    ring_orb: {
+        id: 'ring_orb',
+        name: 'Anneau Scellé',
+        bodyColor: '#3a2a10',
+        edgeColor: '#ffd97a',
+        borderColor: '#ffffff',
+        textColor: '#ffffff',
+        shadowColor: '#1a1205',
+        metalness: 0,
+        roughness: 0.05,
+        envMapIntensity: 2.5,
+        effectType: 'orb',
+        emissive: '#000000',
+        emissiveIntensity: 0,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#ffd97a',
+        innerGlowIntensity: 0,
+        rimLight: false,
+        rimLightColor: '#ffffff',
+        particleType: 'none',
+        particleColor: '#ffd97a',
+        particleColor2: '#ffffff',
+        // A real 3D ring model floating inside warm amber glass
+        coreType: 'model',
+        coreModelUrl: getAssetUrl('/3d/ring.glb'),
+        coreColor: '#ffcf66',   // inner light tint
+        coreScale: 1,
+        coreRotation: [1.2, 0, 0.3], // tilt the ring so we see the circle, not the edge
+        coreSpin: 0.8,               // slow idle spin around its own axis
+
+        shellColor: '#c9962f',  // amber glass
+        shellOpacity: 0.12,
+        shellTintDistance: 40,
+        shellThickness: 0.4,
+        price: 1500,
+        description: "Un anneau de pouvoir scellé dans le verre. Un seul l'enchaîne.",
+        rarity: 'legendary'
+    },
+    beholder_orb: {
+        id: 'beholder_orb',
+        name: 'Œil Tyrannique',
+        bodyColor: '#1f3d2e',
+        edgeColor: '#7affc0',
+        borderColor: '#ffffff',
+        textColor: '#ffffff',
+        shadowColor: '#05140d',
+        metalness: 0,
+        roughness: 0.05,
+        envMapIntensity: 2.5,
+        effectType: 'orb',
+        emissive: '#000000',
+        emissiveIntensity: 0,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#7affc0',
+        innerGlowIntensity: 0,
+        rimLight: false,
+        rimLightColor: '#ffffff',
+        particleType: 'none',
+        particleColor: '#7affc0',
+        particleColor2: '#ffffff',
+        // A real 3D beholder model floating inside clear teal glass
+        coreType: 'model',
+        coreModelUrl: getAssetUrl('/3d/beholder.glb'),
+        coreColor: '#6affc0',   // inner light tint
+        coreScale: 1,
+        shellColor: '#3fae82',  // light teal glass
+        shellOpacity: 0.12,
+        shellTintDistance: 40,  // nearly clear glass so the model reads through
+        shellThickness: 0.4,
+        price: 1500,
+        description: "Un beholder miniature scellé dans une sphère de verre.",
+        rarity: 'legendary'
+    },
+    // ── SIGNATURE DICE (dedicated shaders) ──────────────────────
+    spectre: {
+        id: 'spectre',
+        name: 'Âme Errante',
+        bodyColor: '#10262e',   // dark spectral void body
+        edgeColor: '#1fb86a',   // saturated spectral green (soul color, not whitish)
+        borderColor: '#aaffee',
+        textColor: '#eafffb',
+        shadowColor: '#021015',
+        metalness: 0,
+        roughness: 0.4,
+        envMapIntensity: 0.8,
+        effectType: 'magic',
+        procStyle: 'spectre',
+        emissive: '#06201c',
+        emissiveIntensity: 0.15,
+        opacity: 1,             // opaque: misty look comes from veils + glow, not see-through
+        innerGlow: true,
+        innerGlowColor: '#7dffe0',
+        innerGlowIntensity: 0.6,
+        rimLight: true,
+        rimLightColor: '#aaffee',
+        particleType: 'none',
+        particleColor: '#7dffe0',
+        particleColor2: '#16323a',
+        price: 1500,
+        description: "Une âme prisonnière, à jamais à la dérive entre deux mondes.",
+        rarity: 'legendary'
+    },
+    poison: {
+        id: 'poison',
+        name: 'Fiel Corrosif',
+        bodyColor: '#1e3a12',   // dark sludge green body
+        edgeColor: '#9bff2e',   // toxic acid green glow
+        borderColor: '#c8ff66',
+        textColor: '#eaffd0',
+        shadowColor: '#0a1505',
+        metalness: 0.1,
+        roughness: 0.35,
+        envMapIntensity: 1.0,
+        effectType: 'magic',
+        procStyle: 'poison',
+        emissive: '#2a4a08',
+        emissiveIntensity: 0.5,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#9bff2e',
+        innerGlowIntensity: 0.5,
+        rimLight: true,
+        rimLightColor: '#c8ff66',
+        particleType: 'none',
+        particleColor: '#9bff2e',
+        particleColor2: '#1e3a12',
+        price: 1500,
+        description: "Un poison si virulent qu'il ronge la réalité elle-même.",
+        rarity: 'legendary'
+    },
+    // ── NEW PROCEDURAL DICE ─────────────────────────────────────
+    onyx_dore: {
+        id: 'onyx_dore',
+        name: 'Onyx Doré',
+        bodyColor: '#141118',   // deep black body
+        edgeColor: '#e8b54a',   // metallic gold veins (uAccent)
+        borderColor: '#ffd700',
+        textColor: '#ffe9b0',
+        shadowColor: '#000000',
+        metalness: 0.9,
+        roughness: 0.08,
+        envMapIntensity: 2.0,
+        effectType: 'dark',
+        emissive: '#3a2a00',
+        emissiveIntensity: 0.15,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#e8b54a',
+        innerGlowIntensity: 0,
+        rimLight: true,
+        rimLightColor: '#ffd700',
+        particleType: 'none',
+        particleColor: '#ffd700',
+        particleColor2: '#000000',
+        price: 750,
+        description: "Ténèbres polies, veinées d'or pur. La richesse dans l'ombre.",
+        rarity: 'epic'
+    },
+    sang_ancien: {
+        id: 'sang_ancien',
+        name: 'Sang Ancien',
+        bodyColor: '#6e0d12',   // dark blood red body
+        edgeColor: '#ff2a1a',   // incandescent blood-fire accent
+        borderColor: '#ff4433',
+        textColor: '#ffd8d0',
+        shadowColor: '#1a0000',
+        metalness: 0.3,
+        roughness: 0.3,
+        envMapIntensity: 1.2,
+        effectType: 'magic',
+        emissive: '#5a0000',
+        emissiveIntensity: 0.6,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#ff2a1a',
+        innerGlowIntensity: 0.5,
+        rimLight: true,
+        rimLightColor: '#ff5544',
+        particleType: 'none',
+        particleColor: '#ff2a1a',
+        particleColor2: '#5a0000',
+        price: 750,
+        description: "Le sang d'un dieu déchu coule encore dans ses veines.",
+        rarity: 'epic'
+    },
+    marbre_saphir: {
+        id: 'marbre_saphir',
+        name: 'Marbre Saphir',
+        bodyColor: '#16306e',   // deep midnight-blue marble body
+        edgeColor: '#dfe9ff',   // silvery-white veins
+        borderColor: '#6aa0ff',
+        textColor: '#ffffff',
+        shadowColor: '#04122e',
+        metalness: 0.2,
+        roughness: 0.15,
+        envMapIntensity: 1.2,
+        effectType: 'stone',
+        emissive: '#020a1a',
+        emissiveIntensity: 0.05,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#ffffff',
+        innerGlowIntensity: 0,
+        rimLight: true,
+        rimLightColor: '#bcd4ff',
+        particleType: 'none',
+        particleColor: '#ffffff',
+        price: 500,
+        description: "Bleu nuit profond, strié de veines d'argent lunaire.",
+        rarity: 'rare'
+    },
     gold: {
         id: 'gold',
         name: 'Or Royal',
@@ -120,17 +611,17 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     obsidian: {
         id: 'obsidian',
         name: 'Obsidienne',
-        bodyColor: '#0a0a0a',
-        edgeColor: '#1a1a2e',
+        bodyColor: '#15101f',   // very dark with a faint violet base (not pure black)
+        edgeColor: '#7c4dff',   // vivid violet accent so veins read in the shader
         borderColor: '#6633ff',
-        textColor: '#aa88ff',
+        textColor: '#c9b3ff',
         shadowColor: '#000000',
-        metalness: 0.95,
-        roughness: 0.02,
-        envMapIntensity: 3.0,
+        metalness: 0.9,
+        roughness: 0.05,
+        envMapIntensity: 2.0,
         effectType: 'dark',
-        emissive: '#4400aa',
-        emissiveIntensity: 0.25,
+        emissive: '#3a0a8a',
+        emissiveIntensity: 0.3,
         opacity: 1,
         innerGlow: true,
         innerGlowColor: '#6633ff',
@@ -534,17 +1025,17 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     void_walker: {
         id: 'void_walker',
         name: 'Marcheur du Vide',
-        bodyColor: '#000000',
-        edgeColor: '#111111',
+        bodyColor: '#0a0618',   // near-black with a cold indigo undertone
+        edgeColor: '#6a3bd6',   // indigo accent so the void veins read
         borderColor: '#4b0082', // Indigo
         textColor: '#e6e6fa', // Lavender
         shadowColor: '#000000',
         metalness: 0.8,
-        roughness: 0.2,
-        envMapIntensity: 1.0,
+        roughness: 0.15,
+        envMapIntensity: 1.2,
         effectType: 'dark',
-        emissive: '#1a0033',
-        emissiveIntensity: 0.4,
+        emissive: '#2a0a55',
+        emissiveIntensity: 0.45,
         opacity: 0.95,
         innerGlow: true,
         innerGlowColor: '#4b0082',
@@ -779,14 +1270,14 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     marbre_blanc: {
         id: 'marbre_blanc',
         name: 'Marbre Blanc',
-        bodyColor: '#f5f5f5', // Fallback white
-        edgeColor: '#e0e0e0',
+        bodyColor: '#eceae6', // bright marble white body
+        edgeColor: '#b8902f',   // refined gold veins on white
         borderColor: '#d4af37', // Gold accent
         textColor: '#2c2c2c', // Dark grey text
         shadowColor: '#aaaaaa',
-        metalness: 0.1,
+        metalness: 0.2,
         roughness: 0.15, // Polished marble
-        envMapIntensity: 1.5,
+        envMapIntensity: 1.2,
         effectType: 'stone',
         emissive: '#000000',
         emissiveIntensity: 0,
@@ -799,9 +1290,8 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleType: 'none',
         particleColor: '#ffffff',
         particleColor2: '#e0e0e0',
-        textureMap: getAssetUrl('/textures/marble_diffuse.png'),
         price: 125,
-        description: "Poli à la perfection pour les temples sacrés.",
+        description: "Poli à la perfection, veiné d'or, pour les temples sacrés.",
         rarity: 'uncommon'
     },
     cuir_ancien: {
@@ -1057,55 +1547,53 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     marbre_emeraude: {
         id: 'marbre_emeraude',
         name: 'Marbre Émeraude',
-        bodyColor: '#006400',
-        edgeColor: '#ffffff',
+        bodyColor: '#0f7a44',   // deep emerald body
+        edgeColor: '#e8b54a',   // saturated metallic gold veins
         borderColor: '#32cd32',
         textColor: '#ffffff',
-        shadowColor: '#002200',
-        metalness: 0.1,
-        roughness: 0.1,
-        envMapIntensity: 1.5,
+        shadowColor: '#003322',
+        metalness: 0.2,
+        roughness: 0.15,
+        envMapIntensity: 1.2,
         effectType: 'stone',
-        emissive: '#003300',
-        emissiveIntensity: 0.1,
+        emissive: '#00150c',
+        emissiveIntensity: 0.08,
         opacity: 1,
         innerGlow: false,
         innerGlowColor: '#ffffff',
         innerGlowIntensity: 0,
         rimLight: true,
-        rimLightColor: '#ffffff',
+        rimLightColor: '#aaffcc',
         particleType: 'none',
         particleColor: '#ffffff',
-        textureMap: 'https://assets.yner.fr/textures/marble_diffuse.png',
         price: 500,
-        description: "Un mélange élégant de vagues émeraudes et de volutes blanches.",
+        description: "Un mélange élégant de vagues émeraudes et de veines dorées.",
         rarity: 'rare'
     },
     marbre_ambre: {
         id: 'marbre_ambre',
         name: 'Marbre Ambré',
-        bodyColor: '#3d2b1f',
-        edgeColor: '#ffffff',
+        bodyColor: '#8a4a18',   // deep amber/caramel body
+        edgeColor: '#fff3df',   // creamy white veins (reads better than gold on amber)
         borderColor: '#d2691e',
         textColor: '#ffffff',
-        shadowColor: '#1a1105',
-        metalness: 0.1,
-        roughness: 0.1,
-        envMapIntensity: 1.5,
+        shadowColor: '#3a1f08',
+        metalness: 0.2,
+        roughness: 0.15,
+        envMapIntensity: 1.2,
         effectType: 'stone',
-        emissive: '#3d2b1f',
-        emissiveIntensity: 0.1,
+        emissive: '#1a0d03',
+        emissiveIntensity: 0.08,
         opacity: 1,
         innerGlow: false,
         innerGlowColor: '#ffffff',
         innerGlowIntensity: 0,
         rimLight: true,
-        rimLightColor: '#ffffff',
+        rimLightColor: '#ffd9a0',
         particleType: 'none',
         particleColor: '#ffffff',
-        textureMap: 'https://assets.yner.fr/textures/marble_diffuse.png',
         price: 500,
-        description: "Un mélange élégant de vagues ambrées et caramel.",
+        description: "Un mélange élégant de vagues ambrées et de veines dorées.",
         rarity: 'rare'
     }
 };

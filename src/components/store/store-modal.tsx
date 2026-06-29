@@ -5,7 +5,7 @@ import { DiceCard } from '../(dices)/dice-card';
 import { FunDiceThrower, FunDiceHandle } from '../(dices)/throw-fun';
 import { TOKEN_DEFINITIONS, DEFAULT_TOKEN_INVENTORY, TokenSkin, getTokenDefinition } from '../(fiches)/token-definitions';
 import { TokenCard } from '../(fiches)/token-card';
-import { Store, Backpack, Gem, X, Loader2, Crown, LayoutGrid, Dice5, Package, Settings, Sparkles } from 'lucide-react';
+import { Store, Backpack, Gem, X, Loader2, Crown, LayoutGrid, Dice5, Package, Settings, Sparkles, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { auth, db, doc, getDoc, updateDoc } from '@/lib/firebase';
@@ -38,6 +38,7 @@ export function StoreModal({
 }: StoreModalProps) {
     const [activeTab, setActiveTab] = useState<'home' | 'store' | 'inventory' | 'premium'>('home');
     const [filter, setFilter] = useState<'all' | 'dice' | 'token'>('all');
+    const [searchQuery, setSearchQuery] = useState<string>('');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
@@ -272,11 +273,20 @@ export function StoreModal({
 
     const getInventoryItems = () => {
         const items: ({ type: 'dice', data: DiceSkin } | { type: 'token', data: TokenSkin & { src: string } })[] = [];
+        const query = searchQuery.toLowerCase();
         if (filter === 'all' || filter === 'dice') {
-            allDiceSkins.filter(s => isPremium || diceInventory.includes(s.id)).forEach(d => items.push({ type: 'dice', data: d }));
+            allDiceSkins.filter(s => {
+                const hasAccess = isPremium || diceInventory.includes(s.id);
+                const matchesSearch = s.name.toLowerCase().includes(query);
+                return hasAccess && matchesSearch;
+            }).forEach(d => items.push({ type: 'dice', data: d }));
         }
         if (filter === 'all' || filter === 'token') {
-            enrichedTokens.filter(s => isPremium || tokenInventory.includes(s.id) || s.unlockCondition === 'free').forEach(t => items.push({ type: 'token', data: t }));
+            enrichedTokens.filter(s => {
+                const hasAccess = isPremium || tokenInventory.includes(s.id) || s.unlockCondition === 'free';
+                const matchesSearch = s.name.toLowerCase().includes(query);
+                return hasAccess && matchesSearch;
+            }).forEach(t => items.push({ type: 'token', data: t }));
         }
         return items;
     };
@@ -284,11 +294,20 @@ export function StoreModal({
     const getStoreItems = () => {
         if (isPremium) return [];
         const items: ({ type: 'dice', data: DiceSkin } | { type: 'token', data: TokenSkin & { src: string } })[] = [];
+        const query = searchQuery.toLowerCase();
         if (filter === 'all' || filter === 'dice') {
-            allDiceSkins.filter(s => !diceInventory.includes(s.id)).forEach(d => items.push({ type: 'dice', data: d }));
+            allDiceSkins.filter(s => {
+                const notOwned = !diceInventory.includes(s.id);
+                const matchesSearch = s.name.toLowerCase().includes(query);
+                return notOwned && matchesSearch;
+            }).forEach(d => items.push({ type: 'dice', data: d }));
         }
         if (filter === 'all' || filter === 'token') {
-            enrichedTokens.filter(s => !tokenInventory.includes(s.id) && s.unlockCondition !== 'free').forEach(t => items.push({ type: 'token', data: t }));
+            enrichedTokens.filter(s => {
+                const notOwned = !tokenInventory.includes(s.id) && s.unlockCondition !== 'free';
+                const matchesSearch = s.name.toLowerCase().includes(query);
+                return notOwned && matchesSearch;
+            }).forEach(t => items.push({ type: 'token', data: t }));
         }
         return items;
     };
@@ -302,7 +321,7 @@ export function StoreModal({
     useEffect(() => {
         setCurrentPage(1);
         document.getElementById('store-modal-scroll-area')?.scrollTo({ top: 0, behavior: 'smooth' });
-    }, [activeTab, filter]);
+    }, [activeTab, filter, searchQuery]);
 
     const handlePageChange = (newPage: number) => {
         setCurrentPage(newPage);
@@ -335,7 +354,7 @@ export function StoreModal({
                                 <Store className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--accent-brown)]" />
                             </div>
                             <div className="min-w-0">
-                                <h2 className="text-base sm:text-xl font-black tracking-tight text-[var(--text-primary)] uppercase italic truncate">La Boutique du MJ</h2>
+                                <h2 className="text-base sm:text-xl font-black tracking-tight text-[var(--text-primary)] uppercase italic truncate">Boutique</h2>
                                 <p className="hidden sm:block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest">Épique & Légendaire</p>
                             </div>
                         </div>
@@ -372,34 +391,48 @@ export function StoreModal({
 
                 {/* --- FILTERS (Only for Store and Inventory) --- */}
                 {(activeTab === 'store' || activeTab === 'inventory') && (
-                    <div className="flex items-center gap-2 sm:gap-3 px-4 sm:px-8 py-3 sm:py-4 bg-[var(--bg-darker)]/50 border-b border-[var(--border-color)] overflow-x-auto no-scrollbar">
-                        <button
-                            onClick={() => setFilter('all')}
-                            className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${filter === 'all'
-                                ? 'bg-[var(--text-primary)]/10 text-[var(--text-primary)] border-[var(--border-color)]'
-                                : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'}`}
-                        >
-                            Tout Voir
-                        </button>
-                        <div className="w-[1px] h-4 bg-[var(--border-color)] mx-2" />
-                        <button
-                            onClick={() => setFilter('dice')}
-                            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${filter === 'dice'
-                                ? 'bg-[var(--accent-blue)]/20 text-[var(--accent-blue)] border-[var(--accent-blue)]/30'
-                                : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'}`}
-                        >
-                            <Dice5 className="w-4 h-4" />
-                            Dés 3D
-                        </button>
-                        <button
-                            onClick={() => setFilter('token')}
-                            className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border ${filter === 'token'
-                                ? 'bg-[var(--accent-brown)]/20 text-[var(--accent-brown)] border-[var(--accent-brown)]/30'
-                                : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'}`}
-                        >
-                            <LayoutGrid className="w-4 h-4" />
-                            Cadres
-                        </button>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-2 px-4 sm:px-8 py-3 sm:py-4 bg-[var(--bg-darker)]/50 border-b border-[var(--border-color)]">
+                        {/* Search Bar */}
+                        <div className="w-full sm:w-auto flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--bg-dark)] border border-[var(--border-color)] focus-within:border-[var(--accent-brown)] transition-colors">
+                            <Search className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
+                            <input
+                                type="text"
+                                placeholder="Chercher..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="flex-1 bg-transparent text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] outline-none"
+                            />
+                        </div>
+
+                        <div className="w-full sm:w-auto flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
+                            <button
+                                onClick={() => setFilter('all')}
+                                className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border whitespace-nowrap ${filter === 'all'
+                                    ? 'bg-[var(--text-primary)]/10 text-[var(--text-primary)] border-[var(--border-color)]'
+                                    : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'}`}
+                            >
+                                Tout Voir
+                            </button>
+                            <div className="w-[1px] h-4 bg-[var(--border-color)] mx-2" />
+                            <button
+                                onClick={() => setFilter('dice')}
+                                className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border whitespace-nowrap ${filter === 'dice'
+                                    ? 'bg-[var(--accent-blue)]/20 text-[var(--accent-blue)] border-[var(--accent-blue)]/30'
+                                    : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'}`}
+                            >
+                                <Dice5 className="w-4 h-4" />
+                                Dés 3D
+                            </button>
+                            <button
+                                onClick={() => setFilter('token')}
+                                className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border whitespace-nowrap ${filter === 'token'
+                                    ? 'bg-[var(--accent-brown)]/20 text-[var(--accent-brown)] border-[var(--accent-brown)]/30'
+                                    : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'}`}
+                            >
+                                <LayoutGrid className="w-4 h-4" />
+                                Cadres
+                            </button>
+                        </div>
                     </div>
                 )}
 
