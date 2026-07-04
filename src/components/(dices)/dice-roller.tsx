@@ -377,7 +377,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
 
     const total3DDice = requests3D.reduce((sum, r) => sum + r.count, 0);
 
-    if (requests3D.length === 0 || !show3DAnimations || isBlind || total3DDice > 50) {
+    if (requests3D.length === 0 || !show3DAnimations || isBlind || total3DDice > 15) {
       const simulatedResults: { type: string, value: number }[] = [];
       requests3D.forEach(req => {
         for (let i = 0; i < req.count; i++) {

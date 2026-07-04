@@ -20,6 +20,7 @@ interface DiceCardProps {
 export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip, onTry }: DiceCardProps) {
     const cardRef = useRef<HTMLDivElement>(null);
     const [isVisible, setIsVisible] = useState(false);
+    const [hovered, setHovered] = useState(false);
 
     useEffect(() => {
         const el = cardRef.current;
@@ -44,6 +45,8 @@ export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip,
             ref={cardRef}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
+            onPointerEnter={() => setHovered(true)}
+            onPointerLeave={() => setHovered(false)}
             className={cn(
                 "group relative flex flex-col rounded-2xl overflow-hidden transition-all duration-500",
                 "bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[var(--text-primary)]/20 hover:shadow-[0_0_30px_rgba(var(--accent-brown-rgb),0.03)]",
@@ -55,7 +58,7 @@ export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip,
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(var(--text-primary-rgb),0.05)_0%,transparent_100%)]" />
                 {isVisible && (
                     <div className="w-full h-full scale-95 group-hover:scale-110 transition-transform duration-700">
-                        <DicePreviewCard skinId={skin.id} type="d20" />
+                        <DicePreviewCard skinId={skin.id} type="d20" active={hovered} />
                     </div>
                 )}
 

@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { TokenSkin } from './token-definitions';
-import { Lock, Check, Zap, ShoppingCart } from 'lucide-react';
+import { Lock, Check, Zap, ShoppingCart, Crown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
@@ -14,10 +14,11 @@ interface TokenCardProps {
     canAfford: boolean;
     onBuy: () => void;
     onEquip: () => void;
+    /** Owned only because the user is premium (not actually bought) → "Possédé" badge. */
+    ownedByPremium?: boolean;
 }
 
-export function TokenCard({ skin, src, isOwned, isEquipped, canAfford, onBuy, onEquip }: TokenCardProps) {
-    const isPremiumOnly = skin.unlockCondition === 'purchase' && skin.price === 0;
+export function TokenCard({ skin, src, isOwned, isEquipped, canAfford, onBuy, onEquip, ownedByPremium = false }: TokenCardProps) {
 
     const getRarityColor = (rarity: string) => {
         switch (rarity) {
@@ -64,6 +65,12 @@ export function TokenCard({ skin, src, isOwned, isEquipped, canAfford, onBuy, on
                         <div className="flex items-center gap-1.5 px-2 py-1 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-md text-[9px] font-black uppercase shadow-lg shadow-[var(--accent-brown)]/10 animate-in zoom-in-50 duration-300">
                             <Check className="w-3 h-3" strokeWidth={4} />
                             Équipé
+                        </div>
+                    )}
+                    {!isEquipped && ownedByPremium && (
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-[var(--accent-brown)]/20 text-[var(--accent-brown)] border border-[var(--accent-brown)]/30 rounded-md text-[9px] font-black uppercase">
+                            <Crown className="w-3 h-3" />
+                            Possédé
                         </div>
                     )}
                     {!isOwned && (

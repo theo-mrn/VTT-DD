@@ -1,7 +1,6 @@
 import { getAssetUrl } from '@/lib/asset-loader';
 
 export type SkinEffectType = 'metallic' | 'gem' | 'glass' | 'stone' | 'magic' | 'dark' | 'cyber' | 'organic' | 'celestial' | 'cursed' | 'orb';
-// Core element rendered at the center of an 'orb' die (always billboarded toward the camera)
 export type CoreType = 'glow' | 'eye' | 'model';
 export type ParticleType = 'none' | 'fire' | 'ice' | 'sparkle' | 'smoke' | 'gold_dust' | 'silver_dust' | 'magic' | 'electric' | 'void' | 'nebula' | 'blood';
 export type CriticalType = 'success' | 'fail' | null;
@@ -33,7 +32,7 @@ export interface DiceSkin {
     textureMap?: string;
     tintTexture?: boolean;        // multiply the texture by bodyColor (e.g. tint a white marble green/amber)
     // Signature procedural look, overrides the default style from effectType.
-    procStyle?: 'metallic' | 'stone' | 'magic' | 'gem' | 'dark' | 'cyber' | 'spectre' | 'poison';
+    procStyle?: 'metallic' | 'stone' | 'magic' | 'gem' | 'dark' | 'cyber' | 'spectre' | 'poison' | 'eclipse' | 'storm' | 'magma' | 'prism' | 'astral';
     // ── ORB SKINS ──────────────────────────────────────────────
     // Only used when effectType === 'orb'. The outer shell stays transparent/glassy
     // and rolls with the physics body, while a "core" element is rendered at the
@@ -389,6 +388,146 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         rarity: 'legendary'
     },
     // ── SIGNATURE DICE (dedicated shaders) ──────────────────────
+    singularite: {
+        id: 'singularite',
+        name: 'Singularité',
+        bodyColor: '#0d0a1e',   // deep space black-violet
+        edgeColor: '#8a5cff',   // violet nebula (drives the astral palette)
+        borderColor: '#5c7cff',
+        textColor: '#e8e2ff',   // starlight numbers
+        shadowColor: '#050310',
+        metalness: 0,
+        roughness: 1,
+        envMapIntensity: 0,
+        effectType: 'celestial',
+        procStyle: 'astral',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#7a5cff',   // cold violet light around the die
+        innerGlowIntensity: 0.6,
+        rimLight: true,
+        rimLightColor: '#5c7cff',
+        particleType: 'none',
+        particleColor: '#8a5cff',
+        particleColor2: '#25b8ff',
+        price: 2500,
+        description: "Un fragment d'univers, volé au ciel d'une nuit qui n'existe plus.",
+        rarity: 'legendary'
+    },
+    prism: {
+        id: 'prism',
+        name: 'Opale Prismatique',
+        bodyColor: '#efeef5',   // pearl white body (lit by the scene)
+        edgeColor: '#cdbcff',   // soft lavender accent
+        borderColor: '#b8a6f0',
+        textColor: '#3a2f55',   // dark plum numbers on the pearl
+        shadowColor: '#f7f4ff', // LIGHT outline so numbers pop on a light body
+        metalness: 0.25,
+        roughness: 0.3,
+        envMapIntensity: 0.9,
+        effectType: 'gem',
+        procStyle: 'prism',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#ffffff',
+        innerGlowIntensity: 0,
+        rimLight: true,
+        rimLightColor: '#e6d8ff',
+        particleType: 'none',
+        particleColor: '#cdbcff',
+        particleColor2: '#ffffff',
+        price: 2000,
+        description: "Chaque angle révèle une couleur que personne d'autre ne verra.",
+        rarity: 'legendary'
+    },
+    magma: {
+        id: 'magma',
+        name: 'Cœur de Magma',
+        bodyColor: '#241a14',   // dark basalt crust
+        edgeColor: '#ff9526',   // molten orange — drives the whole magma ramp
+        borderColor: '#ff6a1a',
+        textColor: '#ffd9a0',   // warm cream numbers
+        shadowColor: '#1a0d05',
+        metalness: 0,
+        roughness: 0.85,        // rough volcanic rock, no face-wide specular
+        envMapIntensity: 0.5,
+        effectType: 'magic',
+        procStyle: 'magma',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#ff6a1a',   // warm glow cast onto the table
+        innerGlowIntensity: 0.8,
+        rimLight: true,
+        rimLightColor: '#ff7a20',
+        particleType: 'none',
+        particleColor: '#ff9526',
+        particleColor2: '#ff3a0a',
+        price: 2000,
+        description: "Le sang de la terre coule encore sous sa croûte brisée.",
+        rarity: 'legendary'
+    },
+    storm: {
+        id: 'storm',
+        name: "Cœur de l'Orage",
+        bodyColor: '#2a3650',   // storm blue-grey (drives the cloud tint)
+        edgeColor: '#8fb4ff',   // electric blue — bolts and rim
+        borderColor: '#6a8fff',
+        textColor: '#dce8ff',   // pale ice-blue numbers
+        shadowColor: '#050a14',
+        metalness: 0,
+        roughness: 1,
+        envMapIntensity: 0,
+        effectType: 'magic',
+        procStyle: 'storm',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#7a9cff',   // cold light cast around it on each strike
+        innerGlowIntensity: 0.7,
+        rimLight: true,
+        rimLightColor: '#8fb4ff',
+        particleType: 'none',
+        particleColor: '#8fb4ff',
+        particleColor2: '#dce8ff',
+        price: 2000,
+        description: "L'orage vit à l'intérieur. Chaque lancer réveille la foudre.",
+        rarity: 'legendary'
+    },
+    eclipse: {
+        id: 'eclipse',
+        name: 'Éclipse',
+        bodyColor: '#171008',   // hot black obsidian (a warm near-black)
+        edgeColor: '#ffb428',   // solar gold — drives the whole corona ramp
+        borderColor: '#ff8c00',
+        textColor: '#ffd98a',   // warm gold numbers
+        shadowColor: '#000000',
+        metalness: 0.25,
+        roughness: 0.3,
+        envMapIntensity: 1.0,   // capped to 0.35 by the eclipse material path
+        effectType: 'dark',
+        procStyle: 'eclipse',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#ff7a00',   // warm light cast onto the table around it
+        innerGlowIntensity: 0.9,
+        rimLight: true,
+        rimLightColor: '#ff6a00',    // faint orange halo hugging the silhouette
+        particleType: 'none',
+        particleColor: '#ffb428',
+        particleColor2: '#ff5a00',
+        price: 2000,
+        description: "Un soleil mort, couronné d'un feu qui refuse de s'éteindre.",
+        rarity: 'legendary'
+    },
     spectre: {
         id: 'spectre',
         name: 'Âme Errante',

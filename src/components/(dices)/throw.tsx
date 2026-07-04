@@ -1,14 +1,14 @@
 "use client";
 import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
-import React, { useRef, useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { Physics, useConvexPolyhedron } from '@react-three/cannon';
 import { Environment } from '@react-three/drei';
 import { DiceSkin, getSkinById, CriticalType } from './dice-definitions';
 import * as THREE from 'three';
 import { getCachedGeometry, getDieValue } from './geometry';
-import { getAudioContext } from './audio';
-import { Table } from './scene';
+import { playRoll, startAmbience, ambienceForSkin, Ambience } from './audio';
+import { Table, visibleHalfExtents, DICE_CAM_HEIGHT, DICE_CAM_FOV } from './scene';
 import { VisualDie } from './visual-die';
 
 // Physics-driven die: handles the cannon body, impact audio, settle detection,
@@ -31,67 +31,25 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
     const _up = useRef(new THREE.Vector3(0, 1, 0));
     const _worldNormal = useRef(new THREE.Vector3());
 
-    // Procedural WebAudio heavy dice impact generator
-    const playClick = useCallback((velocity: number) => {
-        try {
-            const ctx = getAudioContext();
-            if (!ctx) return;
-
-            // 1. Low frequency "thud" (the weight of the die)
-            const osc = ctx.createOscillator();
-            const oscGain = ctx.createGain();
-            osc.type = 'sine';
-
-            // Start low, drop lower quickly (percussion envelope)
-            const baseFreq = 120 + Math.random() * 40;
-            osc.frequency.setValueAtTime(baseFreq, ctx.currentTime);
-            osc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.08);
-
-            // Lowered overall volume for the thud
-            oscGain.gain.setValueAtTime(Math.min(0.4, velocity / 5), ctx.currentTime);
-            oscGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
-
-            osc.connect(oscGain);
-            oscGain.connect(ctx.destination);
-
-            // 2. Short noise burst for the "clack/scrape" on the mat
-            const bufferSize = ctx.sampleRate * 0.05; // 50ms of noise
-            const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-            const data = buffer.getChannelData(0);
-            for (let i = 0; i < bufferSize; i++) {
-                data[i] = Math.random() * 2 - 1;
-            }
-            const noise = ctx.createBufferSource();
-            noise.buffer = buffer;
-
-            // Filter noise to make it sound like a soft mat, not harsh glass
-            const noiseFilter = ctx.createBiquadFilter();
-            noiseFilter.type = 'lowpass';
-            noiseFilter.frequency.value = 800 + velocity * 100; // Opens up slightly on harder hits
-
-            // Lowered overall volume for the scratch/clack
-            const noiseGain = ctx.createGain();
-            noiseGain.gain.setValueAtTime(Math.min(0.4, velocity / 10), ctx.currentTime);
-            noiseGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03); // Very short snap
-
-            noise.connect(noiseFilter);
-            noiseFilter.connect(noiseGain);
-            noiseGain.connect(ctx.destination);
-
-            osc.start();
-            noise.start();
-            osc.stop(ctx.currentTime + 0.1);
-        } catch (e) { }
-    }, []);
-
 
     const [ref, api] = useConvexPolyhedron(() => ({
         mass: 5,
         position,
+        // Random initial orientation: without this every die starts identity-
+        // oriented, which can correlate the settled face with the (similar)
+        // throw parameters and slightly bias results.
+        rotation: [
+            Math.random() * Math.PI * 2,
+            Math.random() * Math.PI * 2,
+            Math.random() * Math.PI * 2,
+        ] as [number, number, number],
         args: [vertices as any, faces],
-        material: { friction: 0.15, restitution: 0.5 },
-        linearDamping: 0.08,
-        angularDamping: 0.08,
+        // Enough friction to grip the table and convert sliding into tumbling.
+        material: { friction: 0.28, restitution: 0.5 },
+        // Low damping so dice keep tumbling across the table instead of dying
+        // after the first bounce ("dropped" feel).
+        linearDamping: 0.04,
+        angularDamping: 0.025,
         allowSleep: true,
         onCollide: (e) => {
             const impactVelocity = e.contact.impactVelocity;
@@ -102,7 +60,7 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
             // even sliding bumps.
             if (impactVelocity > 0.1 && !stopped && (now - lastImpactTime.current > 40)) {
                 lastImpactTime.current = now;
-                playClick(impactVelocity);
+                playRoll(impactVelocity);
             }
         }
     }));
@@ -111,6 +69,16 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
         getPosition: () => position
     }));
 
+    // Themed continuous ambience (e.g. soul: cold wind + murmur) for the whole
+    // life of the die, regardless of how it rolls. Started on mount, faded out
+    // on unmount (when the die disappears).
+    useEffect(() => {
+        const id = ambienceForSkin(skin);
+        if (!id) return;
+        const amb: Ambience | null = startAmbience(id);
+        return () => { amb?.stop(); };
+    }, [skin]);
+
     useEffect(() => {
         const t = setTimeout(() => setCanCheck(true), 400); // 400ms check delay
         return () => clearTimeout(t);
@@ -118,7 +86,8 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
 
     useEffect(() => {
         if (api) {
-            const randomSpin = [(Math.random() - 0.5) * 60, (Math.random() - 0.5) * 60, (Math.random() - 0.5) * 60] as [number, number, number];
+            // Strong initial spin so the die visibly tumbles instead of sliding.
+            const randomSpin = [(Math.random() - 0.5) * 100, (Math.random() - 0.5) * 100, (Math.random() - 0.5) * 100] as [number, number, number];
             api.angularVelocity.set(...randomSpin);
             api.velocity.set(...impulse);
         }
@@ -288,6 +257,19 @@ export const DiceThrower = () => {
         // Initialize available targets
         const availableTargets = (event.detail.targets || []) as { type: string, value: number }[];
 
+        // Playable area derived from the ACTUAL viewport (same math as the
+        // walls in scene.tsx): on narrow/portrait windows the visible width
+        // shrinks a lot, so hardcoded spawn coords would land off-screen.
+        const aspect = typeof window !== 'undefined'
+            ? window.innerWidth / Math.max(window.innerHeight, 1)
+            : 16 / 9;
+        const { halfX, halfZ } = visibleHalfExtents(aspect);
+        const dieMargin = 2.6; // wall inset + die radius, keeps results fully visible
+        const maxX = Math.max(halfX - dieMargin, 2);
+        const maxZ = Math.max(halfZ - dieMargin, 2);
+        // Aim right-of-center, but always inside the visible area.
+        const targetX = Math.min(maxX * 0.55, maxX);
+
         requests.forEach(req => {
             totalDiceCount += req.count;
             for (let i = 0; i < req.count; i++) {
@@ -299,18 +281,16 @@ export const DiceThrower = () => {
                     availableTargets.splice(targetIndex, 1);
                 }
 
-                // Décalage significatif vers la droite (2/3 de l'écran)
-                // Écran visible environ [-25, 25] -> 2/3 Droite correspond à X ~ 15-18
-                const startX = 15 + (Math.random() - 0.5) * 6; // Zone de départ entre X=15 et X=21
-                const startZ = 12 + (Math.random() * 2);
+                const startX = Math.min(targetX + (Math.random() - 0.5) * Math.min(6, maxX * 0.4), maxX);
+                const startZ = Math.min(12 + Math.random() * 2, maxZ);
                 const startY = 6 + (Math.random() * 4) + (i * 1.5);
 
-                // Force dirigée pour rester dans le tiers droit (cible X=15)
-                const targetX = 15;
-                // Forces équilibrées
-                const forceX = -(startX - targetX) * (1.2 + Math.random() * 0.6) + (Math.random() - 0.5) * 3;
-                const forceY = 4 + Math.random() * 8;
-                const forceZ = -startZ * (0.8 + Math.random() * 0.4);
+                // Real throwing energy: a leftward drive + a strong Z crossing so
+                // the die travels and TUMBLES across the table (it used to be
+                // nearly dropped in place).
+                const forceX = -(startX - targetX) * (1.6 + Math.random() * 0.8) - (3 + Math.random() * 4);
+                const forceY = 5 + Math.random() * 9;
+                const forceZ = -startZ * (1.1 + Math.random() * 0.5);
 
                 const id = crypto.randomUUID();
                 newDice.push({
@@ -364,32 +344,33 @@ export const DiceThrower = () => {
                 manualstart
             />
             <Canvas
-                camera={{ position: [0, 40, 0], fov: 45 }}
+                camera={{ position: [0, DICE_CAM_HEIGHT, 0], fov: DICE_CAM_FOV }}
                 gl={{ alpha: true }}
                 dpr={[1, 1.5]}
                 frameloop={hasDice ? 'always' : 'demand'}
                 style={{ pointerEvents: 'none' }}
             >
-                {/* Softer lighting: higher ambient + gentler key lights so solid
-                    dice don't get blown-out white highlights. */}
-                <ambientLight intensity={0.7} />
+                {/* Flat, even lighting: mostly ambient with faint key lights, so
+                    no single facet ever catches a face-wide blown highlight. */}
+                <ambientLight intensity={1.05} />
                 <spotLight
                     position={[15, 40, 15]}
                     angle={0.6}
                     penumbra={1}
-                    intensity={1.1}
+                    intensity={0.45}
                 />
                 <spotLight
                     position={[-10, 30, -10]}
                     angle={0.5}
                     penumbra={1}
-                    intensity={0.6}
+                    intensity={0.25}
                     color="#ffeedd"
                 />
-                <pointLight position={[0, 20, 0]} intensity={0.5} color="#fff8e7" />
+                <pointLight position={[0, 20, 0]} intensity={0.25} color="#fff8e7" />
 
-                {/* City environment for high-contrast premium reflections */}
-                <Environment preset="city" />
+                {/* Environment kept for metallic reflections, but dimmed so it
+                    can't wash faces out. */}
+                <Environment preset="city" environmentIntensity={0.55} />
 
                 <Physics gravity={[0, -60, 0]} defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }} allowSleep={true} iterations={10}>
                     <Table />

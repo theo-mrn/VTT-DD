@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { DICE_SKINS, DiceSkin } from '../(dices)/dice-definitions';
 import { DiceCard } from '../(dices)/dice-card';
 import { FunDiceThrower, FunDiceHandle } from '../(dices)/throw-fun';
-import { TOKEN_DEFINITIONS, DEFAULT_TOKEN_INVENTORY, TokenSkin, getTokenDefinition } from '../(fiches)/token-definitions';
+import { DEFAULT_TOKEN_INVENTORY, TokenSkin, getTokenDefinition } from '../(fiches)/token-definitions';
 import { TokenCard } from '../(fiches)/token-card';
-import { Store, Backpack, Gem, X, Loader2, Crown, LayoutGrid, Dice5, Package, Settings, Sparkles, Search } from 'lucide-react';
+import { Store, Backpack, X, Loader2, Crown, LayoutGrid, Dice5, Package, Settings, Sparkles, Search, ChevronDown, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { auth, db, doc, getDoc, updateDoc } from '@/lib/firebase';
@@ -14,6 +14,20 @@ import { useGame } from '@/contexts/GameContext';
 
 // Default skins given to every user
 const DEFAULT_DICE_INVENTORY = ['gold', 'silver', 'steampunk_copper'];
+
+type TabId = 'catalog' | 'inventory' | 'premium';
+type CategoryFilter = 'all' | 'dice' | 'token';
+type RarityFilter = 'all' | 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+
+const RARITY_OPTIONS: { id: RarityFilter; label: string; color: string }[] = [
+    { id: 'all', label: 'Toutes raretés', color: 'var(--text-primary)' },
+    { id: 'legendary', label: 'Légendaire', color: 'var(--accent-brown)' },
+    { id: 'epic', label: 'Épique', color: 'var(--accent-blue)' },
+    { id: 'rare', label: 'Rare', color: '#3b82f6' },
+    { id: 'uncommon', label: 'Peu commun', color: '#22c55e' },
+    { id: 'common', label: 'Commun', color: '#9ca3af' },
+];
+const RARITY_ORDER: Record<string, number> = { common: 0, uncommon: 1, rare: 2, epic: 3, legendary: 4 };
 
 interface StoreModalProps {
     isOpen: boolean;
@@ -36,57 +50,58 @@ export function StoreModal({
     onSelectTokenSkin,
     tokenList = []
 }: StoreModalProps) {
-    const [activeTab, setActiveTab] = useState<'home' | 'store' | 'inventory' | 'premium'>('home');
-    const [filter, setFilter] = useState<'all' | 'dice' | 'token'>('all');
-    const [searchQuery, setSearchQuery] = useState<string>('');
+    // --- View state ---
+    const [activeTab, setActiveTab] = useState<TabId>('catalog');
+    const [filter, setFilter] = useState<CategoryFilter>('all');
+    const [rarityFilter, setRarityFilter] = useState<RarityFilter>('all');
+    const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
+    const itemsPerPage = 12;
 
-    // User State
+    // --- User state ---
     const { user: gameUser } = useGame();
     const [uid, setUid] = useState<string | null>(null);
     const [email, setEmail] = useState<string | null>(null);
-    const [isPremium, setIsPremium] = useState<boolean>(false);
+    const [isPremium, setIsPremium] = useState(false);
     const [stripeCustomerId, setStripeCustomerId] = useState<string | null>(null);
     const [diceInventory, setDiceInventory] = useState<string[]>([]);
     const [tokenInventory, setTokenInventory] = useState<string[]>([]);
     const [apiTokens, setApiTokens] = useState<{ id: number, name: string, src: string }[]>([]);
 
-    // UI State
+    // --- UI state ---
     const [mounted, setMounted] = useState(false);
     const [isLoadingInventory, setIsLoadingInventory] = useState(true);
     const [isCheckingOut, setIsCheckingOut] = useState(false);
     const [isManagingPortal, setIsManagingPortal] = useState(false);
     const [shouldRender, setShouldRender] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
+    const [rarityOpen, setRarityOpen] = useState(false);
+    const rarityRef = useRef<HTMLDivElement>(null);
 
-    // Imperative dice thrower used by the "Essayer" buttons
+    // "Try it" dice thrower
     const funDiceRef = useRef<FunDiceHandle>(null);
     const tryDice = (skinId: string) => funDiceRef.current?.roll(skinId, 'd20');
 
-    // Sync filter prop on open
+    // Sync initial category to the filter on open
     useEffect(() => {
-        if (isOpen) {
-            setFilter(initialCategory === 'dice' ? 'dice' : 'token');
-        }
+        if (isOpen) setFilter(initialCategory === 'token' ? 'token' : 'all');
     }, [isOpen, initialCategory]);
 
-    // Mount and Animation logic
+    // Mount + open/close animation
     useEffect(() => {
         if (isOpen) {
             setShouldRender(true);
             const raf = requestAnimationFrame(() => setIsVisible(true));
             return () => cancelAnimationFrame(raf);
-        } else {
-            setIsVisible(false);
-            const timer = setTimeout(() => setShouldRender(false), 300);
-            return () => clearTimeout(timer);
         }
+        setIsVisible(false);
+        const t = setTimeout(() => setShouldRender(false), 300);
+        return () => clearTimeout(t);
     }, [isOpen]);
 
     useEffect(() => { setMounted(true); }, []);
 
-    // Load Inventory & Tokens
+    // Load inventory + API tokens
     useEffect(() => {
         const loadTokens = async () => {
             try {
@@ -118,15 +133,13 @@ export function StoreModal({
                 const userSnap = await getDoc(userRef);
                 if (userSnap.exists()) {
                     const data = userSnap.data();
-
                     setDiceInventory(data.dice_inventory || DEFAULT_DICE_INVENTORY);
                     setTokenInventory(data.token_inventory || DEFAULT_TOKEN_INVENTORY);
                     setStripeCustomerId(data.stripeCustomerId || null);
-
                     let premiumStatus = data.premium;
                     if (premiumStatus === undefined) {
                         try { await updateDoc(userRef, { premium: false }); premiumStatus = false; }
-                        catch (e) { console.error("Error setting default premium:", e); }
+                        catch (e) { console.error('Error setting default premium:', e); }
                     }
                     setIsPremium(!!premiumStatus);
                 } else {
@@ -144,7 +157,7 @@ export function StoreModal({
         loadInventory();
     }, [gameUser?.uid]);
 
-    // Dev Commands
+    // Dev give commands
     useEffect(() => {
         const handleGive = async (id: string, type: 'dice' | 'token') => {
             if (!uid) return;
@@ -153,23 +166,32 @@ export function StoreModal({
             try {
                 await updateDoc(doc(db, 'users', uid), { [field]: arrayUnion(id) });
                 setter(prev => [...prev, id]);
-                toast.success(`Objet ajouté au sac !`);
-            } catch (e) { console.error("Give failed", e); }
+                toast.success('Objet ajouté au sac !');
+            } catch (e) { console.error('Give failed', e); }
         };
         (window as any).give_dice = (id: string) => handleGive(id, 'dice');
         (window as any).give_token = (id: string) => handleGive(id, 'token');
         return () => { delete (window as any).give_dice; delete (window as any).give_token; };
     }, [uid]);
 
-    // Keyboard controls
+    // Esc to close
     useEffect(() => {
         const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
         if (isOpen) window.addEventListener('keydown', handleEsc);
         return () => window.removeEventListener('keydown', handleEsc);
     }, [isOpen, onClose]);
 
-    // --- ACTIONS ---
+    // Close rarity dropdown on outside click
+    useEffect(() => {
+        if (!rarityOpen) return;
+        const handler = (e: MouseEvent) => {
+            if (rarityRef.current && !rarityRef.current.contains(e.target as Node)) setRarityOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, [rarityOpen]);
 
+    // --- Actions ---
     const handleBuyItem = async (itemId: string, itemType: 'dice' | 'token', price: number, name: string) => {
         if (price <= 0) {
             const invent = itemType === 'dice' ? setDiceInventory : setTokenInventory;
@@ -179,10 +201,9 @@ export function StoreModal({
             toast.success(`${itemType === 'dice' ? 'Dés' : 'Cadre'} "${name}" obtenu !`);
             return;
         }
-
         try {
             setIsCheckingOut(true);
-            toast.loading("Redirection vers le paiement...");
+            toast.loading('Redirection vers le paiement...');
             const checkoutId = itemType === 'token' ? `token_${itemId}` : itemId;
             const response = await fetch('/api/checkout', {
                 method: 'POST',
@@ -194,7 +215,7 @@ export function StoreModal({
             if (data.url) window.location.href = data.url;
         } catch (error: any) {
             toast.dismiss();
-            toast.error(error.message || "Une erreur est survenue");
+            toast.error(error.message || 'Une erreur est survenue');
         } finally {
             setIsCheckingOut(false);
         }
@@ -206,7 +227,7 @@ export function StoreModal({
             try { await updateDoc(doc(db, 'users', uid), { dice_skin: skinId }); }
             catch (error) { console.error('Error saving skin:', error); }
         }
-        toast.success("Dés équipés");
+        toast.success('Dés équipés');
     };
 
     const handleEquipToken = async (src: string) => {
@@ -215,26 +236,22 @@ export function StoreModal({
             try { await updateDoc(doc(db, 'users', uid), { token_skin: src }); }
             catch (error) { console.error('Error saving token skin:', error); }
         }
-        toast.success("Cadre appliqué");
+        toast.success('Cadre appliqué');
     };
 
     const handleSubscribe = async () => {
         setIsCheckingOut(true);
         try {
-            const response = await fetch("/api/subscribe", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    userId: uid || "",
-                    userEmail: email || "",
-                    returnUrl: window.location.pathname,
-                }),
+            const response = await fetch('/api/subscribe', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ userId: uid || '', userEmail: email || '', returnUrl: window.location.pathname }),
             });
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error || "Erreur lors de la création de la session.");
+            if (!response.ok) throw new Error(data.error || 'Erreur lors de la création de la session.');
             if (data.url) window.location.href = data.url;
         } catch (err: any) {
-            toast.error(err.message || "Une erreur est survenue.");
+            toast.error(err.message || 'Une erreur est survenue.');
         } finally {
             setIsCheckingOut(false);
         }
@@ -244,91 +261,105 @@ export function StoreModal({
         if (!stripeCustomerId) return;
         setIsManagingPortal(true);
         try {
-            const response = await fetch("/api/stripe-portal", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    stripeCustomerId: stripeCustomerId,
-                    returnUrl: window.location.pathname,
-                }),
+            const response = await fetch('/api/stripe-portal', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ stripeCustomerId, returnUrl: window.location.pathname }),
             });
             const data = await response.json();
             if (data.url) window.location.href = data.url;
         } catch (err) {
-            console.error("Portal error:", err);
+            console.error('Portal error:', err);
             toast.error("Erreur d'accès au portail de gestion.");
         } finally {
             setIsManagingPortal(false);
         }
     };
 
-    // --- DATA PREPARATION ---
-
-    const allDiceSkins = Object.values(DICE_SKINS);
+    // --- Data ---
+    const allDiceSkins = useMemo(() => Object.values(DICE_SKINS), []);
     const tokensToUse = (tokenList && tokenList.length > 0) ? tokenList : apiTokens;
-    const enrichedTokens = tokensToUse.map(apiToken => {
-        const def = getTokenDefinition(apiToken.name);
-        return { ...def, src: apiToken.src };
-    });
+    const enrichedTokens = useMemo(
+        () => tokensToUse.map(t => ({ ...getTokenDefinition(t.name), src: t.src })),
+        [tokensToUse]
+    );
 
-    const getInventoryItems = () => {
-        const items: ({ type: 'dice', data: DiceSkin } | { type: 'token', data: TokenSkin & { src: string } })[] = [];
-        const query = searchQuery.toLowerCase();
+    // Ownership helpers (premium owns everything).
+    const ownsDice = (id: string) => isPremium || diceInventory.includes(id);
+    const ownsToken = (id: string, unlock?: string) => isPremium || tokenInventory.includes(id) || unlock === 'free';
+    const tokenPremiumOnly = (id: string, unlock?: string) => isPremium && !tokenInventory.includes(id) && unlock !== 'free';
+
+    type StoreItem = { type: 'dice', data: DiceSkin } | { type: 'token', data: TokenSkin & { src: string } };
+
+    // Build the visible item list. `ownedOnly` = the "Mon Sac" tab.
+    const buildItems = (ownedOnly: boolean): StoreItem[] => {
+        const q = searchQuery.trim().toLowerCase();
+        const rarityOk = (r?: string) => rarityFilter === 'all' || (r || 'common') === rarityFilter;
+        const items: StoreItem[] = [];
+
         if (filter === 'all' || filter === 'dice') {
-            allDiceSkins.filter(s => {
-                const hasAccess = isPremium || diceInventory.includes(s.id);
-                const matchesSearch = s.name.toLowerCase().includes(query);
-                return hasAccess && matchesSearch;
-            }).forEach(d => items.push({ type: 'dice', data: d }));
+            allDiceSkins.forEach(s => {
+                if (ownedOnly && !ownsDice(s.id)) return;
+                if (!rarityOk(s.rarity)) return;
+                if (q && !s.name.toLowerCase().includes(q)) return;
+                items.push({ type: 'dice', data: s });
+            });
         }
         if (filter === 'all' || filter === 'token') {
-            enrichedTokens.filter(s => {
-                const hasAccess = isPremium || tokenInventory.includes(s.id) || s.unlockCondition === 'free';
-                const matchesSearch = s.name.toLowerCase().includes(query);
-                return hasAccess && matchesSearch;
-            }).forEach(t => items.push({ type: 'token', data: t }));
+            enrichedTokens.forEach(s => {
+                if (ownedOnly && !ownsToken(s.id, s.unlockCondition)) return;
+                if (!rarityOk(s.rarity)) return;
+                if (q && !s.name.toLowerCase().includes(q)) return;
+                items.push({ type: 'token', data: s });
+            });
         }
-        return items;
+        // Highest rarity first, then owned-but-locked (premium) after purchasable.
+        return items.sort((a, b) =>
+            (RARITY_ORDER[b.data.rarity || 'common'] ?? 0) - (RARITY_ORDER[a.data.rarity || 'common'] ?? 0));
     };
 
-    const getStoreItems = () => {
-        if (isPremium) return [];
-        const items: ({ type: 'dice', data: DiceSkin } | { type: 'token', data: TokenSkin & { src: string } })[] = [];
-        const query = searchQuery.toLowerCase();
-        if (filter === 'all' || filter === 'dice') {
-            allDiceSkins.filter(s => {
-                const notOwned = !diceInventory.includes(s.id);
-                const matchesSearch = s.name.toLowerCase().includes(query);
-                return notOwned && matchesSearch;
-            }).forEach(d => items.push({ type: 'dice', data: d }));
-        }
-        if (filter === 'all' || filter === 'token') {
-            enrichedTokens.filter(s => {
-                const notOwned = !tokenInventory.includes(s.id) && s.unlockCondition !== 'free';
-                const matchesSearch = s.name.toLowerCase().includes(query);
-                return notOwned && matchesSearch;
-            }).forEach(t => items.push({ type: 'token', data: t }));
-        }
-        return items;
-    };
-
-    const displayItems = activeTab === 'home' ? [] : (activeTab === 'store' ? getStoreItems() : getInventoryItems());
-
-    // --- PAGINATION LOGIC ---
+    const displayItems = activeTab === 'premium' ? [] : buildItems(activeTab === 'inventory');
     const totalPages = Math.ceil(displayItems.length / itemsPerPage);
     const paginatedItems = displayItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     useEffect(() => {
         setCurrentPage(1);
         document.getElementById('store-modal-scroll-area')?.scrollTo({ top: 0, behavior: 'smooth' });
-    }, [activeTab, filter, searchQuery]);
+    }, [activeTab, filter, rarityFilter, searchQuery]);
 
-    const handlePageChange = (newPage: number) => {
-        setCurrentPage(newPage);
+    const handlePageChange = (p: number) => {
+        setCurrentPage(p);
         document.getElementById('store-modal-scroll-area')?.scrollTo({ top: 0, behavior: 'smooth' });
     };
 
     if (!mounted || !shouldRender) return null;
+
+    const activeRarity = RARITY_OPTIONS.find(o => o.id === rarityFilter)!;
+
+    const renderCard = (item: StoreItem) => (
+        item.type === 'dice' ? (
+            <DiceCard
+                skin={item.data}
+                isOwned={ownsDice(item.data.id)}
+                isEquipped={currentDiceSkinId === item.data.id}
+                canAfford={!isCheckingOut}
+                onBuy={() => handleBuyItem(item.data.id, 'dice', item.data.price, item.data.name)}
+                onEquip={() => handleEquipDice(item.data.id)}
+                onTry={() => tryDice(item.data.id)}
+            />
+        ) : (
+            <TokenCard
+                skin={item.data}
+                src={item.data.src}
+                isOwned={ownsToken(item.data.id, item.data.unlockCondition)}
+                ownedByPremium={tokenPremiumOnly(item.data.id, item.data.unlockCondition)}
+                isEquipped={currentTokenSrc === item.data.src}
+                canAfford={!isCheckingOut}
+                onBuy={() => handleBuyItem(item.data.id, 'token', item.data.price, item.data.name)}
+                onEquip={() => handleEquipToken(item.data.src)}
+            />
+        )
+    );
 
     return createPortal(
         <div
@@ -338,373 +369,340 @@ export function StoreModal({
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
             <div
-                className="relative z-10 w-full max-w-6xl h-[92vh] max-h-[900px] flex flex-col overflow-hidden rounded-3xl shadow-2xl border border-[var(--border-color)] bg-[var(--bg-dark)] text-[var(--text-primary)]"
+                className="relative z-10 w-full max-w-6xl h-[92vh] max-h-[900px] flex flex-col overflow-hidden rounded-2xl shadow-2xl border border-[var(--border-color)] bg-[var(--bg-dark)] text-[var(--text-primary)]"
                 style={{
                     transform: isVisible ? 'scale(1) translateY(0)' : 'scale(0.98) translateY(10px)',
                     transition: 'transform 0.4s cubic-bezier(0.16, 1, 0.3, 1)'
                 }}
                 onClick={(e) => e.stopPropagation()}
             >
-                {/* --- HEADER --- */}
-                <div className="px-4 sm:px-8 py-3 sm:py-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 border-b border-[var(--border-color)] bg-[var(--bg-darker)]/40">
-                    {/* Title row + close */}
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 sm:gap-5 min-w-0">
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 rounded-2xl bg-gradient-to-br from-[var(--text-primary)]/10 to-transparent border border-[var(--border-color)] flex items-center justify-center shadow-inner">
-                                <Store className="w-5 h-5 sm:w-6 sm:h-6 text-[var(--accent-brown)]" />
-                            </div>
-                            <div className="min-w-0">
-                                <h2 className="text-base sm:text-xl font-black tracking-tight text-[var(--text-primary)] uppercase italic truncate">Boutique</h2>
-                                <p className="hidden sm:block text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest">Épique & Légendaire</p>
-                            </div>
+                {/* ===== HEADER ===== */}
+                <div className="shrink-0 flex items-center gap-3 px-4 sm:px-6 py-3 sm:py-4 border-b border-[var(--border-color)] bg-[var(--bg-card)]/80 backdrop-blur-md">
+                    <div className="w-10 h-10 shrink-0 rounded-xl bg-[var(--accent-brown)]/10 border border-[var(--border-color)] flex items-center justify-center">
+                        <Store className="w-5 h-5 text-[var(--accent-brown)]" />
+                    </div>
+                    <div className="min-w-0 mr-auto">
+                        <div className="flex items-center gap-2">
+                            <h2 className="text-lg sm:text-xl font-bold text-[var(--text-primary)] truncate">Boutique</h2>
+                            {isPremium && (
+                                <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[var(--accent-brown)]/15 border border-[var(--accent-brown)]/30 text-[10px] font-bold text-[var(--accent-brown)]">
+                                    <Crown className="w-3 h-3" /> Premium
+                                </span>
+                            )}
                         </div>
-                        <button onClick={onClose} className="lg:hidden w-10 h-10 shrink-0 rounded-full hover:bg-[var(--text-primary)]/10 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">
-                            <X className="w-6 h-6" />
-                        </button>
+                        <p className="hidden sm:block text-sm text-[var(--text-secondary)]">
+                            {isPremium ? 'Accès total débloqué' : 'Personnalisez vos dés et vos cadres'}
+                        </p>
                     </div>
 
-                    {/* Tabs — scrollable on mobile */}
-                    <div className="flex bg-[var(--bg-darker)]/60 p-1 sm:p-1.5 rounded-2xl border border-[var(--border-color)] backdrop-blur-md overflow-x-auto no-scrollbar">
+                    {/* Tabs */}
+                    <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-darker)]/60 border border-[var(--border-color)]">
                         {([
-                            { id: 'home', label: 'Accueil', Icon: LayoutGrid },
-                            { id: 'store', label: 'Boutique', Icon: Store },
+                            { id: 'catalog', label: 'Catalogue', Icon: Store },
                             { id: 'inventory', label: 'Mon Sac', Icon: Backpack },
                             { id: 'premium', label: 'Premium', Icon: Crown },
                         ] as const).map(({ id, label, Icon }) => (
                             <button
                                 key={id}
                                 onClick={() => setActiveTab(id)}
-                                className={`flex items-center gap-2 px-3 sm:px-6 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-black uppercase tracking-tighter whitespace-nowrap transition-all duration-300 ${activeTab === id
-                                    ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] shadow-[0_0_20px_rgba(var(--accent-brown-rgb),0.3)]'
-                                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                                className={cn(
+                                    'flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-bold whitespace-nowrap transition-colors',
+                                    activeTab === id
+                                        ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] shadow'
+                                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                )}
                             >
                                 <Icon className="w-4 h-4 shrink-0" />
-                                {label}
+                                <span className="hidden sm:inline">{label}</span>
                             </button>
                         ))}
                     </div>
 
-                    <button onClick={onClose} className="hidden lg:flex w-10 h-10 rounded-full hover:bg-[var(--text-primary)]/10 items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all">
-                        <X className="w-6 h-6" />
+                    <button onClick={onClose} className="w-9 h-9 shrink-0 rounded-lg hover:bg-[var(--text-primary)]/10 flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
+                        <X className="w-5 h-5" />
                     </button>
                 </div>
 
-                {/* --- FILTERS (Only for Store and Inventory) --- */}
-                {(activeTab === 'store' || activeTab === 'inventory') && (
-                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-2 px-4 sm:px-8 py-3 sm:py-4 bg-[var(--bg-darker)]/50 border-b border-[var(--border-color)]">
-                        {/* Search Bar */}
-                        <div className="w-full sm:w-auto flex items-center gap-2 px-4 py-2 rounded-xl bg-[var(--bg-dark)] border border-[var(--border-color)] focus-within:border-[var(--accent-brown)] transition-colors">
+                {/* ===== TOOLBAR (search + filters) — hidden on Premium tab ===== */}
+                {activeTab !== 'premium' && (
+                    <div className="shrink-0 flex flex-col sm:flex-row sm:items-center gap-3 px-4 sm:px-6 py-3 border-b border-[var(--border-color)] bg-[var(--bg-darker)]/40">
+                        {/* Search */}
+                        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[var(--bg-dark)] border border-[var(--border-color)] focus-within:border-[var(--accent-brown)]/50 transition-colors sm:w-64">
                             <Search className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
                             <input
                                 type="text"
                                 placeholder="Chercher..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="flex-1 bg-transparent text-xs text-[var(--text-primary)] placeholder-[var(--text-secondary)] outline-none"
+                                className="flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder-[var(--text-secondary)] outline-none min-w-0"
                             />
                         </div>
 
-                        <div className="w-full sm:w-auto flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar">
+                        {/* Category segmented control */}
+                        <div className="flex items-center gap-1 p-1 rounded-xl bg-[var(--bg-dark)] border border-[var(--border-color)]">
+                            {([
+                                { id: 'all', label: 'Tout', Icon: LayoutGrid },
+                                { id: 'dice', label: 'Dés', Icon: Dice5 },
+                                { id: 'token', label: 'Cadres', Icon: Package },
+                            ] as const).map(({ id, label, Icon }) => (
+                                <button
+                                    key={id}
+                                    onClick={() => setFilter(id)}
+                                    className={cn(
+                                        'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors',
+                                        filter === id
+                                            ? 'bg-[var(--text-primary)]/10 text-[var(--text-primary)]'
+                                            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                                    )}
+                                >
+                                    <Icon className="w-3.5 h-3.5" />
+                                    {label}
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* Rarity dropdown */}
+                        <div ref={rarityRef} className="relative sm:ml-auto">
                             <button
-                                onClick={() => setFilter('all')}
-                                className={`px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border whitespace-nowrap ${filter === 'all'
-                                    ? 'bg-[var(--text-primary)]/10 text-[var(--text-primary)] border-[var(--border-color)]'
-                                    : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'}`}
+                                onClick={() => setRarityOpen(o => !o)}
+                                className="w-full sm:w-48 flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[var(--bg-dark)] border border-[var(--border-color)] hover:border-[var(--text-primary)]/20 transition-colors"
                             >
-                                Tout Voir
+                                <span className="flex items-center gap-2 min-w-0">
+                                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: activeRarity.color }} />
+                                    <span className="text-sm font-bold truncate" style={{ color: rarityFilter === 'all' ? 'var(--text-secondary)' : activeRarity.color }}>
+                                        {activeRarity.label}
+                                    </span>
+                                </span>
+                                <ChevronDown className={cn('w-4 h-4 text-[var(--text-secondary)] transition-transform shrink-0', rarityOpen && 'rotate-180')} />
                             </button>
-                            <div className="w-[1px] h-4 bg-[var(--border-color)] mx-2" />
-                            <button
-                                onClick={() => setFilter('dice')}
-                                className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border whitespace-nowrap ${filter === 'dice'
-                                    ? 'bg-[var(--accent-blue)]/20 text-[var(--accent-blue)] border-[var(--accent-blue)]/30'
-                                    : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'}`}
-                            >
-                                <Dice5 className="w-4 h-4" />
-                                Dés 3D
-                            </button>
-                            <button
-                                onClick={() => setFilter('token')}
-                                className={`flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all border whitespace-nowrap ${filter === 'token'
-                                    ? 'bg-[var(--accent-brown)]/20 text-[var(--accent-brown)] border-[var(--accent-brown)]/30'
-                                    : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-primary)]'}`}
-                            >
-                                <LayoutGrid className="w-4 h-4" />
-                                Cadres
-                            </button>
+                            {rarityOpen && (
+                                <div className="absolute z-30 right-0 mt-2 w-full sm:w-48 rounded-xl border border-[var(--border-color)] bg-[var(--bg-dark)] shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                                    {RARITY_OPTIONS.map(({ id, label, color }) => (
+                                        <button
+                                            key={id}
+                                            onClick={() => { setRarityFilter(id); setRarityOpen(false); }}
+                                            className={cn(
+                                                'w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-bold text-left transition-colors',
+                                                rarityFilter === id ? 'bg-[var(--text-primary)]/10' : 'hover:bg-[var(--text-primary)]/5'
+                                            )}
+                                            style={{ color }}
+                                        >
+                                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                                            {label}
+                                            {rarityFilter === id && <Check className="w-4 h-4 ml-auto" strokeWidth={3} />}
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}
 
-                {/* --- CONTENT --- */}
+                {/* ===== CONTENT ===== */}
                 <div className="flex-1 overflow-hidden relative bg-[var(--bg-canvas)]">
                     {isLoadingInventory ? (
                         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-                            <div className="relative w-16 h-16">
-                                <div className="absolute inset-0 border-4 border-[var(--text-primary)]/5 rounded-full" />
-                                <div className="absolute inset-0 border-4 border-t-[var(--accent-brown)] rounded-full animate-spin" />
-                            </div>
-                            <span className="text-xs font-black text-[var(--text-secondary)] uppercase tracking-[0.3em]">Chargement...</span>
+                            <Loader2 className="w-8 h-8 text-[var(--accent-brown)] animate-spin" />
+                            <span className="text-sm font-medium text-[var(--text-secondary)]">Chargement...</span>
                         </div>
                     ) : (
                         <div className="h-full overflow-y-auto custom-scrollbar" id="store-modal-scroll-area" style={{ touchAction: 'pan-y' }}>
-                            <div className="p-4 sm:p-8">
-                                <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-6">
-                                    {/* Homepage Content */}
-                                    {activeTab === 'home' && (
-                                        <div className="col-span-full space-y-12">
-                                            {/* Hero Banner */}
-                                            <div className={cn(
-                                                "relative rounded-[2.5rem] overflow-hidden border transition-all duration-700 p-8 sm:p-12",
-                                                "bg-gradient-to-br from-[var(--accent-brown)]/30 via-[var(--bg-dark)] to-[var(--bg-darker)] border-[var(--accent-brown)]/40",
-                                                "hover:shadow-[0_0_80px_rgba(var(--accent-brown-rgb),0.15)] group/hero"
-                                            )}>
-                                                <div className="absolute top-0 right-0 p-12 opacity-5 rotate-12 group-hover/hero:rotate-[20deg] group-hover/hero:scale-110 transition-transform duration-1000">
-                                                    <Crown className="w-80 h-80 text-[var(--accent-brown)]" />
-                                                </div>
+                            <div className="p-4 sm:p-6">
+                                {activeTab === 'premium' ? (
+                                    <PremiumPanel
+                                        isPremium={isPremium}
+                                        isCheckingOut={isCheckingOut}
+                                        isManagingPortal={isManagingPortal}
+                                        onSubscribe={handleSubscribe}
+                                        onManage={handleManagePortal}
+                                    />
+                                ) : (
+                                    <>
+                                        {/* Hero (Catalogue only, not the bag) */}
+                                        {activeTab === 'catalog' && !searchQuery && rarityFilter === 'all' && (
+                                            <CatalogHero
+                                                isPremium={isPremium}
+                                                onCta={() => isPremium ? setActiveTab('inventory') : setActiveTab('premium')}
+                                            />
+                                        )}
 
-                                                <div className="relative z-10 flex flex-col items-start gap-6 max-w-xl">
-                                                    <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-[var(--accent-brown)]/20 border border-[var(--accent-brown)]/30">
-                                                        <Sparkles className="w-4 h-4 text-[var(--accent-brown)]" />
-                                                        <span className="text-[10px] font-black uppercase tracking-widest text-[var(--accent-brown)]">Offre Limitée</span>
-                                                    </div>
-
-                                                    <div className="space-y-4">
-                                                        <h3 className="text-4xl sm:text-5xl font-black text-[var(--text-primary)] italic uppercase tracking-tighter leading-none">VTT-DD <br /><span className="text-[var(--accent-brown)]">PREMIUM</span></h3>
-                                                        <p className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-tight opacity-70">
-                                                            L'accès total à tous les trésors passés, présents et futurs. Débloquez la puissance ultime.
-                                                        </p>
-                                                    </div>
-
-                                                    <button
-                                                        onClick={() => setActiveTab('premium')}
-                                                        className="px-10 py-4 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-2xl text-xs font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all flex items-center gap-3 shadow-[0_0_30px_rgba(var(--accent-brown-rgb),0.4)]"
-                                                    >
-                                                        En savoir plus
-                                                    </button>
-                                                </div>
-                                            </div>
-
-                                            {/* Section: Featured Dice */}
-                                            <div className="space-y-6">
-                                                <div className="flex items-end justify-between px-2">
-                                                    <div className="space-y-1">
-                                                        <h4 className="text-2xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter">Dés Légendaires</h4>
-                                                        <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em]">Sélection du moment</p>
-                                                    </div>
-                                                    <button onClick={() => { setActiveTab('store'); setFilter('dice'); }} className="text-[10px] font-black text-[var(--accent-brown)] uppercase tracking-widest hover:underline px-4 py-2 bg-[var(--text-primary)]/5 rounded-xl border border-[var(--border-color)]">
-                                                        Voir tout
-                                                    </button>
-                                                </div>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                                    {Object.values(DICE_SKINS)
-                                                        .filter(s => s.rarity === 'legendary' || s.rarity === 'epic')
-                                                        .slice(0, 4)
-                                                        .map(skin => (
-                                                            <div key={skin.id} className="animate-in fade-in slide-in-from-bottom-8 duration-700">
-                                                                <DiceCard
-                                                                    skin={skin}
-                                                                    isOwned={diceInventory.includes(skin.id)}
-                                                                    isEquipped={currentDiceSkinId === skin.id}
-                                                                    canAfford={!isCheckingOut}
-                                                                    onBuy={() => handleBuyItem(skin.id, 'dice', skin.price, skin.name)}
-                                                                    onEquip={() => handleEquipDice(skin.id)}
-                                                                    onTry={() => tryDice(skin.id)}
-                                                                />
-                                                            </div>
-                                                        ))
-                                                    }
-                                                </div>
-                                            </div>
-
-                                            {/* Section: Latest Tokens */}
-                                            <div className="space-y-6">
-                                                <div className="flex items-end justify-between px-2">
-                                                    <div className="space-y-1">
-                                                        <h4 className="text-2xl font-black text-[var(--text-primary)] uppercase italic tracking-tighter">Nouveaux Cadres</h4>
-                                                        <p className="text-[10px] font-bold text-[var(--text-secondary)] uppercase tracking-[0.2em]">Personnalisation ultime</p>
-                                                    </div>
-                                                    <button onClick={() => { setActiveTab('store'); setFilter('token'); }} className="text-[10px] font-black text-[var(--accent-brown)] uppercase tracking-widest hover:underline px-4 py-2 bg-[var(--text-primary)]/5 rounded-xl border border-[var(--border-color)]">
-                                                        Voir tout
-                                                    </button>
-                                                </div>
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                                                    {enrichedTokens
-                                                        .filter(t => t.unlockCondition === 'purchase' || t.price > 0)
-                                                        .slice(0, 4)
-                                                        .map(token => (
-                                                            <div key={token.id} className="animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
-                                                                <TokenCard
-                                                                    skin={token}
-                                                                    src={token.src}
-                                                                    isOwned={tokenInventory.includes(token.id)}
-                                                                    isEquipped={currentTokenSrc === token.src}
-                                                                    canAfford={!isCheckingOut}
-                                                                    onBuy={() => handleBuyItem(token.id, 'token', token.price, token.name)}
-                                                                    onEquip={() => handleEquipToken(token.src)}
-                                                                />
-                                                            </div>
-                                                        ))
-                                                    }
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Premium Page */}
-                                    {activeTab === 'premium' && (
-                                        <div className="col-span-full">
-                                            <div className={cn(
-                                                "relative flex flex-col items-center justify-center rounded-3xl overflow-hidden border transition-all duration-500 min-h-[400px] sm:min-h-[500px] p-6 sm:p-12 text-center",
-                                                "bg-gradient-to-br from-[var(--accent-brown)]/20 via-[var(--bg-dark)] to-[var(--bg-darker)] border-[var(--accent-brown)]/30",
-                                                "hover:border-[var(--accent-brown)] hover:shadow-[0_0_50px_rgba(var(--accent-brown-rgb),0.1)]"
-                                            )}>
-                                                <div className="absolute top-0 right-0 p-10 opacity-10 rotate-12">
-                                                    <Crown className="w-64 h-64 text-[var(--accent-brown)]" />
-                                                </div>
-
-                                                <div className="relative z-10 flex flex-col items-center gap-6 max-w-2xl">
-                                                    <div className="w-20 h-20 rounded-3xl bg-[var(--accent-brown)]/10 flex items-center justify-center border border-[var(--accent-brown)]/20 shadow-inner">
-                                                        <Crown className="w-10 h-10 text-[var(--accent-brown)]" />
-                                                    </div>
-
-                                                    <div className="space-y-2">
-                                                        <h3 className="text-2xl sm:text-4xl font-black text-[var(--text-primary)] italic uppercase tracking-tighter">Abonnement Premium</h3>
-                                                        <p className="text-sm font-bold text-[var(--text-secondary)] uppercase tracking-widest opacity-60">L'expérience Ultime du MJ</p>
-                                                    </div>
-
-                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full mt-4 text-left">
-                                                        {[
-                                                            { icon: <Dice5 />, text: "Débloquez TOUS les dés 3D" },
-                                                            { icon: <LayoutGrid />, text: "Images de jetons illimitées" },
-                                                            { icon: <Package />, text: "Accès aux futurs contenus" },
-                                                            { icon: <Sparkles />, text: "Soutenez le créateur" },
-                                                        ].map((benefit, i) => (
-                                                            <div key={i} className="flex items-center gap-3 p-4 rounded-2xl bg-[var(--bg-darker)]/50 border border-[var(--border-color)]">
-                                                                <div className="text-[var(--accent-brown)]">{benefit.icon}</div>
-                                                                <span className="text-xs font-black uppercase tracking-tight">{benefit.text}</span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-
-                                                    <div className="flex flex-col items-center gap-4 mt-8">
-                                                        <div className="flex items-baseline gap-1">
-                                                            <span className="text-5xl font-black text-[var(--text-primary)] tracking-tighter">4.99 €</span>
-                                                            <span className="text-xs font-bold text-[var(--text-secondary)] uppercase tracking-widest">/ mois</span>
-                                                        </div>
-
-                                                        {isPremium ? (
-                                                            <button
-                                                                onClick={handleManagePortal}
-                                                                disabled={isManagingPortal}
-                                                                className="px-12 py-4 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-2xl text-sm font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all flex items-center gap-3 shadow-xl shadow-[var(--accent-brown)]/20"
-                                                            >
-                                                                {isManagingPortal ? <Loader2 className="w-5 h-5 animate-spin" /> : <Settings className="w-5 h-5" />}
-                                                                Gérer l'abonnement
-                                                            </button>
-                                                        ) : (
-                                                            <button
-                                                                onClick={handleSubscribe}
-                                                                disabled={isCheckingOut}
-                                                                className="px-12 py-4 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-2xl text-sm font-black uppercase tracking-widest hover:scale-105 active:scale-95 transition-all flex items-center gap-3 shadow-[0_0_40px_rgba(var(--accent-brown-rgb),0.5)]"
-                                                            >
-                                                                {isCheckingOut ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-                                                                Devenir Premium
-                                                            </button>
-                                                        )}
-                                                        <p className="text-[10px] text-[var(--text-secondary)] font-bold uppercase tracking-tighter opacity-50">Annulation à tout moment via Stripe Portal</p>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Item Grid */}
-                                    {activeTab !== 'premium' && (
-                                        paginatedItems.length === 0 ? (
-                                            <div className="col-span-full py-40 flex flex-col items-center gap-4 opacity-30">
-                                                <Package className="w-16 h-16 text-[var(--text-secondary)]" />
-                                                <p className="text-xs font-bold uppercase tracking-widest leading-none">Aucun butin ici...</p>
-                                            </div>
+                                        {paginatedItems.length === 0 ? (
+                                            <EmptyState tab={activeTab} isPremium={isPremium} />
                                         ) : (
                                             <>
-                                                {paginatedItems.map((item) => (
-                                                    <div key={`${item.type}-${item.data.id}`} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                                        {item.type === 'dice' ? (
-                                                            <DiceCard
-                                                                skin={item.data}
-                                                                isOwned={activeTab === 'inventory' || diceInventory.includes(item.data.id)}
-                                                                isEquipped={currentDiceSkinId === item.data.id}
-                                                                canAfford={!isCheckingOut}
-                                                                onBuy={() => handleBuyItem(item.data.id, 'dice', item.data.price, item.data.name)}
-                                                                onEquip={() => handleEquipDice(item.data.id)}
-                                                                onTry={() => tryDice(item.data.id)}
-                                                            />
-                                                        ) : (
-                                                            <TokenCard
-                                                                skin={item.data}
-                                                                src={item.data.src}
-                                                                isOwned={activeTab === 'inventory' || tokenInventory.includes(item.data.id) || item.data.unlockCondition === 'free'}
-                                                                isEquipped={currentTokenSrc === item.data.src}
-                                                                canAfford={!isCheckingOut}
-                                                                onBuy={() => handleBuyItem(item.data.id, 'token', item.data.price, item.data.name)}
-                                                                onEquip={() => handleEquipToken(item.data.src)}
-                                                            />
-                                                        )}
-                                                    </div>
-                                                ))}
-
-                                                {/* Pagination Controls */}
-                                                {totalPages > 1 && (
-                                                    <div className="col-span-full flex items-center justify-center gap-2 sm:gap-4 py-6 sm:py-8 border-t border-[var(--border-color)]/30 mt-8">
-                                                        <button
-                                                            onClick={() => handlePageChange(currentPage - 1)}
-                                                            disabled={currentPage === 1}
-                                                            className="shrink-0 px-3 sm:px-4 py-2 text-xs font-bold uppercase tracking-widest bg-[var(--bg-canvas)] rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors border border-[var(--border-color)]/50"
-                                                        >
-                                                            <span className="hidden sm:inline">Précédent</span>
-                                                            <span className="sm:hidden">‹</span>
-                                                        </button>
-
-                                                        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto no-scrollbar max-w-[40vw] sm:max-w-none">
-                                                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                                                                <button
-                                                                    key={page}
-                                                                    onClick={() => handlePageChange(page)}
-                                                                    className={cn(
-                                                                        "shrink-0 w-8 h-8 text-xs font-bold rounded-lg transition-all border",
-                                                                        currentPage === page
-                                                                            ? "bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)] shadow-[0_0_10px_var(--accent-brown)]"
-                                                                            : "bg-[var(--bg-canvas)] text-[var(--text-secondary)] border-[var(--border-color)]/50 hover:bg-white/5"
-                                                                    )}
-                                                                >
-                                                                    {page}
-                                                                </button>
-                                                            ))}
+                                                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
+                                                    {paginatedItems.map(item => (
+                                                        <div key={`${item.type}-${item.data.id}`} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                                                            {renderCard(item)}
                                                         </div>
+                                                    ))}
+                                                </div>
 
-                                                        <button
-                                                            onClick={() => handlePageChange(currentPage + 1)}
-                                                            disabled={currentPage === totalPages}
-                                                            className="shrink-0 px-3 sm:px-4 py-2 text-xs font-bold uppercase tracking-widest bg-[var(--bg-canvas)] rounded-lg disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors border border-[var(--border-color)]/50"
-                                                        >
-                                                            <span className="hidden sm:inline">Suivant</span>
-                                                            <span className="sm:hidden">›</span>
-                                                        </button>
-                                                    </div>
+                                                {totalPages > 1 && (
+                                                    <Pagination current={currentPage} total={totalPages} onChange={handlePageChange} />
                                                 )}
                                             </>
-                                        )
-                                    )}
-                                </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Headless physics dice thrower — rolled by the "Essayer" buttons, renders above the modal */}
             <FunDiceThrower ref={funDiceRef} hideButton overlayZIndex={10010} />
         </div>
         , document.body);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Sub-components
+// ────────────────────────────────────────────────────────────────────────────
+
+function CatalogHero({ isPremium, onCta }: { isPremium: boolean; onCta: () => void }) {
+    return (
+        <div className="relative mb-6 rounded-2xl overflow-hidden border border-[var(--accent-brown)]/30 bg-gradient-to-br from-[var(--accent-brown)]/20 via-[var(--bg-dark)] to-[var(--bg-darker)] p-6 sm:p-8">
+            <div className="absolute -top-6 -right-6 opacity-[0.06] rotate-12">
+                <Crown className="w-56 h-56 text-[var(--accent-brown)]" />
+            </div>
+            <div className="relative z-10 flex flex-col items-start gap-4 max-w-lg">
+                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--accent-brown)]/15 border border-[var(--accent-brown)]/30 text-xs font-bold text-[var(--accent-brown)]">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    {isPremium ? 'Membre Premium' : 'Collection légendaire'}
+                </span>
+                <h3 className="text-2xl sm:text-3xl font-bold tracking-tight text-[var(--text-primary)] leading-tight">
+                    {isPremium ? 'Tous les trésors sont à vous' : 'Équipez des dés & cadres uniques'}
+                </h3>
+                <p className="text-sm sm:text-base text-[var(--text-secondary)] leading-relaxed">
+                    {isPremium
+                        ? 'Équipez librement tout le catalogue, présent et à venir.'
+                        : 'Des dés 3D animés aux cadres de personnage — trouvez la pièce qui vous ressemble, ou débloquez tout avec Premium.'}
+                </p>
+                <button
+                    onClick={onCta}
+                    className="mt-1 px-6 py-3 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-xl text-sm font-bold hover:bg-[var(--accent-brown-hover)] active:scale-95 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(192,160,128,0.2)]"
+                >
+                    {isPremium ? <><Backpack className="w-4 h-4" /> Voir mon sac</> : <><Crown className="w-4 h-4" /> Découvrir Premium</>}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+function EmptyState({ tab, isPremium }: { tab: TabId; isPremium: boolean }) {
+    const message = tab === 'inventory'
+        ? "Votre sac est vide. Débloquez des dés et des cadres pour les retrouver ici."
+        : isPremium
+            ? "Aucun objet ne correspond à ces filtres."
+            : "Aucun objet ne correspond à votre recherche.";
+    return (
+        <div className="py-24 flex flex-col items-center gap-4 text-center opacity-50">
+            <Package className="w-14 h-14 text-[var(--text-secondary)]" />
+            <p className="text-sm font-medium text-[var(--text-secondary)] max-w-xs">{message}</p>
+        </div>
+    );
+}
+
+function Pagination({ current, total, onChange }: { current: number; total: number; onChange: (p: number) => void }) {
+    return (
+        <div className="flex items-center justify-center gap-2 py-8 mt-6 border-t border-[var(--border-color)]/40">
+            <button
+                onClick={() => onChange(current - 1)}
+                disabled={current === 1}
+                className="px-4 py-2 text-sm font-bold rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors"
+            >
+                <span className="hidden sm:inline">Précédent</span><span className="sm:hidden">‹</span>
+            </button>
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar max-w-[45vw] sm:max-w-none">
+                {Array.from({ length: total }, (_, i) => i + 1).map(page => (
+                    <button
+                        key={page}
+                        onClick={() => onChange(page)}
+                        className={cn(
+                            'w-9 h-9 text-sm font-bold rounded-lg border transition-colors shrink-0',
+                            current === page
+                                ? 'bg-[var(--accent-brown)] text-[var(--bg-dark)] border-[var(--accent-brown)]'
+                                : 'bg-[var(--bg-card)] text-[var(--text-secondary)] border-[var(--border-color)] hover:bg-white/5'
+                        )}
+                    >
+                        {page}
+                    </button>
+                ))}
+            </div>
+            <button
+                onClick={() => onChange(current + 1)}
+                disabled={current === total}
+                className="px-4 py-2 text-sm font-bold rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] disabled:opacity-30 disabled:cursor-not-allowed hover:bg-white/5 transition-colors"
+            >
+                <span className="hidden sm:inline">Suivant</span><span className="sm:hidden">›</span>
+            </button>
+        </div>
+    );
+}
+
+function PremiumPanel({ isPremium, isCheckingOut, isManagingPortal, onSubscribe, onManage }: {
+    isPremium: boolean; isCheckingOut: boolean; isManagingPortal: boolean;
+    onSubscribe: () => void; onManage: () => void;
+}) {
+    const benefits = [
+        { Icon: Dice5, text: 'Tous les dés 3D animés débloqués' },
+        { Icon: LayoutGrid, text: 'Tous les cadres de personnage' },
+        { Icon: Package, text: 'Accès aux futurs contenus' },
+        { Icon: Sparkles, text: 'Soutenez le développement' },
+    ];
+    return (
+        <div className="max-w-2xl mx-auto">
+            <div className="relative rounded-2xl overflow-hidden border border-[var(--accent-brown)]/30 bg-gradient-to-br from-[var(--accent-brown)]/15 via-[var(--bg-dark)] to-[var(--bg-darker)] p-6 sm:p-10 text-center">
+                <div className="absolute -top-8 -right-8 opacity-[0.08] rotate-12">
+                    <Crown className="w-64 h-64 text-[var(--accent-brown)]" />
+                </div>
+                <div className="relative z-10 flex flex-col items-center gap-6">
+                    <div className="w-16 h-16 rounded-2xl bg-[var(--accent-brown)]/15 border border-[var(--accent-brown)]/25 flex items-center justify-center">
+                        <Crown className="w-8 h-8 text-[var(--accent-brown)]" />
+                    </div>
+                    <div className="space-y-2">
+                        <h3 className="text-2xl sm:text-3xl font-bold text-[var(--text-primary)] tracking-tight">Abonnement Premium</h3>
+                        <p className="text-sm text-[var(--text-secondary)]">L'expérience complète, sans limites</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full text-left">
+                        {benefits.map(({ Icon, text }, i) => (
+                            <div key={i} className="flex items-center gap-3 p-3.5 rounded-xl bg-[var(--bg-card)] border border-[var(--border-color)]">
+                                <Icon className="w-5 h-5 text-[var(--accent-brown)] shrink-0" />
+                                <span className="text-sm font-medium text-[var(--text-primary)]">{text}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="flex flex-col items-center gap-4 mt-2">
+                        <div className="flex items-baseline gap-1.5">
+                            <span className="text-4xl font-bold text-[var(--text-primary)]">4,99 €</span>
+                            <span className="text-sm text-[var(--text-secondary)]">/ mois</span>
+                        </div>
+                        {isPremium ? (
+                            <button
+                                onClick={onManage}
+                                disabled={isManagingPortal}
+                                className="px-8 py-3.5 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-xl text-sm font-bold hover:bg-[var(--accent-brown-hover)] active:scale-95 transition-all flex items-center gap-2"
+                            >
+                                {isManagingPortal ? <Loader2 className="w-5 h-5 animate-spin" /> : <Settings className="w-5 h-5" />}
+                                Gérer l'abonnement
+                            </button>
+                        ) : (
+                            <button
+                                onClick={onSubscribe}
+                                disabled={isCheckingOut}
+                                className="px-8 py-3.5 bg-[var(--accent-brown)] text-[var(--bg-dark)] rounded-xl text-sm font-bold hover:bg-[var(--accent-brown-hover)] active:scale-95 transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(192,160,128,0.2)]"
+                            >
+                                {isCheckingOut ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                                Devenir Premium
+                            </button>
+                        )}
+                        <p className="text-xs text-[var(--text-secondary)] opacity-60">Annulation à tout moment via Stripe</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }
