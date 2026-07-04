@@ -71,7 +71,7 @@ export const playRoll = (velocity: number) => {
 // fade out & clean up when the die disappears.
 // ============================================================================
 
-export type AmbienceId = 'soul' | 'storm' | 'acid' | 'fire' | 'cosmos' | 'cyber';
+export type AmbienceId = 'soul' | 'storm' | 'acid' | 'fire' | 'cosmos' | 'cyber' | 'ocean';
 
 export interface Ambience { stop: () => void; }
 
@@ -83,6 +83,7 @@ const AMBIENCE_URL: Record<AmbienceId, string> = {
     fire: '/sons/fire.mp3',
     cosmos: '/sons/cosmos.mp3',
     cyber: '/sons/cyber.mp3',
+    ocean: '/sons/ocean.mp3',
 };
 
 // Volume per ambience (files vary in loudness; keep discreet).
@@ -93,6 +94,7 @@ const AMBIENCE_VOLUME: Record<AmbienceId, number> = {
     fire: 0.6,
     cosmos: 0.6,
     cyber: 0.05,
+    ocean: 0.5,
 };
 
 // Seconds to wait after the die is thrown before the ambience starts (the die
@@ -104,6 +106,7 @@ const AMBIENCE_DELAY: Record<AmbienceId, number> = {
     fire: 0.5,
     cosmos: 0,      // starts instantly (no pre-roll delay)
     cyber: 0.5,
+    ocean: 0.5,
 };
 
 // Decoded audio buffers, fetched once and reused.
@@ -183,5 +186,6 @@ export const ambienceForSkin = (skin: { id?: string; procStyle?: string; effectT
     if (skin.procStyle === 'astral' || skin.effectType === 'celestial') return 'cosmos';
     // Soul (cold wind + murmur): Âme Errante + Marcheur du Vide.
     if (skin.procStyle === 'spectre' || skin.id === 'void_walker') return 'soul';
+    if (skin.procStyle === 'ocean') return 'ocean';
     return null;
 };

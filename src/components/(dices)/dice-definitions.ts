@@ -32,7 +32,7 @@ export interface DiceSkin {
     textureMap?: string;
     tintTexture?: boolean;        // multiply the texture by bodyColor (e.g. tint a white marble green/amber)
     // Signature procedural look, overrides the default style from effectType.
-    procStyle?: 'metallic' | 'stone' | 'magic' | 'gem' | 'dark' | 'cyber' | 'spectre' | 'poison' | 'eclipse' | 'storm' | 'magma' | 'prism' | 'astral';
+    procStyle?: 'metallic' | 'stone' | 'magic' | 'gem' | 'dark' | 'cyber' | 'spectre' | 'poison' | 'eclipse' | 'storm' | 'magma' | 'prism' | 'astral' | 'ocean' | 'scale' | 'bismuth';
     // ── ORB SKINS ──────────────────────────────────────────────
     // Only used when effectType === 'orb'. The outer shell stays transparent/glassy
     // and rolls with the physics body, while a "core" element is rendered at the
@@ -128,7 +128,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     },
     shield_orb: {
         id: 'shield_orb',
-        name: 'Égide du Gardien',
+        name: 'Gardien',
         bodyColor: '#2a3a5a',
         edgeColor: '#9cc4ff',
         borderColor: '#ffffff',
@@ -555,6 +555,90 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         price: 1500,
         description: "Une âme prisonnière, à jamais à la dérive entre deux mondes.",
         rarity: 'legendary'
+    },
+    ocean_heart: {
+        id: 'ocean_heart',
+        name: "Cœur de l'Océan",
+        bodyColor: '#0d2f6b',   // deep ocean blue water body (not teal/green)
+        edgeColor: '#2f7fd6',   // bright azure blue (drives the caustics/foam accents)
+        borderColor: '#6fb0ff',
+        textColor: '#eaf3ff',   // pale sea-foam numbers
+        shadowColor: '#020e2e',
+        metalness: 0.15,
+        roughness: 0.1,         // wet, glassy surface
+        envMapIntensity: 1.4,
+        effectType: 'magic',
+        procStyle: 'ocean',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#2a5fc0',   // deep blue light cast onto the table
+        innerGlowIntensity: 0.6,
+        rimLight: true,
+        rimLightColor: '#6fb0ff',
+        particleType: 'none',
+        particleColor: '#2f7fd6',
+        particleColor2: '#eaf3ff',
+        price: 2000,
+        description: "Un océan entier, scellé dans le verre. Les vagues n'ont jamais cessé de rouler.",
+        rarity: 'legendary'
+    },
+    ecailles_ancestrales: {
+        id: 'ecailles_ancestrales',
+        name: 'Écailles Ancestrales',
+        bodyColor: '#0e3a24',   // deep forest emerald body
+        edgeColor: '#2f8a52',   // brighter emerald accent (drives the scale sheen)
+        borderColor: '#4fae6e',
+        textColor: '#eafff0',   // pale mint numbers
+        shadowColor: '#04170d',
+        metalness: 0.25,
+        roughness: 0.35,        // organic hide, not a mirror polish
+        envMapIntensity: 0.9,
+        effectType: 'organic',
+        procStyle: 'scale',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: true,
+        innerGlowColor: '#1f6a3f',   // deep forest light cast onto the table
+        innerGlowIntensity: 0.35,
+        rimLight: true,
+        rimLightColor: '#4fae6e',
+        particleType: 'none',
+        particleColor: '#2f8a52',
+        particleColor2: '#eafff0',
+        price: 500,
+        description: "Une mue de dragon ancien, chaque écaille encore chaude du souvenir de son porteur.",
+        rarity: 'rare'
+    },
+    bismuth: {
+        id: 'bismuth',
+        name: 'Ziggourat de Bismuth',
+        bodyColor: '#7d8a94',   // near-neutral polished metal base
+        edgeColor: '#c9a0ff',   // used as a hue anchor for the iridescent film
+        borderColor: '#ffffff',
+        textColor: '#0a0a12',
+        shadowColor: '#e8e8f0', // light outline so numbers pop on the bright metal
+        metalness: 0.9,
+        roughness: 0.12,
+        envMapIntensity: 2.2,
+        effectType: 'metallic',
+        procStyle: 'bismuth',
+        emissive: '#000000',
+        emissiveIntensity: 1,
+        opacity: 1,
+        innerGlow: false,
+        innerGlowColor: '#ffffff',
+        innerGlowIntensity: 0,
+        rimLight: true,
+        rimLightColor: '#ffffff',
+        particleType: 'none',
+        particleColor: '#ff6b6b',
+        particleColor2: '#6bd0ff',
+        price: 500,
+        description: "Un cristal minéral en escalier, où chaque marche vole une couleur différente à la lumière.",
+        rarity: 'rare'
     },
     poison: {
         id: 'poison',
@@ -993,7 +1077,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         textureMap: getAssetUrl('/textures/marblebleu_diffuse.jpg'),
         price: 125,
         description: "Élégance classique avec une touche royale.",
-        rarity: 'legendary'
+        rarity: 'epic'
     },
     cosmos: {
         id: 'cosmos',
@@ -1021,7 +1105,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         textureMap: getAssetUrl('/textures/cosmos_diffuse.jpeg'),
         price: 1250,
         description: "Contient des galaxies entières dans chaque face.",
-        rarity: 'legendary'
+        rarity: 'epic'
     },
     space: {
         id: 'space',
@@ -1104,7 +1188,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor2: '#2b2b2b',
         price: 125,
         description: "Un alliage robuste, forgé pour durer.",
-        rarity: 'uncommon'
+        rarity: 'rare'
     },
     merveille: {
         id: 'merveille',
@@ -1132,7 +1216,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         textureMap: getAssetUrl('/textures/merveille_diffuse.png'),
         price: 1250,
         description: "Une merveille d'artisanat magique.",
-        rarity: 'legendary'
+        rarity: 'rare'
     },
     ancient_bone: {
         id: 'ancient_bone',
@@ -1213,7 +1297,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor2: '#ffdd00',
         price: 1250,
         description: "Guide les voyageurs perdus dans la nuit.",
-        rarity: 'legendary'
+        rarity: 'epic'
     },
     blood_pact: {
         id: 'blood_pact',
@@ -1321,7 +1405,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor2: '#ff00ff',
         price: 1250,
         description: "Là où naissent les étoiles.",
-        rarity: 'legendary'
+        rarity: 'epic'
     },
     dragon_scale: {
         id: 'dragon_scale',
@@ -1348,7 +1432,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor2: '#004d40',
         price: 1250,
         description: "Dur, brillant et extrêmement précieux.",
-        rarity: 'legendary'
+        rarity: 'epic'
     },
     moonstone: {
         id: 'moonstone',
@@ -1375,7 +1459,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         particleColor2: '#b0c4de',
         price: 1250,
         description: "Baignée dans la lumière de séluné.",
-        rarity: 'legendary'
+        rarity: 'rare'
     },
     bois_noble: {
         id: 'bois_noble',
@@ -1631,7 +1715,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
     },
     meteore_sang: {
         id: 'meteore_sang',
-        name: 'Météore de Sang',
+        name: 'Météore',
         bodyColor: '#1a1a1a',
         edgeColor: '#4a0000',
         borderColor: '#ff0000',
@@ -1654,34 +1738,7 @@ export const DICE_SKINS: Record<string, DiceSkin> = {
         textureMap: getAssetUrl('/textures/lava_diffuse.png'),
         price: 1500,
         description: "Tombé du ciel pendant une éclips de sang.",
-        rarity: 'legendary'
-    },
-    marbre_azure: {
-        id: 'marbre_azure',
-        name: 'Marbre Azuré',
-        bodyColor: '#0077be',
-        edgeColor: '#ffffff',
-        borderColor: '#00aaff',
-        textColor: '#ffffff',
-        shadowColor: '#003366',
-        metalness: 0.1,
-        roughness: 0.1,
-        envMapIntensity: 1.5,
-        effectType: 'stone',
-        emissive: '#004488',
-        emissiveIntensity: 0.1,
-        opacity: 1,
-        innerGlow: false,
-        innerGlowColor: '#ffffff',
-        innerGlowIntensity: 0,
-        rimLight: true,
-        rimLightColor: '#ffffff',
-        particleType: 'none',
-        particleColor: '#ffffff',
-        textureMap: 'https://assets.yner.fr/textures/marblebleu_diffuse.jpg',
-        price: 500,
-        description: "Un mélange élégant de vagues azurées et d'écume blanche.",
-        rarity: 'rare'
+        rarity: 'epic'
     },
     marbre_emeraude: {
         id: 'marbre_emeraude',

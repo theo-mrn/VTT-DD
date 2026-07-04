@@ -13,6 +13,9 @@ export const STYLE_ID: Record<string, number> = {
     magma: 11,   // signature: cracked basalt crust over living magma veins
     prism: 12,   // signature: pearlescent opal with view-dependent iridescence
     astral: 13,  // signature: a living galaxy — nebula, stars, shooting stars
+    ocean: 14,   // signature: living deep sea — caustics, foam, bioluminescent flash
+    scale: 15,   // signature: overlapping dragon scales with organic sheen
+    bismuth: 16, // signature: stepped crystal terraces with full-spectrum iridescence
 };
 
 // Default style derived from effectType (a skin can override via procStyle).
@@ -449,7 +452,7 @@ export const ProceduralMaterial = ({ skin }: { skin: DiceSkin }) => {
                         emissiveAccum += rainbow * play * 0.5;         // iridescence
                         emissiveAccum += rainbow * band * 0.85;        // holo glare sweep
                         emissiveAccum += vec3(1.0) * glitter * (0.35 + 0.65 * play); // sparkle
-                    } else {
+                    } else if (uStyle < 13.5) {
                         // ── SIGNATURE: ASTRAL (a fragment of universe) ──
                         // Deep-space black holding a slowly swirling two-hue nebula,
                         // two twinkling star layers, an occasional shooting star with
@@ -508,6 +511,189 @@ export const ProceduralMaterial = ({ skin }: { skin: DiceSkin }) => {
                         emissiveAccum += vec3(0.95, 0.9, 1.0) * s2;    // bright stars
                         emissiveAccum += mix(vec3(1.0), cCyan, 0.35) * streak * 2.4; // comet
                         emissiveAccum += rimCol * rim * 0.5;           // auroral limb
+                    } else if (uStyle < 14.5) {
+                        // ── SIGNATURE: OCEAN (a living deep sea, sealed in the die) ──
+                        // Reads as WATER first: a clean blue gradient from deep body
+                        // colour up to sunlit azure, built the same way the marble
+                        // style builds its base (soft fbm patches, no dark multiply
+                        // stacking). On top: slow drifting caustic light patches,
+                        // rising bubbles, and an occasional soft bioluminescent
+                        // pulse. Every layer ADDS light in blue/cyan hues only —
+                        // nothing pushes toward grey/white/black.
+                        vec3 nlp = normalize(vLocalPos);
+                        float facing = abs(dot(normalize(vVSphereN), normalize(-vVPos)));
+
+                        // ── Base water gradient: deep body colour -> sunlit azure,
+                        // driven by a single soft fbm patch field (marble-style). ──
+                        vec3 wp = p * 1.1 + vec3(0.0, -uTime * 0.04, 0.0);
+                        float body = fbm(wp);
+                        vec3 sunlit = mix(base, vec3(0.45, 0.75, 1.0), 0.55);
+                        col = mix(base * 0.55, sunlit, smoothstep(0.3, 0.85, body));
+
+                        // ── Caustics: soft overlapping light patches that drift and
+                        // scroll — real sunlight-through-waves colour (bright blue
+                        // -> pale cyan), never neutral grey/white. ──
+                        vec3 cp1 = nlp * 2.6 + vec3(uTime * 0.18, uTime * 0.11, 0.0);
+                        vec3 cp2 = nlp * 2.6 + vec3(-uTime * 0.13, uTime * 0.16, 1.7);
+                        float n1 = fbm(cp1);
+                        float n2 = fbm(cp2 + vec3(4.1, 0.0, 2.3));
+                        float caustics = smoothstep(0.35, 0.9, n1) * smoothstep(0.35, 0.9, n2);
+
+                        // ── Rising bubbles: small bright cellular glints drifting up
+                        // in Y, popping (fading) near the top of their cycle. ──
+                        vec3 bp = nlp * 9.0 + vec3(0.0, -uTime * 0.9, 0.0);
+                        float bc = fbm(bp);
+                        float bubble = pow(clamp(1.0 - abs(fbm(bp * 1.3 + bc) - 0.5) * 2.0, 0.0, 1.0), 10.0);
+                        float rise = fract(uTime * 0.15 + bc);       // per-bubble life 0..1
+                        float pop = smoothstep(0.0, 0.15, rise) * smoothstep(1.0, 0.75, rise);
+                        bubble *= pop * 2.5;
+
+                        // ── Bioluminescent pulse: TWO incommensurate channels so the
+                        // bloom rhythm never feels scripted (same technique as the
+                        // storm strikes), each blooming from its own random point and
+                        // expanding/fading as a soft sphere of cyan-blue light. ──
+                        vec3 bioCol = vec3(0.35, 0.8, 1.0);
+                        float bio = 0.0;
+                        {
+                            float P1 = 4.7;
+                            float cyc1 = floor(uTime / P1);
+                            float lc1 = fract(uTime / P1) * P1;
+                            float ha = hash(vec3(cyc1, 2.3, 8.8));
+                            float hb = hash(vec3(cyc1, 5.1, 1.4));
+                            float hc = hash(vec3(cyc1, 9.6, 3.7));
+                            vec3 origin1 = normalize(vec3(ha - 0.5, hb - 0.5, hc - 0.5) + 0.001);
+                            float dts1 = lc1 - (0.2 + 0.5 * ha) * P1;
+                            float env1 = exp(-abs(dts1) * 3.2) * step(0.2, ha + 0.001);
+                            bio += smoothstep(0.55, 1.0, dot(nlp, origin1)) * env1;
+                        }
+                        {
+                            float P2 = 7.3;
+                            float cyc2 = floor(uTime / P2);
+                            float lc2 = fract(uTime / P2) * P2;
+                            float ha = hash(vec3(cyc2, 6.6, 4.2));
+                            float hb = hash(vec3(cyc2, 1.9, 7.7));
+                            float hc = hash(vec3(cyc2, 3.3, 9.1));
+                            vec3 origin2 = normalize(vec3(ha - 0.5, hb - 0.5, hc - 0.5) + 0.001);
+                            float dts2 = lc2 - (0.15 + 0.6 * hb) * P2;
+                            float env2 = exp(-abs(dts2) * 2.8) * step(0.25, hb + 0.001);
+                            bio += smoothstep(0.5, 1.0, dot(nlp, origin2)) * env2;
+                        }
+                        bio = clamp(bio, 0.0, 1.4);
+
+                        // ── Fresnel sheen: wet, glassy rim like a light film of
+                        // water clinging to the surface, tinted azure (not white). ──
+                        float fres = pow(1.0 - facing, 2.2);
+
+                        // ── Compose: everything ADDS blue/cyan light onto the lit
+                        // water gradient — no grey, no white, no dark multiply. ──
+                        emissiveAccum += mix(uAccent, vec3(0.6, 0.95, 1.0), 0.5) * caustics * 0.5; // caustic light
+                        emissiveAccum += mix(uAccent, vec3(1.0), 0.3) * bubble * 0.5;               // bubble glints
+                        emissiveAccum += bioCol * bio * 0.6;                                        // bioluminescent bloom
+                        emissiveAccum += uAccent * fres * 0.35;                                     // wet rim sheen
+                    } else if (uStyle < 15.5) {
+                        // ── SIGNATURE: SCALE (overlapping dragon scales) ──
+                        // Real scutes are BIG (a handful per face, not dozens),
+                        // wide ovals with a rounded point at the bottom, laid out
+                        // in staggered horizontal rows that overlap downward — like
+                        // roof shingles. Built explicitly as rows (not an isotropic
+                        // Voronoi field, which reads as cracked tile at any scale)
+                        // so the "shingle" structure is unmistakable.
+                        vec3 nlp = normalize(vLocalPos);
+                        float facing = abs(dot(normalize(vVSphereN), normalize(-vVPos)));
+
+                        // Use vLocalPos directly (NOT the shared 'p' variable,
+                        // which is randomly rotated per-skin — fine for isotropic
+                        // noise but wrong for an oriented row pattern like
+                        // shingles) at an explicit scale tuned so MANY small
+                        // scales cover a facet (a real hide, not a few big scutes).
+                        vec2 sp = vLocalPos.xy * 9.0 + vLocalPos.zy * 2.0;
+
+                        // Row height sets how many scale-rows fit a face; scales
+                        // are noticeably wider than tall (real scute proportions).
+                        float rowH = 1.0;
+                        float colW = 1.35;
+
+                        float rowF = sp.y / rowH;
+                        float row = floor(rowF);
+                        // Stagger every other row by half a scale width — the
+                        // shingle offset that makes neighbouring rows interlock.
+                        float stagger = mod(row, 2.0) * 0.5;
+                        float colF = sp.x / colW + stagger;
+                        float col_ = floor(colF);
+
+                        // Local coords within this scale's cell, centered 0..1.
+                        vec2 localUv = vec2(fract(colF) - 0.5, fract(rowF) - 0.5);
+                        vec2 cellId = vec2(col_, row);
+                        float jrand = hash(vec3(cellId, 3.7));
+
+                        // Scale SHAPE: wide oval body tapering to a rounded point
+                        // at the bottom (like a real scute), built from an
+                        // anisotropic distance field biased downward. Kept as a
+                        // SHARP-edged shape (tight smoothstep band) so individual
+                        // scales are clearly legible, not a soft blur.
+                        vec2 d2 = localUv;
+                        d2.y += 0.18; // pull the "point" reference down
+                        float taper = mix(1.5, 0.6, clamp(d2.y + 0.5, 0.0, 1.0)); // narrower near the bottom point
+                        float dist = length(vec2(d2.x * taper, d2.y));
+
+                        float border = smoothstep(0.5, 0.42, dist);         // 1 deep inside the scale -> 0 at its rim (tight seam)
+                        float highlight = smoothstep(0.28, 0.0, dist);      // fake bump, brightest at the scale's own center
+                        // The row ABOVE overlaps down onto the top of this row
+                        // (a real shingle look): darken/shadow the upper part of
+                        // each scale where the row above would cast over it.
+                        float overlapShadow = smoothstep(-0.05, 0.3, -d2.y) * border;
+
+                        // Per-scale colour variation: deep emerald <-> darker olive.
+                        vec3 scaleDeep = mix(uDeep, uDeep * 1.3, jrand);
+                        vec3 scaleLit = mix(base, mix(base, uAccent, 0.22), jrand);
+                        col = mix(scaleDeep * 0.7, scaleLit, border);
+                        col = mix(col, mix(scaleLit, vec3(1.0), 0.18), highlight * border * 0.6); // raised sheen bump
+                        col *= 1.0 - overlapShadow * 0.4;    // shadow from the overlapping row above
+                        col *= 0.35 + 0.65 * border;          // sunken dark seam between scales
+
+                        // Slow organic sheen ripple: a very soft moving band of
+                        // extra brightness, like light catching a hide as it
+                        // breathes — subtle, never a flash or glow.
+                        float ripple = sin(dot(nlp, normalize(vec3(0.4, 1.0, 0.3))) * 3.0 - uTime * 0.4);
+                        float sheen = smoothstep(0.7, 1.0, ripple) * border;
+
+                        float fres = pow(1.0 - facing, 2.4);
+
+                        emissiveAccum += mix(uAccent, vec3(0.9, 1.0, 0.85), 0.4) * sheen * 0.35; // sheen ripple
+                        emissiveAccum += uAccent * fres * 0.12;                                   // faint rim, no fire glow
+                    } else {
+                        // ── SIGNATURE: BISMUTH (full-spectrum thin-film sheen) ──
+                        // No hard geometric pattern (that read as noisy/aliased at
+                        // any scale tried) — just a smooth, fluid rainbow gradient
+                        // over a polished metal, exactly like Prism's proven
+                        // technique but pushed to FULL saturation across the whole
+                        // spectrum rather than a soft pastel play. The colour drifts
+                        // slowly with a low-frequency fbm patch plus view angle, so
+                        // it reads as a real oxide-film sheen rolling across the
+                        // die, never a busy or grainy texture.
+                        vec3 nlp = normalize(vLocalPos);
+                        float facing = abs(dot(normalize(vVSphereN), normalize(-vVPos)));
+
+                        // ("swirl" instead of "patch" — patch is a GLSL reserved word)
+                        vec3 op = p * 0.9;
+                        float swirl = fbm(op + fbm(op * 0.6) * 1.2 + vec3(uTime * 0.04));
+
+                        // Hue driven by view angle (thin-film optics) + the slow
+                        // swirl drift — smooth and continuous, no bands/steps.
+                        float hue = fract(facing * 1.3 + swirl * 0.8 + uTime * 0.02);
+                        vec3 rainbow = 0.5 + 0.5 * cos(6.2831 * (hue + vec3(0.0, 0.333, 0.667)));
+                        float lum = dot(rainbow, vec3(0.299, 0.587, 0.114));
+                        vec3 vividRainbow = mix(vec3(lum), rainbow, 1.7); // push to full saturation
+
+                        // ── Base metal: near-neutral silver so the rainbow film
+                        // reads as sitting ON TOP of a polished metal. ──
+                        vec3 metal = mix(vec3(0.55, 0.56, 0.6), base, 0.25);
+                        col = metal;
+
+                        // Fresnel-boosted iridescence: strongest at grazing
+                        // angles (thin-film physics), present but softer straight-on.
+                        float filmStrength = 0.5 + 0.5 * pow(1.0 - facing, 1.4);
+                        col = mix(col, col * vividRainbow * 1.4, filmStrength);
                     }
                     diffuseColor.rgb = col;
                     diffuseColor.a *= procAlpha;
@@ -561,7 +747,7 @@ export const ProceduralMaterial = ({ skin }: { skin: DiceSkin }) => {
         }
     });
 
-    const needsPhysical = skin.effectType === 'glass' || skin.effectType === 'gem';
+    const needsPhysical = skin.effectType === 'glass' || skin.effectType === 'gem' || skin.procStyle === 'ocean';
     // "Void" signature styles render an emissive-only look (souls/mist in the
     // dark). Scene lights + envMap would wash the dark void to a pale colour, so
     // we make them effectively unlit: no reflections, fully matte, no base

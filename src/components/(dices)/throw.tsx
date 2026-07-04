@@ -44,12 +44,16 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
             Math.random() * Math.PI * 2,
         ] as [number, number, number],
         args: [vertices as any, faces],
-        // Enough friction to grip the table and convert sliding into tumbling.
-        material: { friction: 0.28, restitution: 0.5 },
+        // Lower friction than before: at 0.28 the die's slide/roll bled off
+        // within a bounce or two and it read as "dropped" rather than
+        // "thrown". Enough grip to convert some sliding into tumbling, but
+        // low enough that the die keeps traveling and rolling across the
+        // table for multiple bounces.
+        material: { friction: 0.12, restitution: 0.5 },
         // Low damping so dice keep tumbling across the table instead of dying
         // after the first bounce ("dropped" feel).
         linearDamping: 0.04,
-        angularDamping: 0.025,
+        angularDamping: 0.02,
         allowSleep: true,
         onCollide: (e) => {
             const impactVelocity = e.contact.impactVelocity;
@@ -86,9 +90,32 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
 
     useEffect(() => {
         if (api) {
-            // Strong initial spin so the die visibly tumbles instead of sliding.
-            const randomSpin = [(Math.random() - 0.5) * 100, (Math.random() - 0.5) * 100, (Math.random() - 0.5) * 100] as [number, number, number];
-            api.angularVelocity.set(...randomSpin);
+            // Natural tumbling spin: the DOMINANT rotation axis is perpendicular
+            // to the horizontal throw direction (like a real die/ball rolling
+            // forward end-over-end), not an independent random value per axis —
+            // that's what made it look like it was spinning chaotically on the
+            // spot instead of tumbling along its actual travel path. A smaller
+            // random component is layered on top so dice don't all look
+            // identical, plus a touch of twist around the travel axis itself.
+            const horizontal = new THREE.Vector3(impulse[0], 0, impulse[2]);
+            const travelDir = horizontal.lengthSq() > 1e-6 ? horizontal.normalize() : new THREE.Vector3(1, 0, 0);
+            // Perpendicular to both travel direction and world-up: the "end
+            // over end" tumble axis.
+            const tumbleAxis = new THREE.Vector3().crossVectors(travelDir, new THREE.Vector3(0, 1, 0)).normalize();
+
+            const tumbleSpeed = 14 + Math.random() * 10;   // main tumble, rad/s
+            const twistSpeed = (Math.random() - 0.5) * 6;  // slight spin around travel axis
+            const wobble = new THREE.Vector3(
+                (Math.random() - 0.5) * 6,
+                (Math.random() - 0.5) * 6,
+                (Math.random() - 0.5) * 6,
+            ); // small per-axis jitter so throws don't feel identical
+
+            const angular = tumbleAxis.clone().multiplyScalar(tumbleSpeed)
+                .addScaledVector(travelDir, twistSpeed)
+                .add(wobble);
+
+            api.angularVelocity.set(angular.x, angular.y, angular.z);
             api.velocity.set(...impulse);
         }
     }, [api, impulse]);
@@ -283,14 +310,21 @@ export const DiceThrower = () => {
 
                 const startX = Math.min(targetX + (Math.random() - 0.5) * Math.min(6, maxX * 0.4), maxX);
                 const startZ = Math.min(12 + Math.random() * 2, maxZ);
-                const startY = 6 + (Math.random() * 4) + (i * 1.5);
+                // Lower spawn height + smaller vertical force: a real dice
+                // throw is a low, fast skim across the table, not a lob that
+                // arcs up and drops back down.
+                const startY = 2.5 + (Math.random() * 1.5) + (i * 1);
 
                 // Real throwing energy: a leftward drive + a strong Z crossing so
-                // the die travels and TUMBLES across the table (it used to be
-                // nearly dropped in place).
-                const forceX = -(startX - targetX) * (1.6 + Math.random() * 0.8) - (3 + Math.random() * 4);
-                const forceY = 5 + Math.random() * 9;
-                const forceZ = -startZ * (1.1 + Math.random() * 0.5);
+                // the die travels and TUMBLES across the table. Force is a
+                // fixed generous magnitude rather than scaled off startZ
+                // (which is capped by the visible play area and could end up
+                // tiny) — otherwise the die barely crosses the table and
+                // reads as "dropped" instead of "thrown". More horizontal
+                // punch, less vertical loft, for a flatter/faster throw.
+                const forceX = -(startX - targetX) * (2.2 + Math.random() * 1.0) - (5 + Math.random() * 5);
+                const forceY = 2.5 + Math.random() * 3;
+                const forceZ = -(30 + Math.random() * 12);
 
                 const id = crypto.randomUUID();
                 newDice.push({
