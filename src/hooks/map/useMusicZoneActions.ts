@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { doc, addDoc, updateDoc, deleteDoc, collection } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Point, Character, MusicZone } from '@/app/[roomid]/map/types';
@@ -39,7 +40,8 @@ export interface UseMusicZoneActionsParams {
     collectionName: string,
     docId: string,
     updates: Record<string, any>,
-    description: string
+    description?: string,
+    knownPreviousData?: any
   ) => Promise<void>;
 }
 
@@ -49,7 +51,7 @@ export interface UseMusicZoneActionsReturn {
   openEditDialog: (zoneId: string) => void;
   saveEditedMusicZone: () => Promise<void>;
   deleteMusicZone: (id: string) => Promise<void>;
-  updateMusicZonePosition: (id: string, x: number, y: number) => Promise<void>;
+  updateMusicZonePosition: (id: string, x: number, y: number, originalPos?: { x: number; y: number }) => Promise<void>;
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -78,7 +80,9 @@ export function useMusicZoneActions(params: UseMusicZoneActionsParams): UseMusic
     setShowMusicDialog(true);
   };
 
-  const saveMusicZone = async () => {
+  // useCallback : passé jusqu'à MapDialogs (React.memo) via page.tsx — une référence stable
+  // évite de casser sa comparaison superficielle à chaque render (ex: drag de personnage).
+  const saveMusicZone = useCallback(async () => {
     if (!roomId) return;
 
     // Character Audio Mode
@@ -118,7 +122,7 @@ export function useMusicZoneActions(params: UseMusicZoneActionsParams): UseMusic
     setShowMusicDialog(false);
     setNewMusicZonePos(null);
     setTempZoneData({ name: '', url: '', radius: 200, volume: 0.5 });
-  };
+  }, [roomId, audioCharacterId, tempZoneData, newMusicZonePos, selectedCityId, setShowMusicDialog, setAudioCharacterId, setTempZoneData, setNewMusicZonePos]);
 
   const openEditDialog = (zoneId: string) => {
     const zone = musicZones.find(z => z.id === zoneId);
@@ -155,14 +159,15 @@ export function useMusicZoneActions(params: UseMusicZoneActionsParams): UseMusic
     setSelectedMusicZoneIds(prev => prev.filter(zid => zid !== id));
   };
 
-  const updateMusicZonePosition = async (id: string, x: number, y: number) => {
+  const updateMusicZonePosition = async (id: string, x: number, y: number, originalPos?: { x: number; y: number }) => {
     if (!roomId) return;
     const zone = musicZones.find(z => z.id === id);
     await updateWithHistory(
       'musicZones',
       id,
       { x, y },
-      `Déplacement de la zone musicale${zone?.name ? ` "${zone.name}"` : ''}`
+      `Déplacement de la zone musicale${zone?.name ? ` "${zone.name}"` : ''}`,
+      originalPos // évite un getDoc quand la position précédente est déjà connue (fin de drag)
     );
   };
 

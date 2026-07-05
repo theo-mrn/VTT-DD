@@ -12,8 +12,9 @@ import {
     where,
 } from 'firebase/firestore';
 import { doc as firestoreDoc } from 'firebase/firestore';
+import { ref as rtdbRef, onValue as rtdbOnValue } from 'firebase/database';
 
-import { db } from '@/lib/firebase';
+import { db, realtimeDb } from '@/lib/firebase';
 import { logHistoryEvent } from '@/lib/historiqueTrackerService';
 
 import type {
@@ -450,15 +451,19 @@ export function useMapData(
             ));
         }
 
-        // ─── 17. MEASUREMENTS ──────────────────────────────────
+        // ─── 17. MEASUREMENTS (RTDB — écritures à haute fréquence pendant le drag) ──
+        // Filtre cityId fait côté client : RTDB n'a pas d'équivalent pratique au where()
+        // composite de Firestore pour ce cas, et le volume de mesures actives est faible.
         if (cb.current.setMeasurements) {
-            unsubs.push(onSnapshot(
-                query(collection(db, 'cartes', roomId, 'measurements'), where('cityId', '==', selectedCityId)),
-                (snapshot) => {
-                    const ms = snapshot.docs.map(d => d.data() as SharedMeasurement);
-                    startTransition(() => cb.current.setMeasurements?.(ms));
-                }
-            ));
+            const measurementsRef = rtdbRef(realtimeDb, `rooms/${roomId}/measurements`);
+            const unsubscribe = rtdbOnValue(measurementsRef, (snapshot) => {
+                const val = snapshot.val() as Record<string, SharedMeasurement> | null;
+                const ms = val
+                    ? Object.values(val).filter(m => m.cityId === selectedCityId)
+                    : [];
+                startTransition(() => cb.current.setMeasurements?.(ms));
+            });
+            unsubs.push(unsubscribe);
         }
 
         // Marquer la fin du chargement initial

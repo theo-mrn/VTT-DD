@@ -150,7 +150,7 @@ export interface MapDialogsProps {
 
 // ── Component ───────────────────────────────────────────────────────────────
 
-export default function MapDialogs(props: MapDialogsProps) {
+function MapDialogs(props: MapDialogsProps) {
   const {
     roomId,
     isMJ,
@@ -618,3 +618,9 @@ export default function MapDialogs(props: MapDialogsProps) {
     </>
   )
 }
+
+// Ce conteneur regroupe ~30 dialogs quasi-toujours toutes fermées : sans memo, il re-render
+// à chaque render du composant map (donc à chaque mousemove pendant un drag) pour rien.
+// Nécessite que les callbacks passés en props (handle*) soient stables (useCallback côté
+// page.tsx), sinon la comparaison superficielle échoue quand même.
+export default React.memo(MapDialogs);

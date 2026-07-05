@@ -2,7 +2,8 @@
 
 import { useCallback } from 'react';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { ref as rtdbRef, update as rtdbUpdate } from 'firebase/database';
+import { db, realtimeDb } from '@/lib/firebase';
 import { isPointOnDrawing } from '@/app/[roomid]/map/drawings';
 import { isMovementBlocked } from '@/lib/obstacle-utils';
 import { getMediaDimensions } from '@/app/[roomid]/map/utils/coordinates';
@@ -514,12 +515,11 @@ export function useCanvasMouseMove(params: UseCanvasMouseMoveParams): UseCanvasM
 
       setMeasureEnd({ x: targetX, y: targetY });
 
-      // UPDATE SHARED MEASUREMENT (THROTTLED OPTIONALLY, but for now direct)
+      // UPDATE SHARED MEASUREMENT — RTDB (facturé en bande passante, pas par write, donc
+      // adapté à cette fréquence pouvant atteindre 60/s pendant le drag ; voir aussi
+      // useCanvasMouseDown.ts et useMapData.ts pour la création/lecture de cette entité).
       if (currentMeasurementId && roomId) {
-        // We use a ref or just update. Firestore writes can be expensive if 60fps.
-        // For now, let's try direct update. If laggy, we'll throttle.
-        const docRef = doc(db, 'cartes', roomId, 'measurements', currentMeasurementId);
-        updateDoc(docRef, {
+        rtdbUpdate(rtdbRef(realtimeDb, `rooms/${roomId}/measurements/${currentMeasurementId}`), {
           end: { x: targetX, y: targetY }
         }).catch(console.error);
       }
@@ -776,19 +776,28 @@ export function useCanvasMouseMove(params: UseCanvasMouseMoveParams): UseCanvasM
         const deltaX = currentX - originalRefChar.x;
         const deltaY = currentY - originalRefChar.y;
 
-        setCharacters(prev => prev.map((char, index) => {
-          const originalPos = draggedCharactersOriginalPositions.find(pos => pos.index === index);
-          if (originalPos) {
+        // Set d'index O(1) pour éviter un .find() (O(n)) par personnage sur tout le tableau à
+        // chaque mousemove, et pour ne toucher (donc ne créer de nouvelle référence) que les
+        // personnages réellement déplacés — les autres gardent leur référence d'objet inchangée.
+        const draggedIndexSet = new Set(draggedCharactersOriginalPositions.map(pos => pos.index));
+
+        setCharacters(prev => {
+          let hasChanges = false;
+          const next = prev.map((char, index) => {
+            if (!draggedIndexSet.has(index)) return char;
+            const originalPos = draggedCharactersOriginalPositions.find(pos => pos.index === index)!;
             const newX = Math.max(0, Math.min(imgWidth, originalPos.x + deltaX));
             const newY = Math.max(0, Math.min(imgHeight, originalPos.y + deltaY));
             // Joueurs : bloquer si le déplacement traverse un mur/porte fermée/fenêtre
             if (!isMJ && obstacles.length > 0 && isMovementBlocked({ x: char.x, y: char.y }, { x: newX, y: newY }, obstacles)) {
               return char;
             }
+            if (char.x === newX && char.y === newY) return char;
+            hasChanges = true;
             return { ...char, x: newX, y: newY };
-          }
-          return char;
-        }));
+          });
+          return hasChanges ? next : prev;
+        });
       }
       return;
     }

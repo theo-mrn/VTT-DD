@@ -484,6 +484,18 @@ export default function Component() {
     });
   };
 
+  // Widget IDs encode their config as "baseType:label:fieldIds:layout:styleOption:justify".
+  // Centralized here so edit-mode and view-mode rendering never drift apart.
+  const parseStatGroupId = (id: string, defaults: { fieldIds: string[], layout: 'horizontal' | 'vertical' | 'grid' }) => {
+    const parts = id.split(':');
+    return {
+      fieldIds: parts[2] ? parts[2].split(',') : defaults.fieldIds,
+      layout: (parts[3] as any) || defaults.layout,
+      styleOption: (parts[4] as any) || 'separated',
+      justify: (parts[5] as any) || 'stretch',
+    };
+  };
+
   const handleAddWidget = (widgetId: string) => {
     let widgetDef = WIDGET_REGISTRY.find(w => w.id === widgetId);
 
@@ -745,7 +757,6 @@ export default function Component() {
   );
 
   const handleRaceClick = async (race: string) => {
-    console.log(race);
     if (!race) {
       setSelectedRaceAbilities(["Race non spécifiée."]);
       setIsRaceModalOpen(true);
@@ -1229,11 +1240,7 @@ export default function Component() {
                   </div>
                 </div>
                 {layout.filter(l => l.i === 'stats' || l.i.startsWith('stats:')).map(l => {
-                  const parts = l.i.split(':');
-                  const fieldIds = parts[2] ? parts[2].split(',') : ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'];
-                  const layoutMode = (parts[3] as any) || 'grid';
-                  const styleOpt = (parts[4] as any) || 'separated';
-                  const justifyOpt = (parts[5] as any) || 'stretch';
+                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'], layout: 'grid' });
                   const isDragOver = dragOverWidgetId === l.i;
                   return (
                     <div
@@ -1250,11 +1257,7 @@ export default function Component() {
                   );
                 })}
                 {layout.filter(l => l.i === 'vitals' || l.i.startsWith('vitals:')).map(l => {
-                  const parts = l.i.split(':');
-                  const fieldIds = parts[2] ? parts[2].split(',') : ['PV', 'Defense'];
-                  const layoutMode = (parts[3] as any) || 'horizontal';
-                  const styleOpt = (parts[4] as any) || 'separated';
-                  const justifyOpt = (parts[5] as any) || 'stretch';
+                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: ['PV', 'Defense'], layout: 'horizontal' });
                   const isDragOver = dragOverWidgetId === l.i;
                   return (
                     <div
@@ -1271,11 +1274,7 @@ export default function Component() {
                   );
                 })}
                 {layout.filter(l => l.i === 'combat_stats' || l.i.startsWith('combat_stats:')).map(l => {
-                  const parts = l.i.split(':');
-                  const fieldIds = parts[2] ? parts[2].split(',') : ['Contact', 'Distance', 'Magie'];
-                  const layoutMode = (parts[3] as any) || 'grid';
-                  const styleOpt = (parts[4] as any) || 'separated';
-                  const justifyOpt = (parts[5] as any) || 'stretch';
+                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: ['Contact', 'Distance', 'Magie'], layout: 'grid' });
                   const isDragOver = dragOverWidgetId === l.i;
                   return (
                     <div
@@ -1334,10 +1333,7 @@ export default function Component() {
                 {layout.filter(l => l.i.startsWith('custom_group:')).map(l => {
                   const parts = l.i.split(':');
                   const label = parts[1] || '';
-                  const fieldIds = parts[2] ? parts[2].split(',') : [];
-                  const layoutMode = (parts[3] as any) || 'horizontal';
-                  const styleOpt = (parts[4] as any) || 'separated';
-                  const justifyOpt = (parts[5] as any) || 'stretch';
+                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: [], layout: 'horizontal' });
                   const isDragOver = dragOverWidgetId === l.i;
 
                   return (
@@ -1388,19 +1384,11 @@ export default function Component() {
                 <div id="vtt-widget-avatar-view" key="avatar" className="overflow-hidden h-full"><WidgetAvatar style={boxStyle} /></div>
                 <div id="vtt-widget-details-view" key="details" className="overflow-hidden h-full"><WidgetDetails style={boxStyle} onRaceClick={handleRaceClick} /></div>
                 {layout.filter(l => l.i === 'stats' || l.i.startsWith('stats:')).map(l => {
-                  const parts = l.i.split(':');
-                  const fieldIds = parts[2] ? parts[2].split(',') : ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'];
-                  const layoutMode = (parts[3] as any) || 'grid';
-                  const styleOpt = (parts[4] as any) || 'separated';
-                  const justifyOpt = (parts[5] as any) || 'stretch';
+                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: ['FOR', 'DEX', 'CON', 'INT', 'SAG', 'CHA'], layout: 'grid' });
                   return <div id={`vtt-widget-stats-view-${l.i}`} key={l.i} className="overflow-hidden h-full"><WidgetStats style={boxStyle} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} /></div>;
                 })}
                 {layout.filter(l => l.i === 'vitals' || l.i.startsWith('vitals:')).map(l => {
-                  const parts = l.i.split(':');
-                  const fieldIds = parts[2] ? parts[2].split(',') : ['PV', 'Defense'];
-                  const layoutMode = (parts[3] as any) || 'horizontal';
-                  const styleOpt = (parts[4] as any) || 'separated';
-                  const justifyOpt = (parts[5] as any) || 'stretch';
+                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: ['PV', 'Defense'], layout: 'horizontal' });
                   return (
                     <div id={`vtt-widget-vitals-view-${l.i}`} key={l.i} className="overflow-hidden h-full">
                       <Drawer>
@@ -1487,11 +1475,7 @@ export default function Component() {
                   );
                 })}
                 {layout.filter(l => l.i === 'combat_stats' || l.i.startsWith('combat_stats:')).map(l => {
-                  const parts = l.i.split(':');
-                  const fieldIds = parts[2] ? parts[2].split(',') : ['Contact', 'Distance', 'Magie'];
-                  const layoutMode = (parts[3] as any) || 'grid';
-                  const styleOpt = (parts[4] as any) || 'separated';
-                  const justifyOpt = (parts[5] as any) || 'stretch';
+                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: ['Contact', 'Distance', 'Magie'], layout: 'grid' });
                   return <div id={`vtt-widget-combat-stats-view-${l.i}`} key={l.i} className="overflow-hidden h-full"><WidgetCombatStats style={boxStyle} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} /></div>;
                 })}
                 {layout.find(l => l.i === 'bourse') && <div key="bourse" className="overflow-hidden h-full"><WidgetBourse style={boxStyle} /></div>}
@@ -1499,10 +1483,7 @@ export default function Component() {
                 {layout.filter(l => l.i.startsWith('custom_group:')).map(l => {
                   const parts = l.i.split(':');
                   const label = parts[1] || '';
-                  const fieldIds = parts[2] ? parts[2].split(',') : [];
-                  const layoutMode = (parts[3] as any) || 'horizontal';
-                  const styleOpt = (parts[4] as any) || 'separated';
-                  const justifyOpt = (parts[5] as any) || 'stretch';
+                  const { fieldIds, layout: layoutMode, styleOption: styleOpt, justify: justifyOpt } = parseStatGroupId(l.i, { fieldIds: [], layout: 'horizontal' });
                   return (
                     <div key={l.i} className="overflow-hidden h-full">
                       <WidgetCustomGroup style={boxStyle} label={label} fieldIds={fieldIds} layout={layoutMode} styleOption={styleOpt} justify={justifyOpt} />

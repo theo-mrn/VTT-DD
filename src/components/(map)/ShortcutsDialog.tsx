@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Keyboard, RotateCcw, Plus, Trash2, Save } from "lucide-react";
+import { X, Keyboard, RotateCcw, Plus, Trash2, Save, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -18,6 +18,17 @@ function KeyRecorder({ value, onChange, placeholder = "Aucun" }: { value: string
         if (isRecording) setRecordingKeys([]);
     }, [isRecording]);
 
+    // Termine l'enregistrement et sauvegarde la séquence accumulée (appelé par le
+    // bouton "Valider", nécessaire car Entrée doit pouvoir faire partie d'une séquence
+    // — ex: "Space Enter" pour la saisie rapide de dés — sans que ça la valide malgré elle.
+    // IMPORTANT: onChange (qui remonte jusqu'à setShortcuts dans ShortcutsProvider) doit être
+    // appelé ici, dans un handler d'événement classique — pas dans un callback fonctionnel de
+    // setState (ça déclenchait "Cannot update a component while rendering a different component").
+    const commitRecording = () => {
+        if (recordingKeys.length > 0) onChange(recordingKeys.join(' '));
+        setIsRecording(false);
+    };
+
     useEffect(() => {
         if (!isRecording) return;
         const handler = (e: KeyboardEvent) => {
@@ -28,15 +39,6 @@ function KeyRecorder({ value, onChange, placeholder = "Aucun" }: { value: string
             if (e.key === 'Escape') {
                 setIsRecording(false);
                 setRecordingKeys([]);
-                return;
-            }
-
-            // Save on Enter
-            if (e.key === 'Enter') {
-                if (recordingKeys.length > 0) {
-                    onChange(recordingKeys.join(' '));
-                }
-                setIsRecording(false);
                 return;
             }
 
@@ -51,28 +53,45 @@ function KeyRecorder({ value, onChange, placeholder = "Aucun" }: { value: string
                 return;
             }
 
+            // Enter (et toute autre touche) s'ajoute à la séquence — la validation se
+            // fait explicitement via le bouton "Valider", pas en appuyant sur une touche.
             const combo = formatKeyEvent(e);
             setRecordingKeys(prev => [...prev, combo]);
         };
         window.addEventListener('keydown', handler, { capture: true });
         return () => window.removeEventListener('keydown', handler, { capture: true });
-    }, [isRecording, onChange, recordingKeys]);
+    }, [isRecording]);
 
     const displayKeys = isRecording ? recordingKeys : (value ? value.split(' ') : []);
     const buttonVariant = isRecording ? "destructive" : "secondary" as const;
 
     return (
-        <Button
-            variant={buttonVariant}
-            size="sm"
-            onClick={() => setIsRecording(!isRecording)}
-            className={cn(
-                "min-w-[100px] font-mono",
-                isRecording && "animate-pulse"
+        <div className="flex items-center gap-1">
+            <Button
+                variant={buttonVariant}
+                size="sm"
+                onClick={() => setIsRecording(!isRecording)}
+                className={cn(
+                    "min-w-[100px] font-mono",
+                    isRecording && recordingKeys.length === 0 && "animate-pulse"
+                )}
+            >
+                {isRecording
+                    ? (displayKeys.length > 0 ? displayKeys.join(' + ') : "Appuyez sur une touche...")
+                    : (displayKeys.join(' + ') || placeholder)}
+            </Button>
+            {isRecording && recordingKeys.length > 0 && (
+                <Button
+                    variant="secondary"
+                    size="icon"
+                    className="h-8 w-8 text-green-400 hover:text-green-300"
+                    onClick={commitRecording}
+                    title="Valider la séquence"
+                >
+                    <Check className="w-4 h-4" />
+                </Button>
             )}
-        >
-            {isRecording ? "Enregistrement..." : (displayKeys.join(' + ') || placeholder)}
-        </Button>
+        </div>
     );
 }
 
@@ -221,6 +240,7 @@ export function ShortcutsDialog({
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D12} label="Lancer d12" />
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D20} label="Lancer d20" />
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.ROLL_D100} label="Lancer d100" />
+                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.QUICK_ROLL} label="Saisie rapide (notation libre)" />
                         </div>
                     </div>
 

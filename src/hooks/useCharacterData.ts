@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from 'react';
-import { collection, onSnapshot, doc } from 'firebase/firestore';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { collection, onSnapshot, doc, Unsubscribe } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { BonusData } from '@/contexts/CharacterContext';
 
@@ -32,49 +32,84 @@ export interface CategorizedBonuses {
     };
 }
 
+// ==================== SHARED SUBSCRIPTION CACHE ====================
+// Plusieurs composants montés en même temps (fiche + widgets + inventaire) appellent ces hooks
+// pour le même personnage. Sans ce cache, chacun ouvrait son propre onSnapshot sur la même
+// collection Firestore (jusqu'à 3 listeners identiques observés sur Bonus/{roomId}/{name} et
+// Inventaire/{roomId}/{name}), multipliant les lectures facturées pour rien. Ici, un seul
+// onSnapshot réel est actif par clé Firestore ; il est fermé quand le dernier abonné se démonte.
+interface SharedSubscription<T> {
+    data: T;
+    listeners: Set<(data: T) => void>;
+    unsubscribe: Unsubscribe;
+}
+
+function createSharedCollectionHook<T>(getPath: (roomId: string, playerName: string) => string, emptyValue: T[]) {
+    const cache = new Map<string, SharedSubscription<T[]>>();
+
+    return function useSharedCollection(roomId: string | null, playerName: string | undefined): T[] {
+        const [data, setData] = useState<T[]>(emptyValue);
+        const key = roomId && playerName ? `${roomId}/${playerName}` : null;
+
+        useEffect(() => {
+            if (!key || !roomId || !playerName) {
+                setData(emptyValue);
+                return;
+            }
+
+            let sub = cache.get(key);
+            if (!sub) {
+                const ref = collection(db, getPath(roomId, playerName));
+                const listeners = new Set<(data: T[]) => void>();
+                const unsubscribe = onSnapshot(ref, (snapshot) => {
+                    const next = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as T));
+                    const current = cache.get(key);
+                    if (current) {
+                        current.data = next;
+                        current.listeners.forEach(l => l(next));
+                    }
+                });
+                sub = { data: emptyValue, listeners, unsubscribe };
+                cache.set(key, sub);
+            }
+
+            sub.listeners.add(setData);
+            setData(sub.data);
+
+            return () => {
+                const current = cache.get(key);
+                if (!current) return;
+                current.listeners.delete(setData);
+                if (current.listeners.size === 0) {
+                    current.unsubscribe();
+                    cache.delete(key);
+                }
+            };
+        }, [key, roomId, playerName]);
+
+        return data;
+    };
+}
+
 /**
  * Hook centralisant l'écoute de l'inventaire d'un personnage.
- * Remplace les onSnapshot éparpillés dans inventaire.tsx, CharacterSheet.tsx, FicheWidgetsExtra.tsx.
+ * Un seul onSnapshot actif par (roomId, playerName), partagé entre tous les composants
+ * qui l'appellent simultanément (inventaire.tsx, WidgetBourse, FloatingEditTabs, ...).
  */
-export function useCharacterInventory<T = any>(roomId: string | null, playerName: string | undefined) {
-    const [inventory, setInventory] = useState<T[]>([]);
-
-    useEffect(() => {
-        if (!roomId || !playerName) {
-            setInventory([]);
-            return;
-        }
-        const inventoryRef = collection(db, `Inventaire/${roomId}/${playerName}`);
-        const unsubscribe = onSnapshot(inventoryRef, (snapshot) => {
-            setInventory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as T)));
-        });
-        return () => unsubscribe();
-    }, [roomId, playerName]);
-
-    return inventory;
-}
+export const useCharacterInventory = createSharedCollectionHook<any>(
+    (roomId, playerName) => `Inventaire/${roomId}/${playerName}`,
+    []
+) as <T = any>(roomId: string | null, playerName: string | undefined) => T[];
 
 /**
  * Hook centralisant l'écoute des bonus d'un personnage.
- * Remplace les onSnapshot éparpillés dans les fiches et widgets.
+ * Un seul onSnapshot actif par (roomId, playerName), partagé entre tous les composants
+ * qui l'appellent simultanément (CharacterContext, inventaire.tsx, WidgetEffects, ...).
  */
-export function useCharacterBonuses(roomId: string | null, playerName: string | undefined) {
-    const [bonuses, setBonuses] = useState<RawBonus[]>([]);
-
-    useEffect(() => {
-        if (!roomId || !playerName) {
-            setBonuses([]);
-            return;
-        }
-        const bonusesRef = collection(db, `Bonus/${roomId}/${playerName}`);
-        const unsubscribe = onSnapshot(bonusesRef, (snapshot) => {
-            setBonuses(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RawBonus)));
-        });
-        return () => unsubscribe();
-    }, [roomId, playerName]);
-
-    return bonuses;
-}
+export const useCharacterBonuses = createSharedCollectionHook<RawBonus>(
+    (roomId, playerName) => `Bonus/${roomId}/${playerName}`,
+    []
+);
 
 /**
  * Hook écoutant un document de bonus spécifique (pour l'édition d'un seul objet par exemple).

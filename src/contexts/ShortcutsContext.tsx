@@ -44,6 +44,7 @@ export const SHORTCUT_ACTIONS = {
     ROLL_D12: 'roll_d12',
     ROLL_D20: 'roll_d20',
     ROLL_D100: 'roll_d100', // d100 usually 2d10 but let's assume standard notation "1d100"
+    QUICK_ROLL: 'quick_roll', // Ouvre un champ de saisie rapide flottant (notation libre)
 
     // Missing Tools
     TOOL_LAYERS: 'tool_layers',
@@ -147,6 +148,9 @@ const DEFAULT_SHORTCUTS: Record<string, string> = {
     // ========== UNDO/REDO ==========
     [SHORTCUT_ACTIONS.UNDO]: 'Ctrl+Z',      // Annuler
     [SHORTCUT_ACTIONS.REDO]: 'Ctrl+Y',      // Refaire (Ctrl+Shift+Z aussi possible sur Mac)
+
+    // ========== SAISIE RAPIDE ==========
+    [SHORTCUT_ACTIONS.QUICK_ROLL]: 'Space Enter', // Séquence Espace puis Entrée : ouvre un champ de saisie rapide (notation libre, ex: 1d20)
 };
 
 // Helper to format event to string
@@ -305,12 +309,21 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
         // Check if [history + current] ends with sequence
         if (currentKey !== sequence[sequence.length - 1]) return false;
 
+        // Le listener d'historique (useEffect plus haut) s'exécute avant ce check et pousse
+        // déjà la touche COURANTE dans keyHistory — donc son dernier élément est toujours
+        // égal à currentKey à ce stade, pas la touche précédente. On l'exclut avant de
+        // comparer, sinon une séquence "A B" ne matche jamais sur l'événement B (le dernier
+        // élément de l'historique serait "B" au lieu de "A").
+        const previousKeys = keyHistory.current[keyHistory.current.length - 1] === currentKey
+            ? keyHistory.current.slice(0, -1)
+            : keyHistory.current;
+
         // Optim check: last key matches. Now check previous keys.
         // We need (sequence.length - 1) previous keys from history
         const needed = sequence.length - 1;
-        if (keyHistory.current.length < needed) return false;
+        if (previousKeys.length < needed) return false;
 
-        const historySlice = keyHistory.current.slice(-needed);
+        const historySlice = previousKeys.slice(-needed);
         const sequenceSlice = sequence.slice(0, needed);
 
         // Array compare

@@ -414,14 +414,19 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
                         deletedCount.musicZones++;
                     });
 
-                    // 8. Delete Measurements
-                    const measurementsRef = collection(db, `cartes/${effectiveRoomId}/measurements`);
-                    const measurementsQuery = query(measurementsRef, where('cityId', '==', id));
-                    const measurementsSnapshot = await getDocs(measurementsQuery);
-                    measurementsSnapshot.forEach((docSnap) => {
-                        batch.delete(docSnap.ref);
-                        deletedCount.measurements++;
-                    });
+                    // 8. Delete Measurements (RTDB)
+                    const rtdbMeasurementsSnap = await rtdbGet(rtdbRef(realtimeDb, `rooms/${effectiveRoomId}/measurements`));
+                    const rtdbMeasurements = rtdbMeasurementsSnap.val() || {};
+                    const measurementNulls: Record<string, null> = {};
+                    for (const [measId, data] of Object.entries(rtdbMeasurements)) {
+                        if ((data as any)?.cityId === id) {
+                            measurementNulls[measId] = null;
+                            deletedCount.measurements++;
+                        }
+                    }
+                    if (Object.keys(measurementNulls).length > 0) {
+                        await rtdbUpdate(rtdbRef(realtimeDb, `rooms/${effectiveRoomId}/measurements`), measurementNulls);
+                    }
 
                     // 9. Delete Fog (specific document)
                     const fogDocId = `fog_${id}`;

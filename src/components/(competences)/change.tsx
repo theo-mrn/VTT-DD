@@ -160,7 +160,7 @@ function SortableVoieCard({
                   {competence.isCustom && competence.originalVoie && (
                     <div className="text-xs text-[var(--text-secondary)] mt-1">
                       {competence.originalVoie === 'manual'
-                        ? '✏️ Compétence personnalisée'
+                        ? ' Compétence personnalisée'
                         : `Depuis: ${competence.originalVoie} (rang ${competence.originalRank})`}
                     </div>
                   )}
@@ -1234,7 +1234,7 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
                 <TabsTrigger value="races" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Races</TabsTrigger>
                 <TabsTrigger value="prestiges" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Prestiges</TabsTrigger>
                 {selectedVoieIndex === null && (
-                  <TabsTrigger value="custom" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">✏️ Voie personnalisée</TabsTrigger>
+                  <TabsTrigger value="custom" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black"> Voie personnalisée</TabsTrigger>
                 )}
               </TabsList>
 
@@ -1533,7 +1533,7 @@ export default function CharacterProfile({ onClose, characterId: propCharacterId
                 <TabsTrigger value="profiles" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Profils</TabsTrigger>
                 <TabsTrigger value="races" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Races</TabsTrigger>
                 <TabsTrigger value="prestiges" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">Prestiges</TabsTrigger>
-                <TabsTrigger value="custom" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black">✏️ Personnalisée</TabsTrigger>
+                <TabsTrigger value="custom" className="data-[state=active]:bg-[#c0a080] data-[state=active]:text-black"> Personnalisée</TabsTrigger>
               </TabsList>
 
               <div className="flex items-center gap-4">

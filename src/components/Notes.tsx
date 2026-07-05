@@ -78,7 +78,7 @@ const NOTE_TYPES = [
 
 // --- MAIN COMPONENT ---
 
-export default function Notes() {
+function Notes() {
   const { user, isMJ, persoId: myCharId } = useGame()
   const roomId = user?.roomId ?? null
   const characterId = user?.perso ?? null
@@ -1167,3 +1167,9 @@ function CustomEditorModal({ data, roomId, roomCharacters, onClose, onSave, onDe
     </div>
   )
 }
+
+// Monté en permanence comme frère de la carte (src/app/[roomid]/map/layout.tsx) sans aucune
+// prop : sans memo, il re-render à chaque re-render de son parent (Layout ou un Provider
+// englobant), même sans changement réel de son propre state — par ex. pendant un drag de
+// personnage sur la carte, qui n'a pourtant aucun rapport avec les notes.
+export default React.memo(Notes);

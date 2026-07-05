@@ -10,12 +10,14 @@ import { FaceNumber } from './face-number';
 // Visual Die Component (Pure Rendering). The parent handles positioning /
 // rotation via a Group, so this just renders the mesh + effects at 0,0,0.
 // Reusable for both the physics die and previews (no physics).
-export const VisualDie = React.forwardRef(({ type, skin, isShattered, critType, simple = false }: {
+export const VisualDie = React.forwardRef(({ type, skin, isShattered, critType, stopped = false, simple = false, onCritComplete }: {
     type: string,
     skin: DiceSkin,
     isShattered: boolean,
     critType: CriticalType,
-    simple?: boolean
+    stopped?: boolean,
+    simple?: boolean,
+    onCritComplete?: () => void,
 }, ref: any) => {
     const { trueFaces, geometry } = getCachedGeometry(type);
 
@@ -24,7 +26,7 @@ export const VisualDie = React.forwardRef(({ type, skin, isShattered, critType, 
     if (skin.effectType === 'orb' && !isShattered) {
         return (
             <group>
-                {critType && <CriticalEffect type={critType} onComplete={() => { }} />}
+                {critType && <CriticalEffect type={critType} onComplete={onCritComplete ?? (() => { })} />}
 
                 {/* Core + numbers render FIRST (low renderOrder) so the transmissive
                     shell, drawn last, can sample them and refract correctly. */}
@@ -47,6 +49,7 @@ export const VisualDie = React.forwardRef(({ type, skin, isShattered, critType, 
                         radius={0.92}
                         maxOpacity={0.85}
                         outlineWidth={0}
+                        stopped={stopped}
                     />
                 ))}
 
@@ -59,7 +62,7 @@ export const VisualDie = React.forwardRef(({ type, skin, isShattered, critType, 
     return (
         <group>
             {/* Critical hit/fail effect */}
-            {critType && <CriticalEffect type={critType} onComplete={() => { }} />}
+            {critType && <CriticalEffect type={critType} onComplete={onCritComplete ?? (() => { })} />}
 
             {/* Shattered die fragments */}
             {isShattered && <ShatteredDie color={skin.bodyColor} onComplete={() => { }} />}
@@ -110,6 +113,7 @@ export const VisualDie = React.forwardRef(({ type, skin, isShattered, critType, 
                     radius={1.01}
                     maxOpacity={1}
                     outlineWidth={0.06}
+                    stopped={stopped}
                 />
             ))}
         </group>

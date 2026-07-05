@@ -87,16 +87,16 @@ export default function RejoindrePageComponent() {
     const fetchPublicRooms = async () => {
       const roomCollection = collection(db, 'Salle')
       const roomSnapshot = await getDocs(roomCollection)
-      const publicRoomList: Room[] = []
+      const publicRoomDocs = roomSnapshot.docs.filter(roomDoc => roomDoc.data().isPublic)
 
-      for (const roomDoc of roomSnapshot.docs) {
+      // Lectures des sous-collections Noms en parallèle plutôt qu'en séquentiel :
+      // ne change pas le nombre de lectures facturées, mais évite d'attendre N allers-retours réseau à la suite.
+      const publicRoomList = await Promise.all(publicRoomDocs.map(async (roomDoc) => {
         const data = roomDoc.data()
-        if (data.isPublic) {
-          const nomsSnapshot = await getDocs(collection(db, `salles/${roomDoc.id}/Noms`))
-          const playersOnly = nomsSnapshot.docs.filter(doc => doc.data().nom !== 'MJ').length
-          publicRoomList.push({ id: roomDoc.id, ...data, occupantsCount: playersOnly } as Room)
-        }
-      }
+        const nomsSnapshot = await getDocs(collection(db, `salles/${roomDoc.id}/Noms`))
+        const playersOnly = nomsSnapshot.docs.filter(doc => doc.data().nom !== 'MJ').length
+        return { id: roomDoc.id, ...data, occupantsCount: playersOnly } as Room
+      }))
       setPublicRooms(publicRoomList)
     }
 

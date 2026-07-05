@@ -31,6 +31,37 @@ function useFieldVisibility() {
     return { isFieldPrivate, isFieldHidden };
 }
 
+type GroupLayout = 'horizontal' | 'vertical' | 'grid';
+type GroupJustify = 'start' | 'center' | 'end' | 'between' | 'around' | 'stretch';
+
+// Shared by WidgetStats/WidgetVitals/WidgetCombatStats/WidgetCustomGroup so the
+// layout/justify/style combinatorics only need to be reasoned about in one place.
+function getContainerClasses(opts: {
+    layout: GroupLayout;
+    justify: GroupJustify;
+    isUnified: boolean;
+    gridColsClass: string;
+    gapClass: string;
+    extra?: string;
+}): string {
+    const { layout, justify, isUnified, gridColsClass, gapClass, extra = '' } = opts;
+    let base: string;
+
+    if (layout === 'grid') {
+        base = `grid ${gridColsClass} ${gapClass} ${extra}`;
+    } else if (layout === 'vertical') {
+        if (justify === 'stretch') base = `flex flex-col items-stretch ${gapClass} ${extra}`;
+        else if (justify === 'between' || justify === 'around') base = `flex flex-col justify-${justify} items-stretch ${gapClass} ${extra}`;
+        else base = `flex flex-col justify-start items-${justify} ${gapClass} ${extra}`;
+    } else {
+        if (justify === 'stretch') base = `grid ${gapClass} ${extra}`;
+        else base = `flex flex-row flex-wrap justify-${justify} items-stretch ${gapClass} ${extra}`;
+    }
+
+    const unifiedClasses = isUnified ? 'bg-[color:var(--bg-secondary,#2a2a2a)] rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] overflow-hidden' : '';
+    return `${base} ${unifiedClasses}`;
+}
+
 export const WidgetAvatar: React.FC<WidgetProps> = ({ style }) => {
     const { selectedCharacter } = useCharacter();
 
@@ -147,29 +178,20 @@ export const WidgetStats: React.FC<WidgetProps & { fieldIds?: string[], layout?:
     const { isFieldPrivate, isFieldHidden } = useFieldVisibility();
 
     const isUnified = styleOption === 'unified';
-    const gapClass = isUnified ? '' : 'gap-1 md:gap-2';
-    const gapClassVert = isUnified ? '' : 'gap-1';
+    const gapClass = isUnified ? '' : (layout === 'grid' ? 'gap-1 md:gap-2' : 'gap-1');
 
-    let containerClassName = '';
-    if (layout === 'grid') {
-        containerClassName = `grid grid-cols-2 sm:grid-cols-3 ${gapClass} h-full p-1`;
-    } else if (layout === 'vertical') {
-        if (justify === 'stretch') containerClassName = `flex flex-col items-stretch ${gapClassVert} flex-1 h-full overflow-y-auto p-1`;
-        else if (justify === 'between' || justify === 'around') containerClassName = `flex flex-col justify-${justify} items-stretch ${gapClassVert} flex-1 h-full overflow-y-auto p-1`;
-        else containerClassName = `flex flex-col justify-start items-${justify} ${gapClassVert} flex-1 h-full overflow-y-auto p-1`;
-    } else {
-        if (justify === 'stretch') containerClassName = `grid ${gapClassVert} flex-1 h-full p-1`;
-        else containerClassName = `flex flex-row flex-wrap justify-${justify} items-stretch ${gapClassVert} flex-1 h-full overflow-y-auto p-1`;
-    }
+    const containerClassName = getContainerClasses({
+        layout, justify, isUnified, gapClass,
+        gridColsClass: 'grid-cols-2 sm:grid-cols-3',
+        extra: layout === 'grid' ? 'h-full p-1' : 'flex-1 h-full overflow-y-auto p-1',
+    });
 
     const containerStyle = (layout === 'horizontal' && justify === 'stretch')
         ? { gridTemplateColumns: `repeat(${fieldIds.length}, minmax(0, 1fr))` }
         : undefined;
 
-    const unifiedContainerClasses = isUnified ? 'bg-[color:var(--bg-secondary,#2a2a2a)] rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] overflow-hidden' : '';
-
     return (
-        <div className={`${containerClassName} ${unifiedContainerClasses}`} style={isUnified ? { ...style, ...containerStyle } : containerStyle}>
+        <div className={containerClassName} style={isUnified ? { ...style, ...containerStyle } : containerStyle}>
             {fieldIds.map((name) => {
                 const customField = selectedCharacter?.customFields?.find(f => f.id === name);
                 const isCustom = !!customField;
@@ -264,26 +286,18 @@ export const WidgetVitals: React.FC<WidgetProps & { fieldIds?: string[], layout?
     const isUnified = styleOption === 'unified';
     const gapClass = isUnified ? '' : 'gap-1';
 
-    let containerClassName = '';
-    if (layout === 'grid') {
-        containerClassName = `grid grid-cols-2 ${gapClass} h-full p-1`;
-    } else if (layout === 'vertical') {
-        if (justify === 'stretch') containerClassName = `flex flex-col items-stretch ${gapClass} flex-1 h-full overflow-y-auto p-1`;
-        else if (justify === 'between' || justify === 'around') containerClassName = `flex flex-col justify-${justify} items-stretch ${gapClass} flex-1 h-full overflow-y-auto p-1`;
-        else containerClassName = `flex flex-col justify-start items-${justify} ${gapClass} flex-1 h-full overflow-y-auto p-1`;
-    } else {
-        if (justify === 'stretch') containerClassName = `grid ${gapClass} flex-1 h-full p-1`;
-        else containerClassName = `flex flex-row flex-wrap justify-${justify} items-stretch ${gapClass} flex-1 h-full overflow-y-auto p-1`;
-    }
+    const containerClassName = getContainerClasses({
+        layout, justify, isUnified, gapClass,
+        gridColsClass: 'grid-cols-2',
+        extra: layout === 'grid' ? 'h-full p-1' : 'flex-1 h-full overflow-y-auto p-1',
+    });
 
     const containerStyle = (layout === 'horizontal' && justify === 'stretch')
         ? { gridTemplateColumns: `repeat(${fieldIds.length}, minmax(0, 1fr))` }
         : undefined;
 
-    const unifiedContainerClasses = isUnified ? 'bg-[color:var(--bg-secondary,#2a2a2a)] rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] overflow-hidden' : '';
-
     return (
-        <div className={`${containerClassName} ${unifiedContainerClasses}`} style={isUnified ? { ...style, ...containerStyle } : containerStyle}>
+        <div className={containerClassName} style={isUnified ? { ...style, ...containerStyle } : containerStyle}>
             {fieldIds.map(name => {
                 const customField = selectedCharacter?.customFields?.find(f => f.id === name);
                 const isCustom = !!customField;
@@ -349,26 +363,18 @@ export const WidgetCombatStats: React.FC<WidgetProps & { fieldIds?: string[], la
     const isUnified = styleOption === 'unified';
     const gapClass = isUnified ? '' : 'gap-1';
 
-    let containerClassName = '';
-    if (layout === 'grid') {
-        containerClassName = `grid grid-cols-3 ${gapClass} h-full p-1`;
-    } else if (layout === 'vertical') {
-        if (justify === 'stretch') containerClassName = `flex flex-col items-stretch ${gapClass} flex-1 h-full overflow-y-auto p-1`;
-        else if (justify === 'between' || justify === 'around') containerClassName = `flex flex-col justify-${justify} items-stretch ${gapClass} flex-1 h-full overflow-y-auto p-1`;
-        else containerClassName = `flex flex-col justify-start items-${justify} ${gapClass} flex-1 h-full overflow-y-auto p-1`;
-    } else {
-        if (justify === 'stretch') containerClassName = `grid ${gapClass} flex-1 h-full p-1`;
-        else containerClassName = `flex flex-row flex-wrap justify-${justify} items-stretch ${gapClass} flex-1 h-full overflow-y-auto p-1`;
-    }
+    const containerClassName = getContainerClasses({
+        layout, justify, isUnified, gapClass,
+        gridColsClass: 'grid-cols-3',
+        extra: layout === 'grid' ? 'h-full p-1' : 'flex-1 h-full overflow-y-auto p-1',
+    });
 
     const containerStyle = (layout === 'horizontal' && justify === 'stretch')
         ? { gridTemplateColumns: `repeat(${fieldIds.length}, minmax(0, 1fr))` }
         : undefined;
 
-    const unifiedContainerClasses = isUnified ? 'bg-[color:var(--bg-secondary,#2a2a2a)] rounded-[length:var(--block-radius,0.5rem)] border border-[color:var(--border-color,#3a3a3a)] overflow-hidden' : '';
-
     return (
-        <div className={`${containerClassName} ${unifiedContainerClasses}`} style={isUnified ? { ...style, ...containerStyle } : containerStyle}>
+        <div className={containerClassName} style={isUnified ? { ...style, ...containerStyle } : containerStyle}>
             {fieldIds.map((name) => {
                 const customField = selectedCharacter?.customFields?.find(f => f.id === name);
                 const isCustom = !!customField;
@@ -469,17 +475,13 @@ export const WidgetCustomGroup: React.FC<WidgetCustomGroupProps> = ({ style, lab
     const isUnified = styleOption === 'unified';
     const gapClass = isUnified ? '' : 'gap-1';
 
-    let containerClassName = '';
-    if (layout === 'grid') {
-        containerClassName = `grid grid-cols-2 sm:grid-cols-3 ${gapClass} flex-1 h-full overflow-y-auto`;
-    } else if (layout === 'vertical') {
-        if (justify === 'stretch') containerClassName = `flex flex-col items-stretch ${gapClass} flex-1 h-full overflow-y-auto`;
-        else if (justify === 'between' || justify === 'around') containerClassName = `flex flex-col justify-${justify} items-stretch ${gapClass} flex-1 h-full overflow-y-auto`;
-        else containerClassName = `flex flex-col justify-start items-${justify} ${gapClass} flex-1 h-full overflow-y-auto`;
-    } else {
-        if (justify === 'stretch') containerClassName = `grid ${gapClass} flex-1 h-full`;
-        else containerClassName = `flex flex-row flex-wrap justify-${justify} items-stretch ${gapClass} flex-1 h-full overflow-y-auto`;
-    }
+    // isUnified: false here because the unified background/border classes are applied
+    // one level up on the wrapper div, not on this inner container (unlike the other widgets).
+    const containerClassName = getContainerClasses({
+        layout, justify, isUnified: false, gapClass,
+        gridColsClass: 'grid-cols-2 sm:grid-cols-3',
+        extra: layout === 'horizontal' && justify === 'stretch' ? 'flex-1 h-full' : 'flex-1 h-full overflow-y-auto',
+    });
 
     const containerStyle = (layout === 'horizontal' && justify === 'stretch')
         ? { gridTemplateColumns: `repeat(${resolvedFields.length}, minmax(0, 1fr))` }

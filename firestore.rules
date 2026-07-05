@@ -57,7 +57,8 @@ service cloud.firestore {
     }
 
     // ── Zones réservées au MJ (carte, décor, ambiance) ────────────────────────
-    // cities, fog, musicZones, portals, settings, scenario, objects, lights, measurements
+    // cities, fog, musicZones, portals, settings, scenario, objects, lights
+    // (measurements a été migré en RTDB, voir database.rules.json)
     match /cartes/{roomId}/cities/{document=**} {
       allow read: if isRoomMember(roomId);
       allow write: if isRoomMJ(roomId);
@@ -89,11 +90,6 @@ service cloud.firestore {
     }
 
     match /cartes/{roomId}/lights/{document=**} {
-      allow read: if isRoomMember(roomId);
-      allow write: if isRoomMJ(roomId);
-    }
-
-    match /cartes/{roomId}/measurements/{document=**} {
       allow read: if isRoomMember(roomId);
       allow write: if isRoomMJ(roomId);
     }

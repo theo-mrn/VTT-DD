@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { X, Send, Info, Dice1, Dice2, Dice3, Dice4, Dice5, Dice6, ChevronRight, Box, Shield, EyeOff, History, RotateCcw, BarChart2, Store, SwitchCamera, Keyboard, Filter } from 'lucide-react';
 import { doc, getDoc, auth, db, addDoc, collection, updateDoc, query, orderBy, limit, onSnapshot } from "@/lib/firebase";
@@ -61,6 +62,13 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
   const [show3DAnimations, setShow3DAnimations] = useState(true);
   const [isPrivate, setIsPrivate] = useState(false);
   const [isBlind, setIsBlind] = useState(false);
+
+  // Saisie rapide : petit champ flottant indépendant du panneau complet (isOpen),
+  // ouvert par un raccourci clavier (par défaut Espace puis Entrée). Réutilise
+  // handleRoll telle quelle, donc pas de duplication de la logique de lancer.
+  const [isQuickRollOpen, setIsQuickRollOpen] = useState(false);
+  const [quickRollInput, setQuickRollInput] = useState('');
+  const quickRollInputRef = useRef<HTMLInputElement>(null);
 
   const userName = isMJ ? "MJ" : (selectedCharacter?.Nomperso || "Utilisateur");
   const userAvatar = isMJ ? undefined : (selectedCharacter?.imageURLFinal || selectedCharacter?.imageURL || undefined);
@@ -669,6 +677,13 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
       const target = e.target as HTMLElement;
       if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
 
+      // Saisie rapide : ouvre le petit champ flottant (indépendant du panneau complet)
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.QUICK_ROLL)) {
+        e.preventDefault();
+        setIsQuickRollOpen(true);
+        return;
+      }
+
       let rollCmd = "";
       if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D4)) rollCmd = "1d4";
       else if (isShortcutPressed(e, SHORTCUT_ACTIONS.ROLL_D6)) rollCmd = "1d6";
@@ -709,6 +724,37 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
   }, [isShortcutPressed, customShortcuts, checkKeyCombination]);
+
+  // Focus automatique du champ de saisie rapide à son ouverture
+  useEffect(() => {
+    if (isQuickRollOpen) {
+      // Délai pour laisser le champ se monter avant de le focus
+      const t = setTimeout(() => quickRollInputRef.current?.focus(), 10);
+      return () => clearTimeout(t);
+    }
+  }, [isQuickRollOpen]);
+
+  const handleQuickRollSubmit = () => {
+    const notation = quickRollInput.trim();
+    if (!notation) {
+      setIsQuickRollOpen(false);
+      return;
+    }
+    handleRollRef.current(notation);
+    setQuickRollInput('');
+    setIsQuickRollOpen(false);
+  };
+
+  const handleQuickRollKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleQuickRollSubmit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setQuickRollInput('');
+      setIsQuickRollOpen(false);
+    }
+  };
 
   const addToInput = (str: string) => {
     setInput(prev => {
@@ -773,6 +819,7 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
 
 
   return (
+    <>
     <div className={`fixed inset-x-0 bottom-[var(--dock-h)] top-0 lg:inset-auto lg:top-1/2 lg:left-20 z-50 pointer-events-none lg:-translate-y-1/2 lg:ml-2 ${isOpen ? 'bg-[#1c1c1c] lg:bg-transparent' : ''}`}>
       {/* Interface */}
       {isOpen && (
@@ -1449,5 +1496,38 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
         }
       `}</style>
     </div >
+
+    {/* Saisie rapide : champ flottant indépendant du panneau complet, ouvert par
+        raccourci clavier (par défaut Espace puis Entrée). Rendu via un portail vers
+        document.body — le conteneur racine ci-dessus a un `transform` (lg:-translate-y-1/2)
+        qui, en CSS, redéfinirait le containing block d'un `position: fixed` imbriqué,
+        décalant le champ au lieu de le centrer sur tout l'écran. */}
+    {isQuickRollOpen && typeof document !== 'undefined' && createPortal(
+      <div
+        className="fixed inset-0 z-[100] flex items-start justify-center pt-[20vh] bg-black/40 pointer-events-auto"
+        onClick={() => { setQuickRollInput(''); setIsQuickRollOpen(false); }}
+      >
+        <div
+          className="flex items-center gap-2 rounded-xl border shadow-2xl px-4 py-3 w-[90vw] max-w-sm"
+          style={{ background: 'var(--bg-darker)', borderColor: 'var(--border-color)' }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Dice1 className="w-5 h-5 shrink-0" style={{ color: 'var(--accent-brown)' }} />
+          <input
+            ref={quickRollInputRef}
+            type="text"
+            value={quickRollInput}
+            onChange={(e) => setQuickRollInput(e.target.value)}
+            onKeyDown={handleQuickRollKeyDown}
+            maxLength={50}
+            placeholder="1d20 + 5..."
+            className="flex-1 bg-transparent border-none outline-none text-lg font-mono"
+            style={{ color: 'var(--text-primary)' }}
+          />
+        </div>
+      </div>,
+      document.body
+    )}
+    </>
   );
 };

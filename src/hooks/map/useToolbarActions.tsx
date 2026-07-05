@@ -147,7 +147,7 @@ export interface UseToolbarActionsParams {
 
 export interface UseToolbarActionsReturn {
   handleToolbarAction: (actionId: string) => void;
-  getActiveToolbarTools: () => string[];
+  getActiveToolbarTools: string[];
   getToolOptionsContent: () => React.ReactNode;
 }
 
@@ -205,93 +205,104 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     setDrawings,
   } = params;
 
-  const handleToolbarAction = (actionId: string) => {
+  // Toujours à jour, lu par handleToolbarAction (voir juste en dessous) : évite de lister
+  // ~20 dépendances dans un useCallback (risque d'oubli = stale closure sur un outil de
+  // toolbar), tout en gardant la fonction stable en référence pour ne pas casser le
+  // React.memo de MapToolbar (elle ne change plus de référence à chaque render).
+  const paramsRef = React.useRef(params);
+  paramsRef.current = params;
+
+  const handleToolbarAction = React.useCallback((actionId: string) => {
+    const p = paramsRef.current;
     const deactivateIncompatible = (currentTool: string) => {
-      if (currentTool !== TOOLS.DRAW && drawMode) setDrawMode(false);
-      if (currentTool !== TOOLS.PAN && panMode) setPanMode(false);
-      if (currentTool !== TOOLS.MEASURE && measureMode) setMeasureMode(false);
-      if (isMJ) {
-        if (currentTool !== TOOLS.VISIBILITY && visibilityMode) {
-          setVisibilityMode(false);
-          setIsDrawingObstacle(false);
-          setCurrentObstaclePoints([]);
-          setFogMode(false);
+      if (currentTool !== TOOLS.DRAW && p.drawMode) p.setDrawMode(false);
+      if (currentTool !== TOOLS.PAN && p.panMode) p.setPanMode(false);
+      if (currentTool !== TOOLS.MEASURE && p.measureMode) p.setMeasureMode(false);
+      if (p.isMJ) {
+        if (currentTool !== TOOLS.VISIBILITY && p.visibilityMode) {
+          p.setVisibilityMode(false);
+          p.setIsDrawingObstacle(false);
+          p.setCurrentObstaclePoints([]);
+          p.setFogMode(false);
         }
 
         //  MUTUAL EXCLUSION: Close other drawers
-        if (currentTool !== TOOLS.ADD_OBJ && isObjectDrawerOpen) setIsObjectDrawerOpen(false);
-        if (currentTool !== TOOLS.ADD_CHAR && isNPCDrawerOpen) setIsNPCDrawerOpen(false);
-        if (currentTool !== TOOLS.MUSIC && isSoundDrawerOpen) setIsSoundDrawerOpen(false);
-        if (currentTool !== TOOLS.AUDIO_MIXER && isAudioMixerOpen) setIsAudioMixerOpen(false);
+        if (currentTool !== TOOLS.ADD_OBJ && p.isObjectDrawerOpen) p.setIsObjectDrawerOpen(false);
+        if (currentTool !== TOOLS.ADD_CHAR && p.isNPCDrawerOpen) p.setIsNPCDrawerOpen(false);
+        if (currentTool !== TOOLS.MUSIC && p.isSoundDrawerOpen) p.setIsSoundDrawerOpen(false);
+        if (currentTool !== TOOLS.AUDIO_MIXER && p.isAudioMixerOpen) p.setIsAudioMixerOpen(false);
 
         // If opening a tool that requires the map view, switch back from 'world' mode
         if ((currentTool === TOOLS.ADD_OBJ ||
           currentTool === TOOLS.ADD_CHAR ||
           currentTool === TOOLS.MUSIC ||
-          currentTool === TOOLS.AUDIO_MIXER) && viewMode === 'world') {
-          setViewMode('city');
+          currentTool === TOOLS.AUDIO_MIXER) && p.viewMode === 'world') {
+          p.setViewMode('city');
         }
 
-        if (currentTool !== TOOLS.MUSIC && isMusicMode) setIsMusicMode(false);
-        if (currentTool !== TOOLS.MULTI_SELECT && multiSelectMode) setMultiSelectMode(false);
-        if (isLightPlacementMode) setIsLightPlacementMode(false);
-        if (currentTool !== TOOLS.PORTAL && portalMode) setPortalMode(false); // Fix conflict
-        if (currentTool !== TOOLS.SPAWN_POINT && spawnPointMode) setSpawnPointMode(false); // Fix conflict
+        if (currentTool !== TOOLS.MUSIC && p.isMusicMode) p.setIsMusicMode(false);
+        if (currentTool !== TOOLS.MULTI_SELECT && p.multiSelectMode) p.setMultiSelectMode(false);
+        if (p.isLightPlacementMode) p.setIsLightPlacementMode(false);
+        if (currentTool !== TOOLS.PORTAL && p.portalMode) p.setPortalMode(false); // Fix conflict
+        if (currentTool !== TOOLS.SPAWN_POINT && p.spawnPointMode) p.setSpawnPointMode(false); // Fix conflict
       }
     };
     switch (actionId) {
-      case TOOLS.PAN: deactivateIncompatible(TOOLS.PAN); togglePanMode(); break;
-      case TOOLS.GRID: setShowGrid(!showGrid); break;
-      case TOOLS.TOGGLE_CHAR_BORDERS: setShowCharBorders(!showCharBorders); break;
-      case TOOLS.LAYERS: setShowLayerControl(!showLayerControl); break;
-      case TOOLS.BACKGROUND: if (isMJ) setShowBackgroundSelector(true); break;
+      case TOOLS.PAN: deactivateIncompatible(TOOLS.PAN); p.togglePanMode(); break;
+      case TOOLS.GRID: p.setShowGrid(!p.showGrid); break;
+      case TOOLS.TOGGLE_CHAR_BORDERS: p.setShowCharBorders(!p.showCharBorders); break;
+      case TOOLS.LAYERS: p.setShowLayerControl(!p.showLayerControl); break;
+      case TOOLS.BACKGROUND: if (p.isMJ) p.setShowBackgroundSelector(true); break;
       case TOOLS.VIEW_MODE:
-        if (isMJ) {
-          if (playerViewMode) {
+        if (p.isMJ) {
+          if (p.playerViewMode) {
             // Turning off player view mode - clear the selected player
-            setViewAsPersoId(null);
+            p.setViewAsPersoId(null);
           }
-          setPlayerViewMode(!playerViewMode);
+          p.setPlayerViewMode(!p.playerViewMode);
         }
         break;
 
       // Mode Vue Allié pour les joueurs (comme Vue Joueur pour MJ)
       case 'ALLY_VIEW_MODE':
-        if (!isMJ) {
-          if (allyViewMode) {
+        if (!p.isMJ) {
+          if (p.allyViewMode) {
             // Turning off ally view mode - clear the selected ally
-            setAllyViewId(null);
+            p.setAllyViewId(null);
           }
-          setAllyViewMode(!allyViewMode);
+          p.setAllyViewMode(!p.allyViewMode);
         }
         break;
 
       default:
         break;
-      case TOOLS.AUDIO_MIXER: deactivateIncompatible(TOOLS.AUDIO_MIXER); setIsAudioMixerOpen(!isAudioMixerOpen); break;
-      case TOOLS.ADD_CHAR: if (isMJ) { deactivateIncompatible(TOOLS.ADD_CHAR); setIsNPCDrawerOpen(!isNPCDrawerOpen); } break;
+      case TOOLS.AUDIO_MIXER: deactivateIncompatible(TOOLS.AUDIO_MIXER); p.setIsAudioMixerOpen(!p.isAudioMixerOpen); break;
+      case TOOLS.ADD_CHAR: if (p.isMJ) { deactivateIncompatible(TOOLS.ADD_CHAR); p.setIsNPCDrawerOpen(!p.isNPCDrawerOpen); } break;
 
-      case TOOLS.ADD_OBJ: if (isMJ) { deactivateIncompatible(TOOLS.ADD_OBJ); setIsObjectDrawerOpen(!isObjectDrawerOpen); } break;
-      case TOOLS.ADD_NOTE: handleAddNote(); break;
-      case TOOLS.MUSIC: if (isMJ) { deactivateIncompatible(TOOLS.MUSIC); setIsSoundDrawerOpen(!isSoundDrawerOpen); } break;
-      case TOOLS.UNIFIED_SEARCH: if (isMJ) { deactivateIncompatible(TOOLS.UNIFIED_SEARCH); setIsUnifiedSearchOpen(!isUnifiedSearchOpen); } break;
-      case TOOLS.PORTAL: if (isMJ) { deactivateIncompatible(TOOLS.PORTAL); setPortalMode(!portalMode); } break;
-      case TOOLS.SPAWN_POINT: if (isMJ) { deactivateIncompatible(TOOLS.SPAWN_POINT); setSpawnPointMode(!spawnPointMode); } break;  // Toggle spawn point mode
-      case TOOLS.MULTI_SELECT: if (isMJ) { deactivateIncompatible(TOOLS.MULTI_SELECT); setMultiSelectMode(!multiSelectMode); } break;
-      case TOOLS.BACKGROUND_EDIT: if (isMJ) setIsBackgroundEditMode(!isBackgroundEditMode); break;
-      case TOOLS.DRAW: deactivateIncompatible(TOOLS.DRAW); toggleDrawMode(); break;
-      case TOOLS.MEASURE: deactivateIncompatible(TOOLS.MEASURE); setMeasureMode(!measureMode); setMeasureStart(null); setMeasureEnd(null); setIsCalibrating(false); break;
-      case TOOLS.VISIBILITY: if (isMJ) { deactivateIncompatible(TOOLS.VISIBILITY); toggleVisibilityMode(); } break;
-      case TOOLS.CLEAR_DRAWINGS: clearDrawings(); break;
-      case TOOLS.ZOOM_IN: setZoom(prev => Math.min(prev + 0.1, 5)); break;
-      case TOOLS.ZOOM_OUT: setZoom(prev => Math.max(prev - 0.1, 0.1)); break;
-      case TOOLS.WORLD_MAP: navigateToWorldMap(); break;
-      case TOOLS.TOGGLE_ALL_BADGES: setShowAllBadges(!showAllBadges); break;
+      case TOOLS.ADD_OBJ: if (p.isMJ) { deactivateIncompatible(TOOLS.ADD_OBJ); p.setIsObjectDrawerOpen(!p.isObjectDrawerOpen); } break;
+      case TOOLS.ADD_NOTE: p.handleAddNote(); break;
+      case TOOLS.MUSIC: if (p.isMJ) { deactivateIncompatible(TOOLS.MUSIC); p.setIsSoundDrawerOpen(!p.isSoundDrawerOpen); } break;
+      case TOOLS.UNIFIED_SEARCH: if (p.isMJ) { deactivateIncompatible(TOOLS.UNIFIED_SEARCH); p.setIsUnifiedSearchOpen(!p.isUnifiedSearchOpen); } break;
+      case TOOLS.PORTAL: if (p.isMJ) { deactivateIncompatible(TOOLS.PORTAL); p.setPortalMode(!p.portalMode); } break;
+      case TOOLS.SPAWN_POINT: if (p.isMJ) { deactivateIncompatible(TOOLS.SPAWN_POINT); p.setSpawnPointMode(!p.spawnPointMode); } break;  // Toggle spawn point mode
+      case TOOLS.MULTI_SELECT: if (p.isMJ) { deactivateIncompatible(TOOLS.MULTI_SELECT); p.setMultiSelectMode(!p.multiSelectMode); } break;
+      case TOOLS.BACKGROUND_EDIT: if (p.isMJ) p.setIsBackgroundEditMode(!p.isBackgroundEditMode); break;
+      case TOOLS.DRAW: deactivateIncompatible(TOOLS.DRAW); p.toggleDrawMode(); break;
+      case TOOLS.MEASURE: deactivateIncompatible(TOOLS.MEASURE); p.setMeasureMode(!p.measureMode); p.setMeasureStart(null); p.setMeasureEnd(null); p.setIsCalibrating(false); break;
+      case TOOLS.VISIBILITY: if (p.isMJ) { deactivateIncompatible(TOOLS.VISIBILITY); p.toggleVisibilityMode(); } break;
+      case TOOLS.CLEAR_DRAWINGS: p.clearDrawings(); break;
+      case TOOLS.ZOOM_IN: p.setZoom(prev => Math.min(prev + 0.1, 5)); break;
+      case TOOLS.ZOOM_OUT: p.setZoom(prev => Math.max(prev - 0.1, 0.1)); break;
+      case TOOLS.WORLD_MAP: p.navigateToWorldMap(); break;
+      case TOOLS.TOGGLE_ALL_BADGES: p.setShowAllBadges(!p.showAllBadges); break;
     }
-  };
+  }, []);
 
 
-  const getActiveToolbarTools = (): string[] => {
+  // Mémoïsé : sinon un nouveau tableau est recréé à chaque render de page.tsx (donc à
+  // chaque mousemove pendant un drag), ce qui invalide le React.memo de MapToolbar alors
+  // qu'aucun de ces booléens de mode ne change pendant un déplacement de personnage.
+  const getActiveToolbarTools = React.useMemo((): string[] => {
     const active: string[] = [];
     if (drawMode) active.push(TOOLS.DRAW);
     if (visibilityMode) active.push(TOOLS.VISIBILITY);
@@ -315,7 +326,12 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     if (isAudioMixerOpen) active.push(TOOLS.AUDIO_MIXER);
     if (showAllBadges) active.push(TOOLS.TOGGLE_ALL_BADGES);
     return active;
-  };
+  }, [
+    drawMode, visibilityMode, showGrid, showCharBorders, panMode, playerViewMode,
+    allyViewMode, measureMode, isMusicMode, showLayerControl, isObjectDrawerOpen,
+    isNPCDrawerOpen, isSoundDrawerOpen, isUnifiedSearchOpen, portalMode, spawnPointMode,
+    multiSelectMode, isBackgroundEditMode, isAudioMixerOpen, showAllBadges,
+  ]);
 
   const getToolOptionsContent = () => {
     //  SELECTION : Dessin

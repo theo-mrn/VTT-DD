@@ -168,7 +168,7 @@ export default function Competences({ preSelectedCharacterId, onClose }: Compete
                 const rangKey = `rang${customComp.slotIndex + 1}` as keyof VoieData
 
                 const sourceLabel = customComp.sourceVoie === 'manual'
-                    ? '✏️ Compétence personnalisée'
+                    ? ' Compétence personnalisée'
                     : `📍 Depuis: ${customComp.sourceVoie} (rang ${customComp.sourceRank})`
 
                 updatedVoieData[voieKey] = {

@@ -35,6 +35,11 @@ interface InventoryManagementProps {
   playerName: string;
   roomId: string;
   canEdit?: boolean;
+  // Qui peut voir les objets marqués privés. Par défaut = canEdit (comportement historique :
+  // seuls le MJ et le propriétaire du personnage éditent, donc seuls eux voient le privé).
+  // À passer explicitement si un futur call-site sépare "peut éditer" de "peut voir le privé"
+  // (ex: un allié autorisé à gérer l'inventaire sans voir les objets cachés).
+  canSeePrivate?: boolean;
   onHeightChange?: (height: number) => void;
   style?: React.CSSProperties;
 }
@@ -496,16 +501,12 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
   };
 
   const handleAddBonus = async () => {
-    console.log("Current item:", currentItem);
-    console.log("Bonus type:", bonusType);
-    console.log("Bonus value:", bonusValue);
     if (currentItem && bonusType && bonusValue) {
       try {
         const itemRef = doc(db, `Bonus/${roomId}/${playerName}/${currentItem.id}`);
         await setDoc(itemRef, {
           [bonusType]: parseInt(bonusValue),
           active: true,
-          [bonusType]: parseInt(bonusValue),
           category: 'Inventaire',
           name: currentItem.message
         }, { merge: true });
@@ -529,7 +530,6 @@ export default function InventoryManagement({ playerName, roomId, canEdit = true
         });
       }
     } else {
-      console.log("Missing data for bonus.");
       toast.error('Données manquantes', {
         description: "Veuillez remplir tous les champs.",
         duration: 3000,

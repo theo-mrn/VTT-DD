@@ -14,7 +14,7 @@ import { useGame } from '@/contexts/GameContext'
 import { Button } from "@/components/ui/button"
 import { X, Plus, Minus, Edit, Pencil, Eraser, CircleUserRound, Baseline, User, Grid, Cloud, CloudOff, ImagePlus, Trash2, Eye, EyeOff, ScanEye, Move, Hand, Square, Circle as CircleIcon, Slash, Ruler, Map as MapPin, Heart, Shield, Zap, Dices, Sparkles, BookOpen, Flashlight, Info, Image as ImageIcon, Layers, Package, Skull, Ghost, Anchor, Flame, Snowflake, Loader2, Check, Music, Volume2, VolumeX, ArrowRight, DoorOpen, Pen, ArrowDownUp, Hexagon, MousePointer } from 'lucide-react'
 import { toast } from 'sonner';
-import { auth, db, realtimeDb, dbRef, onValue, onAuthStateChanged } from '@/lib/firebase'
+import { auth, db, realtimeDb, dbRef, onValue, update as rtdbUpdate, rtdbRemove, onAuthStateChanged } from '@/lib/firebase'
 import { doc, collection, updateDoc, addDoc, deleteDoc, setDoc, getDocs, query, where } from 'firebase/firestore'
 import Combat from '@/components/(combat)/combat';
 import { CONDITIONS } from '@/components/(combat)/MJcombat';
@@ -471,11 +471,10 @@ export default function Component() {
   const measurementSkins = useMeasurementSkins(measurements); // For SHARED measurements
   const [currentMeasurementId, setCurrentMeasurementId] = useState<string | null>(null);
 
-  // Sync changes to active measurement
+  // Sync changes to active measurement (RTDB — voir useCanvasMouseDown/MouseMove/useMapData)
   useEffect(() => {
     if (currentMeasurementId && roomId && measurementShape === 'cone') {
-      const docRef = doc(db, 'cartes', roomId, 'measurements', currentMeasurementId);
-      updateDoc(docRef, {
+      rtdbUpdate(dbRef(realtimeDb, `rooms/${roomId}/measurements/${currentMeasurementId}`), {
         coneAngle,
         coneShape,
         coneMode,
@@ -555,7 +554,7 @@ export default function Component() {
 
 
 
-  // 🆕 AUTO-DELETE TEMPORARY MEASUREMENTS
+  // 🆕 AUTO-DELETE TEMPORARY MEASUREMENTS (RTDB)
   useEffect(() => {
     // Check every 1s
     const interval = setInterval(() => {
@@ -567,8 +566,7 @@ export default function Component() {
           // Or simpler: anyone can clean up local state, but for Firebase:
           const isOwner = m.ownerId === (userId || 'unknown');
           if (isOwner || isMJ) {
-            const docRef = doc(db, 'cartes', roomId, 'measurements', m.id);
-            deleteDoc(docRef).catch(console.error);
+            rtdbRemove(dbRef(realtimeDb, `rooms/${roomId}/measurements/${m.id}`)).catch(console.error);
           }
         }
       });
@@ -1607,16 +1605,18 @@ export default function Component() {
 
 
   //  NPC Template Drag & Drop Handlers
-  const handleTemplateDragStart = (template: NPC) => {
+  // useCallback : passés à MapDialogs (React.memo) — une référence stable évite de casser
+  // sa comparaison superficielle à chaque render (ex: pendant un drag de personnage).
+  const handleTemplateDragStart = React.useCallback((template: NPC) => {
     setDraggedTemplate(template)
-  }
+  }, []);
 
-  const handleObjectDragStart = (template: ObjectTemplate) => {
-  }
+  const handleObjectDragStart = React.useCallback((template: ObjectTemplate) => {
+  }, []);
 
-  const handleSoundDragStart = (sound: any) => {
+  const handleSoundDragStart = React.useCallback((sound: any) => {
     setDraggedSoundTemplate(sound)
-  }
+  }, []);
 
   // Obstacle actions — delegates to extracted hook (must be before useDragAndDrop which uses saveObstacle)
   const {
@@ -1952,6 +1952,13 @@ export default function Component() {
 
   // Visibility checks — delegates to extracted pure functions
   const isCharacterVisibleToUser = (char: Character): boolean => {
+    // Court-circuit MJ AVANT de calculer containerSize/canvasRect : getBoundingClientRect()
+    // force un reflow layout, coûteux à répéter pour chaque personnage à chaque frame de
+    // rendu (dessin de la carte, drag...), alors que checkCharacterVisibility jette cette
+    // donnée immédiatement pour un MJ en mode normal (voir isCharacterVisibleToUser dans
+    // visibility-checks.ts : `if (isMJ && !playerViewMode) return true`).
+    if (isMJ && !playerViewMode) return true;
+
     const ctx: CharacterVisibilityContext = {
       isMJ, playerViewMode, persoId, viewAsPersoId,
       obstacles, obstaclesLayerVisible: isLayerVisible('obstacles'),
@@ -2010,7 +2017,8 @@ export default function Component() {
     }
   };
 
-  const handleBackgroundSelectLocal = async (path: string) => {
+  // useCallback : passé à MapDialogs (React.memo) — voir handleTemplateDragStart plus haut.
+  const handleBackgroundSelectLocal = React.useCallback(async (path: string) => {
     if (!roomId) return;
 
     try {
@@ -2032,7 +2040,7 @@ export default function Component() {
     } catch (error) {
       console.error("Error setting background from local file:", error);
     }
-  };
+  }, [roomId, selectedCityId]);
 
 
   const handleCharacterSubmit = async () => {
@@ -2044,9 +2052,9 @@ export default function Component() {
 
 
   //  CALIBRATION SUBMIT
-  const handleCalibrationSubmit = async () => {
+  // useCallback : passé à MapDialogs (React.memo) — voir handleTemplateDragStart plus haut.
+  const handleCalibrationSubmit = React.useCallback(async () => {
     const distanceVal = parseFloat(tempCalibrationDistance);
-    console.log(' Calibration submit:', { distanceVal, measureStart, measureEnd, roomId });
     if (!isNaN(distanceVal) && distanceVal > 0 && measureStart && measureEnd && roomId) {
       // Calculate pixel distance in WORLD space (image coordinates)
       // measureStart and measureEnd are already in world/image pixel coordinates
@@ -2073,12 +2081,12 @@ export default function Component() {
         console.error("Error saving calibration:", e);
       }
     }
-  };
+  }, [tempCalibrationDistance, measureStart, measureEnd, roomId]);
 
   const handleClearMeasurements = () => {
-    // Delete ALL measurements (requested by user)
+    // Delete ALL measurements (requested by user) — RTDB
     measurements.forEach(m => {
-      deleteDoc(doc(db, 'cartes', roomId, 'measurements', m.id)).catch(console.error);
+      rtdbRemove(dbRef(realtimeDb, `rooms/${roomId}/measurements/${m.id}`)).catch(console.error);
     });
     // Also clear active
     setMeasureStart(null);
@@ -2088,7 +2096,7 @@ export default function Component() {
 
   const handleMeasurementAction = (action: string, measurementId: string) => {
     if (action === 'delete') {
-      deleteDoc(doc(db, 'cartes', roomId, 'measurements', measurementId)).catch(console.error);
+      rtdbRemove(dbRef(realtimeDb, `rooms/${roomId}/measurements/${measurementId}`)).catch(console.error);
       if (currentMeasurementId === measurementId) {
         setCurrentMeasurementId(null);
         setMeasureStart(null);
@@ -2193,7 +2201,8 @@ export default function Component() {
     setShowCreateNoteModal(true);
   };
 
-  const handleCreateNoteConfirm = async (note: { text: string, color: string, fontSize: number, fontFamily: string }) => {
+  // useCallback : passé à MapDialogs (React.memo) — voir handleTemplateDragStart plus haut.
+  const handleCreateNoteConfirm = React.useCallback(async (note: { text: string, color: string, fontSize: number, fontFamily: string }) => {
     const roomIdStr = String(roomId);
 
     if (note.text.trim() && typeof roomIdStr === 'string') {
@@ -2245,7 +2254,7 @@ export default function Component() {
         console.error("Erreur lors de l'ajout/modification de la note :", error);
       }
     }
-  };
+  }, [roomId, editingNote, offset, zoom, bgImageObject, selectedCityId, updateRtdbWithHistory, addToRtdbWithHistory]);
 
 
   //  Handle Object Resize Start
@@ -2702,6 +2711,18 @@ export default function Component() {
     deleteFromRtdbWithHistory, saveFogGridWithHistory, saveFullMapFog,
     setDrawings,
   });
+
+  // Mémoïsé : un JSX literal recréé à chaque render casse le React.memo de MapToolbar
+  // (comparaison superficielle des props), ce qui le faisait re-render à chaque mousemove
+  // pendant un drag alors qu'aucun de isMJ/userId/roomId ne change pendant ce geste.
+  const extraMJTools = React.useMemo(() => (
+    isMJ && userId ? (
+      // Streaming is desktop-only (screen-share producer isn't relevant on mobile)
+      <span className="hidden lg:inline-flex">
+        <ScreenShareProducer roomId={roomId} userId={userId} onStreamChange={setIsStreaming} />
+      </span>
+    ) : undefined
+  ), [isMJ, userId, roomId]);
 
   // Delete actions — delegates to extracted hook
   const { handleDeleteKeyPress, handleConfirmDelete } = useDeleteActions({
@@ -3320,18 +3341,13 @@ export default function Component() {
       />
       <MapToolbar
         isMJ={isMJ}
-        activeTools={getActiveToolbarTools()}
+        activeTools={getActiveToolbarTools}
         onAction={handleToolbarAction}
         currentViewMode={playerViewMode ? 'player' : 'mj'}
         showGrid={showGrid}
         activeToolContent={getToolOptionsContent()}
         allies={playerAllies}
-        extraMJTools={isMJ && userId ? (
-          // Streaming is desktop-only (screen-share producer isn't relevant on mobile)
-          <span className="hidden lg:inline-flex">
-            <ScreenShareProducer roomId={roomId} userId={userId} onStreamChange={setIsStreaming} />
-          </span>
-        ) : undefined}
+        extraMJTools={extraMJTools}
       />
       {!isMJ && userId && (
         <ScreenShareViewer roomId={roomId} userId={userId} />

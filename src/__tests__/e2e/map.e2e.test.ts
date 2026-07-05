@@ -4,8 +4,10 @@
  *               cartes/{roomId}/cities/{cityId}
  *               cartes/{roomId}/objects/{objectId}
  *               cartes/{roomId}/lights/{lightId}
- *               cartes/{roomId}/measurements/{measurementId}
  *               cartes/{roomId}/musicZones/{zoneId}
+ * Note : measurements a été migré vers RTDB (rooms/{roomId}/measurements) pour éviter
+ * un updateDoc Firestore par frame de mousemove pendant le drag. Non couvert par ces
+ * tests e2e Firestore ; l'environnement de test n'a pas d'émulateur RTDB configuré (setup.ts).
  *               cartes/{roomId}/settings/general
  *               cartes/{roomId}/settings/layers
  *               cartes/{roomId}/fond/fond1
@@ -456,93 +458,8 @@ describe("Carte — Lumières", () => {
 });
 
 // ─── Mesures ──────────────────────────────────────────────────────────────────
-
-describe("Carte — Mesures (measurements)", () => {
-  let measureId: string;
-
-  beforeAll(async () => {
-    const env = await getTestEnv();
-    const db = env.unauthenticatedContext().firestore();
-
-    const ref = await addDoc(collection(db, `cartes/${ROOM_ID}/measurements`), {
-      coneAngle: 60,
-      coneShape: "cone",
-      coneMode: "degrees",
-      fixedLength: null,
-      coneWidth: null,
-      cityId: CITY_ID,
-      ownerId: "user-mj",
-      timestamp: Date.now(),
-      permanent: false,
-    });
-    measureId = ref.id;
-  });
-
-  it("crée une mesure (cône)", async () => {
-    const env = await getTestEnv();
-    const db = env.unauthenticatedContext().firestore();
-
-    const snap = await getDoc(doc(db, `cartes/${ROOM_ID}/measurements/${measureId}`));
-    expect(snap.exists()).toBe(true);
-    expect(snap.data()?.coneAngle).toBe(60);
-    expect(snap.data()?.coneShape).toBe("cone");
-  });
-
-  it("modifie l'angle du cône", async () => {
-    const env = await getTestEnv();
-    const db = env.unauthenticatedContext().firestore();
-
-    await updateDoc(doc(db, `cartes/${ROOM_ID}/measurements/${measureId}`), {
-      coneAngle: 90,
-    });
-
-    const snap = await getDoc(doc(db, `cartes/${ROOM_ID}/measurements/${measureId}`));
-    expect(snap.data()?.coneAngle).toBe(90);
-  });
-
-  it("définit une longueur fixe", async () => {
-    const env = await getTestEnv();
-    const db = env.unauthenticatedContext().firestore();
-
-    await updateDoc(doc(db, `cartes/${ROOM_ID}/measurements/${measureId}`), {
-      fixedLength: 30,
-    });
-
-    const snap = await getDoc(doc(db, `cartes/${ROOM_ID}/measurements/${measureId}`));
-    expect(snap.data()?.fixedLength).toBe(30);
-  });
-
-  it("rend une mesure permanente", async () => {
-    const env = await getTestEnv();
-    const db = env.unauthenticatedContext().firestore();
-
-    await updateDoc(doc(db, `cartes/${ROOM_ID}/measurements/${measureId}`), {
-      permanent: true,
-    });
-
-    const snap = await getDoc(doc(db, `cartes/${ROOM_ID}/measurements/${measureId}`));
-    expect(snap.data()?.permanent).toBe(true);
-  });
-
-  it("supprime une mesure temporaire (auto-cleanup)", async () => {
-    const env = await getTestEnv();
-    const db = env.unauthenticatedContext().firestore();
-
-    const tempRef = await addDoc(collection(db, `cartes/${ROOM_ID}/measurements`), {
-      coneAngle: 45,
-      coneShape: "line",
-      permanent: false,
-      timestamp: Date.now() - 10000, // vieille de 10s
-      cityId: CITY_ID,
-      ownerId: "user-mj",
-    });
-
-    await deleteDoc(tempRef);
-
-    const snap = await getDoc(tempRef);
-    expect(snap.exists()).toBe(false);
-  });
-});
+// Migré vers RTDB (rooms/{roomId}/measurements) — voir note en tête de fichier.
+// Ancienne suite de tests Firestore retirée ; pas d'émulateur RTDB dans setup.ts pour la remplacer.
 
 // ─── Zones musicales ──────────────────────────────────────────────────────────
 

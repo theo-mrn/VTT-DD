@@ -238,7 +238,7 @@ export interface UseCanvasMouseUpParams {
 
   // Firebase / history callbacks
   updateObstacle: (obstacleId: string, points: Point[]) => Promise<void>;
-  updateMusicZonePosition: (zoneId: string, x: number, y: number) => void;
+  updateMusicZonePosition: (zoneId: string, x: number, y: number, originalPos?: { x: number; y: number }) => void;
   updateWithHistory: (
     collectionName: string,
     documentId: string,
@@ -486,7 +486,7 @@ export function useCanvasMouseUp(params: UseCanvasMouseUpParams): UseCanvasMouse
             draggedMusicZonesOriginalPositions.forEach(originalPos => {
               const z = musicZones.find(zz => zz.id === originalPos.id);
               if (z) {
-                updateMusicZonePosition(z.id, z.x, z.y);
+                updateMusicZonePosition(z.id, z.x, z.y, { x: originalPos.x, y: originalPos.y });
               }
             });
           }
@@ -522,7 +522,8 @@ export function useCanvasMouseUp(params: UseCanvasMouseUpParams): UseCanvasMouse
                 x: light.x,
                 y: light.y
               },
-              `Déplacement de la source de lumière`
+              `Déplacement de la source de lumière`,
+              { x: draggedLightOriginalPos.x, y: draggedLightOriginalPos.y } // évite un getDoc (position déjà connue avant le drag)
             ).catch(err => {
               console.error("Error saving light pos:", err);
               // Revert

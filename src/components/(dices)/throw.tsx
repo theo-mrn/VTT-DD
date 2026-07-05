@@ -215,7 +215,15 @@ const Die = React.forwardRef(({ type, position, impulse, skin, onResult, targetV
 
     return (
         <group ref={ref as any}>
-            <VisualDie type={type} skin={skin} isShattered={isShattered} critType={critType} ref={null} />
+            <VisualDie
+                type={type}
+                skin={skin}
+                isShattered={isShattered}
+                critType={critType}
+                stopped={stopped}
+                onCritComplete={() => setCritType(null)}
+                ref={null}
+            />
         </group>
     );
 });
@@ -406,7 +414,7 @@ export const DiceThrower = () => {
                     can't wash faces out. */}
                 <Environment preset="city" environmentIntensity={0.55} />
 
-                <Physics gravity={[0, -60, 0]} defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }} allowSleep={true} iterations={10}>
+                <Physics gravity={[0, -60, 0]} defaultContactMaterial={{ friction: 0.1, restitution: 0.5 }} allowSleep={true} iterations={7}>
                     <Table />
                     {dice.map((d, i) => (
                         <Die

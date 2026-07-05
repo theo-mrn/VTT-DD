@@ -346,7 +346,8 @@ export function useDeleteActions(params: UseDeleteActionsParams): UseDeleteActio
 
         case 'measurement':
           if (entityToDelete.id) {
-            await deleteWithHistory(
+            // RTDB, comme le reste du cycle de vie des measurements (voir useCanvasMouseDown/MouseMove, useMapData)
+            await deleteFromRtdbWithHistory(
               'measurements',
               entityToDelete.id,
               `Suppression de la mesure`

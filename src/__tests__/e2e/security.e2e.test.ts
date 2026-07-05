@@ -208,7 +208,7 @@ const mjOnlyCreate: Array<{ name: string; col: string; data: object }> = [
   { name: "musicZones",   col: `cartes/${ROOM_ID}/musicZones`,   data: { name: "Zone", radius: 100 } },
   { name: "objects",      col: `cartes/${ROOM_ID}/objects`,       data: { name: "Objet" } },
   { name: "lights",       col: `cartes/${ROOM_ID}/lights`,        data: { name: "Torche", radius: 5 } },
-  { name: "measurements", col: `cartes/${ROOM_ID}/measurements`,  data: { coneAngle: 45 } },
+  // measurements: migré en RTDB (voir database.rules.json), plus de règle Firestore à tester ici.
   { name: "portals",      col: `cartes/${ROOM_ID}/portals`,       data: { name: "Portail" } },
 ];
 

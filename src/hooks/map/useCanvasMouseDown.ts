@@ -2,7 +2,8 @@
 
 import { useCallback } from 'react';
 import { doc, collection, updateDoc, addDoc, setDoc, deleteDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { ref as rtdbRef, set as rtdbSet, update as rtdbUpdate, remove as rtdbRemove, push as rtdbPush } from 'firebase/database';
+import { db, realtimeDb } from '@/lib/firebase';
 import { toast } from 'sonner';
 import { getMediaDimensions } from '@/app/[roomid]/map/utils/coordinates';
 import { getCellKey, isCellInFog } from '@/app/[roomid]/map/shadows';
@@ -747,22 +748,22 @@ export function useCanvasMouseDown(params: UseCanvasMouseDownParams): UseCanvasM
             setMeasureEnd(null);
             setIsMeasurementPanelOpen(false); // 🆕 Auto-close panel on interaction
 
-            // 🆕 CREATE SHARED MEASUREMENT
+            // 🆕 CREATE SHARED MEASUREMENT (RTDB — écritures fréquentes pendant le drag)
             if (roomId) {
-              const measurementsRef = collection(db, 'cartes', roomId, 'measurements');
+              const measurementsRtdbRef = rtdbRef(realtimeDb, `rooms/${roomId}/measurements`);
 
               // 🆕 CLEANUP OLD MEASUREMENTS (Single Active Measurement per User)
               measurements.forEach(m => {
                 if (m.ownerId === (userId || 'unknown')) {
-                  deleteDoc(doc(db, 'cartes', roomId, 'measurements', m.id)).catch(console.error);
+                  rtdbRemove(rtdbRef(realtimeDb, `rooms/${roomId}/measurements/${m.id}`)).catch(console.error);
                 }
               });
 
-              const newDocRef = doc(measurementsRef); // Generate ID
-              setCurrentMeasurementId(newDocRef.id);
+              const newId = rtdbPush(measurementsRtdbRef).key!; // Generate ID
+              setCurrentMeasurementId(newId);
 
               const newMeasurement: SharedMeasurement = {
-                id: newDocRef.id,
+                id: newId,
                 type: measurementShape,
                 start: { x: clickX, y: clickY },
                 end: { x: clickX, y: clickY },
@@ -779,15 +780,14 @@ export function useCanvasMouseDown(params: UseCanvasMouseDownParams): UseCanvasM
               };
 
               // Fire and forget (optimistic)
-              setDoc(newDocRef, newMeasurement).catch(console.error);
+              rtdbSet(rtdbRef(realtimeDb, `rooms/${roomId}/measurements/${newId}`), newMeasurement).catch(console.error);
             }
           } else {
             setMeasureEnd({ x: clickX, y: clickY });
 
             // 🆕 FINISH SHARED MEASUREMENT
             if (currentMeasurementId && roomId) {
-              const docRef = doc(db, 'cartes', roomId, 'measurements', currentMeasurementId);
-              updateDoc(docRef, {
+              rtdbUpdate(rtdbRef(realtimeDb, `rooms/${roomId}/measurements/${currentMeasurementId}`), {
                 end: { x: clickX, y: clickY }
               }).catch(console.error);
 

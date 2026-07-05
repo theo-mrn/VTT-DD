@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useGame } from "@/contexts/GameContext";
+import { useCharacter } from "@/contexts/CharacterContext";
 import { db, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, storage, ref, uploadBytes, getDownloadURL, limitToLast, deleteDoc, doc, updateDoc } from "@/lib/firebase";
 import { Image as ImageIcon, X, Plus, Loader2, MoreVertical, Trash2, Users, Check, Pencil, Upload, MessageSquare, Send } from "lucide-react";
 import { trackChatMessage } from '@/lib/challenge-tracker';
@@ -30,10 +31,10 @@ type Player = {
 
 export default function Chat() {
     const { user, playerData, isMJ } = useGame();
+    const { characters } = useCharacter();
 
     // Data State
     const [messages, setMessages] = useState<ChatMessage[]>([]);
-    const [players, setPlayers] = useState<Player[]>([]);
     const [newMessage, setNewMessage] = useState("");
 
     // UI State
@@ -58,32 +59,25 @@ export default function Chat() {
     const roomId = user?.roomId;
     const uploadInputRef = useRef<HTMLInputElement>(null);
 
-    // 1. FETCH PLAYERS
-    useEffect(() => {
-        if (!roomId) return;
-        const q = query(collection(db, `cartes/${roomId}/characters`));
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const availableRecipients: Player[] = [];
+    // 1. PLAYERS — dérivé de CharacterContext (déjà abonné à `cartes/{roomId}/characters`)
+    // plutôt qu'un onSnapshot propre, pour ne pas dupliquer ce listener sur l'écran map.
+    const players: Player[] = useMemo(() => {
+        // Should MJ be selectable? Usually MJ sees everything, but players might want to send ONLY to MJ?
+        // "visible par certaines personnes" implies restriction. MJ usually bypasses restriction.
+        // Let's add MJ as a selectable recipient anyway for clarity "Who can see this".
+        const availableRecipients: Player[] = [{ uid: 'MJ', name: 'MJ' }];
 
-            // Should MJ be selectable? Usually MJ sees everything, but players might want to send ONLY to MJ?
-            // "visible par certaines personnes" implies restriction. MJ usually bypasses restriction.
-            // Let's add MJ as a selectable recipient anyway for clarity "Who can see this".
-            availableRecipients.push({ uid: 'MJ', name: 'MJ' });
-
-            snapshot.forEach((doc) => {
-                const data = doc.data();
-                if (data.type === "joueurs" && data.Nomperso) {
-                    availableRecipients.push({
-                        uid: doc.id,
-                        name: data.Nomperso,
-                        imageUrl: data.imageURL
-                    });
-                }
-            });
-            setPlayers(availableRecipients);
-        });
-        return () => unsubscribe();
-    }, [roomId]);
+        for (const char of characters) {
+            if (char.type === "joueurs" && char.Nomperso) {
+                availableRecipients.push({
+                    uid: char.id,
+                    name: char.Nomperso,
+                    imageUrl: char.imageURL
+                });
+            }
+        }
+        return availableRecipients;
+    }, [characters]);
 
     // 2. FETCH MESSAGES
     useEffect(() => {

@@ -82,17 +82,17 @@ export default function MesCampagnesPage() {
 
       const userRoomIds = userRoomsSnapshot.docs.map((doc) => doc.id)
 
-      const userRoomData: Room[] = []
-      for (const roomId of userRoomIds) {
+      // Lectures en parallèle plutôt qu'en séquentiel (ne change pas le nombre de lectures
+      // facturées, mais évite d'attendre N allers-retours réseau à la suite).
+      const userRoomResults = await Promise.all(userRoomIds.map(async (roomId) => {
         const roomDoc = await getDoc(doc(db, 'Salle', roomId))
-        if (roomDoc.exists()) {
-          const data = roomDoc.data()
-          const nomsSnapshot = await getDocs(collection(db, `salles/${roomId}/Noms`))
-          const playersOnly = nomsSnapshot.docs.filter(doc => doc.data().nom !== 'MJ').length
-          userRoomData.push({ id: roomId, ...data, occupantsCount: playersOnly } as Room)
-        }
-      }
-      setUserRooms(userRoomData)
+        if (!roomDoc.exists()) return null
+        const data = roomDoc.data()
+        const nomsSnapshot = await getDocs(collection(db, `salles/${roomId}/Noms`))
+        const playersOnly = nomsSnapshot.docs.filter(doc => doc.data().nom !== 'MJ').length
+        return { id: roomId, ...data, occupantsCount: playersOnly } as Room
+      }))
+      setUserRooms(userRoomResults.filter((r): r is Room => r !== null))
     }
 
     fetchUserRooms()
