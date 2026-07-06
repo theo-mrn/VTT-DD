@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { db, auth, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, getDocs, setDoc, where, limit } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { History, Shield, UserPlus, Skull, TrendingUp, HandCoins, Activity, Star, Book, MapPin, Sparkles, Loader2, Pencil, Check, X, ScrollText, ChevronDown } from 'lucide-react';
+import { History, Shield, UserPlus, Skull, TrendingUp, HandCoins, Activity, Star, Book, MapPin, Sparkles, Loader2, Pencil, Check, X, ScrollText, ChevronDown, Users, ArrowLeft } from 'lucide-react';
 import { useGame } from '@/contexts/GameContext';
 import { useCharacter } from '@/contexts/CharacterContext';
 import {
@@ -57,9 +57,14 @@ export interface GameEvent {
 
 interface HistoriqueProps {
     roomId: string;
+    initialCharacterId?: string;
+    // Si vrai, verrouille l'affichage sur le seul personnage donné :
+    // pas de bouton retour, pas de toggle Journal/Par personnage.
+    // Utilisé pour qu'un joueur ne puisse voir que l'historique de son propre personnage.
+    lockToCharacter?: boolean;
 }
 
-export default function Historique({ roomId }: HistoriqueProps) {
+export default function Historique({ roomId, initialCharacterId, lockToCharacter }: HistoriqueProps) {
     const [events, setEvents] = useState<GameEvent[]>([]);
     const [summaries, setSummaries] = useState<Record<string, string>>({}); // Keyed by date
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -71,6 +76,12 @@ export default function Historique({ roomId }: HistoriqueProps) {
     const [historyDates, setHistoryDates] = useState<string[]>([]);
     const scrollRef = useRef<HTMLDivElement>(null);
     const { characters } = useCharacter();
+
+    // ─── Mode "Par personnage" ──────────────────────────────────────────────
+    const [viewMode, setViewMode] = useState<'timeline' | 'characterList' | 'characterEvents'>(initialCharacterId ? 'characterEvents' : 'timeline');
+    const [selectedCharacterId, setSelectedCharacterId] = useState<string | null>(initialCharacterId ?? null);
+    const [characterEvents, setCharacterEvents] = useState<GameEvent[]>([]);
+    const [isLoadingCharacterEvents, setIsLoadingCharacterEvents] = useState(false);
 
     // 1. Fetch available dates ONCE to populate the dropdown
     useEffect(() => {
@@ -129,6 +140,7 @@ export default function Historique({ roomId }: HistoriqueProps) {
 
             snapshot.forEach((doc) => {
                 const data = doc.data() as GameEvent;
+                if (data.details?.hiddenFromTimeline) return;
                 if (!data.targetUserId || data.targetUserId === userId) {
                     loadedEvents.push({ id: doc.id, ...data });
                 }
@@ -160,6 +172,46 @@ export default function Historique({ roomId }: HistoriqueProps) {
             unsubscribeSummaries();
         };
     }, [roomId, displayDate]);
+
+    // 4. Subscribe to events for the selected character (mode "Par personnage")
+    useEffect(() => {
+        if (!roomId || !selectedCharacterId || viewMode !== 'characterEvents') return;
+
+        setIsLoadingCharacterEvents(true);
+        const eventsRef = collection(db, `Historique/${roomId}/events`);
+        const qCharacterEvents = query(
+            eventsRef,
+            where('characterId', '==', selectedCharacterId),
+            orderBy('timestamp', 'desc'),
+            limit(100)
+        );
+
+        const unsubscribe = onSnapshot(qCharacterEvents, (snapshot) => {
+            const userId = auth.currentUser?.uid;
+            const loadedEvents: GameEvent[] = [];
+
+            snapshot.forEach((doc) => {
+                const data = doc.data() as GameEvent;
+                if (!data.targetUserId || data.targetUserId === userId) {
+                    loadedEvents.push({ id: doc.id, ...data });
+                }
+            });
+            setCharacterEvents(loadedEvents);
+            setIsLoadingCharacterEvents(false);
+        });
+
+        return () => unsubscribe();
+    }, [roomId, selectedCharacterId, viewMode]);
+
+    const openCharacterEvents = (characterId: string) => {
+        setSelectedCharacterId(characterId);
+        setViewMode('characterEvents');
+    };
+
+    const getCharacterAvatar = (char: any) => {
+        const rawImage = char.imageURL2 || char.imageURLFinal || char.image || char.imageUrl || char.imageURL;
+        return typeof rawImage === 'object' && rawImage?.src ? rawImage.src : (typeof rawImage === 'string' ? rawImage : undefined);
+    };
 
 
     // Make nice icons for events
@@ -258,17 +310,141 @@ export default function Historique({ roomId }: HistoriqueProps) {
         }
     };
 
+    const viewedCharacter = selectedCharacterId ? characters.find(c => c.id === selectedCharacterId) : null;
+
     return (
         <div className="flex flex-col h-full bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-lg overflow-hidden shadow-xl">
             {/* Header */}
             <div className="py-2 px-5 border-b border-[var(--border-color)] flex items-center justify-between bg-[var(--bg-darker)]/40 backdrop-blur-md sticky top-0 z-20">
                 <div className="text-lg font-bold text-[var(--accent-brown)] flex items-center gap-2">
-                    <History className="w-5 h-5" />
-                    <span className="font-title tracking-tight">Archives du Destin</span>
+                    {viewMode === 'characterEvents' ? (
+                        lockToCharacter ? (
+                            <>
+                                <History className="w-5 h-5" />
+                                <span className="font-title tracking-tight">Historique de {viewedCharacter?.Nomperso || 'ce personnage'}</span>
+                            </>
+                        ) : (
+                            <button
+                                onClick={() => { setViewMode('characterList'); setSelectedCharacterId(null); }}
+                                className="flex items-center gap-2 hover:text-[var(--accent-brown-hover)] transition-colors"
+                            >
+                                <ArrowLeft className="w-5 h-5" />
+                                <span className="font-title tracking-tight">{viewedCharacter?.Nomperso || 'Personnage'}</span>
+                            </button>
+                        )
+                    ) : (
+                        <>
+                            <History className="w-5 h-5" />
+                            <span className="font-title tracking-tight">Archives du Destin</span>
+                        </>
+                    )}
                 </div>
+                {!lockToCharacter && (
+                    <div className="flex items-center gap-1 bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-full p-1">
+                        <button
+                            onClick={() => { setViewMode('timeline'); setSelectedCharacterId(null); }}
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${viewMode === 'timeline' ? 'bg-[var(--accent-brown)] text-[var(--bg-darker)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                        >
+                            <History className="w-3.5 h-3.5" />
+                            Journal
+                        </button>
+                        <button
+                            onClick={() => setViewMode('characterList')}
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${viewMode !== 'timeline' ? 'bg-[var(--accent-brown)] text-[var(--bg-darker)]' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}
+                        >
+                            <Users className="w-3.5 h-3.5" />
+                            Par personnage
+                        </button>
+                    </div>
+                )}
             </div>
 
-            {/* Event List */}
+            {viewMode === 'characterList' && (
+                <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-[var(--bg-dark)]/10">
+                    <div className="max-w-4xl mx-auto grid grid-cols-3 xs:grid-cols-4 sm:grid-cols-6 gap-4">
+                        {characters.map(char => {
+                            const avatar = getCharacterAvatar(char);
+                            return (
+                                <button
+                                    key={char.id}
+                                    onClick={() => openCharacterEvents(char.id)}
+                                    className="flex flex-col items-center gap-2 group"
+                                >
+                                    <div className="size-14 flex justify-center items-center bg-[var(--bg-darker)] rounded-2xl border border-[var(--border-color)] overflow-hidden shadow-inner ring-1 ring-white/5 transition-transform group-hover:scale-110 group-hover:border-[var(--accent-brown)]">
+                                        {avatar ? (
+                                            <img className="size-full object-cover" src={avatar} alt={char.Nomperso} />
+                                        ) : (
+                                            <div className="size-full flex items-center justify-center text-lg text-[var(--accent-brown)] font-bold uppercase">
+                                                {char.Nomperso ? char.Nomperso.substring(0, 1).toUpperCase() : '?'}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <span className="text-[10px] font-semibold text-[var(--text-secondary)] group-hover:text-[var(--text-primary)] truncate max-w-[80px] text-center">
+                                        {char.Nomperso}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                        {characters.length === 0 && (
+                            <div className="col-span-full text-center py-20 text-[var(--text-secondary)] text-sm italic">
+                                Aucun personnage dans cette partie.
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {viewMode === 'characterEvents' && (
+                <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-[var(--bg-dark)]/10">
+                    <div className="max-w-4xl mx-auto space-y-3">
+                        {isLoadingCharacterEvents ? (
+                            <div className="flex items-center justify-center py-20">
+                                <Loader2 className="w-6 h-6 animate-spin text-[var(--accent-brown)]" />
+                            </div>
+                        ) : characterEvents.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-20 opacity-40 text-center">
+                                <History className="w-12 h-12 mb-4 text-[var(--text-secondary)] mx-auto" />
+                                <p className="text-[var(--text-secondary)] font-medium italic">Aucun événement enregistré pour ce personnage.</p>
+                            </div>
+                        ) : (
+                            characterEvents.map((event, index) => (
+                                <div key={event.id || index} className="flex gap-x-4 items-start group/event hover:bg-white/[0.02] p-3 -mx-3 rounded-2xl transition-all duration-200">
+                                    <div className="shrink-0 pt-1">
+                                        <div className="size-10 flex justify-center items-center bg-[var(--bg-darker)] rounded-2xl border border-[var(--border-color)] overflow-hidden shadow-inner ring-1 ring-white/5">
+                                            {getEventIcon(event.type)}
+                                        </div>
+                                    </div>
+                                    <div className="grow space-y-1">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-[9px] font-bold text-[var(--text-secondary)] opacity-60 uppercase tracking-wider">
+                                                {event.timestamp?.toDate ? format(event.timestamp.toDate(), 'd MMM yyyy', { locale: fr }) : ''}
+                                            </span>
+                                            <span className="text-[9px] font-bold text-[var(--text-secondary)] opacity-40 uppercase">
+                                                {formatEventTime(event.timestamp)}
+                                            </span>
+                                        </div>
+                                        <div className="text-[13px] text-[var(--text-primary)] leading-relaxed font-body">
+                                            {event.message.split(/(\*\*.*?\*\*)/g).map((part, i) => {
+                                                if (part.startsWith('**') && part.endsWith('**')) {
+                                                    return (
+                                                        <span key={i} className="px-2 py-0.5 bg-[var(--accent-brown)]/10 border border-[var(--accent-brown)]/20 text-[var(--accent-brown)] rounded-md text-[9px] font-black uppercase tracking-widest inline-block mx-0.5 shadow-sm align-baseline">
+                                                            {part.slice(2, -2)}
+                                                        </span>
+                                                    );
+                                                }
+                                                return part;
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Event List (Timeline) */}
+            {viewMode === 'timeline' && (
             <div className="flex-1 p-6 overflow-y-auto custom-scrollbar bg-[var(--bg-dark)]/10" ref={scrollRef}>
                 {events.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full opacity-40 py-20 pointer-events-none text-center">
@@ -365,6 +541,7 @@ export default function Historique({ roomId }: HistoriqueProps) {
                     </div>
                 )}
             </div>
+            )}
 
             {/* Summary Modal */}
             <Dialog open={isSummaryModalOpen} onOpenChange={setIsSummaryModalOpen}>

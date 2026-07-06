@@ -71,7 +71,6 @@ interface MapDataCallbacks {
     globalAudioRef?: React.MutableRefObject<HTMLAudioElement | null>;
     isFirstSnapshotRef?: React.MutableRefObject<boolean>;
     isMJ?: boolean;
-    enableHistoryTracking?: boolean;
 }
 
 // ─── Utilitaire : debounce ────────────────────────────────────────────────────
@@ -91,8 +90,6 @@ export function useMapData(
     selectedCityId: string | null,
     callbacks: MapDataCallbacks
 ) {
-    const isInitialLoadRef = useRef(true);
-    const lastCharsPVRef = useRef<Map<string, number>>(new Map());
     const cb = useRef(callbacks);
     useEffect(() => { cb.current = callbacks; });
 
@@ -185,36 +182,8 @@ export function useMapData(
             unsubs.push(onSnapshot(
                 query(collection(db, 'cartes', roomId, 'characters'), where('type', '==', 'joueurs')),
                 (snapshot) => {
-                    const { loadedPlayersRef, setPlayersVersion, mergeAndSetCharactersRef, setRawPlayers, enableHistoryTracking, isMJ } = cb.current;
+                    const { loadedPlayersRef, setPlayersVersion, mergeAndSetCharactersRef, setRawPlayers } = cb.current;
 
-                    if (enableHistoryTracking && isMJ && !isInitialLoadRef.current) {
-                        snapshot.docChanges().forEach((change) => {
-                            const data = change.doc.data();
-                            const name = data.Nomperso || "Joueur";
-                            const rawImage = data.imageURL2 || data.imageURLFinal || data.image || data.imageUrl || data.imageURL;
-                            const avatar = typeof rawImage === 'object' && rawImage?.src ? rawImage.src : (typeof rawImage === 'string' ? rawImage : '');
-
-                            if (change.type === "added") {
-                                logHistoryEvent({ roomId, type: 'creation', message: `**${name}** a rejoint l'aventure !`, characterId: change.doc.id, characterName: name, characterAvatar: avatar, characterType: 'joueurs' });
-                            } else if (change.type === "removed") {
-                                logHistoryEvent({ roomId, type: 'info', message: `**${name}** a quitté l'aventure.`, characterId: change.doc.id, characterName: name, characterAvatar: avatar, characterType: 'joueurs' });
-                                lastCharsPVRef.current.delete(change.doc.id);
-                            } else if (change.type === "modified") {
-                                // Track PV changes for players
-                                const oldPV = lastCharsPVRef.current.get(change.doc.id);
-                                const newPV = Number(data.PV) || 0;
-                                if (oldPV !== undefined && oldPV !== newPV) {
-                                    const diff = newPV - oldPV;
-                                    const action = diff > 0 ? "récupéré" : "perdu";
-                                    logHistoryEvent({ roomId, type: 'combat', message: `**${name}** a **${action}** ${Math.abs(diff)} PV.`, characterId: change.doc.id, characterName: name, characterAvatar: avatar, characterType: 'joueurs' });
-                                }
-                            }
-                            lastCharsPVRef.current.set(change.doc.id, Number(data.PV) || 0);
-                        });
-                    } else if (enableHistoryTracking && isMJ && isInitialLoadRef.current) {
-                        // Fill the ref on initial load without logging
-                        snapshot.docs.forEach(d => lastCharsPVRef.current.set(d.id, Number(d.data().PV) || 0));
-                    }
                     if (loadedPlayersRef) loadedPlayersRef.current = snapshot.docs;
                     setPlayersVersion?.(v => v + 1);
                     setRawPlayers?.(snapshot.docs);
@@ -242,6 +211,7 @@ export function useMapData(
     useEffect(() => {
         if (!roomId) return;
         const unsubs: (() => void)[] = [];
+        let isInitialNPCLoad = true;
 
         // ─── 6. SCENE + BACKGROUND ─────────────────────────────────────────────
         if (selectedCityId) {
@@ -329,10 +299,10 @@ export function useMapData(
             unsubs.push(onSnapshot(
                 query(collection(db, 'cartes', roomId, 'characters'), where('cityId', '==', selectedCityId)),
                 (snapshot) => {
-                    const { loadedNPCsRef, parseCharacterDocRef, mergeAndSetCharactersRef, selectedCityIdRef, setRawNPCs, enableHistoryTracking, isMJ } = cb.current;
+                    const { loadedNPCsRef, parseCharacterDocRef, mergeAndSetCharactersRef, selectedCityIdRef, setRawNPCs, isMJ } = cb.current;
                     const docs = snapshot.docs.filter(d => d.data().type !== 'joueurs');
 
-                    if (enableHistoryTracking && isMJ && !isInitialLoadRef.current) {
+                    if (isMJ && !isInitialNPCLoad) {
                         snapshot.docChanges().forEach((change) => {
                             const data = change.doc.data();
                             if (data.type === 'joueurs') return;
@@ -344,23 +314,10 @@ export function useMapData(
                                 logHistoryEvent({ roomId, type: 'creation', message: `Apparition de : **${name}**.`, characterId: change.doc.id, characterName: name, characterAvatar: avatar, characterType: data.type });
                             } else if (change.type === "removed") {
                                 logHistoryEvent({ roomId, type: 'info', message: `Disparition de : **${name}**.`, characterId: change.doc.id, characterName: name, characterAvatar: avatar, characterType: data.type });
-                                lastCharsPVRef.current.delete(change.doc.id);
-                            } else if (change.type === "modified") {
-                                // Track PV changes for NPCs
-                                const oldPV = lastCharsPVRef.current.get(change.doc.id);
-                                const newPV = Number(data.PV) || 0;
-                                if (oldPV !== undefined && oldPV !== newPV) {
-                                    const diff = newPV - oldPV;
-                                    const action = diff > 0 ? "soigné" : "attaqué";
-                                    logHistoryEvent({ roomId, type: 'combat', message: `**${name}** a été **${action}** (${diff > 0 ? "+" : ""}${diff} PV).`, characterId: change.doc.id, characterName: name, characterAvatar: avatar, characterType: data.type });
-                                }
                             }
-                            lastCharsPVRef.current.set(change.doc.id, Number(data.PV) || 0);
                         });
-                    } else if (enableHistoryTracking && isMJ && isInitialLoadRef.current) {
-                        // Fill the ref on initial load without logging
-                        snapshot.docs.forEach(d => lastCharsPVRef.current.set(d.id, Number(d.data().PV) || 0));
                     }
+                    isInitialNPCLoad = false;
 
                     if (setRawNPCs && parseCharacterDocRef) {
                         setRawNPCs(docs.map(d => parseCharacterDocRef.current(d, selectedCityIdRef?.current || null)));
@@ -476,11 +433,8 @@ export function useMapData(
             unsubs.push(unsubscribe);
         }
 
-        // Marquer la fin du chargement initial
-        const timer = setTimeout(() => { isInitialLoadRef.current = false; }, 2000);
         return () => {
             unsubs.forEach(u => u());
-            clearTimeout(timer);
         };
     }, [roomId, selectedCityId]);
 }

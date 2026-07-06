@@ -8,6 +8,7 @@ import { Plus, Minus, Dice1, ChevronRight, ChevronLeft, Sword, Skull, Shield, He
 import { db, doc, getDoc, onSnapshot, updateDoc, setDoc, deleteDoc, collection, writeBatch } from "@/lib/firebase"
 import { useGame } from '@/contexts/GameContext'
 import { trackDamageDealtByCharacter } from '@/lib/challenge-tracker'
+import { logHistoryEvent } from '@/lib/historiqueTrackerService'
 import { Dialog, DialogTrigger, DialogPortal, DialogOverlay, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
@@ -353,7 +354,7 @@ export function GMDashboard() {
     fetchAttackReports()
   }, [roomId, characters])
 
-  const applyDamage = async (targetId: string, damage: number, attackerPersoId?: string) => {
+  const applyDamage = async (targetId: string, damage: number, attackerPersoId?: string, weaponUsed?: string) => {
     const targetCharacter = characters.find(char => char.id === targetId)
     if (!targetCharacter || !roomId) return
 
@@ -378,6 +379,43 @@ export function GMDashboard() {
         description: `${targetCharacter.name} : -${damage} PV (${newPv} PV restants)`,
         duration: 2000,
       })
+
+      const attacker = attackerPersoId ? characters.find(c => c.id === attackerPersoId) : undefined
+      const attackerName = attacker?.name || 'Quelqu\'un'
+      const withWeapon = weaponUsed ? ` (${weaponUsed})` : ''
+      let historyMessage: string
+      if (damage > 0) {
+        historyMessage = `**${targetCharacter.name}** a reçu **${damage} dégâts** de **${attackerName}**${withWeapon} (${newPv} PV restants).`
+      } else if (damage < 0) {
+        historyMessage = `**${targetCharacter.name}** a reçu **${Math.abs(damage)} PV** de **${attackerName}**${withWeapon} (${newPv} PV).`
+      } else {
+        historyMessage = `**${targetCharacter.name}** n'a subi aucun effet de **${attackerName}**${withWeapon} (${newPv} PV).`
+      }
+
+      logHistoryEvent({
+        roomId,
+        type: newPv <= 0 ? 'mort' : 'combat',
+        message: newPv <= 0 ? `**${targetCharacter.name}** a succombé à ses blessures !` : historyMessage,
+        characterId: targetId,
+        characterName: targetCharacter.name,
+        characterType: targetCharacter.type,
+      })
+
+      // Événement dédié côté attaquant, pour que son historique "Par personnage"
+      // montre aussi les actions qu'il a faites (pas seulement celles subies).
+      // Masqué du Journal global pour éviter un doublon avec l'événement côté cible.
+      if (attacker && attacker.id !== targetId) {
+        const attackerVerb = damage > 0 ? 'a attaqué' : damage < 0 ? 'a soigné' : 'a attaqué (sans effet)'
+        logHistoryEvent({
+          roomId,
+          type: 'combat',
+          message: `**${attackerName}** ${attackerVerb} **${targetCharacter.name}**${withWeapon}${damage !== 0 ? ` : **${Math.abs(damage)} ${damage > 0 ? 'dégâts' : 'PV rendus'}**` : ''}.`,
+          characterId: attacker.id,
+          characterName: attacker.name,
+          characterType: attacker.type,
+          details: { hiddenFromTimeline: true },
+        })
+      }
 
       if (newPv <= 0 && targetCharacter.type !== 'joueurs') {
         confirmDeleteCharacter(targetCharacter)
@@ -545,6 +583,19 @@ export function GMDashboard() {
           duration: 2000,
         })
 
+        if (hpChange !== 0) {
+          logHistoryEvent({
+            roomId,
+            type: newPv <= 0 ? 'mort' : 'combat',
+            message: newPv <= 0
+              ? `**${selectedCharacter.name}** a succombé à ses blessures !`
+              : `**MJ** ajuste les PV de **${selectedCharacter.name}** : ${hpChange > 0 ? '+' : ''}${hpChange} (${newPv} PV).`,
+            characterId: selectedCharacter.id,
+            characterName: selectedCharacter.name,
+            characterType: selectedCharacter.type,
+          })
+        }
+
         if (newPv <= 0 && selectedCharacter.type !== 'joueurs') {
           confirmDeleteCharacter(selectedCharacter)
         }
@@ -562,7 +613,7 @@ export function GMDashboard() {
 
   const applyManualDamage = async () => {
     if (selectedAttack && selectedTarget && roomId) {
-      await applyDamage(selectedTarget, damageChange, selectedAttack.attaquant)
+      await applyDamage(selectedTarget, damageChange, selectedAttack.attaquant, selectedAttack.arme_utilisée)
       setIsOtherDrawerOpen(false)
     }
   }
@@ -593,6 +644,17 @@ export function GMDashboard() {
       toast.success(isRemoving ? 'Effet retiré' : 'Effet ajouté', {
         description: `${char.name} : ${conditionLabel}`,
         duration: 2000,
+      })
+
+      logHistoryEvent({
+        roomId,
+        type: 'combat',
+        message: isRemoving
+          ? `**${char.name}** n'est plus **${conditionLabel}**.`
+          : `**${char.name}** est **${conditionLabel}**.`,
+        characterId,
+        characterName: char.name,
+        characterType: char.type,
       })
     } catch (error) {
       console.error("Erreur lors de la mise à jour des conditions :", error)

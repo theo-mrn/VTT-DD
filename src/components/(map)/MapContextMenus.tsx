@@ -5,6 +5,7 @@ import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db } from '@/lib/firebase';
 import { toast } from 'sonner';
+import { logHistoryEvent } from '@/lib/historiqueTrackerService';
 
 import ContextMenuPanel from '@/components/(overlays)/ContextMenuPanel';
 import ObstacleContextMenu from '@/components/(overlays)/ObstacleContextMenu';
@@ -330,8 +331,23 @@ export default function MapContextMenus(props: MapContextMenusProps) {
     } else if (action === 'updatePV') {
       if (roomId) {
         const newPV = Number(value);
+        const prevPV = Number(char.PV) || 0;
         await updateDoc(doc(db, 'cartes', roomId, 'characters', characterId), { PV: newPV });
         setCharacters(prev => prev.map(c => c.id === characterId ? { ...c, PV: newPV } : c));
+
+        if (newPV !== prevPV) {
+          const diff = newPV - prevPV;
+          logHistoryEvent({
+            roomId,
+            type: newPV <= 0 ? 'mort' : 'combat',
+            message: newPV <= 0
+              ? `**${char.name}** a succombé à ses blessures !`
+              : `**MJ** ajuste les PV de **${char.name}** (carte) : ${diff > 0 ? '+' : ''}${diff} (${newPV} PV).`,
+            characterId,
+            characterName: char.name,
+            characterType: char.type,
+          });
+        }
       }
     } else if (action === 'updateStat') {
       if (isMJ && roomId) {

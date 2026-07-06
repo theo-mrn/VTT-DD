@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import {
   updateDoc
 } from '@/lib/firebase';
-import { Heart, Shield, Edit, Settings, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Trash2, PlusCircle, Expand, FileEdit, LayoutDashboard, Search, FileDown, UploadCloud, RotateCcw, Droplet, Minus, Plus, Sliders, Download } from 'lucide-react';
+import { Heart, Shield, Edit, Settings, TrendingUp, ChartColumn, Palette, Upload, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Trash2, PlusCircle, Expand, FileEdit, LayoutDashboard, Search, FileDown, UploadCloud, RotateCcw, Droplet, Minus, Plus, Sliders, Download, History } from 'lucide-react';
 import InventoryManagement2 from '@/components/(inventaire)/inventaire';
 import CompetencesDisplay from "@/components/(competences)/competencesD";
 import Competences from "@/components/(competences)/competences";
@@ -12,6 +12,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useCharacter, Character } from '@/contexts/CharacterContext';
 import { useGame } from '@/contexts/GameContext';
 import { Statistiques } from '@/components/Statistiques';
+import Historique from '@/components/(historique)/Historique';
 import { WidgetAvatar, WidgetDetails, WidgetStats, WidgetVitals, WidgetCombatStats, WidgetCustomGroup, GroupCreationSection } from './FicheWidgets';
 import { CustomField } from '@/contexts/CharacterContext';
 import { WidgetBourse, WidgetEffects } from './FicheWidgetsExtra';
@@ -165,6 +166,7 @@ export default function Component() {
   const [showLevelUpConfirmationModal, setShowLevelUpConfirmationModal] = useState<boolean>(false);
   const [showCompetencesFullscreen, setShowCompetencesFullscreen] = useState<boolean>(false);
   const [showStatistiques, setShowStatistiques] = useState<boolean>(false);
+  const [showHistorique, setShowHistorique] = useState<boolean>(false);
   const [isExportingCharacter, setIsExportingCharacter] = useState<boolean>(false);
   const [isImportingCharacter, setIsImportingCharacter] = useState<boolean>(false);
   const importCharacterInputRef = React.useRef<HTMLInputElement>(null);
@@ -1037,6 +1039,11 @@ export default function Component() {
                     Statistiques
                   </DropdownMenuItem>
 
+                  <DropdownMenuItem onSelect={() => setShowHistorique(true)}>
+                    <History size={16} className="mr-2" />
+                    Historique
+                  </DropdownMenuItem>
+
                   {(selectedCharacter.id === userPersoId || isMJ) && (
                     <DropdownMenuItem disabled={isExportingCharacter} onSelect={handleExportCharacter}>
                       <FileDown size={16} className="mr-2" />
@@ -1767,6 +1774,22 @@ export default function Component() {
                 </div>
                 <div className="p-0">
                   <Statistiques />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showHistorique && selectedCharacter && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <div className="max-w-4xl w-full h-[85vh] flex flex-col gap-2">
+                <button
+                  onClick={() => setShowHistorique(false)}
+                  className="self-end bg-[var(--bg-darker)] text-[var(--text-primary)] border border-[var(--border-color)] px-4 py-2 rounded-lg hover:bg-[var(--bg-card)] transition duration-300 text-xs sm:text-sm font-bold shrink-0"
+                >
+                  Fermer
+                </button>
+                <div className="flex-1 min-h-0">
+                  <Historique roomId={roomId!} initialCharacterId={selectedCharacter.id} lockToCharacter={!isMJ} />
                 </div>
               </div>
             </div>

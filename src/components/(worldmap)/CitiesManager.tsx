@@ -8,7 +8,6 @@ import { createPortal } from "react-dom";
 
 import { useGame } from "@/contexts/GameContext";
 import { db, realtimeDb, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, where, writeBatch, getDoc, setDoc, getDocs } from "@/lib/firebase";
-import { logHistoryEvent } from "@/lib/historiqueTrackerService";
 import { ref as rtdbRef, get as rtdbGet, update as rtdbUpdate } from 'firebase/database';
 
 import { Button } from "@/components/ui/button";
@@ -539,23 +538,6 @@ export default function CitiesManager({ onCitySelect, roomId, onClose, globalCit
 
             await batch.commit();
             console.log(`✅ [CitiesManager] Moved ${moveMode === 'all' ? 'everyone' : selectedPlayerIds.size + ' players'} to ${moveTargetCity.name}${moveTargetCity.spawnX !== undefined ? ` at spawn (${moveTargetCity.spawnX}, ${moveTargetCity.spawnY})` : ''}`);
-
-            // Log individual history events for each moved player
-            const movedPlayers = moveMode === 'all'
-                ? players
-                : players.filter(p => selectedPlayerIds.has(p.id));
-
-            for (const p of movedPlayers) {
-                logHistoryEvent({
-                    roomId: effectiveRoomId,
-                    type: 'deplacement',
-                    message: `**${p.name}** a rejoint : **${moveTargetCity.name}**.`,
-                    characterId: p.id,
-                    characterName: p.name,
-                    characterAvatar: p.image,
-                    characterType: 'joueurs',
-                });
-            }
 
             setShowMoveDialog(false);
 
