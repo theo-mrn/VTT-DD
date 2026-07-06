@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { registerPendingPlay } from '@/utils/audioAutoplay';
 
 export const useBackgroundAudio = (
     audioUrl: string | null,
@@ -29,6 +30,7 @@ export const useBackgroundAudio = (
             // Auto-play (may be blocked by browser policies)
             audio.play().catch(e => {
                 console.warn('Background audio autoplay failed:', e);
+                registerPendingPlay(audio);
             });
         } else {
             // Update URL if changed
@@ -36,6 +38,7 @@ export const useBackgroundAudio = (
                 audioRef.current.src = audioUrl;
                 audioRef.current.play().catch(e => {
                     console.warn('Background audio play failed after URL change:', e);
+                    registerPendingPlay(audioRef.current!);
                 });
             }
         }

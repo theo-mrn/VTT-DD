@@ -1,7 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from 'react'
-import { Volume2, Sliders, X, Music, MapPin, AudioLines } from 'lucide-react'
+import { Volume2, Sliders, X, Music, MapPin, AudioLines, Dice5 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { Label } from '@/components/ui/label'
@@ -20,6 +20,8 @@ export const useAudioMixer = () => {
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved)
+                    // Older saved prefs may predate the dice3d channel.
+                    if (typeof parsed.dice3d !== 'number') parsed.dice3d = 1
                     return parsed
                 } catch (e) {
                     console.error('Error loading audio mixer preferences:', e)
@@ -30,7 +32,8 @@ export const useAudioMixer = () => {
         return {
             quickSounds: 1,
             musicZones: 1,
-            backgroundMusic: 1
+            backgroundMusic: 1,
+            dice3d: 1
         }
     })
 
@@ -80,6 +83,11 @@ export function AudioMixerPanel({ isOpen, onClose }: AudioMixerProps) {
             id: 'backgroundMusic' as const,
             label: 'Musique de fond',
             icon: Music,
+        },
+        {
+            id: 'dice3d' as const,
+            label: 'Dés 3D',
+            icon: Dice5,
         }
     ]
 

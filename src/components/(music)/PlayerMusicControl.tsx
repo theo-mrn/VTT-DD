@@ -6,6 +6,7 @@ import { realtimeDb, dbRef, onValue } from '@/lib/firebase';
 import { Music2 } from 'lucide-react';
 
 import { useAudioMixer } from '@/components/(audio)/AudioMixerPanel';
+import { registerPendingPlay } from '@/utils/audioAutoplay';
 
 interface MusicState {
   videoId: string | null;
@@ -71,7 +72,10 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
     }
 
     if (data.isPlaying) {
-      audio.play().catch(e => console.error('[PlayerMusicControl] Audio play error:', e));
+      audio.play().catch(e => {
+        console.error('[PlayerMusicControl] Audio play error:', e);
+        registerPendingPlay(audio);
+      });
     } else {
       audio.pause();
     }

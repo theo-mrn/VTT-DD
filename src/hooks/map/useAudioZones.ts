@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { MusicZone, Point } from '@/app/[roomid]/map/types';
+import { registerPendingPlay } from '@/utils/audioAutoplay';
 
 // Helper to extract YouTube video ID
 const extractVideoId = (url: string): string | null => {
@@ -80,6 +81,7 @@ export const useAudioZones = (
                     if (zone.url) {
                         audio.play().catch(e => {
                             console.warn(`Autoplay failed for zone ${zone.name} (${zone.id}):`, e);
+                            registerPendingPlay(audio!);
                         });
                     }
                 } else {
@@ -88,7 +90,10 @@ export const useAudioZones = (
                     if (audio.src !== targetUrl && !audio.src.endsWith(targetUrl)) {
                         audio.src = targetUrl;
                         if (targetUrl) {
-                            audio.play().catch(e => console.warn("Play failed after src change:", e));
+                            audio.play().catch(e => {
+                                console.warn("Play failed after src change:", e);
+                                registerPendingPlay(audio!);
+                            });
                         }
                     }
                 }

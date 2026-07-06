@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import YouTube, { YouTubeProps, YouTubePlayer } from 'react-youtube';
 import { realtimeDb, dbRef, set, onValue, update } from '@/lib/firebase';
 import { useGame } from '@/contexts/GameContext';
+import { registerPendingPlay } from '@/utils/audioAutoplay';
 
 
 
@@ -91,7 +92,10 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
     }
 
     if (data.isPlaying) {
-      audio.play().catch(e => console.error('[MJMusicPlayer] Audio play error:', e));
+      audio.play().catch(e => {
+        console.error('[MJMusicPlayer] Audio play error:', e);
+        registerPendingPlay(audio);
+      });
     } else {
       audio.pause();
     }

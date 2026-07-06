@@ -144,6 +144,7 @@ export async function convertNoobliesSheet(sheet: NoobliesSheet): Promise<Charac
     Race: sheet.race,
     Profile: sheet.profil,
     type: 'joueurs',
+    visibility: 'visible',
     // L'avatar de la fiche n'affiche que imageURLFinal : on renseigne les trois champs
     // avec la même source pour que l'image apparaisse directement, sans passer par le Studio.
     imageURL: sheet.illu,
