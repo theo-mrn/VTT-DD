@@ -159,17 +159,8 @@ export default function Component() {
 
   const [activePlayerId, setActivePlayerId] = useState<string | null>(null);
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null)
-  const { bgImageObject, setBgImageObject, isBackgroundLoading, loadingProgress } = useBackgroundLoader({ backgroundImage, performanceMode });
+  const { bgImageObject, setBgImageObject, isBackgroundLoading } = useBackgroundLoader({ backgroundImage, performanceMode });
   const [showRevealAnim, setShowRevealAnim] = useState(false);
-  const prevIsBackgroundLoading = useRef(false);
-  useEffect(() => {
-    if (prevIsBackgroundLoading.current && !isBackgroundLoading && bgImageObject) {
-      setShowRevealAnim(true);
-      const timer = setTimeout(() => setShowRevealAnim(false), 3000);
-      return () => clearTimeout(timer);
-    }
-    prevIsBackgroundLoading.current = isBackgroundLoading;
-  }, [isBackgroundLoading, bgImageObject]);
   const [selectedSkin, setSelectedSkin] = useState<string>('Fireballs/explosion1.webm');
   const [isPermanent, setIsPermanent] = useState(false); // 🆕 Permanent measurement toggle
   const [activeInteraction, setActiveInteraction] = useState<{ interaction: VendorInteraction | GameInteraction | LootInteraction, host: Character | MapObject } | null>(null);
@@ -410,6 +401,7 @@ export default function Component() {
 
   const [currentPath, setCurrentPath] = useState<Point[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [authResolved, setAuthResolved] = useState(false); // 🆕 True dès la 1ère réponse d'onAuthStateChanged (évite d'afficher "non connecté" avant que Firebase Auth ait répondu)
   const [userName, setUserName] = useState<string>('Anonyme');
   const [loading, setLoading] = useState(true)
   const [fontFamilyMap, setFontFamilyMap] = useState<Record<string, string>>({})
@@ -580,7 +572,22 @@ export default function Component() {
   const [viewMode, setViewMode] = useState<ViewMode>('world'); // 'world' = world map, 'city' = city map
 
   const [globalCityId, setGlobalCityId] = useState<string | null>(null); // Global party location
+  const [settingsResolved, setSettingsResolved] = useState(false); // 🆕 True once settings/general has answered at least once (avoids flashing CitiesManager before we know globalCityId)
   const [cities, setCities] = useState<Scene[]>([]); // Villes disponibles
+
+  // 🆕 CHARGEMENT UNIFIÉ : un seul état combiné piloté par TOUTES les conditions de chargement.
+  // Le reveal CSS (showRevealAnim) ne se déclenche que sur SA transition true→false, jamais sur
+  // isBackgroundLoading seul — évite le "flash de la carte nue puis reveal rejoué après coup".
+  const isFullyLoading = loading || !settingsResolved || !authResolved || isBackgroundLoading;
+  const prevIsFullyLoading = useRef(true);
+  useEffect(() => {
+    if (prevIsFullyLoading.current && !isFullyLoading && bgImageObject) {
+      setShowRevealAnim(true);
+      const timer = setTimeout(() => setShowRevealAnim(false), 3000);
+      return () => clearTimeout(timer);
+    }
+    prevIsFullyLoading.current = isFullyLoading;
+  }, [isFullyLoading, bgImageObject]);
 
   // 🆕 RANDOM STAT GENERATOR STATE
   const [difficulty, setDifficulty] = useState(3); // 1-5
@@ -943,6 +950,7 @@ export default function Component() {
     let cleanup: (() => void) | undefined;
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (cleanup) cleanup(); // Clean up previous listeners
+      setAuthResolved(true);
 
       if (user) {
         setUserId(user.uid);
@@ -1187,6 +1195,7 @@ export default function Component() {
     setPixelsPerUnit,
     setUnitName,
     setGlobalCityId,
+    setSettingsResolved,
     setCities,
     setPlayersVersion,
     selectedCityIdRef,
@@ -1236,6 +1245,11 @@ export default function Component() {
 
   // 🆕 EFFET DE SYNCHRONISATION DE SCÈNE (PRIORITÉ AU PERSONNAGE)
   useEffect(() => {
+    // ⚠️ Tant que settings/general n'a pas répondu au moins une fois, on ne sait pas
+    // encore si le groupe a une ville active (globalCityId). Décider 'world' maintenant
+    // ferait clignoter CitiesManager avant de se rétracter dès que la vraie donnée arrive.
+    if (!settingsResolved) return;
+
     // Si MJ, on autorise la navigation automatique si aucune ville n'est déjà sélectionnée
     ;    // On force aussi le mode 'world' (drawer) si aucune ville n'est définie
     if (isMJ) {
@@ -1273,7 +1287,7 @@ export default function Component() {
         setViewMode('city');
       }
     }
-  }, [globalCityId, persoId, isMJ, selectedCityId, viewMode, playersVersion]); // ✅ playersVersion triggers when player data changes
+  }, [globalCityId, persoId, isMJ, selectedCityId, viewMode, playersVersion, settingsResolved]); // ✅ playersVersion triggers when player data changes
 
   // 2. NOW USE THEM IN EFFECT
   useEffect(() => {
@@ -1467,6 +1481,9 @@ export default function Component() {
 
     if (!bgCtx || !borderCtx || !fgCtx) return;
 
+    // Évite de dessiner sur des données vides pendant le chargement initial (masqué par l'overlay de toute façon)
+    if (isFullyLoading) return;
+
     const image = bgImageObject || { width: 1920, height: 1080 } as HTMLImageElement;
     const containerWidth = containerSize.width || containerRef.current?.clientWidth || bgCanvas.width;
     const containerHeight = containerSize.height || containerRef.current?.clientHeight || bgCanvas.height;
@@ -1586,7 +1603,8 @@ export default function Component() {
     // 🆕 Spawn point dependencies
     currentScene, spawnPointMode, isDraggingSpawnPoint,
     // Drag & drop preview
-    dragFeaturePreview
+    dragFeaturePreview,
+    isFullyLoading
   ]);
 
   // 🎥 TOKEN VIDEO PAUSE LOGIC (Separate Effect)
@@ -2782,12 +2800,12 @@ export default function Component() {
 
   // clearFog is now in useVisibilityState hook
 
-  if (loading) {
-    return <div>Chargement...</div>
-  }
-
-  if (!userId) {
-    return <div>Veuillez vous connecter pour accéder à la carte</div>
+  if (authResolved && !userId) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-black">
+        <p className="text-neutral-300 text-sm">Veuillez vous connecter pour accéder à la carte</p>
+      </div>
+    )
   }
 
 
@@ -3690,8 +3708,8 @@ export default function Component() {
 
 
 
-      {/* Background Loader Overlay + Reveal Animation */}
-      {(isBackgroundLoading || showRevealAnim) && (
+      {/* Loader Overlay (data + background) + Reveal Animation */}
+      {(isFullyLoading || showRevealAnim) && (
         <div
           className="absolute inset-0 z-[55] flex flex-col items-center justify-center bg-black pointer-events-none"
           style={showRevealAnim ? {
@@ -3703,22 +3721,12 @@ export default function Component() {
             WebkitMaskPosition: 'center',
           } : undefined}
         >
-          {isBackgroundLoading && (
+          {isFullyLoading && (
             <div className="flex flex-col items-center gap-4 max-w-sm w-full px-6">
               <Loader2 className="w-12 h-12 text-[#c0a080] animate-spin" />
-              <div className="text-center space-y-2">
-                <h3 className="text-xl font-bold text-[#c0a080] tracking-wider uppercase">
-                  {selectedCityId ? cities.find(c => c.id === selectedCityId)?.name || 'Ville Inconnue' : 'Carte du Monde'}
-                </h3>
-                <p className="text-neutral-400 text-sm">Chargement du fond de carte...</p>
-              </div>
-              <div className="w-full h-2 bg-neutral-800 rounded-full overflow-hidden border border-neutral-700">
-                <div
-                  className="h-full bg-[#c0a080] transition-all duration-300 ease-out"
-                  style={{ width: `${loadingProgress}%` }}
-                />
-              </div>
-              <span className="text-[#c0a080] font-mono text-sm">{loadingProgress}%</span>
+              <h3 className="text-xl font-bold text-[#c0a080] tracking-wider uppercase">
+                Chargement...
+              </h3>
             </div>
           )}
         </div>
@@ -3766,7 +3774,7 @@ export default function Component() {
 
       {/* SCENE INVENTORY DRAWER */}
       <AnimatePresence>
-        {viewMode === 'world' && isMJ && (
+        {settingsResolved && viewMode === 'world' && isMJ && (
           <CitiesManager
             onCitySelect={navigateToCity}
             roomId={roomId}

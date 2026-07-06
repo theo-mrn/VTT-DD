@@ -80,7 +80,7 @@ export const useAudioZones = (
                     // Attempt to play (browser interaction policies may block this)
                     if (zone.url) {
                         audio.play().catch(e => {
-                            console.warn(`Autoplay failed for zone ${zone.name} (${zone.id}):`, e);
+                            if (e.name !== 'NotAllowedError') console.warn(`Autoplay failed for zone ${zone.name} (${zone.id}):`, e);
                             registerPendingPlay(audio!);
                         });
                     }
@@ -91,7 +91,7 @@ export const useAudioZones = (
                         audio.src = targetUrl;
                         if (targetUrl) {
                             audio.play().catch(e => {
-                                console.warn("Play failed after src change:", e);
+                                if (e.name !== 'NotAllowedError') console.warn("Play failed after src change:", e);
                                 registerPendingPlay(audio!);
                             });
                         }

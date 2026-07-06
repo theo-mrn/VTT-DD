@@ -16,6 +16,7 @@ import { ref as rtdbRef, onValue as rtdbOnValue } from 'firebase/database';
 
 import { db, realtimeDb } from '@/lib/firebase';
 import { logHistoryEvent } from '@/lib/historiqueTrackerService';
+import { registerPendingPlay } from '@/utils/audioAutoplay';
 
 import type {
     Character,
@@ -56,6 +57,7 @@ interface MapDataCallbacks {
     setPixelsPerUnit?: (v: number) => void;
     setUnitName?: (v: string) => void;
     setGlobalCityId?: (id: string | null) => void;
+    setSettingsResolved?: (v: boolean) => void;
     setCities?: (cities: any[]) => void;
     setPlayersVersion?: React.Dispatch<React.SetStateAction<number>>;
     setRawPlayers?: (docs: any[]) => void;
@@ -118,15 +120,19 @@ export function useMapData(
 
         // ─── 2. SETTINGS GENERAL (fusionné) ────────────────────────────────────
         const hasSettingsCbs = cb.current.setGlobalTokenScale || cb.current.setShadowOpacity ||
-            cb.current.setPixelsPerUnit || cb.current.setUnitName || cb.current.setGlobalCityId;
+            cb.current.setPixelsPerUnit || cb.current.setUnitName || cb.current.setGlobalCityId ||
+            cb.current.setSettingsResolved;
 
         if (hasSettingsCbs) {
             unsubs.push(onSnapshot(
                 doc(db, 'cartes', roomId, 'settings', 'general'),
                 (docSnap) => {
-                    if (!docSnap.exists()) return;
-                    const data = docSnap.data();
                     const c = cb.current;
+                    if (!docSnap.exists()) {
+                        c.setSettingsResolved?.(true);
+                        return;
+                    }
+                    const data = docSnap.data();
                     if (data.globalTokenScale !== undefined) c.setGlobalTokenScale?.(data.globalTokenScale);
                     if (data.shadowOpacity !== undefined) c.setShadowOpacity?.(data.shadowOpacity);
                     if (data.pixelsPerUnit) c.setPixelsPerUnit?.(data.pixelsPerUnit);
@@ -134,6 +140,7 @@ export function useMapData(
                     if (data.currentCityId) {
                         c.setGlobalCityId?.(data.currentCityId);
                     }
+                    c.setSettingsResolved?.(true);
                 }
             ));
         }
@@ -163,7 +170,10 @@ export function useMapData(
                             if (audioVolumes) audio.volume = audioVolumes.quickSounds;
                             globalAudioRef.current = audio;
                             audio.addEventListener('ended', () => { globalAudioRef.current = null; });
-                            audio.play().catch(console.error);
+                            audio.play().catch(e => {
+                                if (e.name !== 'NotAllowedError') console.error(e);
+                                registerPendingPlay(audio);
+                            });
                         }
                     }
                 }

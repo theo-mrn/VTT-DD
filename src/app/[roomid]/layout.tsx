@@ -3,7 +3,7 @@
 import { SettingsProvider } from '@/contexts/SettingsContext';
 import { db, doc, getDoc } from '@/lib/firebase';
 import { useRouter, useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 export default function RoomLayout({
   children,
@@ -13,8 +13,10 @@ export default function RoomLayout({
   const router = useRouter();
   const params = useParams();
   const roomid = params?.roomid as string;
-  const [isValidated, setIsValidated] = useState(false);
 
+  // Validation en arrière-plan : ne bloque plus le rendu (page.tsx affiche déjà son propre
+  // écran de chargement). GameContext fait de toute façon son propre getDoc('Salle', roomId) ;
+  // ce check ne sert qu'à rediriger si la room n'existe pas, sans ajouter un second écran devant.
   useEffect(() => {
     if (!roomid) {
       router.replace('/home');
@@ -29,8 +31,6 @@ export default function RoomLayout({
         if (!roomDoc.exists()) {
           console.error("Room not found:", roomid);
           router.replace('/home');
-        } else {
-          setIsValidated(true);
         }
       } catch (error) {
         console.error("Error fetching room:", error);
@@ -40,15 +40,6 @@ export default function RoomLayout({
 
     checkRoom();
   }, [roomid, router]);
-
-  // Optionally, return null or a loading state while validating
-  if (!isValidated) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Chargement de la salle...</div>
-      </div>
-    );
-  }
 
   return (
     <SettingsProvider>

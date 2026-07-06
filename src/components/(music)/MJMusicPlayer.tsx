@@ -93,7 +93,7 @@ export default function MJMusicPlayer({ roomId, masterVolume = 1 }: MJMusicPlaye
 
     if (data.isPlaying) {
       audio.play().catch(e => {
-        console.error('[MJMusicPlayer] Audio play error:', e);
+        if (e.name !== 'NotAllowedError') console.error('[MJMusicPlayer] Audio play error:', e);
         registerPendingPlay(audio);
       });
     } else {

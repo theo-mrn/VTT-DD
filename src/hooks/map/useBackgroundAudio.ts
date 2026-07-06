@@ -29,7 +29,7 @@ export const useBackgroundAudio = (
 
             // Auto-play (may be blocked by browser policies)
             audio.play().catch(e => {
-                console.warn('Background audio autoplay failed:', e);
+                if (e.name !== 'NotAllowedError') console.warn('Background audio autoplay failed:', e);
                 registerPendingPlay(audio);
             });
         } else {
@@ -37,7 +37,7 @@ export const useBackgroundAudio = (
             if (audioRef.current.src !== audioUrl && !audioRef.current.src.endsWith(audioUrl)) {
                 audioRef.current.src = audioUrl;
                 audioRef.current.play().catch(e => {
-                    console.warn('Background audio play failed after URL change:', e);
+                    if (e.name !== 'NotAllowedError') console.warn('Background audio play failed after URL change:', e);
                     registerPendingPlay(audioRef.current!);
                 });
             }

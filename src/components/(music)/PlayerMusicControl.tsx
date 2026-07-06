@@ -73,7 +73,7 @@ export default function PlayerMusicControl({ roomId }: PlayerMusicControlProps) 
 
     if (data.isPlaying) {
       audio.play().catch(e => {
-        console.error('[PlayerMusicControl] Audio play error:', e);
+        if (e.name !== 'NotAllowedError') console.error('[PlayerMusicControl] Audio play error:', e);
         registerPendingPlay(audio);
       });
     } else {
