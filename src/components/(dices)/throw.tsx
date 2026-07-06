@@ -387,8 +387,11 @@ export const DiceThrower = () => {
             />
             <Canvas
                 camera={{ position: [0, DICE_CAM_HEIGHT, 0], fov: DICE_CAM_FOV }}
-                gl={{ alpha: true }}
-                dpr={[1, 1.5]}
+                gl={{ alpha: true, powerPreference: 'high-performance' }}
+                // Same fill-cost cap as the fun thrower: procedural die
+                // shaders are expensive per pixel, 1.25 dpr is invisible on
+                // dice in motion.
+                dpr={[1, 1.25]}
                 frameloop={hasDice ? 'always' : 'demand'}
                 style={{ pointerEvents: 'none' }}
             >

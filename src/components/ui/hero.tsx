@@ -3,20 +3,31 @@ import { useEffect, useRef, useState } from "react"
 import { MeshGradient, PulsingBorder } from "@paper-design/shaders-react"
 import { motion } from "framer-motion"
 
-export function ShaderBackground() {
+export function ShaderBackground({ paused = false }: { paused?: boolean }) {
   return (
     <div className="absolute inset-0 w-full h-full bg-[#0c0c0e]">
+      {/* Performance: these are soft blurry gradients — rendering them above
+          ~900p is invisible, but the library's DEFAULT is minPixelRatio=2
+          (2x pixels even on non-retina screens), × two stacked layers, ×
+          every frame, forever. minPixelRatio=1 + a pixel-count cap cut that
+          fill cost by ~4-8x with no visible change. speed=0 (paused) fully
+          stops the render loop (documented library behaviour), so the
+          background costs nothing once the hero is scrolled out of view. */}
       {/* Couche de base : zinc très sombre avec nappes dorées */}
       <MeshGradient
         className="absolute inset-0 w-full h-full"
         colors={["#0c0c0e", "#c9a965", "#18181b", "#1a1410", "#a87c30"]}
-        speed={0.25}
+        speed={paused ? 0 : 0.25}
+        minPixelRatio={1}
+        maxPixelCount={1_400_000}
       />
       {/* Couche wireframe : reflets ivoire et or pâle */}
       <MeshGradient
         className="absolute inset-0 w-full h-full opacity-40"
         colors={["#0c0c0e", "#f5edd6", "#c9a965", "#2a2218"]}
-        speed={0.15}
+        speed={paused ? 0 : 0.15}
+        minPixelRatio={1}
+        maxPixelCount={1_400_000}
       />
     </div>
   )

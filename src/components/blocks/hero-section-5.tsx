@@ -215,6 +215,20 @@ export function HeroSection() {
     const router = useRouter()
     const { scrollYProgress } = useScroll()
 
+    // Pause the (WebGL) shader background once the hero is scrolled out of
+    // view: it renders behind the whole page in a fixed layer, and its two
+    // gradient passes otherwise keep burning GPU during the entire scroll —
+    // including while dice are being thrown further down the page.
+    const heroRef = React.useRef<HTMLElement>(null)
+    const [heroInView, setHeroInView] = React.useState(true)
+    React.useEffect(() => {
+        const el = heroRef.current
+        if (!el) return
+        const observer = new IntersectionObserver(([e]) => setHeroInView(e.isIntersecting))
+        observer.observe(el)
+        return () => observer.disconnect()
+    }, [])
+
     React.useEffect(() => {
         const uid = gameUser?.uid
         if (!uid) {
@@ -251,9 +265,9 @@ export function HeroSection() {
             />
             <main className="overflow-x-hidden">
 
-                <section className="relative min-h-screen flex items-center justify-center">
+                <section ref={heroRef} className="relative min-h-screen flex items-center justify-center">
                     <div className="fixed inset-0 -z-10 w-full h-full pointer-events-none">
-                        <ShaderBackground />
+                        <ShaderBackground paused={!heroInView} />
                     </div>
 
 
