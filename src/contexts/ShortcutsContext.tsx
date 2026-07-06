@@ -136,14 +136,19 @@ const DEFAULT_SHORTCUTS: Record<string, string> = {
     [SHORTCUT_ACTIONS.TOOL_BORDERS]: 'J',   // Borders
     [SHORTCUT_ACTIONS.TOOL_BADGES]: 'Delete', // Badges
 
-    // ========== LANCÉS DE DÉS (AZERTY) ==========
-    [SHORTCUT_ACTIONS.ROLL_D4]: '&',        // Dé 4 faces (touche 1 sur AZERTY)
-    [SHORTCUT_ACTIONS.ROLL_D6]: 'É',        // Dé 6 faces (touche 2 sur AZERTY)
-    [SHORTCUT_ACTIONS.ROLL_D8]: '"',        // Dé 8 faces (touche 3 sur AZERTY)
-    [SHORTCUT_ACTIONS.ROLL_D10]: "'",       // Dé 10 faces (touche 4 sur AZERTY)
-    [SHORTCUT_ACTIONS.ROLL_D12]: '(',       // Dé 12 faces (touche 5 sur AZERTY)
-    [SHORTCUT_ACTIONS.ROLL_D20]: '-',       // Dé 20 faces (touche 6 sur AZERTY)
-    [SHORTCUT_ACTIONS.ROLL_D100]: 'È',      // Dé 100 faces (touche 7 sur AZERTY)
+    // ========== LANCÉS DE DÉS ==========
+    // Basés sur la POSITION physique de la touche (Code:DigitN), pas le caractère
+    // produit (e.key) : "1".."7" en haut du clavier quel que soit le layout
+    // (AZERTY Mac/Windows, QWERTY...). Sur AZERTY ça reste "1" en minuscule/sans
+    // Shift, comme demandé, au lieu des symboles Shift (&é"'(-È) qui ne matchaient
+    // que le Mac.
+    [SHORTCUT_ACTIONS.ROLL_D4]: 'Code:Digit1',  // Dé 4 faces (touche 1)
+    [SHORTCUT_ACTIONS.ROLL_D6]: 'Code:Digit2',  // Dé 6 faces (touche 2)
+    [SHORTCUT_ACTIONS.ROLL_D8]: 'Code:Digit3',  // Dé 8 faces (touche 3)
+    [SHORTCUT_ACTIONS.ROLL_D10]: 'Code:Digit4', // Dé 10 faces (touche 4)
+    [SHORTCUT_ACTIONS.ROLL_D12]: 'Code:Digit5', // Dé 12 faces (touche 5)
+    [SHORTCUT_ACTIONS.ROLL_D20]: 'Code:Digit6', // Dé 20 faces (touche 6)
+    [SHORTCUT_ACTIONS.ROLL_D100]: 'Code:Digit7',// Dé 100 faces (touche 7)
 
     // ========== UNDO/REDO ==========
     [SHORTCUT_ACTIONS.UNDO]: 'Ctrl+Z',      // Annuler
@@ -175,6 +180,21 @@ export const formatKeyEvent = (e: KeyboardEvent | React.KeyboardEvent): string =
 
 const STORAGE_KEY = 'vtt-dd-shortcuts-v2';
 const CUSTOM_STORAGE_KEY = 'vtt-dd-custom-shortcuts';
+
+// Anciennes valeurs par défaut des raccourcis de dés (caractères produits par
+// les touches 1..7 sur AZERTY Mac). Des profils sauvegardés avant l'ajout des
+// raccourcis "Code:DigitN" (position physique, indépendante du layout) ont
+// figé ces symboles dans leur localStorage — on les migre une fois vers le
+// nouveau format tant qu'ils n'ont pas été personnalisés par l'utilisateur.
+const LEGACY_AZERTY_MAC_DICE_SHORTCUTS: Record<string, string> = {
+    [SHORTCUT_ACTIONS.ROLL_D4]: '&',
+    [SHORTCUT_ACTIONS.ROLL_D6]: 'É',
+    [SHORTCUT_ACTIONS.ROLL_D8]: '"',
+    [SHORTCUT_ACTIONS.ROLL_D10]: "'",
+    [SHORTCUT_ACTIONS.ROLL_D12]: '(',
+    [SHORTCUT_ACTIONS.ROLL_D20]: '-',
+    [SHORTCUT_ACTIONS.ROLL_D100]: 'È',
+};
 
 export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
     const [shortcuts, setShortcuts] = useState<Record<string, string>>(DEFAULT_SHORTCUTS);
@@ -242,7 +262,22 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
         try {
             const stored = localStorage.getItem(STORAGE_KEY);
             if (stored) {
-                setShortcuts({ ...DEFAULT_SHORTCUTS, ...JSON.parse(stored) });
+                const merged = { ...DEFAULT_SHORTCUTS, ...JSON.parse(stored) };
+
+                // One-time migration: replace still-legacy AZERTY-Mac dice
+                // shortcuts with the layout-independent physical-key default.
+                let migrated = false;
+                for (const [actionId, legacyValue] of Object.entries(LEGACY_AZERTY_MAC_DICE_SHORTCUTS)) {
+                    if (merged[actionId] === legacyValue) {
+                        merged[actionId] = DEFAULT_SHORTCUTS[actionId];
+                        migrated = true;
+                    }
+                }
+                if (migrated) {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+                }
+
+                setShortcuts(merged);
             }
 
             const storedCustom = localStorage.getItem(CUSTOM_STORAGE_KEY);
@@ -286,6 +321,19 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_SHORTCUTS));
     };
 
+    // Compare the current event against one token of a shortcut sequence.
+    // Tokens prefixed "Code:" (used by the default dice shortcuts) match the
+    // PHYSICAL key position (event.code, e.g. "Digit1") instead of the
+    // character produced (event.key) — that's what keeps "1".."7" mapped to
+    // the same top-row keys regardless of keyboard layout (AZERTY Mac/Windows,
+    // QWERTY...). Custom/recorded shortcuts keep using formatKeyEvent (e.key).
+    const matchesToken = (event: KeyboardEvent, currentKey: string, token: string): boolean => {
+        if (token.startsWith('Code:')) {
+            return event.code === token.slice('Code:'.length);
+        }
+        return currentKey === token;
+    };
+
     const checkKeyCombination = (event: KeyboardEvent, keyString: string): boolean => {
         if (!keyString) return false;
 
@@ -302,12 +350,12 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
 
         if (sequence.length === 1) {
             // Simple shortcut
-            return currentKey === sequence[0];
+            return matchesToken(event, currentKey, sequence[0]);
         }
 
         // Complex shortcut
         // Check if [history + current] ends with sequence
-        if (currentKey !== sequence[sequence.length - 1]) return false;
+        if (!matchesToken(event, currentKey, sequence[sequence.length - 1])) return false;
 
         // Le listener d'historique (useEffect plus haut) s'exécute avant ce check et pousse
         // déjà la touche COURANTE dans keyHistory — donc son dernier élément est toujours
@@ -336,7 +384,9 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
     };
 
     const getShortcutLabel = (actionId: string) => {
-        return shortcuts[actionId] || '';
+        const raw = shortcuts[actionId] || '';
+        // "Code:Digit1" -> "1" for display; storage keeps the physical-key form.
+        return raw.replace(/Code:Digit(\d)/g, '$1');
     };
 
     return (
