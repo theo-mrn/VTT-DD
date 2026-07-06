@@ -15,20 +15,33 @@ interface DiceCardProps {
     onBuy: () => void;
     onEquip: () => void;
     onTry?: () => void;
+    /** Extra delay (ms) before this card's 3D preview is allowed to mount —
+     * staggers the grid so a full page of cards doesn't all spin up WebGL
+     * work in the same frame (that burst was crashing Chrome on some Windows
+     * GPU drivers). */
+    revealDelay?: number;
 }
 
-export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip, onTry }: DiceCardProps) {
+export function DiceCard({ skin, isOwned, isEquipped, canAfford, onBuy, onEquip, onTry, revealDelay = 0 }: DiceCardProps) {
     const cardRef = useRef<HTMLDivElement>(null);
-    const [isVisible, setIsVisible] = useState(false);
+    const [inView, setInView] = useState(false);
+    const [delayElapsed, setDelayElapsed] = useState(revealDelay === 0);
     const [hovered, setHovered] = useState(false);
+    const isVisible = inView && delayElapsed;
 
     useEffect(() => {
         const el = cardRef.current;
         if (!el) return;
-        const observer = new IntersectionObserver(([entry]) => setIsVisible(entry.isIntersecting), { threshold: 0.1 });
+        const observer = new IntersectionObserver(([entry]) => setInView(entry.isIntersecting), { threshold: 0.1 });
         observer.observe(el);
         return () => observer.disconnect();
     }, []);
+
+    useEffect(() => {
+        if (revealDelay === 0) return;
+        const t = window.setTimeout(() => setDelayElapsed(true), revealDelay);
+        return () => window.clearTimeout(t);
+    }, [revealDelay]);
 
     const getRarityColor = (rarity: string) => {
         switch (rarity) {

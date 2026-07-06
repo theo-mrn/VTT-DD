@@ -56,7 +56,7 @@ export function StoreModal({
     const [rarityFilter, setRarityFilter] = useState<RarityFilter>('all');
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 12;
+    const itemsPerPage = 8;
 
     // --- User state ---
     const { user: gameUser } = useGame();
@@ -81,6 +81,17 @@ export function StoreModal({
     // "Try it" dice thrower
     const funDiceRef = useRef<FunDiceHandle>(null);
     const tryDice = (skinId: string) => funDiceRef.current?.roll(skinId, 'd20');
+
+    // Mount the (heavy) WebGL thrower canvas + its shader warmer only once the
+    // modal itself has settled — avoids stacking its context/shader-compile
+    // burst on top of the grid's own mount, which is what was crashing on some
+    // Windows GPU drivers when opening the store.
+    const [funDiceReady, setFunDiceReady] = useState(false);
+    useEffect(() => {
+        if (!isOpen) { setFunDiceReady(false); return; }
+        const t = window.setTimeout(() => setFunDiceReady(true), 800);
+        return () => window.clearTimeout(t);
+    }, [isOpen]);
 
     // Sync initial category to the filter on open
     useEffect(() => {
@@ -336,7 +347,7 @@ export function StoreModal({
 
     const activeRarity = RARITY_OPTIONS.find(o => o.id === rarityFilter)!;
 
-    const renderCard = (item: StoreItem) => (
+    const renderCard = (item: StoreItem, index: number) => (
         item.type === 'dice' ? (
             <DiceCard
                 skin={item.data}
@@ -346,6 +357,7 @@ export function StoreModal({
                 onBuy={() => handleBuyItem(item.data.id, 'dice', item.data.price, item.data.name)}
                 onEquip={() => handleEquipDice(item.data.id)}
                 onTry={() => tryDice(item.data.id)}
+                revealDelay={index * 60}
             />
         ) : (
             <TokenCard
@@ -531,9 +543,9 @@ export function StoreModal({
                                         ) : (
                                             <>
                                                 <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-5">
-                                                    {paginatedItems.map(item => (
+                                                    {paginatedItems.map((item, index) => (
                                                         <div key={`${item.type}-${item.data.id}`} className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-                                                            {renderCard(item)}
+                                                            {renderCard(item, index)}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -551,7 +563,7 @@ export function StoreModal({
                 </div>
             </div>
 
-            <FunDiceThrower ref={funDiceRef} hideButton overlayZIndex={10010} />
+            {funDiceReady && <FunDiceThrower ref={funDiceRef} hideButton overlayZIndex={10010} />}
         </div>
         , document.body);
 }
