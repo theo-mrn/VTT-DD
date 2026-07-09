@@ -19,6 +19,7 @@ import { Features4 } from '@/components/blocks/features4'
 import { MockupCtaSection } from '@/components/blocks/mockup-cta-section'
 import { StartCampaignSection } from '@/components/blocks/start-campaign-section'
 import { DiceSection } from '@/components/blocks/dice-section'
+import { CanvaSection } from '@/components/blocks/canva'
 import { TestimonialsSection } from '@/components/ui/testimonial-v2'
 import { ShaderBackground } from '@/components/ui/hero'
 import { ImageAutoSlider } from '@/components/ui/image-auto-slider'
@@ -114,25 +115,16 @@ const HeroHeader = ({ onOpenAuth, isUserLoggedIn, userData, onOpenProfile, route
     router: any
 }) => {
     const [menuState, setMenuState] = React.useState(false)
-    const [scrolled, setScrolled] = React.useState(false)
-    const { scrollYProgress } = useScroll()
-
-    React.useEffect(() => {
-        const unsubscribe = scrollYProgress.on('change', (latest) => {
-            setScrolled(latest > 0.05)
-        })
-        return () => unsubscribe()
-    }, [scrollYProgress])
 
     return (
         <header>
             <nav
                 data-state={menuState && 'active'}
                 className="group fixed z-20 w-full pt-8">
-                <div className={cn('mx-auto max-w-7xl rounded-3xl px-6 transition-all duration-300 lg:px-12', scrolled ? 'bg-[#0c0c0e]/80 backdrop-blur-2xl border border-white/5' : '')}>
+                <div className="mx-auto max-w-7xl px-6 lg:px-12">
                     <motion.div
                         key={1}
-                        className={cn('relative flex flex-wrap items-center justify-between gap-6 py-3 duration-200 lg:gap-0 lg:py-6', scrolled ? 'lg:py-4' : '')}>
+                        className="relative flex flex-wrap items-center justify-between gap-6 py-3 duration-200 lg:gap-0 lg:py-6">
                         <div className="flex w-full items-center justify-between gap-12 lg:w-auto">
                             <Link
                                 href="/"
@@ -219,7 +211,7 @@ export function HeroSection() {
     // view: it renders behind the whole page in a fixed layer, and its two
     // gradient passes otherwise keep burning GPU during the entire scroll —
     // including while dice are being thrown further down the page.
-    const heroRef = React.useRef<HTMLElement>(null)
+    const heroRef = React.useRef<HTMLDivElement>(null)
     const [heroInView, setHeroInView] = React.useState(true)
     React.useEffect(() => {
         const el = heroRef.current
@@ -265,79 +257,85 @@ export function HeroSection() {
             />
             <main className="overflow-x-hidden">
 
-                <section ref={heroRef} className="relative min-h-screen flex items-center justify-center">
-                    <div className="fixed inset-0 -z-10 w-full h-full pointer-events-none">
-                        <ShaderBackground paused={!heroInView} />
-                    </div>
+                <div className="fixed inset-0 -z-10 w-full h-full pointer-events-none">
+                    <ShaderBackground paused={!heroInView} />
+                </div>
 
+                <div ref={heroRef}>
+                    <CanvaSection onStart={handleStartAdventure} isUserLoggedIn={isUserLoggedIn} />
+                </div>
 
-                    <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                        {heroPortraits.map((src, i) => (
-                            <FloatingPortrait
-                                key={i}
-                                src={src}
-                                position={HERO_PORTRAITS[i].position}
-                                size={HERO_PORTRAITS[i].size}
-                                rotation={HERO_PORTRAITS[i].rotation}
-                                delay={HERO_PORTRAITS[i].delay}
-                                index={i}
-                                scrollProgress={scrollYProgress}
-                                hideMobile={HERO_PORTRAITS[i].hideMobile}
-                            />
-                        ))}
-                    </div>
+                {/* Ancien hero (portraits flottants), conservé mais inutilisé —
+                    voir CanvaSection ci-dessus pour le hero actif. Le ShaderBackground
+                    reste utilisé plus haut comme fond de toute la page. */}
+                {false && (
+                    <section className="relative min-h-screen flex items-center justify-center">
+                        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                            {heroPortraits.map((src, i) => (
+                                <FloatingPortrait
+                                    key={i}
+                                    src={src}
+                                    position={HERO_PORTRAITS[i].position}
+                                    size={HERO_PORTRAITS[i].size}
+                                    rotation={HERO_PORTRAITS[i].rotation}
+                                    delay={HERO_PORTRAITS[i].delay}
+                                    index={i}
+                                    scrollProgress={scrollYProgress}
+                                    hideMobile={HERO_PORTRAITS[i].hideMobile}
+                                />
+                            ))}
+                        </div>
 
-
-                    <div className="relative z-10 mx-auto max-w-4xl px-6 text-center">
-                        <motion.div
-                            initial={{ opacity: 0, y: 30 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.8, delay: 0.2 }}
-                        >
-                            <h1 className={cn(
-                                "text-5xl md:text-6xl xl:text-8xl gold-text-gradient leading-tight",
-                                aclonica.className
-                            )}>
-                                Votre table virtuelle ultime
-                            </h1>
-                        </motion.div>
-                        <motion.p
-                            className={cn("mt-6 max-w-2xl mx-auto text-lg md:text-xl text-white/70", aclonica.className)}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.5 }}
-                        >
-                            Créez des aventures épiques avec votre groupe. Plateforme VTT simple et intuitive.
-                        </motion.p>
-
-                        <motion.div
-                            className="mt-10 flex items-center justify-center"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.8 }}
-                        >
-                            <InteractiveHoverButton
-                                onClick={handleStartAdventure}
-                                disabled={isUserLoggedIn === null}
-                                className={cn(
-                                    "h-14 px-8 text-lg",
+                        <div className="relative z-10 mx-auto max-w-4xl px-6 text-center">
+                            <motion.div
+                                initial={{ opacity: 0, y: 30 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.8, delay: 0.2 }}
+                            >
+                                <h1 className={cn(
+                                    "text-5xl md:text-6xl xl:text-8xl gold-text-gradient leading-tight",
                                     aclonica.className
                                 )}>
-                                {isUserLoggedIn === null ? 'Chargement...' : "Commencer l'aventure"}
-                            </InteractiveHoverButton>
+                                    Votre table virtuelle ultime
+                                </h1>
+                            </motion.div>
+                            <motion.p
+                                className={cn("mt-6 max-w-2xl mx-auto text-lg md:text-xl text-white/70", aclonica.className)}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.6, delay: 0.5 }}
+                            >
+                                Créez des aventures épiques avec votre groupe. Plateforme VTT simple et intuitive.
+                            </motion.p>
+
+                            <motion.div
+                                className="mt-10 flex items-center justify-center"
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.6, delay: 0.8 }}
+                            >
+                                <InteractiveHoverButton
+                                    onClick={handleStartAdventure}
+                                    disabled={isUserLoggedIn === null}
+                                    className={cn(
+                                        "h-14 px-8 text-lg",
+                                        aclonica.className
+                                    )}>
+                                    {isUserLoggedIn === null ? 'Chargement...' : "Commencer l'aventure"}
+                                </InteractiveHoverButton>
+                            </motion.div>
+                        </div>
+
+                        <motion.div
+                            className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/40"
+                            animate={{ y: [0, 8, 0] }}
+                            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                        >
+                            <span className={cn("text-xs tracking-widest uppercase", aclonica.className)}>Découvrir</span>
+                            <ChevronDown className="w-5 h-5" />
                         </motion.div>
-                    </div>
-
-
-                    <motion.div
-                        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-white/40"
-                        animate={{ y: [0, 8, 0] }}
-                        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                    >
-                        <span className={cn("text-xs tracking-widest uppercase", aclonica.className)}>Découvrir</span>
-                        <ChevronDown className="w-5 h-5" />
-                    </motion.div>
-                </section>
+                    </section>
+                )}
 
                 <div className="section-divider mx-auto max-w-4xl my-4" />
 
