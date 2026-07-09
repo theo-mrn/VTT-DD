@@ -418,6 +418,7 @@ export default function Component() {
         'var(--font-hand)': getValue('--font-hand'),
         'var(--font-medieval)': getValue('--font-medieval'),
         'var(--font-modern)': getValue('--font-modern'),
+        'var(--font-aclonica)': getValue('--font-aclonica'),
       });
     }
   }, []);
@@ -1522,7 +1523,7 @@ export default function Component() {
       isSelectingArea, selectionStart, selectionEnd, selectedCharacters,
       globalTokenScale, showCharBorders, showAllBadges, visibleBadges,
       precalculatedShadows, currentScene, spawnPointMode, isDraggingSpawnPoint,
-      pixelsPerUnit, unitName,
+      pixelsPerUnit, unitName, fontFamilyMap,
       isLayerVisible, isCharacterVisibleToUser, calculateFogOpacity,
       getConditionIcon, iconHitRegionsRef, shadowTempCanvas, shadowExteriorCanvas,
       drawMeasurements: (ctx: CanvasRenderingContext2D, iW: number, iH: number, sW: number, sH: number) =>

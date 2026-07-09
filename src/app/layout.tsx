@@ -14,12 +14,19 @@ import QuotaGuard from '@/components/QuotaGuard';
 
 
 
-import { IM_Fell_English, Cinzel, Caveat, MedievalSharp, Inter } from 'next/font/google';
+import { IM_Fell_English, Cinzel, Caveat, MedievalSharp, Inter, Aclonica } from 'next/font/google';
 
 const imFellEnglish = IM_Fell_English({
   subsets: ['latin'],
   weight: ['400'],
   variable: '--font-body',
+  display: 'swap',
+});
+
+const aclonica = Aclonica({
+  subsets: ['latin'],
+  weight: ['400'],
+  variable: '--font-aclonica',
   display: 'swap',
 });
 
@@ -68,7 +75,7 @@ export default function RootLayout({
       lang="fr"
       suppressHydrationWarning
 
-      className={`${imFellEnglish.variable} ${cinzel.variable} ${caveat.variable} ${medieval.variable} ${inter.variable}`}
+      className={`${imFellEnglish.variable} ${cinzel.variable} ${caveat.variable} ${medieval.variable} ${inter.variable} ${aclonica.variable}`}
     >
       <link rel="shortcut icon" href="/favicon.ico" />
 

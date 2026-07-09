@@ -97,6 +97,9 @@ export interface ForegroundRenderState {
   pixelsPerUnit: number;
   unitName: string;
 
+  // Fonts
+  fontFamilyMap: Record<string, string>;
+
   // Functions
   isLayerVisible: (layerId: LayerType) => boolean;
   isCharacterVisibleToUser: (char: Character) => boolean;
@@ -174,6 +177,7 @@ export function drawForegroundLayers(
     isDraggingSpawnPoint,
     pixelsPerUnit,
     unitName,
+    fontFamilyMap,
     isLayerVisible,
     isCharacterVisibleToUser,
     calculateFogOpacity,
@@ -1121,7 +1125,8 @@ export function drawForegroundLayers(
 
           // Partie Nom
           const nameText = char.name;
-          ctx.font = `500 ${fontSize}px system-ui, -apple-system, sans-serif`;
+          const nameFontFamily = fontFamilyMap['var(--font-aclonica)'] || 'Aclonica, sans-serif';
+          ctx.font = `400 ${fontSize}px ${nameFontFamily}, sans-serif`;
           const nameWidth = ctx.measureText(nameText).width;
 
           // Partie Conditions
@@ -1201,7 +1206,7 @@ export function drawForegroundLayers(
 
           // 2. NOM SECTION
           ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-          ctx.font = `600 ${fontSize}px system-ui, -apple-system, sans-serif`;
+          ctx.font = `400 ${fontSize}px ${nameFontFamily}, sans-serif`;
           ctx.textAlign = 'left';
           ctx.textBaseline = 'middle';
           ctx.fillText(nameText, currentCursorX, textY + 0.5);
