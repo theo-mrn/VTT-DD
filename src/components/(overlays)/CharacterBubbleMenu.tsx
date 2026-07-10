@@ -92,12 +92,14 @@ export default function CharacterBubbleMenu({ isOpen, onClose, onSelect, hasActi
     };
 
     const handleEmojiSelect = (emoji: EmojiMartSelection) => {
+        setPopover(null);
         onSelect(emoji.native, 'emoji', currentDurationMs());
     };
 
     const handleSendText = () => {
         const trimmed = text.trim();
         if (!trimmed) return;
+        setPopover(null);
         onSelect(trimmed, 'text', currentDurationMs());
     };
 
@@ -112,8 +114,6 @@ export default function CharacterBubbleMenu({ isOpen, onClose, onSelect, hasActi
 
     const durationLabel = duration === 'infinite' ? '∞' : `${duration}s`;
 
-    if (!isOpen) return null;
-
     return (
         <div
             ref={rootRef}
@@ -121,7 +121,7 @@ export default function CharacterBubbleMenu({ isOpen, onClose, onSelect, hasActi
         >
             {/* Popovers flottants — positionnés au-dessus de la barre, un seul actif à la fois */}
             <AnimatePresence>
-                {popover === 'emoji' && (
+                {isOpen && popover === 'emoji' && (
                     <Popover key="emoji" align="left">
                         <div className="emoji-mart-vtt-theme" style={{ width: 300, height: 360 }}>
                             <Picker
@@ -139,7 +139,7 @@ export default function CharacterBubbleMenu({ isOpen, onClose, onSelect, hasActi
                     </Popover>
                 )}
 
-                {popover === 'text' && (
+                {isOpen && popover === 'text' && (
                     <Popover key="text" align="center">
                         <div className="w-72 p-3 flex items-center gap-2">
                             <Input
@@ -166,7 +166,7 @@ export default function CharacterBubbleMenu({ isOpen, onClose, onSelect, hasActi
                     </Popover>
                 )}
 
-                {popover === 'duration' && (
+                {isOpen && popover === 'duration' && (
                     <Popover key="duration" align="right">
                         <div className="p-2 flex items-center gap-1">
                             {DURATION_PRESETS_S.map((s) => (
@@ -221,48 +221,52 @@ export default function CharacterBubbleMenu({ isOpen, onClose, onSelect, hasActi
             </AnimatePresence>
 
             {/* Barre compacte — toujours visible pendant que le menu est ouvert */}
-            <motion.div
-                initial={{ opacity: 0, scale: 0.92, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.94, y: 6 }}
-                transition={{ type: 'spring', damping: 28, stiffness: 360 }}
-                className="flex items-center gap-1 h-11 px-1.5 rounded-full border border-white/[0.08] bg-[#131315]/95 shadow-[0_16px_40px_-10px_rgba(0,0,0,0.7)] backdrop-blur-xl"
-            >
-                <IconButton
-                    active={popover === 'emoji'}
-                    onClick={() => togglePopover('emoji')}
-                    label="Emoji"
-                    icon={<Smile className="w-4 h-4" />}
-                />
-                <IconButton
-                    active={popover === 'text'}
-                    onClick={() => togglePopover('text')}
-                    label="Texte"
-                    icon={<Type className="w-4 h-4" />}
-                />
-                <IconButton
-                    active={popover === 'duration'}
-                    onClick={() => togglePopover('duration')}
-                    label={durationLabel}
-                    icon={<Timer className="w-4 h-4" />}
-                    showLabel
-                />
+            <AnimatePresence>
+                {isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.92, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.94, y: 6, transition: { duration: 0.12 } }}
+                        transition={{ type: 'spring', damping: 28, stiffness: 360 }}
+                        className="flex items-center gap-1 h-11 px-1.5 rounded-full border border-white/[0.08] bg-[#131315]/95 shadow-[0_16px_40px_-10px_rgba(0,0,0,0.7)] backdrop-blur-xl"
+                    >
+                        <IconButton
+                            active={popover === 'emoji'}
+                            onClick={() => togglePopover('emoji')}
+                            label="Emoji"
+                            icon={<Smile className="w-4 h-4" />}
+                        />
+                        <IconButton
+                            active={popover === 'text'}
+                            onClick={() => togglePopover('text')}
+                            label="Texte"
+                            icon={<Type className="w-4 h-4" />}
+                        />
+                        <IconButton
+                            active={popover === 'duration'}
+                            onClick={() => togglePopover('duration')}
+                            label={durationLabel}
+                            icon={<Timer className="w-4 h-4" />}
+                            showLabel
+                        />
 
-                {hasActiveBubble && (
-                    <>
-                        <div className="w-px h-5 bg-white/10 mx-0.5" />
-                        <motion.button
-                            whileTap={{ scale: 0.9 }}
-                            onClick={handleClear}
-                            aria-label="Retirer la bulle actuelle"
-                            title="Retirer la bulle actuelle"
-                            className="h-8 w-8 flex items-center justify-center rounded-full text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                        >
-                            <Trash2 className="w-4 h-4" />
-                        </motion.button>
-                    </>
+                        {hasActiveBubble && (
+                            <>
+                                <div className="w-px h-5 bg-white/10 mx-0.5" />
+                                <motion.button
+                                    whileTap={{ scale: 0.9 }}
+                                    onClick={handleClear}
+                                    aria-label="Retirer la bulle actuelle"
+                                    title="Retirer la bulle actuelle"
+                                    className="h-8 w-8 flex items-center justify-center rounded-full text-red-400/70 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </motion.button>
+                            </>
+                        )}
+                    </motion.div>
                 )}
-            </motion.div>
+            </AnimatePresence>
         </div>
     );
 }
