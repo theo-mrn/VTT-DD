@@ -116,208 +116,101 @@ export default function ContextMenuPanel({
 
     const hasAudio = !!character.audio?.url;
 
-    // 🆕 PLAYER VIEW (Simplified)
+    // 🆕 PLAYER VIEW (Simplified) — pill flottante en haut, identique desktop & mobile
     if (!isMJ) {
         return (
             <AnimatePresence>
                 {isOpen && (
-                    <>
-                    {/* ── DESKTOP: compact pill (top-right) ── */}
                     <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
-                        transition={{ type: "spring", stiffness: 350, damping: 28 }}
-                        className="hidden lg:flex fixed top-20 right-6 z-50 items-stretch gap-2 max-w-[calc(100vw-3rem)]"
+                        initial={{ opacity: 0, scale: 0.94, y: -12 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.96, y: -8, transition: { duration: 0.12 } }}
+                        transition={{ type: "spring", stiffness: 360, damping: 30 }}
+                        className="fixed top-4 sm:top-6 left-1/2 -translate-x-1/2 z-50 w-[calc(100vw-1.5rem)] sm:w-auto sm:max-w-[calc(100vw-3rem)]"
                     >
-                        {/* Identity chip */}
-                        <div className="flex items-center gap-2.5 pl-1.5 pr-3 py-1.5 rounded-full bg-[#1a1a1a]/95 backdrop-blur-xl border border-[#333] shadow-2xl ring-1 ring-white/5">
-                            <Avatar className="h-9 w-9 border-2 border-[#c0a080]/60 shrink-0">
-                                <AvatarImage src={typeof character.image === 'object' ? character.image.src : character.image} className="object-cover" />
-                                <AvatarFallback className="bg-[#2a2a2a] text-sm">{character.name[0]}</AvatarFallback>
-                            </Avatar>
-                            <span className="font-bold text-white text-sm font-serif truncate max-w-[140px]">{character.name}</span>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-white hover:bg-white/10 rounded-full shrink-0" onClick={onClose}>
-                                <X size={14} />
-                            </Button>
-                        </div>
-
-                        {/* Attack */}
-                        <Button
-                            className="h-auto px-5 rounded-full font-bold bg-gradient-to-r from-red-900 via-red-800 to-red-900 border border-red-700/50 hover:border-red-500 text-red-100 shadow-lg shadow-red-900/20 transition-all hover:scale-105"
-                            onClick={() => onAction('attack', character.id)}
-                        >
-                            <Sword className="mr-2 h-4 w-4" /> Attaquer
-                        </Button>
-
-                        {/* Interactions */}
-                        {character.interactions?.map((interaction) => {
-                            const isVendor = interaction.type === 'vendor';
-                            const isGame = interaction.type === 'game';
-                            const isLoot = interaction.type === 'loot';
-                            return (
-                                <Button
-                                    key={interaction.id}
-                                    className={`h-auto px-4 rounded-full font-bold border shadow-lg transition-all hover:scale-105 text-white ${isVendor ? 'bg-amber-700 border-amber-500/50 hover:border-amber-400' : isGame ? 'bg-purple-700 border-purple-500/50 hover:border-purple-400' : isLoot ? 'bg-emerald-700 border-emerald-500/50 hover:border-emerald-400' : 'bg-blue-700 border-blue-500/50 hover:border-blue-400'}`}
-                                    onClick={() => onAction('interact', character.id, interaction.id)}
-                                >
-                                    {isVendor && <Store className="mr-2 h-4 w-4" />}
-                                    {isGame && <Dices className="mr-2 h-4 w-4" />}
-                                    {isLoot && <Package className="mr-2 h-4 w-4" />}
-                                    {interaction.name || "Interagir"}
-                                </Button>
-                            );
-                        })}
-
-                        {/* Sheet */}
-                        {canViewDetails && (
-                            <Button variant="outline" size="icon" className="h-auto w-11 rounded-full bg-[#1a1a1a]/95 border-[#333] text-gray-300 hover:text-[#c0a080] hover:bg-[#252525]" title="Voir la fiche" onClick={() => onAction('openSheet', character.id)}>
-                                <FileText size={16} />
-                            </Button>
-                        )}
-                    </motion.div>
-
-                    {/* ── MOBILE: bottom sheet (full card) ── */}
-                    <motion.div
-                        drag
-                        dragControls={dragControls}
-                        dragListener={false}
-                        dragMomentum={false}
-                        initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                        transition={{ type: "spring", stiffness: 300, damping: 25 }}
-                        className="lg:hidden fixed z-50 flex flex-col overflow-hidden bg-[#1a1a1a]/95 backdrop-blur-xl border border-[#333] shadow-2xl ring-1 ring-white/5
-                            inset-x-2 bottom-[64px] max-h-[80vh] rounded-2xl overflow-y-auto"
-                    >
-                        {/* Header with Large Image (drag on desktop only) */}
-                        <div
-                            className="relative h-48 lg:h-80 w-full lg:cursor-move group shrink-0"
-                            onPointerDown={(e) => { if (window.matchMedia('(min-width: 1024px)').matches) dragControls.start(e); }}
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-t from-[#1a1a1a] via-transparent to-transparent z-10" />
-                            {character.image && (
-                                <img
-                                    src={typeof character.image === 'object' ? character.image.src : character.image}
-                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                                    alt={character.name}
-                                />
-                            )}
-
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="absolute top-2 right-2 z-20 h-8 w-8 text-white/70 hover:text-white hover:bg-black/40 rounded-full backdrop-blur-sm"
-                                onClick={onClose}
-                            >
-                                <X size={18} />
-                            </Button>
-
-                            <div className="absolute bottom-0 left-0 right-0 p-4 z-20">
-                                <h2 className="text-2xl font-bold text-white font-serif tracking-wide text-shadow-lg leading-none mb-1">{character.name}</h2>
-                                <div className="flex gap-2">
-                                    <Badge variant="outline" className="bg-black/40 text-gray-300 border-white/10 backdrop-blur-md text-[10px] px-2 h-5">
-                                        {character.type === 'joueurs' ? 'Joueur' : 'PNJ'}
-                                    </Badge>
-                                </div>
+                        <div className="flex flex-wrap items-center justify-center gap-1.5 p-1.5 rounded-2xl sm:rounded-full border border-white/[0.08] bg-[#131315]/95 shadow-[0_16px_40px_-10px_rgba(0,0,0,0.7)] backdrop-blur-xl">
+                            {/* Identity chip */}
+                            <div className="flex items-center gap-2 pl-1 pr-2.5 py-1 rounded-full bg-white/5">
+                                <Avatar className="h-8 w-8 border-2 shrink-0" style={{ borderColor: '#c0a08099' }}>
+                                    <AvatarImage src={typeof character.image === 'object' ? character.image.src : character.image} className="object-cover" />
+                                    <AvatarFallback className="bg-[#2a2a2a] text-xs">{character.name[0]}</AvatarFallback>
+                                </Avatar>
+                                <span className="font-semibold text-white text-sm truncate max-w-[110px]">{character.name}</span>
                             </div>
-                        </div>
 
-                        {/* Content Body */}
-                        <div className="p-4 space-y-4">
-                            {/* Stats Row */}
+                            {/* Stats chips */}
                             {canViewDetails && (
-                                <div className="grid grid-cols-2 gap-3">
-                                    <div
-                                        className="bg-[#252525]/50 p-2 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-1 group hover:bg-[#2a2a2a] transition-colors cursor-pointer"
+                                <>
+                                    <motion.button
+                                        whileTap={{ scale: 0.94 }}
                                         onClick={() => { setPvDelta(0); setIsPVDrawerOpen(true); }}
+                                        className="flex items-center gap-1.5 h-8 px-2.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
                                     >
-                                        <div className="flex items-center gap-1.5 text-gray-400">
-                                            <Heart size={12} className="text-red-500" fill="currentColor" />
-                                            <span className="text-[10px] uppercase font-bold tracking-wider">PV</span>
-                                        </div>
-                                        <span className="text-xl font-bold text-gray-100 font-mono leading-none">{character.PV}</span>
-                                    </div>
-                                    <div
-                                        className="bg-[#252525]/50 p-2 rounded-xl border border-white/5 flex flex-col items-center justify-center gap-1 group hover:bg-[#2a2a2a] transition-colors cursor-pointer"
+                                        <Heart size={12} className="text-red-400" fill="currentColor" />
+                                        <span className="text-xs font-bold font-mono text-white/90">{character.PV}</span>
+                                    </motion.button>
+                                    <motion.button
+                                        whileTap={{ scale: 0.94 }}
                                         onClick={() => { setStatDelta(0); setEditingStat({ key: 'Defense', label: 'Défense', value: character.Defense ?? 0 }); }}
+                                        className="flex items-center gap-1.5 h-8 px-2.5 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
                                     >
-                                        <div className="flex items-center gap-1.5 text-gray-400">
-                                            <Shield size={12} className="text-blue-500" fill="currentColor" />
-                                            <span className="text-[10px] uppercase font-bold tracking-wider">DEF</span>
-                                        </div>
-                                        <span className="text-xl font-bold text-gray-100 font-mono leading-none">{character.Defense}</span>
-                                    </div>
-                                </div>
+                                        <Shield size={12} className="text-blue-400" fill="currentColor" />
+                                        <span className="text-xs font-bold font-mono text-white/90">{character.Defense}</span>
+                                    </motion.button>
+                                </>
                             )}
 
-                            {/* Main Action: ATTACK */}
-                            <Button
-                                className="w-full h-14 text-lg font-bold bg-gradient-to-r from-red-900 via-red-800 to-red-900 border border-red-700/50 hover:border-red-500 text-red-100 shadow-lg shadow-red-900/20 group relative overflow-hidden transition-all hover:scale-[1.02]"
+                            {/* Attack */}
+                            <motion.button
+                                whileTap={{ scale: 0.96 }}
                                 onClick={() => onAction('attack', character.id)}
+                                className="flex items-center gap-1.5 h-8 px-3.5 rounded-full font-semibold text-xs bg-red-900/40 border border-red-700/40 hover:bg-red-900/60 hover:border-red-500/60 text-red-100 transition-colors"
                             >
-                                <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay" />
-                                <div className="absolute inset-0 bg-red-500/0 group-hover:bg-red-500/10 transition-colors" />
-                                <Sword className="mr-3 h-6 w-6 group-hover:rotate-12 transition-transform" />
-                                ATTAQUER
-                            </Button>
+                                <Sword className="h-3.5 w-3.5" /> Attaquer
+                            </motion.button>
 
-                            {/* Interaction Actions (Player View) */}
-                            {character.interactions && character.interactions.length > 0 && (
-                                <div className="space-y-2">
-                                    {character.interactions.map((interaction) => {
-                                        const isVendor = interaction.type === 'vendor';
-                                        const isGame = interaction.type === 'game';
-                                        const isLoot = interaction.type === 'loot';
+                            {/* Interactions */}
+                            {character.interactions?.map((interaction) => {
+                                const isVendor = interaction.type === 'vendor';
+                                const isGame = interaction.type === 'game';
+                                const isLoot = interaction.type === 'loot';
+                                const scheme = isVendor
+                                    ? 'bg-amber-900/40 border-amber-700/40 hover:border-amber-500/60 text-amber-100'
+                                    : isGame
+                                        ? 'bg-purple-900/40 border-purple-700/40 hover:border-purple-500/60 text-purple-100'
+                                        : isLoot
+                                            ? 'bg-emerald-900/40 border-emerald-700/40 hover:border-emerald-500/60 text-emerald-100'
+                                            : 'bg-blue-900/40 border-blue-700/40 hover:border-blue-500/60 text-blue-100';
+                                return (
+                                    <motion.button
+                                        key={interaction.id}
+                                        whileTap={{ scale: 0.96 }}
+                                        onClick={() => onAction('interact', character.id, interaction.id)}
+                                        className={`flex items-center gap-1.5 h-8 px-3.5 rounded-full font-semibold text-xs border transition-colors ${scheme}`}
+                                    >
+                                        {isVendor && <Store className="h-3.5 w-3.5" />}
+                                        {isGame && <Dices className="h-3.5 w-3.5" />}
+                                        {isLoot && <Package className="h-3.5 w-3.5" />}
+                                        {interaction.name || "Interagir"}
+                                    </motion.button>
+                                );
+                            })}
 
-                                        return (
-                                            <Button
-                                                key={interaction.id}
-                                                className={`w-full h-auto py-3 text-lg font-bold bg-gradient-to-r border shadow-lg group relative overflow-hidden transition-all hover:scale-[1.02] flex flex-col items-start px-4 ${isVendor ? 'from-amber-700 via-amber-600 to-amber-700 border-amber-500/50 hover:border-amber-400 shadow-amber-900/20' :
-                                                    isGame ? 'from-purple-700 via-purple-600 to-purple-700 border-purple-500/50 hover:border-purple-400 shadow-purple-900/20' :
-                                                        isLoot ? 'from-emerald-700 via-emerald-600 to-emerald-700 border-emerald-500/50 hover:border-emerald-400 shadow-emerald-900/20' :
-                                                            'from-blue-700 via-blue-600 to-blue-700 border-blue-500/50 hover:border-blue-400 shadow-blue-900/20'
-                                                    } text-white`}
-                                                onClick={() => onAction('interact', character.id, interaction.id)}
-                                            >
-                                                <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay" />
-                                                <div className={`absolute inset-0 transition-colors ${isVendor ? 'bg-amber-500/0 group-hover:bg-amber-500/10' :
-                                                    isGame ? 'bg-purple-500/0 group-hover:bg-purple-500/10' :
-                                                        isLoot ? 'bg-emerald-500/0 group-hover:bg-emerald-500/10' :
-                                                            'bg-blue-500/0 group-hover:bg-blue-500/10'
-                                                    }`} />
-                                                <div className="flex items-center w-full relative z-10">
-                                                    {isVendor && <Store className="mr-3 h-6 w-6 group-hover:rotate-12 transition-transform shrink-0" />}
-                                                    {isGame && <Dices className="mr-3 h-6 w-6 group-hover:rotate-12 transition-transform shrink-0" />}
-                                                    {isLoot && <Package className="mr-3 h-6 w-6 group-hover:rotate-12 transition-transform shrink-0" />}
-                                                    <span className="truncate">{interaction.name ? interaction.name.toUpperCase() : "INTERAGIR"}</span>
-                                                </div>
-                                                {interaction.description && (
-                                                    <span className="text-xs font-normal opacity-80 pl-9 line-clamp-1 relative z-10 text-left w-full">
-                                                        {interaction.description}
-                                                    </span>
-                                                )}
-                                            </Button>
-                                        );
-                                    })}
-                                </div>
-                            )}
-
-                            {/* Secondary Actions */}
+                            {/* Sheet */}
                             {canViewDetails && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="w-full h-9 text-xs text-gray-400 hover:text-white hover:bg-[#252525] border border-transparent hover:border-white/5"
+                                <motion.button
+                                    whileTap={{ scale: 0.9 }}
                                     onClick={() => onAction('openSheet', character.id)}
+                                    title="Voir la fiche"
+                                    aria-label="Voir la fiche"
+                                    className="h-8 w-8 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 text-white/50 hover:text-[#c0a080] transition-colors"
                                 >
-                                    <FileText size={14} className="mr-2" />
-                                    Voir la fiche de personnage
-                                </Button>
+                                    <FileText size={14} />
+                                </motion.button>
                             )}
+
                         </div>
                     </motion.div>
-                    </>
                 )}
             </AnimatePresence>
         );
