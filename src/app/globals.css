@@ -549,3 +549,14 @@
 .note-preview ul { list-style: disc inside; }
 .note-preview ol { list-style: decimal inside; }
 .note-preview blockquote { border-left: 2px solid #c0a060; padding-left: 0.5rem; font-style: italic; }
+
+/* emoji-mart — re-thème pour matcher l'identité visuelle du VTT (fond #141416, accent doré) */
+.emoji-mart-vtt-theme em-emoji-picker {
+  --rgb-background: 19, 19, 21;
+  --rgb-color: 255, 255, 255;
+  --rgb-accent: 192, 160, 128;
+  --rgb-input: 255, 255, 255;
+  --border-radius: 0px;
+  width: 100%;
+  height: 100%;
+}

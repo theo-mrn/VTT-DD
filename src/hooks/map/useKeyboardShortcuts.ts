@@ -16,6 +16,7 @@ export interface UseKeyboardShortcutsParams {
   // Identity
   roomId: string;
   isMJ: boolean;
+  persoId: string | null;
   selectedCityId: string | null;
 
   // Selection state (read-only)
@@ -63,6 +64,9 @@ export interface UseKeyboardShortcutsParams {
   setDrawMode: (v: boolean) => void;
   setPanMode: (v: boolean) => void;
 
+  // Setters - character bubble menu
+  setBubbleMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
+
   // Callbacks
   handleDeleteKeyPress: () => void;
   saveObstacle: (
@@ -83,6 +87,7 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams): void {
   const {
     roomId,
     isMJ,
+    persoId,
     selectedCityId,
     selectedCharacters,
     selectedCharacterIndex,
@@ -113,6 +118,7 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams): void {
     setMeasureMode,
     setDrawMode,
     setPanMode,
+    setBubbleMenuOpen,
     handleDeleteKeyPress,
     saveObstacle,
     handleToolbarAction,
@@ -335,8 +341,14 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams): void {
       if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_MIXER)) { e.preventDefault(); handleToolbarAction(TOOLS.AUDIO_MIXER); }
       if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_BORDERS)) { e.preventDefault(); handleToolbarAction(TOOLS.TOGGLE_CHAR_BORDERS); }
       if (isShortcutPressed(e, SHORTCUT_ACTIONS.TOOL_BADGES)) { e.preventDefault(); handleToolbarAction(TOOLS.TOGGLE_ALL_BADGES); }
+
+      // Interactions
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.OPEN_BUBBLE_MENU)) {
+        e.preventDefault();
+        if (persoId) setBubbleMenuOpen(prev => !prev);
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isShortcutPressed, handleToolbarAction, setMeasureMode, setDrawMode, setPanMode, setShowGlobalSettingsDialog]);
+  }, [isShortcutPressed, handleToolbarAction, setMeasureMode, setDrawMode, setPanMode, setShowGlobalSettingsDialog, persoId, setBubbleMenuOpen]);
 }

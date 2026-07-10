@@ -68,6 +68,9 @@ export const SHORTCUT_ACTIONS = {
     TOOL_BORDERS: 'tool_borders',
     TOOL_BADGES: 'tool_badges',
 
+    // Interactions
+    OPEN_BUBBLE_MENU: 'open_bubble_menu', // Bulle d'interaction (emoji/texte) au-dessus de son perso
+
     // General
     CLOSE_DIALOG: 'close_dialog',
 
@@ -135,6 +138,9 @@ const DEFAULT_SHORTCUTS: Record<string, string> = {
     [SHORTCUT_ACTIONS.TOOL_MULTI]: 'X',     // Multi-select
     [SHORTCUT_ACTIONS.TOOL_BORDERS]: 'J',   // Borders
     [SHORTCUT_ACTIONS.TOOL_BADGES]: 'Delete', // Badges
+
+    // ========== INTERACTIONS ==========
+    [SHORTCUT_ACTIONS.OPEN_BUBBLE_MENU]: 'K', // bulle emoji/texte au-dessus de son perso
 
     // ========== LANCÉS DE DÉS ==========
     // Basés sur la POSITION physique de la touche (Code:DigitN), pas le caractère

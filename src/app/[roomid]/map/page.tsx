@@ -54,6 +54,9 @@ import { useUndoRedo } from '@/contexts/UndoRedoContext';
 import { useFirestoreWithHistory } from '@/hooks/map/useFirestoreWithHistory';
 import { useCharacterPositions } from '@/hooks/map/useCharacterPositions';
 import type { PositionsMap } from '@/hooks/map/useCharacterPositions';
+import { useCharacterBubbles } from '@/hooks/map/useCharacterBubbles';
+import CharacterBubblesLayer from '@/components/(map)/layers/CharacterBubblesLayer';
+import CharacterBubbleMenu from '@/components/(overlays)/CharacterBubbleMenu';
 import { useRtdbCollections } from '@/hooks/map/useRtdbCollections';
 import { useMapData } from '@/hooks/map/useMapData';
 import { getMediaDimensions } from './utils/coordinates';
@@ -346,6 +349,9 @@ export default function Component() {
 
   const [contextMenuMeasurementOpen, setContextMenuMeasurementOpen] = useState(false);
   const [contextMenuMeasurementId, setContextMenuMeasurementId] = useState<string | null>(null);
+
+  //  Character Bubble Menu State (emoji/texte au-dessus de son perso)
+  const [bubbleMenuOpen, setBubbleMenuOpen] = useState(false);
 
   const [isRadialMenuOpen, setIsRadialMenuOpen] = useState(false);
   const [isRadialMenuCentered, setIsRadialMenuCentered] = useState(false);
@@ -1023,6 +1029,9 @@ export default function Component() {
   );
   // Sync le ref local avec celui du hook
   useEffect(() => { rtdbPositionsRef.current = _rtdbPosRef.current; });
+
+  // ─── RTDB : bulles d'interaction (emoji/texte) temps réel ────────────────────
+  const { bubbles, sendBubble, clearBubble } = useCharacterBubbles(roomId);
 
   // Helper functions need to be stable or defined outside if they don't depend on scope (they depend on selectedCityId)
   // Since selectedCityId changes, the parsing logic changes (positions). 
@@ -2763,7 +2772,7 @@ export default function Component() {
 
   // Keyboard shortcuts — delegates to extracted hook
   useKeyboardShortcuts({
-    roomId, isMJ, selectedCityId,
+    roomId, isMJ, persoId, selectedCityId,
     selectedCharacters, selectedCharacterIndex, selectedObjectIndices,
     selectedNoteIndex, selectedMusicZoneIds, selectedObstacleIds,
     selectedDrawingIndex, selectedFogCells, isVisActive,
@@ -2775,6 +2784,7 @@ export default function Component() {
     setCopiedCharacterTemplate, setCopiedObjectTemplate,
     setIsUnifiedSearchOpen, setShowGlobalSettingsDialog,
     setMeasureMode, setDrawMode, setPanMode,
+    setBubbleMenuOpen,
     handleDeleteKeyPress, saveObstacle, handleToolbarAction,
   });
 
@@ -3177,6 +3187,17 @@ export default function Component() {
       )}
 
       {/* Context Menus (extracted component) */}
+      <CharacterBubbleMenu
+        isOpen={bubbleMenuOpen}
+        onClose={() => setBubbleMenuOpen(false)}
+        hasActiveBubble={!!(persoId && bubbles[persoId])}
+        onClear={() => { if (persoId) clearBubble(persoId); }}
+        onSelect={(content, type, durationMs) => {
+          if (persoId && userId) sendBubble(persoId, content, type, userId, durationMs);
+          setBubbleMenuOpen(false);
+        }}
+      />
+
       <MapContextMenus
         roomId={roomId}
         isMJ={isMJ}
@@ -3630,6 +3651,16 @@ export default function Component() {
             activeElementId={activeElementId}
             isLayerVisible={isLayerVisible}
             isCharacterVisibleToUser={isCharacterVisibleToUser}
+          />
+          <CharacterBubblesLayer
+            characters={characters}
+            bubbles={bubbles}
+            bgImageObject={bgImageObject}
+            containerSize={containerSize}
+            containerRef={containerRef}
+            zoom={zoom}
+            offset={offset}
+            globalTokenScale={globalTokenScale}
           />
           <canvas
             ref={fgCanvasRef}
