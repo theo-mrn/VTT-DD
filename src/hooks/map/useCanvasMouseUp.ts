@@ -161,6 +161,7 @@ export interface UseCanvasMouseUpParams {
   setIsDraggingNote: (v: boolean) => void;
   setDraggedNoteIndex: (v: number | null) => void;
   setDraggedNoteOriginalPos: (v: { x: number; y: number }) => void;
+  setNoteDragClickStart: (v: { x: number; y: number }) => void;
 
   // Object drag state
   isDraggingObject: boolean;
@@ -326,7 +327,7 @@ export function useCanvasMouseUp(params: UseCanvasMouseUpParams): UseCanvasMouse
     isFogDragging, setIsFogDragging, setIsFogAddMode, setLastFogCell,
     fogMode, isVisActive, currentVisibilityTool,
     isDraggingNote, draggedNoteIndex, draggedNoteOriginalPos,
-    setIsDraggingNote, setDraggedNoteIndex, setDraggedNoteOriginalPos,
+    setIsDraggingNote, setDraggedNoteIndex, setDraggedNoteOriginalPos, setNoteDragClickStart,
     isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions,
     setIsDraggingObject, setDraggedObjectIndex, setDraggedObjectsOriginalPositions,
     isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions,
@@ -746,6 +747,7 @@ export function useCanvasMouseUp(params: UseCanvasMouseUpParams): UseCanvasMouse
       setIsDraggingNote(false);
       setDraggedNoteIndex(null);
       setDraggedNoteOriginalPos({ x: 0, y: 0 });
+      setNoteDragClickStart({ x: 0, y: 0 });
       return;
     }
 
@@ -1140,7 +1142,7 @@ export function useCanvasMouseUp(params: UseCanvasMouseUpParams): UseCanvasMouse
     isFogDragging, setIsFogDragging, setIsFogAddMode, setLastFogCell,
     fogMode, isVisActive, currentVisibilityTool,
     isDraggingNote, draggedNoteIndex, draggedNoteOriginalPos,
-    setIsDraggingNote, setDraggedNoteIndex, setDraggedNoteOriginalPos,
+    setIsDraggingNote, setDraggedNoteIndex, setDraggedNoteOriginalPos, setNoteDragClickStart,
     isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions,
     setIsDraggingObject, setDraggedObjectIndex, setDraggedObjectsOriginalPositions,
     isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions,

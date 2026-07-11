@@ -115,6 +115,8 @@ export interface UseCanvasMouseMoveParams {
   // Note drag
   isDraggingNote: boolean;
   draggedNoteIndex: number | null;
+  draggedNoteOriginalPos: { x: number; y: number };
+  noteDragClickStart: { x: number; y: number };
 
   // Object drag (multi)
   isDraggingObject: boolean;
@@ -234,6 +236,8 @@ export function useCanvasMouseMove(params: UseCanvasMouseMoveParams): UseCanvasM
     draggedDrawingOriginalPoints,
     isDraggingNote,
     draggedNoteIndex,
+    draggedNoteOriginalPos,
+    noteDragClickStart,
     isDraggingObject,
     draggedObjectIndex,
     draggedObjectsOriginalPositions,
@@ -699,9 +703,14 @@ export function useCanvasMouseMove(params: UseCanvasMouseMoveParams): UseCanvasM
 
     //  DRAG & DROP NOTE
     if (isDraggingNote && draggedNoteIndex !== null) {
+      // noteDragClickStart contains MAP coordinates set at mousedown (état dédié,
+      // non affecté par le reset de dragStart au mouseup/pan)
+      const deltaX = currentX - noteDragClickStart.x;
+      const deltaY = currentY - noteDragClickStart.y;
+
       setNotes(prev => prev.map((note, index) => {
         if (index === draggedNoteIndex) {
-          return { ...note, x: currentX, y: currentY };
+          return { ...note, x: draggedNoteOriginalPos.x + deltaX, y: draggedNoteOriginalPos.y + deltaY };
         }
         return note;
       }));
@@ -858,7 +867,7 @@ export function useCanvasMouseMove(params: UseCanvasMouseMoveParams): UseCanvasM
     isDragging, mouseButton, panMode, dragStart,
     isResizingDrawing, selectedDrawingIndex, draggedHandleIndex,
     isDraggingDrawing, draggedDrawingOriginalPoints,
-    isDraggingNote, draggedNoteIndex,
+    isDraggingNote, draggedNoteIndex, draggedNoteOriginalPos, noteDragClickStart,
     isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions,
     isDraggingLight, draggedLightId,
     isDraggingPortal, draggedPortalId,

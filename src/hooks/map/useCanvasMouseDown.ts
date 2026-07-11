@@ -222,6 +222,7 @@ export interface UseCanvasMouseDownParams {
   setIsDraggingNote: (v: boolean) => void;
   setDraggedNoteIndex: (v: number | null) => void;
   setDraggedNoteOriginalPos: (v: { x: number; y: number }) => void;
+  setNoteDragClickStart: (v: { x: number; y: number }) => void;
 
   // Setters - drawing
   setSelectedDrawingIndex: (v: number | null) => void;
@@ -403,6 +404,7 @@ export function useCanvasMouseDown(params: UseCanvasMouseDownParams): UseCanvasM
     setIsDraggingNote,
     setDraggedNoteIndex,
     setDraggedNoteOriginalPos,
+    setNoteDragClickStart,
     setSelectedDrawingIndex,
     setIsDraggingDrawing,
     setDraggedDrawingOriginalPoints,
@@ -1123,13 +1125,13 @@ export function useCanvasMouseDown(params: UseCanvasMouseDownParams): UseCanvasM
           const mouseX = e.clientX - rect.left;
           const mouseY = e.clientY - rect.top;
 
-          const fontSize = (note.fontSize || 16) * zoom;
+          const fontSize = (note.fontSize || 16) * zoom * scale;
           // Estimation de la largeur : 0.6 * fontSize par caractère (moyenne large)
           const estimatedWidth = ((note.text ?? '').length * fontSize * 0.7);
           const estimatedHeight = fontSize;
 
           // Padding confortable pour faciliter le clic
-          const padding = 15 * zoom;
+          const padding = 15 * zoom * scale;
 
           // Hitbox alignée avec le rendu du texte (Baseline left)
           // X: de [x - padding] à [x + width + padding]
@@ -1355,6 +1357,8 @@ export function useCanvasMouseDown(params: UseCanvasMouseDownParams): UseCanvasM
           setIsDraggingNote(true);
           setDraggedNoteIndex(clickedNoteIndex);
           setDraggedNoteOriginalPos({ x: note.x, y: note.y });
+          // État dédié, isolé de dragStart (partagé avec le pan, reset à {0,0} au mouseup)
+          setNoteDragClickStart({ x: clickX, y: clickY });
           setSelectedDrawingIndex(null); // Clear drawing selection
           setSelectedObjectIndices([]);
         } else if (clickedObjectIndex !== -1) {
@@ -1522,7 +1526,7 @@ export function useCanvasMouseDown(params: UseCanvasMouseDownParams): UseCanvasM
     setSelectedCharacterIndex, setSelectedCharacters,
     setIsDraggingCharacter, setDraggedCharacterIndex, setDraggedCharactersOriginalPositions,
     setVisibleBadges,
-    setSelectedNoteIndex, setIsDraggingNote, setDraggedNoteIndex, setDraggedNoteOriginalPos,
+    setSelectedNoteIndex, setIsDraggingNote, setDraggedNoteIndex, setDraggedNoteOriginalPos, setNoteDragClickStart,
     setSelectedDrawingIndex, setIsDraggingDrawing, setDraggedDrawingOriginalPoints,
     setIsResizingDrawing, setDraggedHandleIndex,
     setIsDrawing, setCurrentPath, setDrawings,

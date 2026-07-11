@@ -265,6 +265,9 @@ export default function Component() {
   const [isDraggingNote, setIsDraggingNote] = useState(false)
   const [draggedNoteIndex, setDraggedNoteIndex] = useState<number | null>(null)
   const [draggedNoteOriginalPos, setDraggedNoteOriginalPos] = useState({ x: 0, y: 0 })
+  // Position carte du clic initial, dédiée aux notes (isolée de dragStart qui est
+  // partagé avec le pan de carte et remis à {0,0} inconditionnellement au mouseup)
+  const [noteDragClickStart, setNoteDragClickStart] = useState({ x: 0, y: 0 })
 
   //  Focus on Character Logic
   const lastFocusTimestampRef = useRef<number>(0);
@@ -2372,7 +2375,7 @@ export default function Component() {
     setSelectedCharacterIndex, setSelectedCharacters,
     setIsDraggingCharacter, setDraggedCharacterIndex, setDraggedCharactersOriginalPositions,
     setVisibleBadges,
-    setSelectedNoteIndex, setIsDraggingNote, setDraggedNoteIndex, setDraggedNoteOriginalPos,
+    setSelectedNoteIndex, setIsDraggingNote, setDraggedNoteIndex, setDraggedNoteOriginalPos, setNoteDragClickStart,
     setSelectedDrawingIndex, setIsDraggingDrawing, setDraggedDrawingOriginalPoints,
     setIsResizingDrawing, setDraggedHandleIndex,
     setIsDrawing, setCurrentPath, setDrawings,
@@ -2408,7 +2411,7 @@ export default function Component() {
     isDragging, mouseButton, panMode, dragStart,
     isResizingDrawing, selectedDrawingIndex, draggedHandleIndex,
     isDraggingDrawing, draggedDrawingOriginalPoints,
-    isDraggingNote, draggedNoteIndex,
+    isDraggingNote, draggedNoteIndex, draggedNoteOriginalPos, noteDragClickStart,
     isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions,
     isDraggingLight, draggedLightId,
     isDraggingPortal, draggedPortalId,
@@ -2462,7 +2465,7 @@ export default function Component() {
     isFogDragging, setIsFogDragging, setIsFogAddMode, setLastFogCell,
     fogMode, isVisActive, currentVisibilityTool,
     isDraggingNote, draggedNoteIndex, draggedNoteOriginalPos,
-    setIsDraggingNote, setDraggedNoteIndex, setDraggedNoteOriginalPos,
+    setIsDraggingNote, setDraggedNoteIndex, setDraggedNoteOriginalPos, setNoteDragClickStart,
     isDraggingObject, draggedObjectIndex, draggedObjectsOriginalPositions,
     setIsDraggingObject, setDraggedObjectIndex, setDraggedObjectsOriginalPositions,
     isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions,

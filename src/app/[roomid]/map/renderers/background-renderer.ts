@@ -98,7 +98,7 @@ export function drawBackgroundLayers(
       ctx.fillStyle = note.color || 'yellow';
 
       // Utiliser la taille de police de la note ou une taille par défaut
-      const fontSize = (note.fontSize || 16) * zoom;
+      const fontSize = (note.fontSize || 16) * zoom * scale;
 
       // Résoudre la police : CSS Var -> Nom réel -> Fallback
       const fontVar = note.fontFamily || 'var(--font-body)';
