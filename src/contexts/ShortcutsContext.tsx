@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
 
 // Define the shape of a shortcut
 export type KeyCombination = {
@@ -28,6 +28,10 @@ export const SHORTCUT_ACTIONS = {
     QUICK_NOTE: 'quick_note', // Ouvre une saisie rapide de note (catégorie + texte), sans passer par le panneau Notes complet
     TAB_COMBAT: 'tab_combat',
     TAB_NPC: 'tab_npc', // GMDashboard / NPCManager logic might be complex
+    TAB_FICHE: 'tab_fiche', // Fiche de personnage
+    TAB_ENCOUNTER: 'tab_encounter', // Générateur de rencontre (MJ)
+    TAB_HISTORIQUE: 'tab_historique', // Historique des événements (MJ)
+    TOGGLE_CUSTOM_BUTTONS_EDIT: 'toggle_custom_buttons_edit', // Active/désactive le mode édition des boutons personnalisables (CustomButtons)
 
     // Map Tools
     TOOL_PAN: 'tool_pan',
@@ -68,6 +72,11 @@ export const SHORTCUT_ACTIONS = {
     TOOL_MIXER: 'tool_mixer',
     TOOL_BORDERS: 'tool_borders',
     TOOL_BADGES: 'tool_badges',
+    TOOL_ERASER: 'tool_eraser', // Active directement l'outil Gomme (drawMode + currentTool='eraser')
+    TOOL_MUSIC_PLAY_PAUSE: 'tool_music_play_pause', // Play/Pause direct sur la musique en cours
+    TOOL_FOG_REVEAL_ALL: 'tool_fog_reveal_all', // Révèle toute la carte (fullMapFog = false)
+    TOOL_FOG_HIDE_ALL: 'tool_fog_hide_all', // Cache toute la carte (fullMapFog = true)
+    TOOL_FOG_RESET: 'tool_fog_reset', // Réinitialise le brouillard peint (grille vide)
 
     // Interactions
     OPEN_BUBBLE_MENU: 'open_bubble_menu', // Bulle d'interaction (emoji/texte) au-dessus de son perso
@@ -93,6 +102,24 @@ interface ShortcutsContextType {
     addCustomShortcut: (shortcut: Omit<CustomShortcut, 'id'>) => void;
     updateCustomShortcut: (id: string, updates: Partial<CustomShortcut>) => void;
     removeCustomShortcut: (id: string) => void;
+    // Déclenchement par clic (boutons personnalisables) : un composant qui écoute déjà
+    // isShortcutPressed(e, ACTION) dans un handler keydown peut s'abonner en plus à
+    // onActionTriggered(ACTION, cb) pour réagir aussi à un clic sur un bouton flottant,
+    // sans dupliquer sa logique ni simuler un faux KeyboardEvent.
+    triggerAction: (actionId: string) => void;
+    onActionTriggered: (actionId: string, callback: () => void) => () => void;
+    // État partagé (pas juste un événement ponctuel) : CustomButtons.tsx (monté dans
+    // layout.tsx) l'écrit quand son mode édition change, MapToolbar/page.tsx (composant
+    // frère) le lit pour afficher son bouton "Personnaliser mes boutons" en actif.
+    isCustomButtonsEditModeActive: boolean;
+    setIsCustomButtonsEditModeActive: (v: boolean) => void;
+    // Miroir de activeTools (getActiveToolbarTools, calculé dans page.tsx) : permet aux
+    // boutons personnalisables (CustomButtons/Sidebar, montés hors de la page carte) de
+    // savoir si l'action qu'ils représentent est actuellement active sur la carte
+    // (ex: Gomme sélectionnée, brouillard caché, musique en lecture) pour se styliser en
+    // conséquence, comme le fait déjà MapToolbar avec ses propres boutons.
+    activeMapTools: string[];
+    setActiveMapTools: (tools: string[]) => void;
 }
 
 const ShortcutsContext = createContext<ShortcutsContextType | undefined>(undefined);
@@ -104,6 +131,10 @@ const DEFAULT_SHORTCUTS: Record<string, string> = {
     [SHORTCUT_ACTIONS.TAB_NOTES]: 'N',      // Notes
     [SHORTCUT_ACTIONS.QUICK_NOTE]: 'Shift+N', // Quick Notes (saisie rapide)
     [SHORTCUT_ACTIONS.TAB_COMBAT]: 'I',     // Initiative/Combat
+    [SHORTCUT_ACTIONS.TAB_FICHE]: '',       // Fiche de personnage (pas de raccourci par défaut)
+    [SHORTCUT_ACTIONS.TAB_ENCOUNTER]: '',   // Générateur de rencontre (pas de raccourci par défaut)
+    [SHORTCUT_ACTIONS.TAB_HISTORIQUE]: '',  // Historique (pas de raccourci par défaut)
+    [SHORTCUT_ACTIONS.TOGGLE_CUSTOM_BUTTONS_EDIT]: '', // Édition boutons personnalisables (pas de raccourci par défaut)
 
     // ========== OUTILS DE CARTE PRINCIPAUX ==========
     [SHORTCUT_ACTIONS.TOOL_PAN]: 'H',       // Hand (Main pour déplacer)
@@ -140,6 +171,11 @@ const DEFAULT_SHORTCUTS: Record<string, string> = {
     [SHORTCUT_ACTIONS.TOOL_MULTI]: 'X',     // Multi-select
     [SHORTCUT_ACTIONS.TOOL_BORDERS]: 'J',   // Borders
     [SHORTCUT_ACTIONS.TOOL_BADGES]: 'Delete', // Badges
+    [SHORTCUT_ACTIONS.TOOL_ERASER]: '',            // Gomme directe (pas de raccourci par défaut)
+    [SHORTCUT_ACTIONS.TOOL_MUSIC_PLAY_PAUSE]: '',  // Play/Pause musique (pas de raccourci par défaut)
+    [SHORTCUT_ACTIONS.TOOL_FOG_REVEAL_ALL]: '',    // Révéler la carte (pas de raccourci par défaut)
+    [SHORTCUT_ACTIONS.TOOL_FOG_HIDE_ALL]: '',      // Cacher la carte (pas de raccourci par défaut)
+    [SHORTCUT_ACTIONS.TOOL_FOG_RESET]: '',         // Réinitialiser le brouillard (pas de raccourci par défaut)
 
     // ========== INTERACTIONS ==========
     [SHORTCUT_ACTIONS.OPEN_BUBBLE_MENU]: 'K', // bulle emoji/texte au-dessus de son perso
@@ -208,10 +244,31 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
     const [shortcuts, setShortcuts] = useState<Record<string, string>>(DEFAULT_SHORTCUTS);
     const [customShortcuts, setCustomShortcuts] = useState<CustomShortcut[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
+    const [isCustomButtonsEditModeActive, setIsCustomButtonsEditModeActive] = useState(false);
+    const [activeMapTools, setActiveMapTools] = useState<string[]>([]);
 
     // History handling
     const keyHistory = useRef<string[]>([]);
     const historyTimeout = useRef<NodeJS.Timeout | null>(null);
+
+    // Registre des abonnés triggerAction/onActionTriggered (boutons personnalisables) :
+    // un Map<actionId, Set<callback>> tenu en ref pour ne jamais re-render le provider
+    // quand un composant s'abonne/se désabonne.
+    const actionListeners = useRef<Map<string, Set<() => void>>>(new Map());
+
+    const triggerAction = useCallback((actionId: string) => {
+        actionListeners.current.get(actionId)?.forEach(cb => cb());
+    }, []);
+
+    const onActionTriggered = useCallback((actionId: string, callback: () => void) => {
+        if (!actionListeners.current.has(actionId)) {
+            actionListeners.current.set(actionId, new Set());
+        }
+        actionListeners.current.get(actionId)!.add(callback);
+        return () => {
+            actionListeners.current.get(actionId)?.delete(callback);
+        };
+    }, []);
 
     // Global listener to update history
     useEffect(() => {
@@ -408,7 +465,13 @@ export function ShortcutsProvider({ children }: { children: React.ReactNode }) {
             customShortcuts,
             addCustomShortcut,
             updateCustomShortcut,
-            removeCustomShortcut
+            removeCustomShortcut,
+            triggerAction,
+            onActionTriggered,
+            isCustomButtonsEditModeActive,
+            setIsCustomButtonsEditModeActive,
+            activeMapTools,
+            setActiveMapTools,
         }}>
             {children}
         </ShortcutsContext.Provider>

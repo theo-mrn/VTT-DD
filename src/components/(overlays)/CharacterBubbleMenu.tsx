@@ -57,7 +57,11 @@ export default function CharacterBubbleMenu({ isOpen, onClose, onSelect, hasActi
         if (!isOpen) return;
 
         const handleClickOutside = (event: MouseEvent) => {
-            if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
+            const target = event.target as Node;
+            if (rootRef.current && !rootRef.current.contains(target)) {
+                // Ignore les clics sur un bouton personnalisable (CustomButtons) : sinon le
+                // même clic qui vient d'ouvrir ce menu (via triggerAction) le referme aussitôt.
+                if ((target as Element).closest?.('[data-custom-button]')) return;
                 onClose();
             }
         };

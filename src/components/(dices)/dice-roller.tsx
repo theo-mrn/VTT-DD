@@ -54,7 +54,7 @@ interface DiceRollerProps {
 export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
   const { selectedCharacter, roomId: contextRoomId } = useCharacter();
   const { isMJ, persoId, user: gameUser } = useGame();
-  const { isShortcutPressed, customShortcuts, checkKeyCombination } = useShortcuts();
+  const { isShortcutPressed, customShortcuts, checkKeyCombination, onActionTriggered } = useShortcuts();
   const roomId = contextRoomId;
 
   const [input, setInput] = useState('');
@@ -304,7 +304,8 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
         !selectedCharacterName && // ← don't close while user profile dialog is open
         !(event.target as Element).closest('#vtt-sidebar-dice') &&
         !(event.target as Element).closest('#vtt-dock-dice') &&
-        !(event.target as Element).closest('[data-dice-store-portal]')
+        !(event.target as Element).closest('[data-dice-store-portal]') &&
+        !(event.target as Element).closest('[data-custom-button]')
       ) {
         onClose?.();
       }
@@ -724,6 +725,39 @@ export const DiceRoller = ({ isOpen = false, onClose }: DiceRollerProps) => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
   }, [isShortcutPressed, customShortcuts, checkKeyCombination]);
+
+  // Boutons personnalisables (voir CustomButtons) : même effet que le raccourci
+  // clavier correspondant, déclenché par clic — même logique d'accumulation/debounce
+  // pour rester cohérent si plusieurs boutons sont cliqués rapidement.
+  useEffect(() => {
+    const rollNotations: Record<string, string> = {
+      [SHORTCUT_ACTIONS.ROLL_D4]: '1d4',
+      [SHORTCUT_ACTIONS.ROLL_D6]: '1d6',
+      [SHORTCUT_ACTIONS.ROLL_D8]: '1d8',
+      [SHORTCUT_ACTIONS.ROLL_D10]: '1d10',
+      [SHORTCUT_ACTIONS.ROLL_D12]: '1d12',
+      [SHORTCUT_ACTIONS.ROLL_D20]: '1d20',
+      [SHORTCUT_ACTIONS.ROLL_D100]: '1d100',
+    };
+
+    const unsubs = Object.entries(rollNotations).map(([actionId, notation]) =>
+      onActionTriggered(actionId, () => {
+        pendingDiceRef.current.push(notation);
+        if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = setTimeout(() => {
+          if (pendingDiceRef.current.length > 0) {
+            const combinedNotation = pendingDiceRef.current.join('+');
+            pendingDiceRef.current = [];
+            debounceTimerRef.current = null;
+            handleRollRef.current(combinedNotation);
+          }
+        }, 300);
+      })
+    );
+    unsubs.push(onActionTriggered(SHORTCUT_ACTIONS.QUICK_ROLL, () => setIsQuickRollOpen(true)));
+
+    return () => unsubs.forEach(u => u());
+  }, [onActionTriggered]);
 
   // Focus automatique du champ de saisie rapide à son ouverture
   useEffect(() => {

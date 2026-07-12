@@ -60,7 +60,7 @@ const MONSTER_SOURCE_PREFIX = "Créature:";
 export default function SearchMenu() {
     const [open, setOpen] = useState(false);
     const { searchCompetences, isLoading, allCompetences } = useCompetences();
-    const { isShortcutPressed } = useShortcuts();
+    const { isShortcutPressed, onActionTriggered } = useShortcuts();
     const [searchResults, setSearchResults] = useState<Competence[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
@@ -167,6 +167,17 @@ export default function SearchMenu() {
         document.addEventListener("keydown", down);
         return () => document.removeEventListener("keydown", down);
     }, [open, isShortcutPressed]);
+
+    // Bouton personnalisable (voir CustomButtons) : même effet que le raccourci
+    // clavier, déclenché par clic au lieu d'une touche.
+    useEffect(() => {
+        return onActionTriggered(SHORTCUT_ACTIONS.TOOL_OPEN_SEARCH, () => {
+            setOpen((open) => {
+                if (!open) setTimeout(() => inputRef.current?.focus(), 100);
+                return !open;
+            });
+        });
+    }, [onActionTriggered]);
 
     // Reset selection when results change or tab changes
     useEffect(() => {

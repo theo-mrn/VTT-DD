@@ -9,6 +9,7 @@ import GMDashboard from "@/components/(combat)/MJcombat";
 import Component from "@/components/(fiches)/fiche";
 import MedievalNotes from "@/components/Notes";
 import QuickNotes from "@/components/QuickNotes";
+import CustomButtons from "@/components/(overlays)/CustomButtons";
 import Competences from "@/components/(competences)/competences";
 import OverlayComponent from "@/components/(overlays)/overlay";
 import { DiceThrower } from "@/components/(dices)/throw";
@@ -181,6 +182,9 @@ export default function Layout({ children }: LayoutProps) {
 
               {/* ── QUICK NOTES (toujours monté : écoute Shift+N indépendamment du panneau Notes) ── */}
               <QuickNotes />
+
+              {/* ── BOUTONS PERSONNALISABLES (raccourcis assignables, drag libre) ── */}
+              <CustomButtons />
 
               {/* ── CHAT (lazy-persistent, all users) ── */}
               {mounted.chat && (

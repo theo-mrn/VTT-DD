@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Trash2, Edit, X, Eye, Pencil, Eraser, Square, Circle as CircleIcon, Slash, Ruler, Music, Hexagon, DoorOpen, ArrowDownUp } from 'lucide-react';
 import { TOOLS } from '@/components/(map)/MapToolbar';
+import { SHORTCUT_ACTIONS } from '@/contexts/ShortcutsContext';
 import type { Character, SavedDrawing, MapText, DrawingTool, ViewMode, Point } from '@/app/[roomid]/map/types';
 
 // ---- Types ----
@@ -143,6 +144,15 @@ export interface UseToolbarActionsParams {
   saveFogGridWithHistory: (newGrid: Map<string, boolean>, description?: string) => Promise<void>;
   saveFullMapFog: (v: boolean) => void;
   setDrawings: React.Dispatch<React.SetStateAction<SavedDrawing[]>>;
+
+  // Boutons personnalisables (CustomButtons) : déclenche le toggle de son mode édition
+  triggerAction: (actionId: string) => void;
+  // État partagé (via ShortcutsContext) : reflète si CustomButtons est en mode édition,
+  // pour afficher le bouton MapToolbar en actif tant que ce mode est ouvert.
+  isCustomButtonsEditModeActive: boolean;
+  // Musique en cours de lecture (voir page.tsx musicPlaybackState) : reflète l'état du
+  // bouton Play/Pause direct.
+  isMusicPlaying: boolean;
 }
 
 export interface UseToolbarActionsReturn {
@@ -203,6 +213,9 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     handleDeleteSelectedCharacters, navigateToWorldMap,
     deleteFromRtdbWithHistory, saveFogGridWithHistory, saveFullMapFog,
     setDrawings,
+    triggerAction,
+    isCustomButtonsEditModeActive,
+    isMusicPlaying,
   } = params;
 
   // Toujours à jour, lu par handleToolbarAction (voir juste en dessous) : évite de lister
@@ -295,6 +308,7 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
       case TOOLS.ZOOM_OUT: p.setZoom(prev => Math.max(prev - 0.1, 0.1)); break;
       case TOOLS.WORLD_MAP: p.navigateToWorldMap(); break;
       case TOOLS.TOGGLE_ALL_BADGES: p.setShowAllBadges(!p.showAllBadges); break;
+      case TOOLS.CUSTOMIZE_BUTTONS: p.triggerAction(SHORTCUT_ACTIONS.TOGGLE_CUSTOM_BUTTONS_EDIT); break;
     }
   }, []);
 
@@ -325,12 +339,18 @@ export function useToolbarActions(params: UseToolbarActionsParams): UseToolbarAc
     if (isBackgroundEditMode) active.push(TOOLS.BACKGROUND_EDIT);
     if (isAudioMixerOpen) active.push(TOOLS.AUDIO_MIXER);
     if (showAllBadges) active.push(TOOLS.TOGGLE_ALL_BADGES);
+    if (isCustomButtonsEditModeActive) active.push(TOOLS.CUSTOMIZE_BUTTONS);
+    if (drawMode && currentTool === 'eraser') active.push(TOOLS.ERASER);
+    if (fullMapFog === false) active.push(TOOLS.FOG_REVEAL_ALL);
+    if (fullMapFog === true) active.push(TOOLS.FOG_HIDE_ALL);
+    if (isMusicPlaying) active.push(TOOLS.MUSIC_PLAY_PAUSE);
     return active;
   }, [
     drawMode, visibilityMode, showGrid, showCharBorders, panMode, playerViewMode,
     allyViewMode, measureMode, isMusicMode, showLayerControl, isObjectDrawerOpen,
     isNPCDrawerOpen, isSoundDrawerOpen, isUnifiedSearchOpen, portalMode, spawnPointMode,
     multiSelectMode, isBackgroundEditMode, isAudioMixerOpen, showAllBadges,
+    isCustomButtonsEditModeActive, currentTool, fullMapFog, isMusicPlaying,
   ]);
 
   const getToolOptionsContent = () => {

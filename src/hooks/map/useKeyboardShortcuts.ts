@@ -7,7 +7,7 @@ import { TOOLS } from '@/components/(map)/MapToolbar';
 import { toast } from 'sonner';
 import { pasteCharacter } from '@/utils/pasteCharacter';
 import { pasteObject } from '@/utils/pasteObject';
-import type { Character, MapObject, Point } from '@/app/[roomid]/map/types';
+import type { Character, MapObject, Point, DrawingTool } from '@/app/[roomid]/map/types';
 import type { EdgeMeta } from '@/lib/visibility';
 
 // ---- Types ----
@@ -61,8 +61,12 @@ export interface UseKeyboardShortcutsParams {
 
   // Setters - toolbar tool modes
   setMeasureMode: (v: boolean) => void;
+  drawMode: boolean;
   setDrawMode: (v: boolean) => void;
   setPanMode: (v: boolean) => void;
+  currentTool: DrawingTool;
+  setCurrentTool: (v: DrawingTool) => void;
+  fullMapFog: boolean;
 
   // Setters - character bubble menu
   setBubbleMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
@@ -79,6 +83,11 @@ export interface UseKeyboardShortcutsParams {
     }
   ) => Promise<void>;
   handleToolbarAction: (actionId: string) => void;
+
+  // Actions "directes" (bypass le mode toggle, effet immédiat) pour boutons personnalisables
+  toggleMusicPlayPause: () => void;
+  handleFullMapFogChange: (value: boolean) => void;
+  clearFog: () => void;
 }
 
 // ---- Hook ----
@@ -116,15 +125,22 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams): void {
     setIsUnifiedSearchOpen,
     setShowGlobalSettingsDialog,
     setMeasureMode,
+    drawMode,
     setDrawMode,
     setPanMode,
+    currentTool,
+    setCurrentTool,
+    fullMapFog,
     setBubbleMenuOpen,
     handleDeleteKeyPress,
     saveObstacle,
     handleToolbarAction,
+    toggleMusicPlayPause,
+    handleFullMapFogChange,
+    clearFog,
   } = params;
 
-  const { isShortcutPressed } = useShortcuts();
+  const { isShortcutPressed, onActionTriggered } = useShortcuts();
   const { undo, redo } = useUndoRedo();
 
   // -------------------------------------------------------
@@ -144,6 +160,63 @@ export function useKeyboardShortcuts(params: UseKeyboardShortcutsParams): void {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isShortcutPressed, undo, redo]);
+
+  // Boutons personnalisables (voir CustomButtons) : même effet que le raccourci clavier
+  // correspondant, déclenché par clic — couvre toutes les actions de MapToolbar/Sidebar.
+  useEffect(() => {
+    const unsubs = [
+      onActionTriggered(SHORTCUT_ACTIONS.UNDO, undo),
+      onActionTriggered(SHORTCUT_ACTIONS.REDO, redo),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_SETTINGS, () => setShowGlobalSettingsDialog(true)),
+      onActionTriggered(SHORTCUT_ACTIONS.OPEN_BUBBLE_MENU, () => {
+        if (persoId) setBubbleMenuOpen(prev => !prev);
+      }),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_GRID, () => handleToolbarAction(TOOLS.GRID)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_FOG, () => handleToolbarAction(TOOLS.VISIBILITY)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_BADGES, () => handleToolbarAction(TOOLS.TOGGLE_ALL_BADGES)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_BORDERS, () => handleToolbarAction(TOOLS.TOGGLE_CHAR_BORDERS)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_LAYERS, () => handleToolbarAction(TOOLS.LAYERS)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_MIXER, () => handleToolbarAction(TOOLS.AUDIO_MIXER)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_BACKGROUND, () => handleToolbarAction(TOOLS.BACKGROUND)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_VIEW_MODE, () => handleToolbarAction(TOOLS.VIEW_MODE)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_WORLD_MAP, () => handleToolbarAction(TOOLS.WORLD_MAP)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_PAN, () => handleToolbarAction(TOOLS.PAN)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_MEASURE, () => handleToolbarAction(TOOLS.MEASURE)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_DRAW, () => handleToolbarAction(TOOLS.DRAW)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_ZOOM_IN, () => handleToolbarAction(TOOLS.ZOOM_IN)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_ZOOM_OUT, () => handleToolbarAction(TOOLS.ZOOM_OUT)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_ADD_NOTE, () => handleToolbarAction(TOOLS.ADD_NOTE)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_ADD_CHAR, () => handleToolbarAction(TOOLS.ADD_CHAR)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_ADD_OBJ, () => handleToolbarAction(TOOLS.ADD_OBJ)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_MUSIC, () => handleToolbarAction(TOOLS.MUSIC)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_PORTAL, () => handleToolbarAction(TOOLS.PORTAL)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_SPAWN, () => handleToolbarAction(TOOLS.SPAWN_POINT)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_MULTI, () => handleToolbarAction(TOOLS.MULTI_SELECT)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_SEARCH, () => handleToolbarAction(TOOLS.UNIFIED_SEARCH)),
+      // Actions directes : effet immédiat sans passer par un mode/panneau
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_CLEAR, () => handleToolbarAction(TOOLS.CLEAR_DRAWINGS)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_ERASER, () => {
+        // Toggle : si la gomme est déjà l'outil actif, on repasse en mode sélection.
+        if (drawMode && currentTool === 'eraser') {
+          setDrawMode(false);
+        } else {
+          setDrawMode(true);
+          setCurrentTool('eraser');
+        }
+      }),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_MUSIC_PLAY_PAUSE, toggleMusicPlayPause),
+      // Toggle : recliquer sur "Révéler"/"Cacher" alors que l'état est déjà celui demandé
+      // annule l'effet (bascule vers l'autre état) plutôt que de le réappliquer sans effet visible.
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_FOG_REVEAL_ALL, () => handleFullMapFogChange(!fullMapFog ? true : false)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_FOG_HIDE_ALL, () => handleFullMapFogChange(fullMapFog ? false : true)),
+      onActionTriggered(SHORTCUT_ACTIONS.TOOL_FOG_RESET, clearFog),
+    ];
+    return () => unsubs.forEach(u => u());
+  }, [
+    onActionTriggered, undo, redo, setShowGlobalSettingsDialog, persoId, setBubbleMenuOpen,
+    handleToolbarAction, drawMode, setDrawMode, currentTool, setCurrentTool, toggleMusicPlayPause,
+    fullMapFog, handleFullMapFogChange, clearFog,
+  ]);
 
   // -------------------------------------------------------
   // 2. MAIN KEYBOARD EVENT HANDLER (delete, escape, copy/paste)

@@ -219,10 +219,13 @@ export function ShortcutsDialog({
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_DICE} label="Lanceur de Dés" />
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_NOTES} label="Notes" />
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.QUICK_NOTE} label="Note Rapide" />
+                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_FICHE} label="Fiche de Personnage" />
                             {isMJ && (
                                 <>
                                     <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_COMBAT} label="Tableau de Bord MJ" />
                                     <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_NPC} label="Gestion PNJ" />
+                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_ENCOUNTER} label="Générateur de Rencontre" />
+                                    <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_HISTORIQUE} label="Historique" />
                                 </>
                             )}
                         </div>

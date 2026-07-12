@@ -176,7 +176,7 @@ export default function Component() {
   const [copiedCharacterTemplate, setCopiedCharacterTemplate] = useState<Character | null>(null);
   const [copiedObjectTemplate, setCopiedObjectTemplate] = useState<MapObject | null>(null);
 
-  const { isShortcutPressed } = useShortcuts();
+  const { isShortcutPressed, triggerAction, isCustomButtonsEditModeActive, setActiveMapTools } = useShortcuts();
   const { undo, redo, canUndo, canRedo, recordAction } = useUndoRedo();
   const { addWithHistory, deleteWithHistory, updateWithHistory, setWithHistory, updatePositionWithHistory, setCityPositionWithHistory, addToRtdbWithHistory, updateRtdbWithHistory, deleteFromRtdbWithHistory } = useFirestoreWithHistory(roomId);
 
@@ -2698,6 +2698,23 @@ export default function Component() {
     }
   };
 
+  // Miroir minimal de l'état musique RTDB (voir SoundDrawer.tsx), juste pour permettre
+  // un bouton Play/Pause direct sans ouvrir le panneau son complet.
+  const [musicPlaybackState, setMusicPlaybackState] = useState<{ videoId: string | null; isPlaying: boolean }>({ videoId: null, isPlaying: false });
+  useEffect(() => {
+    if (!roomId) return;
+    const unsub = onValue(dbRef(realtimeDb, `rooms/${roomId}/music`), (snapshot) => {
+      const data = snapshot.val();
+      setMusicPlaybackState({ videoId: data?.videoId ?? null, isPlaying: data?.isPlaying ?? false });
+    });
+    return () => unsub();
+  }, [roomId]);
+
+  const toggleMusicPlayPause = () => {
+    if (!roomId || !musicPlaybackState.videoId) return;
+    rtdbUpdate(dbRef(realtimeDb, `rooms/${roomId}/music`), { isPlaying: !musicPlaybackState.isPlaying, lastUpdate: Date.now() });
+  };
+
   // Toolbar actions — delegates to extracted hook
   const { handleToolbarAction, getActiveToolbarTools, getToolOptionsContent } = useToolbarActions({
     roomId, isMJ,
@@ -2748,7 +2765,17 @@ export default function Component() {
     handleDeleteSelectedCharacters, navigateToWorldMap,
     deleteFromRtdbWithHistory, saveFogGridWithHistory, saveFullMapFog,
     setDrawings,
+    triggerAction,
+    isCustomButtonsEditModeActive,
+    isMusicPlaying: musicPlaybackState.isPlaying,
   });
+
+  // Reflète activeTools dans le state partagé du contexte, pour que les boutons
+  // personnalisables (CustomButtons/Sidebar, montés hors de la page carte) puissent
+  // afficher leur propre état actif/inactif en accord avec la carte.
+  useEffect(() => {
+    setActiveMapTools(getActiveToolbarTools);
+  }, [getActiveToolbarTools, setActiveMapTools]);
 
   // Mémoïsé : un JSX literal recréé à chaque render casse le React.memo de MapToolbar
   // (comparaison superficielle des props), ce qui le faisait re-render à chaque mousemove
@@ -2794,9 +2821,10 @@ export default function Component() {
     setSelectedFogCells, setVisibilityMode,
     setCopiedCharacterTemplate, setCopiedObjectTemplate,
     setIsUnifiedSearchOpen, setShowGlobalSettingsDialog,
-    setMeasureMode, setDrawMode, setPanMode,
+    setMeasureMode, drawMode, setDrawMode, setPanMode, currentTool, setCurrentTool, fullMapFog,
     setBubbleMenuOpen,
     handleDeleteKeyPress, saveObstacle, handleToolbarAction,
+    toggleMusicPlayPause, handleFullMapFogChange, clearFog,
   });
 
 

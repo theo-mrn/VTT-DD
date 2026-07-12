@@ -30,7 +30,7 @@ export default function QuickNotes() {
   // Le MJ n'incarne pas de personnage (persoId reste null) : on retombe sur son UID
   // Firebase Auth comme clé de stockage stable pour ses propres notes.
   const myCharId = persoId || user?.uid || null
-  const { isShortcutPressed } = useShortcuts()
+  const { isShortcutPressed, onActionTriggered } = useShortcuts()
   const { setDialogOpen } = useDialogVisibility()
 
   const [isOpen, setIsOpen] = useState(false)
@@ -64,6 +64,12 @@ export default function QuickNotes() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [isShortcutPressed, isOpen])
+
+  // Bouton personnalisable (voir src/components/(overlays)/CustomButtons) : même effet
+  // que le raccourci clavier, déclenché par clic au lieu d'une touche.
+  useEffect(() => {
+    return onActionTriggered(SHORTCUT_ACTIONS.QUICK_NOTE, () => setIsOpen(o => !o))
+  }, [onActionTriggered])
 
   const reset = () => {
     setText('')

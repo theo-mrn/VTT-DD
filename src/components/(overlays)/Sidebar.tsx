@@ -1,13 +1,32 @@
 "use client";
 
-import { Swords, FileText, Edit, Dice5, UsersRound, Skull, History, MessageSquare, Map, PanelLeft } from "lucide-react";
+import { Map, PanelLeft, Plus, X, Settings2, GripVertical, Search } from "lucide-react";
+import { createPortal } from "react-dom";
 import { useGame } from "@/contexts/GameContext";
 import SearchMenu from "./SearchMenu";
 import { useDialogVisibility } from "@/contexts/DialogVisibilityContext";
 import { useShortcuts, SHORTCUT_ACTIONS } from "@/contexts/ShortcutsContext";
 import { useChatNotification } from "@/contexts/ChatNotificationContext";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { moduleRegistry } from "@/modules/registry";
+import { AVAILABLE_ACTIONS, getAvailableActions, ACTION_CATEGORIES, type CustomActionDef } from "@/lib/customActions";
+import { cn } from "@/lib/utils";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  horizontalListSortingStrategy,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 type SidebarProps = {
   activeTab: string;
@@ -15,11 +34,210 @@ type SidebarProps = {
   isMJ: boolean;
 };
 
+// Ordre par défaut des onglets natifs de la Sidebar (avant personnalisation) — reprend
+// l'ordre historique du composant.
+const DEFAULT_ITEM_IDS = [
+  SHORTCUT_ACTIONS.TAB_COMBAT,
+  SHORTCUT_ACTIONS.TAB_NPC,
+  SHORTCUT_ACTIONS.TAB_ENCOUNTER,
+  SHORTCUT_ACTIONS.TAB_HISTORIQUE,
+  SHORTCUT_ACTIONS.TAB_FICHE,
+  SHORTCUT_ACTIONS.TAB_NOTES,
+  SHORTCUT_ACTIONS.TAB_DICE,
+  SHORTCUT_ACTIONS.TAB_CHAT,
+];
+
+const STORAGE_KEY_PREFIX = "vtt_sidebar_items_";
+
+function loadItemIds(uid: string | undefined): string[] {
+  if (!uid || typeof window === "undefined") return DEFAULT_ITEM_IDS;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_PREFIX + uid);
+    const parsed: string[] = raw ? JSON.parse(raw) : DEFAULT_ITEM_IDS;
+    // Déduplique un state persisté avant le fix anti-doublon de handlePick — un id en
+    // double casse @dnd-kit (SortableContext exige des id uniques).
+    return Array.from(new Set(parsed));
+  } catch {
+    return DEFAULT_ITEM_IDS;
+  }
+}
+
+function saveItemIds(uid: string | undefined, ids: string[]) {
+  if (!uid || typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEY_PREFIX + uid, JSON.stringify(ids));
+  } catch (e) {
+    console.error("Failed to save sidebar items", e);
+  }
+}
+
+function ActionPickerMenu({
+  isMJ,
+  onPick,
+  onClose,
+}: {
+  isMJ: boolean;
+  onPick: (actionId: string) => void;
+  onClose: () => void;
+}) {
+  const [query, setQuery] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), 50);
+    return () => clearTimeout(t);
+  }, []);
+
+  const filteredActions = getAvailableActions(isMJ).filter(a =>
+    a.label.toLowerCase().includes(query.trim().toLowerCase())
+  );
+  const groups = ACTION_CATEGORIES
+    .map(category => ({ category, actions: filteredActions.filter(a => a.category === category) }))
+    .filter(g => g.actions.length > 0);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[1100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div
+        className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded-2xl w-full max-w-3xl h-[85vh] max-h-[720px] shadow-2xl flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)]">
+          <span className="text-base font-bold text-[var(--text-primary)]">Choisir une action</span>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-300 hover:bg-white/5">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="px-5 pt-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+            <input
+              ref={inputRef}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Rechercher une action..."
+              className="w-full bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg pl-9 pr-3 py-2.5 text-sm text-[var(--text-primary)] placeholder:text-zinc-600 outline-none focus:border-[var(--accent-brown)] transition-colors"
+            />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          {groups.map(group => (
+            <div key={group.category}>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--accent-brown)] mb-2.5">
+                {group.category}
+              </h3>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {group.actions.map(a => (
+                  <button
+                    key={a.id}
+                    onClick={() => onPick(a.id)}
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-[var(--bg-card)] border border-[var(--border-color)] hover:border-[var(--accent-brown)] text-[var(--text-primary)] text-sm transition-colors"
+                  >
+                    <a.icon className="w-4 h-4 text-[var(--accent-brown)] shrink-0" />
+                    <span className="truncate">{a.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+          {groups.length === 0 && (
+            <div className="text-center py-10 text-zinc-600 text-sm italic">
+              Aucune action trouvée.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+type Item = {
+  id: string; // = actionId, sert aussi de sortable id
+  actionId: string;
+  tab?: string; // présent pour les onglets natifs
+  mapToolId?: string; // présent pour les actions directes qui reflètent un état de la carte
+  Icon: CustomActionDef['icon'];
+  label: string;
+  badge?: number;
+  isNative: boolean; // false = module dynamique, non réordonnable/non remplaçable
+};
+
+function SortableIconButton({
+  item,
+  active,
+  isMapToolActive,
+  editMode,
+  iconClassName,
+  buttonClassName,
+  onActivate,
+  onReplace,
+  onRemove,
+}: {
+  item: Item;
+  active: boolean;
+  isMapToolActive: boolean;
+  editMode: boolean;
+  iconClassName: string;
+  buttonClassName: string;
+  onActivate: () => void;
+  onReplace: () => void;
+  onRemove: () => void;
+}) {
+  const canDrag = editMode && item.isNative;
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id, disabled: !canDrag });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="relative flex-shrink-0" {...attributes} {...(canDrag ? listeners : {})}>
+      <button
+        id={`vtt-icon-${item.id}`}
+        onClick={() => {
+          if (editMode && item.isNative) onReplace();
+          else if (!editMode) onActivate();
+        }}
+        className={cn(
+          buttonClassName,
+          editMode && item.isNative && "ring-2 ring-[var(--accent-brown)]/40 rounded-lg",
+          canDrag && "cursor-grab active:cursor-grabbing touch-none"
+        )}
+        title={item.label}
+        aria-label={item.label}
+      >
+        <item.Icon className={iconClassName} style={{ color: active ? 'var(--accent-brown)' : (isMapToolActive ? '#34d399' : 'var(--text-secondary)') }} />
+        {!!item.badge && item.badge > 0 && (
+          <span className="absolute top-0 right-0 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow-md border border-[#1c1c1c]">
+            {item.badge > 99 ? '99+' : item.badge}
+          </span>
+        )}
+      </button>
+      {editMode && item.isNative && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onRemove(); }}
+          className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-600 text-white flex items-center justify-center hover:bg-red-500 z-10"
+        >
+          <X className="w-2.5 h-2.5" />
+        </button>
+      )}
+    </div>
+  );
+}
 
 export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarProps) {
-  const { isHydrated } = useGame();
+  const { isHydrated, user } = useGame();
   const { isDialogOpen } = useDialogVisibility();
-  const { isShortcutPressed } = useShortcuts();
+  const { isShortcutPressed, onActionTriggered, triggerAction, activeMapTools } = useShortcuts();
   const { unreadCount, clearUnread } = useChatNotification();
 
   const moduleTabs = useMemo(() =>
@@ -28,6 +246,21 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
       .sort((a, b) => (a.order ?? 100) - (b.order ?? 100)),
     [isMJ]
   );
+
+  // ── Personnalisation : ordre + contenu configurable, persisté par utilisateur ──
+  const [itemIds, setItemIds] = useState<string[]>(DEFAULT_ITEM_IDS);
+  const [editMode, setEditMode] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [pickerTargetId, setPickerTargetId] = useState<string | null>(null); // null => ajout
+
+  useEffect(() => {
+    setItemIds(loadItemIds(user?.uid));
+  }, [user?.uid]);
+
+  const persistItemIds = useCallback((next: string[]) => {
+    setItemIds(next);
+    saveItemIds(user?.uid, next);
+  }, [user?.uid]);
 
   useEffect(() => {
     if (activeTab === "Chat") clearUnread();
@@ -45,7 +278,14 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
           e.preventDefault();
           handleIconClick("NPCManager");
         }
-        // EncounterGenerator has no default shortcut yet, maybe add one or reuse?
+        if (isShortcutPressed(e, SHORTCUT_ACTIONS.TAB_ENCOUNTER)) {
+          e.preventDefault();
+          handleIconClick("EncounterGenerator");
+        }
+        if (isShortcutPressed(e, SHORTCUT_ACTIONS.TAB_HISTORIQUE)) {
+          e.preventDefault();
+          handleIconClick("Historique");
+        }
       }
 
       // General Shortcuts
@@ -61,11 +301,103 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
         e.preventDefault();
         handleIconClick("Chat");
       }
+      if (isShortcutPressed(e, SHORTCUT_ACTIONS.TAB_FICHE)) {
+        e.preventDefault();
+        handleIconClick("Component");
+      }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isMJ, handleIconClick, isShortcutPressed]);
+
+  // Boutons personnalisables (voir CustomButtons) : même effet que le raccourci
+  // clavier, déclenché par clic au lieu d'une touche.
+  useEffect(() => {
+    const unsubs = [
+      onActionTriggered(SHORTCUT_ACTIONS.TAB_NOTES, () => handleIconClick("NewComponent")),
+      onActionTriggered(SHORTCUT_ACTIONS.TAB_DICE, () => handleIconClick("DiceRoller")),
+      onActionTriggered(SHORTCUT_ACTIONS.TAB_CHAT, () => handleIconClick("Chat")),
+      onActionTriggered(SHORTCUT_ACTIONS.TAB_FICHE, () => handleIconClick("Component")),
+      ...(isMJ ? [
+        onActionTriggered(SHORTCUT_ACTIONS.TAB_COMBAT, () => handleIconClick("GMDashboard")),
+        onActionTriggered(SHORTCUT_ACTIONS.TAB_NPC, () => handleIconClick("NPCManager")),
+        onActionTriggered(SHORTCUT_ACTIONS.TAB_ENCOUNTER, () => handleIconClick("EncounterGenerator")),
+        onActionTriggered(SHORTCUT_ACTIONS.TAB_HISTORIQUE, () => handleIconClick("Historique")),
+      ] : []),
+    ];
+    return () => unsubs.forEach(u => u());
+  }, [isMJ, handleIconClick, onActionTriggered]);
+
+  // ── Résolution des items configurés (natifs) + modules (non réordonnables) ──
+  const nativeItems: Item[] = useMemo(() => {
+    return itemIds
+      .map(id => AVAILABLE_ACTIONS.find(a => a.id === id))
+      .filter((a): a is CustomActionDef => !!a)
+      .filter(a => !a.mjOnly || isMJ)
+      .filter(a => !a.hiddenForMJ || !isMJ)
+      .map(a => ({
+        id: a.id,
+        actionId: a.id,
+        tab: a.tab,
+        mapToolId: a.mapToolId,
+        Icon: a.icon,
+        label: a.label,
+        badge: a.id === SHORTCUT_ACTIONS.TAB_CHAT ? unreadCount : undefined,
+        isNative: true,
+      }));
+  }, [itemIds, isMJ, unreadCount]);
+
+  const items: Item[] = useMemo(() => [
+    ...nativeItems,
+    ...moduleTabs.map(t => ({
+      id: `module-${t.id}`,
+      actionId: `module-${t.id}`,
+      tab: `module:${t.id}`,
+      Icon: t.icon,
+      label: t.label,
+      isNative: false,
+    } as Item)),
+  ], [nativeItems, moduleTabs]);
+
+  const handleItemActivate = (it: Item) => {
+    if (it.tab !== undefined) handleIconClick(it.tab);
+    else triggerAction(it.actionId);
+  };
+
+  const handleRemove = (id: string) => {
+    persistItemIds(itemIds.filter(itemId => itemId !== id));
+  };
+
+  const handlePick = (actionId: string) => {
+    if (pickerTargetId === null) {
+      // Ajout : ignore si l'action est déjà présente (les id doivent rester uniques,
+      // requis par @dnd-kit — un doublon fait planter le SortableContext).
+      if (!itemIds.includes(actionId)) {
+        persistItemIds([...itemIds, actionId]);
+      }
+    } else {
+      persistItemIds(itemIds.map(id => id === pickerTargetId ? actionId : id));
+    }
+    setPickerTargetId(null);
+    setIsPickerOpen(false);
+  };
+
+  const openPickerForAdd = () => { setPickerTargetId(null); setIsPickerOpen(true); };
+  const openPickerForReplace = (id: string) => { setPickerTargetId(id); setIsPickerOpen(true); };
+
+  // ── Drag & drop (@dnd-kit) : réordonne uniquement les items natifs, sur itemIds
+  // (la source de vérité brute — pas nativeItems, qui peut être filtré par rôle) ──
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = itemIds.indexOf(String(active.id));
+    const newIndex = itemIds.indexOf(String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+    persistItemIds(arrayMove(itemIds, oldIndex, newIndex));
+  };
 
   // Hide sidebar when dialog is open
   if (isDialogOpen) {
@@ -77,72 +409,10 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
     borderColor: 'var(--border-color)',
   } as const;
 
-  // ── Tab descriptors — single source of truth for both rail and dock ──
-  type Item = {
-    id: string;          // dom id suffix
-    tab: string;         // activeTab key
-    Icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
-    label: string;
-    badge?: number;      // optional notification count
-  };
-
-  const items: Item[] = [
-    ...(isHydrated && isMJ ? [
-      { id: 'combat', tab: 'GMDashboard', Icon: Swords, label: 'Combat' },
-      { id: 'npc', tab: 'NPCManager', Icon: UsersRound, label: 'PNJ' },
-      { id: 'encounter', tab: 'EncounterGenerator', Icon: Skull, label: 'Rencontre' },
-      { id: 'historique', tab: 'Historique', Icon: History, label: 'Historique' },
-    ] : []),
-    { id: 'fiche', tab: 'Component', Icon: FileText, label: 'Fiche' },
-    { id: 'notes', tab: 'NewComponent', Icon: Edit, label: 'Notes' },
-    { id: 'dice', tab: 'DiceRoller', Icon: Dice5, label: 'Dés' },
-    { id: 'chat', tab: 'Chat', Icon: MessageSquare, label: 'Chat', badge: unreadCount },
-    ...moduleTabs.map(t => ({ id: `module-${t.id}`, tab: `module:${t.id}`, Icon: t.icon, label: t.label })),
-  ];
-
-  // ── Desktop rail: flat icon buttons ──
   const railIconCls = "h-5 w-5 sm:h-6 sm:w-6 transition-colors duration-150";
-  const renderRailButton = (it: Item) => {
-    const active = activeTab === it.tab;
-    return (
-      <button
-        key={it.id}
-        id={`vtt-sidebar-${it.id}`}
-        onClick={() => handleIconClick(it.tab)}
-        className="relative p-2 flex-shrink-0 transition-colors duration-150"
-        title={it.label}
-      >
-        <it.Icon className={railIconCls} style={{ color: active ? 'var(--accent-brown)' : 'var(--text-secondary)' }} />
-        {!!it.badge && it.badge > 0 && (
-          <span className="absolute top-0 right-0 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow-md border border-[#1c1c1c]">
-            {it.badge > 99 ? '99+' : it.badge}
-          </span>
-        )}
-      </button>
-    );
-  };
-
-  // ── Mobile dock: flat buttons, same style as the rest of the app ──
-  const renderDockButton = (it: Item) => {
-    const active = activeTab === it.tab;
-    return (
-      <button
-        key={it.id}
-        id={`vtt-dock-${it.id}`}
-        onClick={() => handleIconClick(it.tab)}
-        className="relative flex-shrink-0 flex items-center justify-center h-11 w-11 transition-colors duration-150"
-        title={it.label}
-        aria-label={it.label}
-      >
-        <it.Icon className="h-6 w-6" style={{ color: active ? 'var(--accent-brown)' : 'var(--text-secondary)' }} />
-        {!!it.badge && it.badge > 0 && (
-          <span className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white border border-[#1c1c1c]">
-            {it.badge > 99 ? '99+' : it.badge}
-          </span>
-        )}
-      </button>
-    );
-  };
+  const railButtonCls = "relative p-2 flex-shrink-0 transition-colors duration-150";
+  const dockIconCls = "h-6 w-6";
+  const dockButtonCls = "relative flex items-center justify-center h-11 w-11 transition-colors duration-150";
 
   return (
     <>
@@ -155,7 +425,45 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
           <div className="absolute inset-0 pointer-events-none rounded-r-2xl"
             style={{ background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%)' }} />
           <div className="relative p-4 rounded-r-xl flex flex-col items-center space-y-6">
-            {items.map(renderRailButton)}
+            {isHydrated && (
+              <DndContext id="vtt-sidebar-rail-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={items.map(it => it.id)} strategy={verticalListSortingStrategy}>
+                  {items.map(it => (
+                    <SortableIconButton
+                      key={it.id}
+                      item={it}
+                      active={activeTab === it.tab}
+                      isMapToolActive={!!it.mapToolId && activeMapTools.includes(it.mapToolId)}
+                      editMode={editMode}
+                      iconClassName={railIconCls}
+                      buttonClassName={railButtonCls}
+                      onActivate={() => handleItemActivate(it)}
+                      onReplace={() => openPickerForReplace(it.id)}
+                      onRemove={() => handleRemove(it.id)}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+            )}
+            {editMode && (
+              <button
+                onClick={openPickerForAdd}
+                className="p-2 rounded-lg border border-dashed border-[var(--accent-brown)]/50 text-[var(--accent-brown)] hover:bg-[var(--accent-brown)]/10"
+                title="Ajouter"
+              >
+                <Plus className="h-5 w-5" />
+              </button>
+            )}
+            <button
+              onClick={() => setEditMode(e => !e)}
+              className={cn(
+                "p-2 rounded-lg transition-colors",
+                editMode ? "bg-red-600 text-white hover:bg-red-500" : "text-[var(--text-secondary)] hover:text-[var(--accent-brown)]"
+              )}
+              title={editMode ? "Terminer l'édition" : "Personnaliser la barre"}
+            >
+              {editMode ? <GripVertical className="h-5 w-5" /> : <Settings2 className="h-5 w-5" />}
+            </button>
           </div>
         </div>
       </aside>
@@ -188,10 +496,53 @@ export default function Sidebar({ activeTab, handleIconClick, isMJ }: SidebarPro
             <PanelLeft className="h-6 w-6" style={{ color: 'var(--text-secondary)' }} />
           </button>
           <div className="self-stretch w-px my-1.5 flex-shrink-0 bg-[#333]" />
-          {items.map(renderDockButton)}
+          <DndContext id="vtt-sidebar-dock-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={items.map(it => it.id)} strategy={horizontalListSortingStrategy}>
+              {items.map(it => (
+                <SortableIconButton
+                  key={it.id}
+                  item={it}
+                  active={activeTab === it.tab}
+                  isMapToolActive={!!it.mapToolId && activeMapTools.includes(it.mapToolId)}
+                  editMode={editMode}
+                  iconClassName={dockIconCls}
+                  buttonClassName={dockButtonCls}
+                  onActivate={() => handleItemActivate(it)}
+                  onReplace={() => openPickerForReplace(it.id)}
+                  onRemove={() => handleRemove(it.id)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
+          {editMode && (
+            <button
+              onClick={openPickerForAdd}
+              className="flex-shrink-0 flex items-center justify-center h-11 w-11 rounded-lg border border-dashed border-[var(--accent-brown)]/50 text-[var(--accent-brown)]"
+              title="Ajouter"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+          )}
+          <button
+            onClick={() => setEditMode(e => !e)}
+            className={cn(
+              "flex-shrink-0 flex items-center justify-center h-11 w-11 rounded-lg transition-colors",
+              editMode ? "bg-red-600 text-white" : "text-[var(--text-secondary)]"
+            )}
+            title={editMode ? "Terminer l'édition" : "Personnaliser la barre"}
+          >
+            {editMode ? <GripVertical className="h-5 w-5" /> : <Settings2 className="h-5 w-5" />}
+          </button>
         </div>
       </aside>
 
+      {isPickerOpen && (
+        <ActionPickerMenu
+          isMJ={isMJ}
+          onPick={handlePick}
+          onClose={() => { setIsPickerOpen(false); setPickerTargetId(null); }}
+        />
+      )}
 
       <SearchMenu />
     </>

@@ -35,7 +35,8 @@ import {
     Search,
     Hexagon,
     MapPin,
-    CirclePlus
+    CirclePlus,
+    SquarePlus
 } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -96,6 +97,11 @@ export const TOOLS = {
     AUDIO_MIXER: 'audio_mixer',
     TOGGLE_CHAR_BORDERS: 'toggle_char_borders',
     TOGGLE_ALL_BADGES: 'toggle_all_badges',
+    CUSTOMIZE_BUTTONS: 'customize_buttons',
+    ERASER: 'eraser',
+    FOG_REVEAL_ALL: 'fog_reveal_all',
+    FOG_HIDE_ALL: 'fog_hide_all',
+    MUSIC_PLAY_PAUSE: 'music_play_pause',
 };
 
 const FIREBALL_SKIN_OPTIONS = [
@@ -502,6 +508,13 @@ function MapToolbar({
                                 icon={Eye}
                                 label="Badges d'état"
                                 isActive={activeTools.includes(TOOLS.TOGGLE_ALL_BADGES)}
+                            />
+
+                            <ToolButton onAction={onAction}
+                                id={TOOLS.CUSTOMIZE_BUTTONS}
+                                icon={SquarePlus}
+                                label="Personnaliser mes boutons"
+                                isActive={activeTools.includes(TOOLS.CUSTOMIZE_BUTTONS)}
                             />
 
                         </div>
