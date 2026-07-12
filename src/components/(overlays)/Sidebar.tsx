@@ -215,7 +215,7 @@ function SortableIconButton({
         title={item.label}
         aria-label={item.label}
       >
-        <item.Icon className={iconClassName} style={{ color: active ? 'var(--accent-brown)' : (isMapToolActive ? '#34d399' : 'var(--text-secondary)') }} />
+        <item.Icon className={iconClassName} style={{ color: active ? 'var(--accent-brown)' : (isMapToolActive ? 'var(--accent-brown)' : 'var(--text-secondary)') }} />
         {!!item.badge && item.badge > 0 && (
           <span className="absolute top-0 right-0 flex h-4 w-4 sm:h-5 sm:w-5 items-center justify-center rounded-full bg-red-600 text-[10px] font-bold text-white shadow-md border border-[#1c1c1c]">
             {item.badge > 99 ? '99+' : item.badge}
