@@ -25,6 +25,7 @@ export const SHORTCUT_ACTIONS = {
     TAB_CHAT: 'tab_chat',
     TAB_DICE: 'tab_dice',
     TAB_NOTES: 'tab_notes',
+    QUICK_NOTE: 'quick_note', // Ouvre une saisie rapide de note (catégorie + texte), sans passer par le panneau Notes complet
     TAB_COMBAT: 'tab_combat',
     TAB_NPC: 'tab_npc', // GMDashboard / NPCManager logic might be complex
 
@@ -101,6 +102,7 @@ const DEFAULT_SHORTCUTS: Record<string, string> = {
     [SHORTCUT_ACTIONS.TAB_CHAT]: 'C',       // Chat
     [SHORTCUT_ACTIONS.TAB_DICE]: 'D',       // Dice (Dés)
     [SHORTCUT_ACTIONS.TAB_NOTES]: 'N',      // Notes
+    [SHORTCUT_ACTIONS.QUICK_NOTE]: 'Shift+N', // Quick Notes (saisie rapide)
     [SHORTCUT_ACTIONS.TAB_COMBAT]: 'I',     // Initiative/Combat
 
     // ========== OUTILS DE CARTE PRINCIPAUX ==========

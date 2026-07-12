@@ -332,7 +332,11 @@ function TargetsButton({
     <>
       <Card
         className="h-fit flex-shrink-0 border-2 border-red-900/40 bg-[var(--bg-card)] shadow-md overflow-hidden cursor-pointer hover:brightness-110 transition-[filter]"
-        onClick={() => setIsOpen(true)}
+        onClick={() => {
+          // Une seule cible : sauter directement au détail, pas de sous-menu inutile.
+          if (targetCharacters.length === 1) setSelectedId(targetCharacters[0].id)
+          setIsOpen(true)
+        }}
       >
         <div className="flex items-center gap-2 p-2 sm:p-2.5 bg-red-950/10">
           <div className="flex -space-x-2 shrink-0">
@@ -415,9 +419,11 @@ function TargetsButton({
                   </div>
                 )}
 
-                <Button variant="outline" className="mt-4 border-[var(--border-color)]" onClick={() => setSelectedId(null)}>
-                  <ChevronLeft className="h-4 w-4 mr-2" /> Retour à la liste
-                </Button>
+                {targetCharacters.length > 1 && (
+                  <Button variant="outline" className="mt-4 border-[var(--border-color)]" onClick={() => setSelectedId(null)}>
+                    <ChevronLeft className="h-4 w-4 mr-2" /> Retour à la liste
+                  </Button>
+                )}
               </>
             ) : (
               <>

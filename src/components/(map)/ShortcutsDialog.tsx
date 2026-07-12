@@ -218,6 +218,7 @@ export function ShortcutsDialog({
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_CHAT} label="Chat" />
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_DICE} label="Lanceur de Dés" />
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_NOTES} label="Notes" />
+                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.QUICK_NOTE} label="Note Rapide" />
                             {isMJ && (
                                 <>
                                     <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TAB_COMBAT} label="Tableau de Bord MJ" />
@@ -313,6 +314,9 @@ export function ShortcutsDialog({
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_SETTINGS} label="Paramètres" />
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_BORDERS} label="Bordures Perso" />
                             <ShortcutRecorder actionId={SHORTCUT_ACTIONS.TOOL_BADGES} label="Badges États" />
+                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.UNDO} label="Annuler" />
+                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.REDO} label="Refaire" />
+                            <ShortcutRecorder actionId={SHORTCUT_ACTIONS.OPEN_BUBBLE_MENU} label="Bulle (emoji/texte)" />
                         </div>
                     </div>
                 </div>

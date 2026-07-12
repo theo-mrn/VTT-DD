@@ -8,6 +8,7 @@ import Sidebar from "@/components/(overlays)/Sidebar";
 import GMDashboard from "@/components/(combat)/MJcombat";
 import Component from "@/components/(fiches)/fiche";
 import MedievalNotes from "@/components/Notes";
+import QuickNotes from "@/components/QuickNotes";
 import Competences from "@/components/(competences)/competences";
 import OverlayComponent from "@/components/(overlays)/overlay";
 import { DiceThrower } from "@/components/(dices)/throw";
@@ -174,9 +175,12 @@ export default function Layout({ children }: LayoutProps) {
               {/* ── NOTES (lazy-persistent, all users) ── */}
               {mounted.notes && (
                 <aside className={asideClass("w-full sm:w-[95vw] md:w-[90vw] lg:w-[85vw] xl:w-[1100px]", activeTab === 'NewComponent', "overflow-y-auto")}>
-                  <div className="h-full"><MedievalNotes /></div>
+                  <div className="h-full"><MedievalNotes isActive={activeTab === 'NewComponent'} /></div>
                 </aside>
               )}
+
+              {/* ── QUICK NOTES (toujours monté : écoute Shift+N indépendamment du panneau Notes) ── */}
+              <QuickNotes />
 
               {/* ── CHAT (lazy-persistent, all users) ── */}
               {mounted.chat && (

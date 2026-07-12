@@ -78,10 +78,13 @@ const NOTE_TYPES = [
 
 // --- MAIN COMPONENT ---
 
-function Notes() {
-  const { user, isMJ, persoId: myCharId } = useGame()
+function Notes({ isActive = true }: { isActive?: boolean }) {
+  const { user, isMJ, persoId } = useGame()
   const roomId = user?.roomId ?? null
   const characterId = user?.perso ?? null
+  // Le MJ n'incarne pas de personnage (persoId reste null) : on retombe sur son UID
+  // Firebase Auth comme clé de stockage stable pour ses propres notes privées.
+  const myCharId = persoId || user?.uid || null
 
   // Data
   const [notes, setNotes] = useState<Note[]>([])
@@ -181,9 +184,13 @@ function Notes() {
       setLoading(false)
       return
     }
-    const charPromise = getDoc(doc(db, `cartes/${roomId}/characters`, myCharId)).then(charDoc => {
-      if (charDoc.exists()) setCharacterName(charDoc.data().Nomperso || 'Personnage')
-    })
+    // Le MJ n'a pas de document personnage (myCharId = son UID Auth) : pas de lookup
+    // à faire, on lui donne directement un nom d'affichage fixe.
+    const charPromise = isMJ
+      ? Promise.resolve(setCharacterName('MJ'))
+      : getDoc(doc(db, `cartes/${roomId}/characters`, myCharId)).then(charDoc => {
+        if (charDoc.exists()) setCharacterName(charDoc.data().Nomperso || 'Personnage')
+      })
     const roomCharsPromise = getDocs(collection(db, `cartes/${roomId}/characters`)).then(snap => {
       const players = snap.docs
         .filter(d => d.data().type === 'joueurs' && d.data().Nomperso && d.id !== myCharId)
@@ -196,7 +203,19 @@ function Notes() {
     })
     const notesPromise = loadNotes(roomId, myCharId)
     Promise.all([charPromise, roomCharsPromise, notesPromise]).finally(() => setLoading(false))
-  }, [roomId, myCharId, loadNotes])
+  }, [roomId, myCharId, loadNotes, isMJ])
+
+  // Recharge les notes à chaque fois que l'onglet redevient actif (ex: après avoir créé
+  // une Quick Note ailleurs pendant que ce panneau était masqué en arrière-plan) — le
+  // composant reste monté en continu (voir layout.tsx), donc le premier chargement seul
+  // ne suffit pas à voir apparaître des notes créées pendant que l'onglet était fermé.
+  const wasActiveRef = useRef(isActive)
+  useEffect(() => {
+    if (isActive && !wasActiveRef.current) {
+      loadNotes()
+    }
+    wasActiveRef.current = isActive
+  }, [isActive, loadNotes])
 
   const deleteStorageUrls = async (urls: string[]) => {
     await Promise.allSettled(
