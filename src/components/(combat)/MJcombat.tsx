@@ -1,10 +1,10 @@
 import { useState, useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription, DrawerFooter, DrawerClose } from "@/components/ui/drawer"
-import { Plus, Minus, Dice1, ChevronRight, ChevronLeft, Sword, Skull, Shield, Heart, X, Pencil, Zap, EyeOff, Ghost, Anchor, Flame, Snowflake, Sparkles } from "lucide-react"
+import { Plus, Minus, Dice1, ChevronRight, ChevronLeft, Sword, Skull, Shield, Heart, X, Pencil, Zap, EyeOff, Ghost, Anchor, Flame, Snowflake, Sparkles, Check, type LucideIcon } from "lucide-react"
 import { db, doc, getDoc, onSnapshot, updateDoc, setDoc, deleteDoc, collection, writeBatch } from "@/lib/firebase"
 import { useGame } from '@/contexts/GameContext'
 import { trackDamageDealtByCharacter } from '@/lib/challenge-tracker'
@@ -12,7 +12,6 @@ import { logHistoryEvent } from '@/lib/historiqueTrackerService'
 import { Dialog, DialogTrigger, DialogPortal, DialogOverlay, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog"
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
 import { toast } from 'sonner'
@@ -161,6 +160,299 @@ type AttackReport = {
   attaquant: string
   cible: string
   reportId: string
+  applied: boolean
+}
+
+// Carte compacte réutilisable (Personnage actif / Cible) : avatar + PV + DEF seulement,
+// pour laisser un maximum de place aux rapports d'attaque. Toute la ligne est cliquable
+// et ouvre le détail (stats, conditions) en grand dans un Dialog.
+function CompactCharacterCard({
+  character,
+  accent,
+  label,
+  icon: Icon,
+  onToggleCondition,
+  onAdjustHP,
+}: {
+  character: Character
+  accent: 'brown' | 'red' | 'blue'
+  label: string
+  icon: LucideIcon
+  onToggleCondition: (charId: string, condId: string) => void
+  onAdjustHP: (character: Character) => void
+}) {
+  const [isDetailOpen, setIsDetailOpen] = useState(false)
+
+  const accentClasses = {
+    brown: { border: 'border-[var(--accent-brown)]', bg: 'bg-[var(--accent-brown)]/5', text: 'text-[var(--accent-brown)]' },
+    red: { border: 'border-red-900/40', bg: 'bg-red-950/10', text: 'text-red-500' },
+    blue: { border: 'border-blue-500/50', bg: 'bg-blue-950/10', text: 'text-blue-400' },
+  }[accent]
+
+  return (
+    <>
+      <Card
+        className={`h-fit flex-shrink-0 border-2 ${accentClasses.border} bg-[var(--bg-card)] shadow-md overflow-hidden cursor-pointer hover:brightness-110 transition-[filter]`}
+        onClick={() => setIsDetailOpen(true)}
+      >
+        <div className={`flex items-center gap-2 p-2 sm:p-2.5 ${accentClasses.bg}`}>
+          <Avatar className={`h-10 w-10 shrink-0 border-2 ${accentClasses.border}`}>
+            <AvatarImage src={character.avatar} alt={character.name} className="object-cover" />
+            <AvatarFallback className="bg-[var(--bg-darker)]">{character.name[0]}</AvatarFallback>
+          </Avatar>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-1 mb-0.5">
+              <Icon className={`h-3 w-3 shrink-0 ${accentClasses.text}`} />
+              <span className={`text-[9px] font-bold uppercase tracking-wider truncate ${accentClasses.text}`}>{label}</span>
+            </div>
+            <h2 className="text-sm font-bold text-[var(--text-primary)] truncate">{character.name}</h2>
+          </div>
+
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <div className="flex flex-col items-center">
+              <span className="text-[8px] text-[var(--text-secondary)] font-bold uppercase">DEF</span>
+              <span className="text-xs sm:text-sm font-bold text-[var(--text-primary)]">{character.Defense}</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="text-[8px] text-[var(--text-secondary)] font-bold uppercase">PV</span>
+              <span className="flex items-center gap-0.5 text-xs sm:text-sm font-bold text-[var(--text-primary)]">
+                <Heart className="h-3 w-3 text-red-500 fill-red-500" />
+                {character.pv}
+              </span>
+            </div>
+            <ChevronRight className="h-3.5 w-3.5 text-[var(--text-secondary)]" />
+          </div>
+        </div>
+      </Card>
+
+      <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
+        <DialogPortal>
+          <DialogOverlay className="bg-black/60 backdrop-blur-sm" />
+          <DialogContent className="sm:max-w-2xl bg-[var(--bg-card)] border-[var(--border-color)]">
+            <DialogHeader>
+              <div className="flex items-center gap-4">
+                <Avatar className={`h-16 w-16 shrink-0 border-2 ${accentClasses.border} shadow-md`}>
+                  <AvatarImage src={character.avatar} alt={character.name} className="object-cover" />
+                  <AvatarFallback className="text-xl bg-[var(--bg-darker)]">{character.name[0]}</AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 text-left">
+                  <div className="flex items-center gap-1.5">
+                    <Icon className={`h-4 w-4 shrink-0 ${accentClasses.text}`} />
+                    <span className={`text-xs font-bold uppercase tracking-wider ${accentClasses.text}`}>{label}</span>
+                  </div>
+                  <DialogTitle className="text-2xl truncate">{character.name}</DialogTitle>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className="text-[var(--text-secondary)] border-[var(--border-color)]">
+                      {character.type.toUpperCase()}
+                    </Badge>
+                    {character.currentInit !== undefined && (
+                      <Badge className="bg-[var(--accent-brown)]">INIT: {character.currentInit}</Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </DialogHeader>
+
+            <div className="flex items-stretch gap-3 mt-2">
+              <div className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] py-3">
+                <Shield className="h-5 w-5 text-[var(--text-secondary)]" />
+                <span className="text-xs text-[var(--text-secondary)] uppercase font-bold">DEF</span>
+                <span className="text-2xl font-bold text-[var(--text-primary)]">{character.Defense}</span>
+              </div>
+              <button
+                onClick={() => onAdjustHP(character)}
+                className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] py-3 hover:brightness-110 transition-[filter]"
+              >
+                <Heart className="h-5 w-5 text-red-500 fill-red-500" />
+                <span className="text-2xl font-bold text-[var(--text-primary)]">{character.pv}</span>
+                <Pencil className="h-3.5 w-3.5 text-[var(--text-secondary)] opacity-60" />
+              </button>
+            </div>
+
+            <div className="mt-3">
+              <ConditionManager character={character} onToggle={onToggleCondition} />
+            </div>
+
+            {character.stats && (
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-3">
+                {Object.entries(character.stats).map(([stat, value]) => {
+                  const mod = Math.floor(((value as number) - 10) / 2)
+                  const modString = mod >= 0 ? `+${mod}` : `${mod}`
+                  return (
+                    <div key={stat} className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded p-2 text-center">
+                      <div className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] font-bold">{stat}</div>
+                      <div className="font-mono font-bold text-sm text-[var(--text-primary)]">
+                        {value} <span className="text-[10px] text-[var(--text-secondary)]">({modString})</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </DialogContent>
+        </DialogPortal>
+      </Dialog>
+    </>
+  )
+}
+
+// Bouton compact listant toutes les cibles distinctes des rapports d'attaque en cours.
+// Ouvre un Dialog avec un menu de sélection ; cliquer une cible bascule le MÊME dialog
+// vers sa vue détail (stats/conditions), avec un bouton Retour vers la liste — jamais
+// de nouvelle carte dans la pile de droite.
+function TargetsButton({
+  attackReports,
+  characters,
+  onToggleCondition,
+  onAdjustHP,
+}: {
+  attackReports: AttackReport[]
+  characters: Character[]
+  onToggleCondition: (charId: string, condId: string) => void
+  onAdjustHP: (character: Character) => void
+}) {
+  const [isOpen, setIsOpen] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  const targetCharacters = Array.from(new Set(attackReports.map(r => r.cible).filter(Boolean)))
+    .map(id => characters.find(c => c.id === id))
+    .filter((c): c is Character => !!c)
+
+  if (targetCharacters.length === 0) return null
+
+  const selectedCharacter = targetCharacters.find(c => c.id === selectedId) || null
+
+  const handleOpenChange = (open: boolean) => {
+    setIsOpen(open)
+    if (!open) setSelectedId(null)
+  }
+
+  return (
+    <>
+      <Card
+        className="h-fit flex-shrink-0 border-2 border-red-900/40 bg-[var(--bg-card)] shadow-md overflow-hidden cursor-pointer hover:brightness-110 transition-[filter]"
+        onClick={() => setIsOpen(true)}
+      >
+        <div className="flex items-center gap-2 p-2 sm:p-2.5 bg-red-950/10">
+          <div className="flex -space-x-2 shrink-0">
+            {targetCharacters.slice(0, 4).map((c, i) => (
+              <Avatar key={c.id} className="h-8 w-8 border-2 border-[var(--bg-card)]" style={{ zIndex: targetCharacters.length - i }}>
+                <AvatarImage src={c.avatar} alt={c.name} className="object-cover" />
+                <AvatarFallback className="text-xs bg-[var(--bg-darker)]">{c.name[0]}</AvatarFallback>
+              </Avatar>
+            ))}
+          </div>
+          <div className="flex-1 min-w-0 flex items-center gap-1.5">
+            <Skull className="h-3.5 w-3.5 shrink-0 text-red-500" />
+            <span className="text-sm font-bold text-[var(--text-primary)] truncate">
+              {targetCharacters.length > 1 ? `Cibles (${targetCharacters.length})` : `Cible : ${targetCharacters[0].name}`}
+            </span>
+          </div>
+          <ChevronRight className="h-3.5 w-3.5 text-[var(--text-secondary)] shrink-0" />
+        </div>
+      </Card>
+
+      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+        <DialogPortal>
+          <DialogOverlay className="bg-black/60 backdrop-blur-sm" />
+          <DialogContent className="sm:max-w-md bg-[var(--bg-card)] border-[var(--border-color)]">
+            {selectedCharacter ? (
+              <>
+                <DialogHeader>
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-16 w-16 shrink-0 border-2 border-red-900/40 shadow-md">
+                      <AvatarImage src={selectedCharacter.avatar} alt={selectedCharacter.name} className="object-cover" />
+                      <AvatarFallback className="text-xl bg-[var(--bg-darker)]">{selectedCharacter.name[0]}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0 text-left">
+                      <div className="flex items-center gap-1.5">
+                        <Skull className="h-4 w-4 shrink-0 text-red-500" />
+                        <span className="text-xs font-bold uppercase tracking-wider text-red-500">Cible</span>
+                      </div>
+                      <DialogTitle className="text-2xl truncate">{selectedCharacter.name}</DialogTitle>
+                      <Badge variant="outline" className="text-[var(--text-secondary)] border-[var(--border-color)] mt-1">
+                        {selectedCharacter.type.toUpperCase()}
+                      </Badge>
+                    </div>
+                  </div>
+                </DialogHeader>
+
+                <div className="flex items-stretch gap-3 mt-2">
+                  <div className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] py-3">
+                    <Shield className="h-5 w-5 text-[var(--text-secondary)]" />
+                    <span className="text-xs text-[var(--text-secondary)] uppercase font-bold">DEF</span>
+                    <span className="text-2xl font-bold text-[var(--text-primary)]">{selectedCharacter.Defense}</span>
+                  </div>
+                  <button
+                    onClick={() => onAdjustHP(selectedCharacter)}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] py-3 hover:brightness-110 transition-[filter]"
+                  >
+                    <Heart className="h-5 w-5 text-red-500 fill-red-500" />
+                    <span className="text-2xl font-bold text-[var(--text-primary)]">{selectedCharacter.pv}</span>
+                    <Pencil className="h-3.5 w-3.5 text-[var(--text-secondary)] opacity-60" />
+                  </button>
+                </div>
+
+                <div className="mt-3">
+                  <ConditionManager character={selectedCharacter} onToggle={onToggleCondition} />
+                </div>
+
+                {selectedCharacter.stats && (
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mt-3">
+                    {Object.entries(selectedCharacter.stats).map(([stat, value]) => {
+                      const mod = Math.floor(((value as number) - 10) / 2)
+                      const modString = mod >= 0 ? `+${mod}` : `${mod}`
+                      return (
+                        <div key={stat} className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded p-2 text-center">
+                          <div className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] font-bold">{stat}</div>
+                          <div className="font-mono font-bold text-sm text-[var(--text-primary)]">
+                            {value} <span className="text-[10px] text-[var(--text-secondary)]">({modString})</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                <Button variant="outline" className="mt-4 border-[var(--border-color)]" onClick={() => setSelectedId(null)}>
+                  <ChevronLeft className="h-4 w-4 mr-2" /> Retour à la liste
+                </Button>
+              </>
+            ) : (
+              <>
+                <DialogHeader>
+                  <DialogTitle>Cibles de l'attaque</DialogTitle>
+                </DialogHeader>
+                <div className="flex flex-col gap-2 mt-2">
+                  {targetCharacters.map(c => (
+                    <button
+                      key={c.id}
+                      onClick={() => setSelectedId(c.id)}
+                      className="flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] hover:border-red-500/50 transition-colors text-left"
+                    >
+                      <Avatar className="h-10 w-10 border border-[var(--border-color)]">
+                        <AvatarImage src={c.avatar} alt={c.name} className="object-cover" />
+                        <AvatarFallback>{c.name[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate text-[var(--text-primary)]">{c.name}</div>
+                        <div className="text-xs text-[var(--text-secondary)] flex items-center gap-2">
+                          <span className="flex items-center gap-1"><Heart className="h-3 w-3" /> {c.pv}</span>
+                          <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> {c.Defense}</span>
+                        </div>
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-[var(--text-secondary)]" />
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </DialogContent>
+        </DialogPortal>
+      </Dialog>
+    </>
+  )
 }
 
 export function GMDashboard() {
@@ -341,7 +633,8 @@ export function GMDashboard() {
             degat_result: data.degat_result || 0,
             attaquant: data.attaquant || "",
             cible: data.cible || "",
-            reportId: doc.id
+            reportId: doc.id,
+            applied: data.applied === true,
           }
         })
 
@@ -354,7 +647,7 @@ export function GMDashboard() {
     fetchAttackReports()
   }, [roomId, characters])
 
-  const applyDamage = async (targetId: string, damage: number, attackerPersoId?: string, weaponUsed?: string) => {
+  const applyDamage = async (targetId: string, damage: number, attackerPersoId?: string, weaponUsed?: string, options?: { silent?: boolean, skipDeathConfirm?: boolean }) => {
     const targetCharacter = characters.find(char => char.id === targetId)
     if (!targetCharacter || !roomId) return
 
@@ -375,10 +668,12 @@ export function GMDashboard() {
         )
       }
 
-      toast.success('Dégâts appliqués', {
-        description: `${targetCharacter.name} : -${damage} PV (${newPv} PV restants)`,
-        duration: 2000,
-      })
+      if (!options?.silent) {
+        toast.success('Dégâts appliqués', {
+          description: `${targetCharacter.name} : -${damage} PV (${newPv} PV restants)`,
+          duration: 2000,
+        })
+      }
 
       const attacker = attackerPersoId ? characters.find(c => c.id === attackerPersoId) : undefined
       const attackerName = attacker?.name || 'Quelqu\'un'
@@ -417,16 +712,108 @@ export function GMDashboard() {
         })
       }
 
-      if (newPv <= 0 && targetCharacter.type !== 'joueurs') {
+      if (newPv <= 0 && targetCharacter.type !== 'joueurs' && !options?.skipDeathConfirm) {
         confirmDeleteCharacter(targetCharacter)
       }
     } catch (error) {
       console.error("Erreur lors de l'application des dégâts :", error)
-      toast.error('Erreur', {
-        description: "Impossible d'appliquer les dégâts.",
-        duration: 3000,
-      })
+      if (!options?.silent) {
+        toast.error('Erreur', {
+          description: "Impossible d'appliquer les dégâts.",
+          duration: 3000,
+        })
+      }
     }
+  }
+
+  const [isBulkDeathDialogOpen, setIsBulkDeathDialogOpen] = useState(false)
+  const [bulkDeathCandidates, setBulkDeathCandidates] = useState<Character[]>([])
+  const [bulkDeathSelectedIds, setBulkDeathSelectedIds] = useState<Set<string>>(new Set())
+  const [isApplyingAll, setIsApplyingAll] = useState(false)
+
+  // Revue groupée avant application : liste tous les rapports en attente avec leurs
+  // dégâts pré-remplis (valeur roulée), mais modifiables individuellement — le MJ peut
+  // corriger une résistance/vulnérabilité ponctuelle avant de valider le lot en un clic.
+  const [isBulkReviewOpen, setIsBulkReviewOpen] = useState(false)
+  const [bulkReviewDamages, setBulkReviewDamages] = useState<Record<string, number>>({})
+  const [bulkReviewSelectedIds, setBulkReviewSelectedIds] = useState<Set<string>>(new Set())
+
+  const openBulkReview = () => {
+    const pendingReports = attackReports.filter(r => !r.applied)
+    if (pendingReports.length === 0) return
+
+    setBulkReviewDamages(Object.fromEntries(pendingReports.map(r => [r.reportId, r.degat_result])))
+    setBulkReviewSelectedIds(new Set(pendingReports.map(r => r.reportId)))
+    setIsBulkReviewOpen(true)
+  }
+
+  // Applique tous les rapports sélectionnés dans la revue groupée, avec les dégâts
+  // éventuellement ajustés, sans repasser par le drawer individuel. Les morts (PNJ à
+  // 0 PV) ne déclenchent pas un dialog de confirmation par personnage — elles sont
+  // regroupées dans un seul dialog récapitulatif à la fin, pour ne pas enchaîner N popups.
+  const applyAllPendingDamage = async () => {
+    if (!roomId || isApplyingAll) return
+    const pendingReports = attackReports.filter(r => !r.applied && bulkReviewSelectedIds.has(r.reportId))
+    if (pendingReports.length === 0) return
+
+    setIsApplyingAll(true)
+    const deaths: Character[] = []
+
+    try {
+      for (const report of pendingReports) {
+        const damage = bulkReviewDamages[report.reportId] ?? report.degat_result
+        const targetCharacter = characters.find(c => c.id === report.cible)
+        if (targetCharacter) {
+          const willDie = targetCharacter.type !== 'joueurs' && (targetCharacter.pv - damage) <= 0
+          if (willDie) deaths.push({ ...targetCharacter, pv: 0 })
+        }
+
+        await applyDamage(report.cible, damage, report.attaquant, report.arme_utilisée, {
+          silent: true,
+          skipDeathConfirm: true,
+        })
+
+        try {
+          const reportRef = doc(db, `cartes/${roomId}/combat/${report.attaquant}/rapport/${report.reportId}`)
+          await updateDoc(reportRef, { applied: true, degat_result: damage })
+        } catch (error) {
+          console.error("Erreur lors du marquage du rapport comme appliqué :", error)
+        }
+      }
+
+      toast.success('Dégâts appliqués', {
+        description: `${pendingReports.length} rapport${pendingReports.length > 1 ? 's' : ''} traité${pendingReports.length > 1 ? 's' : ''}.`,
+        duration: 2500,
+      })
+
+      setIsBulkReviewOpen(false)
+
+      if (deaths.length > 0) {
+        setBulkDeathCandidates(deaths)
+        setBulkDeathSelectedIds(new Set(deaths.map(d => d.id)))
+        setIsBulkDeathDialogOpen(true)
+      }
+    } finally {
+      setIsApplyingAll(false)
+    }
+  }
+
+  const confirmBulkDeaths = async () => {
+    if (!roomId) return
+    const toDelete = bulkDeathCandidates.filter(c => bulkDeathSelectedIds.has(c.id))
+
+    for (const character of toDelete) {
+      const combatRef = collection(db, `cartes/${roomId}/combat/${character.id}/rapport`)
+      const reportsToDelete = attackReports.filter(report => report.attaquant === character.id)
+      for (const report of reportsToDelete) {
+        await deleteDoc(doc(combatRef, report.reportId))
+      }
+      await deleteDoc(doc(db, `cartes/${roomId}/characters/${character.id}`))
+    }
+
+    setIsBulkDeathDialogOpen(false)
+    setBulkDeathCandidates([])
+    setBulkDeathSelectedIds(new Set())
   }
 
   const rerollInitiative = async () => {
@@ -614,6 +1001,14 @@ export function GMDashboard() {
   const applyManualDamage = async () => {
     if (selectedAttack && selectedTarget && roomId) {
       await applyDamage(selectedTarget, damageChange, selectedAttack.attaquant, selectedAttack.arme_utilisée)
+
+      try {
+        const reportRef = doc(db, `cartes/${roomId}/combat/${selectedAttack.attaquant}/rapport/${selectedAttack.reportId}`)
+        await updateDoc(reportRef, { applied: true })
+      } catch (error) {
+        console.error("Erreur lors du marquage du rapport comme appliqué :", error)
+      }
+
       setIsOtherDrawerOpen(false)
     }
   }
@@ -884,287 +1279,158 @@ export function GMDashboard() {
         </div>
 
         {/* Right Column: Target & Active Character */}
-        <div className="lg:col-span-7 flex flex-col gap-4 min-h-0">
+        <div className="lg:col-span-7 flex flex-col gap-3 min-h-0">
 
-          {/* Viewed Character Panel (if selected) */}
-          {viewedCharacter && (
-            <Card className="h-fit flex flex-col border-blue-500/50 border-2 bg-[var(--bg-card)] shadow-lg overflow-hidden relative">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-2 right-2 h-6 w-6 z-10 hover:bg-red-500/20 hover:text-red-500"
-                onClick={() => setViewedCharacter(null)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-              <CardHeader className="pb-2 bg-blue-950/10">
-                <div className="flex items-center gap-3 sm:gap-4 pr-8">
-                  <Avatar className="h-12 w-12 sm:h-16 sm:w-16 shrink-0 border-2 border-blue-500/50 shadow-md">
-                    <AvatarImage src={viewedCharacter.avatar} alt={viewedCharacter.name} className="object-cover" />
-                    <AvatarFallback className="text-xl bg-[var(--bg-darker)]">{viewedCharacter.name[0]}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-base sm:text-xl font-bold text-[var(--text-primary)] truncate">{viewedCharacter.name}</h2>
-                        </div>
-                        <div className="flex gap-2 mt-1">
-                          <Badge variant="outline" className="text-[var(--text-secondary)] border-blue-500/30">
-                            {viewedCharacter.type.toUpperCase()}
-                          </Badge>
-                          <Badge className="bg-blue-900/50 text-blue-200 hover:bg-blue-900/70">
-                            INIT: {viewedCharacter.currentInit}
-                          </Badge>
+          {/* Compact character cards: viewed (full-width, if any) then target + active side by side */}
+          <div className="flex flex-col gap-2 shrink-0">
+            {viewedCharacter && (
+              <div className="relative">
+                <CompactCharacterCard
+                  character={viewedCharacter}
+                  accent="blue"
+                  label="Consulté"
+                  icon={Ghost}
+                  onToggleCondition={toggleCondition}
+                  onAdjustHP={openDrawer}
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-1.5 right-10 h-6 w-6 z-10 hover:bg-red-500/20 hover:text-red-500"
+                  onClick={() => setViewedCharacter(null)}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
 
-                          {/* CONDITIONS TOGGLE & LIST */}
-                          <ConditionManager character={viewedCharacter} onToggle={toggleCondition} />
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="flex items-center justify-end gap-3">
-                          <div className="flex flex-col items-center">
-                            <span className="text-xs text-[var(--text-secondary)] font-bold uppercase">DEF</span>
-                            <span className="text-xl font-bold text-[var(--text-primary)]">{viewedCharacter.Defense}</span>
-                          </div>
-                          <div className="h-8 w-px bg-[var(--border-color)]"></div>
-                          <div className="flex flex-col items-end">
-                            <div className="flex items-center gap-1 text-xl font-bold text-[var(--text-primary)]">
-                              <Heart className="h-5 w-5 text-red-500 fill-red-500" />
-                              {viewedCharacter.pv}
-                            </div>
-                            <Button variant="link" className="text-blue-400 p-0 h-auto text-xs" onClick={() => openDrawer(viewedCharacter)}>
-                              Ajuster PV
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
+            <TargetsButton
+              attackReports={attackReports}
+              characters={characters}
+              onToggleCondition={toggleCondition}
+              onAdjustHP={openDrawer}
+            />
+
+            {activeCharacter && (
+              <CompactCharacterCard
+                character={activeCharacter}
+                accent="brown"
+                label="Personnage actif"
+                icon={Sword}
+                onToggleCondition={toggleCondition}
+                onAdjustHP={openDrawer}
+              />
+            )}
+          </div>
+
+          {/* Attack Reports — gets all remaining space */}
+          <Card className="flex-1 min-h-0 flex flex-col border-[var(--border-color)] shadow-md overflow-hidden">
+            <CardHeader className="pb-2 border-b border-[var(--border-color)]">
+              <CardTitle className="text-base flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2">
+                  <Sword className="h-4 w-4 text-[var(--text-secondary)]" />
+                  Rapports d'Attaque
+                </span>
+                {attackReports.length > 0 && (() => {
+                  const pendingCount = attackReports.filter(r => !r.applied).length
+                  return (
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-xs font-normal text-[var(--text-secondary)]">
+                        {attackReports.length - pendingCount}/{attackReports.length} appliqués
+                      </span>
+                      {pendingCount > 0 && (
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs bg-[var(--accent-brown)] text-[var(--bg-darker)] hover:opacity-90"
+                          onClick={openBulkReview}
+                        >
+                          Tout appliquer ({pendingCount})
+                        </Button>
+                      )}
                     </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-4 pb-4">
-                <div className="grid grid-cols-6 gap-2">
-                  {viewedCharacter.stats && Object.entries(viewedCharacter.stats).map(([stat, value]) => {
-                    const mod = Math.floor(((value as number) - 10) / 2)
-                    const modString = mod >= 0 ? `+${mod}` : `${mod}`
-                    return (
-                      <div key={stat} className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded p-1 text-center">
-                        <div className="text-[9px] uppercase tracking-wider text-[var(--text-secondary)] font-bold">{stat}</div>
-                        <div className="font-mono font-bold text-sm text-[var(--text-primary)]">
-                          {value} <span className="text-[10px] text-[var(--text-secondary)]">({modString})</span>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                  )
+                })()}
+              </CardTitle>
+            </CardHeader>
+            <ScrollArea className="flex-1 p-4">
+              {attackReports.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {attackReports.map((report) => (
+                    <div
+                      key={report.reportId}
+                      className={`relative flex flex-col overflow-hidden rounded-xl border bg-[var(--bg-card)] shadow-sm transition-colors ${report.applied
+                        ? 'border-[var(--border-color)] opacity-55'
+                        : report.réussite
+                          ? 'border-[var(--accent-brown)]/40'
+                          : 'border-[var(--border-color)]'
+                        }`}
+                    >
+                      {/* Status rail */}
+                      <div className={`absolute left-0 top-0 h-full w-1 ${report.applied ? 'bg-[var(--text-secondary)]/30' : report.réussite ? 'bg-[var(--accent-brown)]' : 'bg-[var(--text-secondary)]/40'}`} />
 
-          {/* Target Panel (if exists) */}
-          {(() => {
-            const targetId = attackReports[0]?.cible
-            const targetCharacter = characters.find(c => c.id === targetId)
-
-            if (!targetCharacter) return null
-
-            return (
-              <Card className="h-fit flex flex-col border-red-900/30 border-2 bg-[var(--bg-card)] shadow-lg overflow-hidden">
-                <CardHeader className="pb-2 bg-red-950/10">
-                  <div className="flex items-center gap-3 sm:gap-4">
-                    <Avatar className="h-12 w-12 sm:h-16 sm:w-16 shrink-0 border-2 border-red-900/30 shadow-md">
-                      <AvatarImage src={targetCharacter.avatar} alt={targetCharacter.name} className="object-cover" />
-                      <AvatarFallback className="text-xl bg-[var(--bg-darker)]">{targetCharacter.name[0]}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                      <div className="flex items-start justify-between gap-2 px-4 pt-3.5 pl-5">
                         <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <Skull className="h-4 w-4 text-red-500 shrink-0" />
-                            <h2 className="text-base sm:text-xl font-bold text-[var(--text-primary)] truncate">Cible: {targetCharacter.name}</h2>
+                          <div className="flex items-center gap-1.5 text-[var(--text-primary)]">
+                            <Sword className="h-3.5 w-3.5 shrink-0 text-[var(--accent-brown)]" />
+                            <span className="font-semibold text-sm truncate">{report.arme_utilisée}</span>
                           </div>
-                          <div className="flex flex-col gap-2 mt-1">
-                            <Badge variant="outline" className="text-[var(--text-secondary)] border-red-900/30 w-fit">
-                              {targetCharacter.type.toUpperCase()}
-                            </Badge>
-                            <ConditionManager character={targetCharacter} onToggle={toggleCondition} />
+                          <div className="text-xs text-[var(--text-secondary)] truncate mt-0.5">
+                            Cible <span className="text-[var(--text-primary)] font-medium">{report.cible_nom}</span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className="flex items-center justify-end gap-3">
-                            <div className="flex flex-col items-center">
-                              <span className="text-xs text-[var(--text-secondary)] font-bold uppercase">DEF</span>
-                              <span className="text-xl font-bold text-[var(--text-primary)]">{targetCharacter.Defense}</span>
-                            </div>
-                            <div className="h-8 w-px bg-[var(--border-color)]"></div>
-                            <div className="flex flex-col items-end">
-                              <Button
-                                variant="ghost"
-                                className="flex items-center gap-2 h-auto p-1 px-2 hover:bg-white/5 -mr-2"
-                                onClick={() => openDrawer(targetCharacter)}
-                              >
-                                <Heart className="h-5 w-5 text-red-500 fill-red-500" />
-                                <span className="text-xl font-bold text-[var(--text-primary)]">{targetCharacter.pv}</span>
-                                <Pencil className="h-3 w-3 text-[var(--text-secondary)] opacity-50 ml-1" />
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-4 pb-4">
-                  {/* Target Stats */}
-                  <div className="grid grid-cols-6 gap-2">
-                    {targetCharacter.stats && Object.entries(targetCharacter.stats).map(([stat, value]) => {
-                      const mod = Math.floor(((value as number) - 10) / 2)
-                      const modString = mod >= 0 ? `+${mod}` : `${mod}`
-                      return (
-                        <div key={stat} className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded p-1 text-center">
-                          <div className="text-[9px] uppercase tracking-wider text-[var(--text-secondary)] font-bold">{stat}</div>
-                          <div className="font-mono font-bold text-sm text-[var(--text-primary)]">
-                            {value} <span className="text-[10px] text-[var(--text-secondary)]">({modString})</span>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })()}
 
-          {/* Active Character Panel */}
-          {activeCharacter ? (
-            <Card className="flex-1 min-h-0 flex flex-col border-[var(--accent-brown)] border-2 bg-[var(--bg-card)] shadow-lg overflow-hidden">
-              <CardHeader className="pb-2 bg-[var(--accent-brown)]/5">
-                <div className="flex items-center gap-3 sm:gap-4">
-                  <Avatar className="h-14 w-14 sm:h-20 sm:w-20 shrink-0 border-2 border-[var(--accent-brown)] shadow-md">
-                    <AvatarImage src={activeCharacter.avatar} alt={activeCharacter.name} className="object-cover" />
-                    <AvatarFallback className="text-2xl bg-[var(--bg-darker)]">{activeCharacter.name[0]}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <Sword className="h-5 w-5 text-[var(--accent-brown)] shrink-0" />
-                          <h2 className="text-lg sm:text-2xl font-bold text-[var(--text-primary)] truncate">{activeCharacter.name}</h2>
+                        <span
+                          className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${report.réussite
+                            ? 'bg-[var(--accent-brown)]/15 text-[var(--accent-brown)]'
+                            : 'bg-[var(--text-secondary)]/15 text-[var(--text-secondary)]'
+                            }`}
+                        >
+                          {report.réussite ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
+                          {report.réussite ? 'Touché' : 'Manqué'}
+                        </span>
+                      </div>
+
+                      {report.attaquant === report.cible && (
+                        <div className="mx-4 mt-2 ml-5 flex items-center justify-center gap-1.5 rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1 text-[11px] font-bold text-red-400">
+                          <Skull className="h-3 w-3" />
+                          AUTO-ATTAQUE
                         </div>
-                        <div className="flex flex-col gap-2 mt-1">
-                          <div className="flex gap-2">
-                            <Badge variant="outline" className="text-[var(--text-secondary)] border-[var(--border-color)]">
-                              {activeCharacter.type.toUpperCase()}
-                            </Badge>
-                            <Badge className="bg-[var(--accent-brown)] hover:bg-[var(--accent-brown)]/90">
-                              INIT: {activeCharacter.currentInit}
-                            </Badge>
-                          </div>
-                          <ConditionManager character={activeCharacter} onToggle={toggleCondition} />
+                      )}
+
+                      <div className="grid grid-cols-2 gap-2 px-4 pl-5 py-3">
+                        <div className="rounded-lg bg-[var(--bg-dark)] px-2.5 py-1.5 text-center">
+                          <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">Jet</div>
+                          <div className="font-mono tabular-nums font-bold text-base text-[var(--text-primary)]">{report.attaque_result}</div>
+                        </div>
+                        <div className="rounded-lg bg-[var(--bg-dark)] px-2.5 py-1.5 text-center">
+                          <div className="text-[9px] font-bold uppercase tracking-wider text-[var(--text-secondary)]">Dégâts</div>
+                          <div className="font-mono tabular-nums font-bold text-base text-red-400">{report.degat_result}</div>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <div className="flex items-center justify-end gap-4">
-                          <div className="flex flex-col items-center">
-                            <span className="text-xs text-[var(--text-secondary)] font-bold uppercase">DEF</span>
-                            <span className="text-2xl font-bold text-[var(--text-primary)]">{activeCharacter.Defense}</span>
-                          </div>
-                          <div className="h-10 w-px bg-[var(--border-color)]"></div>
-                          <div className="flex flex-col items-end">
-                            <Button
-                              variant="ghost"
-                              className="flex items-center gap-2 h-auto p-1 px-2 hover:bg-white/5 -mr-2"
-                              onClick={() => openDrawer(activeCharacter)}
-                            >
-                              <Heart className="h-6 w-6 text-red-500 fill-red-500" />
-                              <span className="text-2xl font-bold text-[var(--text-primary)]">{activeCharacter.pv}</span>
-                              <Pencil className="h-4 w-4 text-[var(--text-secondary)] opacity-50 ml-1" />
-                            </Button>
-                          </div>
+
+                      {report.applied ? (
+                        <div className="mx-4 mb-3 ml-5 flex items-center justify-center gap-1.5 rounded-lg border border-[var(--border-color)] py-2 text-xs font-bold text-[var(--text-secondary)]">
+                          <Check className="h-3.5 w-3.5" />
+                          Appliqué
                         </div>
-                      </div>
+                      ) : (
+                        <button
+                          onClick={() => openOtherDrawer(report)}
+                          className="mx-4 mb-3 ml-5 rounded-lg bg-[var(--accent-brown)] py-2 text-xs font-bold text-[var(--bg-darker)] transition-opacity hover:opacity-90"
+                        >
+                          Appliquer
+                        </button>
+                      )}
                     </div>
-                  </div>
+                  ))}
                 </div>
-              </CardHeader>
-
-              <CardContent className="pt-4 px-3 sm:px-6 flex-1 flex flex-col gap-4 overflow-y-auto">
-                {/* Active Stats Section */}
-                <div className="grid grid-cols-6 gap-2">
-                  {activeCharacter.stats && Object.entries(activeCharacter.stats).map(([stat, value]) => {
-                    const mod = Math.floor(((value as number) - 10) / 2)
-                    const modString = mod >= 0 ? `+${mod}` : `${mod}`
-                    return (
-                      <div key={stat} className="bg-[var(--bg-dark)] border border-[var(--border-color)] rounded p-2 text-center">
-                        <div className="text-[10px] uppercase tracking-wider text-[var(--text-secondary)] font-bold">{stat}</div>
-                        <div className="font-mono font-bold text-[var(--text-primary)]">
-                          {value} <span className="text-xs text-[var(--text-secondary)]">({modString})</span>
-                        </div>
-                      </div>
-                    )
-                  })}
+              ) : (
+                <div className="text-center py-6 text-[var(--text-secondary)] bg-[var(--bg-dark)]/50 rounded-lg border border-dashed border-[var(--border-color)] text-sm">
+                  Aucune attaque enregistrée.
                 </div>
-
-                <Separator className="bg-[var(--border-color)]" />
-
-                <div className="flex-1">
-                  <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
-                    <Sword className="h-4 w-4 text-[var(--text-secondary)]" />
-                    Rapports d'Attaque
-                  </h3>
-                  {attackReports.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {attackReports.map((report) => (
-                        <Card key={report.reportId} className="bg-[var(--bg-dark)] border-[var(--border-color)]">
-                          <CardHeader className="p-3 pb-1">
-                            <CardTitle className="text-sm flex justify-between items-center">
-                              <span className="truncate">{report.arme_utilisée}</span>
-                              <Badge variant={report.réussite ? "default" : "destructive"} className="text-xs px-1.5 py-0">
-                                {report.réussite ? "Touché" : "Manqué"}
-                              </Badge>
-                            </CardTitle>
-                            <CardDescription className="text-xs truncate">
-                              Cible: <span className="text-[var(--text-primary)] font-medium">{report.cible_nom}</span>
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent className="p-3 pt-1 text-xs">
-                            {report.attaquant === report.cible && (
-                              <div className="mb-2 bg-red-500/20 text-red-500 border border-red-500/50 rounded px-2 py-1 font-bold text-center flex items-center justify-center gap-2">
-                                <Skull className="h-3 w-3" />
-                                AUTO-ATTAQUE
-                              </div>
-                            )}
-                            <div className="flex justify-between mb-1">
-                              <span className="text-[var(--text-secondary)]">Jet:</span>
-                              <span className="font-mono font-bold">{report.attaque_result}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-[var(--text-secondary)]">Dégâts:</span>
-                              <span className="font-mono font-bold text-red-400">{report.degat_result}</span>
-                            </div>
-                          </CardContent>
-                          <CardFooter className="p-3 pt-0">
-                            <Button size="sm" className="w-full h-7 text-xs button-secondary" onClick={() => openOtherDrawer(report)}>
-                              Appliquer
-                            </Button>
-                          </CardFooter>
-                        </Card>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-6 text-[var(--text-secondary)] bg-[var(--bg-dark)]/50 rounded-lg border border-dashed border-[var(--border-color)] text-sm">
-                      Aucune attaque enregistrée.
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-[var(--text-secondary)] border-2 border-dashed border-[var(--border-color)] rounded-xl">
-              Aucun personnage actif
-            </div>
-          )}
+              )}
+            </ScrollArea>
+          </Card>
         </div>
       </div>
 
@@ -1250,6 +1516,177 @@ export function GMDashboard() {
             <DialogFooter>
               <Button variant="ghost" onClick={() => setIsConfirmDialogOpen(false)}>Annuler</Button>
               <Button variant="destructive" onClick={handleDeleteCharacter}>Supprimer</Button>
+            </DialogFooter>
+          </DialogContent>
+        </DialogPortal>
+      </Dialog>
+
+      {/* Revue groupée avant application : liste des rapports en attente, dégâts
+          modifiables et désélectionnables individuellement, validés en un clic. */}
+      <Dialog open={isBulkReviewOpen} onOpenChange={setIsBulkReviewOpen}>
+        <DialogPortal>
+          <DialogOverlay className="bg-black/50 backdrop-blur-sm" />
+          <DialogContent className="sm:max-w-xl bg-[var(--bg-card)] border-[var(--border-color)]">
+            <div className="flex flex-col gap-5">
+              <DialogHeader>
+                <DialogTitle className="text-[var(--text-primary)]">
+                  Appliquer {bulkReviewSelectedIds.size} rapport{bulkReviewSelectedIds.size > 1 ? 's' : ''}
+                </DialogTitle>
+                <DialogDescription className="text-[var(--text-secondary)] mt-1">
+                  Ajustez les dégâts si besoin, décochez ce qu'il ne faut pas appliquer.
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* Ajustement global : applique un delta à tous les rapports sélectionnés
+                  (ex : -1 pour tout le monde après une résistance de zone), en plus des
+                  champs individuels ci-dessous. */}
+              <div className="flex items-center justify-between gap-4 rounded-xl bg-[var(--bg-dark)] border border-[var(--border-color)] px-4 py-3.5">
+                <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-secondary)]">
+                  Ajustement global
+                </span>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 border-[var(--border-color)]"
+                    onClick={() => {
+                      setBulkReviewDamages(prev => {
+                        const next = { ...prev }
+                        bulkReviewSelectedIds.forEach(id => {
+                          next[id] = Math.max(0, (next[id] ?? 0) - 1)
+                        })
+                        return next
+                      })
+                    }}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </Button>
+                  <span className="w-8 text-center text-sm text-[var(--text-secondary)]">±1</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 border-[var(--border-color)]"
+                    onClick={() => {
+                      setBulkReviewDamages(prev => {
+                        const next = { ...prev }
+                        bulkReviewSelectedIds.forEach(id => {
+                          next[id] = (next[id] ?? 0) + 1
+                        })
+                        return next
+                      })
+                    }}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 max-h-96 overflow-y-auto pr-1">
+                {attackReports.filter(r => !r.applied).map(report => {
+                  const isSelected = bulkReviewSelectedIds.has(report.reportId)
+                  return (
+                    <div
+                      key={report.reportId}
+                      className={`flex items-center gap-4 p-4 rounded-xl bg-[var(--bg-dark)] border border-[var(--border-color)] transition-opacity ${!isSelected ? 'opacity-50' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={(e) => {
+                          setBulkReviewSelectedIds(prev => {
+                            const next = new Set(prev)
+                            if (e.target.checked) next.add(report.reportId)
+                            else next.delete(report.reportId)
+                            return next
+                          })
+                        }}
+                        className="h-4 w-4 accent-[var(--accent-brown)] shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm text-[var(--text-primary)] truncate">{report.cible_nom}</div>
+                        <div className="text-xs text-[var(--text-secondary)] truncate mt-0.5">{report.arme_utilisée}</div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+                        <Input
+                          type="number"
+                          disabled={!isSelected}
+                          value={bulkReviewDamages[report.reportId] ?? report.degat_result}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value) || 0
+                            setBulkReviewDamages(prev => ({ ...prev, [report.reportId]: val }))
+                          }}
+                          className="h-9 w-20 text-center bg-[var(--bg-card)] border-[var(--border-color)] font-mono tabular-nums"
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <DialogFooter className="pt-1">
+                <Button variant="ghost" onClick={() => setIsBulkReviewOpen(false)}>Annuler</Button>
+                <Button
+                  disabled={isApplyingAll || bulkReviewSelectedIds.size === 0}
+                  onClick={applyAllPendingDamage}
+                  className="bg-[var(--accent-brown)] text-[var(--bg-darker)] hover:opacity-90"
+                >
+                  {isApplyingAll ? 'Application...' : `Appliquer (${bulkReviewSelectedIds.size})`}
+                </Button>
+              </DialogFooter>
+            </div>
+          </DialogContent>
+        </DialogPortal>
+      </Dialog>
+
+      {/* Confirmation groupée des PNJ tombés à 0 PV après un "Tout appliquer" — évite
+          d'enchaîner un dialog de suppression par personnage. */}
+      <Dialog open={isBulkDeathDialogOpen} onOpenChange={setIsBulkDeathDialogOpen}>
+        <DialogPortal>
+          <DialogOverlay className="bg-black/50 backdrop-blur-sm" />
+          <DialogContent className="bg-[var(--bg-card)] border-[var(--border-color)]">
+            <DialogHeader>
+              <DialogTitle className="text-[var(--text-primary)]">
+                PNJ tombés à 0 PV ({bulkDeathCandidates.length})
+              </DialogTitle>
+              <DialogDescription className="text-[var(--text-secondary)]">
+                Décochez ceux à conserver (ex : un boss avec une seconde phase).
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-2 max-h-72 overflow-y-auto">
+              {bulkDeathCandidates.map(character => (
+                <label
+                  key={character.id}
+                  className="flex items-center gap-3 p-2.5 rounded-lg bg-[var(--bg-dark)] border border-[var(--border-color)] cursor-pointer hover:border-red-500/50 transition-colors"
+                >
+                  <input
+                    type="checkbox"
+                    checked={bulkDeathSelectedIds.has(character.id)}
+                    onChange={(e) => {
+                      setBulkDeathSelectedIds(prev => {
+                        const next = new Set(prev)
+                        if (e.target.checked) next.add(character.id)
+                        else next.delete(character.id)
+                        return next
+                      })
+                    }}
+                    className="h-4 w-4 accent-red-500 shrink-0"
+                  />
+                  <Avatar className="h-8 w-8 border border-[var(--border-color)]">
+                    <AvatarImage src={character.avatar} alt={character.name} className="object-cover" />
+                    <AvatarFallback>{character.name[0]}</AvatarFallback>
+                  </Avatar>
+                  <span className="font-medium text-[var(--text-primary)] truncate">{character.name}</span>
+                </label>
+              ))}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setIsBulkDeathDialogOpen(false)}>Ignorer</Button>
+              <Button variant="destructive" onClick={confirmBulkDeaths}>
+                Supprimer ({bulkDeathSelectedIds.size})
+              </Button>
             </DialogFooter>
           </DialogContent>
         </DialogPortal>

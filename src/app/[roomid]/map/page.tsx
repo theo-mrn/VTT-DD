@@ -53,6 +53,7 @@ import { useShortcuts, SHORTCUT_ACTIONS } from '@/contexts/ShortcutsContext';
 import { useUndoRedo } from '@/contexts/UndoRedoContext';
 import { useFirestoreWithHistory } from '@/hooks/map/useFirestoreWithHistory';
 import { useCharacterPositions } from '@/hooks/map/useCharacterPositions';
+import { useActiveAttackTargets } from '@/hooks/map/useActiveAttackTargets';
 import type { PositionsMap } from '@/hooks/map/useCharacterPositions';
 import { useCharacterBubbles } from '@/hooks/map/useCharacterBubbles';
 import CharacterBubblesLayer from '@/components/(map)/layers/CharacterBubblesLayer';
@@ -1255,6 +1256,11 @@ export default function Component() {
   useEffect(() => { activePlayerIdRef.current = activePlayerId; }, [activePlayerId]);
   useEffect(() => { showCharBordersRef.current = showCharBorders; }, [showCharBorders]);
 
+  // 🎯 Cibles attaquées par le personnage actif du tour (surlignage MJ) — uniquement
+  // si l'attaquant actif est un joueur, jamais pour un PNJ/allié ni hors de son tour.
+  const isActivePlayerAPlayerCharacter = characters.find(c => c.id === activePlayerId)?.type === 'joueurs';
+  const attackedTargetIds = useActiveAttackTargets(roomId, activePlayerId, isActivePlayerAPlayerCharacter);
+
   // 🆕 EFFET DE SYNCHRONISATION DE SCÈNE (PRIORITÉ AU PERSONNAGE)
   useEffect(() => {
     // ⚠️ Tant que settings/general n'a pas répondu au moins une fois, on ne sait pas
@@ -1512,6 +1518,7 @@ export default function Component() {
       persoId, viewAsPersoId, activePlayerId, selectedCharacters,
       isSelectingArea, selectionStart, selectionEnd, globalTokenScale,
       showAllBadges, visibleBadges, isLayerVisible, isCharacterVisibleToUser,
+      attackedTargetIds,
     };
 
     const measureRenderState = {
@@ -1601,6 +1608,7 @@ export default function Component() {
     fullMapFog, selectedCharacterIndex, selectedObjectIndices, selectedNoteIndex,
     selectedMusicZoneIds, globalTokenScale, performanceMode, playerViewMode,
     isMJ, viewAsPersoId, activePlayerId, showCharBorders, showAllBadges, visibleBadges,
+    attackedTargetIds,
     // Interactive state
     isSelectingArea, selectionStart, selectionEnd, selectedCharacters,
     isDraggingCharacter, draggedCharacterIndex, draggedCharactersOriginalPositions,

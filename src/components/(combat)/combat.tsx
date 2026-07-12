@@ -355,9 +355,25 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
     return Array.from({ length: numDice }).reduce((acc: number) => acc + Math.floor(Math.random() * numFaces) + 1, 0) + mod
   }
 
+  // Signale immédiatement (dès le lancer du dé, avant le résultat) quelles cibles
+  // sont engagées par cette attaque, pour que le MJ voie le surlignage sur la carte
+  // sans attendre la fin du jet de dégâts.
+  const markTargetsEngaged = async () => {
+    if (!roomId) return
+    const targetsToMark = targets.length > 0 ? targets : (targetId ? [{ id: targetId }] : [])
+    if (targetsToMark.length === 0) return
+    try {
+      await setDoc(doc(db, `cartes/${roomId}/combat/${attackerId}/engaged/current`), {
+        targets: targetsToMark.map(t => t.id),
+        timestamp: Date.now(),
+      })
+    } catch (e) { console.error(e) }
+  }
+
   const handleAttack = (type: AttackType) => {
     setSelectedAttackType(type)
     setStep('ATTACK_ROLLING')
+    markTargetsEngaged()
 
     // Quick delay for feel
     setTimeout(() => {
@@ -840,6 +856,7 @@ export default function CombatPage({ attackerId, targetId, targetIds, onClose }:
                       <Button
                         {...tap(() => {
                           setStep('ATTACK_ROLLING')
+                          markTargetsEngaged()
                           setTimeout(() => {
                             const total = rollDice(actionDice.numDice, actionDice.numFaces, actionDice.modifier)
                             setAttackResult(total)

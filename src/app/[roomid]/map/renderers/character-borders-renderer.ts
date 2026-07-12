@@ -21,6 +21,8 @@ export interface CharacterBorderRenderState {
   visibleBadges: Set<string>;
   isLayerVisible: (layerId: LayerType) => boolean;
   isCharacterVisibleToUser: (char: Character) => boolean;
+  /** IDs des personnages ciblés par l'attaque en cours du personnage actif (MJ only). */
+  attackedTargetIds?: Set<string>;
 }
 
 export const drawCharacterBorders = (
@@ -49,6 +51,7 @@ export const drawCharacterBorders = (
     visibleBadges,
     isLayerVisible,
     isCharacterVisibleToUser,
+    attackedTargetIds,
   } = state;
 
   const canvas = ctx.canvas;
@@ -56,14 +59,42 @@ export const drawCharacterBorders = (
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Don't draw borders if disabled
-  if (!showCharBorders) return;
-
   const scale = Math.min(containerWidth / imgWidth, containerHeight / imgHeight);
   const scaledWidth = imgWidth * scale * zoom;
   const scaledHeight = imgHeight * scale * zoom;
 
   const effectiveIsMJ = isMJ && !playerViewMode;
+
+  // Surlignage MJ des cibles attaquées : reste TOUJOURS visible pour le MJ, comme le
+  // rayon de visibilité, indépendamment du toggle "Bordures" (raccourci J / showCharBorders).
+  if (isMJ && attackedTargetIds && attackedTargetIds.size > 0 && isLayerVisible('characters')) {
+    characters.forEach((char) => {
+      if (!attackedTargetIds.has(char.id)) return;
+
+      const x = (char.x / imgWidth) * scaledWidth - offset.x;
+      const y = (char.y / imgHeight) * scaledHeight - offset.y;
+
+      const isPlayerCharacter = char.type === 'joueurs';
+      const charScale = char.scale || 1;
+      const finalScale = charScale * globalTokenScale;
+      const baseBorderRadius = (isPlayerCharacter ? 0.029 : 0.02) * imgWidth;
+      const borderRadius = baseBorderRadius * finalScale * zoom * scale;
+      const targetRadius = borderRadius * 1.06;
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 140, 0, 0.95)';
+      ctx.lineWidth = Math.max(2.5, borderRadius * 0.06);
+      ctx.shadowColor = 'rgba(255, 140, 0, 0.9)';
+      ctx.shadowBlur = borderRadius * 0.35;
+      ctx.beginPath();
+      ctx.arc(x, y, targetRadius, 0, 2 * Math.PI);
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+
+  // Don't draw the rest (selection/badge/active-player borders) if disabled
+  if (!showCharBorders) return;
 
   if (isLayerVisible('characters')) {
     characters.forEach((char, index) => {
@@ -188,9 +219,7 @@ export const drawCharacterBorders = (
         const isBadgeVisible = showAllBadges || visibleBadges.has(char.id);
         const isGMAndActivePlayer = isMJ && char.id === activePlayerId;
 
-        // Only draw if selected, badge visible, or important GM info (active player)
-        if (isSelected || isAreaMatch || isBadgeVisible || isGMAndActivePlayer) {
-          // Draw character border circle or square
+        const traceShape = () => {
           ctx.beginPath();
           if (char.shape === 'square') {
             // Draw rounded square (matching rounded-lg ~ 0.5rem = 8px usually, but scaling with zoom)
@@ -206,6 +235,13 @@ export const drawCharacterBorders = (
             // Default Circle
             ctx.arc(x, y, borderRadius, 0, 2 * Math.PI);
           }
+        };
+
+        // Only draw if selected, badge visible, or important GM info (active player)
+        if (isSelected || isAreaMatch || isBadgeVisible || isGMAndActivePlayer) {
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = lineWidth;
+          traceShape();
           ctx.stroke();
         }
       }
